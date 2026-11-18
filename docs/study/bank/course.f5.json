@@ -12761,7 +12761,7 @@
      {
       "accessed": "2026-11-08",
       "name": "Our trading rules",
-      "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.) … Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade. … The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20). … The full size at one price with one stop; no adding.",
+      "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.) … Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade. … The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20). … We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
       "tier": 3,
       "url": null
      },
@@ -12794,7 +12794,7 @@
       "url": "https://www.philadelphiafed.org/-/media/FRBP/Assets/working-papers/2021/wp21-07.pdf"
      }
     ],
-    "summary": "Our default stop is the low of the day or the prior day's low. Our stop goes first, a few cents under the day's low or the prior day's low, and the size comes from it. Our stop is the exit: it only moves up, never down or wider, except under our gap rule. We buy the full size at one price with one stop, and never add to it. In Bulkowski's reading of their rules, Kacher and Morales sell on a close below the gap day's low. Nobody knows which earnings gap will work, so the stop stays in place. Risk per trade divided by risk per share gives the share count. Several recent studies argue the classic drift has shrunk to almost nothing."
+    "summary": "Our default stop is the low of the day or the prior day's low. Our stop goes first, a few cents under the day's low or the prior day's low, and the size comes from it. Our stop is the exit: it only moves up, never down or wider, except under our gap rule. The full size goes on at one price with one stop: no starter piece, and never an add to a loser. In Bulkowski's reading of their rules, Kacher and Morales sell on a close below the gap day's low. Nobody knows which earnings gap will work, so the stop stays in place. Risk per trade divided by risk per share gives the share count. Several recent studies argue the classic drift has shrunk to almost nothing."
    },
    "facts": {
     "given": "It's getting close to your stop. What do you do? You bought an earnings gap on day one. Your stop sits a few cents under the day-one low. On day two the stock slides back toward it. Let the stop work if it's hit Cancel the stop and wait for drift Buy more at the lower price Lower the stop to give it room"
@@ -12805,7 +12805,7 @@
    "unit": "F5.07",
    "why": "Let the stop work. You picked that line before you bought, while you were thinking clearly. If price breaks it, the trade's wrong, and you're out with the loss you planned. Don't cancel it, lower it, or buy more. Each one turns a small planned loss into a bigger one. Nobody knows which earnings gap will work, and that's exactly why the stop stays in. If it holds and turns back up, great. Either way the stop makes the call, not your nerves.",
    "wrong": {
-    "Buy more at the lower price": "That's adding to a loser. We buy the full size at one price with one stop, and never add.",
+    "Buy more at the lower price": "That's adding to a loser, and we never do that. The full size went on at one price, with one stop.",
     "Cancel the stop and wait for drift": "The drift is an average, and it's shrunk. It won't rescue a trade that's breaking.",
     "Lower the stop to give it room": "Our stop only moves up, never down or wider. Lower it, and the same shares risk more dollars."
    }
@@ -12847,12 +12847,12 @@
      {
       "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA. … The full size at one price with one stop; no adding. … Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade. … 9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade. … 9 and 20 EMA everywhere, with the 50 and 200 SMA. … Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy. We buy the full size at one price with one stop, and never add to it. Our stop goes first, a few cents under the day's low or the prior day's low, and the size comes from it. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+    "summary": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy. The full size goes on at one price with one stop: no starter piece, and never an add to a loser. Our stop goes first, a few cents under the day's low or the prior day's low, and the size comes from it. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA. Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
    },
    "facts": {
     "given": "What's the play? A stock gaps up on strong earnings and closes near its high on huge volume. At your planned entry it sits 14% above its 9 EMA. Skip it, it's too stretched to buy Buy it, the close and volume are strong Buy half now, add on a pullback Buy it, but set a tighter stop"
@@ -12863,7 +12863,7 @@
    "unit": "F5.07",
    "why": "Skip it. It's 14% above the 9 EMA, and we skip a long that's more than 10% above it. That's too stretched to buy. A strong close and huge volume don't change the distance. That far over the 9 EMA, a stock often needs some time to build out before the next leg. Buy it here and you're the one sitting through that. A tighter stop doesn't fix it, it just puts your stop in the noise. Put it on your radar and let it set up.",
    "wrong": {
-    "Buy half now, add on a pullback": "We buy the full size at one price with one stop, and never add. And this one's too stretched anyway.",
+    "Buy half now, add on a pullback": "No starter piece. We buy the full size at one price with one stop, and an add is never the plan. This one's too stretched anyway.",
     "Buy it, but set a tighter stop": "Our stop goes a few cents under the low of the day. Squeezing it tighter doesn't fix the stretch.",
     "Buy it, the close and volume are strong": "Strong close, big volume, still 14% above the 9 EMA. Past 10%, we skip it."
    }

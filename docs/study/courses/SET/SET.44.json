@@ -2,7 +2,7 @@
  "unit": "SET.44",
  "track": "SET",
  "title": "Holy Grail",
- "teaches": "The Holy Grail as we trade it: a leader in a strong, young trend whose ADX pushed up and rose before the pullback makes its first touch of the rising 20-day EMA with the low holding over the 50-day, the buy is a market order as it trades over the prior day's high, the stop sits a few cents under the swing low the pullback just made, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest trailed on the 10-day, and a failed Grail closes that stock until it makes a new momentum high.",
+ "teaches": "The Holy Grail as we trade it: a leader in a strong, young trend whose ADX pushed up and rose before the pullback makes its first touch of the rising 20-day EMA with the low holding over the 50-day, the buy is a market order as it trades over the prior day's high, the stop sits a few cents under the swing low the pullback just made, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest trailed on the 9 or 20 EMA, and a failed Grail closes that stock until it makes a new momentum high.",
  "skills": [
   {
    "id": "setup.holy_grail",
@@ -1065,6 +1065,12 @@
    "source": "h2",
    "quote": "Below the 200-day is a hard no for stocks. The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
    "claim": "Owner: below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the one exception."
+  },
+  {
+   "id": "hwa",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece and never an add to a loser. An add to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1744,14 +1750,14 @@
     "h02",
     "d29",
     "d30",
-    "h03b",
+    "hwa",
     "h06",
     "h07"
    ],
    "wrong": {
     "Hold, the 20 EMA will catch it": "The line already failed. Hold here and you've swapped a planned loss for a hope.",
     "Move the stop under the 50-day": "The stop only moves up. Moving it down makes the loss bigger than you planned.",
-    "Buy more, it's cheaper here": "We buy once, full size, one stop. Adding to a loser is how accounts get hurt."
+    "Buy more, it's cheaper here": "Never add to a loser. That's how accounts get hurt."
    },
    "story": "You bought at 49.79 after a first touch of the 20 EMA, stop at 48.55. The next morning it opens above your stop, then trades down through it.",
    "house": true,
@@ -1767,7 +1773,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "BAC",
     "asof": "2006-05-16",
@@ -1999,7 +2005,7 @@
    "why": "True. You bought the full size at one price, with one stop, and that stop already sized it. Adding on the dip raises your cost and your risk while it's going the wrong way. If it holds, the shares you have do the work. If it stops out and sets up again later, that's a new trade with its own stop.",
    "lesson_line": "One price, one stop, full size.",
    "facts": [
-    "h03b",
+    "hwa",
     "h28"
    ],
    "house": true,
@@ -2223,18 +2229,18 @@
     "Add shares on the gap"
    ],
    "answer": "Weigh selling some into it",
-   "why": "Weigh selling some into it. That's the kind of spot I like for a first sell: day five, a push, and a gap up into strength. It's still a judgment, not a rule. Some days I sell a piece into the gap. Some days I let it run and trail it. What you don't do is dump it all because of a number, or add on a gap.",
+   "why": "Weigh selling some into it. That's the kind of spot I like for a first sell: day five, a push, and a gap up into strength. It's still a judgment, not a rule. Some days I sell a piece into the gap. Some days I let it run and trail it. What you don't do is dump it all because of a number, or buy more into the gap.",
    "lesson_line": "A gap into a push is a spot to weigh a sell, not a rule.",
    "facts": [
+    "hwa",
     "r70",
     "r72",
-    "r71",
-    "h03b"
+    "r71"
    ],
    "wrong": {
     "Sell a third, 3R is the rule": "3R isn't a sell rule. The first sell is a judgment.",
     "Sell it all at the open": "A gap up isn't a reason to dump everything. What you keep gets trailed.",
-    "Add shares on the gap": "No adds. One entry, one price, one stop."
+    "Add shares on the gap": "A gap into a push is where you weigh selling. Buying more up here is chasing your own winner."
    },
    "story": "You bought a Holy Grail on Monday. Thursday it closes at 2.5R. Friday, the fifth session of the trade, it gaps open to 3.4R.",
    "house": true,
@@ -2246,7 +2252,7 @@
      "rests on the owner's rulebook (F63, B19, E51)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q29",
@@ -3123,14 +3129,14 @@
     "d05",
     "d06",
     "r70",
-    "h03b",
+    "hwa",
     "h21",
     "r80"
    ],
    "wrong": {
     "Hold it all, let it run": "A climax is the strength we sell into. Hold it all and you give a lot back.",
     "Sell all of it at 5R": "5R isn't an exit. Sell a big part and trail the rest.",
-    "Add shares, it's strong": "We don't add. A vertical leg is where you sell."
+    "Add shares, it's strong": "Never add into a vertical leg. That's where you sell."
    },
    "story": "You bought at 91.78 with the stop at 88.88 on the trigger. It hits 3R in five sessions and you hold. Then a parabolic leg carries it well past 5R, and it goes vertical.",
    "house": true,
@@ -3146,7 +3152,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "LITE",
     "asof": "2025-07-10",
@@ -3385,18 +3391,18 @@
    "why": "A few of the best ones. The first Green day after a correction can be a head fake. Buy all seven, the turn fails, and seven stops hit at once. Start with a few. If they work, the market's telling you the turn is real, and you open more. If they fail, you lost a little and you're mostly in cash. Each one still goes on at full size, one price, one stop. Let the market earn your exposure.",
    "lesson_line": "Green after a correction: a few first. Let the market earn your exposure.",
    "facts": [
+    "hwa",
     "h27",
-    "h26",
-    "h03b"
+    "h26"
    ],
    "wrong": {
     "All seven, Green is full risk": "Full risk is where Green can take you, not day one. If the turn fails, seven stops hit at once.",
     "None, wait a week": "Waiting a week isn't the plan. Start with a few and let them tell you.",
-    "One, and add to it later": "We don't add to a trade. More exposure means more positions, each at full size."
+    "One, and add to it later": "An add is never the plan. More exposure means more positions, each at full size."
    },
    "story": "After a correction, the market filter just turned Green. Seven leaders on your list trigger today off a first touch of the 20 EMA.",
    "house": true,
-   "simple": "A few of the best. The first Green day can be a fake, so let the first ones work before adding more.",
+   "simple": "A few of the best. The first Green day can be a fake, so let the first ones work before opening more.",
    "deeper": {
     "trap": "The trap is reading add as they work as adding shares. It means more positions. Start with a few, then open more as the first ones work. Each one still goes on at full size, at one price, with one stop."
    },
@@ -3409,7 +3415,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q60",
@@ -3749,13 +3755,13 @@
     "h16",
     "h33",
     "h21",
-    "h03b",
+    "hwa",
     "h02",
     "r80"
    ],
    "wrong": {
     "Hold it until the trail sells it": "The trail is the default exit. A climax run gets sold into first, a big part, by judgment.",
-    "Add shares while it's strong": "No adding. The full size went on at one price with one stop.",
+    "Add shares while it's strong": "Never add into a burst. It's strength you sell into.",
     "Lower the stop to give it room": "The stop only moves up, never down or wider."
    },
    "house": true,
@@ -3768,7 +3774,7 @@
      "+1 how much to sell is a judgment call, so the key stays at a big part"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   }
  ],
  "conflicts": [
@@ -3911,7 +3917,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and key rechecked against facts; voice fine."
+   "notes": "Agrees: never add to a loser; 1.24 / 49.79 = 2.5% checks. Voice 4."
   },
   "q18": {
    "status": "pass",
@@ -3946,8 +3952,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice 3: stem was a rule restated. Now a real moment (dip the day after the buy). Stays True to keep the true/false balance. Writer voice 3."
+   "fixed": false,
+   "notes": "Agrees: a dip the day after the buy is not a reason to add. Voice 4."
   },
   "q24": {
    "status": "pass",
@@ -3976,8 +3982,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Numbers and key rechecked against facts; voice fine."
+   "fixed": true,
+   "notes": "Writer's wrong text for 'Add shares on the gap' said only that an add is rare, which leaves a member thinking this could be the rare one. The reason it's wrong here is the spot: a gap into a push on day five is where you weigh selling. Tightened the why's last line too ('to plan an add' read stiff). Voice 3 -> 4."
   },
   "q29": {
    "status": "pass",
@@ -4115,7 +4121,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and key rechecked against facts; voice fine."
+   "notes": "Agrees: never add into a vertical leg. Voice 4."
   },
   "q52": {
    "status": "cut",
@@ -4163,7 +4169,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and key rechecked against facts; voice fine."
+   "notes": "Agrees: 'add as they work' means more positions; a planned add is never ours; each at full size. Voice 4."
   },
   "q60": {
    "status": "pass",
@@ -4175,7 +4181,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and key rechecked against facts; voice fine."
+   "notes": "False alarm for MA-50-200: only price against the 50-day and 200-day. Voice 4."
   },
   "q62": {
    "status": "pass",
@@ -4217,7 +4223,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and key rechecked against facts; voice fine."
+   "notes": "Agrees: never add into a burst. Voice 4."
   }
  }
 }

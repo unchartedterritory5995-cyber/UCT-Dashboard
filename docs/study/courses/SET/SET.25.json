@@ -713,6 +713,12 @@
    "source": "h2",
    "quote": "Below the 200-day is a hard no for stocks.",
    "claim": "D-009: below the 200-day is a hard no for stocks."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1889,7 +1895,7 @@
     "o_failed",
     "o_failed2",
     "h02",
-    "h31"
+    "rw_add"
    ],
    "wrong": {
     "Add a second lot on the dip": "Never add to a trade that's flashing a warning. One price, one stop.",
@@ -2115,13 +2121,13 @@
    "lesson_line": "Ten days and under 1R, I'm out. Money goes where it's working.",
    "facts": [
     "h15",
-    "h31",
+    "rw_add",
     "h02"
    ],
    "wrong": {
     "Widen the stop for more room": "A stop only moves up, never wider.",
     "Hold for the 5R push": "There's no push. Ten days under 1R is the time stop.",
-    "Add on a break of the range": "We buy once, at one price. No adding."
+    "Add on a break of the range": "Ten days and it hasn't worked. That doesn't earn more money. We buy once, at one price."
    },
    "house": true,
    "simple": "Sell it. A trade still under 1R after ten days gets cut, so your money goes to something working.",
@@ -2139,7 +2145,7 @@
    "depends_on": [
     "D-019"
    ],
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q37",
@@ -3775,8 +3781,8 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Holding to the stop on a failed reclaim is right (o_failed). The wrong note on moving the stop under 31.30 now says why it's a mistake."
+   "fixed": false,
+   "notes": "back under the 31.50 prior close and the buy, so never add to a trade flashing a warning; the 31.12 stop is the exit. Voice 4."
   },
   "q32": {
    "status": "pass",
@@ -3805,8 +3811,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper said 'the story's trade', a working phrase; rewritten in his voice. Time stop matches h15."
+   "fixed": false,
+   "notes": "adding to a dead trade under 1R after ten days is wrong on its own terms. Voice 4."
   },
   "q37": {
    "status": "cut",

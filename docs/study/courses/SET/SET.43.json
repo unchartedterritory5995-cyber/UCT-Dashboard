@@ -2,7 +2,7 @@
  "unit": "SET.43",
  "track": "SET",
  "title": "Pullback to the Moving Averages",
- "teaches": "The pullback to the moving averages as we trade it: a leader in a stacked, rising trend drifts quietly onto a rising 10-day or 50-day, a session closes at or above the line, the buy is a market order as price trades over that session's high, the stop sits a few cents under the pullback low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss taken at the stop is the system working.",
+ "teaches": "The pullback to the moving averages as we trade it: a leader in a stacked, rising trend drifts quietly onto a rising 20 EMA or 50-day, a session closes at or above the line, the buy is a market order as price trades over that session's high, the stop sits a few cents under the pullback low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.ma_pullbacks",
@@ -1007,6 +1007,30 @@
    "source": "h2",
    "quote": "When the day gaps more than 4% past it, one more way in is allowed: buy intraday on a morning flush or pullback that curls back up",
    "claim": "On a gap more than 4% past the trigger, one more way in: an intraday morning flush or pullback that curls back up."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
+  },
+  {
+   "id": "ma1",
+   "source": "hw",
+   "quote": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call.",
+   "claim": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call."
+  },
+  {
+   "id": "aw_r",
+   "source": "h2",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1119,12 +1143,13 @@
    "criterion": "map.above_200",
    "q": "On pullbacks we like, price is over the 200-day and the 20 EMA sits over the 50 over the 200.",
    "answer": "True",
-   "why": "True. That's what a leader looks like while it rests: everything stacked and pointed the right way. Price over the 200-day is the hard line, because we don't buy stocks under it. The 20 over the 50 over the 200 is what we like to see on top of that. It tells you the short, middle and long trends agree. A clean stack only puts the stock on your radar, though. You still need the dip, the hold and the trigger.",
+   "why": "True. That's what a leader looks like while it rests: everything stacked and pointed the right way. Price over the 200-day is the hard line, because we don't buy stocks under it. The 50 over the 200 is mostly a must, not always. The 20 over the 50 on top of that is what we like to see. It tells you the short, middle and long trends agree. A clean stack only puts the stock on your radar, though. You still need the dip, the hold and the trigger.",
    "lesson_line": "Price over the 200-day, averages stacked. That's a leader resting.",
    "facts": [
     "c01",
     "hB26",
-    "v43b"
+    "v43b",
+    "ma1"
    ],
    "house": true,
    "simple": "True. We want price over the 200-day and the averages stacked, the 20 over the 50 over the 200.",
@@ -1139,7 +1164,7 @@
      "the 50-over-200 order is the card's rule, not B26"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q03",
@@ -1264,10 +1289,9 @@
    ],
    "answer": "Full size, one price, one stop",
    "why": "Full size, one price, one stop. That's how we buy everything. Your risk is set the moment you're in. One entry and one stop, and you know exactly what you lose if it fails. Scaling in or adding lower just means more shares in a trade that's going against you. And the stop only moves up, never down.",
-   "lesson_line": "One price, one stop, full size. No adding.",
+   "lesson_line": "One price, one stop, full size. No starter, no scaling in.",
    "facts": [
-    "c20",
-    "hA5b",
+    "aw1",
     "hA4"
    ],
    "wrong": {
@@ -1284,7 +1308,7 @@
      "+2 rests on the owner's rulebook (A5, adds settled as D-135)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q07",
@@ -1993,8 +2017,7 @@
    "why": "Nothing. You bought full size at 190 with one stop. The dip to 186 is just the stock being a stock. If the line holds, great. If it breaks, the stop takes you out at the loss you already planned. Adding here doubles down on a trade that isn't working yet. Lowering the stop makes the loss bigger. Sit on your hands.",
    "lesson_line": "A dip after the buy changes nothing. Your stop still decides.",
    "facts": [
-    "c20",
-    "hA5b",
+    "aw_r",
     "hA4",
     "r71"
    ],
@@ -3470,7 +3493,7 @@
    "facts": [
     "hB20",
     "hB20b",
-    "hA5b"
+    "aw_r"
    ],
    "wrong": {
     "Wait for a bounce to the old stop": "The first 30 minutes decide, and past 2R you're out. Hoping isn't a plan.",
@@ -3808,7 +3831,7 @@
    "wrong": {
     "Sell now, it broke the 9 EMA": "The sale comes on a close below the line, not a dip under it during the day.",
     "Hold, but switch to the 20 EMA": "A fast mover rides the 9 EMA. The 20 EMA is for steadier movers.",
-    "Add back the shares you sold": "No adds. What's left rides the trail until a close below it."
+    "Add back the shares you sold": "Buying back what you sold isn't the plan. What's left rides the trail until a close below it."
    },
    "house": true,
    "story": "A fast mover you bought has run well past 5R, and you've sold part of it on the way up. Today it trades under the 9 EMA at midday, then finishes the day above it.",
@@ -3824,7 +3847,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q72",
@@ -4375,12 +4398,13 @@
    "lesson_line": "Into a climax run, sell a big part. How much is your call.",
    "facts": [
     "hC34",
-    "hA5b",
+    "aw1",
     "r70",
-    "r91"
+    "r91",
+    "aw2"
    ],
    "wrong": {
-    "Add at the gap, it's strong": "No adds. A climax is where we sell, not where we buy more.",
+    "Add at the gap, it's strong": "Never into a climax. That's where we sell, not where we buy more.",
     "Hold it all, trail the 20 EMA": "On a climax run we sell a big part into it. We don't wait for the trail.",
     "Sell a fixed third, like always": "There's no fixed third. On a climax run you sell a big part, and how much is your call."
    },
@@ -4388,7 +4412,7 @@
    "story": "Your pullback buy has run four days and is still short of 3R. It gapped up twice on rising volume, and today it gaps up again on its widest range yet.",
    "simple": "Sell a big part into the burst. On a climax run in your own stock, we sell into the strength.",
    "deeper": {
-    "trap": "Selling a big part isn't selling everything, and how much is your call. Adding because the run looks strong is the opposite: one entry at one price, no adds."
+    "trap": "Selling a big part isn't selling everything, and how much is your call. Adding into a climax because the run looks strong is the opposite. Never add into a burst like this."
    },
    "tier": "expert",
    "risk": {
@@ -4398,7 +4422,7 @@
      "rests on the owner's rulebook, whose answer was 'yes but depends'"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q87",
@@ -4492,18 +4516,19 @@
     "Add, it just gapped up"
    ],
    "answer": "Weigh selling some into the gap",
-   "why": "Weigh selling some into the gap. It opened at 43.10, over your 5R level of 42.50, on day 4 of the push. A gap past a profit level isn't an automatic sell. But day 4 of a strong push, on news, is a fair spot for a first sell. Selling part here is your judgment. Holding the rest on the trail is fine too. Just don't add.",
+   "why": "Weigh selling some into the gap. It opened at 43.10, over your 5R level of 42.50, on day 4 of the push. A gap past a profit level isn't an automatic sell. But day 4 of a strong push, on news, is a fair spot for a first sell. Selling part here is your judgment. Holding the rest on the trail is fine too. Adding into the gap isn't the plan.",
    "lesson_line": "A gap over a profit level is a time to weigh a sale, not a rule.",
    "facts": [
     "rg1",
     "r70",
     "r72",
-    "hA5b"
+    "aw1",
+    "aw2"
    ],
    "wrong": {
     "Sell everything left at the open": "We sell in parts and trail the rest. A gap up isn't an exit signal.",
     "Sell a third, 5R is the rule": "No profit level is a rule. The first sell is a judgment, and a gap doesn't force it.",
-    "Add, it just gapped up": "No adds. One entry, one price, one stop."
+    "Add, it just gapped up": "A gap isn't a reason to add. An add to a winner is rare, a feel call, never the plan."
    },
    "house": true,
    "simple": "Weigh selling some. A gap past a profit level never forces a sale, and day 4 is a fair spot for a first sell.",
@@ -4517,7 +4542,7 @@
      "rests on the owner's rulebook (F63, take the trim at the open; E51, a third at 5R)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   }
  ],
  "conflicts": [
@@ -4546,7 +4571,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True stays true. 200-day is the hard line; the stack is 'what we like to see', not called a must. Good."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q03": {
    "status": "cut",
@@ -4569,8 +4594,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "One price, one stop (A5, A4). Named mistakes. Fine."
+   "fixed": true,
+   "notes": "edit right; dropped c20 ('no adds'), aw1 covers it"
   },
   "q07": {
    "status": "pass",
@@ -4942,7 +4967,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Close below the 9 EMA, not an intraday dip. Fine."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "w1": {
    "status": "pass",
@@ -5050,7 +5075,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C34 climax sell, how much is judgment. Fine."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q87": {
    "status": "pass",
@@ -5068,7 +5093,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Gap-open sell is optional judgment (GAP-TRIM), day 4 inside the 3-5-7 push. Fine."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   }
  }
 }

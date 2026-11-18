@@ -128,6 +128,14 @@
    "title": "The house sizing rule, section 5: Portfolio layer (the owner quoted, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#5-portfolio-layer",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-17)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -388,6 +396,12 @@
    "source": "s13",
    "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
    "claim": "Our gap rule (B20, G70): on a gap against the stop, if the first 30 minutes take the loss past 2R, we get out."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -960,11 +974,11 @@
     "f30",
     "f20",
     "f02",
-    "h01"
+    "aw1"
    ],
    "wrong": {
     "Same size, move the stop closer": "That bends the stop to fit the math. Now it sits inside the normal swings, and a routine dip takes you out.",
-    "Buy half now, add the rest later": "Once the rest goes on, the full 1.5% sits on top of your 5%, past your limit. And we don't add. Our size goes on at one price, with one stop.",
+    "Buy half now, add the rest later": "Once the rest goes on, the full 1.5% sits on top of your 5%, past your limit. And there's no starter piece. Our size goes on at one price, with one stop.",
     "Raise your limit to 7% this once": "Your limit moves with the market, not with one setup you like. Raise it for every good-looking trade and your total risk creeps up."
    },
    "simple": "Buy fewer shares so it risks 1%, and leave the stop where it belongs.",
@@ -980,7 +994,7 @@
      "final check: dropped 'the cap can stretch', which q23 and A10 make defensible"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Your limit",
@@ -1137,18 +1151,18 @@
     "Sell now, it's under entry"
    ],
    "answer": "Hold it and leave it alone",
-   "why": "Hold it and leave it alone. At $38.80 you're down a bit, but the $38 stop hasn't been touched, so the plan still stands. Nothing's wrong until $38 says so. Cheaper here just means it's going against you. We put the full size on at one price with one stop, and we never add. Least of all to a loser. Buy more at $38.80 and that same $38 stop now covers more shares, so a hit costs more than you planned. The stop is your exit. Not your entry price, and not a friend's tip.",
-   "lesson_line": "We never add, least of all to a loser. The stop decides when you're wrong.",
+   "why": "Hold it and leave it alone. At $38.80 you're down a bit, but the $38 stop hasn't been touched, so the plan still stands. Nothing's wrong until $38 says so. Cheaper here just means it's going against you. We put the full size on at one price with one stop, and we never add to a loser. Buy more at $38.80 and that same $38 stop now covers more shares, so a hit costs more than you planned. The stop is your exit. Not your entry price, and not a friend's tip.",
+   "lesson_line": "We never add to a loser. The stop decides when you're wrong.",
    "facts": [
-    "h01",
     "h02",
     "h04",
     "f09",
-    "f27"
+    "f27",
+    "aw1"
    ],
    "wrong": {
-    "Add more, it's cheaper now": "That's averaging down. It's cheaper only because it's going against you. And we don't add.",
-    "Add more and lower the stop": "Two mistakes at once. Our stop only moves up, never down. And we don't add.",
+    "Add more, it's cheaper now": "That's averaging down. It's cheaper only because it's going against you, and we never add to a loser.",
+    "Add more and lower the stop": "Two mistakes at once. Our stop only moves up, never down. And we never add to a loser.",
     "Sell now, it's under entry": "Your entry isn't your exit. The stop is, and $38 hasn't been hit."
    },
    "simple": "Hold it and add nothing. Your full size went on at one price with one stop, and $38 hasn't been hit.",
@@ -1162,7 +1176,7 @@
      "rests on the owner's rulebook (A4, A5)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q18",
@@ -1607,8 +1621,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "6 - 5 = 1% room; size down keeps the stop (A3, f30). The wrong note on raising the limit said 'set your limit in your plan', which sits badly with A10 (total open risk is a guide that moves with the market). Rewritten so the limit moves with the market, never with one setup."
+   "fixed": false,
+   "notes": "Agrees: no starter piece, one price one stop. 6 - 5 = 1% room, right. Voice 4."
   },
   "q13": {
    "status": "pass",
@@ -1619,8 +1633,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right on f14/f13. 'FINRA gives this exact mix' overstated (FINRA's example is tech companies plus a tech fund); now 'this kind of mix'."
+   "fixed": false,
+   "notes": "Kept: chip ETF 'adds more of the same risk' is exposure, not shares. Voice 5."
   },
   "q15": {
    "status": "cut",
@@ -1638,7 +1652,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Hold is right: A5 (full size, one price, one stop, no adding), A4 (stop only moves up, the exit). $38.80 above the $38 stop. Hirsch and Roze are in deeper. Reads like him."
+   "notes": "Agrees: never add to a loser; $38.80 under the $40 entry, $38 stop untouched, hold is right. Voice 4."
   },
   "q18": {
    "status": "pass",

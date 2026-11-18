@@ -781,6 +781,18 @@
    "source": "h1",
    "quote": "shorts only below the 200-day, never above it unless it is a parabolic short",
    "claim": "B26: shorts only below the 200-day, unless parabolic."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
   }
  ],
  "walkthroughs": [
@@ -1123,13 +1135,13 @@
    "facts": [
     "c08",
     "h02",
-    "h28",
+    "aw1",
     "h20a",
     "h20"
    ],
    "house": true,
    "wrong": {
-    "A dip, buy more shares": "That's adding to a loser. We buy full size at one price with one stop, no adds.",
+    "A dip, buy more shares": "That's adding to a loser, and we never do it. Your full size went in at one price, with one stop.",
     "A risk, widen your stop": "The stop only moves up. Giving it room is how a small loss turns into a big one.",
     "Sell it all at the open": "That's panic, not a plan. If the stop isn't hit, the stop decides. If it gapped through, the first 30 minutes do."
    },
@@ -1141,7 +1153,7 @@
      "rests on the owner's rulebook (A4, A5, B20)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "story": "You own this stock. It has been working near its highs. This morning it gaps down hard off those highs.",
    "chart": {
     "sym": "HWM",
@@ -3769,8 +3781,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice and truth hold. Numbers and facts check out; stem gives enough to decide and doesn't lead."
+   "fixed": true,
+   "notes": "ruling right; 'adding to a loser ... never add to a loser' said it twice"
   },
   "q10": {
    "status": "pass",

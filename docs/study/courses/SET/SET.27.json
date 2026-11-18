@@ -935,6 +935,18 @@
    "source": "hw",
    "quote": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment.",
    "claim": "A gap up past a profit level at the open is not an automatic sell; selling part into it is an optional judgment."
+  },
+  {
+   "id": "hwa",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece and never an add to a loser. An add to a working winner on strength is rare, a feel call, never the plan."
+  },
+  {
+   "id": "hwm",
+   "source": "hw",
+   "quote": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call. Below the 200-day stays a hard no for stocks.",
+   "claim": "For a long we want the 50-day above the 200-day. It is mostly a must, not always, and an exception is a judgment call. Below the 200-day stays a hard no for stocks."
   }
  ],
  "walkthroughs": [
@@ -2055,13 +2067,13 @@
    "facts": [
     "c10",
     "h02",
-    "h31",
+    "hwa",
     "d09"
    ],
    "wrong": {
     "Sell at the close, it failed": "One close under the line is a warning. The stop is the exit, not the line.",
     "Widen the stop under the dip": "The stop only moves up. Widening it turns a planned loss into a bigger one.",
-    "Add shares while it's cheaper": "One price, one stop, full size. We don't add, least of all to a trade that's wobbling."
+    "Add shares while it's cheaper": "Never add to a trade that's wobbling under the line. One price, one stop, full size."
    },
    "house": true,
    "story": "You're in at 269.73 with the stop at 259.09, a few cents under the trigger day's low.",
@@ -2073,7 +2085,7 @@
      "card statement is proposed (c10)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "MELI",
     "asof": "2017-11-17",
@@ -2299,14 +2311,13 @@
    "criterion": "ss.one_price",
    "q": "You buy a Slingshot in one shot: full size, one price, one stop. Adding later, say on a 50-day reclaim, isn't how we play it.",
    "answer": "True",
-   "why": "True. One price, one stop, full size. The setup hands you one clean spot, the trade back over the line with the stop under the low of the day. That's where the risk is smallest. An add later sits higher, needs its own stop, and blurs the plan. Some traders add on a 50-day reclaim. We don't.",
+   "why": "True. One price, one stop, full size. The setup hands you one clean spot, the trade back over the line with the stop under the low of the day. That's where the risk is smallest. An add later sits higher, needs its own stop, and blurs the plan. Some traders plan an add on a 50-day reclaim. We don't. An add to a working winner is rare and a feel call, never the plan.",
    "lesson_line": "One price, one stop, full size. An add is a different trade.",
    "facts": [
-    "h31",
-    "c38"
+    "hwa"
    ],
    "house": true,
-   "simple": "True. We buy full size at the one clean spot with one stop, and we don't add later.",
+   "simple": "True. We buy full size at the one clean spot with one stop, and an add is never part of the plan.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2314,7 +2325,7 @@
      "rests on rulebook A5"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q34",
@@ -2492,9 +2503,10 @@
     "At least three closes under the line"
    ],
    "answer": "A 50-day rising above the 200-day",
-   "why": "The 50-day over the 200-day. Everything else was there: the drive, three closes, a shallow dip, price well over $10. The 50 over a rising 200 isn't a must, but it's a plus we like to see. It says the longer trend is behind you. LOW didn't have it. It fell 12.6% under the buy within 20 sessions as the 2008 market broke. Your stop had you out on day 1.",
-   "lesson_line": "Location matters. We like the 50-day over the 200-day.",
+   "why": "The 50-day over the 200-day. Everything else was there: the drive, three closes, a shallow dip, price well over $10. For a long we want the 50 over the 200. It's mostly a must, not always. It says the longer trend is behind you. LOW didn't have it. It fell 12.6% under the buy within 20 sessions as the 2008 market broke. Your stop had you out on day 1.",
+   "lesson_line": "Location matters. We want the 50-day over the 200-day.",
    "facts": [
+    "hwm",
     "c12",
     "d14",
     "d15",
@@ -2508,7 +2520,7 @@
    },
    "house": true,
    "story": "Drive +8.8% on volume, three closes under the line, 6.9% deep. You bought 24.90, stop 24.53. On the trigger day the 50-day sat under the 200-day.",
-   "simple": "Its 50-day was under the 200-day. That's a plus we like to see, and this one didn't have it.",
+   "simple": "Its 50-day was under the 200-day. For a long that's mostly a must, and this one didn't have it.",
    "deeper": {
     "counter": "LOW had the drive, the rest and the price, and still stopped out on day 1. A good picture doesn't guarantee the trade. The stop is there for that."
    },
@@ -2521,7 +2533,7 @@
      "fixed before: lesson line and wrong note corrected"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "LOW",
     "asof": "2008-08-28",
@@ -3001,7 +3013,7 @@
     "o05",
     "c19",
     "c05",
-    "h31",
+    "hwa",
     "r01",
     "d07"
    ],
@@ -3417,13 +3429,13 @@
    "facts": [
     "h15",
     "c39",
-    "h31",
+    "hwa",
     "d24"
    ],
    "wrong": {
     "Sell half and hold the rest": "The time stop sells the trade, not part of it.",
     "Hold, the stop hasn't been hit": "The stop is one exit. The time stop is another, and it just fired.",
-    "Add, it's still above the line": "We don't add. And a trade that's done nothing in 10 days isn't asking for more money."
+    "Add, it's still above the line": "A trade that's done nothing in 10 days isn't asking for more money. The time stop sells it."
    },
    "house": true,
    "story": "Ten trading days after a Slingshot buy, the trade sits at 0.6R, drifting sideways. The stop hasn't been touched.",
@@ -3439,7 +3451,7 @@
      "rests on a rule that can change"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q67",
@@ -4101,13 +4113,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and facts ok; numbers rechecked"
+   "notes": "Agrees: the add is to a trade wobbling back under the line. Voice 4."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "truth: 'the next session took out the low and the stop' is not in any fact (d20 only says stopped at 0R). Now just says it stopped out; 'about half the day' made 'almost half the day's range'."
+   "fixed": false,
+   "notes": "Agrees: 'don't add a share' is about a weak trigger, not winners in general. Voice 4."
   },
   "q29": {
    "status": "pass",
@@ -4137,7 +4149,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and facts ok; numbers rechecked"
+   "notes": "Agrees: True stands, a planned add on a 50-day reclaim is not ours; rare feel-call add named, cites hwa. Voice 4."
   },
   "q34": {
    "status": "pass",
@@ -4167,7 +4179,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "50 over 200 taught as a plus, not a must; ok."
+   "notes": "Agrees: 'For a long we want the 50 over the 200. It's mostly a must, not always.' cites hwm; 8.8%, 12.6%, 24.90 unchanged. Voice 4."
   },
   "q39": {
    "status": "cut",
@@ -4299,7 +4311,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and facts ok; numbers rechecked"
+   "notes": "Agrees: a 0.6R trade at 10 days gets no more money. Voice 4."
   },
   "q67": {
    "status": "pass",

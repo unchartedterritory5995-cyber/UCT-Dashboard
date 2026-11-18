@@ -1785,7 +1785,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Puts you at the chart, verdict first, says where volume sits on our charts. Facts f1/f5/f44 hold."
+   "notes": "Kept: 'adds to the bar' is volume counting, not adding shares. Answer right. Voice 5."
   },
   "q02": {
    "status": "cut",

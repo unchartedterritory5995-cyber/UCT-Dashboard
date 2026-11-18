@@ -1187,6 +1187,12 @@
    "source": "h1",
    "quote": "Read a chart in percents: how far a stock is off its highs and how far it is stretched above its averages.",
    "claim": "We read a chart in percents: how far a stock is off its highs and how stretched it is above its averages (A14)."
+  },
+  {
+   "id": "hwa",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece and never an add to a loser. An add to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1380,12 +1386,12 @@
     "K3",
     "hE57",
     "a29",
-    "hA5",
+    "hwa",
     "hw3"
    ],
    "wrong": {
     "Limit order a bit over the high": "A fast break can jump right over your limit. Then you're out of a good trade, or chasing it.",
-    "Half now, half on a retest": "We buy the full size at one price with one stop. No halves, no adds.",
+    "Half now, half on a retest": "We buy the full size at one price with one stop. No starter half, no buying more on a retest.",
     "Wait for the close above it": "We never buy the close. We buy the trigger while it's happening, during the day."
    },
    "house": true,
@@ -1397,7 +1403,7 @@
      "Rests on the owner's rulebook (E57, market orders)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q05",
@@ -2618,22 +2624,22 @@
     "New trade, the old stop"
    ],
    "answer": "A new trade from scratch",
-   "why": "It's a brand new trade. New trigger, new stop under the new low of the day, new size from that stop. The first trade is done and closed. We buy full size at one price with one stop, and we never add. MSTR did this, flag after flag in one run. Each one gets planned on its own.",
+   "why": "It's a brand new trade. New trigger, new stop under the new low of the day, new size from that stop. The first trade is done and closed. We buy full size at one price with one stop. MSTR did this, flag after flag in one run. Each one gets planned on its own.",
    "lesson_line": "Each flag in a run is its own trade.",
    "facts": [
     "a29",
     "dMSTRw",
-    "hA5",
+    "hwa",
     "bBnN"
    ],
    "wrong": {
-    "An add to the first trade": "You're flat, and we don't add anyway. One price, one stop.",
+    "An add to the first trade": "You're flat. There's no first trade left to add to.",
     "Skip it, one trade per run": "A strong run can give you several flags. Each one is its own trade.",
     "New trade, the old stop": "The old stop belongs to the old trade. This one gets its own, under its own low."
    },
    "house": true,
    "story": "A stock broke out, ran, and you sold your shares. Weeks later it rests in a new flag in the same run. It breaks out again.",
-   "simple": "A new trade with its own stop and size. The first trade is over, and we never add.",
+   "simple": "A new trade with its own stop and size. The first trade is over and closed.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2641,7 +2647,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q43",
@@ -2871,19 +2877,19 @@
     "Nothing yet, check next week"
    ],
    "answer": "It failed, the stop decides",
-   "why": "That breakout failed. It got through the high, then closed at the low of its range, back inside the base at 183.32. Buyers couldn't hold it, and sellers won the day. You can sell on that close, or let the stop decide. Either is fine. QCOM's next low was 179.41, through the 183.06 stop, so the stop took you out. That's what it's there for.",
+   "why": "That breakout failed. It got through the high, then closed at the low of its range, back inside the base at 183.32. Buyers couldn't hold it, and sellers won the day. That close is your warning, and the stop is still your exit. QCOM's next low was 179.41, through the 183.06 stop, so the stop took you out. That's what it's there for.",
    "lesson_line": "A close back inside the base at the low is a failed break.",
    "facts": [
     "dQCOM",
     "dQCOMw",
     "a31b",
-    "a31",
     "hA4",
-    "hA5",
-    "dQCOMr"
+    "hwa",
+    "dQCOMr",
+    "aAfter"
    ],
    "wrong": {
-    "Normal pause, add on the dip": "We don't add, and a close back in the base at the low is a warning.",
+    "Normal pause, add on the dip": "Never add to a failing break. A close back in the base at the low is a warning.",
     "A shakeout, lower your stop": "The stop only moves up. Lowering it turns a small loss into a bigger one.",
     "Nothing yet, check next week": "The close already told you. Back inside the base at the low is a failed break."
    },
@@ -2901,7 +2907,7 @@
      "failed-breakout test is a proposed card line"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "QCOM",
     "asof": "2021-12-13",
@@ -5025,18 +5031,18 @@
     "Add shares, it gapped up"
    ],
    "answer": "Weigh selling some into the push",
-   "why": "Weigh selling some into the push. It's day five, and it's gapping over 3R. That's the kind of push I like to sell into. But it's a judgment, not a rule. Some days I sell part into a big gap. Some days I let it run toward 5R or more. What you don't do is dump it all or add. Sell some, trail the rest.",
+   "why": "Weigh selling some into the push. It's day five, and it's gapping over 3R. That's the kind of push I like to sell into. But it's a judgment, not a rule. Some days I sell part into a big gap. Some days I let it run toward 5R or more. What you don't do is dump it all, or buy more into the gap. Sell some, trail the rest.",
    "lesson_line": "A gap up on day five is a push. Sell some by judgment.",
    "facts": [
+    "hwa",
     "r70",
     "r72",
-    "hA5",
     "rg1"
    ],
    "wrong": {
     "Sell a third, 3R is the rule": "3R isn't a fixed sell. The first sell is your judgment.",
     "Sell the whole thing at the open": "You'd throw away the rest of a winner. Sell some, trail the rest.",
-    "Add shares, it gapped up": "We don't add. One price, one stop."
+    "Add shares, it gapped up": "That's buying the gap, higher than you got in. A push like this is where you weigh selling."
    },
    "house": true,
    "story": "You bought at 40.00 with the stop at 38.00, so 3R is 46.00. On the fifth day of the trade the stock opens at 47.50.",
@@ -5048,7 +5054,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q108",
@@ -5251,7 +5257,7 @@
    "facts": [
     "aAfter",
     "hA4",
-    "hA5",
+    "hwa",
     "hD41",
     "hB20",
     "hB20c"
@@ -5259,7 +5265,7 @@
    "wrong": {
     "Lower the stop for the dip": "The stop only moves up.",
     "Sell at the open, news is bad": "The headline isn't your exit. The stop is, and it hasn't been hit.",
-    "Add on the dip, news is noise": "We don't add. One price, one stop."
+    "Add on the dip, news is noise": "You don't buy more on a dip. One price, one stop, and the stop is the plan."
    },
    "house": true,
    "story": "Day 6 after the buy. An analyst downgrade opens the stock down 2%. It is still above your stop and still in profit.",
@@ -5274,7 +5280,7 @@
      "rests on the owner's rulebook (A4, A5)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q114",
@@ -5577,31 +5583,31 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "qk.kell_bnb_new_trade",
-   "q": "Do you add?",
+   "q": "Your friend says Kell would add here. Do you?",
    "choices": [
-    "No, one price, one stop",
+    "Rarely, on feel, never by plan",
     "Yes, Kell calls it an addition",
-    "No, but add on the next dip",
+    "Never, we don't add to winners",
     "Yes, it earned a bigger size"
    ],
-   "answer": "No, one price, one stop",
-   "why": "No. We buy the full size at one price with one stop, and we don't add. Kell writes about the Base n' Break as an addition to leading stocks. That's his way, not ours. If you want this break, it's a new trade from flat, with its own stop and its own size. Adding blends a good entry with a later, riskier one.",
-   "lesson_line": "No adds. A later phase is a new trade from flat.",
+   "answer": "Rarely, on feel, never by plan",
+   "why": "Rarely, and on feel. We buy the full size at one price with one stop, and that's the plan. Kell writes about the Base n' Break as an addition to leading stocks. That's his routine, not ours. An add to a working winner on strength happens, but it's rare. Honestly, it's mostly a feel thing. A winner never earns an add just by working.",
+   "lesson_line": "Full size at one price. An add on strength is rare and on feel.",
    "facts": [
+    "hwa",
     "L20",
-    "hA5",
     "bBnN"
    ],
    "wrong": {
-    "Yes, Kell calls it an addition": "That's his method. Ours is one price, one stop, no adding.",
-    "No, but add on the next dip": "An add on a dip is still an add. We don't do it.",
-    "Yes, it earned a bigger size": "A winner doesn't earn an add. The size was set when you bought."
+    "Yes, Kell calls it an addition": "That's his method. In ours an add is rare and a feel call, never a step you follow.",
+    "Yes, it earned a bigger size": "A winner doesn't earn an add. The size was set when you bought.",
+    "Never, we don't add to winners": "Not never. An add to a working winner on strength happens. It's rare, and it's a feel call."
    },
    "house": true,
    "story": "You hold a leader bought at its Wedge Pop. It now breaks out of its first Base n' Break, and a friend quotes Kell and says to add shares.",
-   "simple": "No. Kell adds, but we buy one size at one price with one stop.",
+   "simple": "Rarely. Kell adds as a routine, but for us an add to a winner is a feel call, never the plan.",
    "deeper": {
-    "trap": "Kell's own article calls the Base n' Break an addition to leading stocks, so if you read him you'll see the word add. We go with one price, one stop, no adding. A later Base n' Break is a new trade from flat, with its own stop and size."
+    "trap": "Kell's own article calls the Base n' Break an addition to leading stocks, so if you read him you'll see the word add. For him it's a routine step. For us the plan is one price, one stop, and an add on strength is a rare feel call."
    },
    "tier": "extended",
    "risk": {
@@ -5611,7 +5617,7 @@
      "a web view the rulebook replaced"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q122",
@@ -5842,7 +5848,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Truth ok: numbers recomputed, answer right, no proposal stated as ours. Voice reads like a trade review."
+   "notes": "Agrees: no starter half, no buying more on a retest. Voice 4."
   },
   "q05": {
    "status": "pass",
@@ -6040,7 +6046,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Truth ok: numbers recomputed, answer right, no proposal stated as ours. Voice reads like a trade review."
+   "notes": "Agrees: you're flat, nothing to add to; new trade from scratch. Voice 4."
   },
   "q43": {
    "status": "pass",
@@ -6070,7 +6076,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Truth: 'you were out for a small, planned loss' is not supported: the next low was 179.41 and the fact does not say it filled at 183.06. Now just says the stop took you out."
+   "notes": "Add text agrees with the ruling, but the kept why said 'You can sell on that close, or let the stop decide. Either is fine.' That breaks 'The stop is the exit. A close back inside the base is a warning, not a sell by itself.' Now: the close is a warning, the stop is still the exit, matching the answer 'the stop decides'. QCOM 179.41 through 183.06 unchanged. Voice 4."
   },
   "q52": {
    "status": "pass",
@@ -6303,8 +6309,8 @@
   "q92": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the 10-over-20 at the breakout is a card proposal ('my proposal'), yet the stem keyed Pass as if it were our gate. Stem now asks for Kell's read and the why says it's judgment, not a hard line (rule 30)."
+   "fixed": false,
+   "notes": "False alarm for MA-50-200: the 50 over the 200 is only described; the 9/20 read is called a read. Voice 4."
   },
   "q93": {
    "status": "pass",
@@ -6328,7 +6334,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "41.20 is 3% over 40.00 but 14% over 36.00: chase passes, stretch fails. Correct."
+   "notes": "Agrees: 'we don't scale in' is the no-starter rule; 41.20 / 36.00 is about 14% over the 9 EMA, 41.20 / 40.00 = 3% checks. Voice 4."
   },
   "q97": {
    "status": "pass",
@@ -6393,8 +6399,8 @@
   "q107": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Truth ok: numbers recomputed, answer right, no proposal stated as ours. Voice reads like a trade review."
+   "fixed": true,
+   "notes": "Same catch as SET.44 q28: the add's wrong text only said adds are rare, so it wasn't clearly wrong here. Now it names the spot (a gap into a push is a sell spot, buying it chases your own winner). Why's 'plan an add into the gap' made plain. Voice 3 -> 4."
   },
   "q108": {
    "status": "pass",
@@ -6412,7 +6418,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Truth ok: numbers recomputed, answer right, no proposal stated as ours. Voice reads like a trade review."
+   "notes": "Agrees: never add into a climax. Voice 4."
   },
   "q111": {
    "status": "pass",
@@ -6430,7 +6436,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Truth ok: numbers recomputed, answer right, no proposal stated as ours. Voice reads like a trade review."
+   "notes": "Agrees: no buying more on a news dip; an add, when it happens, is on strength. Voice 4."
   },
   "q114": {
    "status": "pass",
@@ -6478,7 +6484,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Truth ok: numbers recomputed, answer right, no proposal stated as ours. Voice reads like a trade review."
+   "notes": "Agrees: rewrite teaches the ruling, 'Never, we don't add to winners' is the named mistake, Kell's routine add is his not ours; cites hwa. Voice 4 ('Honestly, it's mostly a feel thing' is his own words)."
   },
   "q122": {
    "status": "pass",

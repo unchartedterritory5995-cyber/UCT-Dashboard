@@ -178,7 +178,10 @@ Every writer gets this list, and every checker tests against it. Each line was c
 - We trade shares. An option is an occasional defined-risk buy, and the premium is the stop (A6, B25). The member
   never sells an option as our trade.
 - Shorting is only for traders who've already made $1 million trading (D-001).
-- A card proposal or a scanner cutoff is never our rule. Neither is the 50-day over the 200-day; that's a plus.
+- A card proposal or a scanner cutoff is never our rule.
+- The 50-day over the 200-day is mostly a must, not always (MA-50-200). Never call it just a plus, and never an absolute.
+- Adding: full size at one price, one stop, no starter piece, never add to a loser. Adding to a working winner is rare and
+  a feel call (ADD-WINNER). Never teach "we never add" to a winner, and never teach adding as routine.
 - Never give one of his rules a reason he didn't give.
 - Game lessons have a shape the game reads. F5.08 (Earnings Desk): each question or story opens "Company, quarter:",
   why opens on the answer itself, why ends on what the stock did, and number answers stay typed (never multiple

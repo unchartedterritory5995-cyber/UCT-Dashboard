@@ -876,6 +876,12 @@
    "source": "d1",
    "quote": "the turn day's follow-through pays 3R the next session, the bounce then chops under the 20-day for a week, and the stock runs to new highs inside 20 sessions (11.7R)",
    "claim": "LITE, November 2016: 3R the session after the turn, a week of chop under the 20-day, then new highs, 11.7R inside 20 sessions."
+  },
+  {
+   "id": "hwa",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece and never an add to a loser. An add to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1599,12 +1605,12 @@
    "facts": [
     "h02",
     "h18",
-    "h30",
+    "hwa",
     "h28"
    ],
    "wrong": {
     "Lower the stop for more room": "The stop only moves up, never down. Lowering it turns a small loss into a big one.",
-    "Add half, it's cheaper now": "Adding to a loser doubles a bet the chart says is wrong. We buy once, at one price, with one stop.",
+    "Add half, it's cheaper now": "Adding to a loser doubles a bet the chart says is wrong. Never do it.",
     "Wait and see if it closes under the low": "The stop is a real order, not a closing-price idea. It fills when price trades through."
    },
    "story": "You bought the turn the morning after a flush. Two days later price trades under the flush low, where your stop sits.",
@@ -1617,7 +1623,7 @@
      "rests on the owner's rulebook (A4, A5, D41)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q19",
@@ -2248,16 +2254,16 @@
    "why": "Your call. 3R sits at 44.50 and it opened at 45.10, past it. A gap past a level isn't an automatic sell. Some days I'll sell part into a big gap. Other days the gap is the start of the 3-5-7 day push I want to sell into. Either way the rest stays on with its stop. And at this point the stop can come up to breakeven.",
    "lesson_line": "A gap past a sell mark isn't an order. It's a choice.",
    "facts": [
+    "hwa",
     "r08",
     "r09",
     "r02",
-    "h30",
     "h05"
    ],
    "wrong": {
     "Sell the whole position at the open": "Selling everything throws away the push you came for. If you sell, you sell part.",
     "Sell a third at the open, by rule": "No rule makes you sell at a gap. Selling part is a judgment call.",
-    "Add more shares at the open": "We buy once, at one price, with one stop. No adding."
+    "Add more shares at the open": "A gap past 3R is where you weigh selling, not where you buy more. Adding up here chases your own winner."
    },
    "story": "You bought at 40.00 with the stop at 38.50. Three days in, you haven't sold any yet, and 3R is 44.50. The stock opens at 45.10.",
    "house": true,
@@ -2273,7 +2279,7 @@
      "the setup's first trim is held (D-013, Option 2 at the 20-day)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q34",
@@ -2392,26 +2398,26 @@
    "criterion": "mr.no_add",
    "q": "It looks ready again. Do you add?",
    "choices": [
-    "No, one price, one stop, no adds",
+    "No, not on a dip like this",
     "Yes, add half at 40.50 on the dip",
     "Yes, add and move both stops up",
     "No, add only after the first sell"
    ],
-   "answer": "No, one price, one stop, no adds",
-   "why": "No. We buy the full size once, at one price, with one stop. No adds, not on a dip, not after a sell. Adding here raises your average and puts more money on a trade that hasn't proven anything yet. If the dip turns into a break of your stop, you now lose more than you planned. Your plan was set when you bought. Let it work.",
-   "lesson_line": "One entry, one stop. No adding.",
+   "answer": "No, not on a dip like this",
+   "why": "No. You bought the full size once, at one price, with one stop. A dip back near your entry isn't strength. Adding here raises your average and puts more money on a trade that hasn't proven anything yet. If the dip turns into a break of your stop, you now lose more than you planned. An add to a working winner on strength is rare, a feel call, never the plan. Let this one work.",
+   "lesson_line": "One entry, one stop. A dip that hasn't proven anything gets no more money.",
    "facts": [
-    "h30",
+    "hwa",
     "h28"
    ],
    "wrong": {
-    "Yes, add half at 40.50 on the dip": "Adding raises your average and your risk. We buy once, with one stop.",
-    "Yes, add and move both stops up": "No adding, period. A second piece is a trade you never planned.",
-    "No, add only after the first sell": "There's no add at any point, before or after a sell."
+    "Yes, add half at 40.50 on the dip": "Adding on a dip raises your average and your risk, on a trade that hasn't proven anything.",
+    "Yes, add and move both stops up": "Two pieces, two stops, and a trade you never planned. Not on a dip.",
+    "No, add only after the first sell": "That makes an add part of the plan. It never is."
    },
    "story": "You're in at 40.00 with the stop at 38.50. It bounces 1R, dips back to 40.50 and looks ready to go again.",
    "house": true,
-   "simple": "No, because we buy the full size once with one stop, and adding just puts more on an unproven trade.",
+   "simple": "No. It's a dip near your entry, not strength, and adding just puts more on an unproven trade.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2420,7 +2426,7 @@
      "fixed before (the 2026-11-10 tells pass changed the key)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q38",
@@ -2609,12 +2615,12 @@
    "facts": [
     "cN",
     "h02",
-    "h30",
+    "hwa",
     "dEL2",
     "sn1"
    ],
    "wrong": {
-    "A normal shakeout you can add on": "No adding, ever. A weak close is a warning, not an invitation.",
+    "A normal shakeout you can add on": "Never add to a trade closing on its lows. A weak close is a warning, not an invitation.",
     "A cue to widen the stop for room": "The stop only moves up. A warning is a reason to respect it, not move it.",
     "Just a pause before the next leg up": "A real turn follows through. Closing on the lows on day one is the warning, not a pause."
    },
@@ -2629,7 +2635,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "story": "Bought on the turn day at 165.90 with the stop at 162.24. The day closes at 162.53, in the bottom 3% of its range.",
    "chart": {
     "sym": "ELF",
@@ -3873,7 +3879,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "The stop is the exit, no add, no lowering. Good."
+   "notes": "Agrees: never add to a loser at its stop. Voice 4."
   },
   "q19": {
    "status": "pass",
@@ -3962,8 +3968,8 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "R=1.50, 3R=44.50, open 45.10; gap sell is a judgment (GAP-TRIM); breakeven window 2R-5R. Ok."
+   "fixed": true,
+   "notes": "Same catch as SET.44 q28: 'An add to a winner is rare, a feel call' led the wrong text, so the add didn't read as clearly wrong at a gap past 3R. Now leads with the spot. Voice 3 -> 4."
   },
   "q34": {
    "status": "pass",
@@ -3987,7 +3993,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A5, no adds. Ok."
+   "notes": "Agrees: answer 'No, not on a dip like this' stays clearly right (40.50 is a dip near the entry, not strength); 'add only after the first sell' named as a planned add; cites hwa. Voice 4."
   },
   "q38": {
    "status": "pass",
@@ -4021,8 +4027,8 @@
   "q43": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Same ELF chart that q51 calls a broken trend, not a trade. The reveal now says so, so the two questions teach one thing."
+   "fixed": false,
+   "notes": "Agrees: never add to a trade closing on its lows; stop still the exit. Voice 4."
   },
   "q44": {
    "status": "pass",
@@ -4136,7 +4142,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "KRYS 13% under the 50-day, 20% over the 200-day (dKR2); 3R next day, 5R two sessions later (dKR1). Ok."
+   "notes": "False alarm for MA-50-200: price against the 50-day and 200-day only; above the 200 so on the table. Voice 4."
   },
   "q63": {
    "status": "pass",

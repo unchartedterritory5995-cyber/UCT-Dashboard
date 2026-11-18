@@ -1229,6 +1229,12 @@
    "source": "h1",
    "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink",
    "claim": "C28: chasing costs size, not risk; the stop stays put, so the distance grows and the shares shrink."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -2100,13 +2106,14 @@
     "d23",
     "d24",
     "d33",
-    "h05"
+    "h05",
+    "rw_add"
    ],
    "house": true,
    "wrong": {
     "Move the stop to breakeven": "Breakeven comes once the trade has paid, between 2R and 5R. This one is going the wrong way.",
     "Hold, the stop is still above it": "The stop is your last line, not your only exit. The reclaim already told you the trade is broken.",
-    "Add, it's a better price now": "Adding to a broken short makes it worse. Full size at one price, one stop, no adds."
+    "Add, it's a better price now": "Adding to a broken short makes it worse. Full size at one price, one stop, and never add to a loser."
    },
    "simple": "Cover. Buyers took back both averages, so the reason for the short is gone.",
    "tier": "core",
@@ -2117,7 +2124,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "DIS",
     "asof": "2006-01-26",
@@ -2470,12 +2477,12 @@
    "criterion": "wd.no_add",
    "q": "Your short is working, and it rallies back up to the falling averages. That's a good spot to add.",
    "answer": "False",
-   "why": "False. We don't add. We take the full size at one price with one stop, and that's it. The size came from that stop before you got in. Add more after it moves and the position outgrows your plan. A stop-out then costs more than you meant to risk. If the crossback looks good on its own, it's a new trade with its own stop and its own size.",
+   "why": "False. Adding is never the plan. We take the full size at one price with one stop. The size came from that stop before you got in. Add more after it moves and the position outgrows your plan. A stop-out then costs more than you meant to risk. The rare add to a winner comes on strength, as a feel call, and a rally against you isn't strength. If the crossback looks good on its own, it's a new trade with its own stop and its own size.",
    "lesson_line": "One price, one stop. The crossback is a new trade or nothing.",
    "facts": [
     "x03",
     "c19",
-    "h26",
+    "rw_add",
     "c35"
    ],
    "house": true,
@@ -2490,7 +2497,7 @@
      "+2 rests on the owner's rulebook (A5, over a web view)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q30",
@@ -2694,21 +2701,21 @@
     "Add more, the gap confirms it"
    ],
    "answer": "Judge it, 3R isn't a cover order",
-   "why": "Judge it. Nothing says you cover at 3R. A gap your way is strength, and selling some into strength can make sense. It can also be the start of a bigger leg. Most of the time I'd rather sell into a 3, 5 or 7 day push than react to one open. A fixed order cuts a winner that keeps running. What you don't do is add. A gap your way is not a place to get bigger.",
+   "why": "Judge it. Nothing says you cover at 3R. A gap your way is strength, and selling some into strength can make sense. It can also be the start of a bigger leg. Most of the time I'd rather sell into a 3, 5 or 7 day push than react to one open. A fixed order cuts a winner that keeps running. What you don't do is add because it gapped. Adding to a winner is rare, a feel call, never the plan.",
    "lesson_line": "A gap past 3R isn't an order. It's a judgment call.",
    "facts": [
     "r54",
     "r55",
     "r56",
     "h16",
-    "h26",
+    "rw_add",
     "n09"
    ],
    "house": true,
    "wrong": {
     "Cover a third at the open": "A fixed third at 3R isn't the rule. The first cover is your judgment.",
     "Cover the whole position right now": "Nothing says a gap means cover it all. That can cut a winner short.",
-    "Add more, the gap confirms it": "Full size at one price. You never add because it gapped your way."
+    "Add more, the gap confirms it": "A gap isn't a reason to get bigger. Full size went in once, at one price, and the rare add is a feel call."
    },
    "simple": "Your call. A gap your way is strength and you can sell some, but no rule makes you.",
    "tier": "extended",
@@ -2719,7 +2726,7 @@
      "the short side mirrors the long side (D47)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q36",
@@ -3024,7 +3031,8 @@
     "k08",
     "c19",
     "x03",
-    "r60"
+    "r60",
+    "rw_add"
    ],
    "house": true,
    "wrong": {
@@ -3034,7 +3042,7 @@
    },
    "simple": "A crossback. It's a retest that stalls under the falling averages, so a short holds and doesn't add.",
    "deeper": {
-    "trap": "Kell's own QQQ run went extension, then the Wedge Drop, then the EMA Crossback. His page offers the crossback as a place to add to the short. We don't add: one price, one stop."
+    "trap": "Kell's own QQQ run went extension, then the Wedge Drop, then the EMA Crossback. His page offers the crossback as a place to add to the short. We don't add on a rally against us: one price, one stop."
    },
    "tier": "extended",
    "risk": {
@@ -3044,7 +3052,7 @@
      "tied to a held decision (D-002)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "QQQ",
     "asof": "2023-02-23",
@@ -3574,11 +3582,11 @@
    "facts": [
     "h14",
     "c48",
-    "h26"
+    "rw_add"
    ],
    "house": true,
    "wrong": {
-    "Add on a pop to the averages": "No adds. Full size at one price, one stop.",
+    "Add on a pop to the averages": "A pop against you is no place to add. Full size at one price, one stop.",
     "Cover, ten sessions is the limit": "Ten sessions only matters for a trade still under 1R. This one is past it.",
     "Cover, it's stopped moving": "Drifting isn't the rule. Under 1R after 10 sessions is."
    },
@@ -3593,7 +3601,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q56",
@@ -4489,7 +4497,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "His register: verdict first, the question's numbers worked out, the reason and the how. Answer, idea and chart kept; numbers and claims rechecked against the lesson facts and his rulings."
+   "notes": "the short is going wrong, never add to a loser; the reclaim is the exit. Voice 4."
   },
   "q22": {
    "status": "cut",
@@ -4537,7 +4545,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "His register: verdict first, the question's numbers worked out, the reason and the how. Answer, idea and chart kept; numbers and claims rechecked against the lesson facts and his rulings."
+   "notes": "a rally against the short isn't strength; adding is never the plan. False stays right. Voice 4."
   },
   "q30": {
    "status": "pass",
@@ -4572,8 +4580,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "His register: verdict first, the question's numbers worked out, the reason and the how. Answer, idea and chart kept; numbers and claims rechecked against the lesson facts and his rulings."
+   "fixed": true,
+   "notes": "the why and the wrong note repeated the same stamped sentence. Wrong note varied, same meaning: a gap isn't a reason to add, the rare add is a feel call."
   },
   "q36": {
    "status": "pass",
@@ -4615,7 +4623,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "His register: verdict first, the question's numbers worked out, the reason and the how. Answer, idea and chart kept; numbers and claims rechecked against the lesson facts and his rulings."
+   "notes": "no add on a rally against the short; crossback reading right. Voice 4."
   },
   "q43": {
    "status": "pass",
@@ -4693,7 +4701,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "His register: verdict first, the question's numbers worked out, the reason and the how. Answer, idea and chart kept; numbers and claims rechecked against the lesson facts and his rulings."
+   "notes": "a pop against you is no place to add; 1.4R clears the time stop. Voice 4."
   },
   "q56": {
    "status": "cut",
@@ -4819,7 +4827,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "His register: verdict first, the question's numbers worked out, the reason and the how. Answer, idea and chart kept; numbers and claims rechecked against the lesson facts and his rulings."
+   "notes": "false alarm (volume adds to the grade); volume raises the grade, never a must. Voice 4."
   }
  }
 }

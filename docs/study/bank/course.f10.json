@@ -2198,7 +2198,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "\"Hold your winners by selling partials into strength and trailing the rising moving averages.\" (Owner, 2026-06-14.) … Sell some into strength and trail the rest under the rising averages. … The full size at one price with one stop; no adding. … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it. … Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+      "quote": "\"Hold your winners by selling partials into strength and trailing the rising moving averages.\" (Owner, 2026-06-14.) … Sell some into strength and trail the rest under the rising averages. … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it. … Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      },
@@ -2210,7 +2210,7 @@
       "url": "https://www.investopedia.com/terms/t/trailingstop.asp"
      }
     ],
-    "summary": "In our words: hold winners by selling partials into strength and trailing the rising moving averages. A11: we sell some into strength and trail the rest under the rising averages. Leave only the first stop in place and a winning trade can turn into a loser. A5: the whole position goes on at one price with one stop, and we never add to it. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. Our first sale is a judgment; selling into a 3, 5 or 7 day push is often best."
+    "summary": "In our words: hold winners by selling partials into strength and trailing the rising moving averages. A11: we sell some into strength and trail the rest under the rising averages. Leave only the first stop in place and a winning trade can turn into a loser. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. Our first sale is a judgment; selling into a 3, 5 or 7 day push is often best. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
    },
    "facts": {
     "given": "Your breakout is up big in a week and still trending higher. How do you manage it from here? Trim into strength, trail the rest Leave the stop where it was on day one Sell it all and book the gain Add more shares as it keeps going"
@@ -2221,7 +2221,7 @@
    "unit": "F10.02",
    "why": "Trim into strength and trail the rest. That's how we hold winners. When to make the first sale is a judgment call. Selling into a 3, 5 or 7 day push is often best. What's left rides under the rising averages, the 9 EMA on a fast mover or the 20 EMA on a steadier one. A close below the line sells the rest. You bank some, and you still own a piece if it turns into a monster.",
    "wrong": {
-    "Add more shares as it keeps going": "Not how we do it. The whole position goes on at one price with one stop, and we don't add to it.",
+    "Add more shares as it keeps going": "Not how you manage it. The position went on at one price with one stop. Adding to a winner is rare, a feel call, never the plan.",
     "Leave the stop where it was on day one": "Then a big winner can round-trip into a loser. The stop has to come up as the trade works.",
     "Sell it all and book the gain": "That cuts the winner short. The big money is in the piece you let run."
    }
@@ -2281,12 +2281,12 @@
      {
       "accessed": "2026-11-12",
       "name": "Our trading rules",
-      "quote": "The stop sits a few cents under the day's low, not exactly on it. … The full size at one price with one stop; no adding.",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "A sell stop goes in below the current price. Once the stop price is reached, a stop order turns into a market order. A buy limit fills at its limit or lower; a sell limit fills at its limit or higher. A sell stop belongs below the current bid, or it can trigger right away. F62: our stop sits a few cents under the day's low, not exactly on it. A5: the whole position goes on at one price with one stop, and we never add to it."
+    "summary": "A sell stop goes in below the current price. Once the stop price is reached, a stop order turns into a market order. A buy limit fills at its limit or lower; a sell limit fills at its limit or higher. A sell stop belongs below the current bid, or it can trigger right away. F62: our stop sits a few cents under the day's low, not exactly on it. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
    },
    "facts": {
     "given": "How do you put that stop in with your broker? You own a stock trading at $49.60. Your stop is $47.80, a few cents under the low of the day. A sell stop at $47.80 A sell limit at $47.80 A buy stop at $47.80 A buy limit at $47.80"
@@ -7797,7 +7797,7 @@
   "difficulty": 1,
   "id": "si_26073f7594f5",
   "lesson_origin": "session",
-  "lesson_text": "He averaged up. He bought more of a stock he already owns, at a higher price than his first buy. That drags his average cost up from $40 toward $46. Plenty of traders press a winner this way. We don't. Our full size goes on at one price, with one stop, and the size came from that stop. Add above it and a normal pullback now costs more than you planned. Adding above your first buy is averaging up. Our size goes on once.",
+  "lesson_text": "He averaged up. He bought more of a stock he already owns, at a higher price than his first buy. That drags his average cost up from $40 toward $46. Plenty of traders press a winner this way as a habit. We don't plan it. Our full size goes on at one price, with one stop, and the size came from that stop. Add above it and a normal pullback now costs more than you planned. Adding to a working winner does happen, but it's rare and a feel call. Adding above your first buy is averaging up. For us it's rare, never the plan.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -7849,23 +7849,23 @@
       "url": "https://www.investopedia.com/terms/s/scale-in.asp"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Averaging up is buying more of a stock you own at a higher price, which raises your average cost. Buying more above your earlier buy or your average price is averaging up. Averaging down is buying more after the price has fallen, which lowers your average cost. Dollar-cost averaging is equal amounts on a schedule, whatever the price does. Scaling out means closing a trade in pieces so the rest of the shares can keep riding. Our rule: the whole position goes on at one price with one stop, and we never add to it."
+    "summary": "Averaging up is buying more of a stock you own at a higher price, which raises your average cost. Buying more above your earlier buy or your average price is averaging up. Averaging down is buying more after the price has fallen, which lowers your average cost. Dollar-cost averaging is equal amounts on a schedule, whatever the price does. Scaling out means closing a trade in pieces so the rest of the shares can keep riding. The full size goes on at one price with one stop: no starter piece, and never an add to a loser. Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
    },
    "facts": {
     "given": "A friend bought 200 shares at $40. It's working, so he buys 100 more at $46. What did he just do? Averaged up on a winner Averaged down on a loser Dollar-cost averaged in Scaled out of the trade"
    },
-   "lesson_line": "Adding above your first buy is averaging up. Our size goes on once.",
-   "simple": "He averaged up, buying more above his first price. We don't add at all, we buy the full size once.",
+   "lesson_line": "Adding above your first buy is averaging up. For us it's rare, never the plan.",
+   "simple": "He averaged up, buying more above his first price. We buy the full size once, and an add is rare.",
    "tier": "core",
    "unit": "F10.05",
-   "why": "He averaged up. He bought more of a stock he already owns, at a higher price than his first buy. That drags his average cost up from $40 toward $46. Plenty of traders press a winner this way. We don't. Our full size goes on at one price, with one stop, and the size came from that stop. Add above it and a normal pullback now costs more than you planned.",
+   "why": "He averaged up. He bought more of a stock he already owns, at a higher price than his first buy. That drags his average cost up from $40 toward $46. Plenty of traders press a winner this way as a habit. We don't plan it. Our full size goes on at one price, with one stop, and the size came from that stop. Add above it and a normal pullback now costs more than you planned. Adding to a working winner does happen, but it's rare and a feel call.",
    "wrong": {
     "Averaged down on a loser": "That's buying more after the price drops below your buy. This one went up.",
     "Dollar-cost averaged in": "That's the same money in on a set schedule, whatever the price. He bought because it was working.",
@@ -7886,7 +7886,7 @@
   "difficulty": 1,
   "id": "si_98a249d25088",
   "lesson_origin": "session",
-  "lesson_text": "False. That's averaging down, the opposite. Pyramiding adds to a stock while it's working, each add smaller than the last. Averaging down adds while it's going against you. It feels like a bargain. Really you're putting more money behind the trade that's proving you wrong. We do neither. The whole size goes on at one price, with one stop. Pyramiding adds to a winner. Buying the drops is averaging down.",
+  "lesson_text": "False. That's averaging down, the opposite. Pyramiding adds to a stock while it's working, each add smaller than the last. Averaging down adds while it's going against you. It feels like a bargain. Really you're putting more money behind the trade that's proving you wrong. We never average down. The whole size goes on at one price, with one stop. Adding to a winner happens, but it's rare, a feel call. Pyramiding adds to a winner. Buying the drops is averaging down.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -7922,23 +7922,23 @@
       "url": "https://www.investopedia.com/terms/a/averagedown.asp"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Pyramiding adds to a position as it performs well. Pyramiding uses a position's profits to grow it, usually in smaller and smaller pieces. Averaging down is buying more after the price has fallen, which lowers your average cost. Our rule: the whole position goes on at one price with one stop, and we never add to it."
+    "summary": "Pyramiding adds to a position as it performs well. Pyramiding uses a position's profits to grow it, usually in smaller and smaller pieces. Averaging down is buying more after the price has fallen, which lowers your average cost. The full size goes on at one price with one stop: no starter piece, and never an add to a loser. Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
    },
    "facts": {
     "given": "A trader buys more of a stock every time it drops below his first buy. That's called pyramiding."
    },
    "lesson_line": "Pyramiding adds to a winner. Buying the drops is averaging down.",
-   "simple": "False. Buying as it falls is averaging down, while pyramiding adds as it works, and we do neither.",
+   "simple": "False. Buying as it falls is averaging down, pyramiding adds as it works, and we never average down.",
    "tier": "core",
    "unit": "F10.05",
-   "why": "False. That's averaging down, the opposite. Pyramiding adds to a stock while it's working, each add smaller than the last. Averaging down adds while it's going against you. It feels like a bargain. Really you're putting more money behind the trade that's proving you wrong. We do neither. The whole size goes on at one price, with one stop."
+   "why": "False. That's averaging down, the opposite. Pyramiding adds to a stock while it's working, each add smaller than the last. Averaging down adds while it's going against you. It feels like a bargain. Really you're putting more money behind the trade that's proving you wrong. We never average down. The whole size goes on at one price, with one stop. Adding to a winner happens, but it's rare, a feel call."
   },
   "review_status": "draft",
   "skill_id": "orders.scaling",
@@ -8015,7 +8015,7 @@
   "difficulty": 1,
   "id": "si_eeb09f65d91d",
   "lesson_origin": "session",
-  "lesson_text": "Up. O'Neil's view on averaging down was simple: don't. He called it throwing good money after bad. The only averaging he'd accept was averaging up, adding to a stock that's proving you right. We go a step further. The full size goes on once, at one price with one stop, so we don't average either way. The part we share with him matters most: never add to a loser. Never add to a loser. O'Neil said it, and we live by it.",
+  "lesson_text": "Up. O'Neil's view on averaging down was simple: don't. He called it throwing good money after bad. The only averaging he'd accept was averaging up, adding to a stock that's proving you right. We buy the full size once, at one price with one stop. No starter piece, no scaling in. Adding to a working winner is rare for us, a feel call, never the plan. The part we share with him matters most: never add to a loser. Never add to a loser. O'Neil said it, and we live by it.",
   "module": "F10",
   "prompt_json": {
    "bank": [
@@ -8057,14 +8057,14 @@
       "url": "https://thepatternsite.com/ScalingIn.html"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "O'Neil's advice on buying more of a stock after it drops: don't. O'Neil calls averaging down throwing good money after bad; the only averaging he accepts is averaging up. Hirsch lists averaging down into losing positions first among the deadly sins of managing positions. Bulkowski almost never averages down on trades: it makes the loss bigger. Our rule: the whole position goes on at one price with one stop, and we never add to it."
+    "summary": "O'Neil's advice on buying more of a stock after it drops: don't. O'Neil calls averaging down throwing good money after bad; the only averaging he accepts is averaging up. Hirsch lists averaging down into losing positions first among the deadly sins of managing positions. Bulkowski almost never averages down on trades: it makes the loss bigger. The full size goes on at one price with one stop: no starter piece, and never an add to a loser. Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
    },
    "facts": {
     "given": "O'Neil had one line on averaging. What's the missing word? The only averaging that makes sense is averaging ___."
@@ -8073,7 +8073,7 @@
    "simple": "Up. O'Neil said never average down, and we never add to a loser either.",
    "tier": "core",
    "unit": "F10.05",
-   "why": "Up. O'Neil's view on averaging down was simple: don't. He called it throwing good money after bad. The only averaging he'd accept was averaging up, adding to a stock that's proving you right. We go a step further. The full size goes on once, at one price with one stop, so we don't average either way. The part we share with him matters most: never add to a loser."
+   "why": "Up. O'Neil's view on averaging down was simple: don't. He called it throwing good money after bad. The only averaging he'd accept was averaging up, adding to a stock that's proving you right. We buy the full size once, at one price with one stop. No starter piece, no scaling in. Adding to a working winner is rare for us, a feel call, never the plan. The part we share with him matters most: never add to a loser."
   },
   "review_status": "draft",
   "skill_id": "orders.scaling",
@@ -8369,14 +8369,14 @@
       "url": "https://thepatternsite.com/AveragingDown.html"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding. … The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "O'Neil's advice on buying more of a stock after it drops: don't. O'Neil calls averaging down throwing good money after bad; the only averaging he accepts is averaging up. Buying more of a falling stock because it looks cheaper is often a way of not admitting you were wrong. Most people can't tell a temporary dip from the start of a much bigger drop. Buying more of a falling stock raises your total exposure to it. Averaging down only helps if the stock turns back up. Our rule: the whole position goes on at one price with one stop, and we never add to it. Our stop only moves up, never down or wider; the gap rule is the one exception."
+    "summary": "O'Neil's advice on buying more of a stock after it drops: don't. O'Neil calls averaging down throwing good money after bad; the only averaging he accepts is averaging up. Buying more of a falling stock because it looks cheaper is often a way of not admitting you were wrong. Most people can't tell a temporary dip from the start of a much bigger drop. Buying more of a falling stock raises your total exposure to it. Averaging down only helps if the stock turns back up. The full size goes on at one price with one stop: no starter piece, and never an add to a loser. Our stop only moves up, never down or wider; the gap rule is the one exception."
    },
    "facts": {
     "given": "What's your move? You bought at $50 with your stop at $48.50, just under the low of the day. It's $49 now and still sliding. A friend says buy more to lower your average. Stick to the stop, add nothing Buy more, it's cheaper now Hold, but drop the stop to $47 Buy more right at $48.50"
@@ -8459,14 +8459,14 @@
       "url": "https://thepatternsite.com/AveragingDown.html"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-12",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "100 shares at $50 plus 100 at $40 gives an average cost of $45. Buying more of a falling stock raises your total exposure to it. Averaging down only helps if the stock turns back up. Our rule: the whole position goes on at one price with one stop, and we never add to it."
+    "summary": "100 shares at $50 plus 100 at $40 gives an average cost of $45. Buying more of a falling stock raises your total exposure to it. Averaging down only helps if the stock turns back up. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
    },
    "facts": {
     "calc": {
@@ -8557,14 +8557,14 @@
       "url": "https://www.investopedia.com/terms/s/scale-in.asp"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding. … The stop may move up to breakeven between 2R and 5R, or at the first sell. … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it. … Hold your winners by selling partials into strength and trailing the rising moving averages. … 9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … The stop may move up to breakeven between 2R and 5R, or at the first sell. … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it. … Hold your winners by selling partials into strength and trailing the rising moving averages. … 9 and 20 EMA everywhere, with the 50 and 200 SMA. … Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "When a stock runs sharply higher, sell part of the position and let the rest ride. Selling a winner too early hurts too, so harvest some gains and then trail a stop on the rest. Scaling out means closing a trade in pieces so the rest of the shares can keep riding. When protecting profits matters more to you than getting stopped out, Schwab suggests a trailing stop. Our rule: the whole position goes on at one price with one stop, and we never add to it. Our stop may move up to breakeven between 2R and 5R, or at the first sell. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. Our rule for winners: sell partials into strength and trail the rest under the rising moving averages. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+    "summary": "When a stock runs sharply higher, sell part of the position and let the rest ride. Selling a winner too early hurts too, so harvest some gains and then trail a stop on the rest. Scaling out means closing a trade in pieces so the rest of the shares can keep riding. When protecting profits matters more to you than getting stopped out, Schwab suggests a trailing stop. The full size goes on at one price with one stop: no starter piece, and never an add to a loser. Our stop may move up to breakeven between 2R and 5R, or at the first sell. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. Our rule for winners: sell partials into strength and trail the rest under the rising moving averages. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA. Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
    },
    "facts": {
     "given": "You just sold part of a winner into a strong push. What's the plan for the shares you kept? Let them ride on a trailing stop Keep the original stop under them Buy more on the next dip Hold them with no stop at all"
@@ -8575,7 +8575,7 @@
    "unit": "F10.05",
    "why": "Let them ride on a trailing stop. The sale put a gain in your pocket, and the rest is there for the bigger move. Now protect it. The stop can come up to breakeven at the first sell. Then the rest trails the 9 EMA on a fast mover or the 20 EMA on a steadier one. A close below the line sells it.",
    "wrong": {
-    "Buy more on the next dip": "We don't add. The shares you kept have one job: ride the trail.",
+    "Buy more on the next dip": "Adding isn't the plan. You just sold some into strength. The shares you kept have one job: ride the trail.",
     "Hold them with no stop at all": "A winner can still turn on you. The rest needs a stop that rises with it.",
     "Keep the original stop under them": "On a winner that stop sits way below. Bring it up to breakeven at the first sell, and a reversal costs you far less."
    }
@@ -9003,12 +9003,12 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left. … The full size at one price with one stop; no adding. … The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20). … The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+      "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20). … The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "When a holding gets extended short term, Hirsch trims it to a two-thirds or even one-third position. When a stock runs sharply higher, sell part of the position and let the rest ride. Selling a winner too early hurts too, so harvest some gains and then trail a stop on the rest. Buying a stock that is already extended gets you shaken out on normal pullbacks far more often. Our rule for winners: sell partials into strength and trail the rest under the rising moving averages. Later sells are a judgment: sell more into strength on a later push, and trail what is left. Our rule: the whole position goes on at one price with one stop, and we never add to it. Our stop only moves up, never down or wider; the gap rule is the one exception. Our rule: the first sell is a judgment, not a fixed third at 3R."
+    "summary": "When a holding gets extended short term, Hirsch trims it to a two-thirds or even one-third position. When a stock runs sharply higher, sell part of the position and let the rest ride. Selling a winner too early hurts too, so harvest some gains and then trail a stop on the rest. Buying a stock that is already extended gets you shaken out on normal pullbacks far more often. Our rule for winners: sell partials into strength and trail the rest under the rising moving averages. Later sells are a judgment: sell more into strength on a later push, and trail what is left. The full size goes on at one price with one stop: no starter piece, and never an add to a loser. Our stop only moves up, never down or wider; the gap rule is the one exception. Our rule: the first sell is a judgment, not a fixed third at 3R."
    },
    "facts": {
     "given": "What's the play here? You hold a full position in a leader. It's run hard for two weeks and sits way above its rising averages. Your stop is far below. Sell some, trail the rest Add more while it's running Lower the stop for more room Sell it all, it can't go higher"
@@ -9019,7 +9019,7 @@
    "unit": "F10.05",
    "why": "Sell some, trail the rest. Two weeks of hard running, way above its averages: that's a stock stretched into strength. Buyers are there, so it's a good time to sell some. You lock in part of the run and keep shares on in case it keeps going. Bring the stop up behind it and trail the rest under the rising averages. You never have to guess the top.",
    "wrong": {
-    "Add more while it's running": "We never add. And buying a stock this stretched is chasing, the kind of buy a normal pullback shakes out.",
+    "Add more while it's running": "Not into a stretch like this. Buying a stock this extended is chasing, the kind of buy a normal pullback shakes out.",
     "Lower the stop for more room": "Our stop only moves up, never down. On a winner, lowering it just hands back more of the gain.",
     "Sell it all, it can't go higher": "That's a bet on the top. Sell some into strength and let the trail decide the rest."
    }
@@ -9038,7 +9038,7 @@
   "difficulty": 1,
   "id": "si_39e528e6b2c8",
   "lesson_origin": "session",
-  "lesson_text": "True. The full size goes on at one price, with one stop. No starter piece, no adding as it works. Here's why. The size came from the stop. Your entry minus your stop set how many shares fit the risk you chose. Add more higher up and that math is gone, and a normal pullback costs more than you planned. We scale the exit, never the entry. Full size, one price, one stop. We scale out, never in.",
+  "lesson_text": "True. The full size goes on at one price, with one stop. No starter piece, no scaling in. Here's why. The size came from the stop. Your entry minus your stop set how many shares fit the risk you chose. Adding to a working winner on strength does happen, but it's rare and a feel call. Never planned, and never to a loser. We scale the exit, not the entry. Full size, one price, one stop. We scale out, not in.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -9046,30 +9046,30 @@
     "False"
    ],
    "kind": "tf",
-   "q": "We buy the whole position at one price, with one stop, and never add to it later.",
+   "q": "We buy the whole position at one price, with one stop. Adding to a winner later is rare, and never part of the plan.",
    "subject": "F10.05#q26"
   },
   "reveal_json": {
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding. … I do not scale into trade i buy full at one spot with one stop.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … I do not scale into trade i buy full at one spot with one stop. … Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Our rule: the whole position goes on at one price with one stop, and we never add to it. The owner's words: he does not scale in; the full size goes on at one spot with one stop."
+    "summary": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser. The owner's words: he does not scale in; the full size goes on at one spot with one stop. Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
    },
    "facts": {
-    "given": "We buy the whole position at one price, with one stop, and never add to it later."
+    "given": "We buy the whole position at one price, with one stop. Adding to a winner later is rare, and never part of the plan."
    },
-   "lesson_line": "Full size, one price, one stop. We scale out, never in.",
-   "simple": "True. The stop set the size, so the full size goes on once and adding later breaks the risk you planned.",
+   "lesson_line": "Full size, one price, one stop. We scale out, not in.",
+   "simple": "True. The stop set the size, so it goes on once, and adding to a winner is rare, a feel call.",
    "tier": "core",
    "unit": "F10.05",
-   "why": "True. The full size goes on at one price, with one stop. No starter piece, no adding as it works. Here's why. The size came from the stop. Your entry minus your stop set how many shares fit the risk you chose. Add more higher up and that math is gone, and a normal pullback costs more than you planned. We scale the exit, never the entry."
+   "why": "True. The full size goes on at one price, with one stop. No starter piece, no scaling in. Here's why. The size came from the stop. Your entry minus your stop set how many shares fit the risk you chose. Adding to a working winner on strength does happen, but it's rare and a feel call. Never planned, and never to a loser. We scale the exit, not the entry."
   },
   "review_status": "draft",
   "skill_id": "orders.scaling",
@@ -9469,12 +9469,12 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money. … The full size at one price with one stop; no adding. … The stop may move up to breakeven between 2R and 5R, or at the first sell. … The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20). … After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+      "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan. … The stop may move up to breakeven between 2R and 5R, or at the first sell. … The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20). … After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Our time stop: a trade still under 1R after 10 trading days is sold. Our rule: the whole position goes on at one price with one stop, and we never add to it. Our stop may move up to breakeven between 2R and 5R, or at the first sell. Our stop only moves up, never down or wider; the gap rule is the one exception. After a stop-out we buy again only if the setup triggers again, as a new trade with its own stop."
+    "summary": "Our time stop: a trade still under 1R after 10 trading days is sold. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan. Our stop may move up to breakeven between 2R and 5R, or at the first sell. Our stop only moves up, never down or wider; the gap rule is the one exception. After a stop-out we buy again only if the setup triggers again, as a new trade with its own stop."
    },
    "facts": {
     "given": "What's the call here? You bought a setup 11 trading days ago. It never came near the stop, but it's up only about half an R and going nowhere. Sell it, the time stop hit Hold until the stop or 3R Move the stop up to breakeven Widen the stop and wait"
@@ -9598,7 +9598,7 @@
   "difficulty": 3,
   "id": "si_14443063bb41",
   "lesson_origin": "session",
-  "lesson_text": "Add nothing. You put the full size on at $30, with one stop at $28.50, and that stop set your size. Add half at $33 and your average climbs. A pullback to $30 now costs you on the new shares. Manage what you have instead. At $33 you're twice your risk ahead, so a breakeven stop is now on the table. Full size at one price. Then you manage it, you don't add to it.",
+  "lesson_text": "Add nothing. You put the full size on at $30, with one stop at $28.50, and that stop set your size. Add half at $33 and your average climbs. A pullback to $30 now costs you on the new shares. Adding to a working winner does happen, but it's rare and a feel call, never the plan. Manage what you have instead. At $33 you're twice your risk ahead, so a breakeven stop is now on the table. Full size at one price. Then you manage it. An add is rare, never the plan.",
   "module": "F10",
   "prompt_json": {
    "choices": [
@@ -9614,14 +9614,14 @@
   },
   "reveal_json": {
    "deeper": {
-    "counter": "Averaging up is a real method. IBD uses later buy points to add to a position it already holds. It isn't ours. Our size is set once, from the stop at the entry, so the risk you planned is the risk you carry."
+    "counter": "Averaging up is a real method. IBD uses later buy points to add to a position it already holds. We don't plan a trade that way. Our size is set once, from the stop at the entry, so the risk you planned is the risk you carry."
    },
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding. … I do not scale into trade i buy full at one spot with one stop. … The stop may move up to breakeven between 2R and 5R, or at the first sell. … The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. … We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … I do not scale into trade i buy full at one spot with one stop. … The stop may move up to breakeven between 2R and 5R, or at the first sell. … The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. … We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest. … Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      },
@@ -9640,19 +9640,19 @@
       "url": "https://www.investors.com/ibd-university/how-to-buy/additional-buy-points/"
      }
     ],
-    "summary": "Our rule: the whole position goes on at one price with one stop, and we never add to it. The owner's words: he does not scale in; the full size goes on at one spot with one stop. Our stop may move up to breakeven between 2R and 5R, or at the first sell. Our rule: the first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Adding to a winner raises what you lose if the stock then turns down hard. A later buy point in a winning stock can be used to add to a position you already hold."
+    "summary": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser. The owner's words: he does not scale in; the full size goes on at one spot with one stop. Our stop may move up to breakeven between 2R and 5R, or at the first sell. Our rule: the first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Adding to a winner raises what you lose if the stock then turns down hard. A later buy point in a winning stock can be used to add to a position you already hold. Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
    },
    "facts": {
     "given": "Do you add? You bought your full size at $30, stop $28.50. Two days later it's at $33, and a friend says add half again, it's working. Add nothing, manage the trade Add half, it's proving you right Add half, raise the stop on all Sell it all and rebuy bigger"
    },
-   "lesson_line": "Full size at one price. Then you manage it, you don't add to it.",
+   "lesson_line": "Full size at one price. Then you manage it. An add is rare, never the plan.",
    "simple": "Add nothing. Your size went on once, from the stop, and buying more higher raises what a pullback costs.",
    "tier": "expert",
    "unit": "F10.05",
-   "why": "Add nothing. You put the full size on at $30, with one stop at $28.50, and that stop set your size. Add half at $33 and your average climbs. A pullback to $30 now costs you on the new shares. Manage what you have instead. At $33 you're twice your risk ahead, so a breakeven stop is now on the table.",
+   "why": "Add nothing. You put the full size on at $30, with one stop at $28.50, and that stop set your size. Add half at $33 and your average climbs. A pullback to $30 now costs you on the new shares. Adding to a working winner does happen, but it's rare and a feel call, never the plan. Manage what you have instead. At $33 you're twice your risk ahead, so a breakeven stop is now on the table.",
    "wrong": {
-    "Add half, it's proving you right": "Averaging up is a real method, and other traders use it. It isn't ours. Our size went on once, from the stop.",
-    "Add half, raise the stop on all": "Raising the stop is fine. Adding isn't. More shares bought higher raise what a reversal costs.",
+    "Add half, it's proving you right": "Working isn't reason enough on its own. Your job now is managing what you have, not growing it.",
+    "Add half, raise the stop on all": "Raising the stop is fine. The add isn't. More shares bought higher raise what a reversal costs.",
     "Sell it all and rebuy bigger": "That's an add with extra steps. Our size was set from the stop at the entry."
    }
   },
@@ -9693,12 +9693,12 @@
      {
       "accessed": "2026-11-12",
       "name": "Our trading rules",
-      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. … We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest. … Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it. … The full size at one price with one stop; no adding. … 9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. … We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest. … Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … 9 and 20 EMA everywhere, with the 50 and 200 SMA.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Our rule: the first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. Our rule: the whole position goes on at one price with one stop, and we never add to it. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+    "summary": "Our rule: the first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. The full size goes on at one price with one stop: no starter piece, and never an add to a loser. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
     "calc": {
@@ -9723,7 +9723,7 @@
    "unit": "F10.05",
    "why": "Sell some at $46 and trail the rest. Your risk was $2 a share, $40 minus $38. At $46 you're up $6, 3R. That alone isn't the reason. The 5 day push is. Selling into a 3, 5 or 7 day push is often best, and this is that spot. The rest rides the rising 9 EMA and sells on a close below it. How much to sell is your call.",
    "wrong": {
-    "Add 100 more shares at $46": "We never add. The whole size goes on at one price, with one stop.",
+    "Add 100 more shares at $46": "Not into a 5 day push this stretched. That's where we sell some, not where we buy more.",
     "Hold all 300 and never sell a share": "That banks nothing into a 5 day push. Sell some into strength and trail the rest.",
     "Sell all 300 at $46, one target": "That banks everything at one price. Sell some into strength and trail the rest."
    }
@@ -9806,7 +9806,7 @@
   "difficulty": 1,
   "id": "si_ae10ac21f49f",
   "lesson_origin": "session",
-  "lesson_text": "The only thing we scale is the exit. Sell some into strength, rarely before day 3, and trail the rest.",
+  "lesson_text": "What we do scale is the exit. Sell some into strength, rarely before day 3, and trail the rest.",
   "module": "F10",
   "prompt_json": {
    "order": 4,
@@ -9814,9 +9814,10 @@
    "parts": 4,
    "q": "One price, one stop",
    "steps": [
-    "We buy the full size at one price, with one stop. No starter piece, no adding as it works.",
+    "We buy the full size at one price, with one stop. No starter piece, and we never add to a loser.",
     "The stop sets the size before the buy. Then it all goes in as one market order.",
-    "The only thing we scale is the exit. Sell some into strength, rarely before day 3, and trail the rest."
+    "Adding to a working winner on strength happens, but it's rare and a feel call, never the plan.",
+    "What we do scale is the exit. Sell some into strength, rarely before day 3, and trail the rest."
    ],
    "subject": "F10.05#w4"
   },
@@ -9824,9 +9825,9 @@
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding. … I do not scale into trade i buy full at one spot with one stop. … Entries are market orders. … The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. … We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … I do not scale into trade i buy full at one spot with one stop. … Entries are market orders. … The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. … We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left. … Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }

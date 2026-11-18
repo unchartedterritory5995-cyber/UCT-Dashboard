@@ -2074,100 +2074,6 @@
  },
  {
   "answer_json": {
-   "answer": "$53.00"
-  },
-  "difficulty": 2,
-  "id": "si_48d557bbe18b",
-  "lesson_origin": "session",
-  "lesson_text": "$53. The base pivot is just the average of yesterday's high, low and close. Add them up: 56 plus 48 plus 55 is 159. Divide by 3 and you get 53. Mark it before the open. It stays fixed all day, so it's a level you plan around, not one that moves on you. Tomorrow you do it again off today's bar. Intraday pivots come from yesterday's bar and live for one session. That's a day trader's level.",
-  "module": "F11",
-  "prompt_json": {
-   "choices": [
-    "$52.00",
-    "$53.00",
-    "$55.00",
-    "$159.00"
-   ],
-   "kind": "mcq",
-   "q": "You day trade off floor pivots. Yesterday: high $56, low $48, close $55. Where's today's base pivot on your 5-minute chart?",
-   "subject": "F11.02#q09",
-   "visual": {
-    "find": {
-     "as": "price",
-     "label": "Base pivot"
-    },
-    "kind": "ladder",
-    "levels": [
-     {
-      "key": "high",
-      "label": "Yesterday's high",
-      "price": 56.0
-     },
-     {
-      "key": "close",
-      "label": "Yesterday's close",
-      "price": 55.0
-     },
-     {
-      "key": "low",
-      "label": "Yesterday's low",
-      "price": 48.0
-     }
-    ],
-    "side": "long"
-   }
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Pivot Points",
-      "quote": "Standard Pivot Points begin with a base Pivot Point. This is a simple average of the high, low and close. … Pivot Points for 1-, 5-, 10-, and 15-minute charts use the prior day's high, low, and close. … Once Pivot Points are set, they do not change and remain in play throughout the day. … Pivot Points were originally used by floor traders to set key levels. Like modern-era day traders, floor traders dealt with a fast-moving environment and short-term focus.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/pivot-points"
-     }
-    ],
-    "summary": "The base pivot is the simple average of the prior high, low and close. On 1- to 15-minute charts, pivots come from yesterday's high, low and close. Intraday pivots stay fixed for the whole session. Pivot points started as floor traders' levels for a fast, short-term day."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "close": 55,
-      "expr": "(high + low + close) / 3",
-      "high": 56,
-      "low": 48
-     },
-     "fn": "arith",
-     "result": 53.0,
-     "steps": {
-      "step1": 53.0,
-      "step2": 159.0,
-      "step3": 104.0
-     }
-    },
-    "given": "You day trade off floor pivots. Yesterday: high $56, low $48, close $55. Where's today's base pivot on your 5-minute chart? $55.00 $159.00 $52.00 $53.00"
-   },
-   "lesson_line": "Intraday pivots come from yesterday's bar and live for one session. That's a day trader's level.",
-   "simple": "$53, because the base pivot is the plain average of yesterday's high, low and close.",
-   "tier": "core",
-   "unit": "F11.02",
-   "why": "$53. The base pivot is just the average of yesterday's high, low and close. Add them up: 56 plus 48 plus 55 is 159. Divide by 3 and you get 53. Mark it before the open. It stays fixed all day, so it's a level you plan around, not one that moves on you. Tomorrow you do it again off today's bar.",
-   "wrong": {
-    "$159.00": "You added them up and forgot to divide by 3.",
-    "$52.00": "That's the high and low averaged. You left out the close.",
-    "$55.00": "That's just the close. The pivot averages all three: high, low and close."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "styles.setups_fit",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F11/F11.02.json#q09",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Swing it, hold days to weeks"
   },
   "difficulty": 2,
@@ -2438,76 +2344,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/F11/F11.02.json#q14",
   "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "$112, from last month's bar"
-  },
-  "difficulty": 2,
-  "id": "si_a87b32fd6ab2",
-  "lesson_origin": "session",
-  "lesson_text": "$112. You're on the daily chart, so the pivot comes off last month's bar, not yesterday's. 120 plus 100 plus 116 is 336. Divide by 3 and it's 112. Mark it once and it holds all month. Yesterday's bar is the pivot for 1- to 15-minute charts. It resets every morning, way too fast for a trade you hold for days. And it's the average of all three, never just the close. Your levels have to match your chart. Your levels scale with your chart. A day trader's pivot doesn't fit a swing.",
-  "module": "F11",
-  "prompt_json": {
-   "choices": [
-    "$112, from last month's bar",
-    "$115, yesterday's bar",
-    "$110, the midpoint",
-    "$116, last month's close"
-   ],
-   "kind": "mcq",
-   "q": "You want floor pivots on your daily chart this month, done the ChartSchool way. Which base pivot do you mark?",
-   "story": "You swing trade off the daily chart. Last month's high was $120, low $100, close $116. Yesterday's high was $118, low $112, close $115.",
-   "subject": "F11.02#q15"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Pivot Points",
-      "quote": "Pivot Points for daily charts use the prior month's data. Pivot Points for June 1 would be based on the high, low, and close for May. They remain fixed for the entire month of June. … Standard Pivot Points begin with a base Pivot Point. This is a simple average of the high, low and close. … Pivot Points for 1-, 5-, 10-, and 15-minute charts use the prior day's high, low, and close. … Once Pivot Points are set, they do not change and remain in play throughout the day.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/pivot-points"
-     }
-    ],
-    "summary": "On a daily chart, pivots come from last month's bar and stay fixed all month. The base pivot is the simple average of the prior high, low and close. On 1- to 15-minute charts, pivots come from yesterday's high, low and close. Intraday pivots stay fixed for the whole session."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "close": 116,
-      "expr": "(high + low + close) / 3",
-      "high": 120,
-      "low": 100
-     },
-     "fn": "arith",
-     "result": 112.0,
-     "steps": {
-      "step1": 112.0,
-      "step2": 336.0,
-      "step3": 220.0
-     }
-    },
-    "given": "You want floor pivots on your daily chart this month, done the ChartSchool way. Which base pivot do you mark? You swing trade off the daily chart. Last month's high was $120, low $100, close $116. Yesterday's high was $118, low $112, close $115. $112, from last month's bar $115, yesterday's bar $116, last month's close $110, the midpoint"
-   },
-   "lesson_line": "Your levels scale with your chart. A day trader's pivot doesn't fit a swing.",
-   "simple": "$112, because a daily chart's pivot comes from last month's high, low and close, not yesterday's.",
-   "tier": "extended",
-   "unit": "F11.02",
-   "why": "$112. You're on the daily chart, so the pivot comes off last month's bar, not yesterday's. 120 plus 100 plus 116 is 336. Divide by 3 and it's 112. Mark it once and it holds all month. Yesterday's bar is the pivot for 1- to 15-minute charts. It resets every morning, way too fast for a trade you hold for days. And it's the average of all three, never just the close. Your levels have to match your chart.",
-   "wrong": {
-    "$110, the midpoint": "That's halfway between the high and the low. You left the close out of the average.",
-    "$115, yesterday's bar": "That's yesterday's average, the pivot for 1- to 15-minute charts. It resets every day, too fast for a daily chart.",
-    "$116, last month's close": "The pivot isn't the close. It's the average of the high, the low and the close."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "styles.setups_fit",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F11/F11.02.json#q15",
-  "type": "scenario",
   "version": 1
  },
  {
@@ -4270,7 +4106,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "0.25% to 2% of the account, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling. … Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts. … A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red). … The stop is the exit. It only moves up, never down or wider. … The full size at one price with one stop; no adding.",
+      "quote": "0.25% to 2% of the account, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling. … Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts. … A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red). … The stop is the exit. It only moves up, never down or wider. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      },
@@ -4289,7 +4125,7 @@
       "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
      }
     ],
-    "summary": "Our risk per trade is 0.25% to 2% of the account, chosen by the setup, your results, the market and your edge; never above 2%. Our market guide: as the market weakens, fewer and smaller trades, then only the best, then mostly cash. Our rule: a market filter decides when the account trades. When the market outlook turns negative, buy less, sell losers faster and tighten stops. Swing traders watch the broader market so they aren't trading against it. Buying more of a falling stock instead of admitting you were wrong is one of the fastest ways to lose money. Our stop only moves up, never down or wider. Our rule: one buy at one price with one stop, and no adding."
+    "summary": "Our risk per trade is 0.25% to 2% of the account, chosen by the setup, your results, the market and your edge; never above 2%. Our market guide: as the market weakens, fewer and smaller trades, then only the best, then mostly cash. Our rule: a market filter decides when the account trades. When the market outlook turns negative, buy less, sell losers faster and tighten stops. Swing traders watch the broader market so they aren't trading against it. Buying more of a falling stock instead of admitting you were wrong is one of the fastest ways to lose money. Our stop only moves up, never down or wider. We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
    },
    "facts": {
     "given": "What's the play from here? You hold two swing trades and have a few new buys lined up for this week. Then the general market turns weak and most stocks start falling. Take fewer new trades for now Ignore it, the stock is what counts Widen your stops to ride it out Buy more, prices are lower now"
@@ -4300,7 +4136,7 @@
    "unit": "F11.03",
    "why": "Take fewer new trades. When the market turns, good setups fail more often because the market isn't backing them. Our market filter, the app's Green, Yellow, Orange and Red reading, sets how much we trade. As it weakens it's fewer and smaller trades, then only the best, and in Red mostly cash. Your two open trades keep their stops. A stop only moves up, never down or wider. Let the market earn your exposure back.",
    "wrong": {
-    "Buy more, prices are lower now": "That's adding to a loser. We buy once at one price and never add, least of all into a falling market.",
+    "Buy more, prices are lower now": "That's adding to a loser. We buy the full size once, at one price, and never add to a loser, least of all into a falling market.",
     "Ignore it, the stock is what counts": "Most stocks go with the market. Trade against it and good setups fail through no fault of their own.",
     "Widen your stops to ride it out": "That's more risk right as the market turns on you. A stop only moves up, never wider."
    }

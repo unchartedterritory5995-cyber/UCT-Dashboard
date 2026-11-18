@@ -724,6 +724,12 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1318,12 +1324,12 @@
     "f09",
     "f31",
     "h17",
-    "h26"
+    "rw_add"
    ],
    "wrong": {
     "Ignore it, the stock is what counts": "Most stocks go with the market. Trade against it and good setups fail through no fault of their own.",
     "Widen your stops to ride it out": "That's more risk right as the market turns on you. A stop only moves up, never wider.",
-    "Buy more, prices are lower now": "That's adding to a loser. We buy once at one price and never add, least of all into a falling market."
+    "Buy more, prices are lower now": "That's adding to a loser. We buy the full size once, at one price, and never add to a loser, least of all into a falling market."
    },
    "simple": "Take fewer new trades, because a weak market makes good setups fail more often. Your open trades keep their stops.",
    "tier": "extended",
@@ -1334,7 +1340,7 @@
      "fixed before (hedges)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q15",
@@ -1882,7 +1888,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Market filter described where the member meets it (rule 19); Red = mostly cash, not a hard no-buy; stop only moves up. 'Let the market earn your exposure back' is his line."
+   "notes": "the add is into a falling market on open trades, so averaging down; note now says never add to a loser, full size once. Answer clear, voice 4."
   },
   "q15": {
    "status": "pass",

@@ -1205,6 +1205,18 @@
    "source": "hw",
    "quote": "Below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the one exception, on a reversal extension or a parabolic long.",
    "claim": "Our rule: below the 200-day is a hard no for stocks; only indexes and leveraged ETFs are the exception."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
   }
  ],
  "walkthroughs": [
@@ -1967,13 +1979,13 @@
     "u04",
     "u01",
     "h22",
-    "h31",
+    "aw1",
     "c19",
     "u02",
     "r53"
    ],
    "wrong": {
-    "Buy half now, half at the close": "We buy the full size at one price with one stop. No adding later.",
+    "Buy half now, half at the close": "No starter piece. We buy the full size at one price with one stop.",
     "Wait for the close to confirm": "By the close the stop's far away and the size gets tiny. The tight entry is right now.",
     "Wait for a pullback to fill the gap": "A gap fill kills the setup. You want the gap to stay open, not close."
    },
@@ -1986,7 +1998,7 @@
      "the day-one buy is a held decision (D-005)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q19",
@@ -2609,13 +2621,14 @@
     "h21",
     "c36",
     "k13",
-    "h31",
-    "r57"
+    "aw1",
+    "r57",
+    "aw2"
    ],
    "wrong": {
     "Hold, the stop's at breakeven": "Breakeven is the floor, not the exit plan. The trail decides when the rest goes.",
     "Hold until the gap-day low breaks": "That's way below. You'd hand back most of a three-week run waiting for it.",
-    "Add, the dip is a new entry": "We buy one size at one price and don't add. A close under the trail is an exit, not an entry."
+    "Add, the dip is a new entry": "A close under the trail is an exit, not an entry. A rare add comes on strength, never on a break."
    },
    "house": true,
    "simple": "Sell it. A close under the 9 EMA says the fast run is over, so you keep most of what you made.",
@@ -2630,7 +2643,7 @@
      "held decision D-024 (the trail line)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q35",
@@ -2765,11 +2778,12 @@
    "facts": [
     "h16",
     "sc3",
-    "h31"
+    "aw1",
+    "aw2"
    ],
    "wrong": {
     "Hold, the trail is the only exit": "Most of the time, yes. A climax is the exception, because the trail sits too far under a vertical move.",
-    "Add, momentum is strongest here": "We don't add, and adding into a climax is about the worst spot to buy.",
+    "Add, momentum is strongest here": "Never into a climax. That's about the worst spot there is to buy more.",
     "Sell it all at tomorrow's open": "Sell into the strength while it's here. And a big part, not all of it, is the call."
    },
    "house": true,
@@ -2781,7 +2795,7 @@
      "rests on the owner's rulebook (C34), a judgment call"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "deeper": {
     "counter": "Bracco's parabolic burst is the picture: straight up days, overnight gap ups and ranges getting wider. ChartSchool notes that exhaustion gaps happen near the end of a good trend."
    }
@@ -3848,12 +3862,13 @@
     "h02",
     "b13",
     "h05",
-    "h31"
+    "aw1",
+    "aw2"
    ],
    "wrong": {
     "Sell, five flat days is a fail": "Five flat days isn't our clock. Ours sells a trade still under 1R after 10 trading days.",
     "Move the stop to breakeven now": "Breakeven comes at 2R to 5R. This trade hasn't moved yet.",
-    "Hold, and add as it builds": "We buy the full size at one price and don't add."
+    "Hold, and add as it builds": "We buy the full size at one price. A rare add comes on strength in a working winner, and this one hasn't worked yet."
    },
    "house": true,
    "simple": "Hold. The stop hasn't been hit and the 10-day clock hasn't run out, so you let it work.",
@@ -3868,7 +3883,7 @@
      "ours and Bonde's clocks differ"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q62",
@@ -4546,7 +4561,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "'Heavy volume's a plus, not a must' matches his volume ruling (raises the grade). 2.1% inside 1-3%."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q19": {
    "status": "pass",
@@ -4642,7 +4657,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q35": {
    "status": "pass",
@@ -4666,7 +4681,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q39": {
    "status": "pass",
@@ -4803,8 +4818,8 @@
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong note leaned on a book author ('Bonde's five-day clock'); now states our clock plainly. Why is good: SIG stalled a week, 3R on day 8."
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q62": {
    "status": "pass",

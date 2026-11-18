@@ -886,6 +886,18 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
   }
  ],
  "walkthroughs": [
@@ -1036,7 +1048,7 @@
     "Line 4"
    ],
    "answer": "Line 2",
-   "why": "Line 2, the add. That's averaging down, and it's how a small loss turns into a big one. The slip from $40 to $39 was the stock telling you the idea wasn't working yet. Buying 300 more doubled the shares riding down to your $38 stop. So the loss came out bigger than the one you planned, on twice the shares. We put the full size on at one price with one stop, and we never add. Buying more to lower your cost feels like a bargain. Really it's refusing to admit you're wrong.",
+   "why": "Line 2, the add. That's averaging down, and it's how a small loss turns into a big one. The slip from $40 to $39 was the stock telling you the idea wasn't working yet. Buying 300 more doubled the shares riding down to your $38 stop. So the loss came out bigger than the one you planned, on twice the shares. We put the full size on at one price with one stop, and we never add to a loser. Buying more to lower your cost feels like a bargain. Really it's refusing to admit you're wrong.",
    "lesson_line": "Never add to a loser. Your full size goes on at one price.",
    "facts": [
     "f61",
@@ -1045,7 +1057,7 @@
     "f17",
     "f15",
     "f43",
-    "h06"
+    "aw1"
    ],
    "wrong": {
     "Line 1": "Fine. A buy with the stop set under the base.",
@@ -1061,7 +1073,7 @@
      "rewritten before (2026-11-09)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q04",
@@ -1123,7 +1135,7 @@
     "f41",
     "f42",
     "f43",
-    "h06"
+    "aw1"
    ],
    "simple": "False. Adding to a loser puts more money on an idea that's already going wrong.",
    "tier": "core",
@@ -1163,14 +1175,14 @@
     "f03",
     "f59",
     "f61",
-    "h06",
+    "aw1",
     "h11",
     "h14"
    ],
    "wrong": {
     "So a gap can't jump past your stop": "A stop can't stop a gap. Once it's hit it turns into a market order, and the fill can be far below it.",
     "So your broker will accept the order": "Your broker doesn't need a stop from you. Some don't even offer every stop type. The stop is for you.",
-    "So you know where to add more shares": "The stop is where you're wrong, not where you buy more. We put the full size on at one price and never add."
+    "So you know where to add more shares": "The stop is where you're wrong, not where you buy more. We put the full size on at one price, with one stop."
    },
    "simple": "Set it before you buy, because once you're in, emotions make it hard to pick a fair exit.",
    "tier": "core",
@@ -1181,7 +1193,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q07",
@@ -1557,14 +1569,14 @@
     "Line 4"
    ],
    "answer": "Line 3",
-   "why": "Line 3 is the one. Planning to buy more if it slips to $48.50 is averaging down, written in before you even start. A dip from $50 toward your $47.50 stop isn't a bargain. It's the trade not working. We put the full size on at one price with one stop, and we never add, least of all to a loser. In the moment, a dip and the start of a bigger drop look the same.",
+   "why": "Line 3 is the one. Planning to buy more if it slips to $48.50 is averaging down, written in before you even start. A dip from $50 toward your $47.50 stop isn't a bargain. It's the trade not working. We put the full size on at one price with one stop, and we never add to a loser. In the moment, a dip and the start of a bigger drop look the same.",
    "lesson_line": "Never plan an add into a loser. Your size goes on at one price.",
    "facts": [
     "f61",
     "f42",
     "f17",
     "f59",
-    "h06",
+    "aw1",
     "r03",
     "h07"
    ],
@@ -1574,7 +1586,7 @@
     "Line 4": "Fine. Selling some into a 3, 5 or 7 day push, then raising the stop to breakeven, is how we manage it."
    },
    "house": true,
-   "simple": "Line 3. Buying more as it slips toward the stop is adding to a loser, and we never add.",
+   "simple": "Line 3. Buying more as it slips toward the stop is adding to a loser, and we never do that.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1583,7 +1595,7 @@
      "rewritten before (2026-11-09)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q17",
@@ -2060,8 +2072,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'You planned one loss and took it twice' is wrong. 300 x $2 planned plus 300 x $1 on the add is 1.5x the plan, not double. Rewrote that line; shares doubled, loss did not."
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q04": {
    "status": "pass",
@@ -2072,14 +2084,14 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False right (h06, f42). O'Neil only in deeper."
+   "fixed": true,
+   "notes": "kept text agrees (never average down); swapped the old 'no adding' fact h06 for aw1"
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f53). Wrong notes accurate (f01, f03, h06). Answer not longest-only (36 vs 34-36)."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q07": {
    "status": "cut",
@@ -2139,7 +2151,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Line 3 right (h06). Line 4 breakeven at first sell matches h07; 3/5/7 day push matches r03."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q17": {
    "status": "pass",

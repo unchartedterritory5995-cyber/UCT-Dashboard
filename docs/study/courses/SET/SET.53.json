@@ -800,6 +800,18 @@
    "source": "c1",
    "quote": "an orderly pullback, flag, inside day or higher low",
    "claim": "The rest before the cross: an orderly pullback, flag, inside day or higher low."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
   }
  ],
  "walkthroughs": [
@@ -1073,12 +1085,12 @@
    "criterion": "rg.full_size",
    "q": "A leader dips under yesterday's close and curls back up. Buying a starter here and adding on the cross is a smart way in.",
    "answer": "False",
-   "why": "False. I buy the full size at one price, with one stop. No starter, no add. The starter is bought under the line, before the trigger, so it's a guess. Then the add raises your average right where the trade still has to prove itself. Wait for the cross, buy it all at market, and put the stop a few cents under the low of the day.",
+   "why": "False. I buy the full size at one price, with one stop. No starter, no planned add. The starter is bought under the line, before the trigger, so it's a guess. Then the add raises your average right where the trade still has to prove itself. Wait for the cross, buy it all at market, and put the stop a few cents under the low of the day.",
    "lesson_line": "One price, one stop, full size.",
    "facts": [
-    "cFull",
+    "aw1",
     "mStart",
-    "h30"
+    "aw2"
    ],
    "house": true,
    "simple": "False. You wait for the cross and buy full size at one price with one stop, never a starter plus an add.",
@@ -1089,7 +1101,7 @@
      "rests on the owner's rulebook, A5 (+2)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q08",
@@ -1735,7 +1747,7 @@
     "h02",
     "dTW",
     "mWide",
-    "h30"
+    "aw1"
    ],
    "wrong": {
     "Sell on the close, it failed": "Not failed, just weak. The stop at 94.67 is the exit, and it hasn't traded.",
@@ -2118,19 +2130,20 @@
     "Sell it all at the open"
    ],
    "answer": "Selling part is your call",
-   "why": "It's your call. A gap up past a profit mark isn't an automatic sell. 117.00 is past 3R from your 111.93 buy, short of 5R. Selling some into a big gap is fine, and on day 3 it fits the push I like to sell into. Holding it all is fine too. What you don't do is add up here, or dump the whole position on one good open. The rest rides with its stop.",
+   "why": "It's your call. A gap up past a profit mark isn't an automatic sell. 117.00 is past 3R from your 111.93 buy, short of 5R. Selling some into a big gap is fine, and on day 3 it fits the push I like to sell into. Holding it all is fine too. Adding into the gap isn't the plan, and neither is dumping the whole position on one good open. The rest rides with its stop.",
    "lesson_line": "A gap in your favor is a choice, not an order.",
    "facts": [
     "r05",
     "r06",
     "dTP",
-    "h30",
+    "aw1",
     "r01",
     "r02",
-    "r03"
+    "r03",
+    "aw2"
    ],
    "wrong": {
-    "Add more at the open price": "We buy the full size once. No adding, least of all into a gap up.",
+    "Add more at the open price": "Not into a gap up. The full size went on once, and an add is never the plan.",
     "Sell a third at the open, by rule": "No fixed third. Selling into a gap is a judgment, never a rule.",
     "Sell it all at the open": "One good open isn't a reason to give up the whole move. Sell some if you like and trail the rest."
    },
@@ -2148,7 +2161,7 @@
      "the owner says he mostly waits for 5R in practice, so the wrong answer is close to his habit (+2)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q34",
@@ -3489,12 +3502,12 @@
     "h19",
     "h31",
     "h32",
-    "h30",
+    "aw1",
     "h26"
    ],
    "wrong": {
     "40,000, the risk math": "That's over 1% of 3,000,000. The volume ceiling caps it.",
-    "20,000 now, 10,000 later": "No adding. The full size goes in at one price.",
+    "20,000 now, 10,000 later": "That's scaling in. The full size goes in at one price.",
     "40,000, the ceiling's a guide": "The market reading is a guide. The volume ceiling isn't. We never own more than 1% of daily volume."
    },
    "house": true,
@@ -3519,7 +3532,7 @@
     },
     "round": 0
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q67",
@@ -3743,20 +3756,21 @@
     "Add a third at the new high"
    ],
    "answer": "Judge a sell, trail the rest",
-   "why": "Judge it, and trail the rest. There's no fixed third at 5R. Later sells are a judgment, just like the first. If it's ripping into a 5 or 7 day push, I'll sell more into that. If it's grinding up steady, I let it ride. Whatever's left trails a close under the 9 EMA for a fast mover, or the 20 for a steady one. And no adding up here.",
+   "why": "Judge it, and trail the rest. There's no fixed third at 5R. Later sells are a judgment, just like the first. If it's ripping into a 5 or 7 day push, I'll sell more into that. If it's grinding up steady, I let it ride. Whatever's left trails a close under the 9 EMA for a fast mover, or the 20 for a steady one. Adding up here isn't the plan.",
    "lesson_line": "At 5R, sell by judgment and trail what's left.",
    "facts": [
     "r03",
     "h20",
     "cTrail",
-    "h30",
+    "aw1",
     "h21",
-    "r04"
+    "r04",
+    "aw2"
    ],
    "wrong": {
     "Sell a third more, it's the rule": "No fixed third comes off at 5R. Later sells are a judgment too.",
     "Sell it all and bank the 5R": "What's left gets trailed, not dumped at a mark.",
-    "Add a third at the new high": "The full size went in at one price. No adding."
+    "Add a third at the new high": "The full size went in at one price. An add to a winner is rare, a feel call, never the plan."
    },
    "house": true,
    "simple": "Judge a sell and trail the rest, because later sells are a judgment, not a fixed third at 5R.",
@@ -3767,7 +3781,7 @@
      "rests on the owner's rulebook (B19, E51, E52)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q73",
@@ -3888,12 +3902,13 @@
    "lesson_line": "Ten days under 1R and the trade is done. The money moves on.",
    "facts": [
     "h15",
-    "cFull"
+    "aw1",
+    "aw2"
    ],
    "wrong": {
     "Hold, the green close proved it": "That green close was day one. Ten days later it's still under 1R.",
     "Hold, the stop hasn't traded": "The time stop is its own exit. It sells before the price stop ever trades.",
-    "Add, it's still up 0.5R": "No adding. And a trade stuck under 1R for 10 days gets sold, not fed."
+    "Add, it's still up 0.5R": "Not to a trade going nowhere. One stuck under 1R for 10 days gets sold, not fed."
    },
    "house": true,
    "simple": "Sell, because after 10 trading days it's still under 1R, so the time stop frees the money.",
@@ -3907,7 +3922,7 @@
      "rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q77",
@@ -3993,7 +4008,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q08": {
    "status": "pass",
@@ -4094,8 +4109,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice 5. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "fixed": true,
+   "notes": "kept text agrees (adding to a weak close is adding to a loser); swapped old 'no adding' fact h30 for aw1"
   },
   "q25": {
    "status": "pass",
@@ -4149,7 +4164,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q34": {
    "status": "pass",
@@ -4243,8 +4258,8 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'not at a level' is a B- in our grading (fact gL), and the 1% tag test is a proposal. The why read like a hard gate; now it is his judgment (B- at best, pass), with the 2.9% worked from the question's own prices."
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q50": {
    "status": "pass",
@@ -4364,7 +4379,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 5. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q67": {
    "status": "pass",
@@ -4400,7 +4415,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 5. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q73": {
    "status": "cut",
@@ -4424,7 +4439,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 5. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q77": {
    "status": "pass",

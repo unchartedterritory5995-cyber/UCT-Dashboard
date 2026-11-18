@@ -522,12 +522,12 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "Every position has a real stop order with the broker, not a stop kept in your head. … the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+      "quote": "Every position has a real stop order with the broker, not a stop kept in your head. … the size comes from the stop; if the honest stop does not fit the risk, skip the trade. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "A plan sets the entry, exit and stop as prices. The exit part of the plan names the target price and the stop. Put stop and target prices in the plan, so every trade has exact exit points. Size is worked out from the entry-to-stop distance, so the stop has to come first. Our rule: every position has a real stop order with the broker. The size comes from the stop; if the honest stop does not fit the risk, we skip the trade."
+    "summary": "A plan sets the entry, exit and stop as prices. The exit part of the plan names the target price and the stop. Put stop and target prices in the plan, so every trade has exact exit points. Size is worked out from the entry-to-stop distance, so the stop has to come first. Our rule: every position has a real stop order with the broker. The size comes from the stop; if the honest stop does not fit the risk, we skip the trade. We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
    },
    "facts": {
     "given": "What's missing before you can place the order? Your plan for tomorrow: buy the breakout over $42.10 from a six-week base. First target $47. Size: 200 shares. A stop price under $42.10 A second, higher target A price alert at $42.10 A plan to add on a dip"
@@ -538,7 +538,7 @@
    "unit": "F12.01",
    "why": "The stop. Without it the 200 shares are a guess, because the size comes from the stop, never the other way around. Pick the stop first, a few cents under the low of the day (LOD). Then work the shares out from the distance between $42.10 and that stop. If the honest stop doesn't fit your risk, you skip the trade. Once you're in, it goes to your broker as a real stop order, not a number in your head.",
    "wrong": {
-    "A plan to add on a dip": "That's adding to a loser. We don't add at all. The full size goes on once, at one price, with one stop.",
+    "A plan to add on a dip": "That's planning to add to a loser, and we never do that. The full size goes on once, at one price, with one stop.",
     "A price alert at $42.10": "Good habit, and I'd set one. It still doesn't say where you're wrong or how many shares to buy.",
     "A second, higher target": "Nice to have. A plan runs fine with one target. It can't run without the price that says you're wrong."
    }
@@ -8363,7 +8363,7 @@
   "difficulty": 3,
   "id": "si_bd98bc301a5a",
   "lesson_origin": "session",
-  "lesson_text": "A rule break: adding to a loser. A loss runs past 1R one of two ways. Either it gapped on you, or you didn't take the loss you planned. No gap here. You bought more twice on the way down, so the loss grew by choice. We put the full size on at one price with one stop, and we never add. This is exactly the trade that rule exists to stop. Tag it as a rule break so it shows up in the month's numbers. A loss past 1R is a flag. Find the rule that bent.",
+  "lesson_text": "A rule break: adding to a loser. A loss runs past 1R one of two ways. Either it gapped on you, or you didn't take the loss you planned. No gap here. You bought more twice on the way down, so the loss grew by choice. We put the full size on at one price with one stop, and we never add to a loser. This is exactly the trade that rule exists to stop. Tag it as a rule break so it shows up in the month's numbers. A loss past 1R is a flag. Find the rule that bent.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -8398,14 +8398,14 @@
       "url": "https://www.schwab.com/learn/story/common-trading-mistakes-to-avoid"
      },
      {
-      "accessed": "2026-11-12",
+      "accessed": "2026-11-17",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "A loss bigger than planned can come from not taking the planned loss, or from a gap. The goal is to keep every loss at 1R or less. Buying more of a falling long to get even with the market is an emotional trading mistake. Better to take a small loss than to keep digging in and lose more. UCT's rule: the full size goes on at one price with one stop, and you never add to it."
+    "summary": "A loss bigger than planned can come from not taking the planned loss, or from a gap. The goal is to keep every loss at 1R or less. Buying more of a falling long to get even with the market is an emotional trading mistake. Better to take a small loss than to keep digging in and lose more. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
    },
    "facts": {
     "given": "How do you log that loss? Your plan caps every loss at 1R. One line in your ledger reads -3R. There was no gap that day. You bought more twice as it fell. A rule break: adding to a loser Bad luck: it just kept falling A setup problem: drop the setup A normal loss: losses past 1R happen"
@@ -8414,7 +8414,7 @@
    "simple": "A rule break. There was no gap, so the loss grew because you bought more as it fell.",
    "tier": "extended",
    "unit": "F12.05",
-   "why": "A rule break: adding to a loser. A loss runs past 1R one of two ways. Either it gapped on you, or you didn't take the loss you planned. No gap here. You bought more twice on the way down, so the loss grew by choice. We put the full size on at one price with one stop, and we never add. This is exactly the trade that rule exists to stop. Tag it as a rule break so it shows up in the month's numbers.",
+   "why": "A rule break: adding to a loser. A loss runs past 1R one of two ways. Either it gapped on you, or you didn't take the loss you planned. No gap here. You bought more twice on the way down, so the loss grew by choice. We put the full size on at one price with one stop, and we never add to a loser. This is exactly the trade that rule exists to stop. Tag it as a rule break so it shows up in the month's numbers.",
    "wrong": {
     "A normal loss: losses past 1R happen": "They do, after a gap. This one grew from your own buys.",
     "A setup problem: drop the setup": "The setup risked 1R. The extra loss came from your adds, not the entry.",
@@ -10196,7 +10196,7 @@
   "difficulty": 3,
   "id": "si_ae6e146b3d87",
   "lesson_origin": "session",
-  "lesson_text": "Size up when it grades A+. Bellafiore's right that your best play earns more size, and our rules say how. A grade is our call on how clean the setup is, and the grade sets the size. A and B go on at normal size, and an A+ gets sized up. Even then, 1.5% risk is the most any grade uses, and 2% is the absolute ceiling. You buy the full size at one price, with one stop, and you never add. A hot streak never raises those limits. A run of losers still comes by chance, even in a great play. Bigger means A+ size at the buy, 1.5% risk at most, and no adding later.",
+  "lesson_text": "Size up when it grades A+. Bellafiore's right that your best play earns more size, and our rules say how. A grade is our call on how clean the setup is, and the grade sets the size. A and B go on at normal size, and an A+ gets sized up. Even then, 1.5% risk is the most any grade uses, and 2% is the absolute ceiling. You buy the full size at one price, with one stop. Adding to a working winner happens, but it's rare and a feel call, never the plan. A hot streak never raises those limits. A run of losers still comes by chance, even in a great play. Bigger means A+ size at the buy, 1.5% risk at most. Adding later is never the plan.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -10212,7 +10212,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is reading bigger as a bet on the hot streak. A play that has worked for months still loses sometimes. Our rule ties size to the grade at the buy: A+ is sized up, to 1.5% risk at most. We never add shares later."
+    "trap": "The trap is reading bigger as a bet on the hot streak. A play that has worked for months still loses sometimes. Our rule ties size to the grade at the buy: A+ is sized up, to 1.5% risk at most. Adding shares later is never the plan."
    },
    "depth": {
     "sources": [
@@ -10233,23 +10233,23 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "Never raise risk past the rules after a run of winners. … Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down. … The full size at one price with one stop; no adding. … Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling. … Max position 40% of the account",
+      "quote": "Never raise risk past the rules after a run of winners. … Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan. … Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling. … Max position 40% of the account",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Bellafiore's thesis: study your best trades, build from them, and trade those setups more often and bigger. It has sizing rules so a run of losing trades, which comes by chance, cannot ruin you. Our rule: never raise risk past the rules after a run of winners. Our rule: the setup's grade sets the size. A and B are normal size, A+ is sized up, B- or lower sized down. Our rule: buy the full size at one price with one stop, and never add. Our rule: under 1% risk is normal, 1.5% is the most any grade uses, and 2% is the absolute ceiling. Our rule: the largest position is 40% of the account."
+    "summary": "Bellafiore's thesis: study your best trades, build from them, and trade those setups more often and bigger. It has sizing rules so a run of losing trades, which comes by chance, cannot ruin you. Our rule: never raise risk past the rules after a run of winners. Our rule: the setup's grade sets the size. A and B are normal size, A+ is sized up, B- or lower sized down. We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan. Our rule: under 1% risk is normal, 1.5% is the most any grade uses, and 2% is the absolute ceiling. Our rule: the largest position is 40% of the account."
    },
    "facts": {
     "given": "How do you go bigger without breaking our rules? Your Kicker page has worked for months, traded as written. Bellafiore's advice is to trade your best setups more often and bigger. Size up when it grades A+ Add shares as it moves your way Risk 3% of the account on it Put half the account in it"
    },
-   "lesson_line": "Bigger means A+ size at the buy, 1.5% risk at most, and no adding later.",
+   "lesson_line": "Bigger means A+ size at the buy, 1.5% risk at most. Adding later is never the plan.",
    "simple": "Size up when it grades A+. Our size comes from the grade, and never past our limits.",
    "tier": "expert",
    "unit": "F12.06",
-   "why": "Size up when it grades A+. Bellafiore's right that your best play earns more size, and our rules say how. A grade is our call on how clean the setup is, and the grade sets the size. A and B go on at normal size, and an A+ gets sized up. Even then, 1.5% risk is the most any grade uses, and 2% is the absolute ceiling. You buy the full size at one price, with one stop, and you never add. A hot streak never raises those limits. A run of losers still comes by chance, even in a great play.",
+   "why": "Size up when it grades A+. Bellafiore's right that your best play earns more size, and our rules say how. A grade is our call on how clean the setup is, and the grade sets the size. A and B go on at normal size, and an A+ gets sized up. Even then, 1.5% risk is the most any grade uses, and 2% is the absolute ceiling. You buy the full size at one price, with one stop. Adding to a working winner happens, but it's rare and a feel call, never the plan. A hot streak never raises those limits. A run of losers still comes by chance, even in a great play.",
    "wrong": {
-    "Add shares as it moves your way": "We buy the full size at one price with one stop, and never add. You size up at the buy.",
+    "Add shares as it moves your way": "Adding to a winner is rare for us, a feel call, never the plan. You go bigger at the buy, with the grade.",
     "Put half the account in it": "Our biggest position is 40% of the account, however good the play.",
     "Risk 3% of the account on it": "Our absolute ceiling is 2% of the account at risk, and 1.5% is the most any grade uses."
    }
@@ -10597,7 +10597,7 @@
   "difficulty": 1,
   "id": "si_08b54fefdc0c",
   "lesson_origin": "session",
-  "lesson_text": "Line 2, the add. That's averaging down, and it's how a small loss turns into a big one. The slip from $40 to $39 was the stock telling you the idea wasn't working yet. Buying 300 more doubled the shares riding down to your $38 stop. So the loss came out bigger than the one you planned, on twice the shares. We put the full size on at one price with one stop, and we never add. Buying more to lower your cost feels like a bargain. Really it's refusing to admit you're wrong. Never add to a loser. Your full size goes on at one price.",
+  "lesson_text": "Line 2, the add. That's averaging down, and it's how a small loss turns into a big one. The slip from $40 to $39 was the stock telling you the idea wasn't working yet. Buying 300 more doubled the shares riding down to your $38 stop. So the loss came out bigger than the one you planned, on twice the shares. We put the full size on at one price with one stop, and we never add to a loser. Buying more to lower your cost feels like a bargain. Really it's refusing to admit you're wrong. Never add to a loser. Your full size goes on at one price.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -10657,14 +10657,14 @@
       "url": "https://www.investopedia.com/terms/a/averagedown.asp"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Never add to a losing trade. O'Neil: don't average down; it's throwing good money after bad. Buying more of a falling stock because it looks cheaper is often a way to avoid admitting you were wrong. Buying more of a losing position to get even is an emotional trading mistake. Log every trade in a journal. Averaging down is favored by long-term and value investors who manage the risk carefully. Our rule: the whole position goes on at one price with one stop, and we never add to it."
+    "summary": "Never add to a losing trade. O'Neil: don't average down; it's throwing good money after bad. Buying more of a falling stock because it looks cheaper is often a way to avoid admitting you were wrong. Buying more of a losing position to get even is an emotional trading mistake. Log every trade in a journal. Averaging down is favored by long-term and value investors who manage the risk carefully. The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
    },
    "facts": {
     "given": "This trade got stopped out. Read the journal entry. Where did it go wrong? 1. Bought 300 shares at $40, stop at $38, under the base. 2. Next day it slipped to $39, so I bought 300 more to lower my cost. 3. It traded down to $38 and my stop sold it all. 4. Logged the trade that night with a chart. Line 1 Line 2 Line 3 Line 4"
@@ -10673,7 +10673,7 @@
    "simple": "Line 2. Buying more as it falls doubles down on a trade that's already telling you it's wrong.",
    "tier": "core",
    "unit": "F12.07",
-   "why": "Line 2, the add. That's averaging down, and it's how a small loss turns into a big one. The slip from $40 to $39 was the stock telling you the idea wasn't working yet. Buying 300 more doubled the shares riding down to your $38 stop. So the loss came out bigger than the one you planned, on twice the shares. We put the full size on at one price with one stop, and we never add. Buying more to lower your cost feels like a bargain. Really it's refusing to admit you're wrong.",
+   "why": "Line 2, the add. That's averaging down, and it's how a small loss turns into a big one. The slip from $40 to $39 was the stock telling you the idea wasn't working yet. Buying 300 more doubled the shares riding down to your $38 stop. So the loss came out bigger than the one you planned, on twice the shares. We put the full size on at one price with one stop, and we never add to a loser. Buying more to lower your cost feels like a bargain. Really it's refusing to admit you're wrong.",
    "wrong": {
     "Line 1": "Fine. A buy with the stop set under the base.",
     "Line 3": "Fine. The stop did its job. The extra damage came from the shares you added in Line 2.",
@@ -10816,14 +10816,14 @@
       "url": "https://www.investopedia.com/terms/a/averagedown.asp"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "O'Neil: don't average down; it's throwing good money after bad. Never add to a losing trade. Buying more of a falling stock because it looks cheaper is often a way to avoid admitting you were wrong. Hirsch calls buying more of a falling stock one of the fastest ways to lose money. Averaging down means buying more after the price falls, to lower your average cost. The problem with averaging down: a dip and the start of a much bigger fall look the same at the time. Averaging down is favored by long-term and value investors who manage the risk carefully. Our rule: the whole position goes on at one price with one stop, and we never add to it."
+    "summary": "O'Neil: don't average down; it's throwing good money after bad. Never add to a losing trade. Buying more of a falling stock because it looks cheaper is often a way to avoid admitting you were wrong. Hirsch calls buying more of a falling stock one of the fastest ways to lose money. Averaging down means buying more after the price falls, to lower your average cost. The problem with averaging down: a dip and the start of a much bigger fall look the same at the time. Averaging down is favored by long-term and value investors who manage the risk carefully. The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
    },
    "facts": {
     "given": "Your stock's a little red from where you bought it. Buying more here to lower your average cost is a smart fix."
@@ -10914,14 +10914,14 @@
       "url": "https://chartschool.stockcharts.com/table-of-contents/overview/richard-rhodes-trading-rules"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding. … The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20). … Every position has a real stop order with the broker, not a stop kept in your head.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20). … Every position has a real stop order with the broker, not a stop kept in your head.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Emotions get in the way once you are in, which is why the way out is planned first. Plan the exit before you enter. Pulling a stop is usually a way to avoid admitting you were wrong, and the stock can keep falling. Set the exit before you trade, for example a stop-limit order that sells automatically if the stock drops. Once the stop price is hit, a stop turns into a market order, and the fill can be far from the stop. Not every broker offers every kind of stop order. The stop goes where the trade idea is proven wrong. Never add to a losing trade. Our rule: the whole position goes on at one price with one stop, and we never add to it. Our rule A4: the stop is the exit and only moves up, never down or wider; the one exception is the gap rule. Our rule D41: every position has a real stop order with the broker, not one kept in your head."
+    "summary": "Emotions get in the way once you are in, which is why the way out is planned first. Plan the exit before you enter. Pulling a stop is usually a way to avoid admitting you were wrong, and the stock can keep falling. Set the exit before you trade, for example a stop-limit order that sells automatically if the stock drops. Once the stop price is hit, a stop turns into a market order, and the fill can be far from the stop. Not every broker offers every kind of stop order. The stop goes where the trade idea is proven wrong. Never add to a losing trade. The full size goes on at one price with one stop: no starter piece, and never an add to a loser. Our rule A4: the stop is the exit and only moves up, never down or wider; the one exception is the gap rule. Our rule D41: every position has a real stop order with the broker, not one kept in your head."
    },
    "facts": {
     "given": "You've found a trade you like. Why pick the stop now, before you buy, and not once you're in? So you set the exit while you're calm So a gap can't jump past your stop So your broker will accept the order So you know where to add more shares"
@@ -10933,7 +10933,7 @@
    "why": "So you set the exit while you're calm. Before you're in, it's just a chart and a price. Once your money's on it, every tick down makes you want to give it a little more room. That's loss aversion, and it's why people pull their stops. Pick the level where the idea's wrong, put the order in with your broker, and then you just follow it.",
    "wrong": {
     "So a gap can't jump past your stop": "A stop can't stop a gap. Once it's hit it turns into a market order, and the fill can be far below it.",
-    "So you know where to add more shares": "The stop is where you're wrong, not where you buy more. We put the full size on at one price and never add.",
+    "So you know where to add more shares": "The stop is where you're wrong, not where you buy more. We put the full size on at one price, with one stop.",
     "So your broker will accept the order": "Your broker doesn't need a stop from you. Some don't even offer every stop type. The stop is for you."
    }
   },
@@ -11640,7 +11640,7 @@
   "difficulty": 2,
   "id": "si_5ed99fb5936b",
   "lesson_origin": "session",
-  "lesson_text": "Line 3 is the one. Planning to buy more if it slips to $48.50 is averaging down, written in before you even start. A dip from $50 toward your $47.50 stop isn't a bargain. It's the trade not working. We put the full size on at one price with one stop, and we never add, least of all to a loser. In the moment, a dip and the start of a bigger drop look the same. Never plan an add into a loser. Your size goes on at one price.",
+  "lesson_text": "Line 3 is the one. Planning to buy more if it slips to $48.50 is averaging down, written in before you even start. A dip from $50 toward your $47.50 stop isn't a bargain. It's the trade not working. We put the full size on at one price with one stop, and we never add to a loser. In the moment, a dip and the start of a bigger drop look the same. Never plan an add into a loser. Your size goes on at one price.",
   "module": "F12",
   "prompt_json": {
    "choices": [
@@ -11686,23 +11686,23 @@
       "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding. … Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. … The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. … Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. … The stop may move up to breakeven between 2R and 5R, or at the first sell.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Never add to a losing trade. The problem with averaging down: a dip and the start of a much bigger fall look the same at the time. Buying more of a losing position to get even is an emotional trading mistake. The stop goes where the trade idea is proven wrong. Our rule: the whole position goes on at one price with one stop, and we never add to it. Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Our stop may move up to breakeven between 2R and 5R, or at the first sell."
+    "summary": "Never add to a losing trade. The problem with averaging down: a dip and the start of a much bigger fall look the same at the time. Buying more of a losing position to get even is an emotional trading mistake. The stop goes where the trade idea is proven wrong. The full size goes on at one price with one stop: no starter piece, and never an add to a loser. Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Our stop may move up to breakeven between 2R and 5R, or at the first sell."
    },
    "facts": {
     "given": "Flat base breakout over $50. Read the whole plan. Which line would you cross out? 1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: sell some into a 3, 5 or 7 day push, then the stop to breakeven. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "Never plan an add into a loser. Your size goes on at one price.",
-   "simple": "Line 3. Buying more as it slips toward the stop is adding to a loser, and we never add.",
+   "simple": "Line 3. Buying more as it slips toward the stop is adding to a loser, and we never do that.",
    "tier": "extended",
    "unit": "F12.07",
-   "why": "Line 3 is the one. Planning to buy more if it slips to $48.50 is averaging down, written in before you even start. A dip from $50 toward your $47.50 stop isn't a bargain. It's the trade not working. We put the full size on at one price with one stop, and we never add, least of all to a loser. In the moment, a dip and the start of a bigger drop look the same.",
+   "why": "Line 3 is the one. Planning to buy more if it slips to $48.50 is averaging down, written in before you even start. A dip from $50 toward your $47.50 stop isn't a bargain. It's the trade not working. We put the full size on at one price with one stop, and we never add to a loser. In the moment, a dip and the start of a bigger drop look the same.",
    "wrong": {
     "Line 1": "Fine. A flat base breakout with a set trigger over $50.",
     "Line 2": "Fine. Under the base's last low is where the idea fails.",

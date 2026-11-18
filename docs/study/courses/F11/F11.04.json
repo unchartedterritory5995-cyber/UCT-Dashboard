@@ -1599,8 +1599,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Four citations in a row (Steenbarger, Bellafiore, Tharp, Steenbarger) read like a literature review. Also 'Bellafiore puts most of his energy into ... his playbook trades' misattributes f40, which is his advice to traders, not a description of himself. Rewrote around the idea, one Steenbarger line, the reason (markets change), and the how."
+   "fixed": false,
+   "notes": "Kept: adding new setups to your list, not shares. Voice 4."
   },
   "q07": {
    "status": "pass",

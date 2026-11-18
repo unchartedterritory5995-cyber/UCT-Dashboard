@@ -4179,8 +4179,8 @@
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'Move the stop under 99.40' was not clearly wrong; that moves the stop UP from 98.70, which our rules allow. Replaced with a named mistake: lowering the stop."
+   "fixed": false,
+   "notes": "Agrees: 99.40 is under the 100.05 entry, so the add is to a loser after a warning; close under the low stays a warning, the stop the exit. Voice 4."
   },
   "q33": {
    "status": "pass",
@@ -4192,7 +4192,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a trader at the desk; numbers recomputed and right; answer right, wrong choices clearly wrong; no working words."
+   "notes": "Agrees: never add to a loser; 100.05 - 96.40 = 3.65 > 2 x 1.35 = 2.70, past 2R checks. Voice 4."
   },
   "q35": {
    "status": "cut",
@@ -4216,7 +4216,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a trader at the desk; numbers recomputed and right; answer right, wrong choices clearly wrong; no working words."
+   "notes": "Agrees: adding to a stalled trade makes no sense, no absolute about winners. Voice 4."
   },
   "q39": {
    "status": "pass",

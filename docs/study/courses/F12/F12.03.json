@@ -1564,8 +1564,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'you learn just as much from why the good ones worked' contradicts the cited source (f03 says the losers matter more). Reworded to need the winners too, without ranking them."
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q22": {
    "status": "pass",

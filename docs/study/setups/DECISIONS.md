@@ -2805,5 +2805,7 @@ the ruling it restates; where a line and a ruling above differ, the ruling wins.
 - A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment. (gap-open sell)
 - A heavy-volume down day in a pullback does not void the setup; it is a distribution day to be mindful of, a warning and a lower grade. (heavy-volume down day)
 - Shorting is recommended only for traders who have already made $1 million trading. (D-001)
+- We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan. (ADD-WINNER, 2026-11-17, with A5)
+- For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call. Below the 200-day stays a hard no for stocks. (MA-50-200, 2026-11-17, with D-009)
 - A strong move may be bought at the trigger right at the open; waiting for the first 30 minutes is the default, not a must. (D-031)
 - Too stretched to buy: skip a long that is more than 10% above its 9 EMA. (C29, read through D-021; the owner to confirm, D-017)

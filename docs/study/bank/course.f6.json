@@ -3311,7 +3311,7 @@
   "difficulty": 3,
   "id": "si_db20d9f17ece",
   "lesson_origin": "session",
-  "lesson_text": "$1,500. You collected 4.00 a share, $400, when you sold it. Buying it back at 19.00 costs $1,900. 1,900 minus 400 is $1,500. Look at the shape of it. Your best case was $400. One headline turned it into a $1,500 loss, and it could have been worse. A stock has no ceiling, so a naked call has no cap on the loss. That's why we don't sell calls without the stock. We only use options where the risk is defined. On a naked call the credit caps your gain. Nothing caps the loss.",
+  "lesson_text": "$1,500. You collected 4.00 a share, $400, when you sold it. Buying it back at 19.00 costs $1,900. 1,900 minus 400 is $1,500. Look at the shape of it. Your best case was $400. One headline turned it into a $1,500 loss, and it could have been worse. A stock has no ceiling, so a naked call has no cap on the loss. That's why we don't sell options. On the rare option we use, we're the buyer, and the premium is the most we can lose. On a naked call the credit caps your gain. Nothing caps the loss.",
   "module": "F6",
   "prompt_json": {
    "choices": [
@@ -3373,9 +3373,16 @@
       "quote": "if you write an uncovered call, you face unlimited potential loss, since there is no cap on how high a stock price can rise.",
       "tier": 1,
       "url": "https://www.optionseducation.org/optionsoverview/what-are-the-benefits-risks"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Options occasionally; no further rules. The premium paid is the stop. … Trade shares; options are only a defined-risk alternative.",
+      "tier": 3,
+      "url": null
      }
     ],
-    "summary": "In the example, a 4-dollar uncovered call is written and the stock jumps to 69. Buying it back at 19 loses 1,500 dollars: 1,900 paid less the 400 collected. Selling a call without owning the stock has a theoretically unlimited maximum loss. Writing an uncovered call carries unlimited risk because a stock has no price ceiling."
+    "summary": "In the example, a 4-dollar uncovered call is written and the stock jumps to 69. Buying it back at 19 loses 1,500 dollars: 1,900 paid less the 400 collected. Selling a call without owning the stock has a theoretically unlimited maximum loss. Writing an uncovered call carries unlimited risk because a stock has no price ceiling. Rule B25: we use options occasionally, and on an option we buy the premium paid is the stop. Rule A6: we trade shares, and we use options only as a defined-risk alternative."
    },
    "facts": {
     "calc": {
@@ -3398,7 +3405,7 @@
    "simple": "$1,500. Buying back costs $1,900, and the $400 you collected covers only part of it.",
    "tier": "extended",
    "unit": "F6.02",
-   "why": "$1,500. You collected 4.00 a share, $400, when you sold it. Buying it back at 19.00 costs $1,900. 1,900 minus 400 is $1,500. Look at the shape of it. Your best case was $400. One headline turned it into a $1,500 loss, and it could have been worse. A stock has no ceiling, so a naked call has no cap on the loss. That's why we don't sell calls without the stock. We only use options where the risk is defined.",
+   "why": "$1,500. You collected 4.00 a share, $400, when you sold it. Buying it back at 19.00 costs $1,900. 1,900 minus 400 is $1,500. Look at the shape of it. Your best case was $400. One headline turned it into a $1,500 loss, and it could have been worse. A stock has no ceiling, so a naked call has no cap on the loss. That's why we don't sell options. On the rare option we use, we're the buyer, and the premium is the most we can lose.",
    "wrong": {
     "$1,900": "That's the buyback. The $400 you collected comes off it.",
     "$2,300": "That adds the $400. The credit offsets the loss, it doesn't add to it.",
@@ -20212,7 +20219,7 @@
   "difficulty": 1,
   "id": "si_857c3b94849e",
   "lesson_origin": "session",
-  "lesson_text": "Shares. I trade shares. An option is the occasional defined-risk buy, and when I do buy one, the premium paid is the stop. On the shares, the stop goes in first and the size comes from it. Full size at one price, one stop, no adding later. And shares give you something a call can't: no expiry date. If the move takes longer than you thought, the shares can wait it out. The call can't. Shares are the default. An option comes with a clock. Shares don't.",
+  "lesson_text": "Shares. I trade shares. An option is the occasional defined-risk buy, and when I do buy one, the premium paid is the stop. On the shares, the stop goes in first and the size comes from it. Full size at one price, one stop, no starter piece. And shares give you something a call can't: no expiry date. If the move takes longer than you thought, the shares can wait it out. The call can't. Shares are the default. An option comes with a clock. Shares don't.",
   "module": "F6",
   "prompt_json": {
    "choices": [
@@ -20231,7 +20238,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "Trade SHARES. (Owner.) … Trade shares; options are only a defined-risk alternative. … Options occasionally; no further rules. The premium paid is the stop. … The full size at one price with one stop; no adding.",
+      "quote": "Trade SHARES. (Owner.) … Trade shares; options are only a defined-risk alternative. … Options occasionally; no further rules. The premium paid is the stop. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      },
@@ -20257,7 +20264,7 @@
       "url": "https://www.finra.org/investors/investing/investment-products/options"
      }
     ],
-    "summary": "Our rule: trade shares. Our rule (A6): trade shares; options are only a defined-risk alternative. Our rule (B25): options occasionally, and the premium paid is the stop. Our rule (A5): buy the full size at one price with one stop, and never add. Options expire and lose value over time; stocks do not expire. A shareholder can keep holding and wait out a slow or adverse move; an option holder cannot. Further out of the money and shorter-dated means a bigger risk of losing the premium. Options magnify percentage moves both ways. The all-calls buyer loses everything if the stock is at or below 50 at expiry."
+    "summary": "Our rule: trade shares. Our rule (A6): trade shares; options are only a defined-risk alternative. Our rule (B25): options occasionally, and the premium paid is the stop. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan. Options expire and lose value over time; stocks do not expire. A shareholder can keep holding and wait out a slow or adverse move; an option holder cannot. Further out of the money and shorter-dated means a bigger risk of losing the premium. Options magnify percentage moves both ways. The all-calls buyer loses everything if the stock is at or below 50 at expiry."
    },
    "facts": {
     "given": "You've got a clean breakout lined up on a stock you like, and you plan to hold it a few weeks. What do you buy? Shares, full size off your stop Calls, to control more for less Weeklies, because they're cheap Shares, a starter, then add to it"
@@ -20266,10 +20273,10 @@
    "simple": "Shares, because they don't expire, and we use options only now and then, with the premium as the stop.",
    "tier": "core",
    "unit": "F6.11",
-   "why": "Shares. I trade shares. An option is the occasional defined-risk buy, and when I do buy one, the premium paid is the stop. On the shares, the stop goes in first and the size comes from it. Full size at one price, one stop, no adding later. And shares give you something a call can't: no expiry date. If the move takes longer than you thought, the shares can wait it out. The call can't.",
+   "why": "Shares. I trade shares. An option is the occasional defined-risk buy, and when I do buy one, the premium paid is the stop. On the shares, the stop goes in first and the size comes from it. Full size at one price, one stop, no starter piece. And shares give you something a call can't: no expiry date. If the move takes longer than you thought, the shares can wait it out. The call can't.",
    "wrong": {
     "Calls, to control more for less": "Controlling more cuts both ways. The call can lose its whole premium while the shares just sit there flat.",
-    "Shares, a starter, then add to it": "Shares, yes, but not in pieces. We buy the full size at one price with one stop, and we don't add.",
+    "Shares, a starter, then add to it": "Shares, yes, but not in pieces. We buy the full size at one price with one stop. No starter piece.",
     "Weeklies, because they're cheap": "Cheap for a reason. The shorter the time and the further out of the money, the bigger the chance you lose some or all of it."
    }
   },

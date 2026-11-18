@@ -1017,6 +1017,12 @@
    "source": "h1",
    "quote": "No setup, no trade: never force a trade to have something on; cash is a position.",
    "claim": "D44: no setup, no trade; cash is a position."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1529,16 +1535,15 @@
    "rung": 2,
    "format": "tf",
    "criterion": "peg.no_adding",
-   "q": "On a PEG you can add shares later if volume picks up after your buy.",
+   "q": "On a PEG you buy a starter, then add the rest later if volume picks up after your buy.",
    "answer": "False",
-   "why": "False. We buy the full size at one price with one stop, and that's it. The size came from that stop, so you know exactly what a loss costs. Add shares higher and your average cost climbs toward the stop. Now a normal pullback costs more than you planned. No adding and no starter position. If it's good enough to buy, buy it right the first time.",
-   "lesson_line": "One buy, one price, one stop. No adds.",
+   "why": "False. We buy the full size at one price with one stop. No starter piece. The size came from that stop, so you know exactly what a loss costs. Build it in pieces and your average cost climbs toward the stop. Now a normal pullback costs more than you planned. Adding to a winner on strength does happen, but it's rare and a feel call, never the plan. If it's good enough to buy, buy it right the first time.",
+   "lesson_line": "One buy, one price, one stop. No starter piece.",
    "facts": [
-    "c15",
-    "h31"
+    "aw1"
    ],
    "house": true,
-   "simple": "False, your size comes from one price and one stop. Adding later raises your risk past what you planned.",
+   "simple": "False. The full size goes on at one price with one stop, with no starter and no planned add.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1546,7 +1551,7 @@
      "rests on the owner's rulebook A5"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q16",
@@ -2601,15 +2606,15 @@
     "h01",
     "h03",
     "c05",
-    "c15",
     "h04",
     "n08",
-    "n09"
+    "n09",
+    "aw1"
    ],
    "wrong": {
     "Yes, 60.10 fits more shares": "That's back-fitting a stop to a size. 60.10 is inside the pause, right in the noise.",
     "No, but buy the bigger size": "Bigger size on the same stop means more risk than you planned.",
-    "Split the buy in two": "We buy the full size at one price with one stop. No starter, no adds."
+    "Split the buy in two": "We buy the full size at one price with one stop. No starter piece."
    },
    "house": true,
    "simple": "No. The stop marks where the buy is wrong and the size comes from it, never the other way around.",
@@ -2624,7 +2629,7 @@
      "stop width kept inside the usual 3% so the open stop-cap decision (D-005) does not touch the key"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q42",
@@ -3266,7 +3271,7 @@
     "h02",
     "h06",
     "h07",
-    "c15"
+    "aw1"
    ],
    "wrong": {
     "Drop it to the gap-day low": "That widens the stop. Your size was built on the old one, so now you're risking more than you planned.",
@@ -3904,7 +3909,7 @@
   {
    "skill": "setup.power_earnings_gap",
    "tier": "extended",
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "key": "q73",
    "rung": 6,
    "format": "scenario",
@@ -3926,11 +3931,12 @@
     "c46",
     "h21",
     "k1",
-    "st6"
+    "st6",
+    "aw1"
    ],
    "wrong": {
     "Sell all of it, 6R is plenty": "The few big runs pay for the losers. Selling it all cuts off the best part.",
-    "Sell some, then add back on a dip": "One buy, one price, one stop. We don't add, even after a sale.",
+    "Sell some, then add back on a dip": "Buying back on a dip isn't the plan. One buy, one price, one stop.",
     "Sell nothing until the next report": "A report isn't an exit plan. Sell some into strength and trail the rest."
    },
    "simple": "Sell some into the strength and trail the rest. You bank some and keep a piece of any big run.",
@@ -4122,7 +4128,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4. One price, one stop, no adds (c15, h31). The reason (average cost climbs toward the stop) is sound."
+   "notes": "Rewrite teaches the ruling: starter plus planned add is False; adding to a winner rare, feel call, never the plan. Still clearly False. Voice 4."
   },
   "q16": {
    "status": "cut",
@@ -4254,7 +4260,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4. Stop first, never back-fit (n08, n09, h01). 2.9% is within 1-3%. 60.10 sits inside the pause."
+   "notes": "Agrees: no starter piece. Voice 4."
   },
   "q42": {
    "status": "pass",
@@ -4331,8 +4337,8 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice 4. Stop only moves up, the gap rule the one exception (h02, h06, c17). Fixed one wrong note: 'Keep a real stop order with your broker' is a claim about how he places stops that no fact supports; now says why cancelling it fails (no exit, the size was built on it)."
+   "fixed": false,
+   "notes": "Kept: 'adding to a loser' agrees. Voice 4."
   },
   "q58": {
    "status": "pass",
@@ -4416,7 +4422,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4. First sell into a 3/5/7 day push or 5-10R (n03, D-013); 6R on day 5 from 40/39 = 46.00 correct; trail the 9/20 EMA (h21). Kullamagi in deeper only."
+   "notes": "Agrees: buying back on a dip isn't the plan. 46 - 40 = 6 = 6R on a 1.00 risk, right. Voice 4."
   }
  }
 }

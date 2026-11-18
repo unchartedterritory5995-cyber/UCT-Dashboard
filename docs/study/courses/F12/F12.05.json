@@ -220,6 +220,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hwr",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -654,6 +662,12 @@
    "source": "s25",
    "quote": "A drawdown is how far the account is below its highest value, open trades included, checked at least weekly.",
    "claim": "UCT's rule: a drawdown is how far the account sits below its highest value, open trades included, checked at least weekly."
+  },
+  {
+   "id": "aw_r",
+   "source": "hwr",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1461,14 +1475,14 @@
     "A normal loss: losses past 1R happen"
    ],
    "answer": "A rule break: adding to a loser",
-   "why": "A rule break: adding to a loser. A loss runs past 1R one of two ways. Either it gapped on you, or you didn't take the loss you planned. No gap here. You bought more twice on the way down, so the loss grew by choice. We put the full size on at one price with one stop, and we never add. This is exactly the trade that rule exists to stop. Tag it as a rule break so it shows up in the month's numbers.",
+   "why": "A rule break: adding to a loser. A loss runs past 1R one of two ways. Either it gapped on you, or you didn't take the loss you planned. No gap here. You bought more twice on the way down, so the loss grew by choice. We put the full size on at one price with one stop, and we never add to a loser. This is exactly the trade that rule exists to stop. Tag it as a rule break so it shows up in the month's numbers.",
    "lesson_line": "A loss past 1R is a flag. Find the rule that bent.",
    "facts": [
     "f48",
     "f49",
     "f46",
     "f47",
-    "f68"
+    "aw_r"
    ],
    "wrong": {
     "Bad luck: it just kept falling": "Falling is what the stop was for. Buying more on the way down is what made it big.",
@@ -1487,7 +1501,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q19",
@@ -1918,7 +1932,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "No gap, two adds: a rule break, and our no-adding line (f68) stated as ours. Wrongs clear."
+   "notes": "Agrees: 'never add to a loser' on a -3R loser. Answer clear. Voice 4."
   },
   "q19": {
    "status": "pass",

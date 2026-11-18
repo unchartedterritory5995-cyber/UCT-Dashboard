@@ -612,6 +612,12 @@
    "source": "hw",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "Our first sale is a judgment; selling into a 3, 5 or 7 day push is often best."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -919,14 +925,14 @@
     "h02",
     "h13",
     "f54",
-    "h08",
     "h09",
-    "h14"
+    "h14",
+    "aw1"
    ],
    "wrong": {
     "Leave the stop where it was on day one": "Then a big winner can round-trip into a loser. The stop has to come up as the trade works.",
     "Sell it all and book the gain": "That cuts the winner short. The big money is in the piece you let run.",
-    "Add more shares as it keeps going": "Not how we do it. The whole position goes on at one price with one stop, and we don't add to it."
+    "Add more shares as it keeps going": "Not how you manage it. The position went on at one price with one stop. Adding to a winner is rare, a feel call, never the plan."
    },
    "simple": "Sell some into strength and let the rest ride under the rising averages until a close below one.",
    "tier": "core",
@@ -937,7 +943,7 @@
      "key rests on the owner's words (h02, h13)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q09",
@@ -961,7 +967,7 @@
     "f19",
     "f32",
     "h05",
-    "h08"
+    "aw1"
    ],
    "wrong": {
     "A buy stop at $47.80": "A buy stop buys, and it sits above the price. You own the stock, so you need a sell order.",
@@ -1715,13 +1721,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "First sell as judgment into a 3, 5 or 7 day push (h14 matches sizing_rule's 2026-11-12 superseding note); 9 EMA / 20 EMA trail on a close (h09); no adding (h08). No fixed 3R third. Right."
+   "notes": "Agrees: adding to a winner is rare, a feel call, never the plan; trim and trail stays clearly right. Voice 4."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Sell stop at 47.80; sell limit would fill now at 49.60; buy limit adds to a loser. Right."
+   "fixed": true,
+   "notes": "Kept text agrees ('adding to a loser'). Swapped the old 'no adding' fact h08 for aw1, which quotes 'never add to a loser'. Voice 5."
   },
   "q10": {
    "status": "pass",

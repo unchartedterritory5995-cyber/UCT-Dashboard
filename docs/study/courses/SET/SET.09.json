@@ -1204,6 +1204,12 @@
    "source": "hw",
    "quote": "Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger.",
    "claim": "D-005 in our words: a 1-3% stop is preferred, up to 5% is acceptable, past 5% we mostly wait for a tighter trigger."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -2523,7 +2529,7 @@
    "facts": [
     "c18",
     "h02",
-    "h42",
+    "rw_add",
     "h28",
     "c17"
    ],
@@ -3399,7 +3405,7 @@
    "wrong": {
     "Widen the stop to give it room": "Never wider. A tight stop gets protected with breakeven, not by moving it down.",
     "Sell everything at 2.37R": "Too early. We rarely sell before day 3, and then it's part, into a push.",
-    "Add shares while it's strong": "We buy full size once, with one stop. Protecting the trade doesn't mean adding to it."
+    "Add shares while it's strong": "Adding to a winner is rare for us, a feel call, never the plan. The plan on day two is protecting the trade."
    },
    "answer": "Move the stop up to breakeven",
    "why": "Move the stop up to breakeven. Your stop was only 1.2% away, cheap but fragile. One normal dip can tag it. We can move the stop to breakeven anywhere from 2R to 5R, and 2.37R is inside that. It's your call, but I like it here. Now the trade can't turn into a loss. That's what happened on this one: a dip took the 1.2% stop, then the stock went on without us. Breakeven turns that into a scratch.",
@@ -3412,7 +3418,8 @@
     "h05",
     "r02",
     "r03",
-    "n05"
+    "n05",
+    "rw_add"
    ],
    "house": true,
    "simple": "Move the stop to breakeven. Past 2R a winner shouldn't turn into a loss, and a tight stop is fragile.",
@@ -3430,7 +3437,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "BX",
     "asof": "2019-11-26",
@@ -5522,7 +5529,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Close back in the handle is a warning, not an exit (c18); stop only moves up; no adding (h42)."
+   "notes": "close at 89.60 under the 91.20 buy, so adding is to a struggling trade; the close back in the handle stays a warning, the 89.10 stop the exit. Voice 4."
   },
   "q32": {
    "status": "pass",
@@ -5642,7 +5649,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "53.11 / 52.49 = 1.17%, about 1.2%; 2.37R inside the 2R-5R breakeven window (B19, d23)."
+   "notes": "breakeven at 2.37R inside 2R-5R stays right; the add choice now reads rare, a feel call, never the plan. Voice 4."
   },
   "q52": {
    "status": "cut",
@@ -5702,7 +5709,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R = 2.00; gain 11.20 = 5.6R, past the 5R hold line (h08)."
+   "notes": "'don't add' is the 3-day earnings rule (no new buys), and the 5R hold line is right. Voice 4."
   },
   "q62": {
    "status": "pass",

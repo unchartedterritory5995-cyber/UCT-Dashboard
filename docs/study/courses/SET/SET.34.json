@@ -737,6 +737,12 @@
    "source": "hw",
    "quote": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment.",
    "claim": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1783,7 +1789,7 @@
     "h07",
     "h02",
     "g18",
-    "h03b"
+    "rw_add"
    ],
    "wrong": {
     "Keep the 123.39 stop, wait": "Price is already under it. A stop it gapped through isn't protecting anything.",
@@ -1827,12 +1833,12 @@
     "r23",
     "r22",
     "r14",
-    "h03b"
+    "rw_add"
    ],
    "wrong": {
     "Sell a third, 3R is the rule": "There's no fixed third at 3R. The first sell is a judgment, usually day 3 or later.",
     "Sell it all into the gap": "That throws away the run on day 2. The strong ones push 3, 5 or 7 days.",
-    "Add more, it's running": "We buy full size at one price with one stop. No adding."
+    "Add more, it's running": "Adding to a winner is rare, a feel call, never the plan. On day 2 you manage what you own."
    },
    "house": true,
    "story": "You bought at 24.48 with the stop at 24.01, and this is day 2 of the hold. Your 3R mark is 25.89. This morning it opens at 26.40.",
@@ -1845,7 +1851,7 @@
      "fixed before: variety rewrite (+1)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q31",
@@ -2929,7 +2935,7 @@
    "facts": [
     "g22",
     "h02",
-    "h03b"
+    "rw_add"
    ],
    "wrong": {
     "Buy more, it's cheaper here": "That's adding to a loser. We buy full size once, one price, one stop.",
@@ -3039,12 +3045,13 @@
     "h07",
     "d06",
     "g18",
-    "h18"
+    "h18",
+    "rw_add"
    ],
    "wrong": {
     "Sell it all at once": "The rule gives the gap 30 minutes. You're only out at once if the loss is past 2R.",
     "Keep the old 24.01 stop": "Price already opened under it. The gap rule hands the stop to the first 30-minute low.",
-    "Buy more at the gap low": "No adding. Full size at one price, one stop."
+    "Buy more at the gap low": "That's adding to a loser. Never. Full size at one price, one stop."
    },
    "house": true,
    "story": "You bought a first-candle reclaim at 24.48 with the stop at 24.01, so one R is 0.47 and 2R is 0.94. Next morning it gaps through your stop. The first 30-minute low is 23.85.",
@@ -3061,7 +3068,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q61",
@@ -3218,14 +3225,14 @@
    "q": "You build a Go Signal position in two half-size buys to get a better average price.",
    "answer": "False",
    "why": "False. A Go Signal goes in full size at once. One price, one stop. Splitting it sounds careful, but the second buy either comes higher after it works, or lower after it fails. Lower means adding to a loser. The size comes from the stop: account times risk %, over entry minus stop, round down, then cap. Do the math once and buy it all.",
-   "lesson_line": "One price, one stop, no adding.",
+   "lesson_line": "One price, one stop, never in halves.",
    "facts": [
     "g18",
     "h03",
-    "h03b"
+    "rw_add"
    ],
    "house": true,
-   "simple": "False. We buy the full size at one price with one stop, and we don't add.",
+   "simple": "False. We buy the full size at one price with one stop, never in halves.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -3234,7 +3241,7 @@
      "fixed before: variety rewrite (+1)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q66",
@@ -3760,18 +3767,18 @@
     "h15",
     "h05",
     "h02",
-    "h03b",
+    "rw_add",
     "r21",
     "r22"
    ],
    "wrong": {
     "Sell, ten days is the limit": "The rule sells a trade still under 1R after ten days. This one's about 1.4R up.",
-    "Add, it's held for ten days": "We don't add. Full size went in at one price with one stop.",
+    "Add, it's held for ten days": "Holding up isn't a reason to add. Adding is rare, a feel call, never the plan.",
     "Move the stop to breakeven": "Breakeven comes between 2R and 5R. At about 1.4R it's too early."
    },
    "house": true,
    "tier": "core",
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   }
  ],
  "conflicts": [
@@ -3942,7 +3949,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.95/168.84 = 0.56%, 0.6%. 100.6% is the ratio slip. Chase check drives a decision."
+   "notes": "false alarm; 0.95 over 168.84 is 0.56%, about 0.6%. Voice 4."
   },
   "q24": {
    "status": "pass",
@@ -3978,13 +3985,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1R 3.42, 2R 6.84; 118.83 and 119.40 both more than 6.84 under 126.81. Gap rule ceiling right."
+   "notes": "buying more after a gap through the stop is adding to a loser; 2R is 6.84 and 126.81 - 119.40 = 7.41 is past it. Voice 4."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "truth+voice: \"3R used to be a fixed trim\" / \"That was the old rule\" talks about our internal history, which members never saw; and \"wait until day 3 at the earliest\" dropped the ruling's \"usually\" (D-013), turning a judgment into a rule. Both fixed."
+   "fixed": false,
+   "notes": "the add on a day-2 winner now reads rare, a feel call, never the plan; 3R isn't a sell order. Voice 4."
   },
   "q31": {
    "status": "pass",
@@ -4139,13 +4146,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice in register, numbers and facts check out, stem gives the screen and does not lead."
+   "notes": "don't add into a climax stays a never. Voice 4."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice in register, numbers and facts check out, stem gives the screen and does not lead."
+   "notes": "named as adding to a loser. Voice 4."
   },
   "q58": {
    "status": "cut",
@@ -4163,7 +4170,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.63 loss inside the 0.94 2R ceiling, so 23.85 is the new stop. Deeper is honest that the gap is made up."
+   "notes": "23.85 is 0.63 under 24.48, inside the 0.94 2R; adding at the gap low is adding to a loser. Voice 4."
   },
   "q61": {
    "status": "pass",
@@ -4193,7 +4200,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice in register, numbers and facts check out, stem gives the screen and does not lead."
+   "notes": "two half buys is buying in halves, no; False stays right. Voice 4."
   },
   "q66": {
    "status": "cut",
@@ -4271,7 +4278,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.70/1.20 = 1.4R; time stop right."
+   "notes": "holding up isn't a reason to add; 1.4R clears the time stop, breakeven not before 2R. Voice 4."
   }
  }
 }

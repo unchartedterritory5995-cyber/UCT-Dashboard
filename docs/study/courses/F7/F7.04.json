@@ -293,6 +293,14 @@
    "title": "Dow closes more than 350 points lower in broad selloff, Apple tumbles 3% (Tanaya Macheel and Alex Harring; market close of Wednesday, Dec. 28, 2022)",
    "url": "https://www.cnbc.com/2022/12/27/stock-market-futures-open-to-close-news.html",
    "accessed": "2026-11-17"
+  },
+  {
+   "id": "hwr",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -889,6 +897,12 @@
    "source": "s27",
    "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide.",
    "claim": "Our gap rule: when a stock gaps down against the stop, the first part of that day decides the new stop."
+  },
+  {
+   "id": "aw_r",
+   "source": "hwr",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1981,16 +1995,16 @@
     "f69",
     "f92",
     "h1",
-    "h2",
+    "aw_r",
     "h3"
    ],
    "wrong": {
-    "A cheaper entry, add to the leaders": "Worse breadth at a new low says the bottom isn't in. And we don't add. The full size goes on at one price, with one stop.",
+    "A cheaper entry, add to the leaders": "Worse breadth at a new low says the bottom isn't in. And you never add to a trade going against you.",
     "Just a shakeout, lower your stops": "Worse breadth at the new low says the bottom isn't in. And our stop only moves up, never down.",
     "The buy signal stands, cancel the stops": "Follow-through days fail, and this one is failing. Every position keeps a real stop order with the broker."
    },
    "deeper": {
-    "trap": "The trap is loyalty to the signal. A follow-through day only shifts the odds, and IBD says it is not foolproof. When the index undercuts its low with worse internals, the market has changed its answer. Our stop is the exit: never lower it, and never add."
+    "trap": "The trap is loyalty to the signal. A follow-through day only shifts the odds, and IBD says it is not foolproof. When the index undercuts its low with worse internals, the market has changed its answer. Our stop is the exit. Never lower it, and never add into a failing signal."
    },
    "tier": "expert",
    "risk": {
@@ -2000,7 +2014,7 @@
      "the read (bottom isn't in) rests on one CMT Association article"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q27",
@@ -2255,7 +2269,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stops with the broker (h3), stop only moves up (h1), no adding (h2). Practical and his rules stated right."
+   "notes": "Agrees: the add choice is a 'cheaper entry' into a failing signal, so never adding to a trade going against you is right; stop only moves up survives. Voice 4."
   },
   "q27": {
    "status": "pass",

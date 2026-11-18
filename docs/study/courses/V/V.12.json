@@ -3812,7 +3812,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "\"I'd rather take two A trades than twelve maybes.\" Sounds like him."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q15": {
    "status": "pass",
@@ -3883,8 +3883,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "\"Behavioral finance calls it ...\" read as a textbook. Fixed: a plain hook. Why kept, it is good."
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q27": {
    "status": "pass",

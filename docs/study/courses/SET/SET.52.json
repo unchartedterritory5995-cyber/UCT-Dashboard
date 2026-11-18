@@ -707,6 +707,18 @@
    "source": "c1",
    "quote": "Buying into a report: SHOP's clean wick play gapped 15% through its stop on earnings.",
    "claim": "SHOP's wick play gapped through its stop on earnings: why we make no new buys just before a report."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
+  },
+  {
+   "id": "rw_ma",
+   "source": "hw",
+   "quote": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call. Below the 200-day stays a hard no for stocks.",
+   "claim": "For a long, the 50-day above the 200-day is mostly a must, not always; below the 200-day is a hard no for stocks."
   }
  ],
  "walkthroughs": [
@@ -1032,14 +1044,15 @@
     "RS 85, trades $5 million a day"
    ],
    "answer": "RS 85, above the 50-day and 200-day",
-   "why": "RS 85, above both averages. That's a leader in an uptrend, and the wick play is a leader's setup. We want an RS rating of 80 or more, in a strong group. RS 85 under the 200-day is a hard no, because we don't buy stocks under the 200-day. RS 55 is a laggard, however clean it looks. And $5 million a day is too thin to get in and out. If the 50-day is over the 200-day too, even better. That's a plus I like to see.",
+   "why": "RS 85, above both averages. That's a leader in an uptrend, and the wick play is a leader's setup. We want an RS rating of 80 or more, in a strong group. RS 85 under the 200-day is a hard no, because we don't buy stocks under the 200-day. RS 55 is a laggard, however clean it looks. And $5 million a day is too thin to get in and out. Check that the 50-day is over the 200-day too. For a long that's mostly a must, not always.",
    "lesson_line": "Leader first, pattern second.",
    "facts": [
     "cLead",
     "h14",
     "h10",
     "h09",
-    "tp6"
+    "tp6",
+    "rw_ma"
    ],
    "wrong": {
     "RS 85, but sitting under its 200-day": "Under the 200-day we don't buy stocks. Strong RS doesn't change that.",
@@ -1055,7 +1068,7 @@
      "rests on the owner's rulebook (B26) and the card's trend test, whose 50-over-200 half is a dossier proposal"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q09",
@@ -1942,19 +1955,19 @@
     "Sell the whole thing at the open"
    ],
    "answer": "Your call, trim some or hold",
-   "why": "Your call. A gap past 3R isn't an automatic sell. Some days I'll sell a piece into a big gap, some days I let it run. It depends on how the stock and the market are acting. It's day 3, so you're right where a first sell can make sense. Whatever you do, the rest stays on with the trail. And you don't add here.",
+   "why": "Your call. A gap past 3R isn't an automatic sell. Some days I'll sell a piece into a big gap, some days I let it run. It depends on how the stock and the market are acting. It's day 3, so you're right where a first sell can make sense. Whatever you do, the rest stays on with the trail. Adding isn't the plan either.",
    "lesson_line": "A gap past a target is a choice, not a rule.",
    "facts": [
     "r05",
     "r06",
     "dSP",
-    "hNoAdd",
+    "rw_add",
     "h21",
     "r02",
     "r03"
    ],
    "wrong": {
-    "Add more shares at the open": "The full size goes in once, at one price. No adding.",
+    "Add more shares at the open": "The full size went in once, at one price. Adding to a winner is rare, a feel call, never the plan.",
     "Sell a third at the open, by rule": "There's no fixed third. Selling into a gap is judgment, never a rule.",
     "Sell the whole thing at the open": "Dumping it all cuts off the run. At most you sell part and trail the rest."
    },
@@ -1969,7 +1982,7 @@
      "computed 3R level"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q31",
@@ -3615,7 +3628,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Writer fix verified: the 50 over 200 is taught as a plus, not a must; liquidity choice fails on B23."
+   "notes": "'a plus I like' now reads mostly a must, not always (rw_ma); under the 200-day stays a hard no. Voice 4."
   },
   "q09": {
    "status": "pass",
@@ -3747,7 +3760,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SPOT 3R = 367.00 + 3 x 5.03 = 382.09; gap-open sell kept as judgment (gap-open ruling)."
+   "notes": "the add on a winner gapping past 3R now reads rare, a feel call, never the plan; the day-3 first sell is judgment. Voice 4."
   },
   "q31": {
    "status": "pass",
@@ -3872,8 +3885,8 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice: the story was a textbook checklist and the stem repeated it word for word. Story now reads like his notes, the stem asks the one question at the trigger."
+   "fixed": false,
+   "notes": "false alarm on 'add a step'; over the 50-day and 200-day, nothing calls the 50/200 a plus. Voice 4."
   },
   "q52": {
    "status": "pass",

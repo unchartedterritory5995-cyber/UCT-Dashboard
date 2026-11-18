@@ -91,6 +91,14 @@
    "url": "https://vantharp.com/tharp-think-trading-concepts/",
    "accessed": "2026-11-09",
    "why_reliable": "The Van Tharp Institute's own page setting out Dr. Van K. Tharp's position-sizing teaching (Ph.D. in psychology, decades as a trading coach, author of The Definitive Guide to Position Sizing, interviewed in Schwager's Market Wizards). F9.01 files it under the contract's 'named author with a known record' clause; used here only for 'start small' and 'size from the growing account', never for a key on its own."
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -309,6 +317,12 @@
    "source": "h1",
    "quote": "A13's stop band is 1-3% preferred, 3.5% good, up to 5%; past 5%, wait for a tighter trigger.",
    "claim": "We like the stop 1% to 3% under the buy and accept up to 5%; past 5%, we wait for a tighter trigger."
+  },
+  {
+   "id": "hwa",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece and never an add to a loser. An add to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -319,16 +333,16 @@
     "Stop first. Then divide your dollars at risk by the risk per share. $500 over $20 a share is 25 shares.",
     "Round down, then check the cap. You take the smaller of that number and 40% of the account.",
     "Even a tight stop doesn't earn more than 40% of the account. A gap can jump any stop.",
-    "And you buy it all at one price, with one stop. No scaling in, no adding later."
+    "And you buy it all at one price, with one stop. No starter piece, and an add is never the plan."
    ],
    "facts": [
     "h21",
     "h01",
     "h03",
     "h04",
-    "h02",
     "f09",
-    "f03"
+    "f03",
+    "hwa"
    ]
   },
   {
@@ -1299,10 +1313,10 @@
     "Buy 200 now, 200 on a dip lower"
    ],
    "answer": "Buy all 400 now with one stop",
-   "why": "All 400 at one price, with one stop. That's how we do it: full size on the trigger, no starter and no adds later. The 400 already came from your stop and the cap, so it's the right risk. Split it and only half your size gets the best entry you'll see. The add comes higher with the same stop, so those shares carry more risk each. If 400 feels like too much, that's telling you something. Buy fewer from the start, or pass.",
-   "lesson_line": "Full size at one price with one stop. No starter, no adds.",
+   "why": "All 400 at one price, with one stop. That's how we do it: full size on the trigger, no starter, and no plan to add later. The 400 already came from your stop and the cap, so it's the right risk. Split it and only half your size gets the best entry you'll see. The add comes higher with the same stop, so those shares carry more risk each. If 400 feels like too much, that's telling you something. Buy fewer from the start, or pass.",
+   "lesson_line": "Full size at one price with one stop. No starter, no planned adds.",
    "facts": [
-    "h02",
+    "hwa",
     "h01",
     "h21"
    ],
@@ -1311,7 +1325,7 @@
     "Buy 200 now, 200 on a dip lower": "If it dips, it's going against you. Adding there doubles down under the same stop.",
     "Buy all 400 with two stops": "One trade, one stop. Two stops turn one plan into two."
    },
-   "simple": "Buy all 400 at one price with one stop. We don't scale in or add later.",
+   "simple": "Buy all 400 at one price with one stop. We don't scale in, and an add is never the plan.",
    "deeper": {
     "trap": "Buying more on a dip feels like a better price. It's really adding to a trade that's going against you, under the same stop. If the full size is too big for the stop, buy fewer shares from the start."
    },
@@ -1323,7 +1337,7 @@
      "fixed before (owner named in a wrong-note)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q25",
@@ -1587,7 +1601,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Truth ok: A5 full size at one price, one stop, no adding. Reason (later shares cost more risk each) and what to do if 400 feels big."
+   "notes": "Agrees: full size at one price, no starter, an add never the plan; cites hwa (quote matches DECISIONS word for word). The 400 and risk logic unchanged. Voice 4."
   },
   "q25": {
    "status": "pass",

@@ -947,6 +947,24 @@
    "source": "e1",
    "quote": "A neglected stock, flat or down for three to six months with no EP in the last six, is re-priced by a named surprise: earnings, a contract, an FDA decision.",
    "claim": "An Episodic Pivot: a neglected stock is re-priced by a named surprise."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
+  },
+  {
+   "id": "aw_r",
+   "source": "h2",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1442,17 +1460,18 @@
    "rung": 2,
    "format": "tf",
    "criterion": "rule.A5",
-   "q": "You bought the reclaim, and an hour later volume really kicks in. Adding more shares there is fine.",
+   "q": "You bought the reclaim, and an hour later volume really kicks in. Adding more shares there is our normal plan.",
    "answer": "False",
-   "why": "False. We buy the full size at one price with one stop, and that's it. The stop set your size before you bought. Add later at a higher price with the same stop and you're risking more than you planned. If you liked it that much, the size should have been there at the trigger. Once you're in, the job is managing what you have.",
-   "lesson_line": "One buy, one price, one stop. No adds.",
+   "why": "False. We buy the full size at one price with one stop. The stop set your size before you bought. Add later at a higher price with the same stop and you're risking more than you planned. Adding to a working winner on strength does happen, but it's rare and a feel call, never the plan. If you liked it that much, the size should have been there at the trigger.",
+   "lesson_line": "One buy, one price, one stop. An add is rare, never the plan.",
    "facts": [
-    "h31",
+    "aw1",
     "h03",
-    "h12"
+    "h12",
+    "aw2"
    ],
    "house": true,
-   "simple": "False. An add comes at a higher price with the same stop, so you end up risking more than planned.",
+   "simple": "False. An add is rare, and it comes at a higher price with the same stop, so you'd risk more than planned.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1461,7 +1480,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q16",
@@ -1954,12 +1973,13 @@
    "facts": [
     "c25",
     "h16",
-    "h31",
-    "c35"
+    "aw1",
+    "c35",
+    "aw2"
    ],
    "wrong": {
     "Hold it all, the trail is the exit": "The trail's for what's left. A climax run is when you sell some.",
-    "Add, momentum's strongest here": "We never add. And the top of a burst is the worst spot to try.",
+    "Add, momentum's strongest here": "Never into a climax. The top of a burst is the worst spot to buy more.",
     "Sell everything at tomorrow's open": "A big part is the call, not all of it. Keep some on the trail."
    },
    "house": true,
@@ -1974,7 +1994,7 @@
      "the climax sale is a judgment call in the owner's rulebook (C34)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q29",
@@ -2860,12 +2880,13 @@
     "h15",
     "c22",
     "c08",
-    "h31",
-    "r06"
+    "aw1",
+    "r06",
+    "aw2"
    ],
    "wrong": {
     "Hold, the stop hasn't hit": "The time stop is built for exactly this. It drifted instead of failing, and that's still a sell.",
-    "Add, it's coiling": "We never add. One buy, one price, one stop.",
+    "Add, it's coiling": "Not to a trade that isn't working. One buy, one price, one stop.",
     "Hold until the 20 EMA breaks": "The trail is for a winner you've already sold some of. This one never got going."
    },
    "house": true,
@@ -2881,7 +2902,7 @@
      "the day count is ambiguous in the old question text, now fixed"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "PEN",
     "asof": "2026-02-03",
@@ -3575,11 +3596,12 @@
     "d29",
     "h01",
     "r05",
-    "r03"
+    "r03",
+    "aw2"
    ],
    "wrong": {
     "A wide stop that rarely gets hit": "A wide stop just makes the losses bigger. Ours sits a few cents under the pullback low.",
-    "Adding when volume picks up": "We never add. One buy, one price, one stop.",
+    "Adding when volume picks up": "Adds aren't the plan. One buy, one price, one stop, and an add to a winner is rare.",
     "Skipping the pullback buys": "The pullback buy is the plan, not the problem."
    },
    "house": true,
@@ -3595,7 +3617,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q68",
@@ -3957,7 +3979,7 @@
     "n09",
     "u05",
     "h26",
-    "h31",
+    "aw_r",
     "b01",
     "k02"
    ],
@@ -4198,7 +4220,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False (A5 no adding). Reason worked: higher price, same stop, more risk."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q16": {
    "status": "pass",
@@ -4264,7 +4286,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Climax run, sell a big part (C34); how much is judgment; no adds."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q29": {
    "status": "pass",
@@ -4378,7 +4400,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Time stop: under 1R after 10 sessions (C33); PEN 0.45R matches."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q52": {
    "status": "pass",
@@ -4438,7 +4460,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A+ cues all match the facts; grade is judgment (E50), A+ sized up (D38). No adding."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q66": {
    "status": "pass",
@@ -4450,7 +4472,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "29.5% / 19.5% from the base rate; first sell is judgment into a 3/5/7 day push."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q68": {
    "status": "cut",

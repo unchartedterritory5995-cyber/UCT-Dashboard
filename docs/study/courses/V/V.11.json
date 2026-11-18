@@ -324,6 +324,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hwr",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -1274,6 +1282,12 @@
    "source": "s39",
    "quote": "A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red).",
    "claim": "Our rule: a market filter, the app's market reading, decides when we trade."
+  },
+  {
+   "id": "aw_r",
+   "source": "hwr",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -3986,18 +4000,18 @@
    "answer": "A few positions, more as they work",
    "wrong": {
     "Buy a full book of stocks that same day": "If the turn is a head fake, every stop hits at once. Start with a few.",
-    "Add to your first trade as it rises": "We add positions, not shares to one trade. Each trade goes on at full size, once.",
+    "Add to your first trade as it rises": "Rebuilding is new positions, not more shares in one trade. Each goes on at full size, once.",
     "Wait for the reading to hold a month": "You start when the reading turns Green. A few positions, not a waiting period."
    },
    "simple": "Start with a few positions, then add more positions only as the first ones work.",
    "why": "A few positions, then more as they work. The first Green day after a correction can be a head fake. Buy a full book, it fails, and every stop hits at once. Start with a few of your best setups. If they work, the market's telling you the turn is real, and you add more positions. If they fail, you lost a little and you're still mostly in cash. Each trade goes on at full size, at one price, with one stop. Let the market earn your exposure.",
    "lesson_line": "After a correction, ease back in: a few positions first, more only as they work.",
    "deeper": {
-    "trap": "The trap is going all in the day the reading turns Green. Start with a few positions instead, and add more positions only as the first ones work. Never add shares to one trade: each goes on at full size, at one price, with one stop."
+    "trap": "The trap is going all in the day the reading turns Green. Start with a few positions instead, and add more positions only as the first ones work. Don't rebuild by adding shares to one trade: each goes on at full size, at one price, with one stop."
    },
    "facts": [
     "h1",
-    "h2",
+    "aw_r",
     "h3"
    ],
    "tier": "extended",
@@ -4008,7 +4022,7 @@
      "new in wave8"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   }
  ],
  "conflicts": [
@@ -4143,7 +4157,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Divergence is a condition, not a signal (f108/f62/f144); stop stays, price decides. Close to VOICE.md models."
+   "notes": "a divergence is no reason to add: a specific reason, not an absolute. Voice 4."
   },
   "q17": {
    "status": "pass",
@@ -4443,7 +4457,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Matches F68 and A5 (no adds to one trade, sizing_rule.md); market filter explained in the stem (rule 19). Near VOICE.md's model."
+   "notes": "rebuilding is new positions, not more shares in one trade; adding to a winner isn't taught as routine and isn't banned outright. Voice 4."
   }
  }
 }

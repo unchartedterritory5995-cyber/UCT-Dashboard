@@ -782,6 +782,18 @@
    "source": "hw",
    "quote": "A strong move may be bought at the trigger right at the open; waiting for the first 30 minutes is the default, not a must.",
    "claim": "Our default is to let the first 30 minutes play out; a strong move can be bought at the trigger right at the open."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
   }
  ],
  "walkthroughs": [
@@ -1748,7 +1760,7 @@
     "h1",
     "h2",
     "h3",
-    "h4",
+    "aw1",
     "f45",
     "f28",
     "f58",
@@ -1756,7 +1768,7 @@
    ],
    "wrong": {
     "Cancel the stop and wait for drift": "The drift is an average, and it's shrunk. It won't rescue a trade that's breaking.",
-    "Buy more at the lower price": "That's adding to a loser. We buy the full size at one price with one stop, and never add.",
+    "Buy more at the lower price": "That's adding to a loser, and we never do that. The full size went on at one price, with one stop.",
     "Lower the stop to give it room": "Our stop only moves up, never down or wider. Lower it, and the same shares risk more dollars."
    },
    "simple": "Let the stop work, because you set that line before the trade, and if it breaks the trade is wrong.",
@@ -1770,7 +1782,7 @@
      "rests on the owner's rulebook (default stop; A4 the stop never moves down)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q27",
@@ -1788,7 +1800,7 @@
    ],
    "answer": "Skip it, it's too stretched to buy",
    "wrong": {
-    "Buy half now, add on a pullback": "We buy the full size at one price with one stop, and never add. And this one's too stretched anyway.",
+    "Buy half now, add on a pullback": "No starter piece. We buy the full size at one price with one stop, and an add is never the plan. This one's too stretched anyway.",
     "Buy it, but set a tighter stop": "Our stop goes a few cents under the low of the day. Squeezing it tighter doesn't fix the stretch.",
     "Buy it, the close and volume are strong": "Strong close, big volume, still 14% above the 9 EMA. Past 10%, we skip it."
    },
@@ -1800,9 +1812,10 @@
    },
    "facts": [
     "h5",
-    "h4",
+    "aw1",
     "h2",
-    "rd21"
+    "rd21",
+    "aw2"
    ],
    "tier": "expert",
    "risk": {
@@ -1812,7 +1825,7 @@
      "the 14% is an invented drill number; whether earnings gaps are an exception is flagged for the owner"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q97",
@@ -1963,7 +1976,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Close at the high = buyers all session (f26, f27); the second still holds its gap (f11). 'Same 8% gap, completely different day' sounds like him."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q15": {
    "status": "pass",
@@ -2034,14 +2047,14 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer right (h3, h4, f28). The stop only moving up is our rule; the gap-rule exception does not apply to a slide. 'The stop makes the call, not your nerves' is strong mentor voice."
+   "fixed": true,
+   "notes": "ruling right; 'adding to a loser ... never add to a loser' said it twice in two sentences"
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth catch: the why claimed the stretch means 'your honest stop under the low of the day sits a long way down'. Not true in general: on a gap day the low of the day can sit close to the entry while price is still 14% over the 9 EMA. Replaced with the real reason, in his words: that far over the 9 EMA it often needs to build out before the next leg. The 10% line is from the rulings in our words (h5)."
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q97": {
    "status": "pass",

@@ -1803,7 +1803,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.12 x 4 = 0.48 recomputed; each wrong choice is a named arithmetic slip (0.12/4, 0.12+4, x100)."
+   "notes": "Kept: 'Multiply, don't add' is arithmetic. 0.12 x 4 = 0.48, right. Voice 5."
   },
   "q11": {
    "status": "cut",

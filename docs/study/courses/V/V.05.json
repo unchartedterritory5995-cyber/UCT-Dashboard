@@ -3567,8 +3567,8 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "writer voice 3. TRUTH: the wrong note 'We buy the full size at one spot' is not ours (he adds to winners on strength in his own posts); replaced. 'Day 1 is too early' softened to D-013's 'very rarely'. The right choice was the longest by 6+ characters; choices rebalanced."
+   "fixed": false,
+   "notes": "Agrees: the level is about selling, not buying; first sell a judgment. Voice 4."
   },
   "q40": {
    "status": "cut",

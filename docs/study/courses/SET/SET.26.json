@@ -1871,7 +1871,7 @@
    ],
    "answer": "Hold, the stop hasn't been hit",
    "why": "Hold. A close back under the level is a warning, not an exit. Maybe the trap's failing, maybe it's noise. Your stop at 138.90 already answers that question, and price is still above it. I'd watch it closer, and I wouldn't add a share. If 138.90 trades, you're out, and the loss is the one you planned.",
-   "lesson_line": "A weak close is a warning. Hold to the stop, never add.",
+   "lesson_line": "A weak close is a warning. Hold to the stop, and never add on a warning.",
    "facts": [
     "c07",
     "h02"
@@ -1891,7 +1891,7 @@
      "rests on the owner's rulebook (the stop is the exit)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q28",
@@ -3626,7 +3626,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q28": {
    "status": "pass",
@@ -3662,7 +3662,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. 2R line 135.38 - 3.38 = 132.00; 131.20 is under it, so out."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q34": {
    "status": "pass",

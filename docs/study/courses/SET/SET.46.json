@@ -884,6 +884,12 @@
    "source": "hw",
    "quote": "Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger.",
    "claim": "Our stop distance: 1-3% preferred, up to 5% acceptable; past 5%, wait for a tighter trigger."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -2404,18 +2410,19 @@
     "Add shares, it gapped up"
    ],
    "answer": "Weigh selling some into the gap",
-   "why": "Weigh selling some into the gap. Day 5 of a push, gapping up, is right where a first sell often makes sense. We like selling into a 3, 5 or 7 day push. But it's a judgment, not a rule, and the gap doesn't force anything. If it's acting great, you can let it run. If it feels like the end of the push, sell some into that strength. What you don't do is dump it all or add to it.",
+   "why": "Weigh selling some into the gap. Day 5 of a push, gapping up, is right where a first sell often makes sense. We like selling into a 3, 5 or 7 day push. But it's a judgment, not a rule, and the gap doesn't force anything. If it's acting great, you can let it run. If it feels like the end of the push, sell some into that strength. What you don't do is dump it all, or chase the gap with more shares.",
    "lesson_line": "A gap into a 5 day push is a spot to weigh the first sell. It's never a rule.",
    "facts": [
     "rg1",
     "r10",
     "r11",
-    "r12"
+    "r12",
+    "aw1"
    ],
    "wrong": {
     "Sell a third, the gap forces it": "A gap is never a rule to sell. It's your call.",
     "Sell it all at the open": "The first sell is part of it. The rest keeps working on the trail.",
-    "Add shares, it gapped up": "We buy the full size at one price. No adds."
+    "Add shares, it gapped up": "A gap is a spot to weigh selling, not buying. Adding is rare, a feel call, never the plan."
    },
    "house": true,
    "simple": "Weigh selling some. Day 5 into a gap is a good spot, but the gap never forces it.",
@@ -2426,7 +2433,7 @@
      "rests on the owner's rulebook, F63 and B19 (+2)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q39",
@@ -3748,7 +3755,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Gap at the open not an automatic sell (rg1); day 5 push; judgment. Good."
+   "notes": "Agrees: a day-5 gap is where you weigh selling; adding rare, never the plan. Voice 4."
   },
   "q48": {
    "status": "pass",

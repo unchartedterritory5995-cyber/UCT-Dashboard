@@ -1849,7 +1849,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stem gives the act (stop, new name, twice the size). Why: 'You're not trading a setup anymore, you're trading the loss', the cost (twice the size on an unplanned trade), and the fix (same size, same rules, only list names). Wrong notes name the real mistakes. True to f10/f28/f29."
+   "notes": "averaging down and scaling in are defined as distractors; nothing teaches adding or scaling in as ours. Voice 4."
   },
   "q04": {
    "status": "pass",

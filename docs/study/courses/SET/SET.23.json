@@ -907,6 +907,12 @@
    "source": "d1",
    "quote": "A flat 6-week base on a rising 50-day; the red day is small on the day (-0.6%) but a full red body closing near its low; the Kicker breaks the base.",
    "claim": "SWKS: a flat six-week base on a rising 50-day average, a red day closing near its low, then the Kicker breaks the base."
+  },
+  {
+   "id": "hwa",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece and never an add to a loser. An add to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1795,7 +1801,7 @@
    "facts": [
     "k_eb",
     "kq1",
-    "k_one",
+    "hwa",
     "k_low",
     "k_stop",
     "r06",
@@ -2279,7 +2285,7 @@
    "facts": [
     "k_warn",
     "k_after",
-    "k_one",
+    "hwa",
     "tp2"
    ],
    "wrong": {
@@ -2714,11 +2720,11 @@
    "lesson_line": "Ten days and under 1R: sell it and move on.",
    "facts": [
     "h15",
-    "k_one",
+    "hwa",
     "h02"
    ],
    "wrong": {
-    "Add on a break of the range": "We buy once. A slow trade doesn't get more money.",
+    "Add on a break of the range": "A stuck trade doesn't get more money. The time stop sells it.",
     "Widen the stop for room": "A stop never moves wider.",
     "Hold, the stop isn't hit": "The stop isn't the only exit. Under 1R after 10 days, it's sold."
    },
@@ -2732,7 +2738,7 @@
      "rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q42",
@@ -2742,28 +2748,27 @@
    "criterion": "kk.one_entry",
    "q": "The trade's working. Do you add on this push?",
    "choices": [
-    "No, we buy once, at one price",
-    "Yes, with the same stop in place",
-    "No, sell it all while it is strong",
-    "Yes, once it is up at least 1R"
+    "Rarely, on feel, never as the plan",
+    "Yes, adding on pushes is the plan",
+    "Never, we don't add to winners",
+    "No, sell it all while it is strong"
    ],
    "story": "The Kicker works. Two days later it pushes over the Kicker day's high on strong volume.",
-   "answer": "No, we buy once, at one price",
-   "why": "No. We buy once: one entry, one price, one stop. Add on the push and you're buying higher with a stop that's still way down under the Kicker day. Your risk goes up right when the trade is most stretched. A push is where you start thinking about selling some, not buying more. Later sells go into strength, and the rest rides the trail.",
-   "lesson_line": "One entry, one stop, no adds.",
+   "answer": "Rarely, on feel, never as the plan",
+   "why": "Rarely, and it's a feel call. The plan was the full size at one price with one stop, and that part's done. An add to a working winner on strength does happen, but you never plan it. Add on every push and you keep buying higher, so a normal pullback hits a bigger position. A push is also where you start thinking about selling some. Later sells go into strength, and the rest rides the trail.",
+   "lesson_line": "Full size at one price. An add on strength is rare, never the plan.",
    "facts": [
-    "k_one",
-    "m_adds",
+    "hwa",
     "r03",
     "h20"
    ],
    "wrong": {
-    "Yes, with the same stop in place": "Then you're risking more, from a higher price. We don't add.",
     "No, sell it all while it is strong": "Sell some into strength if you like. Selling it all cuts the winner short.",
-    "Yes, once it is up at least 1R": "No adds at any gain."
+    "Never, we don't add to winners": "Not never. An add to a working winner on strength happens. It's just rare, and a feel call.",
+    "Yes, adding on pushes is the plan": "That makes adding the routine. It's rare, and every add buys higher than your first price."
    },
    "house": true,
-   "simple": "No. We buy once, so a strong push is a time to think about selling, not adding.",
+   "simple": "Rarely. An add to a working winner on strength happens, but it's a feel call, never the plan.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2771,7 +2776,7 @@
      "rests on the owner's buy-once rule (A5)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q43",
@@ -2931,7 +2936,7 @@
     "h23",
     "h22",
     "k_ea",
-    "k_one",
+    "hwa",
     "k_open",
     "k_eb",
     "r06"
@@ -4437,12 +4442,12 @@
     "k_brk",
     "h37",
     "h06",
-    "k_one"
+    "hwa"
    ],
    "wrong": {
     "Cancel it and watch the screen": "A stop in your head isn't a stop. The order stays with the broker.",
     "Lower it to 72.40 to give it room": "That makes your planned loss bigger. A stop never moves down.",
-    "Add a half position at 73.60": "We buy once, at one price. No adds."
+    "Add a half position at 73.60": "That's adding to a loser, right above your stop. Never."
    },
    "house": true,
    "simple": "Leave it. A stop only moves up, and a hunch isn't a reason to risk more.",
@@ -4456,7 +4461,7 @@
      "rests on the owner's rulebook (A4, D41)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q85",
@@ -4658,14 +4663,13 @@
    "lesson_line": "Climax run on a winner: sell a big part into it.",
    "facts": [
     "h38",
-    "k_one",
-    "m_adds",
+    "hwa",
     "dATROn",
     "r06",
     "h21"
    ],
    "wrong": {
-    "Add more, the trend is strong": "We buy once. A burst is a time to sell into strength.",
+    "Add more, the trend is strong": "Never add into a climax. A burst is a time to sell into strength.",
     "Sell a small part and let it run": "Into a climax I want a big part off, not a nibble.",
     "Hold it all until the 9 EMA breaks": "The trail's for a normal trend. In a climax you sell into the strength before it breaks."
    },
@@ -4682,7 +4686,7 @@
      "rests on the owner's rulebook (C34), a judgment call"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q90",
@@ -5027,13 +5031,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C33 time stop, under 1R after 10 days; the reason (dead money) given."
+   "notes": "Agrees: a stuck +0.6R trade gets no more money; time stop sells it. Voice 4."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "One entry, no adds (A5). Later sells into strength."
+   "fixed": true,
+   "notes": "Rewrite kept the ruling, but the stem 'Where does adding fit on a push like this?' was abstract and the kept choice 'No, sell it all while it is strong' no longer answered it. Restored the trader's question 'Do you add on this push?', made the answer a direct reply, and dropped the doubled 'rare... feel' in the why. Voice 3 -> 4."
   },
   "q43": {
    "status": "pass",
@@ -5285,7 +5289,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop only moves up; the gap rule is the one exception. Correct."
+   "notes": "Agrees: half position at 73.60 under a 75.00 entry is adding to a loser. Voice 4."
   },
   "q85": {
    "status": "pass",
@@ -5315,7 +5319,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C34: sell a big part into a climax, a judgment. ATRO used correctly."
+   "notes": "Agrees: never add into a climax. Voice 4."
   },
   "q90": {
    "status": "cut",

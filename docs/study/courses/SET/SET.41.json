@@ -861,6 +861,12 @@
    "source": "h2",
    "quote": "If there is a gap past it you can potentially buy it intraday on a morning flush/pullback and curl back up",
    "claim": "On a gap more than 4% past the buy point, a morning flush that curls back up can be a way in."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1097,15 +1103,16 @@
    "rung": 1,
    "format": "tf",
    "criterion": "tl.no_add",
-   "q": "You already own a stock from a base breakout. It pulls back and breaks a small falling line. That's a good spot to add.",
+   "q": "You already own a stock from a base breakout. It pulls back and breaks a small falling line. Adding there is part of our plan.",
    "answer": "False",
-   "why": "False. We buy the full position once, at one price, with one stop. No adds. A line break is a first entry, for a stock you don't own yet. Adding on the way up raises your average cost, so every shakeout hurts more. You already own this one from the base breakout. Let that position work on its own stop.",
-   "lesson_line": "Full size once, one stop. No adds.",
+   "why": "False. We buy the full position once, at one price, with one stop. A line break is a first entry, for a stock you don't own yet. Adding to a working winner happens, but it's rare and a feel call, never the plan. Adding on the way up raises your average cost, so every shakeout hurts more. Let that position work on its own stop.",
+   "lesson_line": "Full size once, one stop. Adding is never the plan.",
    "facts": [
-    "c29"
+    "c29",
+    "rw_add"
    ],
    "house": true,
-   "simple": "False, we buy the full size once with one stop, so a later break is never a reason to add.",
+   "simple": "False. We buy the full size once with one stop, and adding is never the plan.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1114,7 +1121,7 @@
      "+2 rests on the owner's rulebook (A5, no adding)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q07",
@@ -2189,10 +2196,11 @@
     "h01",
     "h03",
     "c29",
-    "r05"
+    "r05",
+    "rw_add"
    ],
    "wrong": {
-    "Buy half now, add the rest later": "We buy the full size once, at one price, with one stop. No adds.",
+    "Buy half now, add the rest later": "We buy the full size once, at one price, with one stop. No buying it in pieces.",
     "Tighten the stop to 3% so it fits": "That's moving the stop to fit the size. The stop stays where the chart says you're wrong.",
     "Full size, it's only one trade": "Full size on a wide stop risks more than you planned. Every trade counts."
    },
@@ -2208,7 +2216,7 @@
      "rests on the owner's rulebook (A3, A5) and the card's stop width line"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q37",
@@ -2286,12 +2294,13 @@
     "c24",
     "h15",
     "c29",
-    "h05"
+    "h05",
+    "rw_add"
    ],
    "wrong": {
     "Raise the stop to breakeven": "Breakeven is for a trade that's paid you. This one hasn't.",
     "Hold, the stop hasn't traded": "The stop guards against a loss, not dead money. The time stop is its own exit.",
-    "Add more, it's holding up": "We never add. And this one hasn't earned it."
+    "Add more, it's holding up": "Adding to dead money just ties up more of it. And this one hasn't earned it."
    },
    "house": true,
    "simple": "Sell it, because it's still under 1R after 10 trading days, and that money can go to a stock that's moving.",
@@ -2302,7 +2311,7 @@
      "rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q39",
@@ -2624,11 +2633,12 @@
     "c25",
     "h30",
     "h05",
-    "c29"
+    "c29",
+    "rw_add"
    ],
    "wrong": {
     "Raise the stop to breakeven": "Moving the stop protects your buy, not the gains. Sell some here.",
-    "Add more, it's going parabolic": "We never add, least of all into a climax.",
+    "Add more, it's going parabolic": "Never add into a climax. You'd be buying the top.",
     "Hold it all, let the trail work": "A climax is when you sell into strength, not when you leave it all to the trail."
    },
    "house": true,
@@ -2641,7 +2651,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q47",
@@ -3254,12 +3264,13 @@
     "d06",
     "d07",
     "c29",
-    "c09"
+    "c09",
+    "rw_add"
    ],
    "wrong": {
     "Pass, it's under the 200-day": "Look again. Price is above the 200-day here.",
     "Pass, the share price is too high": "A high price isn't a reason to pass. What matters is $10 or more and $20 million a day.",
-    "Take it, then add on a dip": "We never add. Full size once, one stop."
+    "Take it, then add on a dip": "Adding on a dip is never the plan. Full size once, one stop."
    },
    "chart": {
     "sym": "MCK",
@@ -3279,7 +3290,7 @@
      "rests on our own research data (one dossier) and the settled 200-day rule"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q62",
@@ -3552,8 +3563,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth slip: 'the trade you have is already working' is not given by the stem. Rewrote the close: you already own it, let that position work on its own stop."
+   "fixed": false,
+   "notes": "the statement now says adding there is part of our plan, so False is clearly right; the add reads rare, a feel call. Voice 4."
   },
   "q07": {
    "status": "pass",
@@ -3733,7 +3744,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Matches the SET.07 model; 4.5% inside 5% taken at fewer shares."
+   "notes": "half now, rest later is buying in pieces. 4.5% stop under 5%. Voice 4."
   },
   "q37": {
    "status": "pass",
@@ -3745,7 +3756,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Voice reads like a trade review; numbers rechecked; no working words; nothing proposed taught as ours."
+   "notes": "adding to dead money; 11 days at 0.6R is the time stop. Voice 4."
   },
   "q39": {
    "status": "pass",
@@ -3792,8 +3803,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Those rarely last' was an unsupported claim; the reason is now selling to chasing buyers, judgment kept."
+   "fixed": false,
+   "notes": "never add into a climax. Voice 4."
   },
   "q47": {
    "status": "pass",
@@ -3883,7 +3894,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. MCK 8.44 / 609.84 = 1.38%, 'about 1.4%' right; new highs and five touches match d06/d07."
+   "notes": "adding on a dip is never the plan; 609.84 to 601.40 is 1.4%. Voice 4."
   },
   "q62": {
    "status": "pass",

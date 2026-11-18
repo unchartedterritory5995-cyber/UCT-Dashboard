@@ -2091,6 +2091,18 @@
    "source": "s_rb9_a11",
    "quote": "Sell some into strength and trail the rest under the rising averages.",
    "claim": "We sell some of a winner into strength and trail the rest under the rising moving averages."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
+  },
+  {
+   "id": "rw_ma",
+   "source": "hw",
+   "quote": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call. Below the 200-day stays a hard no for stocks.",
+   "claim": "For a long, the 50-day above the 200-day is mostly a must, not always; below the 200-day is a hard no for stocks."
   }
  ],
  "walkthroughs": [
@@ -3006,8 +3018,8 @@
     "Bearish divergence"
    ],
    "answer": "Golden cross",
-   "why": "A golden cross. That's a shorter average crossing up through a longer one, and the classic version is the 50-day over the 200-day. The reverse, the 50-day dropping under the 200-day, is a death cross. It's two averages crossing, not price breaking a level. I like seeing the 50-day over the 200-day. It's a plus on the chart. But the cross comes late, because both lines lag, so price will have told you first.",
-   "lesson_line": "The 50-day over the 200-day is a golden cross. A nice plus, but price tells you first.",
+   "why": "A golden cross. That's a shorter average crossing up through a longer one, and the classic version is the 50-day over the 200-day. The reverse, the 50-day dropping under the 200-day, is a death cross. It's two averages crossing, not price breaking a level. For a long I want the 50-day over the 200-day. That's mostly a must, not always. But the cross itself comes late, because both lines lag, so price will have told you first.",
+   "lesson_line": "The 50-day over the 200-day is a golden cross. Mostly a must for a long, but the cross comes late.",
    "facts": [
     "f89",
     "f91",
@@ -3015,7 +3027,8 @@
     "f90",
     "f205",
     "f52",
-    "f84"
+    "f84",
+    "rw_ma"
    ],
    "wrong": {
     "Death cross": "That's the opposite, the 50-day crossing below the 200-day.",
@@ -3030,7 +3043,7 @@
      "fixed before (f92 removed)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "deeper": {
     "example": "ChartSchool associates the golden cross with the 50-day crossing above the 200-day, and Fidelity calls it a bullish signal. ChartSchool also notes crossovers produce relatively late signals, since both averages lag."
    }
@@ -3224,11 +3237,11 @@
     "f100",
     "f231",
     "f29",
-    "h_lb_a5"
+    "rw_add"
    ],
    "wrong": {
     "Buy now before it runs further": "That's chasing. The move already started, so your risk to a sensible stop is huge.",
-    "Buy half now and half on a dip": "We don't scale in. We buy the full size at one price with one stop, and never add.",
+    "Buy half now and half on a dip": "We don't scale in. We buy the full size at one price with one stop. Adding on a dip is never the plan.",
     "Short it, it has to drop back": "Stretched isn't the same as done. Far above the average can just be strength in a strong uptrend."
    },
    "simple": "Wait for a pullback or a new setup. Buying this stretched means buying after the move already ran.",
@@ -3243,7 +3256,7 @@
      "fixed before (checker, ChartSchool wording)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q28",
@@ -4738,7 +4751,7 @@
     "f65",
     "f216",
     "f63",
-    "h_lb_a5"
+    "rw_add"
    ],
    "wrong": {
     "A cue to buy more down here": "We never add to a loser. A drop through support shows a new willingness to sell.",
@@ -4922,7 +4935,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
+   "notes": "'a plus' now reads mostly a must, not always; the cross itself still comes late. Golden cross answer clear. Voice 4."
   },
   "q23": {
    "status": "pass",
@@ -4951,8 +4964,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
+   "fixed": true,
+   "notes": "'never add on a dip' is a new absolute the ruling doesn't state. Now: adding on a dip is never the plan; no scaling in stays."
   },
   "q28": {
    "status": "pass",
@@ -5000,7 +5013,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
+   "notes": "golden cross only as a defined distractor. Voice 4."
   },
   "q36": {
    "status": "pass",
@@ -5102,7 +5115,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
+   "notes": "sell into strength late in a run instead of adding agrees. Voice 4."
   },
   "q53": {
    "status": "pass",
@@ -5144,7 +5157,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
+   "notes": "golden cross only as a defined distractor. Voice 4."
   },
   "q60": {
    "status": "pass",
@@ -5180,7 +5193,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
+   "notes": "never add to a loser is the ruling. Voice 4."
   }
  }
 }

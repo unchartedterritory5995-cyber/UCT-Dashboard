@@ -2253,8 +2253,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math rechecked: 1,250 - 1,900 = -650; 15,200 + -650 = 14,550. Wrongs: 15,850 = +650, 13,300 = 15,200 - 1,900, 18,350 = both added. All correct. Only the simple line was vague ('the gap comes off'); it now says the net number is negative and comes off yesterday's total, no new numbers."
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q11": {
    "status": "pass",
@@ -2332,7 +2332,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Nasdaq quirk (f14, f99, f100, f101, f15). 'Lean on the NYSE line' is sound practical how."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q24": {
    "status": "pass",

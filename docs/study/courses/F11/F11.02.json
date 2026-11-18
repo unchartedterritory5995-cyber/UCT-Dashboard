@@ -1777,10 +1777,10 @@
    "notes": "'Don't kid yourself' lands; gap through a tight stop (h10) and costs (f07) right. Answer still right."
   },
   "q09": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "56+48+55=159, /3=53. Wrong notes: 52 is (56+48)/2, 159 the unsplit sum, 55 the close. All correct."
+   "notes": "cut in rulings-2026-11-17: see the resolver's notes"
   },
   "q10": {
    "status": "pass",
@@ -1813,10 +1813,10 @@
    "notes": "Elder named in the stem because the question is his principle (rule 13). Five daily bars make a week. Fine."
   },
   "q15": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Math checks: (120+100+116)/3=112; yesterday (118+112+115)/3=115; (120+100)/2=110. Why read like a ChartSchool summary; reworded as a mentor, same numbers."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in rulings-2026-11-17: see the resolver's notes"
   },
   "q16": {
    "status": "pass",

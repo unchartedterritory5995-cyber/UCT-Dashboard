@@ -889,6 +889,12 @@
    "source": "hw",
    "quote": "Volume raises the grade; it is not a requirement, except where volume is the setup.",
    "claim": "Volume raises the grade; it is not a requirement, except where volume is the setup."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1351,12 +1357,12 @@
    "criterion": "gs.one_entry",
    "q": "You buy your whole Gap Support position at once, at one price, with one stop.",
    "answer": "True",
-   "why": "True. One buy, one price, one stop. No starter piece, no adding later. The test day gives you one clean spot to be wrong, the low of the day. Your size is worked out from that stop before you buy. Add later at a higher price and your average cost creeps up while the stop stays put. That's more risk on the same trade. If it sets up again later, that's a new trade with its own stop.",
-   "lesson_line": "One buy, one price, one stop. No adding.",
+   "why": "True. One buy, one price, one stop. No starter piece, and no plan to add later. The test day gives you one clean spot to be wrong, the low of the day. Your size is worked out from that stop before you buy. Add later at a higher price and your average cost creeps up while the stop stays put. That's more risk on the same trade. If it sets up again later, that's a new trade with its own stop.",
+   "lesson_line": "One buy, one price, one stop. No starter piece.",
    "facts": [
     "g18",
-    "h31",
-    "h03"
+    "h03",
+    "aw1"
    ],
    "house": true,
    "simple": "True. You buy it all at one price with one stop, and a later test is a new trade, not an add.",
@@ -1367,7 +1373,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q15",
@@ -2965,7 +2971,7 @@
     "g17",
     "h06",
     "h07",
-    "h31"
+    "aw1"
    ],
    "wrong": {
     "Make 18.50 the new stop": "The first 30-minute low is the new stop only while the loss is inside 2R. This is past it.",
@@ -3815,11 +3821,11 @@
     "g55",
     "h36",
     "h37",
-    "h31",
-    "r10"
+    "r10",
+    "aw1"
    ],
    "wrong": {
-    "Buy more while it's strong": "No adding. One buy, one price, one stop.",
+    "Buy more while it's strong": "Not into a climax run. That's where you sell, not buy.",
     "Hold it all, trail the 9 EMA": "Trailing alone waits for the stock to turn. Sell a big part into the run.",
     "Stop to breakeven, that's it": "A stop at breakeven takes no profit. This is when you sell."
    },
@@ -3837,7 +3843,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q76",
@@ -4339,7 +4345,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
+   "notes": "Agrees: no starter piece, no plan to add later. Voice 4."
   },
   "q15": {
    "status": "pass",
@@ -4530,7 +4536,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "20.00-19.40 = 0.60 a share; 18.50 is 1.50 under, 2.5R, past the 2R ceiling (B20)."
+   "notes": "Kept: adding to a loser. 20.00 - 18.50 = 1.50 = 2.5R on 0.60, past 2R, right. Voice 4."
   },
   "q56": {
    "status": "pass",
@@ -4632,7 +4638,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
+   "notes": "Agrees: never into a climax. Voice 4."
   },
   "q76": {
    "status": "cut",

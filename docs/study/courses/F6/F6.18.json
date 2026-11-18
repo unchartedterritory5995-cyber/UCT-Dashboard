@@ -1808,7 +1808,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Both sides of the evidence and a judgment line. Cboe 0DTE fact kept accurately."
+   "notes": "Kept: dealer hedging can add to a move; not about adding shares. Voice 4."
   },
   "q09": {
    "status": "pass",

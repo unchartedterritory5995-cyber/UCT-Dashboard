@@ -900,6 +900,36 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
+  },
+  {
+   "id": "ma1",
+   "source": "hw",
+   "quote": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call.",
+   "claim": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call."
+  },
+  {
+   "id": "ma2",
+   "source": "hw",
+   "quote": "Below the 200-day stays a hard no for stocks.",
+   "claim": "Price below the 200-day is a hard no for a stock."
+  },
+  {
+   "id": "aw_r",
+   "source": "h2",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1228,7 +1258,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q42": {
    "status": "pass",
@@ -1287,8 +1317,8 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Red taught as a guide, mostly cash, not a no-buy law. Good."
+   "fixed": true,
+   "notes": "adding text fine; but deeper said 'Red still means mostly cash, plus shorts below the 200-day', teaching shorting, which is only for traders who've made $1 million"
   },
   "q52": {
    "status": "pass",
@@ -1353,8 +1383,8 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "'No adds' is the rule (A5, fact h03b). Fine."
+   "fixed": true,
+   "notes": "answer right on a stock running on strength (rare feel call, never the plan); wrong 'not a bigger position' still read as never"
   },
   "q63": {
    "status": "pass",
@@ -1390,7 +1420,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "50 over 200 kept as a plus, the 200-day the only must. Correct."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   }
  },
  "questions": [
@@ -2069,7 +2099,7 @@
     "c06",
     "v01",
     "c07",
-    "h03b",
+    "aw_r",
     "c02",
     "c05",
     "c32"
@@ -2556,7 +2586,7 @@
     "c27",
     "b02",
     "c01",
-    "h03b"
+    "aw_r"
    ],
    "wrong": {
     "Right now, over the 9:45 high": "That's not your ORB. A strong open can be its own trade, but that's a different plan with a different stop.",
@@ -3024,12 +3054,12 @@
     "r22",
     "d05",
     "d06",
-    "h03b",
+    "aw1",
     "h05"
    ],
    "wrong": {
     "A tighter stop at the low": "A stop only limits losses. It can't bank a gain.",
-    "Adding shares at 5R": "We don't add. More shares just means a bigger give-back.",
+    "Adding shares at 5R": "Adding banks nothing. More shares just means a bigger give-back.",
     "Holding out for 10R": "OVV topped at 7.53R. Waiting for 10R sold nothing."
    },
    "house": true,
@@ -3042,7 +3072,7 @@
      "the session counts come from one dossier scan row"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q42",
@@ -3455,17 +3485,18 @@
     "h26",
     "h34",
     "c33",
-    "r24"
+    "r24",
+    "aw2"
    ],
    "wrong": {
     "Buy it, A+ works anywhere": "Orange is the A+ only market. Red is mostly cash.",
     "Buy it, the volume says go": "Volume grades the stock, not the market. The reading still says Red.",
-    "Buy it and add if it works": "We don't add, and Red is mostly cash anyway."
+    "Buy it and add if it works": "Red is mostly cash. And an add is never the plan going in."
    },
    "house": true,
    "simple": "Pass. Red is mostly cash, so keep the name on your list for when the market turns.",
    "deeper": {
-    "trap": "The best-looking break in a Red market is the test. Three times normal volume makes it tempting. Red still means mostly cash, plus shorts below the 200-day."
+    "trap": "The best-looking break in a Red market is the test. Three times normal volume makes it tempting. Red still means mostly cash."
    },
    "tier": "expert",
    "risk": {
@@ -3475,7 +3506,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q52",
@@ -3870,26 +3901,27 @@
    "story": "You bought the ORB at the size your plan set. An hour later it runs through the next daily level and keeps going.",
    "q": "Do you add as it clears the level?",
    "choices": [
-    "No, one buy, one stop",
+    "Not as a plan. One buy, one stop",
     "Yes, strength earns more",
     "Yes, a third more, same stop",
     "No, sell it all there"
    ],
-   "answer": "No, one buy, one stop",
-   "why": "No. We buy the full size at one price with one stop, and we don't add. Your size was worked out from your stop and your risk at the fill. Add higher and your average price rises, so a normal pullback now costs more than you planned. Strength gets paid through the sells into the push and the trail.",
-   "lesson_line": "One fill, one stop, no adds. Strength gets paid through the sells and the trail.",
+   "answer": "Not as a plan. One buy, one stop",
+   "why": "Not as a plan. We buy the full size at one price with one stop. Your size was worked out from your stop and your risk at the fill. Add higher and your average price rises, so a normal pullback now costs more than you planned. Adding to a working winner on strength does happen, but it's rare and a feel call. Strength gets paid through the sells into the push and the trail.",
+   "lesson_line": "One fill, one stop. An add is rare, a feel call. Strength gets paid through the sells and the trail.",
    "facts": [
-    "h03b",
+    "aw1",
     "h03",
-    "r21"
+    "r21",
+    "aw2"
    ],
    "wrong": {
-    "Yes, strength earns more": "Strength gets paid by the sells and the trail, not a bigger position.",
-    "Yes, a third more, same stop": "One price, one stop, no adds. A third more raises your average and your risk.",
+    "Yes, strength earns more": "Strength gets paid by the sells and the trail. A bigger position isn't the plan.",
+    "Yes, a third more, same stop": "That's an add as a plan. A third more at the same stop raises your average and your risk.",
     "No, sell it all there": "We sell some into the push by judgment and trail the rest. Not everything at one level."
    },
    "house": true,
-   "simple": "No, full size at one price with one stop and no adds. Strength gets paid through the sells and the trail.",
+   "simple": "Not as a plan, the full size went on at one price with one stop. Strength gets paid through the sells and the trail.",
    "deeper": {
     "trap": "Adding feels like backing a winner. But your size was set at the fill, from your account, your risk and your stop. Add above it and a normal pullback costs more than the trade was built for."
    },
@@ -3900,7 +3932,7 @@
      "rests on rulebook A5 (no adding)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q63",
@@ -4018,8 +4050,8 @@
     "Only on a close over the 20-day"
    ],
    "answer": "Yes, it's over the 50 and 200",
-   "why": "Yes. The 200-day is the hard line, and 63.90 is well over 55.60. It's over the 50-day at 63.30 too, and the 50 sits above the 200. That's what I like to see in a leader, though only the 200-day is a must. A stock resting a hair under its 20-day isn't a reason to pass. And there's no set distance it needs to be over the 50.",
-   "lesson_line": "The 200-day is the hard line. Over the 50 is a plus I like to see.",
+   "why": "Yes. The 200-day is the hard line, and 63.90 is well over 55.60. It's over the 50-day at 63.30 too, and the 50 sits above the 200. That's what I want to see in a leader. The 50 over the 200 is mostly a must, not always. A stock resting a hair under its 20-day isn't a reason to pass. And there's no set distance it needs to be over the 50.",
+   "lesson_line": "The 200-day is the hard line. The 50 over the 200 is mostly a must.",
    "facts": [
     "c14",
     "c29",
@@ -4028,7 +4060,9 @@
     "b04",
     "d06",
     "r25",
-    "r24"
+    "r24",
+    "ma1",
+    "ma2"
    ],
    "wrong": {
     "No, it's under its 20-day": "A day under the 20 isn't a reason to pass. Some traders want it, but it's not our test.",
@@ -4038,7 +4072,7 @@
    "house": true,
    "simple": "Yes. It's over the 200-day, the hard line, and over the 50-day too.",
    "deeper": {
-    "counter": "Bysshe wants rising 20 and 50-day averages, with the stock above the 20-day. That's his test. Ours is the 200-day as the hard line, with the 50 as a plus."
+    "counter": "Bysshe wants rising 20 and 50-day averages, with the stock above the 20-day. That's his test. Ours is the 200-day as the hard line, and the 50 over the 200 is mostly a must, not always."
    },
    "tier": "core",
    "risk": {
@@ -4049,7 +4083,7 @@
      "the owner has not ruled whether an open under the 50-day after a close above it still passes; the item avoids that case"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   }
  ]
 }

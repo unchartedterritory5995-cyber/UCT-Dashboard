@@ -3990,7 +3990,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice holds: verdict first, I/we/you, reason given; numbers and facts rechecked, answer right, wrongs clearly wrong."
+   "notes": "'adding to a short takes a sell short order' is an order-ticket definition. Voice 4."
   },
   "q61": {
    "status": "pass",

@@ -4589,8 +4589,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice 3 (final 4). Voice 3: 'It works in reverse too, and that matters after the report' hinted but never said it. Now spells out that vega gives it back when implied volatility drops after earnings (f117, f118, f101)."
+   "fixed": false,
+   "notes": "False alarm (vega adds to premium). Voice 4."
   },
   "q16": {
    "status": "pass",
@@ -4686,7 +4686,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4 (final 4). Covered call adds no downside, sells off the upside (f136, f137, f133)."
+   "notes": "False alarm. Voice 4."
   },
   "q32": {
    "status": "pass",
@@ -4800,7 +4800,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4 (final 4). Calc: (70 - 65 - 1.50) x 100 = 350, one wing only (f165). Steps shown."
+   "notes": "False alarm; (70 - 65 - 1.5) x 100 = 350 checks. Voice 4."
   },
   "q51": {
    "status": "pass",
@@ -4902,7 +4902,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 5 (final 5). Premium paid is the stop (h_b25), shares only now and then (h_a6); share stops in the wrong notes match h_a3/h_a13 and the 1-3% preferred, 5% max ruling (no misstatement)."
+   "notes": "False alarm ('add a cut'). Voice 4."
   }
  }
 }

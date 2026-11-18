@@ -1087,6 +1087,12 @@
    "source": "hw",
    "quote": "Below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the one exception, on a reversal extension or a parabolic long.",
    "claim": "Below the 200-day is a hard no for stocks; only indexes and levered ETFs may be bought under it, on a reversal extension or a parabolic long."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -2097,11 +2103,11 @@
     "h06",
     "h07",
     "h02",
-    "h03b"
+    "aw1"
    ],
    "wrong": {
     "Hold, the stop's already passed": "There's always a stop. Here it's the first 30-minute low, with a 2R ceiling.",
-    "Buy more at the lower price": "No adding, ever. Full size at one price with one stop.",
+    "Buy more at the lower price": "That's adding to a loser. Full size at one price with one stop.",
     "Sell it all at the open, take the loss": "You're down 1.2R, inside the 2R ceiling. The rule gives it the first 30 minutes."
    },
    "house": true,
@@ -2116,7 +2122,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q27",
@@ -2640,15 +2646,15 @@
     "Hold and add on the next dip"
    ],
    "answer": "A warning, the stop is the exit",
-   "why": "It's a warning. The stop is still the exit. A drive day that closes in the bottom third of its range, or under its open, is a drive that failed. 24% is in the bottom third, so I don't like it. But we don't add an exit we never planned. The stop is already in with the broker. If the stock really is done, it'll get hit and you lose what you planned. Selling on feel turns a plan into a guess. Just don't add, and don't widen anything.",
+   "why": "It's a warning. The stop is still the exit. A drive day that closes in the bottom third of its range, or under its open, is a drive that failed. 24% is in the bottom third, so I don't like it. But we don't add an exit we never planned. The stop is already in with the broker. If the stock really is done, it'll get hit and you lose what you planned. Selling on feel turns a plan into a guess. Just don't add to it, and don't widen anything.",
    "lesson_line": "A weak close is a warning, not an order. The stop is the exit.",
    "facts": [
     "c11",
     "h02",
-    "h03b"
+    "aw1"
    ],
    "wrong": {
-    "Hold and add on the next dip": "No adding, ever. Full size at one price with one stop.",
+    "Hold and add on the next dip": "Not into a warning. Full size at one price with one stop.",
     "Sell it at the open tomorrow": "Same mistake, a day later. The stop does the selling.",
     "Sell into the close to play it safe": "That's an exit we don't have. The stop is the exit."
    },
@@ -2665,7 +2671,7 @@
    "depends_on": [
     "D-136"
    ],
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q41",
@@ -2989,20 +2995,20 @@
     "No, sell a third right now"
    ],
    "answer": "No, full size at one price",
-   "why": "No. We buy the full size once, at one price, with one stop, and that's it. At 9:50, up 1R is a drive doing its job. It isn't a trend yet. In the first 30 minutes a stock pushes, it doesn't trend. Add here and your average price climbs while your stop stays put. Then a normal pullback that was harmless costs you real money. And up 1R on day one isn't a reason to sell either.",
-   "lesson_line": "A drive isn't a trend yet. Full size at one price, no adding.",
+   "why": "No. We buy the full size once, at one price, with one stop. At 9:50, up 1R is a drive doing its job. It isn't a trend yet. In the first 30 minutes a stock pushes, it doesn't trend. Adding to a winner on strength is rare and a feel call, never the plan, and never in the first 30 minutes. Add here and your average price climbs while your stop stays put. Then a normal pullback that was harmless costs you real money. And up 1R on day one isn't a reason to sell either.",
+   "lesson_line": "A drive isn't a trend yet. Full size at one price, no adding this early.",
    "facts": [
-    "h03b",
     "m08",
     "m10",
     "m13",
     "c30",
     "r05",
-    "r06"
+    "r06",
+    "aw1"
    ],
    "wrong": {
     "Yes, add half on the first dip": "Adding in the first 30 minutes mistakes a drive for a trend.",
-    "Yes, add a third at 2R": "No adding at all. One price, one stop.",
+    "Yes, add a third at 2R": "A planned add at 2R is scaling in. Adding is never the plan.",
     "No, sell a third right now": "Selling on day one is rare. The first sell is a judgment, usually day 3 or later."
    },
    "house": true,
@@ -3017,7 +3023,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q50",
@@ -3123,10 +3129,10 @@
     "d20",
     "d21",
     "h02",
-    "h03b"
+    "aw1"
    ],
    "wrong": {
-    "Add more shares on this dip": "No adding. Adding into a failing drive is the worst version of it.",
+    "Add more shares on this dip": "Never into a failing drive. That's the worst add there is.",
     "Widen the stop to give it room": "The stop only moves up, never wider.",
     "Yes, sell now at market": "After the entry a lost VWAP is a warning only. The stop does the selling."
    },
@@ -3146,7 +3152,7 @@
    "depends_on": [
     "D-136"
    ],
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q53",
@@ -4022,7 +4028,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
+   "notes": "Agrees: never into a failing drive. Voice 4."
   },
   "q53": {
    "status": "pass",
@@ -4190,7 +4196,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "'No adding, ever' checked against A5 (h03b: full size at one price with one stop; no adding). Holds."
+   "notes": "Agrees: adding to a loser. 1.2R inside 2R, right. Voice 4."
   },
   "q27": {
    "status": "pass",
@@ -4220,7 +4226,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
+   "notes": "Agrees: not into a warning. Voice 4."
   },
   "q42": {
    "status": "pass",
@@ -4237,8 +4243,8 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice 3: 'SMB says it well' put a source in the why on a question about our no-adding rule. Rewrote the why in our voice with the reason (average price climbs, stop stays put); SMB moved to deeper. Writer's voice 3; after fix 4."
+   "fixed": false,
+   "notes": "Agrees: adding to a winner rare and never the plan; the drive-not-a-trend point rests on fact c30 (SMB). Voice 4."
   },
   "q56": {
    "status": "cut",

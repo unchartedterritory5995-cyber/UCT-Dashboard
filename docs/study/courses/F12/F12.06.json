@@ -593,6 +593,12 @@
    "source": "h4",
    "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
    "claim": "Somewhere between 2R and 5R, ideally, the stop moves up to breakeven; a judgment window, not a fixed 2R."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1354,22 +1360,22 @@
    ],
    "answer": "Size up when it grades A+",
    "simple": "Size up when it grades A+. Our size comes from the grade, and never past our limits.",
-   "why": "Size up when it grades A+. Bellafiore's right that your best play earns more size, and our rules say how. A grade is our call on how clean the setup is, and the grade sets the size. A and B go on at normal size, and an A+ gets sized up. Even then, 1.5% risk is the most any grade uses, and 2% is the absolute ceiling. You buy the full size at one price, with one stop, and you never add. A hot streak never raises those limits. A run of losers still comes by chance, even in a great play.",
-   "lesson_line": "Bigger means A+ size at the buy, 1.5% risk at most, and no adding later.",
+   "why": "Size up when it grades A+. Bellafiore's right that your best play earns more size, and our rules say how. A grade is our call on how clean the setup is, and the grade sets the size. A and B go on at normal size, and an A+ gets sized up. Even then, 1.5% risk is the most any grade uses, and 2% is the absolute ceiling. You buy the full size at one price, with one stop. Adding to a working winner happens, but it's rare and a feel call, never the plan. A hot streak never raises those limits. A run of losers still comes by chance, even in a great play.",
+   "lesson_line": "Bigger means A+ size at the buy, 1.5% risk at most. Adding later is never the plan.",
    "wrong": {
-    "Add shares as it moves your way": "We buy the full size at one price with one stop, and never add. You size up at the buy.",
+    "Add shares as it moves your way": "Adding to a winner is rare for us, a feel call, never the plan. You go bigger at the buy, with the grade.",
     "Put half the account in it": "Our biggest position is 40% of the account, however good the play.",
     "Risk 3% of the account on it": "Our absolute ceiling is 2% of the account at risk, and 1.5% is the most any grade uses."
    },
    "deeper": {
-    "trap": "The trap is reading bigger as a bet on the hot streak. A play that has worked for months still loses sometimes. Our rule ties size to the grade at the buy: A+ is sized up, to 1.5% risk at most. We never add shares later."
+    "trap": "The trap is reading bigger as a bet on the hot streak. A play that has worked for months still loses sometimes. Our rule ties size to the grade at the buy: A+ is sized up, to 1.5% risk at most. Adding shares later is never the plan."
    },
    "facts": [
     "f28",
     "f41",
     "h09",
     "h11",
-    "h12",
+    "rw_add",
     "h13",
     "h14"
    ],
@@ -1381,7 +1387,7 @@
      "replaces q19, whose key was a tell"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1536,7 +1542,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checker: sizing recomputed against sizing_rule.md section 9: A+ sized up (D38), 1.5% the most any grade uses and 2% the ceiling (A1/E49), full size at one price, no adding (h12), 40% max position (A7) so half the account is wrong. Grade is explained in the why (rule 19)."
+   "notes": "size goes up at the buy with the grade; the add choice is routine adding, now framed rare, a feel call, never the plan. 1.5% and 2% ceilings intact. Voice 4."
   }
  }
 }

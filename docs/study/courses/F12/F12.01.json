@@ -531,6 +531,12 @@
    "source": "s12",
    "quote": "No setup, no trade: never force a trade to have something on; cash is a position.",
    "claim": "No setup, no trade; cash is a position."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -845,12 +851,13 @@
     "f31",
     "f29",
     "h11",
-    "h14"
+    "h14",
+    "rw_add"
    ],
    "wrong": {
     "A second, higher target": "Nice to have. A plan runs fine with one target. It can't run without the price that says you're wrong.",
     "A price alert at $42.10": "Good habit, and I'd set one. It still doesn't say where you're wrong or how many shares to buy.",
-    "A plan to add on a dip": "That's adding to a loser. We don't add at all. The full size goes on once, at one price, with one stop."
+    "A plan to add on a dip": "That's planning to add to a loser, and we never do that. The full size goes on once, at one price, with one stop."
    },
    "skill": "process.plan",
    "simple": "The stop. Your size comes from the stop, so without it the 200 shares are just a guess.",
@@ -864,7 +871,7 @@
      "key text lengthened and a fourth choice added in this upgrade"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q10",
@@ -1473,7 +1480,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop first under the LOD, size from the stop, skip if it doesn't fit, real stop order with the broker; no adding (A5). Reads like a mentor."
+   "notes": "an add on a dip is planned averaging down; note says never add to a loser, one price, one stop. Voice 4."
   },
   "q10": {
    "status": "pass",
@@ -1509,7 +1516,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Time stop under 1R after 10 trading days (C33) stated right, R defined, the hidden cost explained."
+   "notes": "adding to a stuck trade is wrong on its own terms, nothing absolute about winners. Time stop answer clear. Voice 4."
   },
   "q16": {
    "status": "pass",
@@ -1521,7 +1528,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop only moves up (A4), gap exception named and ruled out, the size reason worked. Best in the lesson."
+   "notes": "buying more near the stop is adding to a loser, a never. Stop only moves up. Voice 4."
   },
   "q18": {
    "status": "pass",

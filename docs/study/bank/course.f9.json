@@ -8562,7 +8562,7 @@
   "difficulty": 3,
   "id": "si_05a8e28c9d9f",
   "lesson_origin": "session",
-  "lesson_text": "No new trades, review first. $100,000 down to $85,000 is 15%, open positions counted. That's the line. Short of 15%, the ladder only shrinks your size. At 15% it stops you. You don't have to sell what you hold. You just don't add. Then you sit down and figure out if this was bad luck or something broken in how you're trading. A clean setup on that day is exactly what tests you. At 15% down, the answer to any setup is no. Review, then earn the way back.",
+  "lesson_text": "No new trades, review first. $100,000 down to $85,000 is 15%, open positions counted. That's the line. Short of 15%, the ladder only shrinks your size. At 15% it stops you. You don't have to sell what you hold. You just don't open anything new. Then you sit down and figure out if this was bad luck or something broken in how you're trading. A clean setup on that day is exactly what tests you. At 15% down, the answer to any setup is no. Review, then earn the way back.",
   "module": "F9",
   "prompt_json": {
    "choices": [
@@ -8606,7 +8606,7 @@
    "simple": "No new trades, because the fall from $100,000 to $85,000 hits our 15% line, so you review first.",
    "tier": "expert",
    "unit": "F9.04",
-   "why": "No new trades, review first. $100,000 down to $85,000 is 15%, open positions counted. That's the line. Short of 15%, the ladder only shrinks your size. At 15% it stops you. You don't have to sell what you hold. You just don't add. Then you sit down and figure out if this was bad luck or something broken in how you're trading. A clean setup on that day is exactly what tests you.",
+   "why": "No new trades, review first. $100,000 down to $85,000 is 15%, open positions counted. That's the line. Short of 15%, the ladder only shrinks your size. At 15% it stops you. You don't have to sell what you hold. You just don't open anything new. Then you sit down and figure out if this was bad luck or something broken in how you're trading. A clean setup on that day is exactly what tests you.",
    "wrong": {
     "Close every open position today": "The rule stops new trades and asks for a review. It doesn't make you sell what you hold.",
     "Take it, but at a 5% max position": "5% is the rung for 10% down. At 15% there's no size, just no new trades.",
@@ -9495,14 +9495,14 @@
       "url": "https://store.traders.com/-v11-c03-determi-pdf.html"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-17",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Put the stop where it belongs and change the size instead. Pick the stop price with normal short-term swings in mind. The bets spread across all your open positions, added together, are what Seykota and Druz call the portfolio's heat: your total open risk. Our rule: the whole position goes on at one price with one stop, and we never add to it."
+    "summary": "Put the stop where it belongs and change the size instead. Pick the stop price with normal short-term swings in mind. The bets spread across all your open positions, added together, are what Seykota and Druz call the portfolio's heat: your total open risk. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
    },
    "facts": {
     "calc": {
@@ -9525,7 +9525,7 @@
    "unit": "F9.05",
    "why": "Size it down to 1%, same stop. Your limit is 6% and 5% is already out there, so you've got 1% of room. Buy fewer shares so the trade risks 1%. Leave the stop right where the chart says you're wrong. The stop comes first and the size comes from the stop, never the other way around. Squeeze the stop to fit more shares and normal noise shakes you out of a good trade.",
    "wrong": {
-    "Buy half now, add the rest later": "Once the rest goes on, the full 1.5% sits on top of your 5%, past your limit. And we don't add. Our size goes on at one price, with one stop.",
+    "Buy half now, add the rest later": "Once the rest goes on, the full 1.5% sits on top of your 5%, past your limit. And there's no starter piece. Our size goes on at one price, with one stop.",
     "Raise your limit to 7% this once": "Your limit moves with the market, not with one setup you like. Raise it for every good-looking trade and your total risk creeps up.",
     "Same size, move the stop closer": "That bends the stop to fit the math. Now it sits inside the normal swings, and a routine dip takes you out."
    }
@@ -9662,7 +9662,7 @@
   "difficulty": 3,
   "id": "si_ec0bb2cb3261",
   "lesson_origin": "session",
-  "lesson_text": "Hold it and leave it alone. At $38.80 you're down a bit, but the $38 stop hasn't been touched, so the plan still stands. Nothing's wrong until $38 says so. Cheaper here just means it's going against you. We put the full size on at one price with one stop, and we never add. Least of all to a loser. Buy more at $38.80 and that same $38 stop now covers more shares, so a hit costs more than you planned. The stop is your exit. Not your entry price, and not a friend's tip. We never add, least of all to a loser. The stop decides when you're wrong.",
+  "lesson_text": "Hold it and leave it alone. At $38.80 you're down a bit, but the $38 stop hasn't been touched, so the plan still stands. Nothing's wrong until $38 says so. Cheaper here just means it's going against you. We put the full size on at one price with one stop, and we never add to a loser. Buy more at $38.80 and that same $38 stop now covers more shares, so a hit costs more than you planned. The stop is your exit. Not your entry price, and not a friend's tip. We never add to a loser. The stop decides when you're wrong.",
   "module": "F9",
   "prompt_json": {
    "choices": [
@@ -9685,7 +9685,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding. … I do not scale into trade i buy full at one spot with one stop. … The stop is the exit. It only moves up, never down or wider.",
+      "quote": "I do not scale into trade i buy full at one spot with one stop. … The stop is the exit. It only moves up, never down or wider. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      },
@@ -9704,19 +9704,19 @@
       "url": "https://articles.stockcharts.com/article/articles-journal-2013-01-pyramid-trading-greater-profits-with-less-risk/"
      }
     ],
-    "summary": "Our rule: the whole position goes on at one price with one stop, and we never add to it. The owner's words: he does not scale in; the full size goes on at one spot with one stop. Our rule A4: the stop is how we get out, and it only ever moves up. Hirsch lists averaging down into losing positions first among the habits to avoid. Adding as the price falls is not pyramiding, and Roze calls it potentially suicidal."
+    "summary": "The owner's words: he does not scale in; the full size goes on at one spot with one stop. Our rule A4: the stop is how we get out, and it only ever moves up. Hirsch lists averaging down into losing positions first among the habits to avoid. Adding as the price falls is not pyramiding, and Roze calls it potentially suicidal. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
    },
    "facts": {
     "given": "What's the play? You bought your full size at $40 with the stop at $38. Two days later it's $38.80, under your entry but above the stop. A friend says buy more while it's cheap. Hold it and leave it alone Add more, it's cheaper now Add more and lower the stop Sell now, it's under entry"
    },
-   "lesson_line": "We never add, least of all to a loser. The stop decides when you're wrong.",
+   "lesson_line": "We never add to a loser. The stop decides when you're wrong.",
    "simple": "Hold it and add nothing. Your full size went on at one price with one stop, and $38 hasn't been hit.",
    "tier": "extended",
    "unit": "F9.05",
-   "why": "Hold it and leave it alone. At $38.80 you're down a bit, but the $38 stop hasn't been touched, so the plan still stands. Nothing's wrong until $38 says so. Cheaper here just means it's going against you. We put the full size on at one price with one stop, and we never add. Least of all to a loser. Buy more at $38.80 and that same $38 stop now covers more shares, so a hit costs more than you planned. The stop is your exit. Not your entry price, and not a friend's tip.",
+   "why": "Hold it and leave it alone. At $38.80 you're down a bit, but the $38 stop hasn't been touched, so the plan still stands. Nothing's wrong until $38 says so. Cheaper here just means it's going against you. We put the full size on at one price with one stop, and we never add to a loser. Buy more at $38.80 and that same $38 stop now covers more shares, so a hit costs more than you planned. The stop is your exit. Not your entry price, and not a friend's tip.",
    "wrong": {
-    "Add more and lower the stop": "Two mistakes at once. Our stop only moves up, never down. And we don't add.",
-    "Add more, it's cheaper now": "That's averaging down. It's cheaper only because it's going against you. And we don't add.",
+    "Add more and lower the stop": "Two mistakes at once. Our stop only moves up, never down. And we never add to a loser.",
+    "Add more, it's cheaper now": "That's averaging down. It's cheaper only because it's going against you, and we never add to a loser.",
     "Sell now, it's under entry": "Your entry isn't your exit. The stop is, and $38 hasn't been hit."
    }
   },
@@ -15916,7 +15916,7 @@
   "difficulty": 3,
   "id": "si_76cb4798284a",
   "lesson_origin": "session",
-  "lesson_text": "All 400 at one price, with one stop. That's how we do it: full size on the trigger, no starter and no adds later. The 400 already came from your stop and the cap, so it's the right risk. Split it and only half your size gets the best entry you'll see. The add comes higher with the same stop, so those shares carry more risk each. If 400 feels like too much, that's telling you something. Buy fewer from the start, or pass. Full size at one price with one stop. No starter, no adds.",
+  "lesson_text": "All 400 at one price, with one stop. That's how we do it: full size on the trigger, no starter, and no plan to add later. The 400 already came from your stop and the cap, so it's the right risk. Split it and only half your size gets the best entry you'll see. The add comes higher with the same stop, so those shares carry more risk each. If 400 feels like too much, that's telling you something. Buy fewer from the start, or pass. Full size at one price with one stop. No starter, no planned adds.",
   "module": "F9",
   "prompt_json": {
    "choices": [
@@ -15937,23 +15937,23 @@
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-17",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding. … Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap (A7, or the ladder's cap in a drawdown, A8). … Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan. … Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap (A7, or the ladder's cap in a drawdown, A8). … Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Our rule: buy the full position at one price with one stop; never scale in or add. Our rule: shares are the account times the risk percent, divided by entry minus stop, rounded down, then the smaller of that and the position cap. Stop first, a few cents under the day's low or the prior day's low; size comes from the stop; if the honest stop does not fit the risk, skip."
+    "summary": "We buy the full size at one price with one stop, with no starter piece and never an add to a loser. An add to a working winner on strength is rare, a feel call, never the plan. Our rule: shares are the account times the risk percent, divided by entry minus stop, rounded down, then the smaller of that and the position cap. Stop first, a few cents under the day's low or the prior day's low; size comes from the stop; if the honest stop does not fit the risk, skip."
    },
    "facts": {
     "given": "How do you put it on? An A setup triggers. Your plan says 400 shares. You're thinking 200 now and the other 200 once it starts working. Buy all 400 now with one stop Buy all 400 with two stops Add the rest once it starts paying Buy 200 now, 200 on a dip lower"
    },
-   "lesson_line": "Full size at one price with one stop. No starter, no adds.",
-   "simple": "Buy all 400 at one price with one stop. We don't scale in or add later.",
+   "lesson_line": "Full size at one price with one stop. No starter, no planned adds.",
+   "simple": "Buy all 400 at one price with one stop. We don't scale in, and an add is never the plan.",
    "tier": "expert",
    "unit": "F9.08",
-   "why": "All 400 at one price, with one stop. That's how we do it: full size on the trigger, no starter and no adds later. The 400 already came from your stop and the cap, so it's the right risk. Split it and only half your size gets the best entry you'll see. The add comes higher with the same stop, so those shares carry more risk each. If 400 feels like too much, that's telling you something. Buy fewer from the start, or pass.",
+   "why": "All 400 at one price, with one stop. That's how we do it: full size on the trigger, no starter, and no plan to add later. The 400 already came from your stop and the cap, so it's the right risk. Split it and only half your size gets the best entry you'll see. The add comes higher with the same stop, so those shares carry more risk each. If 400 feels like too much, that's telling you something. Buy fewer from the start, or pass.",
    "wrong": {
     "Add the rest once it starts paying": "That's a starter-then-add plan, and it isn't ours. Full size on the trigger, one stop.",
     "Buy 200 now, 200 on a dip lower": "If it dips, it's going against you. Adding there doubles down under the same stop.",
@@ -16096,7 +16096,7 @@
   "difficulty": 1,
   "id": "si_877909338bd5",
   "lesson_origin": "session",
-  "lesson_text": "And you buy it all at one price, with one stop. No scaling in, no adding later.",
+  "lesson_text": "And you buy it all at one price, with one stop. No starter piece, and an add is never the plan.",
   "module": "F9",
   "prompt_json": {
    "order": 1,
@@ -16107,7 +16107,7 @@
     "Stop first. Then divide your dollars at risk by the risk per share. $500 over $20 a share is 25 shares.",
     "Round down, then check the cap. You take the smaller of that number and 40% of the account.",
     "Even a tight stop doesn't earn more than 40% of the account. A gap can jump any stop.",
-    "And you buy it all at one price, with one stop. No scaling in, no adding later."
+    "And you buy it all at one price, with one stop. No starter piece, and an add is never the plan."
    ],
    "subject": "F9.08#w1"
   },
@@ -16117,7 +16117,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade. … Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap (A7, or the ladder's cap in a drawdown, A8). … A7. Max position 40% of the account (raised from 20-25% on 2026-11-09: \"RAISE THE CAP TO 40% ACTUALLY. ESPECIALLY WITH EARLY TRIMS AT 3-5R THAT IS FINE.\"). … A tight stop never justifies a bigger position than that: a gap can jump the stop. … The full size at one price with one stop; no adding.",
+      "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade. … Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap (A7, or the ladder's cap in a drawdown, A8). … A7. Max position 40% of the account (raised from 20-25% on 2026-11-09: \"RAISE THE CAP TO 40% ACTUALLY. ESPECIALLY WITH EARLY TRIMS AT 3-5R THAT IS FINE.\"). … A tight stop never justifies a bigger position than that: a gap can jump the stop. … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      },

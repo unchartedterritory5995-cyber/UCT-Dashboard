@@ -898,6 +898,18 @@
    "source": "hw",
    "quote": "Below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the one exception, on a reversal extension or a parabolic long.",
    "claim": "Below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the one exception."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
+  },
+  {
+   "id": "mw1",
+   "source": "hw",
+   "quote": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call.",
+   "claim": "For a long we want the 50-day above the 200-day. It is mostly a must, not always, and an exception is a judgment call."
   }
  ],
  "walkthroughs": [
@@ -1498,14 +1510,13 @@
    "criterion": "hve.one_entry",
    "q": "Your HVE winner pulls back to the HVC. That pullback is no reason to add shares.",
    "answer": "True",
-   "why": "True. We buy the full size at one price with one stop, and we don't add. The size came from that one stop, so it already carries all the risk you planned. Add at the HVC and you've got more shares on the same idea at a new price. Now a normal dip costs more than you signed up for.",
-   "lesson_line": "One price, one stop, one size. No adds.",
+   "why": "True. We buy the full size at one price with one stop, and a pullback is no time to add. The size came from that one stop, so it already carries all the risk you planned. Add at the HVC and you've got more shares on the same idea at a new price. Now a normal dip costs more than you signed up for.",
+   "lesson_line": "One price, one stop, one size. No adding on a pullback.",
    "facts": [
-    "c20",
-    "h31"
+    "aw1"
    ],
    "house": true,
-   "simple": "True. Your size came from one stop, so adding puts more than your planned risk on the trade.",
+   "simple": "True. Your size came from one stop, so adding on a pullback puts more than your planned risk on the trade.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1513,7 +1524,7 @@
      "+2 rests on the owner's rulebook (A5, no adding)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q17",
@@ -2287,12 +2298,12 @@
     "r04",
     "r05",
     "h20",
-    "h31"
+    "aw1"
    ],
    "wrong": {
     "Sell a third at the open": "A fixed third at 3R isn't how we sell. The first sell is a judgment, and the second day is early.",
     "Sell it all at the open": "That gives up the whole push. We sell part into strength later and trail the rest.",
-    "Add, the gap shows strength": "No adding. Full size goes in at one price with one stop."
+    "Add, the gap shows strength": "Adding isn't the plan. Full size goes in at one price with one stop, and day two is early."
    },
    "house": true,
    "simple": "Hold. It's too early, and we sell into a 3, 5 or 7 day push, not on day two.",
@@ -2303,7 +2314,7 @@
      "rests on the owner's rulebook (F63 trim at the open)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q35",
@@ -2604,13 +2615,13 @@
    "facts": [
     "c49",
     "h30",
-    "c20",
     "c19",
-    "x06"
+    "x06",
+    "aw1"
    ],
    "wrong": {
     "Move the stop to the HVC": "The HVC is never our stop. And a burst is a spot to sell, not just protect.",
-    "Add more on the next gap": "No adding, and a burst is a place to sell.",
+    "Add more on the next gap": "Not into a burst. A burst is a place to sell.",
     "Sell a little, trail the rest": "A burst is where you sell a big part, not a little. How big is your call."
    },
    "house": true,
@@ -2622,7 +2633,7 @@
      "rests on the owner's rulebook (C34), a judgment call"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q42",
@@ -3093,7 +3104,7 @@
     "d07",
     "d08",
     "d09",
-    "c20",
+    "aw1",
     "c19",
     "h20"
    ],
@@ -3174,15 +3185,16 @@
    ],
    "answer": "No, the 50-day isn't a test here",
    "why": "No. There's no 9, 20 or 50-day test on the record day. Think about who this setup is for: beaten-down names starting a new story. They often sit under the 50-day going in. A 50-day test would throw out the very stocks we want. The line we do check is the 200-day, at your fill. Day 2's reclaim is above it, so you're good.",
-   "lesson_line": "The 200-day decides. The shorter averages don't.",
+   "lesson_line": "Price under the 50-day is fine here. Under the 200-day is a hard no.",
    "facts": [
     "c30",
     "c06",
-    "r06"
+    "r06",
+    "mw1"
    ],
    "wrong": {
     "Yes, it has to clear the 50-day": "No 50-day test applies here. The 200-day at your fill does.",
-    "Yes, the 50 must be over the 200": "The 50 over the 200 is a plus we like on other setups, not a must, and not part of this one.",
+    "Yes, the 50 must be over the 200": "It already is. Price is under the 50-day but over the 200-day, so the 50 sits above the 200. That's mostly a must on a long, not always.",
     "No, the 20 EMA is the real test": "There's no 20 EMA test either. The 200-day at the fill is the one line."
    },
    "house": true,
@@ -3198,7 +3210,7 @@
      "+1 fixed before (a wrong note was reworded)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q54",
@@ -3946,8 +3958,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice in his register; numbers and claims checked against the lesson facts; answer and idea unchanged."
+   "fixed": true,
+   "notes": "Why and lesson line agree. The simple said 'adding puts more than your planned risk on the trade' with no scope, which reads as a rule against any add. Scoped to the pullback. Voice 4."
   },
   "q17": {
    "status": "pass",
@@ -3983,7 +3995,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.1 over 20.00 = 5.5%, past the 4% chase limit; recomputed."
+   "notes": "Kept: 'Chasing doesn't add risk' is not about adding shares. 1.1 / 20 = 5.5%, right. Voice 4."
   },
   "q23": {
    "status": "pass",
@@ -4055,7 +4067,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Hold to day 3+, gap sell optional judgment (D-013, GAP-TRIM); no fixed third at 3R."
+   "notes": "Agrees: adding isn't the plan, day two early. Voice 4."
   },
   "q35": {
    "status": "pass",
@@ -4097,7 +4109,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers and claims checked against the lesson facts; answer and idea unchanged."
+   "notes": "Agrees: not into a burst. Voice 4."
   },
   "q42": {
    "status": "pass",
@@ -4168,8 +4180,8 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "50 over 200 called a plus, not a must. Correct."
+   "fixed": true,
+   "notes": "The writer's note said a beaten-down name is 'where that judgment comes in', an exception he never named. The story already settles it: price is under the 50-day and over the 200-day, so the 50 is over the 200. The lesson line 'The shorter averages don't [decide]' also undercut 'mostly a must'. Voice 4."
   },
   "q54": {
    "status": "pass",

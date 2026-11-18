@@ -547,6 +547,12 @@
    "source": "hw",
    "quote": "Shorting is recommended only for traders who have already made $1 million trading.",
    "claim": "We only recommend shorting to traders who have already made $1 million trading."
+  },
+  {
+   "id": "aw_r",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -859,13 +865,13 @@
     "Shares, a starter, then add to it"
    ],
    "answer": "Shares, full size off your stop",
-   "why": "Shares. I trade shares. An option is the occasional defined-risk buy, and when I do buy one, the premium paid is the stop. On the shares, the stop goes in first and the size comes from it. Full size at one price, one stop, no adding later. And shares give you something a call can't: no expiry date. If the move takes longer than you thought, the shares can wait it out. The call can't.",
+   "why": "Shares. I trade shares. An option is the occasional defined-risk buy, and when I do buy one, the premium paid is the stop. On the shares, the stop goes in first and the size comes from it. Full size at one price, one stop, no starter piece. And shares give you something a call can't: no expiry date. If the move takes longer than you thought, the shares can wait it out. The call can't.",
    "lesson_line": "Shares are the default. An option comes with a clock. Shares don't.",
    "facts": [
     "h1",
     "h2",
     "h3",
-    "h4",
+    "aw_r",
     "f57",
     "f29",
     "f35",
@@ -875,7 +881,7 @@
    "wrong": {
     "Calls, to control more for less": "Controlling more cuts both ways. The call can lose its whole premium while the shares just sit there flat.",
     "Weeklies, because they're cheap": "Cheap for a reason. The shorter the time and the further out of the money, the bigger the chance you lose some or all of it.",
-    "Shares, a starter, then add to it": "Shares, yes, but not in pieces. We buy the full size at one price with one stop, and we don't add."
+    "Shares, a starter, then add to it": "Shares, yes, but not in pieces. We buy the full size at one price with one stop. No starter piece."
    },
    "simple": "Shares, because they don't expire, and we use options only now and then, with the premium as the stop.",
    "tier": "core",
@@ -886,7 +892,7 @@
      "fixed before (weeklies note)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q10",
@@ -1836,8 +1842,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth right (h1-h4). Why opened 'That's our rule: trade shares' and restated rules; now first person with the reason (no expiry). Simple carries the reason instead of the rule."
+   "fixed": false,
+   "notes": "Agrees: wrong choice is a starter piece; 'no starter piece' and one size at one price survive. Voice 4."
   },
   "q10": {
    "status": "cut",
@@ -1957,7 +1963,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f9, f10, f36, f60, f35. 'Take what's left and move on to a better setup' is the right mentor close."
+   "notes": "Agrees: buying more of a stalled option is adding to a loser. Voice 4."
   },
   "q26": {
    "status": "pass",

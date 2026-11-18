@@ -1782,7 +1782,7 @@
     "Take it, the ladder only caps size"
    ],
    "answer": "No new trades, review first",
-   "why": "No new trades, review first. $100,000 down to $85,000 is 15%, open positions counted. That's the line. Short of 15%, the ladder only shrinks your size. At 15% it stops you. You don't have to sell what you hold. You just don't add. Then you sit down and figure out if this was bad luck or something broken in how you're trading. A clean setup on that day is exactly what tests you.",
+   "why": "No new trades, review first. $100,000 down to $85,000 is 15%, open positions counted. That's the line. Short of 15%, the ladder only shrinks your size. At 15% it stops you. You don't have to sell what you hold. You just don't open anything new. Then you sit down and figure out if this was bad luck or something broken in how you're trading. A clean setup on that day is exactly what tests you.",
    "lesson_line": "At 15% down, the answer to any setup is no. Review, then earn the way back.",
    "facts": [
     "h05",
@@ -1806,7 +1806,7 @@
      "rests on the owner's rulebook (A8, B13)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q33",
@@ -2078,8 +2078,8 @@
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed 15,000/100,000 = 15%. Truth: 'Down to 10%, the ladder only shrinks your size' (why, wrong note, deeper) skips the 10%-15% band where the 5% cap still holds. Fixed all three."
+   "fixed": false,
+   "notes": "Agrees: 'don't open anything new' is the 15% line, not a no-adding rule. 100,000 to 85,000 = 15%, right. Voice 4."
   },
   "q33": {
    "status": "pass",

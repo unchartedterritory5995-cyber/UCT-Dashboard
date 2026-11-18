@@ -2086,14 +2086,14 @@
       "url": "https://traderfeed.blogspot.com/2008/06/fear-of-missing-is-fear-of-dissing.html"
      },
      {
-      "accessed": "2026-11-12",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding. … Entries are market orders.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan. … Entries are market orders.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "A good setup is not a reason to buy before it triggers. FOMO can also mean buying before the setup gives its signal. Our rule A5: the full size goes on at one price with one stop, with no adding. Our rule E57: we enter with market orders."
+    "summary": "A good setup is not a reason to buy before it triggers. FOMO can also mean buying before the setup gives its signal. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan. Our rule E57: we enter with market orders."
    },
    "facts": {
     "given": "Where do you get in? Your plan is to buy a break over $25.40. It's at $25.10 and climbing fast, and you're scared it leaves without you. Only once it clears $25.40 Right now, before it runs Right now, $25.10 is close Half now, half at $25.40"
@@ -2685,14 +2685,14 @@
       "url": "https://traderfeed.blogspot.com/2018/05/cognitive-behavioral-techniques-for_14.html"
      },
      {
-      "accessed": "2026-11-12",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding.",
+      "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "By the time everyone is talking about a stock, it has likely already run. Early buyers may be getting ready to sell to the late ones. Following the crowd into a hot stock can lead to big losses. Social media buzz can push you into emotional, impulsive buys. Steenbarger: if you feel FOMO, others likely do too, and the obvious trade is often not the high-percentage one. Our rule A5: the full size goes on at one price with one stop, with no adding."
+    "summary": "By the time everyone is talking about a stock, it has likely already run. Early buyers may be getting ready to sell to the late ones. Following the crowd into a hot stock can lead to big losses. Social media buzz can push you into emotional, impulsive buys. Steenbarger: if you feel FOMO, others likely do too, and the obvious trade is often not the high-percentage one. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
    },
    "facts": {
     "given": "How do you read this one? A stock is all over your feeds. Up 40% in five days, friends posting their gains, and you don't own a share. I'm late, wait for a real setup The buzz says it goes higher Buy now, add as it rises Short it, it has to fall now"
@@ -2703,7 +2703,7 @@
    "unit": "F8.02",
    "why": "You're late. When everyone's talking about a stock, it has likely already run and gotten expensive. The early buyers are the ones posting gains, and they may be getting ready to sell to someone. Don't let that someone be you. If you're feeling the FOMO, so is everybody else, and the obvious trade is often not the good one. Put it on your list and wait for a real setup with a stop.",
    "wrong": {
-    "Buy now, add as it rises": "That's chasing twice. We put the full size on once, at one price, no adding.",
+    "Buy now, add as it rises": "That's chasing twice. The full size goes on once, at one price, and adding as it runs is never the plan.",
     "Short it, it has to fall now": "A fast run can keep running. Shorting it with no setup is a guess.",
     "The buzz says it goes higher": "Buzz is the crowd, not a signal. Following the crowd can lead to big losses."
    }
@@ -3307,7 +3307,7 @@
      {
       "accessed": "2026-11-12",
       "name": "Our trading rules",
-      "quote": "Every planned buy has its entry, stop and size written down before the market opens. … No chasing: never buy more than 4% above the buy point. … Entries are market orders. … The full size at one price with one stop; no adding. … the size comes from the stop; if the honest stop does not fit the risk, skip the trade. … Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+      "quote": "Every planned buy has its entry, stop and size written down before the market opens. … No chasing: never buy more than 4% above the buy point. … Entries are market orders. … the size comes from the stop; if the honest stop does not fit the risk, skip the trade. … Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5). … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
       "tier": 3,
       "url": null
      },
@@ -3333,7 +3333,7 @@
       "url": "https://www.investors.com/how-to-invest/investors-corner/buy-zone-gives-investors-chance-to-buy-top-stocks-beyond-breakout/"
      }
     ],
-    "summary": "Our rule D39: entry, stop and size are written down before the open. Our rule C28: never buy more than 4% above the buy point. Our rule E57: we enter with market orders. Our rule A5: the full size goes on at one price with one stop, with no adding. Our rule A3: size comes from the stop, and if the honest stop does not fit the risk, skip the trade. Our rule C28: a chase keeps the dollar risk; the stop stays under the buy point, so the shares shrink. Rhodes' rule: buy what is showing strength. A chase is a position taken too late to benefit properly. The further past the buy point you buy, the greater the risk of getting shaken out."
+    "summary": "Our rule D39: entry, stop and size are written down before the open. Our rule C28: never buy more than 4% above the buy point. Our rule E57: we enter with market orders. Our rule A3: size comes from the stop, and if the honest stop does not fit the risk, skip the trade. Our rule C28: a chase keeps the dollar risk; the stop stays under the buy point, so the shares shrink. Rhodes' rule: buy what is showing strength. A chase is a position taken too late to benefit properly. The further past the buy point you buy, the greater the risk of getting shaken out. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
    },
    "facts": {
     "given": "Do you take it? Last night you wrote the plan: buy over $50, stop $49.20, size set. This morning it clears $50 and trades at $50.60. You worry it's already a chase. Yes, buy now at market No, wait for a pullback Half now, half on a dip Limit order back at $50"
@@ -3344,7 +3344,7 @@
    "unit": "F8.02",
    "why": "Yes, buy it now at market. This isn't a chase. It's your plan triggering. You wrote it last night, it cleared $50, and $50.60 is well inside our 4% line. We use market orders for entries. One thing changes: the stop's still $49.20, so your risk per share is bigger than planned. Rework the size off your real fill. Fewer shares, same dollar risk.",
    "wrong": {
-    "Half now, half on a dip": "We put the full size on at one price with one stop. No adding later.",
+    "Half now, half on a dip": "No starter piece. The full size goes on at one price with one stop. Buying more on a dip under your fill is adding to a loser.",
     "Limit order back at $50": "We use market orders for entries. A limit at $50 can leave you out of the trade you planned.",
     "No, wait for a pullback": "Nothing was missed. $50.60 is right at your trigger, well inside 4%. Buying strength here is the plan."
    }

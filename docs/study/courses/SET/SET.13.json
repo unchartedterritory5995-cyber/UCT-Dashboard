@@ -1142,6 +1142,12 @@
    "source": "h2",
    "quote": "When the day gaps more than 4% past it, one more way in is allowed: buy intraday on a morning flush or pullback that curls back up",
    "claim": "D-022: after a gap more than 4% past the trigger, one more way in is a buy on a morning flush or pullback that curls back up."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1879,11 +1885,11 @@
    "facts": [
     "c19",
     "b09",
-    "c24",
-    "r02"
+    "r02",
+    "aw1"
    ],
    "wrong": {
-    "A level to add more shares": "We never add. The full size goes in at one price with one stop.",
+    "A level to add more shares": "It's not a buy level. The full size goes in at one price with one stop.",
     "Where the first third comes off": "The first sell is a judgment, not a projected price.",
     "My target, sell it all there": "We have no price target. You sell part into strength and trail the rest."
    },
@@ -1896,7 +1902,7 @@
      "rests on the owner's rulebook (B19, E51)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q19",
@@ -2566,12 +2572,13 @@
     "h02",
     "c24",
     "c25",
-    "c27"
+    "c27",
+    "aw1"
    ],
    "wrong": {
     "Widen it to the flag low": "The stop never moves down. Widening it is exactly the mistake.",
     "Sell now, before it fails": "The stop hasn't been hit. Selling early swaps the plan for nerves.",
-    "Add more at the pattern high": "We never add. The full size goes on at one price with one stop."
+    "Add more at the pattern high": "Adding on a pullback isn't the plan. The full size goes on at one price with one stop."
    },
    "house": true,
    "simple": "Hold. The stop is the exit, and widening it turns a small planned loss into a big one.",
@@ -2583,7 +2590,7 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q34",
@@ -2607,12 +2614,12 @@
     "c22",
     "c40",
     "d07",
-    "c24"
+    "aw1"
    ],
    "wrong": {
     "Move the stop to the flag low": "The stop only moves up. The flag low is below it.",
     "Yes, it hasn't reached 3R": "The line is 1R after ten days, not 3R.",
-    "Keep it and add a little more": "We never add. The full size went on at one price with one stop."
+    "Keep it and add a little more": "That's not the plan. The full size went on at one price with one stop."
    },
    "house": true,
    "simple": "Keep it. The time stop only sells trades still under 1R after 10 days, and you're over that.",
@@ -2623,7 +2630,7 @@
      "+2 rests on the owner's rulebook (C33, time stop)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q35",
@@ -2810,12 +2817,13 @@
    "facts": [
     "h26",
     "b13",
-    "c44"
+    "c44",
+    "aw1"
    ],
    "wrong": {
     "Pass, the flag is too tight": "Tight is what we want. The market is the reason to wait.",
     "Buy full size, the chart is A+": "Red is mostly cash. Even Orange only takes A+ setups, and this is Red with leaders breaking down.",
-    "Buy a starter, add on strength": "We never add, and a Red market is no time to start."
+    "Buy a starter, add on strength": "No starter piece, and a Red market is no time to start."
    },
    "house": true,
    "simple": "Pass. Red means mostly cash, because breakouts fail more when the leaders are breaking down.",
@@ -2826,7 +2834,7 @@
      "+2 rests on the owner's rulebook (F65, the market reading as a guide)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "deeper": {
     "counter": "Bulkowski: predict the market direction. If the market looks about to drop, avoid the trade."
    }
@@ -3305,12 +3313,13 @@
     "h02",
     "d15",
     "d16",
-    "c26"
+    "c26",
+    "aw1"
    ],
    "wrong": {
     "Widen the stop to the flag low": "The stop only moves up. Widening it would be the mistake.",
     "Hold, the pole was huge": "The pole doesn't move the stop. The stop is the exit.",
-    "Buy more, it's cheaper here": "We never add, least of all to a trade going through its stop."
+    "Buy more, it's cheaper here": "That's adding to a loser, and this one is going through its stop."
    },
    "house": true,
    "simple": "Sell at the stop. You sized the trade from it, and a huge pole doesn't change the plan.",
@@ -3325,7 +3334,7 @@
      "+2 held decision D-006 (breakout volume as a gate)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "SRRK",
     "asof": "2020-12-22",
@@ -3734,19 +3743,20 @@
     "Move the stop to the flag low"
    ],
    "answer": "Sell a big part into the burst",
-   "why": "Sell a big part into it. A climax run on your own long is when you sell into the buyers. It's a judgment call, but these breakouts often go vertical, and vertical is the most stretched the run gets. Sell while the buyers are eager. Wait for the trail and you're selling after it turns, and these can fall back as fast as they went up. What's left stays on the trail. Never add.",
+   "why": "Sell a big part into it. A climax run on your own long is when you sell into the buyers. It's a judgment call, but these breakouts often go vertical, and vertical is the most stretched the run gets. Sell while the buyers are eager. Wait for the trail and you're selling after it turns, and these can fall back as fast as they went up. What's left stays on the trail. Don't add into a burst like this.",
    "lesson_line": "When it goes vertical, sell into the buyers. Don't wait for the trail.",
    "facts": [
     "h30",
     "c23",
     "b15",
     "h21",
-    "r08"
+    "r08",
+    "aw1"
    ],
    "wrong": {
     "Hold it all for the trail": "The trail sells after the burst turns, not into it.",
     "Move the stop to the flag low": "The stop only moves up, and the flag low is far below.",
-    "Add on strength, it's working": "We never add. The full size went on at one price."
+    "Add on strength, it's working": "Not into a vertical burst. That's where you sell, not buy."
    },
    "house": true,
    "simple": "Sell a big part into the burst. Vertical is the most stretched it gets, and it can fall just as fast.",
@@ -3760,7 +3770,7 @@
      "+2 rests on the owner's rulebook (C34, a judgment call)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q60",
@@ -4861,7 +4871,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Bulkowski named because the question is about his measure rule (rule 13). 82% is in c19's quote; 'one time in five' is the 18% remainder."
+   "notes": "Agrees: not a buy level, one price one stop. Voice 4."
   },
   "q19": {
    "status": "pass",
@@ -4951,13 +4961,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "notes": "Agrees: adding on a pullback isn't the plan. Hold right. Voice 4."
   },
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "fixed": true,
+   "notes": "Text agrees ('That's not the plan'). Dropped fact c24 ('never add'), which this question cited only for the add; aw1 covers it. Voice 4."
   },
   "q35": {
    "status": "pass",
@@ -4987,7 +4997,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "notes": "Agrees: no starter piece; Red is mostly cash, not a no-buy rule. Voice 4."
   },
   "q40": {
    "status": "pass",
@@ -5053,7 +5063,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "notes": "Agrees: adding to a loser. Voice 4."
   },
   "q51": {
    "status": "pass",
@@ -5107,7 +5117,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "notes": "Agrees: never into a vertical burst. Voice 4."
   },
   "q60": {
    "status": "pass",

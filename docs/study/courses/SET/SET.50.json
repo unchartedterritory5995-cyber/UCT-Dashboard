@@ -906,6 +906,12 @@
    "source": "d1",
    "quote": "KMX | 2020-12-29 | spring, two-bar | 25 d, 91.25-100.68, 10.3%, 4 touches | 0.31 ATR, 0.94x",
    "claim": "KMX 2020-12-29: a two-bar spring; range 91.25 to 100.68, 10.3% tall, 4 floor touches; the probe 0.31 ATR under the floor on 0.94x volume."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -2168,12 +2174,12 @@
    "criterion": "spr.after_entry_stop",
    "q": "Your spring breaks back under its low. Buying more down there to average your cost is fine.",
    "answer": "False",
-   "why": "False. The spring low breaking means you're out, not buying more. The stop under that low is your exit, and its whole job is to get you out when the spring fails. We buy the full size at one price with one stop, and we never add. Adding to a loser turns one small loss into a big one.",
+   "why": "False. The spring low breaking means you're out, not buying more. The stop under that low is your exit, and its whole job is to get you out when the spring fails. We buy the full size at one price with one stop, and we never add to a loser. That turns one small loss into a big one.",
    "lesson_line": "A broken spring low means out, not more.",
    "facts": [
-    "h28b",
     "h02",
-    "c25"
+    "c25",
+    "aw1"
    ],
    "house": true,
    "simple": "False. When the spring low breaks your stop takes you out, and we never add to a loser.",
@@ -2184,7 +2190,7 @@
      "rests on the owner's rulebook (A4, A5)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q35",
@@ -2205,17 +2211,17 @@
    "why": "Hold. We very rarely sell on day 1, and we usually wait until day 3 at the earliest. 3R in a day means this thing has power. Sell a chunk now and you cap your best trades. I'd rather let it run into a 3, 5 or 7 day push and sell into that. The first sell is a judgment, not a fixed third at 3R.",
    "lesson_line": "Don't sell your best trade on day 1.",
    "facts": [
-    "h28b",
     "r06",
     "r07",
     "r08",
-    "r09"
+    "r09",
+    "aw1"
    ],
    "house": true,
    "wrong": {
     "Sell a third, move stop to 64.00": "That's the old fixed third at 3R. The first sell is a judgment, and day 1 is rarely the day.",
     "Sell half, leave the stop alone": "Selling on day 1 is rare for us. We usually wait until day 3 at the earliest.",
-    "Add more at 68.80 on strength": "We never add. Full size at one price with one stop."
+    "Add more at 68.80 on strength": "Not the plan. The full size went on at one price with one stop. Adding on strength is rare, a feel call."
    },
    "simple": "Hold, because we rarely sell on day 1 and the first sell is a judgment, not a fixed 3R.",
    "deeper": {
@@ -2230,7 +2236,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q36",
@@ -2339,11 +2345,11 @@
     "h06",
     "h07",
     "h02",
-    "h28b"
+    "aw1"
    ],
    "house": true,
    "wrong": {
-    "Buy more at 95.00 to average": "We never add. Full size at one price with one stop.",
+    "Buy more at 95.00 to average": "That's adding to a loser. Full size at one price with one stop.",
     "New stop at 95.00, the 30-min low": "That's the gap rule without its ceiling. 2.5R is past 2R, so you're out.",
     "Hold, it should bounce back": "Hoping isn't a plan. On a gap, the 30-minute low and the 2R cap decide."
    },
@@ -2357,7 +2363,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "visual": {
     "kind": "ladder",
     "side": "long",
@@ -2410,11 +2416,11 @@
     "rg1",
     "r06",
     "r07",
-    "h28b"
+    "aw1"
    ],
    "house": true,
    "wrong": {
-    "Add more at 57.50 on the gap": "We never add. Full size at one price with one stop.",
+    "Add more at 57.50 on the gap": "A gap past your level is a spot to sell, not buy. Adding is rare, a feel call.",
     "Sell a third, the gap forces it": "No gap forces a sell. Selling part into it is your call.",
     "Sell the whole thing at the open": "The first sell is part of the position. The rest keeps working."
    },
@@ -2426,7 +2432,7 @@
      "rests on the owner's rulebook (F63, B19)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q40",
@@ -3416,29 +3422,29 @@
    "criterion": "spr.entry_backup",
    "q": "Fraser calls this a classic place to add. What do you do?",
    "choices": [
-    "Just hold, we don't add to trades",
+    "Just hold, adding isn't the plan",
     "Add half size, keep the same stop",
     "Double up and raise the stop",
     "Sell it, the pullback is a warning"
    ],
-   "answer": "Just hold, we don't add to trades",
-   "why": "Just hold. Fraser and ChartSchool both call this a place to add. We don't. We buy the full size at one price with one stop, and that's the position. Adding later raises your average cost and your risk right when you should be letting it work. A light pullback that holds the old top is a good sign, so sit on your hands.",
+   "answer": "Just hold, adding isn't the plan",
+   "why": "Just hold. Fraser and ChartSchool both call this a place to add. We don't plan it. We buy the full size at one price with one stop, and that's the position. Adding to a working winner on strength does happen, but it's rare and a feel call, never the plan. A light pullback that holds the old top is a good sign, so sit on your hands.",
    "lesson_line": "Wyckoff adds at the back-up. We buy once and let it work.",
    "facts": [
     "f08",
-    "h28b",
     "c36",
     "t07",
-    "h02"
+    "h02",
+    "aw1"
    ],
    "wrong": {
-    "Add half size, keep the same stop": "No adding. The full size goes on once, at one price with one stop.",
-    "Double up and raise the stop": "No adds, however the stop moves.",
+    "Add half size, keep the same stop": "That's the textbook add. For us adding is never the plan. The full size went on once.",
+    "Double up and raise the stop": "Doubling up is the textbook's plan. We buy once and let it work.",
     "Sell it, the pullback is a warning": "A light pullback that holds the old top is support showing up. The stop is your exit."
    },
    "house": true,
    "story": "You hold a long from the spring. The stock has pushed to the top of the range and now pulls back on light volume, holding the old top.",
-   "simple": "Just hold, because we buy the full size once, at one price with one stop.",
+   "simple": "Just hold. We buy the full size once, and adding is never part of the plan.",
    "deeper": {
     "trap": "Where the textbook and our rules split, our rules win. Fraser and ChartSchool add here. We buy once, at one price with one stop."
    },
@@ -3450,7 +3456,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q68",
@@ -3804,17 +3810,17 @@
     "Sell a fixed third, trail the rest"
    ],
    "answer": "Weigh a later sell, trail the rest",
-   "why": "Weigh another sell and trail the rest. Later sells are a judgment, like the first. Selling at about 5 to 10R is often best, so 5R is a fine spot to think about it. But no fixed third comes off at 5R. Whatever's left trails under the 9 EMA if it's fast, or the 20 EMA if it's steady. And nothing gets added back.",
+   "why": "Weigh another sell and trail the rest. Later sells are a judgment, like the first. Selling at about 5 to 10R is often best, so 5R is a fine spot to think about it. But no fixed third comes off at 5R. Whatever's left trails under the 9 EMA if it's fast, or the 20 EMA if it's steady. And you don't buy back what you sold.",
    "lesson_line": "Sell into strength by judgment. Trail what's left.",
    "facts": [
     "r06",
     "r08",
-    "h28b",
-    "r21"
+    "r21",
+    "aw1"
    ],
    "wrong": {
     "Sell everything and lock it in": "That ends a trade that's still working. Sell part by judgment and trail the rest.",
-    "Add back what you already sold": "No adds. Full size at one price with one stop.",
+    "Add back what you already sold": "Buying back what you sold isn't the plan. The trail handles the rest.",
     "Sell a fixed third, trail the rest": "No fixed third comes off at 5R. Later sells are a judgment too."
    },
    "house": true,
@@ -3830,7 +3836,7 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q76",
@@ -4072,13 +4078,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "Agrees: never add to a loser. Voice 4."
   },
   "q35": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "Agrees: adding on strength rare, a feel call; hold on day 1 right. 64 + 3 x 1.60 = 68.80, right. Voice 4."
   },
   "q36": {
    "status": "pass",
@@ -4096,13 +4102,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "Agrees: adding to a loser. (100-95)/(100-98) = 2.5R, right. Voice 4."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "Agrees: adding rare, a feel call. 50 + 3 x 2 = 56, right. Voice 4."
   },
   "q40": {
    "status": "pass",
@@ -4330,7 +4336,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "Rewrite teaches the ruling: textbook add vs ours, adding never the plan, rare and a feel call. Answer clearly right. Voice 4."
   },
   "q68": {
    "status": "pass",
@@ -4378,7 +4384,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "Agrees: buying back what you sold isn't the plan. Voice 4."
   },
   "q76": {
    "status": "pass",

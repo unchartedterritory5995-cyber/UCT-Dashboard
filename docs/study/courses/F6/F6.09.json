@@ -1837,7 +1837,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "50-45 = 5, + 0.55 = 5.55 checked; 6.10 (premium twice) and 50.55 wrong notes right; floor ends at expiry (f27)."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q21": {
    "status": "pass",

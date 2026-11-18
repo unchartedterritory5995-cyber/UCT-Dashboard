@@ -1012,6 +1012,12 @@
    "source": "hw",
    "quote": "Below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the one exception, on a reversal extension or a parabolic long.",
    "claim": "We don't buy stocks below the 200-day; only indexes and leveraged ETFs are excepted (D-009)."
+  },
+  {
+   "id": "hwa",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece and never an add to a loser. An add to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1998,7 +2004,7 @@
    "wrong": {
     "Move the stop up to breakeven": "Breakeven is for a trade that's worked, somewhere from 2R to 5R. At 0.6R the time stop is your answer.",
     "Hold, the stop will get you out": "The stop handles a trade going wrong. This one's just stuck, and the time stop is for that.",
-    "Add more at a higher price": "We don't add, and nothing here is working anyway."
+    "Add more at a higher price": "Nothing here is working, so there's nothing to add to. A stuck trade gets sold."
    },
    "house": true,
    "simple": "Sell. Ten days of nothing means the setup didn't work, and that money can go to one that does.",
@@ -2009,7 +2015,7 @@
      "rests on the owner's rulebook C33"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "deeper": {
     "counter": "Raschke on a pullback buy that went nowhere: there is no reason to be in this trade."
    },
@@ -2339,11 +2345,10 @@
    "criterion": "e20.one_price",
    "q": "You already hold some shares. A 20 EMA pullback can be your add-on, at the same stop as the rest.",
    "answer": "False",
-   "why": "False. The 20 EMA pullback is its own trade. Full size, one price, one stop. We don't add to it, and we don't start with a small pilot either. One buy with one stop means you know your risk to the penny before you click. Tack it onto an old position and you've got two prices and a blurry risk. Clean trades are easier to manage and easier to review.",
+   "why": "False. The 20 EMA pullback is its own trade. Full size, one price, one stop, and no small pilot first. One buy with one stop means you know your risk to the penny before you click. Tack it onto an old position at the old stop and you've got two prices and a blurry risk. An add to a working winner on strength does happen, but it's rare and a feel call, never a setup you plan. Clean trades are easier to manage and easier to review.",
    "lesson_line": "One price, one stop, full size. The pullback is a trade, not a top-up.",
    "facts": [
-    "c34",
-    "h31"
+    "hwa"
    ],
    "house": true,
    "simple": "False. Each buy is one trade with one stop, so you know the risk before you start.",
@@ -2354,7 +2359,7 @@
      "rests on the owner's rulebook A5"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q32",
@@ -2504,7 +2509,7 @@
     "c33",
     "h28",
     "h29",
-    "c34"
+    "hwa"
    ],
    "wrong": {
     "No, only one try per pullback": "We cap tries by the week and the month, not one per pullback.",
@@ -2820,13 +2825,13 @@
    "lesson_line": "When your winner goes vertical, sell them what they want.",
    "facts": [
     "h16",
-    "h31",
+    "hwa",
     "h21"
    ],
    "wrong": {
     "Sell just a small slice of it": "A climax is where you sell a big part. A small slice leaves most of the gain exposed.",
     "Hold it all, the trend is up": "That's how a 9R winner gives a big chunk back. Into a climax, we sell a big part.",
-    "Add more, it's that strong": "We don't add to a pullback buy, and a climax is where you sell, not buy."
+    "Add more, it's that strong": "Never add into a climax. That's where you sell, not buy."
    },
    "house": true,
    "story": "Your pullback buy is up 9R in two weeks. Today is its third straight up day. It gaps up and runs on the heaviest volume of the move.",
@@ -2842,7 +2847,7 @@
      "rests on the owner's rulebook C34, a judgment call"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q44",
@@ -4256,7 +4261,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "e20.ma_order is proposed; the stem asks how you WANT it and the why says 'where I want to be buying', not a rule. 50-over-200 not mentioned."
+   "notes": "False alarm for MA-50-200: 20 EMA over a rising 50-day; Keller's order is a quoted research line, no plus/must claim. Voice 4."
   },
   "q17": {
    "status": "pass",
@@ -4304,7 +4309,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C33: under 1R after 10 trading days is sold. Breakeven window 2R to 5R stated right in the wrong note."
+   "notes": "Agrees: a stuck 0.6R trade gets no more money, no absolute. Breakeven 2R to 5R fine. Voice 4."
   },
   "q25": {
    "status": "cut",
@@ -4345,8 +4350,8 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice: 'Here's why.' / 'Here's the logic.' / 'Here's the risk.' opened the reason in eight explanations, a stamped template. Cut here."
+   "fixed": false,
+   "notes": "Agrees: answer False holds, a pullback buy is its own trade and a planned add at the old stop is never ours; rare feel-call add named and cited (hwa). Voice 4."
   },
   "q32": {
    "status": "pass",
@@ -4418,7 +4423,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C34 'yes but depends': sell a big part, size is judgment."
+   "notes": "Agrees: never add into a climax. Voice 4."
   },
   "q44": {
    "status": "pass",
@@ -4520,7 +4525,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "inv_line_flat is proposed; the why speaks as judgment ('I pass on it'). Acceptable."
+   "notes": "False alarm for MA-50-200: 20 EMA under the 50-day. Voice 4."
   },
   "q61": {
    "status": "pass",

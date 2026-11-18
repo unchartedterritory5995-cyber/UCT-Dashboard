@@ -7604,7 +7604,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The trap is loyalty to the signal. A follow-through day only shifts the odds, and IBD says it is not foolproof. When the index undercuts its low with worse internals, the market has changed its answer. Our stop is the exit: never lower it, and never add."
+    "trap": "The trap is loyalty to the signal. A follow-through day only shifts the odds, and IBD says it is not foolproof. When the index undercuts its low with worse internals, the market has changed its answer. Our stop is the exit. Never lower it, and never add into a failing signal."
    },
    "depth": {
     "sources": [
@@ -7639,12 +7639,12 @@
      {
       "accessed": "2026-11-12",
       "name": "Our trading rules",
-      "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20). … The full size at one price with one stop; no adding. … Every position has a real stop order with the broker, not a stop kept in your head.",
+      "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20). … We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan. … Every position has a real stop order with the broker, not a stop kept in your head.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "A new low with worse internals than the last low says the bottom isn't in. IBD says follow-through days are not foolproof. Without institutional buying rallies fade; with it, the odds shift. In a correction, build your watch list so you're ready when the new uptrend starts. Our rule: the stop is the exit, and it only moves up, never down or wider, except under the gap rule. Our rule: the full size goes on at one price with one stop, and we never add. Our rule: every position has a real stop order with the broker."
+    "summary": "A new low with worse internals than the last low says the bottom isn't in. IBD says follow-through days are not foolproof. Without institutional buying rallies fade; with it, the odds shift. In a correction, build your watch list so you're ready when the new uptrend starts. Our rule: the stop is the exit, and it only moves up, never down or wider, except under the gap rule. We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan. Our rule: every position has a real stop order with the broker."
    },
    "facts": {
     "given": "What's going on, and what do you do with those two positions? You bought two leaders after a follow-through day. A week later the index undercuts its low, and more stocks hit new lows than last time. Bottom isn't in, let your stops work A cheaper entry, add to the leaders Just a shakeout, lower your stops The buy signal stands, cancel the stops"
@@ -7655,7 +7655,7 @@
    "unit": "F7.04",
    "why": "The bottom isn't in, so let your stops do their job. A new low with more stocks breaking down than last time is the market changing its answer. The follow-through day only shifted the odds, and this one is failing. Your stops are already in with the broker. If price hits them, you're out with a small loss. That's the whole point of setting them before you buy. Don't lower them and don't add. Our stop only moves up. Keep the list ready for the next attempt.",
    "wrong": {
-    "A cheaper entry, add to the leaders": "Worse breadth at a new low says the bottom isn't in. And we don't add. The full size goes on at one price, with one stop.",
+    "A cheaper entry, add to the leaders": "Worse breadth at a new low says the bottom isn't in. And you never add to a trade going against you.",
     "Just a shakeout, lower your stops": "Worse breadth at the new low says the bottom isn't in. And our stop only moves up, never down.",
     "The buy signal stands, cancel the stops": "Follow-through days fail, and this one is failing. Every position keeps a real stop order with the broker."
    }

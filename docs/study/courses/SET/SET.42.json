@@ -2,7 +2,7 @@
  "unit": "SET.42",
  "track": "SET",
  "title": "4B Setup",
- "teaches": "The 4B- (Stan Weinstein) as we trade it: after a Stage 4 decline under a falling 30-week line, a stock that has seen its low for the cycle sets a higher low on drying volume, reclaims the 50-day and pauses above it with room to run, the buy is the trade through the pause high at market once price is back above the 200-day and never more than 4% past it, the trade is short term, with the first sell a judgment on day 3 or later and no adding, and a plain 4B that is still falling is much too soon to buy.",
+ "teaches": "The 4B- (Stan Weinstein) as we trade it: after a Stage 4 decline under a falling 30-week line, a stock that has seen its low for the cycle sets a higher low on drying volume, reclaims the 50-day and pauses above it with room to run, the buy is the trade through the pause high at market once price is back above the 200-day and never more than 4% past it, the trade is short term, with the first sell a judgment on day 3 or later, the full size at one price and no add in the plan, and a plain 4B that is still falling is much too soon to buy.",
  "skills": [
   {
    "id": "setup.weinstein_4b",
@@ -905,6 +905,18 @@
    "source": "h2",
    "quote": "If there is a gap past it you can potentially buy it intraday on a morning flush/pullback and curl back up",
    "claim": "When the open gaps past the trigger, an intraday morning flush or pullback that curls back up is one more way in."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
   }
  ],
  "walkthroughs": [
@@ -2512,26 +2524,26 @@
    "q": "Your 4B- is working. A friend tells you to buy more shares on each higher low. What do you tell him?",
    "story": "The trade is up and working. Your friend adds along the way and says you should too.",
    "choices": [
-    "No adds, one price and one stop",
+    "No, one price and one stop",
     "Sure, add on each higher low",
     "Sure, but add half the size",
     "No, sell half to lock it in"
    ],
-   "answer": "No adds, one price and one stop",
-   "why": "No adds. We buy the full size at one price with one stop, and that's it. Every add is a higher price with its own risk. Your average cost climbs, and one pullback can wipe out the gain on the whole thing. The trade grows by being right and riding the trail, not by buying more of it.",
-   "lesson_line": "Full size once. A winner isn't a reason to add.",
+   "answer": "No, one price and one stop",
+   "why": "No. We buy the full size at one price with one stop. An add on every higher low makes adding a routine, and that's not how we trade. Every add is a higher price with its own risk. Your average cost climbs, and one pullback can wipe out the gain on the whole thing. Adding to a working winner does happen, but it's rare and a feel call, never the plan. The trade grows by being right and riding the trail.",
+   "lesson_line": "Full size once. Adding on every higher low isn't the plan.",
    "facts": [
-    "r32",
-    "m05",
-    "r12"
+    "r12",
+    "aw1",
+    "aw2"
    ],
    "wrong": {
-    "Sure, add on each higher low": "Adding on the way up is the mistake. Your cost climbs with every add.",
-    "Sure, but add half the size": "A smaller add is still an add, a second price and a second stop.",
+    "Sure, add on each higher low": "That makes adding a routine. Your cost climbs with every add.",
+    "Sure, but add half the size": "A smaller add is still a planned add, a second price and a second stop.",
     "No, sell half to lock it in": "That's a different call. The first sell is a judgment, into a push on day 3 or later."
    },
    "house": true,
-   "simple": "No. We buy once, full size, with one stop, and never add along the way.",
+   "simple": "No, we buy once, full size, with one stop. An add to a winner is rare, never a routine.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2539,7 +2551,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q44",
@@ -2651,11 +2663,12 @@
     "m09",
     "r30",
     "h02",
-    "h15"
+    "h15",
+    "aw1"
    ],
    "wrong": {
     "Hold it, it's a long-term bottom": "That's the mistake: riding a failed trade back into Stage 4.",
-    "Add shares, it's cheaper here": "That's adding to a loser. One price, one stop, no adds.",
+    "Add shares, it's cheaper here": "That's adding to a loser, and we never do that. One price, one stop.",
     "Lower the stop to give it room": "The stop only moves up. Lowering it turns a planned loss into hope."
    },
    "house": true,
@@ -2671,7 +2684,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q48",
@@ -2995,7 +3008,7 @@
     "Buy 49.99, stop 49.05, add on dips"
    ],
    "answer": "Buy 49.99, stop 49.05, sell day 3+",
-   "why": "Buy 49.99 at market, stop 49.05. That's a tight 1.9% stop. The first sell is a judgment, into a push on day 3 or later. Then trail what's left under the 9 or 20 EMA. One price, one stop, no adds. Write it all down before the open: entry, stop and size. Then you're just executing. That's NUS in April 2013.",
+   "why": "Buy 49.99 at market, stop 49.05. That's a tight 1.9% stop. The first sell is a judgment, into a push on day 3 or later. Then trail what's left under the 9 or 20 EMA. One price, one stop, and no add in the plan. Write it all down before the open: entry, stop and size. Then you're just executing. That's NUS in April 2013.",
    "lesson_line": "Entry, stop, size, first sell, trail. Write it before the open.",
    "facts": [
     "d03",
@@ -3003,7 +3016,8 @@
     "h22",
     "r12",
     "h21",
-    "r28"
+    "r28",
+    "aw2"
    ],
    "wrong": {
     "Buy 49.99, stop 45.00, hold it all": "45.00 is a wide stop pulled from nowhere. The honest one sat 1.9% away, and there's no plan to sell.",
@@ -3024,7 +3038,7 @@
      "stop width rests on held decision D-005"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "NUS",
     "asof": "2013-04-18",
@@ -3339,17 +3353,18 @@
    "lesson_line": "Add positions, not shares. Let the first ones prove the turn.",
    "facts": [
     "h27",
-    "r32"
+    "aw1",
+    "aw2"
    ],
    "wrong": {
-    "Yes, by adding to the first two": "That's adding to a trade. One price, one stop, no adds.",
+    "Yes, by adding to the first two": "That's adding to a trade, not a new position. The third name goes on with its own stop.",
     "No, wait for a new index high": "We start as the reading turns Green again. Waiting for a new index high means missing the turn.",
     "No, three at once is too many": "Start with a few and add as they work. They're working, so the third is the plan."
    },
    "house": true,
    "simple": "Yes. The first two are working, so you add a new position with its own stop.",
    "deeper": {
-    "counter": "Add positions, not shares. A third name spreads the plan across trades. Adding to a winner means a second price and a second stop, and we buy one price with one stop."
+    "counter": "Add positions, not shares. A third name spreads the plan across trades. Adding to a winner means a second price and a second stop. We buy one price with one stop, and an add is rare, never the plan."
    },
    "tier": "expert",
    "risk": {
@@ -3359,7 +3374,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q64",
@@ -3788,11 +3803,12 @@
    "facts": [
     "h30",
     "h34",
-    "r13"
+    "r13",
+    "aw2"
    ],
    "wrong": {
     "Hold it all, let the trail work": "The trail sells only on a close under its line. A burst can give back a lot before then.",
-    "Add a little while it's strong": "One price, one stop, no adds. A burst is for selling into, not buying.",
+    "Add a little while it's strong": "Never into a burst like this. A burst is for selling into, not buying.",
     "Wait for 5R, then decide": "The burst is the signal, not the R count. Sell into it while it's here."
    },
    "house": true,
@@ -3805,7 +3821,7 @@
      "the burst signs are B26's parabolic burst, read as the climax run C34 names"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   }
  ],
  "conflicts": [
@@ -4099,8 +4115,8 @@
   "q43": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
+   "fixed": true,
+   "notes": "edit right; dropped r32, whose claim reads 'No adds.'"
   },
   "q44": {
    "status": "cut",
@@ -4123,7 +4139,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q48": {
    "status": "pass",
@@ -4171,7 +4187,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "NUS 0.94/49.99 = 1.9%. Plan matches D-013 and the 9/20 EMA trail."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q56": {
    "status": "pass",
@@ -4218,8 +4234,8 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
+   "fixed": true,
+   "notes": "edit right; swapped r32 (claim 'No adds.') for aw1"
   },
   "q64": {
    "status": "pass",
@@ -4296,7 +4312,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   }
  }
 }

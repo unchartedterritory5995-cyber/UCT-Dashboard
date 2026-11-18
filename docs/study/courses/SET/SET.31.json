@@ -1241,6 +1241,12 @@
    "source": "hw",
    "quote": "Every setup, long or short, enters as price trades through its trigger during the day, never at the close.",
    "claim": "Every setup enters as price trades through its trigger during the day, never at the close (D-003)."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1795,7 +1801,7 @@
     "h08",
     "c04",
     "c47",
-    "h10",
+    "rw_add",
     "c05"
    ],
    "wrong": {
@@ -2408,10 +2414,10 @@
    "criterion": "ps.one_entry",
    "q": "When the stock breaks the day's low, we add a second short to the position.",
    "answer": "False",
-   "why": "False. One entry, full size, one stop. That's the whole position. Bracco takes a second short when it breaks the day's lows. We don't. Adding later means a bigger position under the same stop over the high, so a squeeze hurts more. Pick your spot at the VWAP break and size it right there.",
+   "why": "False. One entry, full size, one stop. That's the whole position. Bracco takes a second short when it breaks the day's lows. We don't plan one. A rare add to a winner is a feel call, never the plan. Adding later means a bigger position under the same stop over the high, so a squeeze hurts more. Pick your spot at the VWAP break and size it right there.",
    "lesson_line": "One entry, one stop, full size.",
    "facts": [
-    "h10",
+    "rw_add",
     "c17",
     "b27"
    ],
@@ -2424,7 +2430,7 @@
      "rests on the owner's one-entry rule (A5)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q30",
@@ -2669,7 +2675,7 @@
     "d18",
     "d30",
     "h19",
-    "h10"
+    "rw_add"
    ],
    "wrong": {
     "Hold, the stop's far away": "A far stop is a reason to pass or size way down. It's no reason to sit in a dead trade.",
@@ -3165,7 +3171,7 @@
    "why": "No. One entry, full size, one stop. That's the whole trade. Parabolic runs go further than anyone thinks. Bracco never adds when he's down, and neither do we. Add here and a squeeze hits a bigger position with the same stop. That's how a 1R loss turns into a blow-up. Widening the stop isn't an escape either. It only moves your way.",
    "lesson_line": "Averaging up a short turns a 1R loss into a blow-up.",
    "facts": [
-    "h10",
+    "rw_add",
     "s12",
     "c24",
     "h11"
@@ -4361,7 +4367,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "52.60 over 52.56; A4 never wider; never add."
+   "notes": "a short through its stop is a loser, never add. Voice 4."
   },
   "q16": {
    "status": "pass",
@@ -4445,7 +4451,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "One entry (house rule) with the reason (a bigger squeeze)."
+   "notes": "a planned second short is never the plan; False stays right. Voice 4."
   },
   "q30": {
    "status": "pass",
@@ -4486,8 +4492,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stop 99.80/119.80 is 20% (d17), and the why called a far stop 'a reason for fewer shares', which endorses a 20% stop on a fresh short (D-005: past 5% mostly wait). Fixed. The wrong note said 10 days is the limit 'for any trade'; now our 10-day time stop as the outer limit. Cover-in-3 kept as judgment ('I'd cover'), not a stated rule (the card marks it proposed)."
+   "fixed": false,
+   "notes": "never add to a losing short. Voice 4."
   },
   "q37": {
    "status": "pass",
@@ -4559,7 +4565,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Never add; A4 never wider."
+   "notes": "adding to a losing short stays a never. Voice 4."
   },
   "q49": {
    "status": "pass",

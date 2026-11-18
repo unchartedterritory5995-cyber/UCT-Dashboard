@@ -863,6 +863,12 @@
    "source": "u1",
    "quote": "I want to see strong positive reactions to news or news failure on negative headlines.",
    "claim": "Ours: coming out of a weak market, we want strong positive reactions to news, or news failure on negative headlines."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -2557,7 +2563,7 @@
     "A shakeout, widen the stop"
    ],
    "answer": "The turn failed, you're stopped out",
-   "why": "The turn failed and you're out. The whole trade was a bet that the news day's low was the low. Price just took it out, so that bet's lost. Your stop order sat a few cents under it, so it already filled. No adding, no widening, no waiting for the close. Honestly, I'd have skipped this one from the start. TTD's stop was 11.8% away, far past the 5% I'll accept.",
+   "why": "The turn failed and you're out. The whole trade was a bet that the news day's low was the low. Price just took it out, so that bet's lost. Your stop order sat a few cents under it, so it already filled. No adding to a loser, no widening, no waiting for the close. Honestly, I'd have skipped this one from the start. TTD's stop was 11.8% away, far past the 5% I'll accept.",
    "lesson_line": "Under the news day's low, the trade's over.",
    "facts": [
     "n18",
@@ -2565,11 +2571,12 @@
     "n11",
     "n12",
     "dTTD",
-    "r03"
+    "r03",
+    "aw1"
    ],
    "wrong": {
     "Hold to the close, then decide": "Your stop is a real order with the broker. It already filled.",
-    "A dip, buy more at the new low": "We don't add, and never to a loser. The new low ends the trade.",
+    "A dip, buy more at the new low": "That's adding to a loser. The new low ends the trade.",
     "A shakeout, widen the stop": "The stop never moves wider. A new low is the exit, not a shakeout."
    },
    "house": true,
@@ -2582,7 +2589,7 @@
      "rests on the owner's rulebook (section 9) (A4, B20, D41)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "TTD",
     "asof": "2022-02-16",
@@ -3598,12 +3605,13 @@
     "rg1",
     "r10",
     "r11",
-    "r12"
+    "r12",
+    "aw1"
    ],
    "wrong": {
     "Sell it all at the open": "The first sell is part of it. The rest keeps working on the trail.",
     "Sell a third, the gap forces it": "A gap never forces a sell. It's a judgment.",
-    "Add shares, it gapped up": "We don't add. One entry, one price, one stop."
+    "Add shares, it gapped up": "A gap is where you weigh selling, not buying. Adding is rare, a feel call, never the plan."
    },
    "house": true,
    "story": "You bought a News Failure long on Monday at 31.83 with the stop at 30.23. It has pushed up for three sessions. Thursday, day 4, it opens at 38.10, above your 3R level, and you have sold nothing.",
@@ -3615,7 +3623,7 @@
      "rests on the owner's rulebook (section 9) (F63, B19)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q70",
@@ -4002,7 +4010,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "TTD stopped in five sessions; 11.8% stop past 5% (dTTD). Real stop already filled. Correct."
+   "notes": "Agrees: adding to a loser. Voice 4."
   },
   "q45": {
    "status": "cut",
@@ -4170,7 +4178,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R = 31.83 + 4.80 = 36.63, so a 38.10 open is past it. Gap-open sell is judgment (gap-open ruling). Correct."
+   "notes": "Agrees: adding rare, a feel call, never the plan. Voice 4."
   },
   "q70": {
    "status": "pass",

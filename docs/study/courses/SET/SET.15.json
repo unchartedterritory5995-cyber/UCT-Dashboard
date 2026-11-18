@@ -1075,6 +1075,12 @@
    "source": "d1",
    "claim": "AAPL, entry 2022-02-09: buy 176.05, stop 171.40; stopped on 02-11.",
    "quote": "AAPL | 2022-02-09 (01-28, 02-08) | 176.05 | 171.40 | 02-11, day 2, low 168.04"
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -2308,12 +2314,12 @@
    "criterion": "xbk.one_price",
    "q": "Kell buys in pieces. For us, adding a second piece after the crossback buy is part of the plan.",
    "answer": "False",
-   "why": "False. Kell buys in pieces, and it works for him. We don't. We buy the full size once, at one price, with one stop. Here's why. Your stop sets your size. A second piece bought higher sits farther from that same stop, so it adds risk you never planned. Learn from his read of the chart. Trade our plan.",
-   "lesson_line": "One price, one stop, full size. No adds.",
+   "why": "False. Kell buys in pieces, and it works for him. We don't. We buy the full size once, at one price, with one stop. Here's why. Your stop sets your size. A second piece bought higher sits farther from that same stop, so it adds risk you never planned. Adding to a working winner happens, but rarely, and only as a feel call. Learn from his read of the chart. Trade our plan.",
+   "lesson_line": "One price, one stop, full size. Adding is never the plan.",
    "facts": [
     "x17",
     "x30",
-    "h03b",
+    "rw_add",
     "e12",
     "n17"
    ],
@@ -2329,7 +2335,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q31",
@@ -2648,13 +2654,13 @@
     "d03",
     "h01",
     "h03",
-    "h03b",
+    "rw_add",
     "r51",
     "n07"
    ],
    "wrong": {
     "Pull the stop in to 3%, same size": "That's moving the stop to fit the size. Normal noise takes you out, and the stop means nothing.",
-    "Buy half now, half on a dip": "We buy once, at one price, with one stop. No adds.",
+    "Buy half now, half on a dip": "We buy once, at one price, with one stop. No buying it in pieces.",
     "Skip it, the stop is over 3%": "3.4% is fine. We take stops up to 5%. A wider honest stop just gets fewer shares."
    },
    "house": true,
@@ -2671,7 +2677,7 @@
      "fixed before (the old why leaned on size down past 3%)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "CLS",
     "asof": "2024-10-03",
@@ -2818,16 +2824,17 @@
     "Move the stop up to entry"
    ],
    "answer": "Sell it and free up the money",
-   "why": "Sell it. A trade still under 1R after 10 trading days gets sold. A crossback should work early. The whole idea is that buyers show up at the averages and push it. If they haven't in 10 days, the idea isn't working, even if the stop hasn't hit. That money can go to a setup that's actually moving. Adding is never on the table, and breakeven is a 2R to 5R move.",
+   "why": "Sell it. A trade still under 1R after 10 trading days gets sold. A crossback should work early. The whole idea is that buyers show up at the averages and push it. If they haven't in 10 days, the idea isn't working, even if the stop hasn't hit. That money can go to a setup that's actually moving. Adding to a flat trade is never on the table, and breakeven is a 2R to 5R move.",
    "lesson_line": "Under 1R after 10 days, sell it and put the money to work.",
    "facts": [
     "h15",
     "h05",
     "x17",
-    "n09"
+    "n09",
+    "rw_add"
    ],
    "wrong": {
-    "Add more while it's quiet": "We never add. One price, one stop.",
+    "Add more while it's quiet": "Adding to a trade that isn't working just ties up more money. One price, one stop.",
     "Hold it, the hold day was clean": "The time stop doesn't care how clean the start was. It's day 10 and under 1R.",
     "Move the stop up to entry": "Breakeven comes between 2R and 5R, and this is 0.6R. The time stop sells it anyway."
    },
@@ -2842,7 +2849,7 @@
      "rests on the owner's rulebook (C33, the time stop)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q44",
@@ -2948,11 +2955,12 @@
     "e03",
     "d26",
     "d40",
-    "r51"
+    "r51",
+    "rw_add"
    ],
    "wrong": {
     "Wait for a full close over the high": "The trigger is price trading through the high, not a close. Waiting can cost you the move.",
-    "Buy half now, add on strength": "We buy once, at one price, with one stop. No adds.",
+    "Buy half now, add on strength": "We buy the full size once, at one price, with one stop. No starter piece.",
     "Buy at market, stop at entry": "A stop at entry is breakeven, and that comes later, from 2R to 5R. Your first stop goes under the low."
    },
    "house": true,
@@ -2968,7 +2976,7 @@
      "the trigger shape waits on the owner (D-003)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "NET",
     "asof": "2023-11-10",
@@ -4457,12 +4465,12 @@
     "Hold it all, trail the 9 EMA"
    ],
    "answer": "Sell a big part into the run",
-   "why": "Sell a big part into it. Four straight gap ups, far above the 9 EMA, is a climax run. That's the kind of strength you sell into. You won't often get a better spot to take money off. It's still a judgment call, so it depends on the stock and how far it's run. Trail what's left. And never add here. We buy once, at one price, with one stop.",
+   "why": "Sell a big part into it. Four straight gap ups, far above the 9 EMA, is a climax run. That's the kind of strength you sell into. You won't often get a better spot to take money off. It's still a judgment call, so it depends on the stock and how far it's run. Trail what's left. And never add into a run this stretched.",
    "lesson_line": "Into a climax run, sell a big part. Trail the rest.",
    "facts": [
     "x36",
     "h16",
-    "h03b",
+    "rw_add",
     "h21",
     "r62",
     "n22",
@@ -4470,13 +4478,13 @@
    ],
    "wrong": {
     "Sell a little, trail the rest": "Into a climax I sell a big part, not a little.",
-    "Add a piece into strength": "We never add. Here you sell.",
+    "Add a piece into strength": "Never add into a climax. Here you sell.",
     "Hold it all, trail the 9 EMA": "The trail is for what's left. Into a climax, sell a big part first."
    },
    "house": true,
    "simple": "Sell a big part. A stock far above its 9 EMA after a climax run is the strength you sell into.",
    "deeper": {
-    "trap": "The trap is the winner's pride. A run like this feels like proof to hold everything or to add. Kell sells into extensions too. Adding is never the answer, because we buy once, at one price, with one stop."
+    "trap": "The trap is the winner's pride. A run like this feels like proof to hold everything or to add. Kell sells into extensions too. Adding into a climax is never the answer. Here you sell."
    },
    "tier": "expert",
    "risk": {
@@ -4486,7 +4494,7 @@
      "the exact share to sell is left to judgment"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q83",
@@ -4968,8 +4976,8 @@
   "q30": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Kell's principle named on purpose (dossier: Kell buys in two pieces and adds); our A5 one price one stop, with the risk reason."
+   "fixed": true,
+   "notes": "the ruling sentence landed right before 'Here's why', so the why then explained the wrong thing. Reordered: the reason first, then the rare feel-call add. Answer False unchanged."
   },
   "q31": {
    "status": "cut",
@@ -5023,7 +5031,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.70/50.64 = 3.36% -> 3.4%; only the 1-3% / 3.5% / up to 5% band (x34 dropped). CLS 3R in 3 days per d03."
+   "notes": "half now, half on a dip is buying in pieces, no starter piece; 50.64 to 48.94 is 3.4%. Voice 4."
   },
   "q40": {
    "status": "pass",
@@ -5047,7 +5055,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C33 time stop; breakeven given as 2R to 5R."
+   "notes": "adding to a flat 0.6R trade ties up money; breakeven 2R-5R. Voice 4."
   },
   "q44": {
    "status": "pass",
@@ -5064,8 +5072,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the why said the averages make 'the stop close and the size real', but NET's stop was 61.31 under 63.34, 3.2%, wider than the 1-3% we prefer. Now worked honestly against D-005, and the no-close reason is given (waiting is a chase). r51 added to facts for the band."
+   "fixed": false,
+   "notes": "half now is a starter piece, which the ruling keeps a no. 63.34 to 61.31 is 3.2%. Voice 4."
   },
   "q47": {
    "status": "pass",
@@ -5281,7 +5289,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C34 big part into a climax run as judgment; trail the rest; no adds."
+   "notes": "never add into a climax this stretched; sell a big part. Voice 4."
   },
   "q83": {
    "status": "cut",

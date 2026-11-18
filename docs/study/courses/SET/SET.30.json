@@ -1159,6 +1159,12 @@
    "source": "hw",
    "quote": "Volume raises the grade; it is not a requirement, except where volume is the setup.",
    "claim": "Volume raises the grade; it is not a requirement, except where volume is the setup."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1483,7 +1489,7 @@
    "lesson_line": "One price, one stop, one trade.",
    "facts": [
     "c13",
-    "h03b",
+    "aw1",
     "h22",
     "p19",
     "c18"
@@ -1847,7 +1853,7 @@
     "c25",
     "h02",
     "h18",
-    "h03b",
+    "aw1",
     "s09",
     "h28"
    ],
@@ -2106,17 +2112,17 @@
     "c15",
     "s04",
     "d26",
-    "h03b",
     "d18",
     "d19",
     "c22",
-    "r06"
+    "r06",
+    "aw1"
    ],
    "house": true,
    "wrong": {
     "Short it into the Monday open": "Not our trade. A stretch this big is where we look for the turn, not for more downside.",
     "Buy the close, the turn is in": "We buy the trigger during the day, never the close. And a Friday turn hasn't proved anything yet.",
-    "Buy half now, add on Monday": "Half still eats the Monday gap. And we don't add. One price, one stop."
+    "Buy half now, add on Monday": "Half still eats the Monday gap. And there's no starter piece. One price, one stop."
    },
    "simple": "Wait for Monday. Big turns often come on a Monday, and three of our four failures were Friday buys.",
    "deeper": {
@@ -2129,7 +2135,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "KRE",
     "asof": "2025-04-04",
@@ -2317,7 +2323,7 @@
    "why": "No. We buy the full size at one price with one stop, and we never add to a loser. Bracco says it plainly: 'I never add when I am down.' The average sounds like math. But your stop decides what you lose, not your average. More shares on the same stop means more dollars gone if it hits. And if it doesn't hit, you didn't need the extra shares to be right.",
    "lesson_line": "A lower average on a loser is a bigger loser.",
    "facts": [
-    "h03b",
+    "aw1",
     "s09",
     "c13",
     "h28"
@@ -2437,11 +2443,12 @@
     "c12",
     "c32",
     "k06",
-    "c25"
+    "c25",
+    "aw1"
    ],
    "house": true,
    "wrong": {
-    "Yes, a starter now, more at VWAP": "A starter before the turn is still a knife. And we don't add. One entry, at the reclaim.",
+    "Yes, a starter now, more at VWAP": "A starter before the turn is still a knife. No starter piece, one entry, at the reclaim.",
     "No, the gap has to fill first": "A gap fill isn't our trigger. By then you've missed most of the bounce.",
     "Yes, the gap is the buy signal": "The gap is box five, part of the setup. The signal is the reclaim after the low."
    },
@@ -2456,7 +2463,7 @@
      "+2 pl.trigger_vwap is keyed while D-003 is still pending"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q32",
@@ -3554,12 +3561,12 @@
     "h15",
     "s01",
     "s12",
-    "h03b"
+    "aw1"
    ],
    "house": true,
    "wrong": {
     "Hold, the stop was never hit": "The stop is one exit. Time is the other.",
-    "Add, it proved the low is in": "We don't add. And a bounce that went nowhere proves nothing.",
+    "Add, it proved the low is in": "Not to a trade going nowhere. A bounce that stalls proves nothing.",
     "Raise the stop, give it a month": "A month is way past our 10 days. Sell it and move on."
    },
    "simple": "Sell it. A snap back should work in days, and ten days under 1R means it didn't.",
@@ -3576,7 +3583,7 @@
    "depends_on": [
     "D-019"
    ],
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q57",
@@ -4305,7 +4312,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor at the screen; numbers recomputed and match the facts; no working words; key unchanged and right."
+   "notes": "Kept: no scaling in at the entry; parabolic long is a snap-back trade to the 9 EMA, no claim about winners. Voice 4."
   },
   "q08": {
    "status": "pass",
@@ -4365,7 +4372,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor at the screen; numbers recomputed and match the facts; no working words; key unchanged and right."
+   "notes": "Kept: never add to a loser. Voice 4."
   },
   "q18": {
    "status": "pass",
@@ -4401,7 +4408,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor at the screen; numbers recomputed and match the facts; no working words; key unchanged and right."
+   "notes": "Agrees: no starter piece. Voice 4."
   },
   "q24": {
    "status": "pass",
@@ -4431,7 +4438,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor at the screen; numbers recomputed and match the facts; no working words; key unchanged and right."
+   "notes": "Kept: never add to a loser. Voice 4."
   },
   "q29": {
    "status": "pass",
@@ -4448,8 +4455,8 @@
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Small voice fix: 'pay more than today's prices' read oddly; now 'pay up from the low'."
+   "fixed": false,
+   "notes": "Agrees: no starter piece, one entry at the reclaim. Voice 4."
   },
   "q32": {
    "status": "pass",
@@ -4526,8 +4533,8 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'the trader who bought Thursday's low on a fresh trigger got the trade' is in no fact (d15 names the Monday low). Rewritten to 'a later fresh turn'. WDC under its 200-day verified on bars (25.58 vs 39.01) and flagged like the other stock examples."
+   "fixed": false,
+   "notes": "Kept: never add to a loser. Voice 4."
   },
   "q45": {
    "status": "pass",
@@ -4599,7 +4606,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor at the screen; numbers recomputed and match the facts; no working words; key unchanged and right."
+   "notes": "Agrees: not to a trade going nowhere. Voice 4."
   },
   "q57": {
    "status": "pass",

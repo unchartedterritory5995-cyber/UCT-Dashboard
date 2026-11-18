@@ -930,6 +930,18 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "Owner: the course teaches the 9 and 20 EMA with the 50 and 200 SMA."
+  },
+  {
+   "id": "ma1",
+   "source": "hw",
+   "quote": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call.",
+   "claim": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call."
+  },
+  {
+   "id": "ma2",
+   "source": "hw",
+   "quote": "Below the 200-day stays a hard no for stocks.",
+   "claim": "Price below the 200-day is a hard no for a stock."
   }
  ],
  "walkthroughs": [
@@ -1650,15 +1662,17 @@
    "criterion": "id.no_full_stack",
    "q": "You need the 9, 20 and 50 stacked in order before you'll buy an inside day.",
    "answer": "False",
-   "why": "False. A full stack is nice to see, but it's not a must. The hard line is the 200-day: we don't buy a stock under it. We also like the 50-day riding above the 200-day, with the lines pointed up. That's a plus, not a gate. Plenty of good inside days come while the 9 is just curling back over the 20.",
+   "why": "False. A full stack is nice to see, but it's not a must. The hard line is the 200-day: we don't buy a stock under it. We also want the 50-day riding above the 200-day, with the lines pointed up. That one's mostly a must, not always. Plenty of good inside days come while the 9 is just curling back over the 20.",
    "lesson_line": "The stack is a plus. Above the 200-day is the line.",
    "facts": [
     "c05",
     "c04",
-    "r91"
+    "r91",
+    "ma1",
+    "ma2"
    ],
    "house": true,
-   "simple": "False. The stack is a plus, and the must is being above the 200-day.",
+   "simple": "False. The stack is a plus, while the 200-day is the hard line and the 50 over the 200 is mostly a must.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1666,7 +1680,7 @@
      "rests on the hard 200-day rule in the rulebook"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q19",
@@ -3823,7 +3837,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q19": {
    "status": "pass",
@@ -4087,7 +4101,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q63": {
    "status": "pass",
@@ -4099,7 +4113,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q65": {
    "status": "pass",

@@ -2,7 +2,7 @@
  "unit": "SET.08",
  "track": "SET",
  "title": "Bull Flag",
- "teaches": "The bull flag as we trade it: a leader above the 200-day and a rising 50-day makes a fast pole, rests a few sessions in a quiet drift that holds the 21-day EMA, and is bought at market when a trigger level trades, with the stop a few cents under the day's low, the first sell a judgment, usually day 3 or later into a 3, 5 or 7 day push, the rest on the trail, and a loss at the stop as the planned cost.",
+ "teaches": "The bull flag as we trade it: a leader above the 200-day and a rising 50-day makes a fast pole, rests a few sessions in a quiet drift that holds the 20 EMA, and is bought at market when a trigger level trades, with the stop a few cents under the day's low, the first sell a judgment, usually day 3 or later into a 3, 5 or 7 day push, the rest on the trail, and a loss at the stop as the planned cost.",
  "skills": [
   {
    "id": "setup.bull_flag",
@@ -1119,6 +1119,12 @@
    "source": "h2",
    "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1170,16 +1176,16 @@
    "steps": [
     "RARE ran 53% in 13 days to 85.93. Then it rests four days, 80.25 to 85.79, right on its short-term average.",
     "May 27 it takes out the prior day's high before the flag's high even breaks. We buy right there at market, 83.26.",
-    "Stop a few cents under the low, 81.18, 2.5% away. Full size at one price, one stop. No starter, no adds.",
-    "Then a second leg as big as the first, 25.9R at its best. Trail what's left, no adds on the way."
+    "Stop a few cents under the low, 81.18, 2.5% away. Full size at one price, one stop. No starter piece.",
+    "Then a second leg as big as the first, 25.9R at its best. Sell into strength and trail what's left."
    ],
    "facts": [
     "d05",
     "d06",
     "c36",
     "h22",
-    "h28",
-    "c38"
+    "h20",
+    "aw1"
    ]
   }
  ],
@@ -1657,14 +1663,12 @@
    "rung": 2,
    "format": "tf",
    "criterion": "bf.no_adds",
-   "q": "You buy a flag break at 48.98, your full size, with one stop. You don't add later, even if it dips.",
+   "q": "You buy a flag break at 48.98, your full size, with one stop. If it dips under your buy, you don't add.",
    "answer": "True",
-   "why": "True. One price, one stop, one size. You know your loss before you ever click buy. Add on a dip and that number changes after the stock has already gone against you. That's how a small planned loss turns into a big one. We buy the full position at one spot. No starter, no adds, no averaging down.",
-   "lesson_line": "One price, one stop, one size. No starter, no adds.",
+   "why": "True. One price, one stop, one size. You know your loss before you ever click buy. Add on a dip and that number changes after the stock has already gone against you. That's how a small planned loss turns into a big one. We buy the full position at one spot. No starter, and you never add to a loser.",
+   "lesson_line": "One price, one stop, one size. No starter, no adding to a loser.",
    "facts": [
-    "c38",
-    "h28",
-    "c27"
+    "aw1"
    ],
    "house": true,
    "simple": "True. Buying it all at one price with one stop keeps the loss you planned, and adding on a dip grows it.",
@@ -1676,7 +1680,7 @@
      "+1 fixed before (the lesson line read as permission to add)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q14",
@@ -2597,16 +2601,16 @@
    "facts": [
     "h01",
     "h03",
-    "c38",
     "c12",
     "h12",
     "r01",
-    "r02"
+    "r02",
+    "aw1"
    ],
    "wrong": {
     "Pull the stop in so the size fits": "A stop squeezed in to fit sits inside normal swings and gets hit. The stop goes where the idea fails.",
     "Full size, risk a bit more": "The risk is set first. Shares are your dollar risk divided by entry minus stop. Wider stop, fewer shares.",
-    "Buy a starter, add the rest later": "No starters, no adds. The full size goes in at one price with one stop."
+    "Buy a starter, add the rest later": "No starter piece. The full size goes in at one price with one stop."
    },
    "house": true,
    "story": "You plan to buy the break at 48.60. The honest stop, a few cents under the low of the day, sits 4.6% away. You wanted your normal size.",
@@ -2622,7 +2626,7 @@
      "+1 fixed before (a long sentence was split)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q35",
@@ -3109,15 +3113,14 @@
     "h06",
     "h07",
     "c43",
-    "c38",
-    "h28",
     "h02",
-    "h05"
+    "h05",
+    "aw1"
    ],
    "wrong": {
     "Sell it all at the open": "The open on a gap day is the wildest print of the day. The gap rule waits for the first 30 minutes.",
     "Move it up to 62.80, the entry": "Breakeven is for a winner, anywhere from 2R to 5R or at the first sell. This one is under your fill, so a stop at 62.80 sits above the price.",
-    "Buy more to lower your cost": "No adds, no averaging down. A gap against you is never a reason to buy more."
+    "Buy more to lower your cost": "That's averaging down, adding to a loser. A gap against you is never a reason to buy more."
    },
    "house": true,
    "story": "Your flag long filled at 62.80 with the stop at 61.65. Next morning it opens at 61.10 on sector news, right through your stop.",
@@ -3133,7 +3136,7 @@
      "fixed before: the open was moved so the 2R ceiling does not apply"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q46",
@@ -3694,7 +3697,7 @@
    "facts": [
     "h19",
     "h03",
-    "h28"
+    "aw1"
    ],
    "wrong": {
     "No more than 10,000 shares": "That's half the cap. One percent of 2 million is 20,000.",
@@ -3835,13 +3838,13 @@
    "facts": [
     "h16",
     "k8",
-    "c38",
     "r07",
-    "h13"
+    "h13",
+    "aw1"
    ],
    "wrong": {
     "Hold it all for the measured move": "A measured move is a guess. A climax is right in front of you, so sell a big part into it.",
-    "Add, the trend is speeding up": "We never add to a flag trade. And a climax is where you sell, not buy.",
+    "Add, the trend is speeding up": "Not into a climax. That's where you sell, not buy. Adding to a winner is rare and a feel call.",
     "Nothing, let the trail handle it": "The trail is for the part you keep. By the time a climax closes under the 9 EMA, a lot is given back."
    },
    "house": true,
@@ -3858,7 +3861,7 @@
      "fixed before: story split"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q63",
@@ -4783,8 +4786,8 @@
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "No starter, no adds (c38, h28). Reason given: the planned loss stays the planned loss."
+   "fixed": true,
+   "notes": "The stem 'You don't add later, even if it dips' still read as never add later, to a winner too. Now scoped to a dip under your buy, which stays True and matches the why. 'never an add to a loser' reworded. Voice 4."
   },
   "q14": {
    "status": "pass",
@@ -4910,7 +4913,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "The VOICE.md model; 4.6% inside 5% (r01, r02)."
+   "notes": "Agrees: no starter piece. 4.6% under 5%, fewer shares right. Voice 5."
   },
   "q35": {
    "status": "pass",
@@ -4975,8 +4978,8 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Gap rule: first 30-minute low, out past 2R (h06, h07). Fix: one wrong note said breakeven is for a trade 'up 2R or more', dropping 'or at the first sell' (h05)."
+   "fixed": false,
+   "notes": "Agrees: averaging down named as adding to a loser. 30-min low rule intact. Voice 4."
   },
   "q46": {
    "status": "cut",
@@ -5078,7 +5081,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Climax: sell a big part, a judgment call (h16)."
+   "notes": "Agrees: never into a climax, adding rare and a feel call. Answer right. Voice 4."
   },
   "q63": {
    "status": "pass",

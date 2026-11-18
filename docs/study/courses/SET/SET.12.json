@@ -958,6 +958,12 @@
    "source": "d1",
    "quote": "GXO | 2023-05-10 | 22.3%, 9.3%, 5.2% | 13.2 wk | +75% | 54.13 | 52.14 (3.7%) | 1.9x | 6.7 (3R in 9 d)",
    "claim": "GXO, buy day 2023-05-10: contractions 22.3%, 9.3%, 5.2%; pivot 54.13, stop 52.14 (3.7%); 1.9x volume."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1767,7 +1773,7 @@
     "c15",
     "h11",
     "h12",
-    "h03b"
+    "rw_add"
    ],
    "wrong": {
     "Buy it, the volume is strong": "Volume raises the grade. It doesn't lift the 4% line.",
@@ -2061,12 +2067,12 @@
    "facts": [
     "c16",
     "h02",
-    "h03b",
+    "rw_add",
     "d19",
     "d10"
    ],
    "wrong": {
-    "Add more, it's cheaper now": "We never add. One full buy, one stop.",
+    "Add more, it's cheaper now": "It's back under your buy, so that's adding to a loser. Never. One full buy, one stop.",
     "Move the stop down for room": "The stop only moves up, never lower.",
     "Sell it all at the open": "A squat is a warning, not an exit. The stop decides."
    },
@@ -2083,7 +2089,7 @@
      "+2 rests on the owner's rulebook (A4, the stop is the exit) and a proposed card warning"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "ALGN",
     "asof": "2007-10-17",
@@ -2683,11 +2689,10 @@
    "criterion": "vcp.one_buy",
    "q": "Your VCP breaks out and works. You plan to add more shares on each new high. That's how we build the position.",
    "answer": "False",
-   "why": "False. We make one full buy, at one price, with one stop. No pilot buys, no adding. Every add comes in higher, so your average cost climbs and the cushion over your stop shrinks. Then a normal pullback can turn a winner into a loser. The size is set by the stop before you buy, so get it right then.",
+   "why": "False. We make one full buy, at one price, with one stop. No pilot buys, and adding is never the plan. Adding to a working winner happens, but it's rare and a feel call. Every add comes in higher, so your average cost climbs and the cushion over your stop shrinks. Then a normal pullback can turn a winner into a loser. The size is set by the stop before you buy, so get it right then.",
    "lesson_line": "One full buy, one stop. We don't build it in pieces.",
    "facts": [
-    "c21",
-    "h03b",
+    "rw_add",
     "h01"
    ],
    "house": true,
@@ -2699,7 +2704,7 @@
      "rests on the rulebook (A5)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q43",
@@ -2757,12 +2762,13 @@
    "lesson_line": "Under 1R after 10 days, it's dead money. Sell it.",
    "facts": [
     "h15",
-    "h05"
+    "h05",
+    "rw_add"
    ],
    "wrong": {
     "Hold, the base was perfect": "The time stop doesn't care how the base looked.",
     "Stop to breakeven and hold": "Breakeven is for 2R to 5R. This is 0.5R after 10 days, so it goes.",
-    "Add while it's quiet": "We never add."
+    "Add while it's quiet": "Adding to dead money just ties up more of it. This one goes."
    },
    "house": true,
    "story": "You bought a VCP breakout 10 trading days ago. It's gone sideways and sits up 0.5R.",
@@ -2774,7 +2780,7 @@
      "+2 rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q45",
@@ -3532,7 +3538,7 @@
     "h36",
     "h39",
     "h01",
-    "c21",
+    "rw_add",
     "h41"
    ],
    "wrong": {
@@ -3950,7 +3956,7 @@
    "facts": [
     "h41",
     "h02",
-    "h03b"
+    "rw_add"
    ],
    "wrong": {
     "A wider stop for the shakeout": "A wider stop isn't the fix. No order existed at all.",
@@ -4205,11 +4211,11 @@
    "lesson_line": "Into a climax run, sell a big part. How much is your call.",
    "facts": [
     "h43",
-    "h03b",
+    "rw_add",
     "h21"
    ],
    "wrong": {
-    "Add, the move is strong": "A climax is where we sell, not where we buy. And we never add.",
+    "Add, the move is strong": "A climax is where we sell, not where we buy. Never add into a stretched run like this.",
     "Sell a small piece, hold": "A token trim leaves most of it exposed. A climax calls for a big part.",
     "Hold it all for the trail": "The trail is for what's left. Into a climax, sell a big part first."
    },
@@ -4226,7 +4232,7 @@
      "rests on the rulebook climax rule (C34), which leaves the size to judgment"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q83",
@@ -4250,7 +4256,7 @@
     "h22",
     "h24",
     "h08",
-    "h03b",
+    "rw_add",
     "h14",
     "h10",
     "r07",
@@ -4330,12 +4336,13 @@
     "r05",
     "k2",
     "k3",
-    "cm13"
+    "cm13",
+    "rw_add"
    ],
    "wrong": {
     "Yes, sell a third, 3R is the rule": "3R isn't a fixed sell for us. The first sell is a judgment, and rarely this early.",
     "Yes, sell it all and bank it": "That caps the big winners that pay for the losses.",
-    "Sell half now, add on a dip": "We don't add. One full buy, one stop."
+    "Sell half now, add on a dip": "Adding is never the plan, least of all on a dip. One full buy, one stop."
    },
    "simple": "Not yet. Big winners pay for the small losses, so we let it work and sell into a push from day 3.",
    "tier": "extended",
@@ -4345,7 +4352,7 @@
      "D-013 (the first sell is a judgment, day 3 at the earliest, a 3, 5 or 7 day push); Kullamagi's 3-5 days and 10-20x risk quoted from his page"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "deeper": {
     "counter": "Kullamagi sells 1/3 to 1/2 after 3 to 5 days, then moves his stop to breakeven. Same idea as ours: let the first push play out before you sell any."
    }
@@ -4619,7 +4626,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "hand edit for the library audit style flag; same idea, same rulings (C29 10% stretch line)"
+   "notes": "'we don't scale in' is the ruling; 26.10 vs 24.80 is 5.2%, past 4%. Voice 4."
   },
   "q21": {
    "status": "pass",
@@ -4661,7 +4668,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "the 28.14 close is under the 28.65 buy, so adding is to a loser; never stays. Voice 4."
   },
   "q28": {
    "status": "pass",
@@ -4751,7 +4758,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "False stays clearly right (adding on each new high as how we build it); adding now reads rare, a feel call, never the plan; no pilot buys stays. Voice 4."
   },
   "q43": {
    "status": "pass",
@@ -4763,13 +4770,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "adding to a 0.5R dead trade just ties up money; time stop answer right. Voice 4."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "never add to a loser is the ruling; gap rule correct. Voice 4."
   },
   "q46": {
    "status": "cut",
@@ -4991,13 +4998,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "never add into a stretched climax run; sell a big part. Voice 4."
   },
   "q83": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "no scaling in, one full buy agrees; checks (12 days out, 3% over the 9 EMA, 2% stop) consistent. Voice 4."
   },
   "q84": {
    "status": "pass",
@@ -5009,7 +5016,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "adding is never the plan, least of all on a dip; the first sell is judgment, day 3 or later. Voice 4."
   },
   "q86": {
    "status": "pass",

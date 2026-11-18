@@ -1073,6 +1073,12 @@
    "source": "d1",
    "quote": "CME | 2005-05-16 | -26.2% | 1.82% | 3.9% | 22 / 9 | +3.6%, 1.00, 1.19x | 39.60 | 38.61 (2.5%) | 23.6 (3R in 5)",
    "claim": "CME, launch 2005-05-16: +3.6% closing at 1.00 of its range; buy 39.60, stop 38.61 (2.5%); 23.6R, 3R in 5."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -2769,13 +2775,13 @@
     "c29",
     "h27",
     "h26",
-    "h31"
+    "rw_add"
    ],
    "house": true,
    "wrong": {
     "All six, Green is full risk": "Green allows full risk, but that's the ceiling. If the turn fails, six stops hit together.",
     "None, wait a week to be sure": "A few positions tell you whether the turn is real. Sitting out tells you nothing.",
-    "A few, then add to each on dips": "We buy the full size at one price with one stop, no adding. More comes from new names that work."
+    "A few, then add to each on dips": "One full buy at one price, one stop. Adding on dips is never the plan. More comes from new names that work."
    },
    "story": "The market just turned Green after a correction. That's the app's market filter at full risk. Six launchpads on your list launch the same week.",
    "simple": "Start with a few, so a fake turn costs a little. If they work, the market's confirming and you add names.",
@@ -2786,7 +2792,7 @@
      "rests on the owner's rulebook (F65, F68)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q43",
@@ -2802,12 +2808,12 @@
     "Sell a little and let it run"
    ],
    "answer": "Sell a big part into the run",
-   "why": "Sell a big part into it. Straight up days, gap ups and rising volume make a climax run, the final fast leg. Right then the gain's at its biggest and the stock's at its most stretched. That's when you get paid. So I bank a big piece into the strength and trail the rest. How big is my call. I don't add up here either. We buy one size at one price.",
+   "why": "Sell a big part into it. Straight up days, gap ups and rising volume make a climax run, the final fast leg. Right then the gain's at its biggest and the stock's at its most stretched. That's when you get paid. So I bank a big piece into the strength and trail the rest. How big is my call. And I never add into a climax. That's buying at the most stretched price on the chart.",
    "lesson_line": "Sell into strength. A climax run is strength you sell into.",
    "facts": [
     "h16",
     "h32",
-    "h31",
+    "rw_add",
     "h20",
     "r13"
    ],
@@ -2815,7 +2821,7 @@
    "wrong": {
     "Sell a little and let it run": "A climax calls for a big sale, not a little one. How big is your call.",
     "Hold it all for the 20 EMA trail": "The trail is for what's left. A climax asks you to bank a big piece first.",
-    "Add more, the run is working": "We buy full size at one price with one stop, no adds. A climax is where you sell."
+    "Add more, the run is working": "Never add into a climax. The stock's at its most stretched, and that's where you sell."
    },
    "simple": "Sell a big part. A vertical run is when the gain is biggest and the stock is most stretched.",
    "tier": "extended",
@@ -2826,7 +2832,7 @@
      "+2 rests on the owner's rulebook (a judgment call, not a number)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q44",
@@ -3050,19 +3056,19 @@
     "A break, take it off the list"
    ],
    "answer": "A fake-out, not a failure",
-   "why": "A fake-out. Quick break, quick reclaim. That's noise, not a failure. Once you're in, the stop is your exit, and price never got there. Sell that close under the averages and you'd have been shaken out of a trade that was fine. And the reclaim isn't a new buy. Same trade, same position, no adding.",
+   "why": "A fake-out. Quick break, quick reclaim. That's noise, not a failure. Once you're in, the stop is your exit, and price never got there. Sell that close under the averages and you'd have been shaken out of a trade that was fine. And the reclaim isn't a new buy or a reason to add. Same trade, same position.",
    "lesson_line": "A one-day dip under the averages is noise. The stop makes the call.",
    "facts": [
     "c25",
     "c26",
     "h02",
     "c22",
-    "h31"
+    "rw_add"
    ],
    "house": true,
    "wrong": {
     "A failure, sell the first close": "Once you're in, the stop is the exit, and it never traded.",
-    "A new launch, add to it": "Same trade. We buy full size at one price, no adding.",
+    "A new launch, add to it": "Same trade, not a new buy. We buy full size at one price, and a reclaim is no reason to add.",
     "A break, take it off the list": "Off the list is for before you buy. Now the stop decides."
    },
    "story": "Two days after the launch, the stock closes back under the averages. It's still above your stop. The next day it closes back over them.",
@@ -3074,7 +3080,7 @@
      "rests on a proposed card line (a quick break and reclaim is a fake-out)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q50",
@@ -4179,7 +4185,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "52.50/50.00 = 5%; C28's 4% and D-022's flush that curls both right; chasing costs size, not risk."
+   "notes": "false alarm ('chasing doesn't add risk'); 52.50 is 5% over 50.00, past 4%. Voice 4."
   },
   "q24": {
    "status": "cut",
@@ -4292,14 +4298,14 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Matches the VOICE.md model; F68 and no-adds both right."
+   "fixed": true,
+   "notes": "'never add on a dip' is a new absolute the ruling doesn't state (the nevers are a loser and a stretched move). Now: adding on dips is never the plan. Answer and 'add more names' unchanged."
   },
   "q43": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C34 sell a big part, a judgment; no adds (A5)."
+   "notes": "never add into a climax stays a never; sell a big part is right. Voice 4."
   },
   "q44": {
    "status": "pass",
@@ -4335,7 +4341,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Fake-out, stop is the exit, no adds."
+   "notes": "the reclaim is the same trade and no reason to add; the stop is the exit. Voice 4."
   },
   "q50": {
    "status": "pass",

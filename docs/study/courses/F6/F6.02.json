@@ -1564,13 +1564,15 @@
      "multiplier": 100
     }
    },
-   "why": "$1,500. You collected 4.00 a share, $400, when you sold it. Buying it back at 19.00 costs $1,900. 1,900 minus 400 is $1,500. Look at the shape of it. Your best case was $400. One headline turned it into a $1,500 loss, and it could have been worse. A stock has no ceiling, so a naked call has no cap on the loss. That's why we don't sell calls without the stock. We only use options where the risk is defined.",
+   "why": "$1,500. You collected 4.00 a share, $400, when you sold it. Buying it back at 19.00 costs $1,900. 1,900 minus 400 is $1,500. Look at the shape of it. Your best case was $400. One headline turned it into a $1,500 loss, and it could have been worse. A stock has no ceiling, so a naked call has no cap on the loss. That's why we don't sell options. On the rare option we use, we're the buyer, and the premium is the most we can lose.",
    "lesson_line": "On a naked call the credit caps your gain. Nothing caps the loss.",
    "facts": [
     "f38",
     "f39",
     "f49",
-    "f20"
+    "f20",
+    "h01",
+    "h02"
    ],
    "wrong": {
     "$1,900": "That's the buyback. The $400 you collected comes off it.",
@@ -2071,8 +2073,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "1,900 - 400 = 1,500 (f39). XYZ removed correctly (rule 7). Puts the member in a naked call, but the question is about that danger and the why says we don't sell calls without the stock (A6), so rule 15 is met."
+   "fixed": true,
+   "notes": "the add is arithmetic, a false alarm, and $1,500 = 1,900 - 400 checks. But 'we don't sell calls without the stock' implies we'd sell a covered one, and the member never sells an option as our trade. Now: we don't sell options, we're the buyer, the premium is the most we lose (h01, h02, as q05/q07 already say)."
   },
   "q22": {
    "status": "pass",

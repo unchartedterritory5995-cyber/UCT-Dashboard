@@ -1088,6 +1088,12 @@
    "source": "h1",
    "quote": "After a market correction, when the reading turns Green again, start with a few positions and add more only as the first ones work",
    "claim": "F68: after a correction, when the reading turns Green, start with a few positions and add more only as the first ones work."
+  },
+  {
+   "id": "hwa",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece and never an add to a loser. An add to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1419,17 +1425,16 @@
    "rung": 1,
    "format": "tf",
    "criterion": "wp.no_adds",
-   "q": "Your pop is working. A week later it breaks out of a small new range, so you add more shares there.",
+   "q": "Your pop is working. Each time it breaks out of a new small range, you add more shares. That's how we run a winner.",
    "answer": "False",
-   "why": "False. We buy the full size once, at one price, with one stop. Add higher and your average price climbs toward the stop. Then a normal pullback can turn a good trade into a loser. One buy and one stop means you always know what you can lose. I'd rather have one clean position than a pile of prices.",
-   "lesson_line": "One entry, one stop. The size goes on once.",
+   "why": "False. The full size goes on once, at one price, with one stop. An add to a working winner on strength happens, but it's rare and a feel call, never the plan. Add at every new range and your average price climbs toward the stop. Then a normal pullback can turn a good trade into a loser. I'd rather have one clean position than a pile of prices.",
+   "lesson_line": "One entry, one stop. An add on strength is rare, never the routine.",
    "facts": [
-    "h30",
-    "c40",
+    "hwa",
     "a01"
    ],
    "house": true,
-   "simple": "False. Adding higher drags your average up toward the stop, so it's one buy and one stop.",
+   "simple": "False. An add to a winner is rare and on feel, and adding every range drags your average up toward the stop.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1437,9 +1442,9 @@
      "rests on the owner's rulebook A5 and differs from Kell"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "deeper": {
-    "counter": "Kell adds as each new range breaks and raises his stop each time. That's his method. Ours is one buy, one stop."
+    "counter": "Kell adds as each new range breaks and raises his stop each time. That's his method. Ours is one buy, one stop, and an add only rarely, on feel."
    }
   },
   {
@@ -1604,7 +1609,7 @@
    "criterion": "wp.crossback_separate",
    "q": "Two weeks after the pop, the stock dips back to its rising averages and holds. That's a new setup and a new trade.",
    "answer": "True",
-   "why": "True. That first dip back into rising averages is the EMA Crossback, its own setup. It gets its own trigger, its own stop and its own size. It's not an add to the pop, and we never add to a trade. So if you missed the pop, the crossback is your next way in.",
+   "why": "True. That first dip back into rising averages is the EMA Crossback, its own setup. It gets its own trigger, its own stop and its own size. It's not an add to the pop. It's a fresh trade with its own risk. So if you missed the pop, the crossback is your next way in.",
    "lesson_line": "Pop first, crossback second. Two setups, two trades.",
    "facts": [
     "c14",
@@ -1619,7 +1624,7 @@
      "rests on the criteria card (house)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "deeper": {
     "example": "Kell on MELI: a Wedge Pop on earnings with a Crossback taking place after it."
    }
@@ -2291,12 +2296,12 @@
     "k11",
     "d03",
     "d04",
-    "h30"
+    "hwa"
    ],
    "wrong": {
     "Wait for a dip back to 12.95": "On a gap inside 4% the dip often never comes. Buying a morning flush is for a gap past 4%.",
     "Pass, gaps like this fill": "Strong pops often start with gaps. This one's through the pivot and both averages, the best kind.",
-    "Half now, half on a dip": "We buy the full size at one price with one stop. No adding."
+    "Half now, half on a dip": "We buy the full size at one price with one stop. No starter half, and no buying more on a dip."
    },
    "house": true,
    "story": "The chart ends the day before. The base's high, the pivot, is 12.95. On the pop day the stock opens at 13.18, above both averages.",
@@ -2311,7 +2316,7 @@
      "rests on the owner's rulebook C28 and E57"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "RCL",
     "asof": "2009-07-14",
@@ -2928,10 +2933,10 @@
     "h02",
     "c41",
     "c43",
-    "h30"
+    "hwa"
    ],
    "wrong": {
-    "Buy more near the stop": "No adding. Full size at one price, one stop.",
+    "Buy more near the stop": "Never add to a loser, least of all one sitting on its stop.",
     "Lower it for more room": "The stop is the exit. It only moves up, never down.",
     "Raise it to breakeven": "Breakeven comes between 2R and 5R or at the first sell. A stop at 40.00 sits above the 39.15 close and fires at once."
    },
@@ -2945,7 +2950,7 @@
      "the stop rule is the owner's rulebook (A4)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q44",
@@ -3268,12 +3273,12 @@
     "h31",
     "c38",
     "h21",
-    "h30",
+    "hwa",
     "r60"
    ],
    "wrong": {
     "Sell it all at the first sign": "A big part, not all of it. The rest stays on the trail.",
-    "Add more, it's strong now": "No adding. Full size at one price, one stop.",
+    "Add more, it's strong now": "Never add into a climax. Stretched this far is where you sell.",
     "Hold it, the trail decides": "The trail sells on a close under the 9 or 20 EMA. In a climax that's far below, so it fires after the top."
    },
    "house": true,
@@ -3288,7 +3293,7 @@
      "the climax sale is the owner's rulebook (C34), a judgment call"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q51",
@@ -4161,7 +4166,7 @@
     "n02",
     "k12",
     "w05",
-    "h30",
+    "hwa",
     "h26"
    ],
    "wrong": {
@@ -4217,7 +4222,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Agrees: no starter half, no buying more on a dip; 13.18 over 12.95 is about 1.8%, inside 4%; 12.97 unchanged. Voice 4."
   },
   "q31": {
    "status": "pass",
@@ -4355,7 +4360,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Agrees: never add to a loser on its stop; breakeven 2R to 5R. Voice 4."
   },
   "q44": {
    "status": "pass",
@@ -4505,7 +4510,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Agrees: statement is now adding at every range as the routine (False); rare feel-call add named, cites hwa. Answer clear. Voice 4."
   },
   "q09": {
    "status": "pass",
@@ -4535,7 +4540,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Agrees: crossback is its own trade, the absolute is gone. Voice 4."
   },
   "q15": {
    "status": "pass",
@@ -4583,7 +4588,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Agrees: never add into a climax; trail on 9 or 20 EMA. Voice 4."
   },
   "q56": {
    "status": "cut",
@@ -4595,7 +4600,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "False alarm (news 'adds' to the grade). Voice 4."
   },
   "w1": {
    "status": "pass",

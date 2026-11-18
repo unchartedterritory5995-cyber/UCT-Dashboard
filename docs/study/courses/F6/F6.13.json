@@ -1865,7 +1865,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False keyed right on f14 (the call adds no downside). Why turns it into 'less reward for the same risk', plain and direct."
+   "notes": "False alarm (the call 'adds' risk). Nothing to change. Voice 4."
   },
   "q03": {
    "status": "pass",

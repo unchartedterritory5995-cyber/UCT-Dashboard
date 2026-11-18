@@ -1911,7 +1911,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.25 x 400 = $500, $100 over plan. Wrong notes are the real mistakes. Judgment line on keeping risk small fits."
+   "notes": "Kept: 'the slip adds to it' is loss math. 400 x 1.25 = 500, right. Voice 5."
   },
   "q21": {
    "status": "pass",

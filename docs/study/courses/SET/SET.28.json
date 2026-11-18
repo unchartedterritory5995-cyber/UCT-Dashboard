@@ -864,6 +864,12 @@
    "source": "hw",
    "quote": "Below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the one exception, on a reversal extension or a parabolic long.",
    "claim": "We don't buy stocks below the 200-day; only indexes and levered ETFs are excepted (D-009)."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1114,7 +1120,7 @@
    "lesson_line": "Market order in on the break. Real stop order under the low.",
    "facts": [
     "m11",
-    "m12",
+    "aw1",
     "m13",
     "h22",
     "h18",
@@ -1881,12 +1887,13 @@
    "facts": [
     "h06",
     "h07",
-    "h02"
+    "h02",
+    "aw1"
    ],
    "wrong": {
     "Hold, 44.40 is the new stop": "It would be, except it's past the 2R ceiling at 44.80. Past 2R you get out.",
     "Hold, 46.00 is still the stop": "Price is already under it. On a gap, the first 30 minutes set the new stop.",
-    "Buy more, it's cheaper": "We never add, and never into a gap against the stop."
+    "Buy more, it's cheaper": "That's adding to a loser, and this one just gapped through your stop."
    },
    "house": true,
    "story": "You bought at 47.20 with the stop at 46.00, so 1R is 1.20 and 2R under your buy is 44.80. Next morning it gaps down to 45.50. The first 30-minute bar's low is 44.40.",
@@ -1902,7 +1909,7 @@
      "the key is a comparison against 2R"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q28",
@@ -2077,11 +2084,11 @@
     "k12",
     "h05",
     "h28",
-    "m12"
+    "aw1"
    ],
    "wrong": {
     "Hold, the stop hasn't hit": "The stop isn't the only exit. The time stop is one too.",
-    "Add while the stop holds": "We never add. One price, one stop.",
+    "Add while the stop holds": "Adding isn't the plan, least of all to dead money. One price, one stop.",
     "Move the stop to breakeven": "That move comes somewhere from 2R to 5R. At 0.5R it isn't earned."
    },
    "house": true,
@@ -2094,7 +2101,7 @@
      "rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q32",
@@ -2194,15 +2201,15 @@
     "k16",
     "h21",
     "h02",
-    "m12",
     "r05",
     "r21",
-    "h20"
+    "h20",
+    "aw1"
    ],
    "wrong": {
     "Sell it all, a win is a win": "That's the kind of trade that pays for all the small losses. Don't cut it.",
     "Widen the stop to give it room": "The stop only moves up, never wider.",
-    "Add more, it's working": "One price, one stop. We never add."
+    "Add more, it's working": "Not the plan. Adding to a winner is rare, a feel call. Here you sell into pushes."
    },
    "house": true,
    "story": "You sold some into a push and moved the stop to breakeven. The stock sits at 4R, above its 20 EMA, and you're itching to cash out.",
@@ -2215,7 +2222,7 @@
      "the replay figure comes from a dated run"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q35",
@@ -3427,13 +3434,13 @@
     "h02",
     "k12",
     "h05",
-    "h31",
-    "h15"
+    "h15",
+    "aw1"
    ],
    "wrong": {
     "Yes, sell, the line failed": "A close under the line isn't an exit. The stop is.",
     "Raise the stop to 46.01": "Breakeven comes somewhere from 2R to 5R. You're not there.",
-    "Add more on the dip": "We never add. One price, one stop."
+    "Add more on the dip": "That's adding to a loser. One price, one stop."
    },
    "house": true,
    "story": "You bought a 200-day remount at 46.01 with the stop at 44.80. Three days later it closes at 45.60, back under the 200-day but above your stop.",
@@ -3448,7 +3455,7 @@
      "rests on a held decision (D-008, what a close back under the line means after the buy)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q64",
@@ -3743,28 +3750,27 @@
    "criterion": "rm.one_price",
    "q": "You love how it's acting. Do you add?",
    "choices": [
-    "No, one price and one stop",
+    "No, liking it isn't a reason",
     "Yes, add half, same stop",
     "Yes, and move the stop to fit",
     "No, sell it all, lock the gain"
    ],
-   "answer": "No, one price and one stop",
-   "why": "No. One price, one stop. The full size goes on at once and you don't add to it. Liking it more isn't a new trigger. An add raises your average price, so the same pullback that was fine on your first buy now hurts. If it keeps working, you'll be selling some into strength soon, not buying more.",
+   "answer": "No, liking it isn't a reason",
+   "why": "No. Liking it more isn't a reason to buy more. The full size went on at one price with one stop, and that's the plan. Two days in, it's holding the line, not running. Add here and your average price climbs, so a normal pullback hurts more. Adding to a winner on strength does happen, but it's rare and a feel call, never the plan. If it keeps working, you'll be selling some into strength soon.",
    "lesson_line": "One price, one stop. Liking it more isn't a trigger.",
    "facts": [
     "k30",
-    "m12",
-    "h31",
-    "r03"
+    "r03",
+    "aw1"
    ],
    "wrong": {
-    "Yes, add half, same stop": "That's a second entry. We buy the full size once.",
+    "Yes, add half, same stop": "That turns one buy into two. The full size went on once, and adding isn't the plan.",
     "Yes, and move the stop to fit": "Moving the stop to fit an add breaks the plan.",
     "No, sell it all, lock the gain": "That cuts a winner early. The first sell is judgment, into strength."
    },
    "house": true,
    "story": "A 200-day remount bought over the quiet day's high at 110.67, stop at 108.11. Two days later it's holding over the line and you like it even more.",
-   "simple": "No. You buy the full size once, at one price with one stop, and liking it more isn't a reason to add.",
+   "simple": "No. The full size went on once, at one price with one stop, and liking it more isn't a reason to add.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3772,7 +3778,7 @@
      "rests on the owner's rulebook (A5, the full size at one price with one stop, no adding)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "UTHR",
     "asof": "2020-10-19",
@@ -4362,7 +4368,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per m05/hw1; states the 200-day hard no with no stock exception. No parabolic misstatement."
+   "notes": "Kept: below the 200-day hard no for stocks; no 50/200 claim. Voice 4."
   },
   "q09": {
    "status": "pass",
@@ -4476,7 +4482,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "47.20-46.00=1.20; 2R line 44.80; 44.40 is past it so out (h06/h07). Strong mentor voice."
+   "notes": "Agrees: adding to a loser. 47.20 - 2.40 = 44.80; 44.40 is past, right. Voice 4."
   },
   "q28": {
    "status": "pass",
@@ -4500,7 +4506,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h15 time stop; breakeven 2R-5R correctly stated in the wrong note."
+   "notes": "Agrees: adding isn't the plan. Voice 4."
   },
   "q32": {
    "status": "pass",
@@ -4518,7 +4524,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Breakeven worst case, sell into pushes, trail 20 EMA (h20/h21/r05)."
+   "notes": "Agrees: adding to a winner rare, a feel call; plan is sell into pushes. Voice 4."
   },
   "q35": {
    "status": "cut",
@@ -4614,7 +4620,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Leader before the index raises the grade as judgment (k09/k10/h50)."
+   "notes": "Kept: leader retakes its 50 before the index; no 50-over-200 claim. Voice 4."
   },
   "q51": {
    "status": "cut",
@@ -4656,7 +4662,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CRM 274.51 under 295.88, 50 under 200 (e05); hard no."
+   "notes": "Kept: pass on the 200-day; 'The 50-day sits under the 200-day here' is CRM's chart (267.88 < 295.88). Voice 4."
   },
   "q58": {
    "status": "pass",
@@ -4692,7 +4698,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "m06: a close back under the line is not a second exit; 46.01/44.80/45.60 consistent."
+   "notes": "Agrees: adding to a loser. Voice 4."
   },
   "q64": {
    "status": "cut",
@@ -4740,7 +4746,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "k30/m12/h31 one price, one stop."
+   "notes": "Rewrite teaches the ruling: liking it isn't a reason; adding to a winner rare, never the plan. Answer clearly right, wrongs clearly wrong. Voice 4."
   },
   "q72": {
    "status": "pass",

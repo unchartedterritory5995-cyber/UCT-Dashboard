@@ -2879,7 +2879,7 @@
    ],
    "house": true,
    "wrong": {
-    "Add more at 26.00 on the gap": "We never add. Full size at one price, one stop.",
+    "Add more at 26.00 on the gap": "Never add into a gap like this. It's where you weigh selling.",
     "Sell a third, the gap forces it": "No gap forces a sale. Selling part into a big gap is a judgment, never a rule.",
     "Hold it all, never sell this early": "Never is too strong. An early sell is rare, not banned, and this one gave it all back."
    },
@@ -2897,7 +2897,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "voice-8-2026-11-17",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "MP",
     "asof": "2025-04-07",
@@ -4689,8 +4689,8 @@
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Fix, truth. MP closed at 21.94, ABOVE the 21.72 stop; the day's low (dossier 21.57) went through it. 'closed at 21.94, through the stop' misread the close. Why and deeper corrected. 5R = 22.13 + 5 x 0.41 = 24.18 checked."
+   "fixed": false,
+   "notes": "Agrees: never add into an overnight gap far past 5R on a bounce trade; first sell a judgment. 22.13 + 5 x 0.41 = 24.18 checks. Voice 4."
   },
   "q42": {
    "status": "pass",
@@ -4708,7 +4708,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "Agrees: never average down. Voice 4."
   },
   "q45": {
    "status": "pass",

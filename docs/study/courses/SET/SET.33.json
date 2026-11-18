@@ -1015,6 +1015,12 @@
    "source": "h2",
    "quote": "Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "Owner: selling part into a big gap at the open is a judgment, never a rule."
+  },
+  {
+   "id": "rw_ma",
+   "source": "hw",
+   "quote": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call. Below the 200-day stays a hard no for stocks.",
+   "claim": "For a long, the 50-day above the 200-day is mostly a must, not always; below the 200-day is a hard no for stocks."
   }
  ],
  "walkthroughs": [
@@ -1160,7 +1166,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "50 over 200 taught as a plus we like, not a must. OK."
+   "notes": "'a plus we like' now reads mostly a must, not always, citing rw_ma; False stays right. Voice 4."
   },
   "q11": {
    "status": "cut",
@@ -1878,14 +1884,15 @@
    "criterion": "pvt.stack_50",
    "q": "The pivots you want come in stocks whose 50-day has dropped under their 200-day.",
    "answer": "False",
-   "why": "False. We want the opposite. Price over the 50-day, and the 50-day over the 200-day, means the stock's in an uptrend. That's a plus we like to see. The pivot is a dip in an uptrend, and a 50-day under the 200-day says the trend has gone the other way. ChartMaster's signal is a string of reds in a stock that's otherwise in a strong uptrend.",
+   "why": "False. We want the opposite. Price over the 50-day, and the 50-day over the 200-day, means the stock's in an uptrend. For a long, the 50-day over the 200-day is mostly a must, not always. The pivot is a dip in an uptrend, and a 50-day under the 200-day says the trend has gone the other way. ChartMaster's signal is a string of reds in a stock that's otherwise in a strong uptrend.",
    "lesson_line": "The pivot is a dip in an uptrend. No uptrend, no dip to buy.",
    "facts": [
     "o03",
-    "h10"
+    "h10",
+    "rw_ma"
    ],
    "house": true,
-   "simple": "False, we like the 50-day over the 200-day. A pivot is a dip in an uptrend.",
+   "simple": "False, we want the 50-day over the 200-day. A pivot is a dip in an uptrend.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1893,7 +1900,7 @@
      "a plain restatement of one proposed card line plus the originator's words"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q11",
