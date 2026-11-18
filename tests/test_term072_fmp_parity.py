@@ -371,7 +371,7 @@ def test_CONTROL_a_request_from_another_thread_is_not_this_tests_recording():
     get = fake("adapter")
     answered = []
     t = threading.Thread(target=lambda: answered.append(
-        get(_FMP_HOST + "/image-stock/AMLX.png", params={}, timeout=8)))
+        get(_FMP_HOST + "/stable/profile", params={"symbol": "AMLX"}, timeout=8)))   # the leak #1855 saw
     t.start()
     t.join()
     assert answered and fake.calls == []
