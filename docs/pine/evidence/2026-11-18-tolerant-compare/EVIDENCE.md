@@ -1,4 +1,4 @@
-# Pine compares two floats within an absolute epsilon (engine NUMBER PENDING, 2026-11-18)
+# Pine compares two floats within an absolute epsilon (engine 78 (#1858), 2026-11-18)
 
 Branch `feat/pine-tolerant-compare-engine`. This is the phase-1 build of coordinator rulings D1-D8 (2026-11-18), on
 the readings of Q-FCMP (`docs/pine/capture-queue-2026-11-18-float-compare.md`) and Q-FCMP2

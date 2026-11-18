@@ -466,7 +466,7 @@ def _definition_tree(def_id: str, user_id: Any, plot: Optional[str] = None) -> t
     return tree, {"def_id": def_id, "version": row.get("version"),
                   "rev": compute.get("rev"),
                   "_semantics": ast_interpret.semantics_for(doc),
-                  # engine NUMBER PENDING -- a Pine document replays with TradingView's comparison
+                  # engine 78 (#1858) -- a Pine document replays with TradingView's comparison
                   "_pine_compare": ast_interpret.pine_compare_opts_for(doc),
                   "_block_runs": ({"definition": doc, "key": scan_key, "gates": gates} if gates else None)}
 
@@ -1003,7 +1003,7 @@ def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
     # ⭐ the canonical opts for the definition semantics — None for 1, so a
     # semantics-1 replay evaluates exactly as it always did
     opts = {"semantics": 2} if semantics == 2 else None
-    # engine NUMBER PENDING -- a Pine document's replay compares within TradingView's epsilon
+    # engine 78 (#1858) -- a Pine document's replay compares within TradingView's epsilon
     if pine_compare:
         opts = dict(opts or {}, **pine_compare)
     # W5-T15 -- ONE engine call for both: a runtime replay differs only in WHERE the column
@@ -1085,7 +1085,7 @@ def job_id(tree: Any, symbols: list[str], tf: str, start: int, end: int,
     # two receipts must never be served for each other. Added ONLY when present.
     if block_runs:
         body["blockRuns"] = block_runs
-    # engine NUMBER PENDING -- and the comparison rule: a Pine replay compares within TradingView's
+    # engine 78 (#1858) -- and the comparison rule: a Pine replay compares within TradingView's
     # epsilon, so it is never served the receipt an IEEE replay of the same tree filed. Added ONLY when
     # present, so every non-Pine id is byte-identical to what it was.
     if pine_compare:
@@ -1212,7 +1212,7 @@ def run_screen_backtest(body: BacktestRequest,
     # STORED definition (`_definition_tree`); a posted tree is semantics 1. Popped
     # here, first, so the private key never reaches an echo of the provenance.
     semantics = 2 if (definition.pop("_semantics", 1) if definition else 1) == 2 else 1
-    # engine NUMBER PENDING -- the stored document's comparison rule (`_definition_tree`), private the same
+    # engine 78 (#1858) -- the stored document's comparison rule (`_definition_tree`), private the same
     # way; `{}` for a posted tree and every non-Pine definition
     pine_compare = (definition.pop("_pine_compare", None) or {}) if definition else {}
     # ⭐ M3 — the stored definition's scan-plot gates (`_definition_tree`), popped

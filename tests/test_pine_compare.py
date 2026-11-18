@@ -1,7 +1,7 @@
 """The server's Pine comparison (``api/services/pine_compare.py``) against TradingView's own readings.
 
 The vectors are SHARED with the browser's rail (``app/src/components/chart/engine/pineCompare.test.js``):
-one table, two implementations. Engine NUMBER PENDING, Q-FCMP / Q-FCMP2.
+one table, two implementations. Engine 78 (#1858), Q-FCMP / Q-FCMP2.
 """
 from __future__ import annotations
 

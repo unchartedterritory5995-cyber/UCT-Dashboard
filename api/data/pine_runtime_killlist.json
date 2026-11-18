@@ -7,7 +7,7 @@
     "An entry comes off ONLY when its `liftWhen` is met (an engine fix, then a re-grade to MATCH on the named captures).",
     "tests/test_pine_capability_admission.py holds every entry to its evidence capture (a committed runtime-on verdict",
     "that is not MATCH, on a capture whose source hashes to the entry's sha256). Edit as text.",
-    "Lifted: trend-targets-algoalpha (PR #1374), parabolic-sar (2026-11-16, round_to_mintick on a half tick, both captures MATCH), contraction-box-doji-lines (engine NUMBER PENDING, Pine's tolerant compare, #1858: the extra line was a near-tie comparison, and both SPY captures re-grade MATCH runtime-on, run 44319610649).",
+    "Lifted: trend-targets-algoalpha (PR #1374), parabolic-sar (2026-11-16, round_to_mintick on a half tick, both captures MATCH), contraction-box-doji-lines (engine 78, Pine's tolerant compare, #1858: the extra line was a near-tie comparison, and both SPY captures re-grade MATCH runtime-on, run 44319610649).",
     "Empty is a valid state: the by-name rails use a synthetic entry (tests/test_pine_capability_admission.py).",
     "DRAW-1 (2026-11-16): seven scripts newly admitted by obj:box / obj:table have a committed capture grading DIVERGE on",
     "either lane, so each is killed here until its liftWhen (rail: test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed).",

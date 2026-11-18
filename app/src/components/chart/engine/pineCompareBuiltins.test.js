@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/pineCompareBuiltins.test.js
 //
-// ⭐⭐ engine NUMBER PENDING (Q-FCMP2) — the BUILT-INS that compare inside with Pine's epsilon, and the ones that
+// ⭐⭐ engine 78 (#1858) (Q-FCMP2) — the BUILT-INS that compare inside with Pine's epsilon, and the ones that
 // do not, as vw-fcmp-builtins-v2 measured them; each kernel for a Pine document and, unchanged, for a native one.
 // TradingView's ta.dmi readings are READ OFF the committed capture (vw-fcmp-builtins-spy-1d-2026-11-18 and
 // -rddt-1d, B32-B34, every bar), with that capture's own bars (AMEX:SPY 1D from the listing, NYSE:RDDT 1D).

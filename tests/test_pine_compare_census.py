@@ -1,4 +1,4 @@
-"""THE CENSUS OF EVERY SERVER ``interpret`` CALL, each with a declared comparison role (engine NUMBER PENDING,
+"""THE CENSUS OF EVERY SERVER ``interpret`` CALL, each with a declared comparison role (engine 78 (#1858),
 coordinator ruling D1). Twin of ``app/src/components/chart/engine/pineCompareCensus.test.js``.
 
 A Pine document compares within TradingView's epsilon only when its evaluation carries ``pineCompare``

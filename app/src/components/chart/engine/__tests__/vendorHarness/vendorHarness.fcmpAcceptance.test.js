@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.fcmpAcceptance.test.js
 //
-// ⭐⭐ engine NUMBER PENDING — THE ACCEPTANCE OF PINE'S TOLERANT COMPARE, ON THE COMMITTED CAPTURES, BOTH LANES.
+// ⭐⭐ engine 78 (#1858) — THE ACCEPTANCE OF PINE'S TOLERANT COMPARE, ON THE COMMITTED CAPTURES, BOTH LANES.
 // Q-FCMP (packet 56330c15e071) and Q-FCMP2 (d0641f7651fb rows 1-8, 6f854939fa72 rows 9-16), every graded probe
 // graded by the harness as a member sees it: the production lane (objects-only pane, runtime dark) and the
 // runtime-on lane (both panes, as a permitted member).

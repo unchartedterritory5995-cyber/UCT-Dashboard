@@ -2,7 +2,7 @@
 indicator("vw-fcmp-arrays")
 
 // PROVENANCE: written 2026-11-18 for the Pine parity programme, asked for by coordinator patrick-2b with the build
-// of Pine's tolerant compare (engine NUMBER PENDING, branch feat/pine-tolerant-compare-engine). Q-FCMP2 measured the
+// of Pine's tolerant compare (engine 78 (#1858), branch feat/pine-tolerant-compare-engine). Q-FCMP2 measured the
 // operators' rule (two floats are equal when |a - b| <= 1e-10; na makes every comparison false) and the built-ins'
 // split (array.indexof / array.includes compare within the epsilon; array.max / min / sort exactly). It did not
 // measure array.lastindexof or the three binary searches, so the engine leaves them EXACT until this probe is read.

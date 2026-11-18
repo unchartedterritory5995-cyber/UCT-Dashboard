@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/pineCompareProvenance.test.js
 //
-// ⭐⭐ engine NUMBER PENDING — every TradingView reading in the shared vector table
+// ⭐⭐ engine 78 (#1858) — every TradingView reading in the shared vector table
 // (`tests/fixtures/ast/pine_compare_vectors.json`, read by `pineCompare.test.js` AND `tests/test_pine_compare.py`)
 // is the reading of a COMMITTED capture. A vector typed wrong, or a capture re-taken with a different answer, turns
 // this red: the table is derived from the evidence, never a second authority beside it.

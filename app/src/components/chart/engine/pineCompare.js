@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/pineCompare.js
 //
-// ─── ⭐⭐ PINE'S FLOAT COMPARISON — ONE AUTHORITY (engine NUMBER PENDING, Q-FCMP / Q-FCMP2) ──────────
+// ─── ⭐⭐ PINE'S FLOAT COMPARISON — ONE AUTHORITY (engine 78 (#1858), Q-FCMP / Q-FCMP2) ──────────
 //
 // TradingView's Pine compares two floats with an ABSOLUTE EPSILON, not exactly and not by rounding:
 //

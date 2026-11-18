@@ -113,7 +113,7 @@ BIG_ALLOWLIST = {
     # cannot be trimmed after the fact. Allow-listed by another session to unblock deploys, not by the capture
     # programme: if that programme splits or shrinks this capture, delete this line.
     "tests/fixtures/vendor/harness/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17.json",
-    # 2026-11-18, #1858 (Pine's tolerant compare, engine NUMBER PENDING): the Q-FCMP2 row 9 probe capture,
+    # 2026-11-18, #1858 (Pine's tolerant compare, engine 78 (#1858)): the Q-FCMP2 row 9 probe capture,
     # vw-fcmp-builtins-v2 on AMEX:SPY 1D from the 1993 listing (8,509 bars x 63 plots), is 6.9 MB. Promoted from
     # packet 6f854939fa72 and read by the built-in rails (pineCompareBuiltins.test.js, test_pine_compare_builtins.py)
     # and the vector provenance rail; it stays byte-identical to its promoted packet (a capture cannot be trimmed

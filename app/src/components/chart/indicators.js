@@ -639,7 +639,7 @@ export function computeWilliamsR(bars, period = 14) {
  *  a hole in real OHLCV would have silently blanked it from that bar on, not
  *  because a fixture caught it. That is a smaller claim than the other three
  *  carry and it is made deliberately smaller. */
-/** ⭐⭐ engine NUMBER PENDING — `opts.gt` is the comparison `+DM` / `-DM` are chosen by: IEEE for the native
+/** ⭐⭐ engine 78 (#1858) — `opts.gt` is the comparison `+DM` / `-DM` are chosen by: IEEE for the native
  *  chart / screener ADX (the default, byte for byte), `pineCompare.js::pineGt` for Pine's `ta.dmi`, whose
  *  built-in compares within TradingView's epsilon (vw-fcmp-builtins B32-B34: on AMEX:SPY 1D bar 5,333 the up
  *  and down moves differ by 2.84e-14 and TradingView counts a tie, DI+ 27.576070967939575). */

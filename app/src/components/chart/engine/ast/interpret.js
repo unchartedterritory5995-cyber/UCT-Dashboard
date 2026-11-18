@@ -2270,7 +2270,7 @@ function percentrankAt(series, i, length, le = (a, b) => a <= b) {
     // holds the `na` of bar 0. The divisor stays `length` (a divisor of the finite
     // count reads 0.845 where TradingView reads 0.49).
     if (Number.isNaN(v)) continue
-    // ⭐ engine NUMBER PENDING — `le` is IEEE for a native document and `pineCompare.js::pineLe` for Pine's
+    // ⭐ engine 78 (#1858) — `le` is IEEE for a native document and `pineCompare.js::pineLe` for Pine's
     // `ta.percentrank` (Q-FCMP2 B30 / Z14: a prior value 3e-14 or 9e-11 above counts as "<=")
     if (le(v, cur)) count++
   }
@@ -2419,7 +2419,7 @@ function monotoneStep(st, o, v, n, cmp) {
 
 const risingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a > b)
 const fallingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a < b)
-// ⭐⭐ engine NUMBER PENDING (Q-FCMP2 vw-fcmp-builtins-v2 B24 / B25 / Z09 / Z10): Pine's `ta.rising` / `ta.falling`
+// ⭐⭐ engine 78 (#1858) (Q-FCMP2 vw-fcmp-builtins-v2 B24 / B25 / Z09 / Z10): Pine's `ta.rising` / `ta.falling`
 // compare with TradingView's epsilon (a step 3e-14 or 9e-11 up is NOT rising). `CARRIED_PINE` below.
 const risingStepPine = (st, o, v, n) => monotoneStep(st, o, v, n, pineGt)
 const fallingStepPine = (st, o, v, n) => monotoneStep(st, o, v, n, pineLt)
@@ -3849,7 +3849,7 @@ export const FN_V2 = Object.freeze({
   minusDI: (h, l, c, n) => bindHeld(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).minusDI),
 })
 
-/** ⭐⭐ engine NUMBER PENDING (Q-FCMP / Q-FCMP2) — THE BUILT-INS WHOSE INSIDE COMPARES WITH PINE'S EPSILON, for a
+/** ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2) — THE BUILT-INS WHOSE INSIDE COMPARES WITH PINE'S EPSILON, for a
  *  PINE document only (`opts.pineCompare`, `binaryFor`'s key): measured tolerant by vw-fcmp-builtins-v2 —
  *  `ta.rising` / `ta.falling` (B24 / B25 / Z09 / Z10), `ta.percentrank` (B30 / Z14), and `ta.dmi`'s three legs
  *  (vw-fcmp-builtins B32-B34: DI+ 27.576070967939575 on AMEX:SPY 1D bar 5,333, where the up and down moves tie
@@ -4408,7 +4408,7 @@ const logical = (f) => (a, b) => (isNan(a) || isNan(b) ? NaN : (f(a !== 0, b !==
 // alignment, warm-up NaN patterns) instead of re-testing arithmetic that is
 // shared by construction.
 //
-// ⭐⭐ THE SIX COMPARISONS ARE `pineCompare.js`'s (engine NUMBER PENDING, Q-FCMP / Q-FCMP2): `EXACT_CMP` here,
+// ⭐⭐ THE SIX COMPARISONS ARE `pineCompare.js`'s (engine 78 (#1858), Q-FCMP / Q-FCMP2): `EXACT_CMP` here,
 // IEEE with `na` -> 0, exactly the `cmp` entries this table held; `BINARY_PINE` below swaps in `PINE_CMP`
 // (TradingView's absolute epsilon) for a PINE document's evaluation (`binaryFor`, `opts.pineCompare`).
 export const BINARY = Object.freeze({
@@ -4447,7 +4447,7 @@ export const BINARY_V2 = Object.freeze({
   '==': cmpUnknown((a, b) => a === b),
   '!=': cmpUnknown((a, b) => a !== b),
 })
-/** ⭐⭐ THE PINE TABLE (engine NUMBER PENDING, coordinator ruling D1): a Pine document's evaluation compares
+/** ⭐⭐ THE PINE TABLE (engine 78 (#1858), coordinator ruling D1): a Pine document's evaluation compares
  *  with TradingView's absolute epsilon (`pineCompare.js::PINE_CMP`), its arithmetic and logic unchanged.
  *  Chosen by `opts.pineCompare === true`, which `definitionSemantics.js::semanticsOptsFor` sets for every
  *  Pine document (a translation or a Builder "Apply" import) and the runtime lane sets for every column it
@@ -8453,7 +8453,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // family HOLDS across a hole instead of restarting after it (`FN_V2`).
         // ⭐ ENGINE 56 (S4-2) — over a price the bar holds, the newest tied bar wins
         if (own(FN_BAR_PRICE_NEWEST, n.name) && isBarPriceTree(n.args[0])) return FN_BAR_PRICE_NEWEST[n.name](...args)
-        // ⭐⭐ engine NUMBER PENDING — a PINE document's built-ins whose inside compares with TradingView's
+        // ⭐⭐ engine 78 (#1858) — a PINE document's built-ins whose inside compares with TradingView's
         // epsilon (`FN_PINE`, Q-FCMP2); every other built-in, and every native document, reads `FN`.
         return (v2Fn && own(FN_V2, n.name) ? FN_V2 : (pineFn && own(FN_PINE, n.name) ? FN_PINE : FN))[n.name](...args)
       }
@@ -9184,7 +9184,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (typeof c !== 'number' || c !== c) return st
       const S = asRange(st)
       // `s OP c` holds below `c` for `<`/`<=` and above it for `>`/`>=`
-      // ⭐ engine NUMBER PENDING: under the Pine compare a branch reaches up to `compareSlack` past `c`
+      // ⭐ engine 78 (#1858): under the Pine compare a branch reaches up to `compareSlack` past `c`
       // (`s > c` is FALSE for `s` within the epsilon above `c`), so the bound is widened by it: wider is
       // sound, narrower would drop a state the run can be in. IEEE's slack is 0, as before.
       const { lo, hi } = compareNarrow(op, branch, S.lo, S.hi, c, binary)

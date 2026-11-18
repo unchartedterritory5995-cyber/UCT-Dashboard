@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/pineCompareSites.test.js
 //
-// ⭐⭐ engine NUMBER PENDING — the comparison sites that have no TradingView capture of their own, each railed
+// ⭐⭐ engine 78 (#1858) — the comparison sites that have no TradingView capture of their own, each railed
 // directly (coordinator, 2026-11-18): the object runtime's guards, the state narrowing the range proofs read,
 // and the translator's static decision.
 import { describe, it, expect } from 'vitest'

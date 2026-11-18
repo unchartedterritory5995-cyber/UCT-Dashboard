@@ -142,7 +142,7 @@ describe('F4 — contraction-box-doji-lines SPY: lines 204/178, boxes 53/54 are 
   // (cap 200 + 5) stands one creation apart on the two sides (lines 204 vs 205), so ours
   // has not yet taken the line TradingView's already took. A DIVERGE by one held object,
   // explained, where it was 26 lines and a box.
-  // ⭐⭐ RE-PIN (engine NUMBER PENDING, Pine's tolerant compare, 2026-11-18): the "one creation apart" was a
+  // ⭐⭐ RE-PIN (engine 78 (#1858), Pine's tolerant compare, 2026-11-18): the "one creation apart" was a
   // COMPARISON, not the collector. Pine compares two floats within 1e-10 (Q-FCMP); compared that way, ours makes
   // exactly the lines TradingView made, so the one extra line is gone and every object pairs: lines 204/204,
   // boxes 53/53, the capture MATCHES (as does contraction-box-doji-lines-spy-1d-2026-11-15, 200/201 before).

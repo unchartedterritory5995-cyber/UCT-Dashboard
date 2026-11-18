@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/pineCompareCensus.test.js
 //
-// ⭐⭐ engine NUMBER PENDING (coordinator ruling D1, 2026-11-18) — THE CENSUS OF EVERY `interpret(...)` CALL in the
+// ⭐⭐ engine 78 (#1858) (coordinator ruling D1, 2026-11-18) — THE CENSUS OF EVERY `interpret(...)` CALL in the
 // shipped app, each with a declared ROLE. A Pine document compares within TradingView's epsilon only when the
 // evaluation is handed `pineCompare` (`interpret.js::binaryFor`); a door that builds its own options and
 // forgets it evaluates a Pine script with IEEE and nothing else notices ("grep for a name finds one; ask the

@@ -6074,7 +6074,7 @@ function nzWrappedBarssince(node) {
  *  answer on exactly the bars it matters most (a symbol with no pivot yet),
  *  so this returns false and the script stays honestly refused. */
 function nzSentinelSound(op, sentinel, k) {
-  // ⭐ engine NUMBER PENDING — a sentinel within Pine's epsilon of `k` compares differently under the exact and
+  // ⭐ engine 78 (#1858) — a sentinel within Pine's epsilon of `k` compares differently under the exact and
   // the tolerant rule, so the rewrite is not proven sound there
   if (pineCompareAmbiguous(sentinel, k)) return false
   const impliedTrue = op === '>' || op === '>='
@@ -9937,7 +9937,7 @@ export class Resolver {
   }
 
   /** The `var x = <seed>` + `x := …` binding behind a plain name, or null. */
-  /** ⭐⭐ engine NUMBER PENDING (Q-FCMP2) — THE v1-v4 COMPILE-TIME COMPARISON. TradingView's v1-v4 compiler
+  /** ⭐⭐ engine 78 (#1858) (Q-FCMP2) — THE v1-v4 COMPILE-TIME COMPARISON. TradingView's v1-v4 compiler
    *  compares two compile-time CONSTANTS exactly (the form twins' T50; vw-fcmp-const-v4 C01-C04, C10-C14:
    *  literals, named literals, sums of them, a function or a `?:` that yields one, int against float), while
    *  an input, a series or a reassigned name is compared at run time, tolerantly (C05-C09), as is everything
@@ -11685,14 +11685,14 @@ export class Resolver {
         if (probed) {
           const pl = this.resolveProbed(node.left, probed)
           const pr = this.resolveProbed(node.right, probed)
-          // ⭐⭐ engine NUMBER PENDING — the v1-v4 constant fold, on this path too (`constCompareOf`)
+          // ⭐⭐ engine 78 (#1858) — the v1-v4 constant fold, on this path too (`constCompareOf`)
           const constFoldP = this.constCompareOf(mapped, node, pl, pr)
           if (constFoldP !== null) return cNum(constFoldP)
           return boolNaOperator(mapped, pl, pr, this.pineVersion, foldLogicalIdentity(mapped, pl, pr, this.table), node.left, node.right)
         }
         const rl = this.resolve(node.left)
         const rr = this.resolve(node.right)
-        // ⭐⭐ engine NUMBER PENDING (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly; everything
+        // ⭐⭐ engine 78 (#1858) (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly; everything
         // else (and v5 / v6) is the run's tolerant compare. See `constCompareOf`.
         const constFold = this.constCompareOf(mapped, node, rl, rr)
         if (constFold !== null) return cNum(constFold)
@@ -20735,7 +20735,7 @@ function staticBinary(op, l, r, truncate = null) {
       if (truncate === false) return { n: a / b }
       return Number.isInteger(a / b) ? { n: a / b } : null
     }
-    // ⭐ engine NUMBER PENDING — two numbers equal only within Pine's epsilon are NOT static here: the exact
+    // ⭐ engine 78 (#1858) — two numbers equal only within Pine's epsilon are NOT static here: the exact
     // and the tolerant answer differ, and which one the script meant depends on its version and on whether
     // they are constants (`pineCompare.js::constCompareFold`). The dynamic path decides it.
     case '<': return pineCompareAmbiguous(a, b) ? null : { b: a < b }
@@ -20745,7 +20745,7 @@ function staticBinary(op, l, r, truncate = null) {
     default: return null
   }
 }
-/** ⭐ engine NUMBER PENDING — `staticBinary` for its rail only (`pineCompareSites.test.js`: an ambiguous pair is
+/** ⭐ engine 78 (#1858) — `staticBinary` for its rail only (`pineCompareSites.test.js`: an ambiguous pair is
  *  not static). No product caller. */
 export const __staticBinaryForTests = (op, l, r, truncate = null) => staticBinary(op, l, r, truncate)
 /** A string one occurrence of which can overlap the next (a prefix that is also a suffix). */
@@ -23947,7 +23947,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (node.op === '==' || node.op === '!=') {
         const r = staticEnumValue(node.right, scope, frame, depth + 1)
         if (!r) return null
-        // ⭐ engine NUMBER PENDING — and two numbers equal only within the epsilon are not static (`staticBinary`)
+        // ⭐ engine 78 (#1858) — and two numbers equal only within the epsilon are not static (`staticBinary`)
         if ('n' in l && 'n' in r && pineCompareAmbiguous(l.n, r.n)) return null
         const eq = staticKey(l) === staticKey(r)
         return { b: node.op === '==' ? eq : !eq }

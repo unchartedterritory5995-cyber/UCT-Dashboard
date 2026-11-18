@@ -136,7 +136,7 @@ describe('A · Pine-origin documents keep Pine semantics', () => {
     const pine = astDoc(`${G_SRC} > 100`, { recurrenceOrigin: PINE_RECURRENCE_ORIGIN, semantics: 2 })
     expect(PINE_ORIGIN).toBe(PINE_RECURRENCE_ORIGIN)
     expect(semanticsOf(pine)).toBe(1)
-    // engine NUMBER PENDING: no semantics-2 key, and Pine's own float comparison (Q-FCMP, `pineCompare.js`)
+    // engine 78 (#1858): no semantics-2 key, and Pine's own float comparison (Q-FCMP, `pineCompare.js`)
     expect(semanticsOptsFor(pine)).toEqual({ pineCompare: true })
     expect(stampSemantics(pine).meta.semantics).toBeUndefined()
     expect(withStoredSemantics(pine, { semantics: 2 }).meta.semantics).toBeUndefined()

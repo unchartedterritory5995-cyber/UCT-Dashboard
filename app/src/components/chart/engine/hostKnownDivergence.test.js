@@ -19,7 +19,7 @@ import {
 const REPO = path.resolve(process.cwd(), '..')
 const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8')
 // listed: RDDT and SPY daily grade DIVERGE (TradingView holds 31 table cells, ours 30); it transfers on the production
-// lane. (contraction-box-doji-lines stood here until engine NUMBER PENDING, Pine's tolerant compare, re-graded both its
+// lane. (contraction-box-doji-lines stood here until engine 78 (#1858), Pine's tolerant compare, re-graded both its
 // SPY captures to MATCH and its entry was lifted.)
 const LISTED = read('corpus/committed/heat-map-seasons__53acdf3223.pine')
 // control: not listed, both committed captures grade MATCH on the production lane

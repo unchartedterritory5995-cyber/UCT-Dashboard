@@ -418,7 +418,7 @@ const BUILTIN_WITNESS_REFUSALS = new Set([STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RC
 const RUNTIME_BAR_PRICES = new Set(['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
 const RUNTIME_BOOL_OPS = new Set(['<', '>', '<=', '>=', '==', '!=', '&&', '||'])
 
-/** ⭐ engine NUMBER PENDING — the value of an IR CONSTANT expression (a `num`, `-` of one, `+ - * /` of two, a
+/** ⭐ engine 78 (#1858) — the value of an IR CONSTANT expression (a `num`, `-` of one, `+ - * /` of two, a
  *  `?:` whose test is one, a column the columnar lane computed from a constant tree, a parameterless pure
  *  function whose result is one), or `null`: what `constCompareFold` may fold on this lane. The arithmetic is
  *  the VM's own (IEEE), so a folded answer is the one the run would have compared.
@@ -2669,7 +2669,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  ⭐⭐ W34-I4b — and, the same way, whether this version leaves bar 0's history
    *  unpinned (`interpret.js::listingSeedIsUnpinned`: v1/v2, or no pragma — here
    *  the lex is in hand, so `null` IS "no pragma"). */
-  // ⭐⭐ engine NUMBER PENDING (Q-FCMP / Q-FCMP2, ruling D1) — the runtime lane runs only Pine, so every column
+  // ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2, ruling D1) — the runtime lane runs only Pine, so every column
   // it hands the columnar lane compares the way TradingView does (`interpret.js::binaryFor`, `pineCompare`).
   const pineCompareOpts = { pineCompare: true }
   const columnInterpretOpts = (opts && opts.historyFromListing === true && !atObjectDoor)
@@ -9109,7 +9109,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         const loweredL = lowerExpr(node.left, scope)
         const loweredR = lowerExpr(node.right, scope)
-        // ⭐⭐ engine NUMBER PENDING (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly
+        // ⭐⭐ engine 78 (#1858) (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly
         // (`pineCompare.js::constCompareFold`). Here a constant is an IR constant expression: a literal or a
         // name bound to one is a `num`, an input a parameter read, a reassigned name a slot read, a call a call
         // (so a function's constant result is the run's tolerant compare on this lane, the host lane folds it).

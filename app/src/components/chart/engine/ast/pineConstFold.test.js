@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/ast/pineConstFold.test.js
 //
-// ⭐⭐ engine NUMBER PENDING (Q-FCMP2) — THE HOST LANE'S COMPILE-TIME COMPARISON: in v1-v4 a comparison of two
+// ⭐⭐ engine 78 (#1858) (Q-FCMP2) — THE HOST LANE'S COMPILE-TIME COMPARISON: in v1-v4 a comparison of two
 // compile-time CONSTANTS is exact; inputs, series and reassigned names, and everything in v5 / v6, compare
 // within the epsilon at run time. Each probe is translated by the member door's own translator and its trees
 // evaluated with the Pine compare; the expected numbers are READ OFF the committed captures (AMEX:SPY 1D, the last

@@ -1156,7 +1156,7 @@ export function beginObjects(program, ctx) {
           const f = BINARY[ref.op === 'and' ? '&&' : '||']
           return xs.reduce((acc, x) => f(acc, x))
         }
-        // ⭐⭐ engine NUMBER PENDING (Q-FCMP / Q-FCMP2) — an object program is always Pine, so a guard's
+        // ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2) — an object program is always Pine, so a guard's
         // comparison is TradingView's, within the absolute epsilon (`pineCompare.js::PINE_CMP`)
         case 'cmp': return PINE_CMP[ref.op](numOf(value(ref.args[0])), numOf(value(ref.args[1])))
         // ⭐ C16 — the `if`'s condition as it was evaluated ONCE, where it stands.

@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/pineCompareRuntime.test.js
 //
-// ⭐⭐ engine NUMBER PENDING (Q-FCMP / Q-FCMP2) — THE RUNTIME LANE compares two floats the way TradingView does:
+// ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2) — THE RUNTIME LANE compares two floats the way TradingView does:
 //   · the VM's own `<` `>` `==` … (a slot against a slot: nothing the columnar lane computes) read the SPY 1D
 //     tie bars 5,333 and 5,453 as ties, exactly as Q-FCMP's F05-F07 read them;
 //   · the frontend folds a v1-v4 comparison of two compile-time CONSTANTS to its EXACT answer and leaves every

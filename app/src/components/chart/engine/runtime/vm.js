@@ -74,7 +74,7 @@ const CLOCK_GETTER = Object.freeze(CLOCK_FIELDS.map((f) => {
 import { MAX_COLLECTION_CAP as ITER_SLOTS } from '../ast/objectProgram.js'
 
 const ADD = BINARY['+'], SUB = BINARY['-'], MUL = BINARY['*'], DIV = BINARY['/']
-// ⭐⭐ engine NUMBER PENDING (Q-FCMP / Q-FCMP2): the SIX COMPARISONS are Pine's, not the host table's IEEE ones.
+// ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2): the SIX COMPARISONS are Pine's, not the host table's IEEE ones.
 // The runtime lane runs only Pine, and Pine compares two floats within TradingView's absolute epsilon in every
 // version at run time (`pineCompare.js::PINE_CMP`); a v1-v4 comparison of two compile-time constants, the one
 // exact case, never reaches the VM: the frontend folds it (`pine.js::constCompareFold`).
@@ -430,7 +430,7 @@ export function execute(program, ctx, limits, opts) {
   // bug in the other.
   const carPlan = program.carried || []
   const carSpec = carPlan.map((c) => {
-    // ⭐ engine NUMBER PENDING — the runtime lane runs only Pine: `CARRIED_PINE` (`ta.rising` / `ta.falling`
+    // ⭐ engine 78 (#1858) — the runtime lane runs only Pine: `CARRIED_PINE` (`ta.rising` / `ta.falling`
     // compare within TradingView's epsilon, Q-FCMP2 B24 / B25; every other carried kernel is `CARRIED`'s own)
     const spec = CARRIED_PINE[c.fn]
     if (!spec) throw new VmError(`no carried-state implementation for \`${c.fn}\``)

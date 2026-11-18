@@ -1195,7 +1195,7 @@ describe('the interpreter is PURE', () => {
     // ⭐ C45 — `./barIndexShift.js` (how a value moves with where the series
     // starts) is a FIFTH edge, admitted the way the others were: scanned below,
     // with the same allowlist, and its own imports pinned to the table's parser.
-    // ⭐ engine NUMBER PENDING — `../pineCompare.js` (Pine's float comparison, Q-FCMP / Q-FCMP2) is a SIXTH
+    // ⭐ engine 78 (#1858) — `../pineCompare.js` (Pine's float comparison, Q-FCMP / Q-FCMP2) is a SIXTH
     // edge, admitted the same way: scanned with the same allowlist, and it imports NOTHING.
     expect(got.imports.sort())
       .toEqual(['../../indicators.js', '../pineCompare.js', './barIndexShift.js', './budget.js', './parse.js', './sentence.js'])

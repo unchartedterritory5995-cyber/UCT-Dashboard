@@ -73,7 +73,7 @@ export function resultIdentity(def) {
 }
 
 /** The `interpret` opts that carry this document's semantics — `{}` for a native semantics-1 document;
- *  `{ semantics: 2 }` for semantics 2; and, engine NUMBER PENDING (Q-FCMP / Q-FCMP2, coordinator ruling D1),
+ *  `{ semantics: 2 }` for semantics 2; and, engine 78 (#1858) (Q-FCMP / Q-FCMP2, coordinator ruling D1),
  *  `{ pineCompare: true }` for a Pine document (`isPineImport`: a translation, or a Builder "Apply"
  *  import), which compares two floats the way TradingView does, within an absolute epsilon
  *  (`pineCompare.js`), in every Pine version. Every other document keeps IEEE comparison.

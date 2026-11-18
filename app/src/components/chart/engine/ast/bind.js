@@ -489,7 +489,7 @@ export function foldScalar(node, consts) {
     if (node.name === '?:' && vals.length === 3) return vals[0] ? vals[1] : vals[2]
     if (node.name === 'u-' && vals.length === 1) return -vals[0]
     if (node.name === '!' && vals.length === 1) return vals[0] ? 0 : 1
-    // ⭐⭐ engine NUMBER PENDING (Q-FCMP / Q-FCMP2) — two numbers that are equal to TradingView only within
+    // ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2) — two numbers that are equal to TradingView only within
     // its epsilon (`pineCompare.js::pineCompareAmbiguous`) are NOT folded: the exact answer this table
     // gives and Pine's tolerant one differ there, and a fold cannot know which document it serves. Left
     // unfolded, the operand is what the downstream check names (a window slot), or the evaluator answers it

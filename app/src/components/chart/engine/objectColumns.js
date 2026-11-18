@@ -155,7 +155,7 @@ export { PREFIX_PROBE, probeValuesOf }
  *  `interpret.js::structuralMaps` memoises on) makes the memo see them as one.
  *  Pure: a node is copied only when an argument was replaced, never mutated.
  *  ⛔ Its lifetime is ONE pass, like the memo it feeds. */
-/** ⭐⭐ engine NUMBER PENDING — the Pine-compare key of an options object (`interpret.js::binaryFor`), or
+/** ⭐⭐ engine 78 (#1858) — the Pine-compare key of an options object (`interpret.js::binaryFor`), or
  *  nothing: every evaluation this module makes carries its document's comparison rule. */
 export const pineCompareOptsOf = (o) => (o && o.pineCompare === true ? { pineCompare: true } : {})
 
@@ -697,7 +697,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const evalOpts = {
     inputs,
     budget: definition.compute && definition.compute.budget,
-    // ⭐⭐ engine NUMBER PENDING — the document's comparison rule (`definitionSemantics.js::semanticsOptsFor`:
+    // ⭐⭐ engine 78 (#1858) — the document's comparison rule (`definitionSemantics.js::semanticsOptsFor`:
     // a Pine document compares within TradingView's epsilon), read by every evaluation of this reader
     ...pineCompareOptsOf(semanticsOptsFor(definition)),
     tf: opts.tf,

@@ -832,7 +832,7 @@ DRAW1_KILLED_SLUGS = {"heat-map-seasons", "htf-candle-footprint-cartel-console",
 
 
 #: The contraction-box-doji-lines kill (DRAW-1: SPY daily held one line more than TradingView, 205 vs 204 and 201 vs
-#: 200) was LIFTED by engine NUMBER PENDING (Pine's tolerant compare, #1858): the extra line was a near-tie comparison,
+#: 200) was LIFTED by engine 78 (#1858) (Pine's tolerant compare, #1858): the extra line was a near-tie comparison,
 #: not the collector. Its `liftWhen` was "an engine fix to the line count, then a runtime-on re-grade to MATCH on
 #: -spy-1d-2026-10-03 and -2026-11-15"; both re-graded MATCH in #1858's own pine-heavy run 44319610649.
 CONTRACTION_LIFT = ("contraction-box-doji-lines-spy-1d-2026-10-03", "contraction-box-doji-lines-spy-1d-2026-11-15")

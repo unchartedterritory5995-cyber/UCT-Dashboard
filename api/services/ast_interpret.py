@@ -1353,7 +1353,7 @@ def _percentrank_at(series: Sequence[float], i: int, length: int,
         # uptrick-volatility-weighted-cloud bars 100..141, connors-rsi bar 100).
         if _isnan(v):
             continue
-        # engine NUMBER PENDING -- ``le`` is ``pine_compare.pine_le`` for Pine's ``ta.percentrank``
+        # engine 78 (#1858) -- ``le`` is ``pine_compare.pine_le`` for Pine's ``ta.percentrank``
         if (le(v, cur) if le is not None else v <= cur):
             count += 1
     return 100.0 * count / length
@@ -1417,7 +1417,7 @@ def _monotone_col(series: Sequence[float], n: int, rising: bool, pine: bool = Fa
     prev = NAN
     for i, v in enumerate(series):
         if math.isfinite(v) and math.isfinite(prev):
-            # engine NUMBER PENDING -- Pine's ``ta.rising`` / ``ta.falling`` compare within the epsilon
+            # engine 78 (#1858) -- Pine's ``ta.rising`` / ``ta.falling`` compare within the epsilon
             if pine:
                 step = _pc.pine_gt(v, prev) if rising else _pc.pine_lt(v, prev)
             else:
@@ -2974,7 +2974,7 @@ FN_V2: Dict[str, Callable[..., List[float]]] = {
 }
 
 
-#: engine NUMBER PENDING (Q-FCMP / Q-FCMP2) -- the twin of ``interpret.js::FN_PINE``: the built-ins whose
+#: engine 78 (#1858) (Q-FCMP / Q-FCMP2) -- the twin of ``interpret.js::FN_PINE``: the built-ins whose
 #: inside compares with TradingView's epsilon, for a PINE document only (``opts["pineCompare"]``). Measured
 #: tolerant: ``ta.rising`` / ``ta.falling``, ``ta.percentrank`` and ``ta.dmi``'s legs (DI+ 27.576070967939575
 #: on AMEX:SPY 1D bar 5,333). Every other built-in stays exact, measured; a native document reads ``FN``.
@@ -3488,7 +3488,7 @@ if set(BAR_READERS) != set(_BAR_FN):
 # decision and it is the one place JS and Python agree by luck (`NaN > x` is false
 # in both), so it is pinned rather than assumed.
 
-# (the six comparisons and their `na` -> 0 rule live in ``pine_compare.py`` since engine NUMBER PENDING)
+# (the six comparisons and their `na` -> 0 rule live in ``pine_compare.py`` since engine 78 (#1858))
 
 
 def _logical(f: Callable[[bool, bool], bool]) -> Callable[[float, float], float]:
@@ -3522,7 +3522,7 @@ _BINARY: Dict[str, Callable[[float, float], float]] = {
     "-": lambda a, b: a - b,
     "*": lambda a, b: a * b,
     "/": _binary_div,
-    # engine NUMBER PENDING -- the six are ``pine_compare.EXACT_CMP`` (IEEE, ``na`` -> 0: these entries'
+    # engine 78 (#1858) -- the six are ``pine_compare.EXACT_CMP`` (IEEE, ``na`` -> 0: these entries'
     # own rule, byte for byte); ``_BINARY_PINE`` below swaps in TradingView's epsilon for a Pine document.
     **_pc.EXACT_CMP,
     "&&": _logical(lambda a, b: a and b),
@@ -3564,7 +3564,7 @@ _BINARY_V2: Dict[str, Callable[[float, float], float]] = dict(
     })
 
 
-#: engine NUMBER PENDING (ruling D1) -- the twin of ``interpret.js::BINARY_PINE``: a Pine document's
+#: engine 78 (#1858) (ruling D1) -- the twin of ``interpret.js::BINARY_PINE``: a Pine document's
 #: evaluation compares with TradingView's absolute epsilon (``pine_compare.PINE_CMP``). Chosen by
 #: ``opts["pineCompare"] is True``, which ``semantics_opts_for`` sets for every Pine document and nothing else.
 _BINARY_PINE: Dict[str, Callable[[float, float], float]] = dict(_BINARY, **_pc.PINE_CMP)
@@ -6041,7 +6041,7 @@ def semantics_for(definition: Any) -> int:
 def semantics_opts_for(definition: Any) -> dict:
     """The ``interpret`` opts that carry this document's semantics -- ``{}`` for a native semantics-1
     document, ``{"semantics": 2}`` for 2, and ``{"pineCompare": True}`` for a Pine document
-    (``user_definitions.is_pine_import``; engine NUMBER PENDING, Q-FCMP / Q-FCMP2, ruling D1).
+    (``user_definitions.is_pine_import``; engine 78 (#1858), Q-FCMP / Q-FCMP2, ruling D1).
     Twin: ``definitionSemantics.js::semanticsOptsFor``."""
     if semantics_for(definition) == SEMANTICS_UNKNOWN_PROPAGATES:
         return {"semantics": SEMANTICS_UNKNOWN_PROPAGATES}
@@ -7359,7 +7359,7 @@ def _interpret_column(ast: Any, bars: List[dict],
             # ⭐ P0G -- owner decision C (``FN_V2``), semantics 2 only.
             if v2_fn and n["name"] in FN_V2:
                 return FN_V2[n["name"]](*args)
-            # engine NUMBER PENDING -- a Pine document's tolerant built-ins (``FN_PINE``)
+            # engine 78 (#1858) -- a Pine document's tolerant built-ins (``FN_PINE``)
             if pine_compare_on(opts) and n["name"] in FN_PINE:
                 return FN_PINE[n["name"]](*args)
             # ENGINE 56 (S4-2) -- over a price the bar holds, the newest tied bar wins
@@ -7734,7 +7734,7 @@ def _interpret_column(ast: Any, bars: List[dict],
                     if not isinstance(c, (int, float)) or c != c:
                         return st
                     S = _r_as(st)
-                    # engine NUMBER PENDING: widened by the compare's slack (``interpret.js::refine``)
+                    # engine 78 (#1858): widened by the compare's slack (``interpret.js::refine``)
                     lo, hi = _pc.compare_narrow(op, branch, S[0], S[1], c, binary)
                     na = False
                     if S[2]:

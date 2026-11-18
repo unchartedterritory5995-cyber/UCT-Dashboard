@@ -546,7 +546,7 @@ def fold_scalar(node: Any, consts: Mapping[str, Any]) -> float:
         if name == "!" and len(vals) == 1:
             return 0.0 if vals[0] else 1.0
         if name in _BINARY and len(vals) == 2:
-            # engine NUMBER PENDING -- ``bind.js::foldScalar``: two numbers equal to TradingView only within
+            # engine 78 (#1858) -- ``bind.js::foldScalar``: two numbers equal to TradingView only within
             # its epsilon are not folded (the exact and the tolerant answer differ there).
             if name in _CMP_OPS and _pine_compare_ambiguous(vals[0], vals[1]):
                 raise NotFoldable(f"{name!r} of two numbers equal only within Pine's comparison epsilon")

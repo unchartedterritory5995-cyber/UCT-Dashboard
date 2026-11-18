@@ -1,10 +1,10 @@
-# U-REQ-HOIST-COLUMN, the guard half: a request whose hoisted statements carry a column refuses by name (2026-11-18, NUMBER PENDING)
+# U-REQ-HOIST-COLUMN, the guard half: a request whose hoisted statements carry a column refuses by name (2026-11-18, engine 78 (#1847))
 
 Coordinator ruling (2026-11-18, after #1831 named the cause): correctness first. Steps: (1) measure exposure across
 every document the member door serves; (2) extend the column guard to a request's hoisted statements, so such a
 request refuses by name, `runtime:request-hoisted-history`, with a member sentence; (3) if (1) finds a served
 document, report it at once. The proper lowering (the region's own slot history) is a later roadmap unit. Branch
-`fix/pine-request-hoisted-history-guard`, from master `2314cb0c14` (engine 76), its own PR, NUMBER PENDING.
+`fix/pine-request-hoisted-history-guard`, from master `2314cb0c14` (engine 76), its own PR, engine 78 (#1847).
 
 ## 1. The answer
 

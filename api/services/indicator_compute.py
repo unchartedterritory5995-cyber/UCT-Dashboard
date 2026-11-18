@@ -681,7 +681,7 @@ def compute_adx_raw(
     for i in range(1, n):
         up = bars[i]["h"] - bars[i - 1]["h"]
         down = bars[i - 1]["l"] - bars[i]["l"]
-        # engine NUMBER PENDING -- ``gt`` is IEEE for the native ADX (the default) and
+        # engine 78 (#1858) -- ``gt`` is IEEE for the native ADX (the default) and
         # ``pine_compare.pine_gt`` for Pine's ``ta.dmi`` (``indicators.js::computeADX``'s ``opts.gt``)
         plus_dm[i] = up if (_gt(up, down) and _gt(up, 0)) else 0.0
         minus_dm[i] = down if (_gt(down, up) and _gt(down, 0)) else 0.0

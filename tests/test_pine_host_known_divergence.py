@@ -31,7 +31,7 @@ from api.services import runtime_definitions as rt  # noqa: E402
 from api.services import user_definitions as svc  # noqa: E402
 
 #: listed: both committed production captures (RDDT and SPY daily) grade DIVERGE, TradingView holds 31 table cells and
-#: ours 30. (contraction-box-doji-lines stood here until engine NUMBER PENDING, Pine's tolerant compare, re-graded both
+#: ours 30. (contraction-box-doji-lines stood here until engine 78 (#1858), Pine's tolerant compare, re-graded both
 #: its SPY captures to MATCH and its entry was lifted.)
 LISTED = (ROOT / "corpus" / "committed" / "heat-map-seasons__53acdf3223.pine").read_text(encoding="utf-8")
 #: not listed: both committed production captures grade MATCH

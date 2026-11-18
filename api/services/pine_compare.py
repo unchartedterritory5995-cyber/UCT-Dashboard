@@ -1,6 +1,6 @@
 """Pine's float comparison, the server's twin of ``app/src/components/chart/engine/pineCompare.js``.
 
-TradingView's Pine compares two floats with an ABSOLUTE EPSILON (Q-FCMP / Q-FCMP2, engine NUMBER PENDING):
+TradingView's Pine compares two floats with an ABSOLUTE EPSILON (Q-FCMP / Q-FCMP2, engine 78 (#1858)):
 
     a == b   when  a == b exactly  or  |a - b| <= PINE_EQ_EPSILON
     a != b   when  not (a == b)

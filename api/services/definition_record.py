@@ -580,7 +580,7 @@ def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],
     sym = _symbol(sym)
 
     bars = list(bars)
-    # engine NUMBER PENDING -- a Pine document's tree compares within TradingView's epsilon (`None`: a tree
+    # engine 78 (#1858) -- a Pine document's tree compares within TradingView's epsilon (`None`: a tree
     # with no definition, or a non-Pine one, evaluates exactly as it always did)
     cmp_opts = (ast_interpret.pine_compare_opts_for(definition) or None) if definition is not None else None
     column = ast_interpret.interpret(ast, bars, inputs, budget, opts=cmp_opts)

@@ -1,4 +1,4 @@
-"""The server's built-ins that compare inside with Pine's epsilon (engine NUMBER PENDING, Q-FCMP2), twin of
+"""The server's built-ins that compare inside with Pine's epsilon (engine 78 (#1858), Q-FCMP2), twin of
 ``app/src/components/chart/engine/pineCompareBuiltins.test.js``. TradingView's readings are the capture's own
 numbers, READ OFF the committed capture (vw-fcmp-builtins-spy-1d-2026-11-18 and -rddt-1d, B32-B34, every bar),
 with that capture's own bars (AMEX:SPY 1D from the listing, NYSE:RDDT 1D)."""
