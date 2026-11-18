@@ -109,6 +109,21 @@ def test_gen_serves_only_its_own_company():
     assert [b["t"] for b in out] == ["2010-12-03", "2013-04-12", "2015-02-02", "2021-03-26"]
 
 
+def test_the_second_vendor_census_windows():
+    """2026-11-18, every universe daily series compared day by day with an independent vendor's
+    per-company series: four tickers carried another company inside today's lineage with no gap
+    (Barnes Group in B, Physicians Realty and others in DOC, Aris Water in ARIS, the Atlas Crest
+    SPAC in ACIC). Each window is dropped; the bars on both sides agree with that vendor."""
+    t = BI._table()["symbols"]
+    assert [(w["from"], w["until"], w["source"]) for w in t["B"]] == [(day("2013-04-03"), day("2025-05-09"), None)]
+    assert [(w["from"], w["until"]) for w in t["DOC"]] == [(day("2003-09-10"), day("2024-03-01"))]
+    assert [(w["from"], w["until"]) for w in t["ARIS"]] == [(day("2021-10-22"), day("2025-10-15"))]
+    assert [(w["from"], w["until"]) for w in t["ACIC"]] == [(day("2020-12-18"), day("2021-09-17"))]
+    served = [{"t": d, "o": c, "h": c, "l": c, "c": c, "v": 1} for d, c in (
+        ("2013-04-02", 28.08), ("2013-04-03", 27.89), ("2025-01-24", 47.48), ("2025-05-09", 19.46))]
+    assert [b["t"] for b in BI.apply("B", served, "D", lambda s, tf: [])] == ["2013-04-02", "2025-05-09"]
+
+
 def test_history_epoch_moves_only_a_corrected_date_series():
     v = BI._table()["version"]
     assert v >= 1
