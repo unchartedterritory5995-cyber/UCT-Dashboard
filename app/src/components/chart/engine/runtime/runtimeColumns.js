@@ -23,7 +23,7 @@
 import { buildRuntimeIr, RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION } from '../ast/pineRuntimeFrontend.js'
 import { RUNTIME_IR_VERSION } from './ir.js'
 import { runtimeClockOpts, newestBarIsFormingFrom, isNewByBar } from '../ast/pineRuntimeClock.js'
-import { interpret } from '../ast/interpret.js'
+import { interpret, isIntradayTf } from '../ast/interpret.js'
 import { TABLE, BAR_READERS } from '../ast/parse.js'
 import { cloneValues } from './vmState.js'
 import { SLOT } from './ir.js'
@@ -1995,11 +1995,14 @@ registerObjectRuntimeValues(runtimeObjectValues)
 /** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — does `source`, built for a `tf` chart as the run builds it, read THIS chart's
  *  own symbol at "D" above the chart (a request target `{own, above}`, `pine.js`)? The chart fetches its daily
  *  rows only then (`useSecondarySources`, `OWN_DAILY_KEY`). Memoised per (timeframe, source); a build that fails
- *  answers false (the run refuses it by name on its own). Only an intraday timeframe can say yes. */
+ *  answers false (the run refuses it by name on its own). Only an intraday timeframe can say yes: `pine.js` mints
+ *  the target on an intraday base only (`isIntradayTf`), and the same predicate is checked FIRST here so a daily /
+ *  weekly / monthly chart never compiles for this question. ⛔ It is a cost guard, equal in behaviour to the mint's
+ *  own gate (no rail can tell them apart, the mutation proof found): derive it, never restate the timeframe list. */
 const _ownDailyMemo = new Map()
 export function runtimeReadsOwnDaily(source, tf) {
   const t = tf == null ? '' : String(tf)
-  if (!['1', '5', '15', '30', '60'].includes(t) || typeof source !== 'string' || !source) return false
+  if (!isIntradayTf(t) || typeof source !== 'string' || !source) return false
   const k = `${t}|${source}`
   if (_ownDailyMemo.has(k)) return _ownDailyMemo.get(k)
   let yes = false
