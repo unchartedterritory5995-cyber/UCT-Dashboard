@@ -458,6 +458,16 @@ export const FUNCTIONS = [
   // CHK are other panels.
   { code: 'MYH', label: 'My history on this stock (your trades, position and notes)', group: 'Security',
     ticker: { panel: 'MyHistory', args: [{ kind: 'journalAccount', prop: 'account' }] } },
+
+  // ── unusual volume (2026-11-18) ──
+  // UNVOL: every liquid stock trading far above its usual volume FOR THIS TIME OF DAY, highest
+  // first: the Screener's own live reading (today's volume so far against the 30-session average
+  // times the usual share of a day done by this minute), read through POST /api/screener/scan.
+  // Outside the hours that reading exists it says so and shows the last full session. MOST RVOL is
+  // a burst in the last minutes; LEAD VOL1Y is record volume. `UNVOL UP 3X`, `UNVOL DOWN`.
+  // UVOL is the NYSE up-volume symbol and RVOL is one of MOST's own words, so the code is neither.
+  { code: 'UNVOL', label: 'Unusual volume (stocks far above their usual volume for the time of day)', group: 'Market',
+    market: { panel: 'UnusualVolume', args: [{ kind: 'unvolSide', prop: 'side' }, { kind: 'unvolMin', prop: 'min' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -696,7 +706,8 @@ const FUNCTION_WORDS = {
   RRG: { keywords: ['rotation', 'sector rotation', 'sectors'] },
   REL: { example: 'NVDA REL SMH', keywords: ['relative performance', 'ratio'] },
   CORR: { example: 'NVDA CORR AMD AVGO', keywords: ['correlation'] },
-  MOST: { example: 'MOST UP', keywords: ['movers', 'gainers', 'losers', 'unusual volume', 'top gainers'] },
+  MOST: { example: 'MOST UP', keywords: ['movers', 'gainers', 'losers', 'unusual volume', 'top gainers', 'gappers',
+    'premarket gappers', 'pre-market gappers', 'why is it gapping'] },
   IMOV: { example: 'IMOV semiconductors', keywords: ['theme movers', 'theme drivers'] },
   ALRT: { example: 'NVDA ALRT 950', keywords: ['alert', 'alerts', 'price alert'] },
   BRKO: { keywords: ['breakout', 'breakouts', 'pivot', 'tight', 'setups', 'near pivot'] },
@@ -729,6 +740,8 @@ const FUNCTION_WORDS = {
   ERNS: { example: 'ERNS TONIGHT', keywords: ['earnings season', 'who reports tonight', 'who reports tomorrow', 'earnings tonight',
     'reporting after the close', 'reporting before the open', 'priced move for earnings'] },
   MYH: { example: 'NVDA MYH', keywords: ['my history', 'my trades', 'my record', 'trade history', 'my notes on a stock', 'have i traded it'] },
+  UNVOL: { example: 'UNVOL UP', keywords: ['relative volume', 'rvol', 'volume leaders', 'heavy volume', 'volume vs usual',
+    'above average volume', 'volume surge'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

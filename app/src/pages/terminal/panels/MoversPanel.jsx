@@ -2,7 +2,15 @@
 //
 //   MOST            every mover: the gappers list, the catalyst board, the volume scanner
 //   MOST UP         gainers          MOST DOWN   losers
-//   MOST RVOL       unusual volume — names the Volume Surge scanner has lit right now
+//   MOST RVOL       unusual volume — names the Volume Surge scanner has lit right now (a burst in
+//                   the last minutes; the day-long list is UNVOL)
+//
+// In the pre-market session this IS the pre-market gappers list with the reason: the gappers list
+// and the catalyst board, each % against yesterday's close from the latest pre-market print.
+// ⛔ THE REASON IS ATTRIBUTED OR ABSENT. A row's "why" is the catalyst board's own type; opened, it
+// shows the board's summary LABELLED AS AI-WRITTEN with the time it was written, the source links
+// that summary cites, and the analyst action on file with its firm and date. A name the board does
+// not list reads "No catalyst on file", never a blank and never a guess.
 //
 // ⭐ NO NEW ROUTE AND NO NEW VENDOR CALL. Three routes the app already serves from caches
 // (`/api/movers` — the Movers sidebar's list; `/api/catalysts/today` — the catalyst board;
@@ -55,13 +63,16 @@ const COLUMNS = [
   { key: 'pct', label: '% Chg' },
   { key: 'ah', label: 'After hours', postOnly: true, title: 'Move since the 4:00 PM close' },
   { key: 'volume', label: 'Volume', title: 'Shares traded today (pre and post market included outside the regular session)' },
-  { key: 'volVsAvg', label: 'Vol × avg', title: 'Today\'s volume against normal: the Volume Surge scanner\'s "so far vs usual by now" where it tracks the name, else the catalyst board\'s "today vs 30-day average"' },
+  { key: 'volVsAvg', label: 'Vol × avg', title: 'Today\'s volume against normal. Where the Volume Surge scanner tracks the name: volume so far against the prior session\'s volume scaled to this time of day. Else the catalyst board\'s "today vs 30-day average"' },
 ]
 
 const VOL_SOURCE_TEXT = {
-  scanner: 'Volume so far today ÷ the usual volume by this time of day (Volume Surge scanner)',
+  scanner: 'Volume so far today ÷ the prior session\'s volume scaled to this time of day (Volume Surge scanner; one prior day, not a 30-day average)',
   catalyst: 'Today\'s volume ÷ the 30-day average (catalyst board)',
 }
+
+/** What the Why column reads for a name the catalyst board does not list. */
+export const NO_CATALYST = 'No catalyst on file'
 
 /** Pure: the MOST command for a lens and the Mine filter (what the Mine chip writes back, so a
  *  reload and `?cmd=` keep it). */
@@ -222,7 +233,8 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
             <tbody>
               {rows.map((r, i) => {
                 const tone = r.pct > 0 ? styles.up : r.pct < 0 ? styles.down : undefined
-                const why = r.catalyst && (r.catalyst.label || (r.catalyst.thesis && !isFailedSynthesis(r.catalyst.thesis)))
+                const written = !!(r.catalyst?.thesis && !isFailedSynthesis(r.catalyst.thesis))
+                const why = r.catalyst && (r.catalyst.label || written)
                 return (
                   <Fragment key={r.sym}>
                   <tr data-testid={`terminal-movers-row-${r.sym}`} className={open === r.sym ? styles.rowOpen : undefined}>
@@ -252,15 +264,44 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
                           onClick={() => setOpen(open === r.sym ? null : r.sym)} data-testid={`terminal-movers-why-${r.sym}`}>
                           {r.catalyst.label || 'Catalyst'}
                         </button>
-                      ) : <span className={styles.muted}>{formatNumber(null)}</span>}
+                      ) : (
+                        // The board answered and does not list this name: said in words. While the
+                        // board has not answered (the note above says so) the cell stays a dash.
+                        <span className={styles.muted} data-testid={`terminal-movers-nowhy-${r.sym}`}>
+                          {catalysts.data ? NO_CATALYST : formatNumber(null)}
+                        </span>
+                      )}
                     </td>
                   </tr>
                   {open === r.sym && why ? (
                     <tr className={styles.whyRow} data-testid={`terminal-movers-thesis-${r.sym}`}>
                       <td colSpan={columns.length + 1}>
-                        {r.catalyst.thesis && !isFailedSynthesis(r.catalyst.thesis)
+                        {written
                           ? <p className={styles.thesis}><HighlightThesis text={r.catalyst.thesis} /></p>
                           : <p className={styles.thesis}>The catalyst board tagged {r.sym} as {r.catalyst.label} with no written story yet.</p>}
+                        {written ? (
+                          <p className={styles.muted} data-testid={`terminal-movers-sources-${r.sym}`}>
+                            Summary written by AI for the UCT catalyst board
+                            {r.catalyst.writtenAt ? ` at ${formatTimeEt(r.catalyst.writtenAt, { zoneSuffix: 'ET', absent: '' })}` : ''}.{' '}
+                            {r.catalyst.sources.list.length ? (
+                              <>
+                                It cites:{' '}
+                                {r.catalyst.sources.list.map((s, k) => (
+                                  <Fragment key={s.url}>
+                                    {k ? ', ' : ''}
+                                    <a className={styles.linkBtn} href={s.url} target="_blank" rel="noopener noreferrer">{s.host}</a>
+                                  </Fragment>
+                                ))}
+                                {r.catalyst.sources.more ? ` and ${r.catalyst.sources.more} more` : ''}.
+                              </>
+                            ) : 'It cites no source link, so read it as unconfirmed.'}
+                          </p>
+                        ) : null}
+                        {r.catalyst.rating ? (
+                          <p className={styles.muted} data-testid={`terminal-movers-rating-${r.sym}`}>
+                            Analyst action on file: {r.catalyst.rating}.
+                          </p>
+                        ) : null}
                         <p className={styles.muted}>
                           {r.catalyst.at ? `Catalyst broke at ${formatTimeEt(r.catalyst.at, { zoneSuffix: 'ET', absent: '—' })}. ` : ''}
                           <button type="button" className={styles.linkBtn} onClick={() => onRun?.(`${r.sym} MOVE`, { next: true })}>
@@ -283,9 +324,21 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
           COVERAGE_RECEIPTS_SCANS_ENABLED is on). Dark, the key is absent and this renders nothing. */}
       {lens === 'volume' ? <CoverageLine coverage={volume.data?.coverage ?? null} density="widget" /> : null}
 
+      {/* What "unusual volume" means on THIS lens, and where the day-long list is. */}
+      {lens === 'volume' ? (
+        <p className={styles.muted} data-testid="terminal-movers-volume-def">
+          Unusual volume here is a burst: a stock{Number.isFinite(volume.data?.universe_top) ? ` among the ${volume.data.universe_top} most liquid` : ''}{' '}
+          whose volume in the last minutes jumped against its own recent pace while its price moved (Volume Surge
+          scanner). A stock that has been heavy all day with no fresh burst is not listed. For every stock far above
+          its usual volume for this time of day,{' '}
+          <button type="button" className={styles.linkBtn} onClick={() => onRun?.('UNVOL', { next: true })}>open UNVOL</button>.
+        </p>
+      ) : null}
+
       <p className={styles.muted} data-testid="terminal-movers-method">
         Sources: the movers list (names gapping 3% or more), today&apos;s catalyst board and the Volume Surge
-        scanner; prices from the live feed. {all.length > rows.length ? `Showing ${rows.length} of ${all.length}. ` : ''}
+        scanner; prices from the live feed. The Why column is the catalyst board&apos;s own type for the name; open it
+        for the board&apos;s AI-written summary and the sources it cites. {all.length > rows.length ? `Showing ${rows.length} of ${all.length}. ` : ''}
         Click a row, or type its number, to load it into the linked panels.
         {asOf ? ` List as of ${formatTimeEt(asOf, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>
