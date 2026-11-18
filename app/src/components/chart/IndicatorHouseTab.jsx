@@ -108,11 +108,15 @@ export async function ownScriptCopyId(item, built, own, fetchScript = fetchStore
   const trees = doc.compute && doc.compute.treesHash
   const reads = JSON.stringify((doc.meta && doc.meta.otherSymbols) || null)
   const name = String(item.name || '').trim().toLowerCase()
+  // the strongest guesses first (patrick-0b): the same maths now, then the same name, then the same reads; the
+  // cap only ever cuts the weakest (six scripts reading SPX must not crowd the true copy out of the probe)
+  const rank = (d) => ((d.compute.fn === fn && d.compute.treesHash === trees) ? 0
+    : String(d.meta.name || '').trim().toLowerCase() === name ? 1
+      : (reads !== 'null' && JSON.stringify(d.meta.otherSymbols || null) === reads) ? 2 : 3)
   const candidates = (Array.isArray(own) ? own : []).filter((d) => d && typeof d.id === 'string' && d.compute && d.meta
-    && Number.isInteger(d.meta.engineVersion) && d.meta.scriptEdited !== true
-    && ((d.compute.fn === fn && d.compute.treesHash === trees)
-      || String(d.meta.name || '').trim().toLowerCase() === name
-      || (reads !== 'null' && JSON.stringify(d.meta.otherSymbols || null) === reads)))
+    && Number.isInteger(d.meta.engineVersion) && d.meta.scriptEdited !== true)
+    .map((d, i) => ({ d, i, r: rank(d) })).filter((x) => x.r < 3)
+    .sort((x, y) => x.r - y.r || x.i - y.i).map((x) => x.d)
   for (const d of candidates.slice(0, PINE_PROBE_MAX)) {
     const script = await fetchScript(d.id)
     if (typeof script === 'string' && script === item.pine) return d.id
