@@ -151,7 +151,13 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
 
     const _ext = (showExtended && typeof showExtended === 'object') ? showExtended.current : showExtended
     const sess = { showExtended: typeof _ext === 'boolean' ? _ext : undefined }
-    if (peekDisplayable(requestedSym, tf, sess)) { commit(); return undefined }
+    // ⭐ ONE PAINT, THE WHOLE CHART (2026-11-17, owner: "a good chunk, then the rest a quick blink
+    // later"). A held key paints at once only when the lake's whole depth is not still due for it;
+    // otherwise the prepare below waits for that join (bounded, prefetch LAKE_JOIN_WAIT_MS) and the
+    // chart's first frame holds it. The warms join it before Enter, so this is the rare case.
+    const paintsWhole = () => peekDisplayable(requestedSym, tf, sess)
+      && !(BARSTORE && INTRADAY.has(String(tf)) && storePrefetch.lakePending(requestedSym, fetchTf(tf), sess))
+    if (paintsWhole()) { commit(); return undefined }
 
     // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. D/W/M took the bounded branch
     // above; a custom code (2m, 45m...) fetches its own base, which this coordinator
@@ -194,7 +200,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     let timer = null
     const tick = () => {
       if (!alive || genRef.current !== gen) return
-      if (peekDisplayable(requestedSym, tf, sess)) { commitHere(); return }
+      if (paintsWhole()) { commitHere(); return }
       timer = setTimeout(tick, POLL_MS)
     }
     timer = setTimeout(tick, POLL_MS)
