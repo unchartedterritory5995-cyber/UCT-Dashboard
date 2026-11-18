@@ -294,6 +294,16 @@ EXTERNAL_WALLS = [
                "census a \"D\" request is the chart's own timeframe, so it never shows",
      "witness": "measured 2026-11-18 by the Create Indicator capability census (local REPORT.md): 2 of 177 ideas "
                 "(previous day H/L/C, daily pivots) blocked by exactly this"},
+    {"wall": "other-symbol-intraday", "unit": "request", "kind": "engine",
+     "title": "ANOTHER SYMBOL read at the chart's own INTRADAY period (RS Rating's line, "
+              "`request.security(\"SP:SPX\", timeframe.period, close)` on a 1h / 5m chart): RS RATING L12",
+     "census": "the witness table (`requestWitnesses.json`) holds SP:SPX for D and W only, so an intraday chart refuses "
+               "the read by name (`other-symbol:witness-timeframe`) and the RS line is not drawn while the rating "
+               "label is. On the 1D census `timeframe.period` is the chart's own D, so it never shows",
+     "witness": "measured 2026-11-18 on production by the Fred RS 10-member sweep (smoke@, local): on 1m / 5m / 30m "
+                "/ 1h the RS Rating label draws and the RS line's legend is blank, with the refusal note; TradingView "
+                "draws the line against SP:SPX's intraday bars (the script's line 89). No TradingView intraday capture "
+                "yet (queue row Q-L12-1)"},
 ]
 
 # ── THE CREATE INDICATOR CAPABILITY CENSUS (2026-11-18, local: reports/indicator-ecosystem/capability-census/

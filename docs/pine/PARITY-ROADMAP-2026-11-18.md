@@ -580,18 +580,19 @@ own identifiers are counted as one row). This is each unit's queue:
 `runtime:conditional-history` stopping on `and` in 7 scripts is Pine v6's lazy `and` / `or`: a call on
 the right of `and` runs only on bars where the left is true, so it keeps call-site history.
 
-### 4.4 Two walls the 1D census cannot see (added 2026-11-18)
+### 4.4 Three walls the 1D census cannot see (added 2026-11-18)
 
 The census runs every script on one daily chart whose history starts at RDDT's 2024 listing. A wall that
-needs an intraday chart, or a longer history, does not show in its rows. Two were measured tonight by
+needs an intraday chart, or a longer history, does not show in its rows. Three were measured on 11-18 by
 other sessions and are recorded with their witnesses (`externalWalls`):
 
 | wall | unit | what the census sees of it | witness |
 |---|---|---|---|
 | **A running value anchored at the first bar (an all-time ratchet, an all-time high, an anchored VWAP reaching past the look-back cap)** (`first-bar-anchor`) | `first-bar-anchor` | host `budget:lookback` (cap 960 bars, ruled not raised 2026-11-17); the runtime lane runs from the first bar the chart hands it, so it is a wall there only when that bar is not TradingView's | measured 2026-11-18 by another session (local): SPY 1D from the 1993 listing, a level rising since the listing is 82% bar-equal to a windowed value at W=900 and 20% off at worst; McGinley 14 (a decaying recurrence) is bit-equal at W=300. A decaying recurrence converges inside a window; a running extreme or sum does not, at any W the cap allows |
 | **A DAILY read on an intraday chart (previous day's high / low / close, daily pivots): a request.security to a higher timeframe** (`daily-on-intraday`) | `request` | host `tf` reads weekly and monthly only (`pine:request`: "another timeframe as `tf` (weekly and monthly ...)"); the session-reader spelling exceeds `budget:lookback` (1361 vs 960). On the 1D census a "D" request is the chart's own timeframe, so it never shows | measured 2026-11-18 by the Create Indicator capability census (local REPORT.md): 2 of 177 ideas (previous day H/L/C, daily pivots) blocked by exactly this |
+| **Another symbol read at the chart's own intraday period (RS Rating's line, `request.security("SP:SPX", timeframe.period, close)` on a 1h / 5m chart): RS RATING L12** (`other-symbol-intraday`) | `request` | the witness table holds SP:SPX for D and W only, so an intraday chart refuses the read by name (`other-symbol:witness-timeframe`): the label draws, the RS line does not. On the 1D census `timeframe.period` is D, so it never shows | measured 2026-11-18 on production by the Fred RS 10-member sweep (1m / 5m / 30m / 1h); no TradingView intraday capture yet (Q-L12-1) |
 
-Both are written up in section 5 (U-DAILY, U-ANCHOR). They carry no sample count, because nothing has
+All three are written up in section 5 (U-DAILY, U-L12, U-ANCHOR). They carry no sample count, because nothing has
 measured one. The census needs an intraday chart and a long-history chart before this can change.
 
 ### 4.5 The Create Indicator capability census, classified against Pine
@@ -755,6 +756,24 @@ census cannot see it** (on a daily chart, "D" is the chart's own timeframe).
   SPY and RDDT (queue row Q-DAILY-1).
 - **Risk:** early closes and half-days (the vendor calendar settles them); realtime repainting of the
   forming day (closed-bar scope). Engine number: yes.
+
+### U-L12 `other-symbol-intraday` (part of U-REQ): another symbol at the chart's own intraday period
+
+Added 2026-11-18 (RS RATING L12, coordinator), measured by the Fred RS 10-member sweep on production; **the 1D
+census cannot see it** (`timeframe.period` is the chart's own D there).
+- **TradingView:** RS Rating's line is `request.security(lineTicker, timeframe.period, close)` (its line 89),
+  so on a 1h or 5m chart it divides by SP:SPX's own intraday bars; the rating itself reads `'D'` closes.
+- **Ours today:** `requestWitnesses.json` witnesses SP:SPX for D and W only (`periods.W`, L11), so an intraday
+  chart refuses the read by name, `other-symbol:witness-timeframe`: the rating label draws (its daily reads
+  are served), the RS line does not, and the chart shows the refusal note.
+- **Smallest honest change:** an intraday witness for the cash index (the alignment of SP:SPX's intraday
+  bar to the chart's bar at the same period, previous-bar or same-bar, decided by captures, not assumed),
+  served from the index's own intraday series (`index_bars`, which already builds today's daily bar from
+  its 5m bars); then the same placement rule L11 PR 2 gives the newest bar.
+- **Evidence:** missing: RS Rating and an `rs-spx` probe on RDDT and NVDA at 1h and 5m, in session and
+  after the close (queue row Q-L12-1).
+- **Risk:** the index's intraday history depth against a long intraday chart; extended-hours bars on the
+  stock against an index with none. Engine number: yes.
 
 ### U-ANCHOR `first-bar-anchor`: a running value anchored at the first bar
 
