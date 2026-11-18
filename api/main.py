@@ -6609,6 +6609,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
 
+    # The Terminal's one-click period rankings (PCHG: this month, this quarter, year to date
+    # ...) are kept built so a member's first click is not a half-minute "computing". The
+    # loop starts itself on the web service only (scan_period.start_preset_warmer).
+    try:
+        from api.services import scan_period as _scan_period
+        if not _light_skip("period-preset-warm"):
+            _scan_period.start_preset_warmer()
+    except Exception as e:
+        print(f"[startup] period preset warm scheduling failed (non-fatal): {e}")
+
     # Company-logo cache prewarm: fill /data/logo_cache for the whole cap_universe
     # so the FIRST view of any watchlist / theme / calendar serves real logos from
     # disk (edge-cacheable, immutable) instead of a cold transparent-pixel-then-retry

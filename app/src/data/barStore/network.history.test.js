@@ -191,7 +191,7 @@ describe('BarStore scroll-back from the history lake', () => {
       w.net.fetchOnce(key)
       const seeded = w.net.lakeSeed(key)
       await vi.advanceTimersByTimeAsync(20)
-      expect(await seeded).toBe(true)
+      expect(await seeded).toBe('seed')
       let s = w.registry.getSnapshot(key)
       expect(s.restSeen).toBe(false)                                   // painted, but not a server copy (never persisted)
       expect(s.bars[0].t).toBe(OPEN - 3 * 3600)
@@ -211,7 +211,7 @@ describe('BarStore scroll-back from the history lake', () => {
       w.net.fetchOnce(key)
       const seeded = w.net.lakeSeed(key)
       await vi.advanceTimersByTimeAsync(20)
-      expect(await seeded).toBe(true)
+      expect(await seeded).toBe('seed')
       expect(w.registry.getSnapshot(key).bars.at(-1).t).toBe(LAKE_END)
       await vi.advanceTimersByTimeAsync(SLOW + 50)
       const s = w.registry.getSnapshot(key)
@@ -220,15 +220,45 @@ describe('BarStore scroll-back from the history lake', () => {
       expect(s.bars.some((b) => b.t <= LAKE_END)).toBe(false)
     })
 
-    it('does nothing once the server answered, when bars are held, for a daily key, or with no lake', async () => {
+    // ⭐ 2026-11-17: ONE LOAD, THE WHOLE DEPTH. A load that lands after the answer joins its deeper
+    // rows (what the handoff waits for before it commits), only where the shared bars prove them.
+    it('once the server answered, the lake JOINS its deeper rows where the overlap proves them', async () => {
       const w = world({ lake: lakeUpTo(OPEN + 600) })
       const key = keyOf({ sym: 'SIM', tf: '5' })
       w.registry.acquire(key)
       w.net.fetchOnce(key)
       await vi.advanceTimersByTimeAsync(20)                             // the fast answer is in
       const before = w.registry.getSnapshot(key)
-      expect(await w.net.lakeSeed(key)).toBe(false)
-      expect(w.registry.getSnapshot(key)).toBe(before)
+      expect(before.restSeen).toBe(true)
+      const joined = w.net.lakeSeed(key)
+      await vi.advanceTimersByTimeAsync(20)
+      expect(await joined).toBe('join')
+      const s = w.registry.getSnapshot(key)
+      expect(s.bars[0].t).toBe(OPEN - 3 * 3600)                         // the lake's deeper rows, joined
+      expect(s.bars.length).toBeGreaterThan(before.bars.length)
+      for (let i = 1; i < s.bars.length; i++) expect(s.bars[i].t).toBeGreaterThan(s.bars[i - 1].t)
+      // and not loaded again once the key is joined: one load per key in flight, shared
+      const a = w.net.lakeSeed(key), b = w.net.lakeSeed(key)
+      expect(a).toBe(b)
+      await vi.advanceTimersByTimeAsync(20)
+    })
+
+    it('a lake that ENDS BEFORE the answer joins nothing to it (no bar in common: a possible hole)', async () => {
+      const w = world({ lake: lakeUpTo(OPEN - 2 * 3600) })
+      const key = keyOf({ sym: 'SIM', tf: '5' })
+      w.registry.acquire(key)
+      w.net.fetchOnce(key)
+      await vi.advanceTimersByTimeAsync(20)
+      const before = w.registry.getSnapshot(key)
+      const joined = w.net.lakeSeed(key)
+      await vi.advanceTimersByTimeAsync(20)
+      expect(await joined).toBe(false)
+      expect(w.registry.getSnapshot(key).bars[0].t).toBe(before.bars[0].t)
+    })
+
+    it('does nothing for a daily key or with no lake', async () => {
+      const w = world({ lake: lakeUpTo(OPEN + 600) })
+      const key = keyOf({ sym: 'SIM', tf: '5' })
       const d = keyOf({ sym: 'SIM', tf: 'D' })
       w.registry.acquire(d)
       expect(await w.net.lakeSeed(d)).toBe(false)
