@@ -1496,11 +1496,6 @@ export default function Breadth() {
           </table>
         </div>
       )}
-      {grid.count > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
-        <p className={styles.legend}>
-          Shading appears only where a reading is unusually strong or weak. MA dots: filled = above that average (10, 20, 50, 200-day), ring = below.
-        </p>
-      )}
       {drill && (
           <Suspense fallback={null}>
             <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={() => setDrill(null)}

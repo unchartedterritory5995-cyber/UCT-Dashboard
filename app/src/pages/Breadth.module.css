@@ -489,19 +489,6 @@
   line-height: 1;
 }
 
-/* The hint line under the card. */
-.legend {
-  /* A slim footer on the same surface as the sheet, flush to the window's bottom
-     and sides, so there is no gap under the full-bleed table. */
-  margin: 0 calc(-1 * var(--page-pad-x, 12px)) calc(-1 * var(--page-pad-bottom, 12px));
-  padding: 6px 16px 7px;
-  font-size: 11.5px;
-  color: var(--br-faint);
-  background: var(--br-panel);
-  border-top: 1px solid var(--br-line);
-  flex-shrink: 0;
-}
-
 /* Row phase — a 2px inset on the Date cell in the theme's up / down colour (the
    old 3px row border; quieter, and no gold for the in-between phases). */
 .phaseGreen .dateCell { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--br-up) 55%, transparent); }
@@ -625,7 +612,6 @@ tbody tr { cursor: pointer; }
     position: relative;
     margin: -12px -8px 0;
   }
-  .legend { margin: 0 -8px -8px; padding: 6px 12px; }
   .page .sigHeader { padding: 0 12px; gap: 10px; }
   /* Scroll shadow hint on right edge */
   .tableWrap::after {
@@ -1054,8 +1040,7 @@ tbody tr { cursor: pointer; }
 }
 
 /* Inside a UCT Terminal panel the shell owns the edges: no bleed there. */
-.pageInPanel .tableWrap,
-.pageInPanel .legend { margin: 0; }
+.pageInPanel .tableWrap { margin: 0; }
 
 /* Today — a small quiet text button beside the chart-style date control (the
    chart calendar has no "latest" entry of its own). */
