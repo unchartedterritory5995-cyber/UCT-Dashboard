@@ -32,7 +32,7 @@ from tests.test_p2_truth_server import conv, emits, empty_view, env, model, out,
 from tests.test_p2x_truth_converse import clean_env  # noqa: F401 -- fixture by name
 from tests.test_rollout_telemetry import raw_dump, rows, store  # noqa: F401 -- fixture by name
 
-LEARNED = ("asked", "answered", "remembered", "named_built", "named_held", "unknown_name")
+LEARNED = ("asked", "answered", "remembered", "named_built", "acronym_built", "named_held", "unknown_name")
 SECRET = "zanzibar-private-words"
 
 
@@ -116,11 +116,11 @@ def test_a_held_name_refused_is_recorded_by_its_entry_with_no_call(store, conv, 
 
 def test_a_well_known_name_the_door_refuses_is_recorded_by_its_catalogue_id_and_not_its_words(store, conv, clean_env, model):
     client = model([])
-    r = conv.converse(f"Add the Klinger Volume Oscillator {SECRET}", user_id="u1", view=empty_view(0), chart=CHART)
+    r = conv.converse(f"Add the McClellan Oscillator {SECRET}", user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is False and client.calls == []
-    assert learned(last_turn()) == {"unknown_name": "klinger_volume_oscillator"}
+    assert learned(last_turn()) == {"unknown_name": "mcclellan_oscillator"}
     dump = raw_dump()
-    assert SECRET not in dump and "Klinger" not in dump and "Oscillator" not in dump
+    assert SECRET not in dump and "McClellan" not in dump and "Oscillator" not in dump
 
 
 def test_a_refused_name_in_no_catalogue_row_is_other_and_its_words_are_dropped(store, conv, clean_env, model):
@@ -132,15 +132,14 @@ def test_a_refused_name_in_no_catalogue_row_is_other_and_its_words_are_dropped(s
 
 
 def test_a_catalogue_name_is_recorded_on_a_turn_that_BUILT_too(store, conv, clean_env, model):
-    """So the report can say how often a name was built from the assistant's own knowledge. "obv"
-    is the live case: On Balance Volume is in the library, but a three-letter acronym is a
-    spelling the library may not carry, so this request is built unchecked, and counted."""
+    """So the report can say how often a name was built from the assistant's own knowledge. "kvo"
+    is the case: a bare short acronym is never looked up as a name, so this request reaches the
+    assistant unmarked, is built unchecked, and is counted under the name it stands for."""
     model([emits(ema(20))])
-    r = conv.converse("show obv with a 20 ema of it", user_id="u1", view=empty_view(0), chart=CHART)
+    r = conv.converse("show kvo with a 20 ema of it", user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is True and r["disposition"] == "change"
     p = last_turn()
-    assert learned(p) == {"unknown_name": "on_balance_volume"} and p["failure_class"] == "ok"
-    assert names.now_in_library()["on_balance_volume"] == "on_balance_volume"
+    assert learned(p) == {"unknown_name": "klinger_volume_oscillator"} and p["failure_class"] == "ok"
 
 
 def test_an_ordinary_turn_records_none_of_them(store, conv, clean_env, model):
@@ -161,8 +160,8 @@ def test_the_record_never_costs_a_turn(store, conv, clean_env, model, monkeypatc
 
 def test_the_pieces(conv):
     assert conv.learned_fields({"ok": True, "turn": "question"}, {}) == {
-        "asked": "assistant", "answered": None, "remembered": None, "named_built": None, "named_held": None,
-        "unknown_name": None}
+        "asked": "assistant", "answered": None, "remembered": None, "named_built": None, "acronym_built": None,
+        "named_held": None, "unknown_name": None}
     assert conv.learned_fields({"ok": True, "turn": "question"}, {"asked": "average_kind"})["asked"] == "average_kind"
     assert conv.learned_fields({"ok": True, "turn": "patch"}, None)["asked"] is None
     assert conv.learned_fields({"ok": False, "turn": "question"}, {})["asked"] is None
@@ -170,7 +169,7 @@ def test_the_pieces(conv):
         "remembered": ["average_kind", "cross_meaning"], "named_built": ["connors_rsi"], "named_held": [],
         "unknown_name": ["aroon", "other"], "answered": "average_length"})
     assert got == {"asked": None, "answered": "average_length", "remembered": "average_kind,cross_meaning",
-                   "named_built": "connors_rsi", "named_held": None, "unknown_name": "aroon,other"}
+                   "named_built": "connors_rsi", "acronym_built": None, "named_held": None, "unknown_name": "aroon,other"}
     # a refused NAME is the door's own sentence about that phrase; any other refusal is not a name
     name = {"phrase": "Gann Fan", "gate": "concept:ungrounded", "reason": conv.UNKNOWN_NAME_REASON.format(name="Gann Fan")}
     concept = {"phrase": "cheap", "gate": "concept:ungrounded", "reason": "no published threshold"}
@@ -236,7 +235,8 @@ def test_the_catalogue_is_names_only_in_one_spelling_each_id_once():
     assert set(doc) == {"_", "names"} and len(doc["names"]) >= 100
     seen_ids, seen_spellings = set(), {}
     for row in doc["names"]:
-        assert set(row) == {"id", "name", "aliases"}, row                  # no formula, no description
+        assert set(row) - {"distinctive"} == {"id", "name", "aliases"}, row    # no formula, no description
+        assert row.get("distinctive", True) is True                           # the mark is `true` or absent
         assert names.ID.fullmatch(row["id"]) and row["id"] not in seen_ids and row["id"] != names.OTHER
         seen_ids.add(row["id"])
         assert row["aliases"] and row["aliases"][0] == names.norm(row["name"])
@@ -273,7 +273,8 @@ def test_a_request_is_read_as_whole_words_longest_first_and_answers_ids_only():
     assert names.names_in("the half-trend") == ["half_trend"]                       # punctuation is spacing
     # a spelling the LIBRARY answers is not unknown; one it does not answer still is
     assert names.names_in("the on-balance volume") == [] and names.names_in("an aroon up line") == []
-    assert names.names_in("add obv") == ["on_balance_volume"]
+    assert names.names_in("add dmi") == ["directional_movement_index"]       # an acronym the library does not admit
+    assert names.names_in("add obv") == []                                  # one it does: the library answers it
     assert names.names_in("") == [] and names.names_in(None) == [] and names.names_in(7) == []
     many = "ppo and pvo and trix and qqe and renko and kagi"
     assert len(names.names_in(many)) == names.MAX_PER_TURN
@@ -469,7 +470,7 @@ def test_an_empty_store_reports_zeros_and_nones_never_raises(store):
 
 def test_the_report_holds_no_words_only_ids_names_from_the_repo_and_counts(store, conv, clean_env, model):
     model([])
-    conv.converse(f"Add the Klinger Volume Oscillator {SECRET}", user_id="m1", view=empty_view(0), chart=CHART)
+    conv.converse(f"Add the McClellan Oscillator {SECRET}", user_id="m1", view=empty_view(0), chart=CHART)
     conv.converse(f"Add the Zorblat Wiggle Line {SECRET}", user_id="m1", view=empty_view(0), chart=CHART)
     text = json.dumps(tel.weekly_report(7))
     assert SECRET not in text and "orblat" not in text
@@ -524,7 +525,7 @@ def test_the_report_in_plain_words_on_an_empty_store(store):
     text = tel.weekly_report_text(tel.weekly_report(7))
     assert "  Indicators built: 0 (the 7 days before: 0)" in text
     assert "  Questions per indicator built: none built (the 7 days before: none)" in text
-    assert text.count("  None.") == 3 and "  Nothing." in text and "  Share: none recorded" in text
+    assert text.count("  None.") == 4 and "  Nothing." in text and "  Share: none recorded" in text
     assert "None" not in text.replace("None.", "")
 
 
@@ -540,7 +541,8 @@ def test_the_weekly_report_is_admin_only(store):
     who["user"] = {"id": "a1", "role": "admin", "plan": "pro"}
     r = c.get("/api/indicator-telemetry/weekly-report", params={"days": 7})
     assert r.status_code == 200 and set(r.json()) == {
-        "window_days", "withheld_below_members", "demand", "names", "questions", "second_calls", "named_built"}
+        "window_days", "withheld_below_members", "demand", "names", "questions", "second_calls", "named_built",
+        "built_from_an_acronym"}
     # the same report in plain words, for a browser tab; and that is admin only too
     t = c.get("/api/indicator-telemetry/weekly-report", params={"format": "text"})
     assert t.status_code == 200 and t.headers["content-type"].startswith("text/plain")

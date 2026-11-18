@@ -68,7 +68,10 @@ const CLASS_CODES = {
   team: ['WHO', 'HIS', 'CHK'],
   // UCT's own analytics over licensed prices: ranks, returns over a window, breadth, regime.
   derived: ['TECH', 'RTG', 'SEAS', 'DR', 'GRADE', 'REL', 'CORR', 'RRG', 'REGM', 'RSL', 'THMS', 'SCAT', 'IMOV', 'BRKO',
-    'SCTR', 'H52', 'RSS', 'PCHG', 'TROT', 'IDAY'],
+    'SCTR', 'H52', 'RSS', 'PCHG', 'TROT', 'IDAY', 'UNVOL',
+    // GRP is PCHG's changes joined with the RS rank and the confluence board for one group: UCT's
+    // own analytics over licensed prices (and flow), so it is not shared by default.
+    'GRP'],
   // Vendor or third-party values shown as they came, or a list that mixes them in (a live price
   // beside the member's own alert, a quote beside a watchlist name).
   vendor: ['CAL', 'ERN', 'EMOV', 'DES', 'GP', 'CN', 'CATS', 'MOVE', 'FA', 'EE', 'EEH', 'ANR', 'OWN', 'PPL', 'TRAN', 'MB',

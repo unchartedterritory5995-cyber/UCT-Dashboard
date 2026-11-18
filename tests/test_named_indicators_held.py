@@ -11,7 +11,7 @@ session's ruling of 2026-11-18. Three things, each held here:
      on: the assistant is told to build that description and nothing it knows about the name, and
      the door labels every output as the member's own formula.
   3. THE WHOLE-PHRASE RULE, on the chart door only. A short Title-Case name with a word in it that
-     nothing accounts for is an unknown name, even when another of its words is known ("Schaff
+     nothing accounts for is an unknown name, even when another of its words is known ("Hartwell
      Trend Cycle" knows "trend"). Measured on 604 requests before it was written; the cases that
      decided its shape are pinned below. `/propose`'s planner is unchanged.
 
@@ -249,15 +249,15 @@ def chart(message):
 #: Names with one KNOWN word inside: each passed the planner before this rule and reached a model
 #: free to improvise. (Measured 2026-11-18.)
 NOW_UNKNOWN = [
-    ("Add the Schaff Trend Cycle", "Schaff Trend Cycle"),
-    ("Add the Klinger Volume Oscillator", "Klinger Volume Oscillator"),
-    ("Add the Detrended Price Oscillator", "Detrended Price Oscillator"),
+    ("Add the Hartwell Trend Cycle", "Hartwell Trend Cycle"),
+    ("Add the Brannock Volume Oscillator", "Brannock Volume Oscillator"),
+    ("Add the Dunmore Price Oscillator", "Dunmore Price Oscillator"),
     ("Add the Minervini Trend Template", "Minervini Trend Template"),
-    ("Add the Td Sequential Setup Count", "Td Sequential Setup Count"),
-    ("Add the Zero-Lag Ema", "Lag Ema"),
+    ("Add the Td Brannock Setup Count", "Td Brannock Setup Count"),
+    ("Add the Zero-Drift Ema", "Drift Ema"),
     # typed ALONE: the first word of a message is excused only when it is a word requests open with
-    ("Klinger Volume Oscillator", "Klinger Volume Oscillator"),
-    ("Schaff Trend Cycle please", "Schaff Trend Cycle"),
+    ("Brannock Volume Oscillator", "Brannock Volume Oscillator"),
+    ("Hartwell Trend Cycle please", "Hartwell Trend Cycle"),
 ]
 #: What the measurement said must NOT be caught: a first word capitalised by grammar, grammar
 #: words, descriptions made of the product's own vocabulary, sentences typed in capitals.
@@ -316,16 +316,16 @@ def test_a_name_no_word_of_which_is_known_is_refused_as_it_always_was(conv):
 
 
 def test_the_rest_of_a_request_survives_an_unknown_name(conv):
-    got = chart("Add the Schaff Trend Cycle and a 50 day average")
+    got = chart("Add the Hartwell Trend Cycle and a 50 day average")
     assert got["refusal"] is None
-    assert [n["phrase"] for n in got["not_understood"]] == ["Schaff Trend Cycle"]
-    assert "Schaff" not in got["request_text"] and "50 day average" in got["request_text"]
+    assert [n["phrase"] for n in got["not_understood"]] == ["Hartwell Trend Cycle"]
+    assert "Hartwell" not in got["request_text"] and "50 day average" in got["request_text"]
     # the known word INSIDE the unknown name is part of the name, not a term of its own: "volume" is a
-    # term when it stands alone, and is NOT one inside "Klinger Volume Oscillator"
+    # term when it stands alone, and is NOT one inside "Brannock Volume Oscillator"
     alone = chart("add volume and a 50 day average")
     assert "volume" in [t["name"] for t in alone["terms"]]
-    inside = chart("Add the Klinger Volume Oscillator and a 50 day average")
-    assert [n["phrase"] for n in inside["not_understood"]] == ["Klinger Volume Oscillator"]
+    inside = chart("Add the Brannock Volume Oscillator and a 50 day average")
+    assert [n["phrase"] for n in inside["not_understood"]] == ["Brannock Volume Oscillator"]
     assert "volume" not in [t["name"] for t in inside["terms"]]
 
 
@@ -337,8 +337,8 @@ def test_PROPOSE_is_unchanged_the_rule_is_opt_in():
         assert [n["phrase"] for n in on["not_understood"]], message
         # (off: either understood, or refused for a reason that was already there)
         assert off == dc.plan(message, dc.INDICATOR_KIND, strict_names=False)
-    assert dc.plan("Add the Schaff Trend Cycle", dc.INDICATOR_KIND)["not_understood"] == [] or \
-        dc.plan("Add the Schaff Trend Cycle", dc.INDICATOR_KIND)["not_understood"][0]["phrase"] != "Schaff Trend Cycle"
+    assert dc.plan("Add the Hartwell Trend Cycle", dc.INDICATOR_KIND)["not_understood"] == [] or \
+        dc.plan("Add the Hartwell Trend Cycle", dc.INDICATOR_KIND)["not_understood"][0]["phrase"] != "Hartwell Trend Cycle"
     # and its own sentence for an unknown name is its own
     r = dc.plan("Add the Gann Fan", dc.INDICATOR_KIND)["not_understood"][0]["reason"]
     assert "supported functions or concepts" in r and "in your own words" not in r
@@ -350,9 +350,9 @@ def test_the_pieces_of_the_rule():
 
     def foreign(text):
         return dc._foreign_words(list(dc._WORD_TOKEN.finditer(text)), lex)
-    assert foreign("Schaff Trend Cycle") == ["Schaff"]                    # "trend" is known, "cycle" is vocabulary
+    assert foreign("Hartwell Trend Cycle") == ["Hartwell"]                    # "trend" is known, "cycle" is vocabulary
     assert foreign("Bollinger Bands") == [] and foreign("Rate Of Change") == []
-    assert foreign("Klinger Volume Oscillator") == ["Klinger"]
+    assert foreign("Brannock Volume Oscillator") == ["Brannock"]
     assert foreign("Volume Oscillator") == []                             # the product's own vocabulary
     assert foreign("Add Bollinger Bands") == []                           # an opener is no part of a name, wherever it stands
     assert dc.NAME_MAX_WORDS == 4

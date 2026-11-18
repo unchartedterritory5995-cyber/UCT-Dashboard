@@ -1,5 +1,5 @@
 {
- "_": "NAMES ONLY. Indicators a member may ask Create Indicator for BY NAME that it does not build by name. Used for one thing: when a request names one, the turn's record carries this row's `id` (never the member's words), so the weekly report can say which names are asked for most. `aliases` are spellings in one normal form (lower case, letters, digits and %, single spaces). A name the library gains STAYS here (earlier records name its id, and the report says 'in the library since') and is no longer counted as unknown. Common public names, written from general knowledge.",
+ "_": "NAMES ONLY. Indicators a member may ask Create Indicator for BY NAME that it does not build by name. Used for one thing: when a request names one, the turn's record carries this row's `id` (never the member's words), so the weekly report can say which names are asked for most. `aliases` are spellings in one normal form (lower case, letters, digits and %, single spaces). A name the library gains STAYS here (earlier records name its id, and the report says 'in the library since') and is no longer counted as unknown. Common public names, written from general knowledge. `distinctive` marks a proper name for one specific calculation: the door builds what such a name is generally understood to mean and WITHHOLDS the name, saying so.",
  "names": [
   {
    "id": "zero_lag_exponential_moving_average",
@@ -8,7 +8,8 @@
     "zero lag exponential moving average",
     "zero lag ema",
     "zlema"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "fractal_adaptive_moving_average",
@@ -16,7 +17,8 @@
    "aliases": [
     "fractal adaptive moving average",
     "frama"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "variable_index_dynamic_average",
@@ -24,7 +26,8 @@
    "aliases": [
     "variable index dynamic average",
     "vidya"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "tillson_t3",
@@ -32,7 +35,8 @@
    "aliases": [
     "tillson t3",
     "t3 moving average"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "jurik_moving_average",
@@ -40,7 +44,8 @@
    "aliases": [
     "jurik moving average",
     "jma"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "least_squares_moving_average",
@@ -64,7 +69,8 @@
     "guppy multiple moving average",
     "gmma",
     "guppy ribbon"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "mesa_adaptive_moving_average",
@@ -72,7 +78,8 @@
    "aliases": [
     "mesa adaptive moving average",
     "mesa adaptive"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "rainbow_moving_average",
@@ -96,7 +103,8 @@
    "aliases": [
     "super smoother",
     "ehlers super smoother"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "instantaneous_trendline",
@@ -104,14 +112,16 @@
    "aliases": [
     "instantaneous trendline",
     "ehlers instantaneous trendline"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "laguerre_filter",
    "name": "Laguerre Filter",
    "aliases": [
     "laguerre filter"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "williams_alligator",
@@ -119,14 +129,16 @@
    "aliases": [
     "williams alligator",
     "alligator indicator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "gator_oscillator",
    "name": "Gator Oscillator",
    "aliases": [
     "gator oscillator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "aroon",
@@ -153,7 +165,8 @@
    "aliases": [
     "half trend",
     "halftrend"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "range_filter",
@@ -174,7 +187,8 @@
    "name": "Chande Kroll Stop",
    "aliases": [
     "chande kroll stop"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "safezone_stop",
@@ -182,7 +196,8 @@
    "aliases": [
     "safezone stop",
     "safe zone stop"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "gann_hilo_activator",
@@ -190,14 +205,16 @@
    "aliases": [
     "gann hilo activator",
     "gann hilo"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "schaff_trend_cycle",
    "name": "Schaff Trend Cycle",
    "aliases": [
     "schaff trend cycle"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "trend_intensity_index",
@@ -233,7 +250,8 @@
    "aliases": [
     "elder impulse system",
     "impulse system"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "zig_zag",
@@ -241,7 +259,8 @@
    "aliases": [
     "zig zag",
     "zigzag"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "williams_fractals",
@@ -249,7 +268,8 @@
    "aliases": [
     "williams fractals",
     "fractals indicator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "darvas_box",
@@ -257,14 +277,16 @@
    "aliases": [
     "darvas box",
     "darvas boxes"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "raff_regression_channel",
    "name": "Raff Regression Channel",
    "aliases": [
     "raff regression channel"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "standard_error_bands",
@@ -279,7 +301,8 @@
    "aliases": [
     "starc bands",
     "stoller average range channels"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "acceleration_bands",
@@ -307,7 +330,8 @@
    "name": "Nadaraya Watson Envelope",
    "aliases": [
     "nadaraya watson envelope"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "klinger_volume_oscillator",
@@ -316,7 +340,8 @@
     "klinger volume oscillator",
     "klinger oscillator",
     "kvo"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "know_sure_thing",
@@ -340,7 +365,8 @@
    "aliases": [
     "detrended price oscillator",
     "dpo"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "percentage_price_oscillator",
@@ -356,14 +382,16 @@
    "aliases": [
     "percentage volume oscillator",
     "pvo"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "trix",
    "name": "TRIX",
    "aliases": [
     "trix"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "mass_index",
@@ -377,7 +405,8 @@
    "name": "Stochastic Momentum Index",
    "aliases": [
     "stochastic momentum index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "smi_ergodic",
@@ -385,7 +414,8 @@
    "aliases": [
     "smi ergodic",
     "ergodic oscillator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "fisher_transform",
@@ -393,7 +423,8 @@
    "aliases": [
     "fisher transform",
     "ehlers fisher transform"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "center_of_gravity",
@@ -430,7 +461,8 @@
    "aliases": [
     "qqe",
     "quantitative qualitative estimation"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "wave_trend_oscillator",
@@ -438,14 +470,16 @@
    "aliases": [
     "wave trend oscillator",
     "wavetrend"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "laguerre_rsi",
    "name": "Laguerre RSI",
    "aliases": [
     "laguerre rsi"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "disparity_index",
@@ -466,7 +500,8 @@
    "name": "Qstick",
    "aliases": [
     "qstick"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "demarker",
@@ -474,7 +509,8 @@
    "aliases": [
     "demarker",
     "demarker indicator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "td_sequential",
@@ -482,14 +518,16 @@
    "aliases": [
     "td sequential",
     "demark sequential"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "td_combo",
    "name": "TD Combo",
    "aliases": [
     "td combo"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "pring_special_k",
@@ -497,14 +535,16 @@
    "aliases": [
     "pring special k",
     "special k"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "accelerator_oscillator",
    "name": "Accelerator Oscillator",
    "aliases": [
     "accelerator oscillator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "chande_forecast_oscillator",
@@ -512,7 +552,8 @@
    "aliases": [
     "chande forecast oscillator",
     "forecast oscillator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "projection_oscillator",
@@ -527,7 +568,8 @@
    "aliases": [
     "cyber cycle",
     "ehlers cyber cycle"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "ehlers_sine_wave",
@@ -535,14 +577,16 @@
    "aliases": [
     "ehlers sine wave",
     "sine wave indicator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "hilbert_transform",
    "name": "Hilbert Transform",
    "aliases": [
     "hilbert transform"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "elder_force_index",
@@ -571,7 +615,8 @@
    "name": "Positive Volume Index",
    "aliases": [
     "positive volume index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "price_volume_trend",
@@ -586,28 +631,32 @@
    "name": "Chaikin Oscillator",
    "aliases": [
     "chaikin oscillator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "twiggs_money_flow",
    "name": "Twiggs Money Flow",
    "aliases": [
     "twiggs money flow"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "time_segmented_volume",
    "name": "Time Segmented Volume",
    "aliases": [
     "time segmented volume"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "market_facilitation_index",
    "name": "Market Facilitation Index",
    "aliases": [
     "market facilitation index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "volume_weighted_macd",
@@ -662,7 +711,8 @@
    "name": "Chaikin Volatility",
    "aliases": [
     "chaikin volatility"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "ulcer_index",
@@ -683,7 +733,8 @@
    "name": "Relative Volatility Index",
    "aliases": [
     "relative volatility index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "williams_vix_fix",
@@ -691,14 +742,16 @@
    "aliases": [
     "williams vix fix",
     "vix fix"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "hurst_exponent",
    "name": "Hurst Exponent",
    "aliases": [
     "hurst exponent"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "fractal_dimension_index",
@@ -713,7 +766,8 @@
    "aliases": [
     "swing index",
     "accumulative swing index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "pivot_points",
@@ -730,7 +784,8 @@
    "aliases": [
     "camarilla pivots",
     "camarilla pivot points"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "woodie_pivots",
@@ -738,14 +793,16 @@
    "aliases": [
     "woodie pivots",
     "woodie pivot points"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "central_pivot_range",
    "name": "Central Pivot Range",
    "aliases": [
     "central pivot range"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "fibonacci_retracement",

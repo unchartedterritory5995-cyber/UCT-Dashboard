@@ -12,10 +12,19 @@ in `app/node_modules`) and writes what nobody should type by hand:
 
     python tools/named_indicators_build.py            # rewrite the derived halves
     python tools/named_indicators_build.py --check    # change nothing; exit 1 if anything is stale
+    python tools/named_indicators_build.py --ship     # also record each NEW (entry, version) in the ledger
 
 ⛔ THE VERSION RULE (the house set's own): an entry's maths never changes under the same version.
 If a text edit moves the tree, this tool REFUSES; add a new entry to that indicator's `versions`
 (next number, today's date, the reason, `"maths": ""`) and run it again.
+
+⛔ THE LEDGER (`api/data/named_indicators_shipped.json`, 2026-11-18). The rule above reads the
+fingerprint stored in the library file itself, so a file REGENERATED with empty fingerprints (a seed
+script does that) could move a shipped entry's maths and store the new fingerprint as if it had
+always been version 1. The ledger closes that: every (entry, version) that has shipped is recorded
+there once, and this tool refuses a library whose fingerprint for a recorded version differs, or
+that has lost a recorded entry or version. `--ship` ADDS what is not recorded yet and never rewrites
+a recorded line. `tests/test_named_indicators_ledger.py` holds the same without this tool.
 
 The same facts are held without this tool by `namedIndicators.test.js` (text and tree agree, by
 the shipped parser) and `tests/test_named_indicators.py` (sites, fingerprints, evidence).
@@ -106,8 +115,66 @@ def differences(a: Any, b: Any, path: Tuple[int, ...] = ()) -> List[Tuple[Tuple[
     return out
 
 
-def derive(doc: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
-    """The document with every derived half recomputed, and the problems found on the way."""
+LEDGER = ROOT / "api" / "data" / "named_indicators_shipped.json"
+
+
+def read_ledger(path: Any = None) -> Dict[str, Dict[str, str]]:
+    """{entry id: {version: fingerprint}} for everything that has shipped. A missing file is an
+    empty ledger (a new checkout of an old commit); an unreadable one is an error, never ignored."""
+    path = LEDGER if path is None else path        # (read when called: the file's place is one fact)
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))["shipped"]
+
+
+def ledger_problems(doc: Dict[str, Any], shipped: Dict[str, Dict[str, str]]) -> List[str]:
+    """Where the library disagrees with what shipped: a recorded version whose fingerprint moved,
+    or a recorded entry or version that is gone."""
+    problems: List[str] = []
+    by_id = {e["id"]: e for e in doc["indicators"]}
+    for entry_id, versions in shipped.items():
+        e = by_id.get(entry_id)
+        if e is None:
+            problems.append(f"{entry_id}: a SHIPPED entry is gone from the library (the ledger records it)")
+            continue
+        have = {str(h["version"]): h.get("maths") for h in e["versions"]}
+        for version, fingerprint in versions.items():
+            if version not in have:
+                problems.append(f"{entry_id}: SHIPPED version {version} is gone from its `versions`")
+            elif have[version] != fingerprint:
+                problems.append(f"{entry_id}: the maths of SHIPPED version {version} moved. A shipped version never "
+                                "changes: put the old formula's fingerprint back and make the change a NEW version "
+                                "(next number, the date, the reason, \"maths\": \"\").")
+    return problems
+
+
+def unshipped(doc: Dict[str, Any], shipped: Dict[str, Dict[str, str]]) -> List[Tuple[str, str, str]]:
+    """(entry id, version, fingerprint) for each version the ledger does not record yet."""
+    return [(e["id"], str(h["version"]), h["maths"]) for e in doc["indicators"] for h in e["versions"]
+            if str(h["version"]) not in shipped.get(e["id"], {})]
+
+
+def write_ledger(doc: Dict[str, Any], path: Any = None) -> int:
+    """ADD every version the ledger does not record. A recorded line is never rewritten."""
+    path = LEDGER if path is None else path
+    shipped = read_ledger(path)
+    added = unshipped(doc, shipped)
+    for entry_id, version, fingerprint in added:
+        shipped.setdefault(entry_id, {})[version] = fingerprint
+    out = {"_": ("THE SHIPPED-VERSION LEDGER of the named-indicator library: every (entry, version) that has shipped, and "
+                 "the fingerprint of its maths. Written by `python tools/named_indicators_build.py --ship`, which only ever "
+                 "ADDS a line. A recorded line never changes and is never removed: the build tool and "
+                 "tests/test_named_indicators_ledger.py refuse a library that disagrees with it. To change a formula, add "
+                 "a new version to the entry."),
+           "shipped": {k: dict(sorted(v.items(), key=lambda kv: int(kv[0]))) for k, v in sorted(shipped.items())}}
+    with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(json.dumps(out, indent=1, ensure_ascii=False) + "\n")
+    return len(added)
+
+
+def derive(doc: Dict[str, Any], shipped: Any = None) -> Tuple[Dict[str, Any], List[str]]:
+    """The document with every derived half recomputed, and the problems found on the way.
+    ``shipped`` is the ledger to hold it to (the committed one unless a test hands another)."""
     problems: List[str] = []
     texts: Dict[str, str] = {}
     probes: Dict[str, Dict[str, Any]] = {}
@@ -152,12 +219,15 @@ def derive(doc: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
             elif last["maths"] != maths:
                 problems.append(f"{e['id']}: its maths moved and its version did not. Add an entry to its `versions` "
                                 "(next number, the date, the reason, \"maths\": \"\") and run this again.")
+    if not problems:                               # (fingerprints are only all known once every text parsed)
+        problems.extend(ledger_problems(out, read_ledger() if shipped is None else shipped))
     return out, problems
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--check", action="store_true", help="change nothing; exit 1 if the file is stale")
+    ap.add_argument("--ship", action="store_true", help="also ADD each version the ledger does not record yet")
     args = ap.parse_args(argv)
     raw = ni.PATH.read_text(encoding="utf-8")
     built, problems = derive(json.loads(raw))
@@ -168,10 +238,15 @@ def main(argv=None) -> int:
     text = json.dumps(built, indent=1, ensure_ascii=False) + "\n"
     if args.check:
         stale = text != raw.replace("\r\n", "\n")
+        waiting = unshipped(built, read_ledger())
+        if waiting:
+            print(f"NOT IN THE LEDGER: {', '.join(f'{i} v{v}' for i, v, _ in waiting)}: run with --ship")
         print("STALE: run tools/named_indicators_build.py" if stale else f"ok: {len(built['indicators'])} indicators, nothing stale")
-        return 1 if stale else 0
+        return 1 if stale or waiting else 0
     with io.open(ni.PATH, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)
+    if args.ship:
+        print(f"ledger: {write_ledger(built)} version(s) added to {LEDGER.relative_to(ROOT)}")
     print(f"wrote {ni.PATH.relative_to(ROOT)}: {len(built['indicators'])} indicators, "
           f"{sum(len(e['outputs']) for e in built['indicators'])} formulas, {len(built.get('held') or [])} held names")
     return 0
