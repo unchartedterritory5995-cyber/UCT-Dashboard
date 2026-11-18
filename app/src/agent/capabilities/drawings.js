@@ -83,6 +83,9 @@ export const drawingKind = {
   // host.drawings: one entry per SYMBOL shown on a chart (agent/host.js buildDrawingSource)
   list: (host) => host?.drawings?.list() || [],
   read: (host, ref) => host?.drawings?.read(ref) || null,
+  // ⛔ the charts a drawing change SHOWS on: every chart drawing on this symbol (the store keys by drawSym), not only the one
+  // `chartRef` names — so an excluded chart that shares the symbol is never drawn on (chartLanding / the excluded-chart gate)
+  sharedBy: (snap, charts) => (charts || []).filter(c => c && (c.drawSym || c.symbol) === snap?.symbol).map(c => c.ref),
   stateOf: (snap) => ({ drawings: snap.drawings, defaults: snap.defaults, symbol: snap.symbol, tf: snap.tf || 'D', history: snap.history || null, n: 0, alerts: [] }),
   patch(before, after) {
     const b = new Map(before.drawings.map(d => [d.id, d]))
