@@ -1317,7 +1317,9 @@ def _with_door_notes(envelope: Dict[str, Any], notes: List[Dict[str, Any]]) -> D
     if not notes:
         return envelope
     have = [a for a in (envelope.get("assumptions") or []) if isinstance(a, Mapping)]
-    fresh = [n for n in notes if not any(a.get("output") == n["output"] and a.get("text") == n["text"] for a in have)]
+    # (a note may have NO `output`: "as you chose before" is about the whole indicator. Read it with
+    # .get: indexed, it raised on any turn whose patch already carried an assumption.)
+    fresh = [n for n in notes if not any(a.get("output") == n.get("output") and a.get("text") == n["text"] for a in have)]
     out = dict(envelope)
     out["assumptions"] = (fresh + have)[:MAX_ASSUMPTIONS]
     return out

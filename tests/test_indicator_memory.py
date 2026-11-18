@@ -279,6 +279,24 @@ def test_two_remembered_defaults_are_both_used_and_both_said(conv, account, clea
     assert any("when the bar closes across it, as you chose before" in t for t in said)
 
 
+def test_a_remembered_choice_is_said_beside_the_assistants_own_note(conv, account, clean_env, model):
+    """REGRESSION (found 2026-11-18, live): the door's "as you chose before" sentence has no `output`
+    (it is about the whole indicator). On a turn whose patch ALREADY carried an assumption, adding
+    it raised, and the member read "the UCT Agent hit an internal problem". Every earlier test here
+    answered with a patch that carried none, which is how it shipped."""
+    mem = memory_of(account)
+    mem.remember("average_kind", "ema", "Exponential (EMA)")
+    with_a_note = env(0, [{"op": "create", "name": "EMA 20", "placement": "price",
+                           "outputs": [{"key": "ma", "tree": call("ema", S("close"), num(20))}]}],
+                      assumptions=[{"output": "ma", "text": "Drawn on the price pane."}])
+    client = model([emits(with_a_note)])
+    r = conv.converse("Add a 20 day moving average", user_id="u1", view=empty_view(0), chart=CHART, memory=mem)
+    assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 1, (r.get("gate"), r.get("reason"))
+    assert r["envelope"]["assumptions"] == [
+        {"text": "Using an exponential average, as you chose before. Name another kind to change it."},
+        {"output": "ma", "text": "Drawn on the price pane."}]
+
+
 def test_a_remembered_choice_the_registry_no_longer_offers_is_not_used(conv, account, clean_env, model):
     mem = memory_of(account)
     mem.remember("average_kind", "tma", "Triangular")                        # not one of the choices
