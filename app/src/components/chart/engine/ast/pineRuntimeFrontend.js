@@ -86,6 +86,7 @@ import { strategyTaintSinks, strategyDisarmOf } from './strategyTaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
   timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
+  isTimeframeText, movedTimeframeServed, movedTimeframeRefusal,
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
@@ -1656,8 +1657,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // only on a source input (a colour only on a colour input).
   const inputDefaults = opts.inputDefaults && typeof opts.inputDefaults === 'object' ? opts.inputDefaults : {}
   const applyMemberDefault = (call, name, at) => {
-    if (!Object.prototype.hasOwnProperty.call(inputDefaults, name)) return
-    const given = inputDefaults[name]
+    // ⭐⭐ SETTINGS PARITY (timeframe, NUMBER PENDING) — a TIMEFRAME input's member value is its default node
+    // whichever way the caller handed it: as a default (`runtimeBuildInputs`, which knows the declared
+    // settings) or as a plain value only (a caller that hands no declared inputs, the server service's
+    // `job.mjs::runArgs`). Else the run would read the member's timeframe where the script uses `tf` as text
+    // (`time(tf)`) and the AUTHOR'S where the request's host reader reads it statically: two timeframes in
+    // one run. At the default nothing is handed, and nothing here runs.
+    const timeframeCall = textInputKindOf(call) === 'timeframe'
+    const has = (o) => !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, name)
+    if (!has(inputDefaults) && !(timeframeCall && has(inputs))) return
+    const given = has(inputDefaults) ? inputDefaults[name] : inputs[name]
     const args = call.args || []
     // v4's type rides NAMED or as the THIRD positional argument (`input(close, "Src", input.source)`)
     const typeArg = args.find((a) => a && a.name === 'type') || args.filter((a) => a && !a.name)[2]
@@ -1675,15 +1684,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // default is a string): the member's text replaces the default node (`runtimeBuildInputs`)
     const stringDefault = !!dv && dv.type === 'string' && !legacy
       && (call.name === 'input' || call.name === 'input.string' || call.name === 'input.symbol')
-    const kind = call.name === 'input.color' || legacy === 'input.color' || colourDefault ? 'color'
-      : call.name === 'input.source' || legacy === 'input.source' ? 'source'
-        : stringDefault ? 'string' : null
+    const kind = timeframeCall ? 'timeframe'
+      : call.name === 'input.color' || legacy === 'input.color' || colourDefault ? 'color'
+        : call.name === 'input.source' || legacy === 'input.source' ? 'source'
+          : stringDefault ? 'string' : null
     if (!kind) {
       throw new RuntimeRefusal('runtime:statement',
         '`' + name + '` was given a colour or a source, and it is not a colour or source input', at)
     }
     let node
-    if (kind === 'string') {
+    if (kind === 'timeframe') {
+      // the ONE reader of timeframe text (`runtimeInputs.js::isTimeframeText`, the settings' own): whether this
+      // chart serves the timeframe is the request supply's question, asked per chart, and refused there by name
+      if (!isTimeframeText(given)) {
+        throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given ' + JSON.stringify(given)
+          + ', which is not a timeframe written as text (as TradingView writes one: 60, 1D, 1W, 1M)', at)
+      }
+      // ⛔ a value MOVED off the author's default is drawn only on recorded evidence (`movedTimeframeServed`);
+      // the author's own default handed back is no move at all
+      const moved = !(dv && dv.type === 'string' && dv.value === given)
+      if (moved && !movedTimeframeServed()) throw new RuntimeRefusal('runtime:statement', movedTimeframeRefusal(name, given), at)
+      node = { type: 'string', value: given }
+    } else if (kind === 'string') {
       if (typeof given !== 'string') throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a value that is not text', at)
       node = { type: 'string', value: given }
     } else if (kind === 'color') {
