@@ -21,7 +21,10 @@ on `feat/admit-obj-linefill` (both append to `evidence-ledger.jsonl`). No engine
   argument draws the same picture and the capture witnesses nothing about it"). Admitting `request-other` on it
   would serve every higher-timeframe read the runtime lane draws on evidence that never measured one.
 - **Capture rows sent to patrick-54** (section 5): PA ZigZag at `Alt Timeframe` = 1W and 1M on NYSE:RDDT 1D
-  and AMEX:SPY 1D. The runtime lane draws those settings today (measured at 73 and 74).
+  and AMEX:SPY 1D. The runtime lane draws the script with those timeframes written as the input's DEFAULT
+  (measured at 73 and 74), but not as a member's moved setting: the four captures grade INCONCLUSIVE because the
+  door folds `input.timeframe` to a constant (section 5). That is an engine unit (settings parity for timeframe
+  inputs), not a capture.
 - **Served to members: 275 / 679 before and after** (no registry change). With the row it would be 276.
 
 ## 2. What `request-other` covers
@@ -83,6 +86,14 @@ every other setting at its default:
 | Q-RO-1b | AMEX:SPY 1D | Use Alt Timeframe? = on; Alt Timeframe = 1W |
 | Q-RO-2a | NYSE:RDDT 1D | Use Alt Timeframe? = on; Alt Timeframe = 1M |
 | Q-RO-2b | AMEX:SPY 1D | Use Alt Timeframe? = on; Alt Timeframe = 1M |
+
+**Taken and graded the same day (patrick-54, run `rozz-2026-11-18`, local; packet sha256 `61a1e407…`): 4 / 4
+INCONCLUSIVE on both lanes, and the gap is ours.** The member door folds `tf = input.timeframe('1D', 'Alt
+Timeframe')` to a constant: the document's settings are only colours and widths (its `paramManifest` is empty),
+so the harness reads "Alt Timeframe (tf) was moved and is not a setting of our document". The variant measured in
+section 1 changed the DEFAULT in the source, which the door does fold; a member's moved setting it does not carry.
+The engine unit this asks for is settings parity for `input.timeframe` (a coordinator follow-up, after e75); the
+four captures re-grade as they are once it lands.
 
 Not requested: fair-value-gap at `MTF Timeframe` = W or M is refused on our side (`runtime:unbound`, host
 `pine:object-removal-lost`), so its capture would grade INCONCLUSIVE. With the PA ZigZag rows graded MATCH, one
