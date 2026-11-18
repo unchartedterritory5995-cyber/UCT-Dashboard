@@ -856,13 +856,16 @@ def _limit(raw: Any) -> int:
 
 def held_market(rank: Any = None, limit: Any = None) -> tuple[Optional[dict], str]:
     """READ ONLY: one ranked answer from the list this module already holds, as `(answer, how)`.
-    It never starts a build or a check. how: 'held' | 'not_held' | 'refused' (not a rank)."""
+    It never starts a build or a check. how: 'held' | 'not_held' | 'refused' (not a rank).
+    With no list held, the answer is None, or what the last build said while that still stands
+    (`unavailable` or `failed`, with its reason: the answer `get_market` gives without starting
+    another build), so a caller can tell "refused by the data plan" from "never read"."""
     key = norm_rank(rank)
     if key is None:
         return {"status": "bad_rank", "ranks": list(RANKS)}, "refused"
     held = _held_market()
     if held is None:
-        return None, "not_held"
+        return _market_block(), "not_held"
     with _lock:
         check = _market["check"]
     return rank_market(held, key, _limit(limit), check=check), "held"

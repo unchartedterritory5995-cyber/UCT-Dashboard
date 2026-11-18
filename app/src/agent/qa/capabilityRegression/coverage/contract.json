@@ -2489,6 +2489,32 @@
    ],
    "fast": false
   },
+  "stock.shortInterest": {
+   "domain": "stock",
+   "group": "shortInterest",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.shortList": {
+   "domain": "stock",
+   "group": "shortInterest",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.themeRotation": {
    "domain": "stock",
    "group": "data",
