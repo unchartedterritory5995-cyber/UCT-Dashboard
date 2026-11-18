@@ -863,6 +863,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "3.14159 / 10) * cos(1.414 * 3.14159 / 10), c3 is -(exp(-1.414 * 3.14159 / 10) * exp(-1.414 "
     "* 3.14159 / 10)), c1 is 1 - c2 - c3. A CHAIN: each update reads its OWN state only as a "
     "plain-number multiple under 1 (a clamp by max or min around it is fine) and EARLIER states "
+    "through arithmetic and ONE-BAR functions only (max, min, abs, ln, exp, sqrt). A running value "
+    "has one bar of its past, not a history: NEVER put a state inside a function that reads a "
+    "window of bars (lowest, highest, an average, a sum, a standard deviation) and never give it a "
+    "bar offset. An indicator that needs the highest or lowest of a running value over a window "
+    "cannot be written: say so and offer the part that can. Within those limits, read earlier states "
     "any way at all. Where the price sits in its 10-bar range (x, from 0 to 1), smoothed, "
     "stretched with a log and smoothed again: accum2(2, 300, 0, 0, v, 0.5 * ln((1 + v) / (1 - v)) + 0.5 * state2) with "
     "v written out both times as max(-0.999, min(0.999, 0.66 * (x - 0.5) + 0.67 * state1)). A "
@@ -2455,7 +2460,8 @@ def _offered_calls_as_plain(tree: Any, declared: Any) -> Any:
 # Opened by ruling for the two shapes whose starting point PROVABLY stops mattering inside the
 # window (`api/services/running_values.py`, where the rule and its measurements are):
 #   * LINEAR: every update a plain-number mix of the values. The bound is the coupled system's.
-#   * CASCADE: each value reads itself as a plain-number multiple under 1, and earlier ones freely.
+#   * CASCADE: each value reads itself as a plain-number multiple under 1, and earlier ones through
+#     arithmetic and one-bar functions (the engine carries one bar of each, not a history).
 # Everything else that reads a previous value (a ratchet, a count, a switch across several values)
 # is PATH-DEPENDENT and stays refused BY NAME: there a restart `warmup` bars back is a different
 # indicator from the same formula run from the first bar, and no sentence makes that right.
@@ -2487,6 +2493,17 @@ def _refuse_unsettled_running_values(where: str, node: Mapping[str, Any], inputs
             f"{name}(which value to draw, warmup, the starting values, then the updates), the first two plain "
             "whole numbers, and `state1`.. exist only inside the updates.",
             member="its running values were not written in a form UCT can check")
+    if shape == running_values.UNREADABLE:
+        raise _Refused(
+            RUNNING_VALUE_GATE,
+            f"{where}: the engine cannot compute this {name}: {why}. A running value carries ONE bar of its past, "
+            "so it is read through arithmetic and one-bar functions (max, min, abs, ln, exp, sqrt), never inside a "
+            "function that reads a window of bars (lowest, highest, an average, a sum) and never with a bar offset. "
+            "Take the window of something that reads no running value; if the indicator needs the highest, lowest or "
+            "average OF a running value, it cannot be built here: say so (disposition unsupported) and offer the part "
+            "that can.",
+            member="it needs the highest, lowest or average of a running value over a window, which a running value "
+                   "cannot give")
     if shape == running_values.PATH:
         as_numbers = (running_values.classify(_inputs_as_constants(node, inputs), RUNNING_VALUE_SETTLED,
                                               RUNNING_VALUE_WINDOW_CAP)["shape"] if inputs else shape)
@@ -2503,7 +2520,7 @@ def _refuse_unsettled_running_values(where: str, node: Mapping[str, Any], inputs
             f"{where}: this {name} never settles: {why}. Several running values are available ONLY as a "
             "filter (every update a sum of plain-number multiples of state1.. plus terms that read no state) "
             "or as a chain (each update reads its own state only as a plain-number multiple under 1, and "
-            "earlier states freely). A ratchet, a count or a switch across several running values is "
+            "earlier states through arithmetic and one-bar functions). A ratchet, a count or a switch across several running values is "
             "unsupported: say so (disposition unsupported) and offer the nearest thing ONE running value "
             "(accum with `self`) can do.",
             member="it needs several running values that depend on each other in a way that never settles "
@@ -3874,10 +3891,14 @@ CONVERSE_ADMIN_CAP_ENV = "CONVERSE_ADMIN_CAP_DAILY"
 ADMIN_CAP_DEFAULT_USD: float = 10.0
 
 
-def _env_usd(name: str) -> Optional[float]:
+def _env_usd(name: str, raw: Optional[str]) -> Optional[float]:
     """A finite, non-negative dollar amount from the environment, or None (unset
-    or unreadable -- logged, never raised, never treated as unlimited)."""
-    raw = os.environ.get(name)
+    or unreadable -- logged, never raised, never treated as unlimited).
+
+    The CALLER reads the variable and hands the text in: `os.environ.get(<its own constant>)` at
+    the call site is a read the flags ledger's scan can see (`feature_flag_index`), where a read
+    through this function's parameter was invisible to it, and the two allowances had no ledger
+    row to say what production holds (found 2026-11-18, the day one was changed)."""
     if raw is None or not raw.strip():
         return None
     try:
@@ -3909,12 +3930,12 @@ def allowance_left(user_id: Any, cap_usd: float, market_date: Optional[str] = No
 
 def conversation_cap_usd(*, admin: bool = False) -> float:
     """The daily $ cap ``converse`` compares the member's ledger against."""
-    member = _env_usd(CONVERSE_USER_CAP_ENV)
+    member = _env_usd(CONVERSE_USER_CAP_ENV, os.environ.get(CONVERSE_USER_CAP_ENV))
     if member is None:
         member = dc._user_cap_usd()
     if not admin:
         return member
-    admin_cap = _env_usd(CONVERSE_ADMIN_CAP_ENV)
+    admin_cap = _env_usd(CONVERSE_ADMIN_CAP_ENV, os.environ.get(CONVERSE_ADMIN_CAP_ENV))
     if admin_cap is None:
         admin_cap = ADMIN_CAP_DEFAULT_USD
     return max(member, admin_cap)

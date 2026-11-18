@@ -256,3 +256,82 @@ def test_a_cascade_too_long_for_the_window_has_no_bound():
     slow = [op("*", num(0.995), S1), op("+", call("abs", S1), op("*", num(0.995), S2))]
     got = rv.classify(accum(2, slow), SETTLED, cap=960)
     assert got["shape"] == rv.CASCADE and got["needs"] is None and "more than the 960 allowed" in got["why"]
+
+
+# ═══ the engine is the authority: what it will not compute, the rule does not accept ══════════
+
+def _second_stage(reads_first):
+    """Two running values: a smoothed close, and a smoothing of `reads_first` (something of the first)."""
+    first = op("+", op("*", num(0.5), X), op("*", num(0.5), S1))
+    second = op("+", op("*", num(0.5), reads_first), op("*", num(0.5), S2))
+    return accum(2, [first, second], seeds=[X, X], output=2)
+
+
+ENGINE_REFUSES = {
+    # ⚰️ the answer found live, 2026-11-18: the second stage took the lowest of the first over 10 bars
+    "the lowest of a running value over a window": (_second_stage(call("lowest", S1, num(10))), "lowest"),
+    "the highest of a formula that reads one": (_second_stage(call("highest", op("-", X, S1), num(10))), "highest"),
+    "an average of a running value": (_second_stage(call("sma", S1, num(5))), "sma"),
+    "a running value read one bar further back": (_second_stage({"type": "offset", "value": 1, "args": [S1]}), "bar offset"),
+    "a running value inside another running value": (
+        _second_stage(call("accum", X, op("+", S("self"), S1), num(50))), "nested accum"),
+}
+ENGINE_COMPUTES = {
+    "an earlier value through arithmetic": _second_stage(op("*", num(2), S1)),
+    "an earlier value through one-bar functions": _second_stage(call("max", num(0), call("abs", op("-", X, S1)))),
+    "an earlier value through a log": _second_stage(call("ln", op("+", num(1), call("abs", S1)))),
+    "a window of something that reads NO running value": _second_stage(call("lowest", X, num(10))),
+    "the two-pole filter": super_smoother(),
+    "the four Laguerre stages": laguerre(),
+    "the Fisher-style chain": fisher(),
+}
+
+
+def _engine(tree):
+    """Does the server's own engine compute this tree? (True, or the reason it refuses.)"""
+    from api.services import ast_interpret
+    from tests.test_house_indicators_values import _walk
+    try:
+        ast_interpret.interpret(tree, _walk(11, n=420))
+        return True
+    except ast_interpret.TableRefusal as refusal:
+        return str(refusal)
+
+
+@pytest.mark.parametrize("what", sorted(ENGINE_REFUSES))
+def test_the_door_refuses_what_the_engine_refuses(what):
+    """A running value carries ONE bar of its past. The rule here used to call each of these a chain
+    ("earlier states, any way at all"), so the door accepted an answer the browser then refused."""
+    tree, names = ENGINE_REFUSES[what]
+    said = _engine(tree)
+    assert said is not True and "a running value" in said, (what, said)       # the engine refuses it, by name
+    got = rv.classify(tree)
+    assert got["shape"] == rv.UNREADABLE and got["needs"] is None, (what, got)
+    assert got["why"].startswith("in update 2, a running value sits ") and names in got["why"], got["why"]
+
+
+@pytest.mark.parametrize("what", sorted(ENGINE_COMPUTES))
+def test_CONTROL_what_the_engine_computes_is_not_called_unreadable(what):
+    tree = ENGINE_COMPUTES[what]
+    assert _engine(tree) is True, what
+    assert rv.classify(tree)["shape"] in (rv.LINEAR, rv.CASCADE), (what, rv.classify(tree))
+    for update in rv.parts(tree)["updates"]:
+        assert rv.engine_objection(update, rv.parts(tree)["k"]) is None
+
+
+def test_the_objection_is_the_engines_own_predicates_not_a_second_list():
+    """`engine_objection` asks `ast_interpret` which functions read one bar. A function added to
+    the engine's one-bar set is accepted here with no change, and one that is not is refused."""
+    from api.services import ast_interpret as engine
+    one_bar = sorted(name for name in ("max", "min", "abs", "ln", "exp", "sqrt", "sign", "floor")
+                     if engine.is_pointwise(engine._fn_spec(name)))
+    assert len(one_bar) >= 6
+    for name in one_bar:
+        inner = call(name, S1, num(2)) if name in ("max", "min") else call(name, S1)
+        assert rv.engine_objection(op("+", inner, S2), 2) is None, name
+    for name in ("lowest", "highest", "sma", "ema", "sum", "stdev"):
+        assert not engine.is_pointwise(engine._fn_spec(name)), name
+        assert name in rv.engine_objection(op("+", call(name, S1, num(5)), S2), 2), name
+    # a formula that reads NO running value is never walked into
+    assert rv.engine_objection(call("lowest", X, num(10)), 2) is None
+
