@@ -305,6 +305,14 @@ ROUTES = {
     ("POST", "/api/user-definitions"): "own",
     ("POST", "/api/user-definitions/propose"): "none",
     ("POST", "/api/user-definitions/converse"): "none",
+    # 2026-11-17 (8a3a2e04ea, Settings shows what Create Indicator remembers): the CALLER's own
+    # Create Indicator memory (`indicator_memory.Memory(user["id"])`, the session id only, never
+    # one from the request), behind require_paid + require_admin_dark_rollout. Each answers
+    # `definition_conversation.memory_view` -- remembered question/choice pairs -- and never reads
+    # or returns a stored definition, so none of the three can carry an author's script.
+    ("GET", "/api/user-definitions/assistant-memory"): "none",
+    ("PUT", "/api/user-definitions/assistant-memory"): "none",
+    ("DELETE", "/api/user-definitions/assistant-memory"): "none",
     ("GET", "/api/user-definitions/library"): "cross",
     # 2026-11-16 (library moderation, f424543581): UCT takes a library entry down or lifts that.
     # Admin only in the body; `svc.take_down` answers {token, taken_down, reason} and never reads
