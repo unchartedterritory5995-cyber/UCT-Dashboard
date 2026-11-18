@@ -114,6 +114,13 @@ const COOLDOWN_MAX_KEYS = 400
  *  the server like any key the cache does not hold. */
 const NOTHING_HYDRATED = null
 const nothingHydrated = () => NOTHING_HYDRATED
+/** TERM-033: what a neighbor hold's deep window resolves to when the store's `scrollBack` THREW
+ *  (`createNeighborHold` → `deepen`). "This window did not arrive", never "nothing older": it ends
+ *  that ROW's deepening for now (the chart's own loader asks again when the member lands on it),
+ *  and the hold goes on to the next row. Shaped like a refused window (`ok: false`) so the one
+ *  stop rule there reads it; `failed` says which kind of stop it was. */
+const DEEP_WINDOW_FAILED = Object.freeze({ ok: false, failed: true, added: 0 })
+const deepWindowFailed = () => DEEP_WINDOW_FAILED
 
 /** Re-ask cooldown of a key the server already answered (see header). */
 export function cooldownMs(tf) {
@@ -676,7 +683,7 @@ export function createPrefetch(o = {}) {
             const joined = await Promise.resolve().then(() => S().lakeSeed?.(k)).catch(() => false)
             if (joined) break
           }
-          const res = await Promise.resolve().then(() => S().scrollBack(k, { priority: 'grid' })).catch(() => null)
+          const res = await Promise.resolve().then(() => S().scrollBack(k, { priority: 'grid' })).catch(deepWindowFailed)
           // Nothing older, refused at the seam, still filling or failed: this row is done for now
           // (the chart's own loader retries a filling window when the member lands on it).
           if (!res?.ok || !(res.added > 0) || res.filling) break
