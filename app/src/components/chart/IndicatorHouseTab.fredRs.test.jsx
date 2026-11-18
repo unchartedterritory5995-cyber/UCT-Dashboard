@@ -148,6 +148,20 @@ describe('the copy, built by the real Create Indicator builder', () => {
     expect(await ownScriptCopyId(FRED, mine, [mine], async () => null)).toBeNull()
   })
 
+  it('the cap cuts the WEAKEST guesses: six reads-only candidates listed first never crowd out the true copy', async () => {
+    const real = { ...(await buildPineCopy(FRED, 'u_aaaaaaaaaaaa')).doc }
+    // six other script documents that read the same symbols (SPX, the seed) but are different scripts
+    const readsOnly = Array.from({ length: PINE_PROBE_MAX + 1 }, (_, i) => ({
+      ...real, id: `u_${String(i).padStart(12, '0')}`,
+      compute: { ...real.compute, fn: `sha256:other${i}`, treesHash: `sha256:othertrees${i}` },
+      meta: { ...real.meta, name: `Another SPX script ${i}` },
+    }))
+    const asked = []
+    const fetchScript = async (id) => { asked.push(id); return id === 'u_aaaaaaaaaaaa' ? FRED.pine : 'other script' }
+    expect(await ownScriptCopyId(FRED, real, [...readsOnly, real], fetchScript)).toBe('u_aaaaaaaaaaaa')
+    expect(asked[0]).toBe('u_aaaaaaaaaaaa') // the same-maths copy is asked about first
+  })
+
   it("one press asks the store about at most PINE_PROBE_MAX of the member's documents, and only script documents", async () => {
     const mine = (await buildPineCopy(FRED, 'u_aaaaaaaaaaaa')).doc
     const many = Array.from({ length: PINE_PROBE_MAX + 4 }, (_, i) => ({ ...mine, id: `u_${String(i).padStart(12, '0')}` }))

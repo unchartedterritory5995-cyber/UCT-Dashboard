@@ -7,6 +7,8 @@
    thing is at least `--tap-min` tall, because this file exists for touch. */
 
 .insAddGroup { display: flex; flex-direction: column; gap: 8px; }
+/* the UCT set's heading when its matches stand under a search across every list (`IndicatorHouseTab` searchOnly) */
+.insSectionLabel { font-size: 11.5px; font-weight: 600; color: var(--text-muted, #a9a59b); padding: 10px 2px 2px; }
 .resRefusedLede { margin: 0; padding: 0 2px; font-size: 12px; line-height: 1.45; color: var(--text-muted, #a9a59b); }
 .resList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .resRow {
