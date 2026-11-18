@@ -584,8 +584,11 @@ def test_a_parameters_range_is_its_validity_range_and_nothing_tighter():
                 assert (e["id"], p["key"], p["min"]) == ("ease_of_movement", "divisor", 1)
             else:
                 floats[(e["id"], p["key"])] = (p["min"], p["max"])
+    # (the Laguerre pair's gamma is a share each stage keeps: above 0, and at most the largest
+    # gamma whose filter settles within the bars a chart formula may reach)
     assert floats == {("squeeze_momentum", "bb_mult"): (0.001, 50), ("squeeze_momentum", "kc_mult"): (0.001, 1000),
-                      ("chandelier_exit", "multiplier"): (0.001, 1000)}
+                      ("chandelier_exit", "multiplier"): (0.001, 1000),
+                      ("laguerre_filter", "gamma"): (0.01, 0.95), ("laguerre_rsi", "gamma"): (0.01, 0.95)}
     # so a long length is still the checked indicator (it was refused over 400)
     kama = ENTRIES["kaufman_adaptive_moving_average"]
     tree = create("kaufman_adaptive_moving_average", {"slow": 1200})["outputs"][0]["tree"]
