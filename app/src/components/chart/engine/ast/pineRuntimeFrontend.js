@@ -7874,16 +7874,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⛔ the BOTTOM must always be proved: a negative offset has no answer this lane owes
     if (!r || !Number.isFinite(r.lo) || r.lo < 0) throw refusal
     let depth = Number.isFinite(r.hi) ? Math.ceil(r.hi) : Infinity
-    // ⭐⭐ L4b — NO PROVED TOP (or one past Pine's ceiling): a DECLARED buffer sizes the
-    // ring (`declaredBufferOf`), and a read past it stops the run in the VM (`mbbDyn`'s
-    // limit, or the 5,000 ceiling), never `na`. No declaration: the refusal stands.
+    // ⭐⭐ L4b — NO PROVED TOP (or one past Pine's ceiling): a DECLARATION admits the read
+    // (`declaredBufferOf`); no declaration, the refusal stands. ⭐ (2026-11-18, M2 / Q-MBB,
+    // captured) TradingView answers past a declared buffer, so the ring is Pine's 5,000, never
+    // the declared number: the VM's ceiling stops a read past it before the ring could be
+    // overrun. ⛔ NOT the chart's length: a build is reused over a chart that grows (a live
+    // tail, and a 600-bar first paint backfilled to thousands), and a ring sized at build would
+    // be overrun there (the engine agent's trap A). 5,000 cells are 40 KB; the HISTORY_VALUES
+    // budget still refuses, by name, a script with more such rings than it holds (~52).
     if (depth > MAX_DYNAMIC_HISTORY_DEPTH) {
       const declared = declaredBufferOf(varSlot)
       if (declared === null) throw refusal
-      depth = declared
+      depth = MAX_BARS_BACK_CEILING
     }
-    // a read past a declared `max_bars_back` stops before it reaches the ring's end
-    if (MBB_DECLARED) depth = Math.min(depth, MBB_DECLARED)
     if (depth === 0) return read(varSlot)
     const h = owner !== null
       ? fnHistorySlotFor(owner, varSlot, depth, at)
@@ -9421,7 +9424,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
           return histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, hb, offAt), hb)
         }
         const offExpr = node.n && typeof node.n === 'object' ? node.n.expr : null
-        if (offExpr && (needsRuntime(offExpr, scope) || mbbDynamicColumn(node, scope))) {
+        // ⭐⭐ (2026-11-18, WS-C Q1 M2 / M3 + Q-MBB, captured) — AN OFFSET THAT DOES NOT FOLD IS READ BAR BY BAR,
+        // DECLARATION OR NOT. It took this path only under a declared `max_bars_back` (`mbbDynamicColumn`), so the
+        // declared STOP could run; TradingView answers the real history there (and with no declaration, M3), so the
+        // routing no longer hangs on a declaration (the engine agent's trap B: with none, a chart of 5,000 bars or
+        // fewer refused "counts backwards" while the declared spelling built). An offset that FOLDS keeps the
+        // constant path below, and its refusal when it folds to no whole number.
+        let offConst = null
+        if (offExpr) { try { offConst = constValueOf(offExpr, scope) } catch { offConst = null } }
+        const offFolds = !!(offConst && offConst.value !== undefined)
+        if (offExpr && (needsRuntime(offExpr, scope) || !offFolds || mbbDynamicColumn(node, scope))) {
           // RT5: a run-time offset into a COLUMN reads that column's own history;
           // only `bar_index` changes meaning inside a function body (S02, B01).
           if (owner !== null && node.arg && node.arg.type === 'name' && node.arg.name === 'bar_index') {
@@ -11035,7 +11047,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // and the VM's stop never ran; lowered piecewise, the offset reaches the
   // `offset` case (`histDyn` + `mbbDyn`), whose read stops the run there.
   const mbbDynamicColumn = (node, scope) => {
-    if (!MBB_DECLARED && !(Array.isArray(bars) && bars.length > MBB_LIMIT)) return false
+    // (2026-11-18, M2 / Q-MBB) a declared buffer no longer stops a dynamic read, so only a chart longer than
+    // Pine's ceiling sends such a subtree piecewise (where the VM's 5,000 stop runs)
+    if (!(Array.isArray(bars) && bars.length > MAX_BARS_BACK_CEILING)) return false
     const walk = (n, d = 0) => {
       if (!n || typeof n !== 'object' || d > 64) return false
       if (Array.isArray(n)) return n.some((x) => walk(x, d + 1))
@@ -11057,8 +11071,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     return walk(node)
   }
-  // Only a DECLARED buffer rides the node; the ceiling is the VM's own constant.
-  const mbbDyn = (h) => (MBB_DECLARED ? { ...h, limit: MBB_DECLARED } : h)
+  // ⭐⭐ (2026-11-18, WS-C Q1 M2 + Q-MBB-1 / Q-MBB-2, captured) — A DECLARED `max_bars_back` DOES NOT STOP A DYNAMIC
+  // READ. TradingView answered the REAL history past a declared buffer on every bar: `max_bars_back = 20` with an
+  // offset of 25 (M2, SPY 1D, 8,508 bars), `= 50` with offsets to 119 from bar 0 and from bar 300 (close, ta.ema, a
+  // request.seed series; RDDT and SPY 1D), and Fred RS's seed loop past its declared 253 on a 5m chart (delta 423,
+  // labels drawn). So no declared limit rides the node any more: the VM's own 5,000 ceiling is the only stop
+  // (a dynamic read past 5,000 is not witnessed and keeps stopping).
+  const mbbDyn = (h) => h
 
   // ─── ⭐⭐ RT6 — A ROW'S PER-BAR COLOUR, COMPUTED BY THE SAME RUN ─────────────
   //
