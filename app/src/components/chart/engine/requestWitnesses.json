@@ -6,7 +6,8 @@
       "store": "SPX",
       "timeframes": [
         "D",
-        "W"
+        "W",
+        "M"
       ],
       "queue_row": "Q-RS3",
       "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
@@ -27,6 +28,18 @@
           "witness": "rs-spx-daily-w-rddt-1w-2026-11-17, rs-rating-fred6724-w-rddt-1w-2026-11-17, rs-rating-fred6724-w-nvda-1w-2026-11-17 (rs-weekly-2026-11-17 batch, local; Q-RS7)",
           "captured": "2026-11-17",
           "how": "TradingView on NYSE:RDDT 1W (140 bars) and NASDAQ:NVDA 1W (1453 bars), newest week forming. R1, `timeframe.period` (X05; the RS line): EVERY settled week reads the PREVIOUS week's last daily SPX close (week of 2026-11-09 reads 2026-11-06's 7376.86; 2026-11-02 reads 2026-10-30's 7580.07): 139/139 RDDT weeks against FMP ^GSPC daily (max relative difference 0) and 138/138 against TradingView's own daily SP:SPX (from the committed rs-spx-daily-pm-rddt-1d-2026-11-16), holiday weeks included (Good Friday 2025-04-18 and 2026-04-03, 2026-07-03, every Monday holiday); RS Rating's RS line on RDDT 1W is exact on all 139 settled weeks with it (`previous-week`). R2, \"D\" (X01..X04): every settled week reads the previous-session-aligned daily bar at the week's LAST session (its Thursday in a full week: 2026-11-12's 7592.40 for the week of 2026-11-09; Wednesday in a Good Friday week), open/high/low/close all equal, 139/139 (`week-last-row` over the row's `previous-session` read). The SPX weekly store (`/api/bars/SPX?tf=W`, Monday keys, ten years of yfinance) is not used: the daily rows are fetched and held. ⛔ NOT WITNESSED, and served as the fold builds them: the weekly open/high/low at `timeframe.period` (only the close, X05, is captured). ⏳ The FORMING week reads the latest SPX value on TradingView (7340.53 on 2026-11-17, both reads); here it reads the previous week's close (R1) and the newest placed daily row (R2): the one known difference, owed to an in-session capture (PR 2)."
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "previous-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-RS-M",
+          "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+          "witness": "rs-spx-daily-m-rddt-1m-2026-11-18, rs-rating-fred6724-m-rddt-1m-2026-11-18, rs-rating-fred6724-m-nvda-1m-2026-11-18 (rs-monthly-2026-11-18c batch, local; Q-RS-M)",
+          "captured": "2026-11-18",
+          "how": "TradingView on NYSE:RDDT 1M (33 months from 2024-03-01, the listing month) and NASDAQ:NVDA 1M (335 months from 1999-01), newest month forming, captured pre-market 2026-11-18T13:0xZ (a fresh load). R1, `timeframe.period` (X05; the RS line): EVERY settled month reads the PREVIOUS month's last daily SPX close (October 2026 reads 2026-09-30's 7651.54; November reads 2026-10-30's 7580.07): 32/32 RDDT months against our FMP ^GSPC daily (max relative difference 0), and RS Rating's RS line equals close / that close x 3360 on all 33 RDDT months (`previous-month`); NVDA's 335 the same apart from the accepted pre-2023-12-05 S&P 500 history (Q-RS9). R2, \"D\" (X01..X04): every settled month reads the previous-session-aligned daily bar at the month's LAST session (the close of its penultimate session: 2026-10-29's 7720.39 for October), open/high/low/close all equal, 32/32 (`month-last-row` over the row's `previous-session` read). The FORMING month reads 7340.53, the newest SPX close (2026-11-17), which `previous-session` places on its NEXT session (2026-11-18), inside November: the newest row is read by the forming period's last-row sample (`otherSymbols.js::belowChartSeriesOf`), as on NYSE:RDDT 1W after the close (2026-11-17T21:18Z, X04 7340.53). R3 (this chart's own symbol at \"D\", a bare `close`): TradingView's monthly close is its month's last daily close on 32/32 settled RDDT months (the 1M capture against the committed rs-spx-daily-pm-rddt-1d-2026-11-16 daily bars). ⏳ The forming month's R1 on a chart that has ticked since it loaded (in session) reads its own month's latest close (PR 2's rule, `newestOwnPeriodOf`); this pre-market fresh load read the previous month, as PR 2 serves it."
         }
       }
     },
@@ -35,7 +48,8 @@
       "store": "SEED_FRED6725_RS_RATING:RSRATING",
       "timeframes": [
         "D",
-        "W"
+        "W",
+        "M"
       ],
       "queue_row": "Q-RS2",
       "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
@@ -55,6 +69,17 @@
           "witness": "rs-seed-rsrating-w-rddt-1w-2026-11-17 (rs-weekly-2026-11-17 batch, local; Q-RS7)",
           "captured": "2026-11-17",
           "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 1W (140 bars, captured 2026-11-17T21:18Z): each week reads the row dated its FIRST calendar day (Monday): the week of 2026-11-09 reads 39.88 (the 2026-11-09 row) although 2026-11-12..15 hold 12.98; the week of 2026-11-16 reads 12.98; the week of 2026-10-12, whose Monday has no row (the series begins 2026-10-13), reads na where the first row of the week would have been 190.9. 140/140 weeks, values and na, against pine_seed_store's replay of the rs-log upload af528c134fb9 (2026-11-17T09:39:26Z, the newest before the capture), the forming week included (`week-first-day`, the row's `same-date-gaps-na` read sampled)."
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "D": "month-first-session"
+          },
+          "queue_row": "Q-RS-M",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-m-rddt-1m-2026-11-18 (rs-monthly-2026-11-18c batch, local; Q-RS-M)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 1M (33 months, captured 2026-11-18T13:0xZ): each month reads the row dated its FIRST SESSION: November 2026 reads 75 (the 2026-11-02 row, Monday, the month's first session), not Sunday 2026-11-01's 92.81 although the seed holds calendar-day rows; October 2026 reads na, its first session 2026-10-01 having no row (the series begins 2026-10-13, 190.9); every earlier month na (`month-first-session`, the row's `same-date-gaps-na` read sampled; the session from `lib/marketClock/sessionCalendar.js`)."
         }
       }
     }

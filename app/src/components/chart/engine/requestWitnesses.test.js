@@ -137,13 +137,14 @@ describe('with the witness row injected, SP:SPX is served — aligned by session
     expect(r.refused[0].code).toBe(R.WITNESS_PENDING)
   })
 
-  it('⛔ only the witnessed timeframes: a monthly chart refuses by name', () => {
+  it('⛔ only the witnessed timeframes: an hourly chart refuses by name', () => {
+    // (⭐ RS RATING L13 witnessed the monthly chart, Q-RS-M; an intraday one is still unwitnessed, L12)
     setRequestWitnessRows(WITNESSED)
     const { def } = docOf(pine(['plot(request.security("SP:SPX", timeframe.period, close))']))
-    const r = resolveOtherSymbols(def, ctxOf({ tf: 'M' }))
+    const r = resolveOtherSymbols(def, ctxOf({ tf: '60' }))
     expect(r.served).toEqual([])
     expect(r.refused[0].code).toBe(R.WITNESS_TIMEFRAME)
-    expect(r.refused[0].reason).toMatch(/witnessed on D, W charts only \(capture-queue rows Q-RS3, Q-RS7\)/)
+    expect(r.refused[0].reason).toMatch(/witnessed on D, W, M charts only \(capture-queue rows Q-RS3, Q-RS7, Q-RS-M\)/)
   })
 
   it('⭐ RS RATING L11 — a weekly chart is served from the DAILY rows held under `SPX@D`, never from the plain key', () => {

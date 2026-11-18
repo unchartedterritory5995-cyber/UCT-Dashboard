@@ -59,7 +59,8 @@ describe('the other-symbol supply re-asks when the definitions land', () => {
   it('⭐ StockChart passes a revalidate value that moves with userDefsGeneration to both other-symbol hooks', () => {
     const SRC = STOCKCHART_SRC
     expect(SRC).toMatch(/const _otherSymbolsRevalidate = useMemo\(\(\) => \(\{ csView, userDefsGeneration \}\), \[csView, userDefsGeneration\]\)/)
-    expect(SRC).toMatch(/useSecondarySources\(\s*_storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate\)/)
+    // (⭐ RS RATING L11 PR 2 — then the chart's forming getter, railed in secondaryLiveTail.test.jsx)
+    expect(SRC).toMatch(/useSecondarySources\(\s*_storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate, _chartFormingOf\)/)
     expect(SRC).toMatch(/useOtherSymbolExchanges\(_storedInstances, _defOf, _otherSymbolsRevalidate\)/)
   })
 })
