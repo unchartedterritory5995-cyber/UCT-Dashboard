@@ -2619,6 +2619,9 @@
         "nextEarningsMarker",
         "priceAlertLines",
         "myTradeMarkers",
+        "header.colors.title",
+        "header.colors.dayChangeUp",
+        "header.colors.dayChangeDown",
         "header.statLabels",
         "header.fields",
         "header.barInfo"
@@ -5756,6 +5759,9 @@
         "nextEarningsMarker",
         "priceAlertLines",
         "myTradeMarkers",
+        "header.colors.title",
+        "header.colors.dayChangeUp",
+        "header.colors.dayChangeDown",
         "header.statLabels",
         "header.fields",
         "header.barInfo"
@@ -7213,6 +7219,9 @@
         "nextEarningsMarker",
         "priceAlertLines",
         "myTradeMarkers",
+        "header.colors.title",
+        "header.colors.dayChangeUp",
+        "header.colors.dayChangeDown",
         "header.statLabels",
         "header.fields",
         "header.barInfo"

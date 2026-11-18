@@ -13709,6 +13709,132 @@
         "members of the technology sector",
         "drill into the technology sector"
       ]
+    },
+    {
+      "id": "chart.setSetting.headerTitleColor",
+      "source": "Charts family header-colors (11-17): Chart Settings → Header & legend → Title — the dialog's own swatch (COLOR_PATHS → header.colors.title)",
+      "capabilities": [
+        "chart.setSetting"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setSetting"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setSetting",
+            "target": "$charts[0]",
+            "args": {
+              "setting": "header.colors.title",
+              "value": "orange"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "header.colors.title",
+          "value": "#f59e0b"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "make the title color orange",
+        "change the ticker title color to orange",
+        "color the chart title orange"
+      ]
+    },
+    {
+      "id": "chart.setSetting.headerDayUpColor",
+      "source": "Charts family header-colors (11-17): Chart Settings → Header & legend → Title — the dialog's own swatch (COLOR_PATHS → header.colors.dayChangeUp)",
+      "capabilities": [
+        "chart.setSetting"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setSetting"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setSetting",
+            "target": "$charts[0]",
+            "args": {
+              "setting": "header.colors.dayChangeUp",
+              "value": "teal"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "header.colors.dayChangeUp",
+          "value": "#26a69a"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "make the up-day color teal",
+        "set the day change up color to teal",
+        "show up days in teal in the header"
+      ]
+    },
+    {
+      "id": "chart.setSetting.headerDayDownColor",
+      "source": "Charts family header-colors (11-17): Chart Settings → Header & legend → Title — the dialog's own swatch (COLOR_PATHS → header.colors.dayChangeDown)",
+      "capabilities": [
+        "chart.setSetting"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chart.setSetting"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chart.setSetting",
+            "target": "$charts[0]",
+            "args": {
+              "setting": "header.colors.dayChangeDown",
+              "value": "#3366ff"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "header.colors.dayChangeDown",
+          "value": "#3366ff"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "make the down-day color #3366ff",
+        "set the day change down color to #3366ff",
+        "show down days in #3366ff in the header"
+      ]
     }
   ],
   "refusals": [
