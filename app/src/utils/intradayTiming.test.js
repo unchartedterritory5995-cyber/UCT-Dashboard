@@ -23,10 +23,12 @@ describe('expectedLatestCompletedBar', () => {
     expect(etLabel(expectedFormingBar('5', T))).toBe('13:15')
   })
 
-  it('tf=60 is SESSION-ANCHORED, matching the server bucketer', () => {
-    expect(etLabel(expectedLatestCompletedBar('60', T))).toBe('12:00')
-    // …and the opening hour anchors at 09:30, not 09:00.
-    expect(etLabel(expectedLatestCompletedBar('60', at('2026-09-15T14:05:00Z')))).toBe('09:30')
+  it('tf=60 is SESSION-ANCHORED (TradingView 09:30, 10:30 …), matching the server bucketer', () => {
+    // 13:17 ET: 12:30-13:30 is forming, so 11:30 is the last completed hour.
+    expect(etLabel(expectedLatestCompletedBar('60', T))).toBe('11:30')
+    // …and the opening hour is 09:30-10:30: nothing has completed at 10:05, it has at 10:35.
+    expect(expectedLatestCompletedBar('60', at('2026-09-15T14:05:00Z'))).toBeNull()
+    expect(etLabel(expectedLatestCompletedBar('60', at('2026-09-15T14:35:00Z')))).toBe('09:30')
   })
 
   it.each([['1', '13:16'], ['15', '13:00'], ['30', '12:30']])('tf=%s → %s', (tf, want) => {

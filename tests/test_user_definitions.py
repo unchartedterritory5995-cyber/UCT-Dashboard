@@ -1347,7 +1347,9 @@ def test_the_user_namespace_cannot_collide_with_a_SHIPPED_definition(js):
 #: verified before this moved; the other two sites moved with it.
 #: 2026-11-01 (saved-script auto-upgrade, pre-bump): 19 -> 20 — `POST /{def_id}/engine-status`,
 #: a newer engine's verdict on the caller's OWN live version. Its OWN `require_paid` verified.
-EXPECTED_ROUTE_COUNT = 20
+#: 2026-11-13 (WS-I Part 2, admission by capability): 20 -> 21 -- `POST /runtime-admission`,
+#: a verdict about a script the caller sends (stores nothing). Its OWN `require_paid` verified.
+EXPECTED_ROUTE_COUNT = 28  # 2026-11-18 (what Create Indicator remembers): 25 -> 28 with `GET`/`PUT`/`DELETE /assistant-memory` (each its OWN require_paid, verified); 2026-11-17 (Studio R4): 24 -> 25 with `POST /{def_id}/status-headline` (the owner's status headline for their live version; its OWN require_paid verified); 2026-11-16 (library moderation): 22 -> 24 with `POST` and `DELETE /library/{token}/takedown` (their OWN require_paid, then require_admin in the body); 2026-11-15 (U5): 21 -> 22 with `GET /capability-worker` (its OWN require_paid, then require_admin in the body)
 
 
 def _routes():

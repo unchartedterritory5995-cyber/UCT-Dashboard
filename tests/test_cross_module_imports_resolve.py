@@ -57,14 +57,13 @@ API = pathlib.Path(__file__).resolve().parents[1] / "api"
 #:                                          WRITE. Needs a product decision, not
 #:                                          a rename — so it is queued, not
 #:                                          guessed at here.
-#:   pattern_backtest.py x2, voice_tool_impls.py x3 — same shape, different
-#:                                          owners.
+#:   pattern_backtest.py x2 — same shape, a different owner.
 KNOWN_DEAD: set[tuple[str, str]] = {
     ("api/main.py", "all_tracked_symbols"),
     ("api/services/pattern_backtest.py", "get_bars"),
     ("api/services/pattern_backtest.py", "_ensure_pattern_detectors_loaded"),
-    ("api/services/voice_tool_impls.py", "get_recent_flow"),
-    ("api/services/voice_tool_impls.py", "get_recent_dark_pool"),
+    # ⛔ voice_tool_impls.py's two flow readers RESOLVED and their entries were
+    # deleted 2026-11-18 (rail: tests/test_voice_flow_tools.py).
     # ⛔ `get_macro_events` RESOLVED and its entry was deleted 2026-09-01.
     # A KNOWN_DEAD list that keeps a name which now imports fine is a false
     # claim about the codebase, and this rail exists to delete such claims

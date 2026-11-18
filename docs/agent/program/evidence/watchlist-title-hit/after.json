@@ -1,0 +1,499 @@
+{
+ "label": "after",
+ "base": "http://127.0.0.1:5304",
+ "at": "2026-11-10T00:22:08.018Z",
+ "presses": [
+  {
+   "name": "left-click-title-text",
+   "point": {
+    "x": 1307,
+    "y": 118,
+    "box": [
+     1275,
+     111,
+     64,
+     14
+    ]
+   },
+   "elementFromPoint": {
+    "tag": "span",
+    "guide": "watchlist.title",
+    "aria": null,
+    "title": null,
+    "cls": "pickTitleHit",
+    "text": "Momentum"
+   },
+   "dispatched": [
+    {
+     "type": "pointerdown",
+     "pointerType": "mouse",
+     "target": {
+      "tag": "span",
+      "guide": "watchlist.title",
+      "aria": null,
+      "title": null,
+      "cls": "pickTitleHit",
+      "text": "Momentum"
+     },
+     "defaultPrevented": false
+    },
+    {
+     "type": "mousedown",
+     "pointerType": null,
+     "target": {
+      "tag": "span",
+      "guide": "watchlist.title",
+      "aria": null,
+      "title": null,
+      "cls": "pickTitleHit",
+      "text": "Momentum"
+     },
+     "defaultPrevented": false
+    },
+    {
+     "type": "click",
+     "pointerType": "mouse",
+     "target": {
+      "tag": "span",
+      "guide": "watchlist.title",
+      "aria": null,
+      "title": null,
+      "cls": "pickTitleHit",
+      "text": "Momentum"
+     },
+     "defaultPrevented": false
+    }
+   ],
+   "before": {
+    "pickMode": true,
+    "picker": false,
+    "title": "Momentum",
+    "menu": null,
+    "focus": {
+     "tag": "body",
+     "guide": null,
+     "aria": null,
+     "title": null,
+     "cls": "",
+     "text": "ChartsWidgets ▾Layouts ▾Tools ▾UCT Agent"
+    }
+   },
+   "after": {
+    "pickMode": true,
+    "picker": false,
+    "title": "Momentum",
+    "menu": null,
+    "focus": {
+     "tag": "body",
+     "guide": null,
+     "aria": null,
+     "title": null,
+     "cls": "",
+     "text": "ChartsWidgets ▾Layouts ▾Tools ▾UCT Agent"
+    }
+   },
+   "screenshot": "after-left-click-title-text.png"
+  },
+  {
+   "name": "right-click-title-text",
+   "point": {
+    "x": 1307,
+    "y": 118,
+    "box": [
+     1275,
+     111,
+     64,
+     14
+    ]
+   },
+   "elementFromPoint": {
+    "tag": "span",
+    "guide": "watchlist.title",
+    "aria": null,
+    "title": null,
+    "cls": "pickTitleHit",
+    "text": "Momentum"
+   },
+   "dispatched": [
+    {
+     "type": "pointerdown",
+     "pointerType": "mouse",
+     "target": {
+      "tag": "span",
+      "guide": "watchlist.title",
+      "aria": null,
+      "title": null,
+      "cls": "pickTitleHit",
+      "text": "Momentum"
+     },
+     "defaultPrevented": false
+    },
+    {
+     "type": "mousedown",
+     "pointerType": null,
+     "target": {
+      "tag": "span",
+      "guide": "watchlist.title",
+      "aria": null,
+      "title": null,
+      "cls": "pickTitleHit",
+      "text": "Momentum"
+     },
+     "defaultPrevented": false
+    },
+    {
+     "type": "contextmenu",
+     "pointerType": "mouse",
+     "target": {
+      "tag": "span",
+      "guide": "watchlist.title",
+      "aria": null,
+      "title": null,
+      "cls": "pickTitleHit",
+      "text": "Momentum"
+     },
+     "defaultPrevented": false
+    }
+   ],
+   "before": {
+    "pickMode": true,
+    "picker": false,
+    "title": "Momentum",
+    "menu": null,
+    "focus": {
+     "tag": "body",
+     "guide": null,
+     "aria": null,
+     "title": null,
+     "cls": "",
+     "text": "ChartsWidgets ▾Layouts ▾Tools ▾UCT Agent"
+    }
+   },
+   "after": {
+    "pickMode": true,
+    "picker": false,
+    "title": "Momentum",
+    "menu": [
+     "Rename",
+     "Copy list to clipboard",
+     "Export CSV",
+     "Import tickers",
+     "Share with community",
+     "Publish to Prebuilt (UCT)"
+    ],
+    "focus": {
+     "tag": "button",
+     "guide": null,
+     "aria": null,
+     "title": null,
+     "cls": "ctxItem",
+     "text": "Rename"
+    }
+   },
+   "screenshot": "after-right-click-title-text.png"
+  },
+  {
+   "name": "long-press-title-text",
+   "point": {
+    "x": 1307,
+    "y": 118,
+    "box": [
+     1275,
+     111,
+     64,
+     14
+    ]
+   },
+   "elementFromPoint": {
+    "tag": "span",
+    "guide": "watchlist.title",
+    "aria": null,
+    "title": null,
+    "cls": "pickTitleHit",
+    "text": "Momentum"
+   },
+   "dispatched": [
+    {
+     "type": "pointerdown",
+     "pointerType": "touch",
+     "target": {
+      "tag": "span",
+      "guide": "watchlist.title",
+      "aria": null,
+      "title": null,
+      "cls": "pickTitleHit",
+      "text": "Momentum"
+     },
+     "defaultPrevented": false
+    },
+    {
+     "type": "mousedown",
+     "pointerType": null,
+     "target": {
+      "tag": "div",
+      "guide": "watchlist.rowMenu",
+      "aria": null,
+      "title": null,
+      "cls": "ctxMenu",
+      "text": "RenameCopy list to clipboardExport CSVIm"
+     },
+     "defaultPrevented": false
+    },
+    {
+     "type": "click",
+     "pointerType": "touch",
+     "target": {
+      "tag": "div",
+      "guide": "watchlist.rowMenu",
+      "aria": null,
+      "title": null,
+      "cls": "ctxMenu",
+      "text": "RenameCopy list to clipboardExport CSVIm"
+     },
+     "defaultPrevented": false
+    }
+   ],
+   "before": {
+    "pickMode": true,
+    "picker": false,
+    "title": "Momentum",
+    "menu": null,
+    "focus": {
+     "tag": "body",
+     "guide": null,
+     "aria": null,
+     "title": null,
+     "cls": "",
+     "text": "ChartsWidgets ▾Layouts ▾Tools ▾UCT Agent"
+    }
+   },
+   "after": {
+    "pickMode": true,
+    "picker": false,
+    "title": "Momentum",
+    "menu": [
+     "Rename",
+     "Copy list to clipboard",
+     "Export CSV",
+     "Import tickers",
+     "Share with community",
+     "Publish to Prebuilt (UCT)"
+    ],
+    "focus": {
+     "tag": "body",
+     "guide": null,
+     "aria": null,
+     "title": null,
+     "cls": "",
+     "text": "ChartsWidgets ▾Layouts ▾Tools ▾UCT Agent"
+    }
+   },
+   "screenshot": "after-long-press-title-text.png"
+  },
+  {
+   "name": "click-list-actions",
+   "point": {
+    "x": 1206,
+    "y": 119,
+    "box": [
+     1195,
+     110,
+     22,
+     18
+    ]
+   },
+   "elementFromPoint": {
+    "tag": "button",
+    "guide": "watchlist.listMenu",
+    "aria": "List actions",
+    "title": "List actions",
+    "cls": "wlActionBtn",
+    "text": "⋯"
+   },
+   "dispatched": [
+    {
+     "type": "pointerdown",
+     "pointerType": "mouse",
+     "target": {
+      "tag": "button",
+      "guide": "watchlist.listMenu",
+      "aria": "List actions",
+      "title": "List actions",
+      "cls": "wlActionBtn",
+      "text": "⋯"
+     },
+     "defaultPrevented": false
+    },
+    {
+     "type": "mousedown",
+     "pointerType": null,
+     "target": {
+      "tag": "button",
+      "guide": "watchlist.listMenu",
+      "aria": "List actions",
+      "title": "List actions",
+      "cls": "wlActionBtn",
+      "text": "⋯"
+     },
+     "defaultPrevented": false
+    },
+    {
+     "type": "click",
+     "pointerType": "mouse",
+     "target": {
+      "tag": "button",
+      "guide": "watchlist.listMenu",
+      "aria": "List actions",
+      "title": "List actions",
+      "cls": "wlActionBtn",
+      "text": "⋯"
+     },
+     "defaultPrevented": false
+    }
+   ],
+   "before": {
+    "pickMode": true,
+    "picker": false,
+    "title": "Momentum",
+    "menu": null,
+    "focus": {
+     "tag": "body",
+     "guide": null,
+     "aria": null,
+     "title": null,
+     "cls": "",
+     "text": "ChartsWidgets ▾Layouts ▾Tools ▾UCT Agent"
+    }
+   },
+   "after": {
+    "pickMode": true,
+    "picker": false,
+    "title": "Momentum",
+    "menu": [
+     "Rename",
+     "Copy list to clipboard",
+     "Export CSV",
+     "Import tickers",
+     "Share with community",
+     "Publish to Prebuilt (UCT)"
+    ],
+    "focus": {
+     "tag": "button",
+     "guide": null,
+     "aria": null,
+     "title": null,
+     "cls": "ctxItem",
+     "text": "Rename"
+    }
+   },
+   "screenshot": "after-click-list-actions.png"
+  },
+  {
+   "name": "click-lists",
+   "point": {
+    "x": 1161,
+    "y": 119,
+    "box": [
+     1135,
+     109,
+     52,
+     20
+    ]
+   },
+   "elementFromPoint": {
+    "tag": "button",
+    "guide": "watchlist.lists",
+    "aria": null,
+    "title": "Choose a different list",
+    "cls": "pickBackBtn",
+    "text": "‹ Lists"
+   },
+   "dispatched": [
+    {
+     "type": "pointerdown",
+     "pointerType": "mouse",
+     "target": {
+      "tag": "button",
+      "guide": "watchlist.lists",
+      "aria": null,
+      "title": "Choose a different list",
+      "cls": "pickBackBtn",
+      "text": "‹ Lists"
+     },
+     "defaultPrevented": false
+    },
+    {
+     "type": "mousedown",
+     "pointerType": null,
+     "target": {
+      "tag": "button",
+      "guide": "watchlist.lists",
+      "aria": null,
+      "title": "Choose a different list",
+      "cls": "pickBackBtn",
+      "text": "‹ Lists"
+     },
+     "defaultPrevented": false
+    },
+    {
+     "type": "click",
+     "pointerType": "mouse",
+     "target": {
+      "tag": "button",
+      "guide": "watchlist.lists",
+      "aria": null,
+      "title": "Choose a different list",
+      "cls": "pickBackBtn",
+      "text": "‹ Lists"
+     },
+     "defaultPrevented": false
+    }
+   ],
+   "before": {
+    "pickMode": true,
+    "picker": false,
+    "title": "Momentum",
+    "menu": null,
+    "focus": {
+     "tag": "body",
+     "guide": null,
+     "aria": null,
+     "title": null,
+     "cls": "",
+     "text": "ChartsWidgets ▾Layouts ▾Tools ▾UCT Agent"
+    }
+   },
+   "after": {
+    "pickMode": false,
+    "picker": true,
+    "title": null,
+    "menu": null,
+    "focus": {
+     "tag": "input",
+     "guide": null,
+     "aria": "Search",
+     "title": null,
+     "cls": "searchBox",
+     "text": ""
+    }
+   },
+   "screenshot": "after-click-lists.png"
+  }
+ ],
+ "titleText": {
+  "x": 1307,
+  "y": 118,
+  "box": [
+   1275,
+   111,
+   64,
+   14
+  ]
+ },
+ "titleLabelBox": [
+  1125,
+  109,
+  363,
+  19
+ ]
+}

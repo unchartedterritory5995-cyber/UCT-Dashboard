@@ -251,6 +251,96 @@ def bulk_meta(body: BulkMetaRequest, user: dict = Depends(get_current_user)):
     return {"results": results, "missing": [s for s in syms if s not in results]}
 
 
+# ── Column facts (owner 11-14: the Watchlist column library) ──
+# The nightly screener snapshot's per-ticker fields behind the library's new columns
+# (RS rank, ADR %, % from the moving averages, 52-week distances, YTD / 1-year change,
+# short interest, P/E, margins, analyst target, ...). Read-only, one projected SQLite
+# read for the whole list — the same path as bulk-meta. `price` (the snapshot's close)
+# rides along so the client can re-base the price-relative fields on the LIVE price.
+# ⛔ A WHITELIST, never the caller's raw column names into the SELECT.
+_FACT_FIELDS = frozenset({
+    "price",
+    "chg_pct_ytd", "chg_pct_1y", "chg_pct_6m", "chg_pct_3m",
+    "dist_52w_high_pct", "dist_52w_low_pct",
+    "avg_volume_30d", "dollar_vol_30d", "vol_updown_ratio",
+    "rs_rank", "rs_line_trend",
+    "pct_vs_ema20", "pct_vs_sma50", "pct_vs_sma200", "ma_stack",
+    "adr_pct", "rsi14",
+    "eps_growth", "rev_growth", "eps_next_y_growth",
+    "pe_ttm", "pe_fwd", "ps", "beta", "dividend_yield", "net_margin", "roe",
+    "float_shares", "shares_outstanding",
+    "short_float_pct", "short_ratio", "inst_pct", "insider_own_pct",
+    "analyst_consensus", "pt_upside_pct",
+    "country", "exchange", "accdis",
+})
+
+
+class ColumnFactsRequest(BaseModel):
+    tickers: list[str]
+    fields: list[str]
+
+
+@router.post("/api/watchlists/column-facts")
+def column_facts(body: ColumnFactsRequest, user: dict = Depends(get_current_user)):
+    """{results: {SYM: {field: value}}, missing: [...]} for the whitelisted fields only.
+
+    Symbols outside the snapshot universe (~$300M cap floor) are ABSENT, so the client
+    shows '—' rather than a confident blank. An unreadable snapshot returns everything
+    missing — the watchlist must never go down over an optional column.
+    """
+    syms = list(dict.fromkeys(
+        (t or "").upper().strip() for t in (body.tickers or []) if t and t.strip()
+    ))[:_BULK_META_MAX]
+    fields = [f for f in dict.fromkeys(body.fields or []) if f in _FACT_FIELDS]
+    if not syms or not fields:
+        return {"results": {}, "missing": syms}
+    try:
+        from api.services.screener import snapshot_db
+        rows = snapshot_db.get_projected(syms, fields)
+    except Exception:
+        return {"results": {}, "missing": syms}
+    results = {sym: {f: row.get(f) for f in fields} for sym, row in rows.items()}
+    return {"results": results, "missing": [s for s in syms if s not in results]}
+
+
+# ── RS Exit Warnings column (2026-11-13) ──
+
+class RsExitBatchRequest(BaseModel):
+    tickers: list[str]
+
+
+@router.post("/api/watchlists/rs-exit-batch")
+def rs_exit_batch(body: RsExitBatchRequest, user: dict = Depends(get_current_user)):
+    """The newest RS Exit Warning per ticker for the Watchlist's optional RS Exit
+    column: ``{results: {SYM: {last, bars_ago, asof}}, missing: [...]}``.
+
+    Read from `screener_rows` (`rs_exit_last` / `rs_exit_bars_ago`, written by the
+    nightly build's `bars_rs` step from the chart's rsExit maths) in ONE projected
+    query, the `bulk-meta` pattern and cap, so the column costs no bars and no maths
+    on the request path. ``last`` is None when no warning has fired (or the build
+    has not filled the column yet); a symbol outside the snapshot universe is
+    absent from ``results`` and named in ``missing``. Fetched only while the column
+    is shown (`useWatchlistRsExit`)."""
+    syms = list(dict.fromkeys(
+        (t or "").upper().strip() for t in (body.tickers or []) if t and t.strip()
+    ))[:_BULK_META_MAX]
+    if not syms:
+        return {"results": {}, "missing": []}
+    try:
+        from api.services.screener import snapshot_db
+        rows = snapshot_db.get_projected(syms, ["rs_exit_last", "rs_exit_bars_ago", "bars_asof"])
+    except Exception:
+        return {"results": {}, "missing": syms}
+    results = {}
+    for sym, row in rows.items():
+        last = row.get("rs_exit_last") or None
+        ago = row.get("rs_exit_bars_ago")
+        results[sym] = {"last": last,
+                        "bars_ago": int(ago) if (last and isinstance(ago, (int, float))) else None,
+                        "asof": row.get("bars_asof")}
+    return {"results": results, "missing": [s for s in syms if s not in results]}
+
+
 # ── Performance data ──
 
 @router.post("/api/watchlist-performance")

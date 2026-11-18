@@ -342,3 +342,21 @@ def test_theme_resolution_runs_OFF_the_event_loop(client, monkeypatch):
     r = client.post("/api/breadth/industries", json={"tickers": ["A", "B"]})
     assert r.status_code == 200
     assert "_primary_themes_blocking" in calls, "theme lookup must be offloaded, not run inline"
+
+
+def test_the_fast_answer_skips_the_theme_queries(client, monkeypatch):
+    # The scan window's sector mix asks for sectors only, so it never waits on
+    # the one-SQLite-query-per-ticker theme lookup (2026-11-09: ~5 s on open).
+    calls = []
+    monkeypatch.setattr("api.services.groups.resolve_primary_theme",
+                        lambda sym: calls.append(sym) or {"theme_name": "X"})
+    r = client.post("/api/breadth/industries",
+                    json={"tickers": ["MSFT", "NOPE"], "fields": ["sector", "industry"]})
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body["sectors"]) == {"MSFT", "NOPE"}
+    assert "themes" not in body
+    assert calls == []
+    # Without `fields` the full answer is unchanged.
+    r = client.post("/api/breadth/industries", json={"tickers": ["MSFT"]})
+    assert r.json()["themes"]["MSFT"] == "X"

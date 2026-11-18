@@ -2,7 +2,8 @@
   display: flex;
   flex-direction: column;
   gap: 22px;
-  max-width: 720px;
+  /* Wide enough for all seven header actions on one row at desktop width (720 wrapped the last). */
+  max-width: 880px;
   padding: 4px 2px 40px;
 }
 .loading {

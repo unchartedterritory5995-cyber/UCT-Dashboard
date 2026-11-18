@@ -60,8 +60,9 @@
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { runtimePaneBuilt } from '../../engine/runtimePaneGate'
 import {
-  SCRIPT_ENGINE_VERSION, isStaleStamp, withEngineStamp,
+  SCRIPT_ENGINE_VERSION, isStaleStamp, withEngineStamp, PINE_IMPORT_HELD_SENTENCE,
 } from '../../engine/scriptEngineVersion'
+import { pineImportHeld } from '../../engine/pineImportHold'
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
@@ -104,7 +105,9 @@ function writeFailedToday(row, current = SCRIPT_ENGINE_VERSION) {
 }
 
 /** What load-time work a store row needs.
- *  @returns {'current'|'retranslate'|'refused'|'retry'|'legacy'|'none'}
+ *  @returns {'current'|'retranslate'|'refused'|'retry'|'legacy'|'none'|'import-held'}
+ *   `import-held` — a Pine import with no script, applied before the COND-TA fix
+ *               (`pineImportHeld`): not drawn, by name, until it is re-applied;
  *   `refused` — today's engine already refused it (recorded), or an older engine
  *               refused the very maths it still carries: not drawn, no work;
  *   `retry`   — its upgrade could not be written back (recorded): drawn as stored,
@@ -121,6 +124,12 @@ export function upgradeKindOf(row, current = SCRIPT_ENGINE_VERSION) {
     const st = row && row.engine_status
     if (isObj(st) && st.status === 'refused' && st.same_maths === true) return 'refused'
   }
+  // ⭐⭐ COND-TA — A PINE IMPORT WITH NO SCRIPT, APPLIED BEFORE THE CONDITIONAL-CALL FIX, is held
+  // by name (`pineImportHeld`; the server's `engine_withheld_reason` holds it too): its formula
+  // may be the every-bar reading of a call that runs only on some bars, and without the script
+  // nothing can tell. Re-applying the import lifts it. A refusal already binding wins (its own
+  // sentence); a script document never reaches here (it holds its script, or has no import stamp).
+  if (kind !== 'refused' && pineImportHeld(row)) return 'import-held'
   return kind
 }
 
@@ -273,6 +282,21 @@ function idle(fn) {
   if (ric) ric(fn, { timeout: 1000 }); else setTimeout(fn, 0)
 }
 
+/** ⭐⭐ COLD-LOAD STORM, MEASURED 2026-11-13 — LANDINGS ARE ANNOUNCED IN BATCHES.
+ *  Each `notify` makes every chart re-run its install, bump the registry generation
+ *  and re-run `updateChart` (StockChart keys it on the generation). One per row made
+ *  the first load after an engine bump pay N full chart updates for N stale scripts
+ *  (sandbox, 25 scripts: ~2 s of React work after the write-back fix, vs 0.1 s warm).
+ *  Rows that land within `UPGRADE_NOTIFY_COALESCE_MS` of each other now share ONE
+ *  notify; a held row waits at most that long longer to draw. The last row of a
+ *  queue still announces itself (the timer fires), so nothing is left held. */
+export const UPGRADE_NOTIFY_COALESCE_MS = 250
+let _notifyTimer = null
+function notifyCoalesced() {
+  if (_notifyTimer !== null) return
+  _notifyTimer = setTimeout(() => { _notifyTimer = null; notify() }, UPGRADE_NOTIFY_COALESCE_MS)
+}
+
 function translateEach(entries, mod) {
   if (!entries.length) return
   const [[k, row], ...rest] = entries
@@ -280,7 +304,7 @@ function translateEach(entries, mod) {
     if (!_memo.has(k)) {
       _memo.set(k, retranslateRow(row, mod.memberPaneDefinition))
       _pending.delete(k)
-      notify()
+      notifyCoalesced()
     }
     translateEach(rest, mod)
   })
@@ -345,6 +369,8 @@ export function resolveRow(row) {
     // ⭐ REMEMBERED: no chunk download, no translation, no request — the refusal wins.
     return out(null, { refusal: `${nameOf()}: ${row.engine_status.reason}` })
   }
+  // ⭐ COND-TA — not drawn, by name, exactly where the server lanes withhold it.
+  if (kind === 'import-held') return out(null, { refusal: `${nameOf()}: ${PINE_IMPORT_HELD_SENTENCE}` })
   if (kind !== 'retranslate') return out(stored)
   const r = upgradedRow(row)
   if (!r) {
@@ -471,4 +497,5 @@ export function __resetSavedScriptUpgrade() {
   _memo.clear(); _writeBacks.clear(); _legacy.clear(); _pending.clear(); _queue.clear()
   _released.clear(); _retryLocal.clear(); _recorded.clear()
   _scheduled = false; _translator = null; _listeners.clear()
+  if (_notifyTimer !== null) { clearTimeout(_notifyTimer); _notifyTimer = null }
 }

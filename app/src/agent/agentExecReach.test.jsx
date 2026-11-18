@@ -10,6 +10,7 @@ import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { WIDGET_HELD_OUT, LIST_HELD_OUT } from './agentExecHeldOut.test.js'
 import { WIDGET_TUNE, LIST_TUNE, WIDGET_TUNE2, JOURNAL_TUNE } from './agentExecTune.js'
 import { NAME_HELD_OUT, DOOR_HELD_OUT, JOURNAL_HELD_OUT } from './agentExecHeldOut2.test.js'
+import { SEARCH_HELD_OUT, SEARCH_CLEAR_HELD_OUT } from './agentExecHeldOut7.test.js'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 const w = (id, type, x, y, opts = {}) => ({ id, type, x, y, w: 2, h: 4, color: 'N', opts })
@@ -56,7 +57,10 @@ const tally = (rs, k) => rs.filter(r => r[k]).length
 export const REACH = {}
 const PINNED = {
   // round 1 (before: widget held-out action v1 1/24, v2 6/24; list held-out 0/8, 0/8)
-  'widget held-out v1': { model: '23/24', action: '20/24', list: '20/24' }, 'widget held-out v2': { model: '23/24', action: '20/24', list: '20/24' },
+  // #1029 (F-16 widened, owner 2026-11-10): the round-3 FLOW_WIDGET_REFUSAL fast path is gone, so C3-166 "only show sweeps in the
+  // options flow" now reaches the model, widget.setOption and the Options Flow control list (master 0a0737665a: 23/20/20, misses
+  // C3-170, C3-166, C3-151, C3-152; this head: 24/21/21, misses C3-170, C3-151, C3-152; no other row dropped)
+  'widget held-out v1': { model: '24/24', action: '21/24', list: '21/24' }, 'widget held-out v2': { model: '24/24', action: '21/24', list: '21/24' },
   'widget tune v1': { model: '24/24', action: '20/24', list: '21/24' }, 'widget tune v2': { model: '24/24', action: '21/24', list: '21/24' },
   'list held-out v1': { model: '8/8', action: '7/8' }, 'list held-out v2': { model: '8/8', action: '8/8' },
   // round 2 (before the word-based names: name held-out2 list 4/6 both; journal held-out2 action 3/4 both)
@@ -65,13 +69,17 @@ const PINNED = {
   'name held-out2 v1': { model: '6/6', action: '5/6', list: '5/6' }, 'name held-out2 v2': { model: '6/6', action: '5/6', list: '5/6' },
   'door held-out2 v1': { model: '4/4', action: '4/4', list: '4/4' }, 'door held-out2 v2': { model: '4/4', action: '4/4', list: '4/4' },
   'journal held-out2 v1': { model: '4/4', action: '4/4' }, 'journal held-out2 v2': { model: '4/4', action: '4/4' },
+  // round 7 (C3-138): measured once on the held-out set, after the change
+  'search held-out7 v1': { model: '3/3', action: '3/3', list: '3/3' }, 'search held-out7 v2': { model: '3/3', action: '3/3', list: '3/3' },
 }
 describe('reach of the first model call', () => {
   beforeEach(() => {})
   afterEach(async () => { cleanup(); localStorage.clear(); _resetAgentConfig() })
   const SETS = [['widget held-out', WIDGET_HELD_OUT, widgetWant], ['widget tune', WIDGET_TUNE, widgetWant], ['list held-out', LIST_HELD_OUT, listWant], ['list tune', LIST_TUNE, listWant],
     ['name held-out2', NAME_HELD_OUT, widgetWant], ['door held-out2', DOOR_HELD_OUT, widgetWant], ['journal held-out2', JOURNAL_HELD_OUT, journalWant],
-    ['widget tune2', WIDGET_TUNE2, widgetWant], ['journal tune2', JOURNAL_TUNE, journalWant]]
+    ['widget tune2', WIDGET_TUNE2, widgetWant], ['journal tune2', JOURNAL_TUNE, journalWant],
+    // round 7: C3-138, the News widget's search box (its rows carry their widget type)
+    ['search held-out7', [...SEARCH_HELD_OUT, ...SEARCH_CLEAR_HELD_OUT].map(c => ({ ...c, type: 'tradeExchangeNews', key: 'search' })), widgetWant]]
   // EXEC_REACH_ONLY=tune while tuning: the held-out numbers are read once, at the end
   const only = globalThis.process?.env?.EXEC_REACH_ONLY || ''
   for (const [name, cases, want] of SETS.filter(([n]) => !only || n.includes(only))) {

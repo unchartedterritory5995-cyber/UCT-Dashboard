@@ -25,7 +25,10 @@ Three sources, merged:
      missing the last DEAL_STATUS_STALE_SESSIONS (default 3) sessions of the market's own
      calendar (a completed buyout stops printing). Only the TARGET is ever pending: never the
      acquirer, a parent whose unit or stake is sold, a backer, or a symbol merely tagged on a
-     headline about someone else (see `parse_headline`).
+     headline about someone else (see `parse_headline`). A headline that names the target
+     by a word another company shares ("Stride" = Stride Bank, tagged LRN) cannot be told
+     apart from its text: the owner rules it out in `api/data/deal_not_pending.json`
+     (`news_overrides`), which news never overrides.
   3. PRICE BEHAVIOUR (corroboration only). A gap of 8%+ that never filled, then 15+
      sessions in a tiny range (range < 2%, ATR < 0.5% of price). Beside a news deal price
      it confirms the deal (0.95, and it keeps an old headline alive). ON ITS OWN it only
@@ -141,6 +144,40 @@ def hand_list() -> frozenset:
     return frozenset(str(t).upper() for t in data if t)
 
 
+#: Owner rulings that a stored headline is about a DIFFERENT company: {symbol: reason}.
+#: WHY. 2026-09-08 "Chime Inks $590 Million Deal to Buy Longtime Bank Partner Stride" is
+#: about Stride Bank, a private bank; the store tagged it LRN (Stride, Inc.) and the headline
+#: names the target only as "Stride", so no reading of the headline alone can tell them
+#: apart. LRN was left out of every scan from the day the scan-time gate shipped until this
+#: file existed. It also carries a REAL deal the owner wants left in scans because the stock
+#: does not trade pinned (owner 2026-11-15, LITE: an all-stock deal closing in 2028 floats with
+#: its acquirer; "I am talking about buyouts that are trading super tight").
+#: A name here is never pending on NEWS; a hand list still wins (the owner
+#: listing a name is the later, more specific ruling), and a price pin stays `possible`.
+NOT_PENDING_FILENAME = "deal_not_pending.json"
+
+
+def _not_pending_path() -> str:
+    return os.path.join(os.path.dirname(__file__), "..", "data", NOT_PENDING_FILENAME)
+
+
+def news_overrides() -> frozenset:
+    """Symbols whose news deal the owner ruled is not theirs (`NOT_PENDING_FILENAME`).
+    Empty when the file is missing; empty and logged on any fault."""
+    try:
+        with open(_not_pending_path(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except FileNotFoundError:
+        return frozenset()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] not-pending overrides load failed: %s", exc)
+        return frozenset()
+    if not isinstance(data, dict):
+        _log.warning("[deal-status] not-pending overrides is not an object")
+        return frozenset()
+    return frozenset(str(t).strip().upper() for t in data if str(t).strip())
+
+
 def hand_deals() -> frozenset:
     """The hand list's DEAL names: the screener file also carries owner excludes that are not
     acquisitions (`breadth_server_universe.NOT_DEALS`). They stay excluded from the screener and
@@ -154,13 +191,90 @@ def hand_deals() -> frozenset:
 
 
 def mirror_list() -> frozenset:
-    """The PC's manual buyout names as the breadth server mirrors them (its non-deal
-    entries removed by name). Empty on any fault."""
+    """The PC's buyout names: its manual list as the breadth server mirrors them (non-deal
+    entries removed by name) plus every target its buyout sweep has CONFIRMED
+    (`pc_confirmed`). Empty on any fault."""
     try:
         from api.services import breadth_server_universe as bsu
-        return frozenset(bsu.EXCLUDE - bsu.NOT_DEALS)
+        manual = frozenset(bsu.EXCLUDE - bsu.NOT_DEALS)
     except Exception as exc:  # noqa: BLE001
         _log.warning("[deal-status] mirror list unavailable: %s", exc)
+        manual = frozenset()
+    return manual | pc_confirmed()
+
+
+# -- the PC buyout sweep's confirmed targets, pushed daily ---------------------------------
+# WHY. `scripts/buyout_sweep.py` (uct-intelligence) confirms deal targets against filings and
+# news and writes them to the PC's `universe_exclude_auto.json`, which nothing on the server
+# read: on 2026-11-14 nineteen confirmed targets (BRZE, DV, PCRX, RXO among them, all in
+# "Tight bases near highs") were excluded on the PC and served by every server screen. The
+# sweep now pushes its WHOLE confirmed set after each run (`POST
+# /api/catalysts/pc-confirmed-deals-internal`), so an `--unconfirm` on the PC clears the name
+# here on the next push.
+
+PC_CONFIRMED_FILENAME = "pc_buyout_confirmed.json"
+PC_CONFIRMED_MAX = 1000
+_TICKER_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-/]{0,9}$")
+
+
+def _pc_confirmed_path() -> str:
+    return os.path.join(_data_dir(), PC_CONFIRMED_FILENAME)
+
+
+def clean_pc_symbols(symbols) -> list:
+    """The pushed symbols a store will keep: upper-cased tickers, sorted, de-duplicated.
+    Raises ValueError on anything that is not a list of ticker strings, or on too many."""
+    if not isinstance(symbols, list):
+        raise ValueError("symbols must be a list")
+    out = set()
+    for s in symbols:
+        if not isinstance(s, str) or not _TICKER_RE.match(s.strip().upper()):
+            raise ValueError(f"not a ticker: {s!r}")
+        out.add(s.strip().upper())
+    if len(out) > PC_CONFIRMED_MAX:
+        raise ValueError(f"at most {PC_CONFIRMED_MAX} symbols")
+    return sorted(out)
+
+
+def store_pc_confirmed(symbols, as_of=None) -> dict:
+    """Replace the stored PC-confirmed set with `symbols` (validated) and drop the day's
+    cache so the next read sees it. Atomic: a failed write leaves the previous file."""
+    syms = clean_pc_symbols(symbols)
+    path = _pc_confirmed_path()
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    payload = {"symbols": syms, "as_of": str(as_of or ""),
+               "received_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh)
+    os.replace(tmp, path)
+    reset_cache()
+    _warm_async()
+    return {"stored": len(syms), "as_of": payload["as_of"]}
+
+
+def _warm_async() -> None:
+    """Rebuild the pending set off the request thread after a reset, so the next reader
+    finds it built instead of paying for it (a cold build did not answer in 120 s on a
+    freshly booted pod, 2026-11-14). Never raises."""
+    try:
+        threading.Thread(target=pending_deal_symbols, daemon=True,
+                         name="deal-status-warm").start()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] warm not started: %s", exc)
+
+
+def pc_confirmed() -> frozenset:
+    """The PC sweep's confirmed targets as last pushed. Empty when nothing was pushed yet or
+    on any fault (fail safe: not pending), logged."""
+    try:
+        with open(_pc_confirmed_path(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return frozenset(clean_pc_symbols(data.get("symbols")))
+    except FileNotFoundError:
+        return frozenset()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] PC confirmed list unreadable, not used: %s", exc)
         return frozenset()
 
 
@@ -242,9 +356,77 @@ def _known_name(sym: str) -> str:
     try:
         from api.services import sec_filings
         m = sec_filings._CACHE.get("sec::name_map") or {}
-        return m.get(sym, "") if isinstance(m, dict) else ""
+        n = m.get(sym, "") if isinstance(m, dict) else ""
+        if n:
+            return n
     except Exception:  # noqa: BLE001
-        return ""
+        pass
+    return _saved_names().get(sym, "")
+
+
+# -- the names a restart forgets ---------------------------------------------------------------
+# ⛔ WHY (2026-11-15, LXFR). Both name sources above live in memory only, and after a restart
+# they are empty for the first minutes. A target a headline writes by NAME ("Luxfer Enters Into
+# Agreement ...") was therefore not pending on a fresh pod: the pending set held 74 names at
+# uptime ~370 s and 75 at 439 s, and in between LXFR (a cash buyout at $17.37) was served in a
+# scan, ranked, and drawn. The few names the deal headlines actually need are kept in one small
+# file beside the company-news store and read as the LAST resort, so the first build after a
+# restart reads the headlines exactly as the build before it did. Merged, never replaced: a
+# build made while memory is cold must not forget what an earlier one knew.
+NAMES_FILENAME = "deal_status_names.json"
+_SAVED_NAMES: dict = {"v": None}
+
+
+def _names_path() -> str:
+    return os.path.join(os.path.dirname(_company_db()) or ".", NAMES_FILENAME)
+
+
+def _saved_names() -> dict:
+    """{SYM: company name} saved by an earlier build. Empty when absent; empty and logged on any
+    fault. Read once per process (`reset_cache` drops it)."""
+    got = _SAVED_NAMES["v"]
+    if got is None:
+        got = {}
+        try:
+            with open(_names_path(), "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            if isinstance(data, dict):
+                got = {str(k).upper(): str(v) for k, v in data.items() if k and v}
+        except FileNotFoundError:
+            pass
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("[deal-status] saved names unreadable, not used: %s", exc)
+        _SAVED_NAMES["v"] = got
+    return got
+
+
+def _save_names(headlines) -> None:
+    """Keep the names of every symbol a deal-shaped headline tags, as known right now, merged
+    into the saved file. Only while DEAL_STATUS_ENABLED is on; atomic; never raises."""
+    try:
+        if not enabled():
+            return
+        saved = _saved_names()
+        merged = dict(saved)
+        for _day, title, tickers in headlines:
+            if not (_TARGET_SIDE.search(title or "") or _ACQUIRER_SIDE.search(title or "")):
+                continue
+            for t in tickers or []:
+                sym = str(t or "").upper()
+                name = _known_name(sym) if sym else ""
+                if name:
+                    merged[sym] = name
+        if merged == saved:
+            return
+        path = _names_path()
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(merged, fh, sort_keys=True)
+        os.replace(tmp, path)
+        _SAVED_NAMES["v"] = merged
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] names not saved: %s", exc)
 
 
 def _named_in(sym: str, text: str) -> bool:
@@ -791,6 +973,9 @@ def reset_cache() -> None:
     with _LOCK:
         _STATE.clear()
         _SYM_CACHE.clear()
+        _SAVED_NAMES["v"] = None
+        _SETS["v"] = None
+        _SETS["gen"] += 1
 
 
 def _snapshot() -> dict:
@@ -801,13 +986,22 @@ def _snapshot() -> dict:
         ttl = _cold_refresh_s() if _STATE.get("cold") else _refresh_s()
         if _STATE.get("day") == today and now - _STATE.get("built", 0) < ttl:
             return _STATE["snap"]
+        gen = _SETS["gen"]
     headlines = stored_headlines(today - timedelta(days=NEWS_LOOKBACK_DAYS))
     cold = _names_cold(headlines)
     if cold:
         _warm_names_async()
+    _save_names(headlines)
     snap = {"day": today, "hand": hand_deals(), "mirror": mirror_list(),
-            "news": fold_news(headlines), "stale_ref": _stale_ref()}
+            "news": fold_news(headlines), "stale_ref": _stale_ref(),
+            "not_news": news_overrides()}
     with _LOCK:
+        if _SETS["gen"] != gen:
+            # ⛔ A reset landed while this was being read (2026-11-15: ten `--approve` pushes
+            # seconds apart; the build started for push 9 finished AFTER push 10's reset,
+            # stored its older mirror as "fresh", and CART stayed unexcluded until the next
+            # push). A snapshot read before a reset is used by its caller and never kept.
+            return snap
         if _STATE.get("snap") is not snap:
             _SYM_CACHE.clear()
         _STATE.update(day=today, built=now, snap=snap, cold=cold)
@@ -836,6 +1030,14 @@ def _names_cold(headlines) -> bool:
     except Exception:  # noqa: BLE001
         return False
     return False
+
+
+def names_cold() -> bool:
+    """True while the CURRENT snapshot was built with some deal headline's company name not
+    yet in memory (after a restart): a target written by name may be missing from the sets.
+    A consumer that keeps its own last good set must not shrink it on such a build."""
+    with _LOCK:
+        return bool(_STATE.get("cold"))
 
 
 _WARM_LOCK = threading.Lock()
@@ -931,8 +1133,13 @@ def _compute(sym: str, snap: dict, bars) -> dict:
         src.append("pc_exclude_mirror")
         conf = CONF_HAND
     deal = snap["news"].get(sym)
+    if sym in snap.get("not_news", ()):
+        # owner ruling: the headline is about another company (`NOT_PENDING_FILENAME`). Dropped
+        # before the completed checks, so the name is never reported as a completed deal either.
+        deal = None
     if deal is not None and deal["active"] and _delisted(sym):
         deal = None
+        out["completed"] = True
     pin = None
     try:
         b = bars if bars is not None else _bars_for(sym)
@@ -940,7 +1147,11 @@ def _compute(sym: str, snap: dict, bars) -> dict:
             # The deal closed: the stock stopped printing (2026-10-23: ATKR, TBPH stayed
             # "pending" after their buyouts completed, because no completion headline was
             # stored for them). A news deal never outlives the stock it is about.
+            # `completed` (only ever True when present) says why: the screener still leaves
+            # such a stock out (`completed_deal_symbols`), because its last rows stay in the
+            # snapshot for SCREENER_STALE_PRICE_SESSIONS after it stops printing.
             deal = None
+            out["completed"] = True
         if deal is not None and deal["active"]:
             out["since"] = deal["since"].isoformat()
             out["price"] = deal["price"]
@@ -994,38 +1205,142 @@ def deal_status(sym: str, bars=None) -> dict:
         res = _compute(s, snap, bars)
         if bars is None:
             with _LOCK:
-                _SYM_CACHE[key] = res
+                if _STATE.get("snap") is snap:      # never keep an answer from a superseded read
+                    _SYM_CACHE[key] = res
         return dict(res)
     except Exception as exc:  # noqa: BLE001 -- fail safe: never hide a chart on a bug
         _log.warning("[deal-status] %s failed, treating as not pending: %s", s, exc)
         return _not_pending(s)
 
 
+# -- the day's deal sets: built once, then never rebuilt on a reader's thread ------------------
+# ⛔ WHY (2026-11-15). Every consumer that picks names (RS rankings, the scans, groups, the
+# screener) asked `pending_deal_symbols()`, and it rebuilt on the caller's thread whenever the
+# snapshot expired: every DEAL_STATUS_REFRESH_S (4 h), every DEAL_STATUS_COLD_REFRESH_S (5 min)
+# while company names are cold after a boot, and after a PC push reset. That rebuild reads
+# every stored deal headline and scans the daily bars for clear pins, and two readers at once
+# each did the whole thing. A route census found 27 member routes that reach it. Now the sets
+# are built ONCE per day on a reader's thread (one build at a time; other first readers wait
+# for that one), and from then on an expired set is served at once while ONE background
+# refresh replaces it. A new ET day is not served from yesterday: its first reader builds.
+
+_SETS: dict = {"v": None, "busy": False, "gen": 0}
+_SETS_BUILD_LOCK = threading.Lock()
+
+
+def _spawn_sets_refresh() -> None:
+    """Run `_refresh_sets` off the reader's thread (tests replace this)."""
+    threading.Thread(target=_refresh_sets, daemon=True, name="deal-status-sets").start()
+
+
+def _build_sets() -> dict:
+    """The pending and completed sets for today, in one pass over the snapshot's news deals."""
+    snap = _snapshot()
+    pending = set(snap["hand"]) | set(snap["mirror"])
+    completed = set()
+    for sym, d in snap["news"].items():
+        if not d["active"]:
+            continue
+        st = deal_status(sym)
+        if st.get("completed"):
+            completed.add(sym)
+        if sym not in pending and st["pending"]:
+            pending.add(sym)
+    pending |= clear_pin_symbols()
+    with _LOCK:
+        cold = bool(_STATE.get("cold"))
+    return {"pending": frozenset(pending), "completed": frozenset(completed),
+            "day": snap["day"], "at": time.time(),
+            "ttl": _cold_refresh_s() if cold else _refresh_s()}
+
+
+def _store_sets(got: dict, gen: int) -> None:
+    with _LOCK:
+        if _SETS["gen"] == gen:           # a reset since this build began: it is discarded
+            _SETS["v"] = got
+
+
+def _refresh_sets() -> None:
+    with _LOCK:
+        gen = _SETS["gen"]
+    try:
+        with _SETS_BUILD_LOCK:
+            got = _build_sets()
+        _store_sets(got, gen)
+    except Exception as exc:  # noqa: BLE001 -- a failed refresh keeps the last good sets
+        _log.warning("[deal-status] deal set refresh failed, keeping the last sets: %s", exc)
+    finally:
+        with _LOCK:
+            _SETS["busy"] = False
+
+
+def _sets() -> dict:
+    today = _today()
+    now = time.time()
+    spawn = False
+    with _LOCK:
+        cur = _SETS["v"]
+        if cur is not None and cur["day"] != today:
+            cur = None
+        if cur is not None and now - cur["at"] >= cur["ttl"] and not _SETS["busy"]:
+            _SETS["busy"] = spawn = True
+        gen = _SETS["gen"]
+    if cur is not None:
+        if spawn:
+            try:
+                _spawn_sets_refresh()
+            except Exception as exc:  # noqa: BLE001 -- no thread: the next reader tries again
+                _log.warning("[deal-status] deal set refresh not started: %s", exc)
+                with _LOCK:
+                    _SETS["busy"] = False
+        return cur
+    with _SETS_BUILD_LOCK:                  # the day's first build: one at a time
+        with _LOCK:
+            cur = _SETS["v"]
+        if cur is not None and cur["day"] == today:
+            return cur
+        got = _build_sets()
+        _store_sets(got, gen)
+        return got
+
+
 def pending_deal_symbols() -> frozenset:
     """Every symbol that is `pending` today: hand lists, fresh news deals, and old news
     deals still confirmed by a price pin, and every CLEAR price pin (`clear_pin_symbols`: a
-    +30% gap then a collapsed band; the weak 8% pin alone still never adds a name). Never
-    raises: an error yields the hand lists alone (logged)."""
+    +30% gap then a collapsed band; the weak 8% pin alone still never adds a name). Built
+    once a day; an expired set is served while one background refresh runs (see `_SETS`).
+    Never raises: an error yields the hand lists alone (logged)."""
     try:
-        snap = _snapshot()
-        out = set(snap["hand"]) | set(snap["mirror"])
-        for sym, d in snap["news"].items():
-            if d["active"] and sym not in out and deal_status(sym)["pending"]:
-                out.add(sym)
-        out |= clear_pin_symbols()
-        return frozenset(out)
+        return _sets()["pending"]
     except Exception as exc:  # noqa: BLE001
         _log.warning("[deal-status] pending set failed, hand lists only: %s", exc)
         return hand_deals() | mirror_list()
 
 
+def completed_deal_symbols() -> frozenset:
+    """Every news deal that CLOSED: the stock stopped printing (DEAL_STATUS_STALE_SESSIONS
+    sessions in a row) or is on the delisted registry. Not `pending` (no chart marker, no
+    pending label); only the screener leaves these out. Never raises: an error is empty.
+
+    ⛔ WHY (2026-11-14). A completed buyout stops printing, `_compute` correctly drops it
+    from the pending set, and the screener's stale-row gate still keeps its last row for
+    SCREENER_STALE_PRICE_SESSIONS (10) sessions: BWMN and KVUE sat in three screens each,
+    flat at the deal price, until they were hand-listed."""
+    try:
+        return _sets()["completed"]
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] completed deal set failed, none added: %s", exc)
+        return frozenset()
+
+
 def screener_excludes() -> frozenset:
     """The screener's buyout exclude set. Flag OFF: the hand list file alone, exactly as
     `screener_universe.buyout_excludes` read it before this module. Flag ON: that file (all of
-    it, its non-deal owner excludes included) plus every pending symbol."""
+    it, its non-deal owner excludes included), every pending symbol, and every news deal that
+    has completed (`completed_deal_symbols`)."""
     if not enabled():
         return hand_list()
-    return hand_list() | pending_deal_symbols()
+    return hand_list() | pending_deal_symbols() | completed_deal_symbols()
 
 
 def chart_marker(sym: str):

@@ -34,12 +34,21 @@
 //   `fixedBy`— canvases that ignore this row: 'sunrise' (the workspace's Sunrise theme), 'light' (the Shift+T palette).
 //   `drawnOn`— the timeframes that draw it. Elsewhere the value is saved and the receipt says it can't be seen here.
 //   `refuseValue(v)` — why one VALUE of this row would not be what the chart shows.
+//   `read(cs)` / `write(cs, v)` — the product's OWN reader and patch for a row the dialog does not write as a plain leaf
+//              (chartViewOptions.js, headerStatCatalog.js): settingValue reads through `read`, withSetting merges the
+//              `write` patch — the exact calls Chart Settings makes, so an absent key reads as today's look. `word(v)`
+//              says a non-scalar value in a receipt.
 // ⛔ `agent/settingsLiveness.test.js` fails any eligible row whose key the render path does not read, unless `inert` says so.
 
 import { CROSSHAIR_MODES, crosshairModeOf } from './crosshairMode'
 import { LEGEND_MODES, legendModeOf } from './legendMode'
 import { CHART_DEFAULTS } from './chartDefaults'
 import { PANE_LOOK, paneWatermarkOpacity } from './pane/paneLook'
+import {
+  candlePartsOf, priceLineOf, gridLinesOf, gridPatchFor, rightMarginOf, priceDecimalsOf, timeFormatOf, timeZoneOf, scaleTimePatch,
+  PRICE_LINE_STYLES, GRID_LINES, TIME_FORMATS, TIME_ZONES, PRICE_DECIMALS, RIGHT_MARGIN_MIN, RIGHT_MARGIN_MAX,
+} from './chartViewOptions'
+import { HEADER_STATS, HEADER_STAT_BY_KEY, cleanStatLabel, statLabelsOf, withStatLabel } from './headerStatCatalog'
 
 export const CHART_SETTINGS_DESCRIPTOR_VERSION = 1
 
@@ -88,6 +97,14 @@ const WHEN_VOL_SHOWN = [
 ]
 const WHEN_IPO = { setting: 'markers.ipo', value: true, why: 'Turn the IPO marker on first — its color only applies while it is shown.' }
 const WHEN_DARKPOOL = { setting: 'darkPool.enabled', value: true, why: 'Turn dark-pool levels on first — their colors only apply while they are shown.' }
+// R2 (owner 11-16): the prerequisites of the rows promoted from "Soon" — where the dialog shows each control
+const WHEN_CANDLE_PARTS = [
+  { chartType: ['candles', 'hollow'], why: 'Body, borders and wick only apply to Candles and Hollow candles — the Price style tab shows them only for those types.' },
+  { setting: 'candleColorMode', not: 'onecolor', why: 'The candles are on One Color — switch "Color based on" to Net Change or Open vs Close first; the body, border and wick switches only show then.' },
+]
+const WHEN_PRICE_LINE = { setting: 'candles.priceLine', value: true, why: 'Turn the last price line on first — its style only applies while it is shown.' }
+const _priceLine = (cs) => priceLineOf(cs, !PANE_LOOK.hidePriceLine)
+const _scaleTime = (field) => (cs, v) => scaleTimePatch(cs, field, v)
 const vals = (xs) => xs.map(x => (Array.isArray(x) ? x[0] : (x && typeof x === 'object' ? x.val : x)))
 export const VOLUME_BAR_STYLES = ['columns', 'histogram']
 
@@ -105,14 +122,14 @@ const ELIGIBLE = [
   E('showMaLabels', 'canvas', 'Moving-average labels', 'bool', { ui: 'Chart Settings → Canvas', words: ['ma labels', 'moving average labels'] }),
   E('invertScale', 'scale', 'Inverted price scale', 'bool', { ui: 'Alt+I on the chart', words: ['inverted scale', 'invert scale', 'upside down'] }),
   E('watermark.visible', 'watermark', 'Watermark', 'bool', { ui: 'Chart Settings → Canvas → Watermark', words: ['watermark'] }),
-  E('header.titleMode', 'header', 'Title shows', 'enum', { options: vals(TITLE_MODES), ui: 'Chart Settings → Header → Title' }),
-  E('header.showChange', 'header', 'Day change beside the title', 'bool', { ui: 'Chart Settings → Header → Title', words: ['day change'] }),
-  E('header.legendMode', 'header', 'Chart legend', 'enum', { options: LEGEND_MODES, ui: 'Chart Settings → Header → Chart Legend', words: ['legend', 'chart legend'],
+  E('header.titleMode', 'header', 'Title shows', 'enum', { options: vals(TITLE_MODES), ui: 'Chart Settings → Header & legend → Title' }),
+  E('header.showChange', 'header', 'Day change beside the title', 'bool', { ui: 'Chart Settings → Header & legend → Title', words: ['day change'] }),
+  E('header.legendMode', 'header', 'Chart legend', 'enum', { options: LEGEND_MODES, ui: 'Chart Settings → Header & legend → Legend', words: ['legend', 'chart legend'],
     boolMap: { true: 'always', false: 'off' } }),
-  E('candleColorMode', 'priceStyle', 'Candle color mode', 'enum', { options: vals(COLOR_MODES), ui: 'Chart Settings → Price Style → Color mode' }),
-  E('candles.thinBars', 'priceStyle', 'Thin bars', 'bool', { ui: 'Chart Settings → Price Style → Bar thickness (Bars / HLC only)',
-    requires: { chartType: BAR_TYPES, why: 'Bar thickness only applies to Bars and HLC charts — the Price Style tab shows it only for those types.' } }),
-  E('countdown', 'markers', 'Bar-close countdown', 'bool', { ui: 'Chart Settings → Markers → Countdown (intraday)', words: ['countdown', 'bar countdown'] }),
+  E('candleColorMode', 'priceStyle', 'Candle color mode', 'enum', { options: vals(COLOR_MODES), ui: 'Chart Settings → Price style → Colors → Color based on' }),
+  E('candles.thinBars', 'priceStyle', 'Thin bars', 'bool', { ui: 'Chart Settings → Price style → Colors → Thin bars (Bars / HLC only)',
+    requires: { chartType: BAR_TYPES, why: 'Thin bars only applies to Bars and HLC charts — the Price style tab shows it only for those types.' } }),
+  E('countdown', 'priceStyle', 'Bar-close countdown', 'bool', { ui: 'Chart Settings → Price style → Price line (intraday)', words: ['countdown', 'bar countdown'] }),
   E('swingLabels.enabled', 'markers', 'Swing labels', 'bool', { ui: 'Chart Settings → Markers → Swing labels', words: ['swing labels'] }),
   E('swingLabels.sensitivity', 'markers', 'Swing label sensitivity', 'enum', { options: vals(SWING_SENS), ui: 'Chart Settings → Markers → Swing labels', requires: WHEN_SWING }),
   // ── Batch 6: promoted from `known` (every one a plain field set in the dialog) ──
@@ -139,14 +156,14 @@ const ELIGIBLE = [
   ...WM_LINES.map(([k, label, defOff]) => E(`watermark.lines.${k}`, 'watermark', `Watermark ${label.toLowerCase()} line`, 'bool',
     { ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK, default: !defOff })),
   ...PDL_LINES.flatMap(([k, label]) => [
-    E(`prevDayLevels.${k}.style`, 'markers', `${label} line style`, 'enum', { options: vals(LINE_STYLES), ui: 'Chart Settings → Markers → Prev-day levels', requires: whenPdl(k) }),
-    E(`prevDayLevels.${k}.width`, 'markers', `${label} line width`, 'enum', { options: PDL_WIDTHS, ui: 'Chart Settings → Markers → Prev-day levels', requires: whenPdl(k) }),
-    E(`prevDayLevels.${k}.color`, 'markers', `${label} line color`, 'color', { ui: 'Chart Settings → Markers → Prev-day levels', requires: whenPdl(k) }),
+    E(`prevDayLevels.${k}.style`, 'markers', `${label} line style`, 'enum', { options: vals(LINE_STYLES), ui: 'Chart Settings → Markers → Previous-day levels', requires: whenPdl(k) }),
+    E(`prevDayLevels.${k}.width`, 'markers', `${label} line width`, 'enum', { options: PDL_WIDTHS, ui: 'Chart Settings → Markers → Previous-day levels', requires: whenPdl(k) }),
+    E(`prevDayLevels.${k}.color`, 'markers', `${label} line color`, 'color', { ui: 'Chart Settings → Markers → Previous-day levels', requires: whenPdl(k) }),
   ]),
   ...EVENT_MARKERS.map(([k, label]) => E(`markers.${k}`, 'markers', `${label} markers`, 'bool',
     { ui: 'Chart Settings → Markers → Events', words: [`${label.toLowerCase()} markers`, `${label.toLowerCase()} marker`] })),
   ...PDL_LINES.map(([k, label]) => E(`prevDayLevels.${k}.enabled`, 'markers', `${label} line`, 'bool',
-    { ui: 'Chart Settings → Markers → Prev-day levels (intraday)', words: [`${label.toLowerCase()} line`, `previous day ${k}`, `prior day ${k}`] })),
+    { ui: 'Chart Settings → Markers → Previous-day levels (intraday)', words: [`${label.toLowerCase()} line`, `previous day ${k}`, `prior day ${k}`] })),
   // ── W1-B (Wave 1, 2026-11-02; owner-approved for Wave 1, announced to Charts): KNOWN → ELIGIBLE. Each row is a
   // plain field the product's own control writes (ChartSettingsModal setSetting / the color menu / the pane drag /
   // the toolbar), written here with the same `withSetting` shape. Not promoted: `header.show*` (the Info row now
@@ -162,9 +179,11 @@ const ELIGIBLE = [
   E('volume.upColor', 'volume', 'Volume up color', 'color', { ui: 'Chart Settings → Indicators → Volume' }),
   E('volume.downColor', 'volume', 'Volume down color', 'color', { ui: 'Chart Settings → Indicators → Volume' }),
   E('volume.hvcEnabled', 'volume', 'Highest-volume-candle marking', 'bool', { ui: 'Chart Settings → Indicators → Volume', words: ['highest volume candle', 'hvc'] }),
-  // ⛔ D1: every /charts chart passes `volumeSeparatePane` (paneLook.js PANE_LOOK), and that prop beats this setting. DERIVED from the prop.
+  // ⛔ D1: /charts (paneLook.js PANE_LOOK) does not read this key. `volumeSeparatePane` fixes the pane; `volumePaneByDefault`
+  // (owner 11-16) reads the member's Display in choice, `volume.displayIn`, instead. DERIVED from the props.
   E('volume.separatePane', 'volume', 'Volume in its own pane', 'bool', { ui: 'Chart Settings → Indicators → Volume', words: ['separate volume pane', 'volume in its own pane'],
-    ...(PANE_LOOK.volumeSeparatePane ? { inert: 'Charts always draws Volume in its own pane, so this setting changes nothing here. You can resize that pane, or hide Volume.' } : {}) }),
+    ...(PANE_LOOK.volumeSeparatePane ? { inert: 'Charts always draws Volume in its own pane, so this setting changes nothing here. You can resize that pane, or hide Volume.' }
+      : PANE_LOOK.volumePaneByDefault ? { inert: "On Charts, Volume's ⋯ menu → Display in (Own pane / Overlay on price) decides where it draws, so this setting changes nothing here." } : {}) }),
   // ⛔ D1: /charts sizes the pane from the member's charts_vol_pane_pct (paneVolumePct → `volumePaneHeightPct`), never from the blob.
   N('volume.paneHeightPct', 'volume', 'Volume pane height (% of the chart)', { ui: 'drag the pane separator', min: 8, max: 45, integer: true, requires: WHEN_VOL_SHOWN, store: 'volumePanePref', scope: 'member' }),
   E('volume.labelVisible', 'volume', 'Volume label', 'bool', { ui: 'Chart Settings → Indicators → Volume', words: ['volume label'] }),
@@ -191,11 +210,41 @@ const ELIGIBLE = [
   E('showChartIq', 'tools', 'Chart IQ pattern recognition', 'bool', { ui: 'Chart toolbar → Chart IQ (server-gated: drawn only where Chart IQ is served)', words: ['chart iq', 'pattern recognition', 'patterns'] }),
   N('positionCalc.accountSize', 'tools', 'Position calculator account size', { ui: 'Position Calculator', min: 0, max: 1e9 }),
   N('positionCalc.riskPct', 'tools', 'Position calculator risk per trade (%)', { ui: 'Position Calculator', min: 0, max: 100 }),
+  // ── R2 (owner 11-16, "your best call"): the Chart Settings rows that were "Soon", KNOWN → ELIGIBLE. Each is read and
+  // written exactly as the dialog does it — a plain field set, or the product's own reader / patch through `read` /
+  // `write` (chartViewOptions.js, headerStatCatalog.js) — so an absent key reads as today's look and the stored blob is
+  // the one Chart Settings would have written (sanitised scaleTime, the grid's `visible` master, cleaned stat names). ──
+  ...[['showBody', 'Candle bodies', 'Body', 'body'], ['showBorders', 'Candle borders', 'Borders', 'borders'], ['showWick', 'Candle wicks', 'Wick', 'wick']].map(([k, label, row, part]) =>
+    E(`candles.${k}`, 'priceStyle', label, 'bool', { ui: `Chart Settings → Price style → Colors → ${row} (candles / hollow)`, requires: WHEN_CANDLE_PARTS, read: (cs) => candlePartsOf(cs)[part] })),
+  E('candles.priceLine', 'priceStyle', 'Last price line', 'bool', { ui: 'Chart Settings → Price style → Price line', read: (cs) => _priceLine(cs).visible }),
+  E('candles.priceLineStyle', 'priceStyle', 'Last price line style', 'enum', { options: vals(PRICE_LINE_STYLES), ui: 'Chart Settings → Price style → Price line',
+    requires: WHEN_PRICE_LINE, read: (cs) => _priceLine(cs).style }),
+  E('grid.lines', 'canvas', 'Which grid lines', 'enum', { options: vals(GRID_LINES), ui: 'Chart Settings → Canvas → Grid → Lines',
+    read: gridLinesOf, write: (cs, v) => ({ grid: gridPatchFor(cs?.grid, v) }) }),
+  N('scaleTime.rightMargin', 'canvas', 'Right margin (bars after the last candle)', { ui: 'Chart Settings → Canvas → Margins → Right margin',
+    min: RIGHT_MARGIN_MIN, max: RIGHT_MARGIN_MAX, integer: true, read: rightMarginOf, write: _scaleTime('rightMargin') }),
+  E('scaleTime.priceDecimals', 'canvas', 'Price decimals on the scale', 'enum', { options: vals(PRICE_DECIMALS), ui: 'Chart Settings → Canvas → Scale & time → Price decimals',
+    read: (cs) => priceDecimalsOf(cs) ?? 'auto', write: _scaleTime('priceDecimals') }),
+  E('scaleTime.timeFormat', 'canvas', 'Time format (12 or 24-hour)', 'enum', { options: vals(TIME_FORMATS), ui: 'Chart Settings → Canvas → Scale & time → Time format',
+    read: timeFormatOf, write: _scaleTime('timeFormat') }),
+  E('scaleTime.timeZone', 'canvas', 'Time zone of the intraday axis and crosshair times (display only; the session stays New York)', 'enum', { options: vals(TIME_ZONES),
+    ui: 'Chart Settings → Canvas → Scale & time → Time zone', read: timeZoneOf, write: _scaleTime('timeZone') }),
+  E('sessionBreaks', 'canvas', 'Session breaks (a dashed line at each new trading day, intraday)', 'bool', { ui: 'Chart Settings → Canvas → Grid → Session breaks' }),
+  E('preMarketLevels', 'markers', "Pre-market high & low (today's pre-market range, intraday)", 'bool', { ui: 'Chart Settings → Markers → Previous-day levels → Pre-market high & low' }),
+  E('nextEarningsMarker', 'markers', 'Next earnings date (a marker on the bar where the next report falls)', 'bool', { ui: 'Chart Settings → Markers → Events → Next earnings date' }),
+  E('priceAlertLines', 'markers', "Price alerts (a dashed line at each of the member's active price alerts on this symbol)", 'bool', { ui: 'Chart Settings → Markers → Your activity → Price alerts' }),
+  E('myTradeMarkers', 'markers', "My trades (a small marker on each bar where the member's own Journal fills on this symbol happened)", 'bool', { ui: 'Chart Settings → Markers → Your activity → My trades' }),
+  // One stat's short name in the info row: value "<stat>=<name>" (the stat by key or by its name; an empty name puts the
+  // stat's own name back). Known stat keys only, cleaned to STAT_LABEL_MAX characters — withStatLabel, as the dialog's rename.
+  E('header.statLabels', 'header', 'Info row stat names (a short custom label per stat)', 'statLabel', { ui: 'Chart Settings → Header & legend → Stats beside the ticker',
+    read: (cs) => statLabelsOf(cs?.header),
+    write: (cs, v) => ({ header: { ...(cs?.header || {}), statLabels: withStatLabel(cs?.header, v.key, v.label) } }),
+    word: (m) => (Object.keys(m || {}).length ? Object.entries(m).map(([k, l]) => `${HEADER_STAT_BY_KEY[k]?.label || k} = ${l}`).join(', ') : 'no renamed stats') }),
 ]
 
 // What StockChart's themeColors ignores (a Sunrise canvas has no grid and its own colors; the light palette has its own)
 const FIXED_BY = {
-  'grid.visible': ['sunrise'], 'grid.color': ['sunrise', 'light'], 'crosshair.color': ['sunrise', 'light'],
+  'grid.visible': ['sunrise'], 'grid.lines': ['sunrise'], 'grid.color': ['sunrise', 'light'], 'crosshair.color': ['sunrise', 'light'],
   bgMode: ['sunrise', 'light'], 'bgGradient.top': ['sunrise', 'light'], 'bgGradient.bottom': ['sunrise', 'light'],
 }
 for (const d of ELIGIBLE) {
@@ -203,6 +252,7 @@ for (const d of ELIGIBLE) {
   // StockChart's own gates: `_isDWM` (swing labels), `pdlIntraday`, `countdownTfSec`, CHART_IQ_TFS
   if (d.id.startsWith('swingLabels.')) d.drawnOn = 'dailyUp'
   if (d.id.startsWith('prevDayLevels.')) d.drawnOn = 'intraday'
+  if (d.id === 'sessionBreaks' || d.id === 'preMarketLevels') d.drawnOn = 'intraday'   // sessionMarks.js: intraday only
   if (d.id === 'countdown') d.drawnOn = 'countdown'
   if (d.id === 'showChartIq') d.drawnOn = 'chartIq'
 }
@@ -236,21 +286,28 @@ const KNOWN = [
   K('header.customTimeframes', 'header', 'Custom timeframes', 'Timeframe menu → Custom interval'),
   // (W1-B) the Info row stores `header.fields` (headerFields.js); these legacy flags are migration inputs it reads only
   // when `fields` is absent — writing them would change nothing on a migrated chart, so they stay known.
-  K('header.showMarketCap', 'header', 'Market cap in the info row (Info row fields)', 'Chart Settings → Header → Info row'),
-  K('header.showNextEarnings', 'header', 'Next earnings in the info row (Info row fields)', 'Chart Settings → Header → Info row'),
-  K('header.showUctRating', 'header', 'UCT rating in the info row (Info row fields)', 'Chart Settings → Header → Info row'),
-  K('header.showLegend', 'header', 'Chart legend (legacy on/off)', 'Chart Settings → Header → Chart Legend'),
-  K('header.colors.*', 'header', 'Header colors', 'Chart Settings → Header'),
+  K('header.showMarketCap', 'header', 'Market cap in the info row (Info row fields)', 'Chart Settings → Header & legend → Stats beside the ticker'),
+  K('header.showNextEarnings', 'header', 'Next earnings in the info row (Info row fields)', 'Chart Settings → Header & legend → Stats beside the ticker'),
+  K('header.showUctRating', 'header', 'UCT rating in the info row (Info row fields)', 'Chart Settings → Header & legend → Stats beside the ticker'),
+  K('header.showLegend', 'header', 'Chart legend (legacy on/off)', 'Chart Settings → Header & legend → Legend'),
+  K('header.colors.*', 'header', 'Header colors', 'Chart Settings → Header & legend'),
   K('volume.plotStyle', 'volume', 'Volume plot style (declared, not yet honoured)', 'Chart Settings → Indicators → Volume'),
   K('drawingDefaults.*', 'drawings', 'Default drawing style', 'drawing → Save as default'),
   K('theme', 'canvas', 'Light/dark palette (Shift+T)', 'Shift+T on the chart'),
+  // (owner 11-16, was Soon) An ACTION, not a stored key — no blob path is named `applyToAllCharts`, so nothing can write
+  // it. Known so the Agent can say what it does and where it is; it copies the look only (chartAppearance.js), never the
+  // symbol, timeframe, indicators or drawings. Making it Agent-runnable is a contract change (manifest golden) of its own.
+  K('applyToAllCharts', 'layout', "Apply to all charts (copies this chart's look to every other chart in the layout)", 'Chart Settings → Apply to all charts (at the foot of the sidebar)'),
 ]
 
 // ── internal: bookkeeping or dead data, never offered ──
 const I = (id, why) => ({ id, agent: 'internal', why })
 const INTERNAL = [
   I('settingsVersion', 'schema version'), I('preset', 'set to "custom" by every manual write'),
-  I('header.legendLayout', 'dead data — nothing reads it'), I('showPatterns', 'control disabled in the product'),
+  I('header.legendLayout', 'dead data — nothing reads it'),
+  // the Auto patterns layer of the UCT Intelligence indicator (uctIntelligence.js) and the toolbar's Patterns button: gated per
+  // viewer, so never a generic setting — the Agent writes it only through uctIntelligence.set, which checks those gates
+  I('showPatterns', 'UCT Intelligence → Auto patterns (and the toolbar Patterns button); the Agent uses uctIntelligence.set'),
   I('hideDrawings', 'right-click → Hide all drawings; the Agent hides drawings per drawing, through drawing.setAllVisible'),
   I('signature.*', 'not a member control on /charts')
 ]
@@ -270,7 +327,9 @@ export function classifySettingPath(path) {
   if (exact) return exact
   const parts = path.split('.')
   for (let n = parts.length; n >= 1; n -= 1) {
-    const hit = CHART_SETTING_DESCRIPTORS.find(d => d.id === `${parts.slice(0, n).join('.')}.*`)
+    const at = parts.slice(0, n).join('.')
+    // a free-form map row (`header.statLabels`, typed as a whole) classifies its children too
+    const hit = CHART_SETTING_DESCRIPTORS.find(d => d.id === `${at}.*` || (n < parts.length && d.id === at && d.type === 'statLabel'))
     if (hit) return hit
   }
   return null
@@ -284,6 +343,7 @@ export function settingValue(settings, d) {
   // fallback INPUTS to them, never read here — legendSingleAuthority.test.js).
   if (d.id === 'crosshair.mode') return crosshairModeOf(settings)
   if (d.id === 'header.legendMode') return legendModeOf(settings)
+  if (typeof d.read === 'function') return d.read(settings)
   const v = getPath(settings, d.id)
   if (v !== undefined) return v
   // A missing key reads as the dialog shows it: the descriptor's `default` (e.g. a watermark
@@ -336,6 +396,14 @@ export function coerceSettingValue(d, raw) {
     // The dialog's colour picker writes a hex colour into the same key (8-digit where its opacity slider is stored inline).
     const hex = normalizeHex(raw, { alpha: d.alpha === true })
     return hex ? { ok: true, value: hex } : { ok: false, why: `${d.label} needs a hex color such as #2962ff` }
+  }
+  if (d.type === 'statLabel') {
+    // "<stat>=<name>" (or "<stat>: <name>"): the stat by key or by its name, as the Stats list shows it
+    const m = /^\s*([^=:]+?)\s*[=:]\s*(.*)$/.exec(String(raw ?? ''))
+    const w = m ? m[1].trim().toLowerCase() : ''
+    const stat = m ? (HEADER_STAT_BY_KEY[m[1].trim()] || HEADER_STATS.find(s => s.key.toLowerCase() === w || String(s.label).toLowerCase() === w)) : null
+    if (!stat) return { ok: false, why: `${d.label} takes "<stat>=<short name>", e.g. "Market Cap=MCap" (the stat as the Stats list names it)` }
+    return { ok: true, value: { key: stat.key, label: cleanStatLabel(m[2]) } }
   }
   if (d.type === 'number') {
     // W1-B: the control's own range; a whole-number control takes whole numbers (a "70%" opacity is said as 0.7)
@@ -393,6 +461,7 @@ export function settingUnavailable(d, settings, { canvasTheme = null } = {}) {
  * spread (siblings kept), the leaf set, and `preset: 'custom'` stamped.
  */
 export function withSetting(settings, d, value) {
+  if (typeof d.write === 'function') return { ...settings, ...d.write(settings, value), preset: 'custom' }
   const parts = d.id.split('.')
   const next = { ...settings, preset: 'custom' }
   let o = next

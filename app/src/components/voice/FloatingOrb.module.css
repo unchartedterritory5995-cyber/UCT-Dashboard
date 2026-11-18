@@ -15,7 +15,13 @@
     0 0 0 1px rgba(220, 187, 94, 0.18),
     0 0 18px rgba(220, 187, 94, 0.25);
   transition: transform 140ms ease, box-shadow 220ms ease, filter 220ms ease;
-  animation: idleBreath 4.6s ease-in-out infinite;
+  /* ⛔ FINITE, NEVER `infinite` (2026-11-10, measured). The orb is on every page, and a
+     box-shadow animation cannot run on the compositor: an endless breath repainted the whole
+     page every frame, forever (~115 paints a second with 12 chart widgets popped). Removing it
+     cut the desk's CPU a further 35% after the clock fix. Three breaths on arrival, then rest.
+     Side effect, intended: an animation outranks :hover, so the hover glow below was never
+     visible while the breath ran; it is now. */
+  animation: idleBreath 4.6s ease-in-out 3;
 }
 .orb:hover {
   transform: scale(1.06);

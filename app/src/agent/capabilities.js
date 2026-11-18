@@ -31,6 +31,7 @@ const PROVIDERS = new Map()
 
 // The manifest wire contract shared with the server (api/services/uct_agent/turn.py reads the
 // same numbers; tests/test_uct_agent_contract.py and agentContracts.test.js hold both to it).
+import { isTimeframeEnum, parseTimeframe } from './capabilities/timeframeWords'
 import MANIFEST_CONTRACT from './contract/manifest.contract.json'
 export { MANIFEST_CONTRACT }
 export const MANIFEST_VERSION = MANIFEST_CONTRACT.manifestVersion
@@ -177,6 +178,12 @@ function coerceSchema(spec, v, path, applied) {
     if (enumVals.length && !enumVals.includes(v)) {
       const hit = enumVals.find(e => typeof e === 'string' && e.trim().toLowerCase() === low)
       if (hit !== undefined) { applied.push(`${path}:enum-case`); return hit }
+      // ⛔ BUG C (11-14, capabilities/timeframeWords.js): a TIMEFRAME enum (by schema) reads "15 minutes" / "1-hour" / "weekly" by
+      // its grammar — only a value this enum offers; "1m", "4 hours" or "2 weeks" stay as said (refused). Mirrors turn.py.
+      if (isTimeframeEnum(spec)) {
+        const tf = parseTimeframe(v, enumVals)
+        if (tf != null) { applied.push(`${path}:timeframe`); return tf }
+      }
     }
     return v
   }
@@ -272,6 +279,23 @@ export function registerTargetKind(kind) {
   }
   KINDS.set(kind.name, kind)
   return () => KINDS.delete(kind.name)
+}
+
+// OPTIONAL host-source words (fix-nothing-on-workspace): a kind whose targets come from a HOST SOURCE names it, so an
+// empty list is told apart from a page that does not offer the kind at all.
+//   kind.source       -> 'hostKey' | (host) => boolean    the host field the kind reads (or a test that it is there)
+//   kind.unavailable  -> string   member words for a host WITHOUT that source ("Layouts aren't available on this page …")
+//   kind.empty        -> string   member words for a source that is there with nothing in it ("There are no charts …")
+/**
+ * Why a single-kind request found no target here, in member words — never "the workspace is empty" unless it is.
+ * → { missing: true, text } when this host does not provide the kind's source; else { missing: false, text } (empty list).
+ */
+export function noTargetSentence(kind, host) {
+  const src = kind?.source
+  const has = !src ? true : typeof src === 'function' ? (() => { try { return !!src(host) } catch { return false } })() : host?.[src] != null
+  if (!has) return { missing: true, text: kind.unavailable || "That isn't available on this page." }
+  const noun = kind?.noun
+  return { missing: false, text: kind?.empty || (noun ? `There is no ${noun} here for that to change.` : 'There is nothing here for that to change.') }
 }
 
 // OPTIONAL hooks for compound CREATION (a plan that makes new targets and then

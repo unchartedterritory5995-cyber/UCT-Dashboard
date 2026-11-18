@@ -1,6 +1,7 @@
 import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { widgetPaletteLoaders, widgetPaletteModule } from './EditorToolSlots'
 import { MQ } from '../../../../styles/breakpoints'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
 
@@ -44,12 +45,14 @@ vi.mock('../VoiceInputButton', async () => {
 })
 
 let phone = false
+// Fix round 2: also the touch tier, so the shared ContextPopover renders its real phone branch (a Sheet).
+let touch = false
 const mqListeners = new Set()
 let realMatchMedia
 function installMatchMedia() {
   realMatchMedia = window.matchMedia
   window.matchMedia = vi.fn((query) => ({
-    get matches() { return phone && query === MQ.phone },
+    get matches() { return (phone && query === MQ.phone) || (touch && query === MQ.tabletDown) },
     media: query,
     onchange: null,
     addEventListener: (_t, fn) => { if (query === MQ.phone) mqListeners.add(fn) },
@@ -64,6 +67,7 @@ const setPhone = (v) => { phone = v }
 beforeEach(() => {
   NOTE = baseNote()
   phone = false
+  touch = false
   mqListeners.clear()
   installMatchMedia()
   __resetNotebookFlags()
@@ -86,13 +90,19 @@ async function mountEditor() {
   })
 }
 const toolbar = () => screen.getByRole('toolbar', { name: 'Editor toolbar' })
-const insertBtn = () => within(toolbar()).getByRole('button', { name: 'Insert' })
+// Notebook simplify, Task 4: the desktop row's last control is also named "Insert" (it opens the widget palette;
+// `.desktopOnly`, never drawn at 1024 px and below). The phone "+" is the one carrying the phone-only class.
+const insertBtn = () => {
+  const hits = within(toolbar()).getAllByRole('button', { name: 'Insert' }).filter((b) => /insertPhone/.test(b.className))
+  if (hits.length !== 1) throw new Error(`expected ONE phone "+", found ${hits.length}`)
+  return hits[0]
+}
 
 describe('P0.6: the phone "+" insert menu', () => {
   it('the phone "+" lists image, file, camera scan and chart/block, and each opens its door', async () => {
     setPhone(true)
     await mountEditor()
-    fireEvent.click(screen.getByRole('button', { name: 'Insert' }))
+    fireEvent.click(insertBtn())
     const names = screen.getAllByRole('menuitem').map((m) => m.textContent.trim())
     expect(names).toEqual(['Image', 'Attach a file', 'Scan with camera', 'Chart or block'])
     const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {})
@@ -108,7 +118,7 @@ describe('P0.6: the phone "+" insert menu', () => {
     vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(function () {
       clicked.push({ accept: this.accept || '', capture: this.getAttribute('capture') })
     })
-    const open = () => fireEvent.click(screen.getByRole('button', { name: 'Insert' }))
+    const open = () => fireEvent.click(insertBtn())
 
     open()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Image' }))
@@ -127,9 +137,43 @@ describe('P0.6: the phone "+" insert menu', () => {
   it('Chart or block opens the widget palette', async () => {
     setPhone(true)
     await mountEditor()
-    fireEvent.click(screen.getByRole('button', { name: 'Insert' }))
+    fireEvent.click(insertBtn())
     fireEvent.click(screen.getByRole('menuitem', { name: 'Chart or block' }))
     expect(await screen.findByRole('dialog', { name: 'Insert widget' })).toBeTruthy()
+  }, 60000)
+
+  // Follow-up B fix round 2: the Insert palette's cold-press frame, reached the phone's way (the "+" Sheet). The
+  // Sheet's passive cleanup hands focus back to "+"; the frame must still end up holding it, and its Close (and Escape)
+  // must hand it back to "+".
+  it('a cold "Chart or block" through the real Sheet: the frame holds focus; Close and Escape return it to "+"', async () => {
+    setPhone(true)
+    touch = true
+    // A fetch an earlier test started would land after a reset and draw the real palette: let it land first.
+    await act(async () => { await widgetPaletteModule.warm() })
+    const realLoad = widgetPaletteLoaders.palette
+    widgetPaletteLoaders.palette = () => new Promise(() => {})
+    widgetPaletteModule.resetForTests()
+    try {
+      await mountEditor()
+      const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 60)) })
+      for (const how of ['close', 'escape']) {
+        fireEvent.click(insertBtn())
+        const sheet = await screen.findByRole('dialog', { name: 'Insert' })
+        fireEvent.click(within(sheet).getByRole('button', { name: 'Chart or block' }))
+        await settle()
+        const frame = document.querySelector('[data-palette-stand-in]')
+        expect(frame, 'the frame is drawn').not.toBeNull()
+        expect(frame.contains(document.activeElement), `${how}: focus inside the frame after the Sheet closed`).toBe(true)
+        if (how === 'close') fireEvent.click(within(frame).getByRole('button', { name: 'Close insert panel' }))
+        else fireEvent.keyDown(document.activeElement, { key: 'Escape' })
+        await settle()
+        expect(document.querySelector('[data-palette-stand-in]')).toBeNull()
+        expect(document.activeElement, `${how}: focus back on "+"`).toBe(insertBtn())
+      }
+    } finally {
+      widgetPaletteLoaders.palette = realLoad
+      widgetPaletteModule.resetForTests()
+    }
   }, 60000)
 
   it('the "+" is a menu button: collapsed it says so, open it says so, and a pick closes the menu', async () => {

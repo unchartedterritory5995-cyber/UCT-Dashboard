@@ -41,7 +41,7 @@ def _armed() -> None:
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     if not is_paid_user(user):
-        raise HTTPException(status_code=402, detail="The screener requires a paid plan")
+        raise HTTPException(status_code=402, detail="Screen alerts and Send to watchlist require a paid plan")
     return user
 
 
@@ -155,6 +155,51 @@ def spec_alerts_resume(sub_id: int, user: dict = Depends(require_paid)):
     if not spec_alerts.set_suspended(user["id"], sub_id, False):
         raise HTTPException(status_code=404, detail="Alert not found")
     return {"id": sub_id, "suspended": False}
+
+
+# ── RS screens unit U13: "Tell me what joins and leaves" ─────────────────────
+# One message a day per RS screen: what joined it and what left it since the
+# previous session, at the screen's standard settings (`rs_screen_alerts`).
+# DARK: RS_SCREEN_ALERTS_ENABLED. Off: every route 404s. A member the RS
+# screens are not on for gets the same 404: the screens do not exist for them.
+
+def _rs_alerts_armed() -> None:
+    from api.services.screener import rs_screen_alerts
+    if not rs_screen_alerts.enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+def _rs_alerts_for(user: dict):
+    from api.services.screener import rs_screen_alerts
+    if not rs_screen_alerts.available(user):
+        raise HTTPException(status_code=404, detail="Not Found")
+    return rs_screen_alerts
+
+
+@router.get("/api/screener/rs-alerts", dependencies=[Depends(_rs_alerts_armed)])
+def rs_alerts_list(user: dict = Depends(require_paid)):
+    alerts = _rs_alerts_for(user)
+    return {"available": True, "subscribed": alerts.subscribed(user["id"]),
+            "screens": list(alerts.screens()), "cadence": "daily"}
+
+
+@router.post("/api/screener/rs-alerts/{starter_id}", dependencies=[Depends(_rs_alerts_armed)])
+def rs_alerts_subscribe(starter_id: str, user: dict = Depends(require_paid)):
+    """Only the five RS screens: an unknown, hidden or retired id is a 404."""
+    alerts = _rs_alerts_for(user)
+    try:
+        return alerts.subscribe(user["id"], starter_id)
+    except alerts.UnknownScreen:
+        raise HTTPException(status_code=404, detail="No such RS screen")
+
+
+@router.delete("/api/screener/rs-alerts/{starter_id}", dependencies=[Depends(_rs_alerts_armed)])
+def rs_alerts_unsubscribe(starter_id: str, user: dict = Depends(require_paid)):
+    alerts = _rs_alerts_for(user)
+    try:
+        return alerts.unsubscribe(user["id"], starter_id)
+    except alerts.UnknownScreen:
+        raise HTTPException(status_code=404, detail="No such RS screen")
 
 
 # ── AC-11 / UC-4: the save-time fork ────────────────────────────────────────

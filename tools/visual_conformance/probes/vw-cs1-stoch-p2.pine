@@ -1,0 +1,19 @@
+//@version=6
+indicator("UCTPROBE_VW_CS1_STOCH_P2", overlay = false)
+
+// PROVENANCE: written 2026-11-14 for the Pine parity programme, capture session S1
+// (objects-lane REMAINING-SCOPE-2026-11-14 section 4; s6-bugs-1114 probe P2).
+// ta.stoch over a source with an na every 50 bars (x) and a flat 20-bar run (y): the na window and the
+// flat window (50 or na), beside ta.highest over the same holed source.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+float x = bar_index % 50 == 30 ? na : close
+float y = bar_index >= 100 and bar_index < 120 ? 50.0 : close
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(x, "A01_x")
+plot(y, "A02_y")
+plot(ta.stoch(x, x, x, 10), "P01_stoch_xxx_10")
+plot(ta.stoch(x, high, low, 10), "P02_stoch_x_high_low_10")
+plot(ta.stoch(y, y, y, 10), "P03_stoch_yyy_10")
+plot(ta.highest(x, 10), "P04_highest_x_10")

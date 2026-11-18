@@ -125,7 +125,8 @@ describe('W2-C2 · /screener', () => {
     mount(host, 'screener')
     type('where do I change the filters?')
     await screen.findAllByText(/I’ve highlighted it — follow the card .* Nothing on your page has changed/)
-    expect(cardText()).toMatch(/Your filters live here/)
+    // the card finds its control on its own first look, which can land just after the transcript line under load: wait for it
+    await waitFor(() => expect(cardText()).toMatch(/Your filters live here/))
     expect(page.applied).toEqual([])
     expect(turnBodies).toHaveLength(0)
   })
@@ -214,9 +215,10 @@ describe('W2-C2 · /journal', () => {
     controls(['journal.newNote'])
     mount(host, 'journal')
     type('what is a new note?')
-    await screen.findAllByText(/\+ New note starts a blank note in your Notebook/)
+    // Final fix (C5): the list's button reads "+ New" (the "+ New note" words and the outline row are gone).
+    await screen.findAllByText(/\+ New starts a blank note in your Notebook/)
     type('where do I add a new note?')
-    await waitFor(() => expect(cardText()).toMatch(/Click \+ New note/))
+    await waitFor(() => expect(cardText()).toMatch(/Click \+ New to start/))
     type('do it for me')
     await screen.findAllByText(/Tell me what it should say/)
     expect(page.created).toEqual([])                                                 // nothing runs on a guess
@@ -249,8 +251,8 @@ describe('W2-C2 · pages never leak into each other, and /charts is unchanged', 
     // the guide.show fast path on /charts: identical answers
     const show = getCapability('guide.show')
     expect(show.fast({ raw: 'where do I change the filters', host: { surface: 'charts' } })).toBeNull()
-    expect(show.fast({ raw: 'Where do I change the timeframe?', host: { surface: 'charts' } })).toEqual({ feature: 'timeframe' })
-    expect(show.fast({ raw: 'Where do I change the timeframe?' })).toEqual({ feature: 'timeframe' })
+    expect(show.fast({ raw: 'Where do I change the timeframe?', host: { surface: 'charts' } })).toEqual({ feature: 'timeframe', detail: 'Where do I change the timeframe?' })
+    expect(show.fast({ raw: 'Where do I change the timeframe?' })).toEqual({ feature: 'timeframe', detail: 'Where do I change the timeframe?' })
   })
   it('explanations: a page\'s features explain only on that page; the Charts ones everywhere', () => {
     expect(explainTopic('saved screens')).toBeNull()                                  // /charts: as before

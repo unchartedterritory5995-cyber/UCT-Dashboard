@@ -8,8 +8,9 @@
  *
  * What this file holds, through the REAL editor, the REAL PropertiesSection and ThesisSection:
  *   1. the details are folded behind ONE line under the title, collapsed by default;
- *   2. that line names only what has a value (`#thesis · NVDA · Technology · 3 properties ·
- *      Not reviewed`), and a bare note shows only a quiet "Add details";
+ *   2. that line names only what has a value (`#thesis · NVDA`; Notebook simplify, Task 4: the sector,
+ *      the property count and the review state are no longer said there, they stay inside Details),
+ *      and a bare note shows only a quiet "Add details";
  *   3. the toggle is a real button (aria-expanded, aria-controls) and reveals the EXISTING
  *      controls in place -- hidden, never unmounted, so a half-typed value survives a collapse;
  *   4. the choice is remembered per browser, and a browser that refuses storage still renders;
@@ -123,14 +124,17 @@ describe('body first: the details fold behind one line under the title', () => {
     expect(summary(container)).toBeNull()
   })
 
-  it('the line names only what has a value: tags, ticker, sector, how many properties, review state', async () => {
+  // Notebook simplify, Task 4: the line says the tags and the ticker only. The sector, the property count and the
+  // review state stay inside Details (the Sector row, the property rows, the review line).
+  it('the line names only what has a value: tags and ticker (sector, properties and review stay in Details)', async () => {
     NOTE = thesisNote()
     PROPERTIES = NVDA_PROPERTIES
     const { container } = await renderEditor()
-    await waitFor(() => expect(summary(container)?.textContent).toContain('Not reviewed'))
+    // the properties have answered (Sector is a row in Details), so a sector the line said would be there by now
+    await waitFor(() => expect(container.querySelector('[data-prop-row="builtin:sector"]')).not.toBeNull())
     const parts = [...summary(container).querySelectorAll('[class*="item"]')].map((el) => el.textContent)
-    // Sector, Industry, Theme are filled; the empty Conviction is not; the ticker is its own field.
-    expect(parts).toEqual(['#thesis', 'NVDA', 'Technology', '3 properties', 'Not reviewed'])
+    expect(parts).toEqual(['#thesis', 'NVDA'])
+    expect(summary(container).textContent).not.toMatch(/Technology|propert|review/i)
     expect(toggle().textContent).toBe('Details')
   })
 

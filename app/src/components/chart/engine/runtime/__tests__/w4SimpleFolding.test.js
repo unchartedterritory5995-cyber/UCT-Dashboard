@@ -177,8 +177,9 @@ describe('⭐⭐ pointwise arithmetic over simple values folds', () => {
     smaIs(`${MODE}${X}len = 2\nif mode == "B"\n    len := 9\nplot(ta.sma(x, math.max(len, 3)))\n`, 9, { mode: 'B' })
   })
 
-  it('⚠️ a NUMERIC input still folds at the author\'s default (owner rule 2026-08-11, `history.test.js`)', () => {
-    smaIs(`len = input.int(5, "L")\n${X}plot(ta.sma(x, math.max(len, 3)))\n`, 5, { len: 8 })
+  it('⭐ a NUMERIC input folds at the MEMBER\'s value (settings parity 2c supersedes the 2026-08-11 freeze, `history.test.js`)', () => {
+    smaIs(`len = input.int(5, "L")\n${X}plot(ta.sma(x, math.max(len, 3)))\n`, 8, { len: 8 })
+    smaIs(`len = input.int(5, "L")\n${X}plot(ta.sma(x, math.max(len, 3)))\n`, 5)
   })
 })
 

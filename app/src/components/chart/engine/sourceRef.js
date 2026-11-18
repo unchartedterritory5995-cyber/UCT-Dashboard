@@ -4,7 +4,8 @@ import { semanticName } from './semanticName'
 import { FUND_MARK, parseFundamentalSource } from './fundamentalGrammar'
 import { parseEconomicSource } from './econMark'
 import { catalogMetric } from './fundamentalSeries'
-import { fetchableOtherSymbols } from './otherSymbols'
+import { fetchableOtherSymbols, heldFetchOf } from './otherSymbols'
+import { instanceDocumentForFetch } from './symbolInputs'
 import { severInfoValuesTo, liveInstanceOf } from './infoValues'
 import { recordableLine, lineMatches } from './lineIdentity'
 
@@ -259,7 +260,7 @@ export function parseSource(value) {
  *
  * @returns {string[]} canonical symbols, sorted — a stable array for a stable key
  */
-export function symbolsNeeded(instances, defOf) {
+export function symbolsNeeded(instances, defOf, tf) {
   const list = Array.isArray(instances) ? instances : []
   const out = new Set()
   for (const inst of list) {
@@ -276,7 +277,14 @@ export function symbolsNeeded(instances, defOf) {
     // ⭐ C26 — a Pine document's `request.security` of another symbol reads that
     // symbol's bars at the chart's timeframe: the same request a `sym:` source
     // makes, riding the same cache (`otherSymbols.js` decides what is served).
-    for (const t of fetchableOtherSymbols(def)) out.add(t)
+    // ⭐ SETTINGS PARITY (symbol): as THIS instance's symbol choice makes the document
+    // ⭐ RS RATING L11 — a witnessed spelling this chart's timeframe HOLDS at another timeframe is
+    // needed under its held key (`SPX@D` on a weekly chart, `otherSymbols.js::heldFetchOf`); with no
+    // timeframe stated nothing is held and every key is as before
+    for (const t of fetchableOtherSymbols(instanceDocumentForFetch(def, inst))) {
+      const held = heldFetchOf(t, tf)
+      out.add(held ? held.key : t)
+    }
   }
   // ⚠️ SORTED so the same set of symbols is the same array every time. A caller
   // keying a fetch or a memo on this must not see a new order because an

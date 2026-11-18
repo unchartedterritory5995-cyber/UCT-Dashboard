@@ -1,0 +1,2217 @@
+{
+ "unit": "F12.07",
+ "track": "F12",
+ "title": "Spot the mistake",
+ "teaches": "Read a short trade plan or journal entry and find the one line that breaks a sound rule: no stop, a stop moved lower, adding to a loser, size before stop, too much risk, chasing, revenge trading, full size into earnings, or a market order in the premarket.",
+ "variety_exempt": [
+  "stems",
+  "choice"
+ ],
+ "skills": [
+  {
+   "id": "process.mistakes",
+   "title": "Spot the mistake"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s01",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Stop Orders: Factors to Consider During Volatile Markets (2025-03-26)",
+   "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s02",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s03",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Extended-Hours Trading: Investor Bulletin (2022-06-06)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s04",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Extended-Hours Trading: Know the Risks (2024-07-31)",
+   "url": "https://www.finra.org/investors/insights/extended-hours-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s05",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "5 Elements of a Smart Trade Plan (2024-10-23)",
+   "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s06",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "7 Common Trading Mistakes to Avoid (2024-02-15)",
+   "url": "https://www.schwab.com/learn/story/common-trading-mistakes-to-avoid",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s07",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trading Psychology: Recovering From Big Losses (Henry Hoenig, 2026-02-10)",
+   "url": "https://www.schwab.com/learn/story/trading-psychology-recovering-from-big-losses",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s08",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Breaking Bad Trade Behaviors (Kevin Horner, 2025-10-01)",
+   "url": "https://www.schwab.com/learn/story/breaking-bad-trade-behaviors",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s09",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "3 Order Types: Market, Limit, and Stop Orders (2024-06-11)",
+   "url": "https://www.schwab.com/learn/story/3-order-types-market-limit-and-stop-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Stop Orders: Mastering Order Types (Kevin Horner, 2023-01-30)",
+   "url": "https://www.schwab.com/learn/story/stop-orders-mastering-order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding the 2% Rule in Investing: A Guide to Risk Management (James Chen, CMT, updated 2026-05-13)",
+   "url": "https://www.investopedia.com/terms/t/two-percent-rule.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master Position Sizing: Minimize Risk and Boost Investment Returns (James Chen, updated 2026-07-01)",
+   "url": "https://www.investopedia.com/terms/p/positionsizing.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Trading Plan: Definition, How It Works, Rules, and Examples (Cory Mitchell, CMT, updated 2024-05-03)",
+   "url": "https://www.investopedia.com/terms/t/trading-plan.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Overtrading Explained: Causes, Types, and Prevention Methods (James Chen, CMT, updated 2026-07-01)",
+   "url": "https://www.investopedia.com/terms/o/overtrading.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Average Down: Definition, How It Works, and Example (Gordon Scott, CMT, updated 2026-04-23)",
+   "url": "https://www.investopedia.com/terms/a/averagedown.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Scale In: Overview of the Trading Strategy (Will Kenton, updated 2026-10-18)",
+   "url": "https://www.investopedia.com/terms/s/scale-in.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "How Stop-Loss Orders Help Limit Investment Losses and Risk (Michael J. Kramer, updated 2026-07-17)",
+   "url": "https://www.investopedia.com/terms/s/stop-lossorder.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Managing positions: When to cut and run, when to take profits (Jeffrey A. Hirsch, editor of the Stock Trader's Almanac)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/managing-positions",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What you need to know about exit strategies (Fidelity Learn, 2026-01-20)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What is a trading plan? (Fidelity Smart Money, 2026-10-22)",
+   "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Trading FAQs: Placing Orders",
+   "url": "https://www.fidelity.com/trading/faqs-placing-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+   "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A StockCharts.com editorial article; the author's bio on the page says he holds FINRA Series 3 and Series 34. Only its general lines are cited (its NVDA share count does not recompute, see conflicts)."
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Richard Rhodes' Trading Rules",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/overview/richard-rhodes-trading-rules",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "AAII Journal (American Association of Individual Investors)",
+   "title": "Sell Rules to Build Your Stock Investing Performance (William J. O'Neil, September 1999)",
+   "url": "https://www.aaii.com/journal/article/sell-rules-to-build-your-stock-investing-performance",
+   "accessed": "2026-11-09",
+   "why_reliable": "Written by William J. O'Neil, founder of Investor's Business Daily and author of How to Make Money in Stocks (the contract names O'Neil among the Tier 2 trading authors), published by AAII, an independent nonprofit investor-education body. The rules quoted are the same ones his books teach."
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "Why You Should Pay Close Attention To The 5% Buy Zone After A Breakout (Nancy Gondo, updated 2022-11-21)",
+   "url": "https://www.investors.com/how-to-invest/investors-corner/buy-zone-gives-investors-chance-to-buy-top-stocks-beyond-breakout/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 1: Risk per trade (the owner's workshop answer, 2026-10-17)",
+   "url": "repo:docs/study/sizing_rule.md#1-risk-per-trade",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s27",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 2: Stop first (owner's answer)",
+   "url": "repo:docs/study/sizing_rule.md#2-stop-first",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s28",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 6: Management (owner quoted, 2026-06-14)",
+   "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s29",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The trade plan for every setup (the trails)",
+   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s30",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s01",
+   "quote": "A stop order becomes a market order once the stop price is reached. The price you receive upon execution, though, could be markedly different than your stop price.",
+   "claim": "Once the stop price is hit, a stop turns into a market order, and the fill can be far from the stop."
+  },
+  {
+   "id": "f02",
+   "source": "s02",
+   "quote": "The stop price is not the guaranteed execution price for a stop order.",
+   "claim": "A stop price is not a guaranteed exit price."
+  },
+  {
+   "id": "f03",
+   "source": "s02",
+   "quote": "Stop, stop-limit, and trailing stop orders may not be available through all brokerage firms.",
+   "claim": "Not every broker offers every kind of stop order."
+  },
+  {
+   "id": "f04",
+   "source": "s03",
+   "quote": "during extended-hours trading there generally is less trading interest and therefore less price competition for most stocks, which may raise trading costs, increase uncertainty with respect to prevailing prices, or make it more difficult to execute trades.",
+   "claim": "Outside regular hours there is less trading and less price competition, so costs can rise and fills get harder."
+  },
+  {
+   "id": "f05",
+   "source": "s03",
+   "quote": "The reduced level of trading interest in extended-hours trading generally results in wider spreads between the bid and ask prices for a stock or no quotes at all.",
+   "claim": "Thin extended-hours trading usually means wider spreads, or no quotes at all."
+  },
+  {
+   "id": "f06",
+   "source": "s03",
+   "quote": "With respect to extended-hours trading, many brokerage firms currently accept only limit orders in order to protect investors from unexpectedly bad prices.",
+   "claim": "Many brokers take only limit orders outside regular hours, to protect you from bad prices."
+  },
+  {
+   "id": "f07",
+   "source": "s03",
+   "quote": "Companies may announce important news or financial information outside of regular trading hours. These announcements, combined with other extended-hours trading risks, may lead to significant price changes in these companies’ stocks during extended hours trading.",
+   "claim": "News released outside regular hours can move a stock sharply before the next open."
+  },
+  {
+   "id": "f08",
+   "source": "s04",
+   "quote": "you might find comparatively fewer counterparties, making it more difficult to execute a trade. As a result, your order may be executed partially or not at all.",
+   "claim": "With fewer buyers and sellers outside regular hours, an order may fill only in part, or not at all."
+  },
+  {
+   "id": "f09",
+   "source": "s04",
+   "quote": "For example, a company that reports disappointing earnings after the market closes might see a rapid decline in its share price during after-hours trading due to the market’s reaction to the announcement.",
+   "claim": "Disappointing earnings after the close can drop a stock fast before the next open."
+  },
+  {
+   "id": "f10",
+   "source": "s05",
+   "quote": "Before placing a trade, you also want to specify when and how you'll close it out.",
+   "claim": "Decide how you will get out before you place the trade."
+  },
+  {
+   "id": "f11",
+   "source": "s05",
+   "quote": "Thinking through those decisions before placing a trade by compiling them into a trade plan can help ensure you enter your orders correctly, can potentially help you manage risk",
+   "claim": "Writing the trade's decisions into a plan before you trade helps you enter orders right and manage risk."
+  },
+  {
+   "id": "f12",
+   "source": "s05",
+   "quote": "some traders may risk up to 1%–2% of their account on a single trade and allocate up to 5%–10% of their portfolio in any single position.",
+   "claim": "A common guide: risk up to 1% to 2% of the account per trade, and hold up to 5% to 10% in one position."
+  },
+  {
+   "id": "f13",
+   "source": "s05",
+   "quote": "Identify potential news events relevant to your portfolio like earnings announcements, dividends, or major economic news.",
+   "claim": "Check for news ahead, such as earnings dates, on what you hold."
+  },
+  {
+   "id": "f14",
+   "source": "s05",
+   "quote": "Determining your entry rules before you buy reduces the guesswork when deciding when to enter a trade.",
+   "claim": "Set the entry rule before you buy."
+  },
+  {
+   "id": "f15",
+   "source": "s05",
+   "quote": "Record your trades in a trading journal.",
+   "claim": "Log every trade in a journal."
+  },
+  {
+   "id": "f16",
+   "source": "s05",
+   "quote": "Listing the things that would cause you to change your mind at the time you place the trade can help you keep a clear head about the company's results.",
+   "claim": "List what would change your mind when you place the trade, so you keep a clear head later."
+  },
+  {
+   "id": "f17",
+   "source": "s06",
+   "quote": "if a long position starts losing money, traders may start buying more positions at lower prices or opening short positions on the same stock, thinking it's a way to get even with the market.",
+   "claim": "Buying more of a losing position to get even is an emotional trading mistake."
+  },
+  {
+   "id": "f18",
+   "source": "s06",
+   "quote": "traders might make the mistake of trying to jump on a move after it's already happened—perhaps at the point when it's ready to reverse.",
+   "claim": "Jumping on a move after it has already happened is a common mistake, sometimes right before it reverses."
+  },
+  {
+   "id": "f19",
+   "source": "s06",
+   "quote": "Mistake 2: Moving the goal posts There are many ways to avoid admitting you've made a mistake, but it's generally better to acknowledge a small loss than to keep digging in and lose more.",
+   "claim": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in."
+  },
+  {
+   "id": "f20",
+   "source": "s06",
+   "quote": "Pulling—or canceling—a stop is often an unconscious attempt to avoid admitting you were wrong. After all, as long as the position is open, there's still a chance it could come back. (Of course, it could also fall a lot further.)",
+   "claim": "Pulling a stop is usually a way to avoid admitting you were wrong, and the stock can keep falling."
+  },
+  {
+   "id": "f21",
+   "source": "s06",
+   "quote": "It's usually best to stick to the plan you had, using the indicators you typically rely on, and take small losses quickly rather than dragging out a losing trade.",
+   "claim": "Stick to the plan and take small losses quickly."
+  },
+  {
+   "id": "f22",
+   "source": "s06",
+   "quote": "And markets can surprise you. So, it may be best to avoid trading around earnings.",
+   "claim": "Earnings can surprise you, so it may be best to avoid trading around them."
+  },
+  {
+   "id": "f23",
+   "source": "s07",
+   "quote": "traders can potentially learn to take a loss while executing their trading plan without doubling down on the next trade in a misguided effort to make up for the loss.",
+   "claim": "Take the planned loss without doubling down on the next trade to make it back."
+  },
+  {
+   "id": "f24",
+   "source": "s07",
+   "quote": "The first thing to do is step away from the market. This can be hard. Many traders feel a strong urge to jump right back in and start to regain their footing.",
+   "claim": "After a hard loss, step away first, even though the urge is to jump straight back in."
+  },
+  {
+   "id": "f25",
+   "source": "s07",
+   "quote": "Less money at risk equals less pressure and clearer thinking. Traders can then increase position size as they demonstrate a new track record of executing their system.",
+   "claim": "Come back smaller, then size up as you show you are following your system again."
+  },
+  {
+   "id": "f26",
+   "source": "s08",
+   "quote": "One way traders can do so is to create an exit strategy before placing a trade, such as setting a stop-limit order to automatically sell if the stock drops to or below a limit price",
+   "claim": "Set the exit before you trade, for example a stop-limit order that sells automatically if the stock drops."
+  },
+  {
+   "id": "f27",
+   "source": "s08",
+   "quote": "there's no harm in reducing the size of your trades. Once your results get back on track, you can increase your risk-taking.",
+   "claim": "In a losing streak there is no harm in trading smaller; size back up when results return."
+  },
+  {
+   "id": "f28",
+   "source": "s09",
+   "quote": "A market order placed when markets are closed would be executed at the next market open, which could be significantly higher or lower from its prior close.",
+   "claim": "A market order sent while the market is closed fills at the next open, which can be far from the last close."
+  },
+  {
+   "id": "f29",
+   "source": "s09",
+   "quote": "First, only limit orders are accepted in extended orders; market and stop orders are not.",
+   "claim": "At Schwab, only limit orders work in extended hours; market and stop orders do not."
+  },
+  {
+   "id": "f30",
+   "source": "s10",
+   "quote": "Stop orders are vulnerable to pricing gaps, which can sometimes occur between trading sessions or during pauses in trading, such as trading halts. The execution price can be higher or lower than the stop's trigger price",
+   "claim": "A gap between sessions can jump past a stop, so the fill can be far from the stop price."
+  },
+  {
+   "id": "f31",
+   "source": "s11",
+   "quote": "The 2% rule limits investors to risking no more than 2% of their available capital on a single trade.",
+   "claim": "The 2% rule: never risk more than 2% of your capital on one trade."
+  },
+  {
+   "id": "f32",
+   "source": "s11",
+   "quote": "In practice, traders must also consider slippage costs and gap risk. These can result in events that make the potential for loss significantly greater than 2%.",
+   "claim": "Slippage and gaps can make a loss bigger than the risk you planned."
+  },
+  {
+   "id": "f33",
+   "source": "s12",
+   "quote": "For stock trades, the trade risk is the dollar difference between the entry price and the stop-loss.",
+   "claim": "Risk per share is the distance from your entry to your stop."
+  },
+  {
+   "id": "f34",
+   "source": "s12",
+   "quote": "To determine the correct position size from this information, the investor simply needs to divide the account risk ($500) by the trade risk ($20).",
+   "claim": "Position size is the dollars you will risk divided by the risk per share."
+  },
+  {
+   "id": "f35",
+   "source": "s12",
+   "quote": "If expecting volatility, like before earnings reports, investors might halve their position size to cut gap risk.",
+   "claim": "Before earnings, some traders cut their position in half to reduce gap risk."
+  },
+  {
+   "id": "f36",
+   "source": "s13",
+   "quote": "A tactical trading plan must also state how to exit positions. This includes exiting with a profit or how and when to get out with a loss.",
+   "claim": "A trading plan must say how and when you get out with a loss."
+  },
+  {
+   "id": "f37",
+   "source": "s13",
+   "quote": "The distance between the entry point and the stop-loss point multiplied by the position size can't be more than 1% of the account balance. This rule governs position size because this is the only unknown and must be calculated.",
+   "claim": "In a plan, the size is the one number you calculate, from the entry-to-stop distance and your risk limit."
+  },
+  {
+   "id": "f38",
+   "source": "s13",
+   "quote": "Other trading restrictions can include reducing position size by a set degree when things aren't going well",
+   "claim": "A plan can cut position size when trading is going badly."
+  },
+  {
+   "id": "f39",
+   "source": "s13",
+   "quote": "A day trader may have a rule to stop trading if they lose three trades in a row or a certain amount of money.",
+   "claim": "A plan can include a rule to stop trading after a run of losses."
+  },
+  {
+   "id": "f40",
+   "source": "s14",
+   "quote": "To recoup their capital, or to seek “revenge” on the market after a string of losing trades, they may try to make up profits wherever they can, usually by increasing the size and frequency of their trades.",
+   "claim": "Revenge trading after losses usually means bigger and more frequent trades to win the money back."
+  },
+  {
+   "id": "f41",
+   "source": "s15",
+   "quote": "Averaging down is an investment strategy where an investor buys additional shares of a stock after its price has fallen, thereby reducing the average cost per share.",
+   "claim": "Averaging down means buying more after the price falls, to lower your average cost."
+  },
+  {
+   "id": "f42",
+   "source": "s15",
+   "quote": "is that the average investor has very little ability to distinguish between a temporary drop in price and a warning signal that prices are about to go much lower.",
+   "claim": "The problem with averaging down: a dip and the start of a much bigger fall look the same at the time."
+  },
+  {
+   "id": "f43",
+   "source": "s15",
+   "quote": "It is favored by long-term investors and those following a value-driven approach with careful risk management.",
+   "claim": "Averaging down is favored by long-term and value investors who manage the risk carefully."
+  },
+  {
+   "id": "f45",
+   "source": "s16",
+   "quote": "It is also common to move your stop loss to break even or beyond when an initial profit target is hit.",
+   "claim": "Raising the stop to breakeven once the first target hits is a common move."
+  },
+  {
+   "id": "f46",
+   "source": "s17",
+   "quote": "If a stock’s price gaps past the stop price, the order triggers, and the stock is sold (or bought) at the next available price, regardless of a sharp price move.",
+   "claim": "When a stock gaps past the stop, it sells at the next available price, not at the stop."
+  },
+  {
+   "id": "f47",
+   "source": "s18",
+   "quote": "tend to buy more of a stock that has fallen, under the guise that it's cheaper and obviously a better value than when we bought higher a short time before, instead of admitting we were wrong",
+   "claim": "Buying more of a falling stock because it looks cheaper is often a way to avoid admitting you were wrong."
+  },
+  {
+   "id": "f48",
+   "source": "s18",
+   "quote": "In fact, this can be one of the fastest ways to lose money in the stock market.",
+   "claim": "Hirsch calls buying more of a falling stock one of the fastest ways to lose money."
+  },
+  {
+   "id": "f49",
+   "source": "s18",
+   "quote": "The 2% Rule. Not allowing a position to lose more than 2% of the overall portfolio.",
+   "claim": "Hirsch's 2% rule: one position never loses more than 2% of the portfolio."
+  },
+  {
+   "id": "f50",
+   "source": "s18",
+   "quote": "In my opinion, no one position should maintain such a large percentage that it determines the future of the portfolio.",
+   "claim": "No single position should be big enough to decide the whole account's future."
+  },
+  {
+   "id": "f51",
+   "source": "s18",
+   "quote": "Entering even your best ideas when they are clearly overbought can be painful and expensive.",
+   "claim": "Buying even a great idea after a big run can be painful and expensive."
+  },
+  {
+   "id": "f52",
+   "source": "s19",
+   "quote": "Even before you enter a trade, it can be helpful to have a plan for how you might exit the trade.",
+   "claim": "Plan the exit before you enter."
+  },
+  {
+   "id": "f53",
+   "source": "s19",
+   "quote": "Often, emotions and loss aversion can get in the way of making good trading decisions. That’s why it's so important that you have a plan for getting out of an investment.",
+   "claim": "Emotions get in the way once you are in, which is why the way out is planned first."
+  },
+  {
+   "id": "f54",
+   "source": "s20",
+   "quote": "you want to lay the ground rules for when you'll cut your losses vs. when you'll hold tight if the market stumbles and falls.",
+   "claim": "A plan sets, in advance, when you cut a loss."
+  },
+  {
+   "id": "f55",
+   "source": "s20",
+   "quote": "You shouldn't alter a trading plan as a knee-jerk reaction to temporary market events, like when stock prices take a dive.",
+   "claim": "Don't change the plan as a knee-jerk reaction when the price drops."
+  },
+  {
+   "id": "f56",
+   "source": "s21",
+   "quote": "Fidelity will accept limit orders in the extended-hours trading sessions; all other order types are ineligible for trading during extended-hours.",
+   "claim": "At Fidelity, only limit orders trade in extended hours."
+  },
+  {
+   "id": "f57",
+   "source": "s21",
+   "quote": "You may see reduced liquidity during extended-hours trading sessions that prevents your orders from being executed, in whole or in part, or you may experience a less favorable price than you might receive during standard market hours.",
+   "claim": "Thin extended-hours trading can leave an order unfilled or fill it at a worse price."
+  },
+  {
+   "id": "f58",
+   "source": "s22",
+   "quote": "The biggest mistake is to decide on your position size first without calculating the space between entry and stop. This is where you risk losing big or winning too small.",
+   "claim": "Choosing a size before measuring entry to stop is the mistake StockCharts calls the biggest; it risks losing big or winning too small."
+  },
+  {
+   "id": "f59",
+   "source": "s22",
+   "quote": "Determine where your trade thesis fails (this is where you place your stop-loss)",
+   "claim": "The stop goes where the trade idea is proven wrong."
+  },
+  {
+   "id": "f60",
+   "source": "s22",
+   "quote": "Divide your risk per trade by the risk per share, and it'll give you the number of shares to buy",
+   "claim": "Shares to buy are your risk per trade divided by your risk per share."
+  },
+  {
+   "id": "f61",
+   "source": "s23",
+   "quote": "Never, ever under any condition, add to a losing trade, or “average” into a position.",
+   "claim": "Never add to a losing trade."
+  },
+  {
+   "id": "f62",
+   "source": "s23",
+   "quote": "If you are buying, then each new buy price must be higher than the previous buy price.",
+   "claim": "When you add, each new buy should be higher than the last."
+  },
+  {
+   "id": "f63",
+   "source": "s23",
+   "quote": "When sharp losses in equity are experienced, take time off. Close all trades and stop trading for several days. The mind can play games with itself following sharp, quick losses.",
+   "claim": "After sharp losses, take time off; the mind plays games after quick losses."
+  },
+  {
+   "id": "f64",
+   "source": "s23",
+   "quote": "The urge “to get the money back” is extreme, and should not be given in to.",
+   "claim": "Don't give in to the urge to get the money back."
+  },
+  {
+   "id": "f65",
+   "source": "s23",
+   "quote": "Be patient. If a trade is missed, wait for a correction to occur before putting the trade on.",
+   "claim": "If you miss a trade, wait for a pullback before you take it."
+  },
+  {
+   "id": "f66",
+   "source": "s23",
+   "quote": "In bull markets, add to the trade on minor corrections back into support levels.",
+   "claim": "Add to a working trade on small pullbacks into support."
+  },
+  {
+   "id": "f67",
+   "source": "s24",
+   "quote": "What about the “averaging down” strategy of buying more shares in a stock if the price drops? My advice is, don’t do it—it is throwing good money after bad.",
+   "claim": "O'Neil: don't average down; it's throwing good money after bad."
+  },
+  {
+   "id": "f68",
+   "source": "s24",
+   "quote": "The only averaging that makes sense is “averaging up” in your purchasing.",
+   "claim": "O'Neil: only average up, adding as the stock goes your way."
+  },
+  {
+   "id": "f69",
+   "source": "s24",
+   "quote": "If you buy later when a stock is 10%, 20% or 30% extended from a sound chart base, you will be shaken out on minor 8% pullbacks in price much more frequently.",
+   "claim": "Buy a stock well extended from its base and normal pullbacks shake you out far more often."
+  },
+  {
+   "id": "f70",
+   "source": "s24",
+   "quote": "If you buy more than 5% to 10% past the pivot point, the price is extended ... and you are probably too late.",
+   "claim": "O'Neil: more than 5% to 10% past the buy point is extended, and probably too late."
+  },
+  {
+   "id": "f71",
+   "source": "s25",
+   "quote": "That depends on how far past the buy point you get in. The further beyond the buy point, the greater the risk of getting shaken out of a stock.",
+   "claim": "The further past the buy point you get in, the greater the risk of being shaken out."
+  },
+  {
+   "id": "f72",
+   "source": "s19",
+   "quote": "You can set profit and loss targets from a purchase price. For example, a rule could be a 2:1 or 3:1 profit/loss target.",
+   "claim": "A profit target of 2 or 3 times the risk is one example of an exit rule."
+  },
+  {
+   "id": "f73",
+   "source": "s13",
+   "quote": "Plans shouldn't change whenever there's a loss or a rough patch.",
+   "claim": "A plan should not change every time a trade goes against you."
+  },
+  {
+   "id": "f74",
+   "source": "s14",
+   "quote": "Individual traders usually overtrade after suffering a significant loss or a series of smaller losses in a long losing streak.",
+   "claim": "Overtrading usually starts after a big loss or a run of smaller ones."
+  },
+  {
+   "id": "h01",
+   "source": "s26",
+   "quote": "0.25% to 2% of the account, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling.",
+   "claim": "Our rule: risk 0.25% to 2% of the account on a trade, never more than 2%."
+  },
+  {
+   "id": "h02",
+   "source": "s27",
+   "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.)",
+   "claim": "Our default stop is the low of the day or the prior day's low."
+  },
+  {
+   "id": "h03",
+   "source": "s28",
+   "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "claim": "Our rule: hold winners by selling some into strength and trailing the rest under the rising moving averages."
+  },
+  {
+   "id": "h04",
+   "source": "s30",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+  },
+  {
+   "id": "h05",
+   "source": "s29",
+   "quote": "under each higher low, or under the 9 EMA",
+   "claim": "Our trail: under each higher low, or under the 9 EMA."
+  },
+  {
+   "id": "h06",
+   "source": "s30",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "Our rule: the whole position goes on at one price with one stop, and we never add to it."
+  },
+  {
+   "id": "h07",
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "h08",
+   "source": "s30",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "Our rule C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h09",
+   "source": "s30",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "Our rule B22: no new buys in the 3 days before a report, and we hold through a report only when the trade is up 5R."
+  },
+  {
+   "id": "h10",
+   "source": "s30",
+   "quote": "No new buys outside regular trading hours.",
+   "claim": "Our rule E58: we open no new buys outside regular trading hours."
+  },
+  {
+   "id": "h11",
+   "source": "s30",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "Our rule A4: the stop is the exit and only moves up, never down or wider; the one exception is the gap rule."
+  },
+  {
+   "id": "h12",
+   "source": "s30",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "Our gap rule B20: when a stock gaps against the stop, the low of the first 30-minute bar becomes the new stop."
+  },
+  {
+   "id": "h13",
+   "source": "s30",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "Our gap rule B20 has a ceiling: if the first 30 minutes take the loss past 2R, we get out."
+  },
+  {
+   "id": "h14",
+   "source": "s30",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "Our rule D41: every position has a real stop order with the broker, not one kept in your head."
+  },
+  {
+   "id": "h15",
+   "source": "s30",
+   "quote": "No losing-streak rule: size is cut only by the drawdown ladder, in percent",
+   "claim": "Our rule B17: we have no losing-streak rule; only the account's drawdown, in percent, forces a size cut."
+  },
+  {
+   "id": "h16",
+   "source": "s30",
+   "quote": "Risk 0.25% to 2% of the account on a trade, picked by setup quality, recent results, the market and your edge.",
+   "claim": "Our rule A1: risk 0.25% to 2% of the account a trade, picked by setup quality, recent results, the market and your edge."
+  },
+  {
+   "id": "h17",
+   "source": "s30",
+   "quote": "Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling.",
+   "claim": "Our rule A1: under 1% risk is normal, 1.5% is the most any setup grade uses, and 2% is the absolute ceiling."
+  },
+  {
+   "id": "h18",
+   "source": "s30",
+   "quote": "the size is the SMALLER of the risk-based size and the position cap",
+   "claim": "Our rule A5: the size is the smaller of the risk-based size and the position cap."
+  },
+  {
+   "id": "h19",
+   "source": "s30",
+   "quote": "Max position 40% of the account",
+   "claim": "Our rule A7: one position is capped at 40% of the account."
+  },
+  {
+   "id": "h20",
+   "source": "s30",
+   "quote": "the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "Our rule A3: the size comes from the stop, and if the honest stop does not fit the risk, we skip the trade."
+  },
+  {
+   "id": "h21",
+   "source": "s30",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "Our rule F62: the default stop sits a few cents under the day's low, not exactly on it."
+  },
+  {
+   "id": "h22",
+   "source": "s30",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "Our rule B21: after a stop-out, buy again only if the setup triggers again, as a new trade."
+  },
+  {
+   "id": "h23",
+   "source": "s30",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink",
+   "claim": "Our rule C28: a chase keeps the dollar risk, but the stop stays under the buy point, so the shares shrink."
+  },
+  {
+   "id": "h24",
+   "source": "s30",
+   "quote": "Tired, sick, angry or distracted: no new trades that day.",
+   "claim": "Our rule F67: tired, sick, angry or distracted, we open no new trades that day."
+  },
+  {
+   "id": "h25",
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "rd21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Read the plan line by line",
+   "steps": [
+    "Your plan gets written before you buy. The setup, the entry, the stop, the size, and how you get out.",
+    "Now read it one line at a time. Ask if each line keeps the loss small and decided before you're in.",
+    "One bad line can sink the trade. Find it before the market does."
+   ],
+   "facts": [
+    "f11",
+    "f36",
+    "f10"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "The mistakes that grow a loss",
+   "steps": [
+    "No stop. A stop moved lower. Buying more of a loser. Each one lets the loss grow past what you planned.",
+    "Size picked before the stop is backwards. Either you risk losing big, or the stop gets squeezed to fit.",
+    "We never risk more than 2% of the account on one trade. A line that breaks that gets fixed before you buy."
+   ],
+   "facts": [
+    "f19",
+    "f61",
+    "f58",
+    "h01"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The mistakes of timing and feel",
+   "steps": [
+    "Some mistakes are about timing and feel. Chasing a stock far past its breakout. Sizing up to win back a loss.",
+    "Full size into earnings, trusting the stop to save you. It can't: a gap jumps right past it.",
+    "So our rule: no new buys in the 3 days before a report. Hold through one only if you're up 5R.",
+    "And no market orders in a thin premarket. We don't buy outside regular hours at all."
+   ],
+   "facts": [
+    "f70",
+    "f40",
+    "f30",
+    "h09",
+    "h10"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "process.mistakes",
+   "rung": 1,
+   "format": "scenario",
+   "story": "1. Setup: tight flag near the highs. 2. Risk: 1% of the account. 3. Entry: over yesterday's high. 4. Stop: none yet, I'll watch it and decide.",
+   "q": "Here's your plan for a tight flag near the highs. Before you buy, which line has to change?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 4",
+   "why": "Line 4. No stop, no trade. You decide where you're wrong before you buy, while you're calm and no money is on the line. \"I'll watch it\" turns into hoping the second it goes red. And without a stop, the 1% in Line 2 means nothing, because you size from the stop. Pick the level, a few cents under the low of the day or yesterday's low. Then put it in with your broker as a real stop order the moment you're filled.",
+   "lesson_line": "No stop, no trade. Know where you're wrong before you buy.",
+   "facts": [
+    "f36",
+    "f52",
+    "f10",
+    "f12",
+    "f14",
+    "h14",
+    "h01",
+    "h02",
+    "h21"
+   ],
+   "wrong": {
+    "Line 1": "That one's fine. It names the setup you're trading.",
+    "Line 2": "Fine. 1% is a sound risk, inside our 0.25% to 2% range. It just needs a stop to measure from.",
+    "Line 3": "Fine. Over yesterday's high is a clear trigger, set before you buy."
+   },
+   "simple": "Line 4. A plan needs a stop before you buy, and this one doesn't have one.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the why now teaches the owner's rule D41 (h14)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "process.mistakes",
+   "rung": 2,
+   "format": "scenario",
+   "house": true,
+   "story": "1. Risk: 3% of the account, this one looks perfect. 2. Setup: breakout from a six-week base. 3. Stop: under the breakout day's low. 4. Size: risk dollars divided by entry minus stop.",
+   "q": "Your plan for a breakout from a six-week base. Which line would you send back?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 1",
+   "why": "Line 1. I don't care how perfect it looks, 3% is too much. 2% is the most we ever risk on one trade, and even our best setups top out at 1.5%. Here's why. The trades that look perfect fail too, and you never know which one will. String a few of those together at 3% and the hole gets deep fast. Let the setup's quality pick your risk inside 0.25% to 2%, never past it.",
+   "lesson_line": "Perfect-looking setups fail too. 2% is the ceiling on any trade.",
+   "facts": [
+    "h01",
+    "h16",
+    "h17",
+    "f31",
+    "f49",
+    "h02",
+    "h21",
+    "f34"
+   ],
+   "wrong": {
+    "Line 2": "Fine. A breakout from a six-week base is a real setup.",
+    "Line 3": "Fine. Just under the breakout day's low is where we put the stop.",
+    "Line 4": "Fine. That's how you size: dollars at risk divided by risk per share."
+   },
+   "simple": "Line 1. 3% is over our 2% ceiling, and a great-looking setup never raises it.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (A1)",
+     "a number set by a rule that can change (the 2% ceiling, 1.5% grade maximum)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q03",
+   "skill": "process.mistakes",
+   "rung": 3,
+   "format": "scenario",
+   "story": "1. Bought 300 shares at $40, stop at $38, under the base. 2. Next day it slipped to $39, so I bought 300 more to lower my cost. 3. It traded down to $38 and my stop sold it all. 4. Logged the trade that night with a chart.",
+   "q": "This trade got stopped out. Read the journal entry. Where did it go wrong?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 2",
+   "why": "Line 2, the add. That's averaging down, and it's how a small loss turns into a big one. The slip from $40 to $39 was the stock telling you the idea wasn't working yet. Buying 300 more doubled the shares riding down to your $38 stop. So the loss came out bigger than the one you planned, on twice the shares. We put the full size on at one price with one stop, and we never add to a loser. Buying more to lower your cost feels like a bargain. Really it's refusing to admit you're wrong.",
+   "lesson_line": "Never add to a loser. Your full size goes on at one price.",
+   "facts": [
+    "f61",
+    "f67",
+    "f47",
+    "f17",
+    "f15",
+    "f43",
+    "aw1"
+   ],
+   "wrong": {
+    "Line 1": "Fine. A buy with the stop set under the base.",
+    "Line 3": "Fine. The stop did its job. The extra damage came from the shares you added in Line 2.",
+    "Line 4": "Fine. Logging it with a chart is how you catch a mistake like Line 2."
+   },
+   "simple": "Line 2. Buying more as it falls doubles down on a trade that's already telling you it's wrong.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A5, h06)",
+     "rewritten before (2026-11-09)"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q04",
+   "skill": "process.mistakes",
+   "rung": 3,
+   "format": "scenario",
+   "house": true,
+   "story": "1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 20 EMA. 3. Entry: over the prior day's high. 4. Trail: under the 20 EMA, out on a close below it.",
+   "q": "You're buying a pullback to the rising 20 EMA tomorrow. Which line of the plan would you fix?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 1",
+   "why": "Line 1. The size came first, so now the stop has to squeeze in wherever 1,000 shares fit. That's backwards. Find the stop on the chart first, where the pullback fails. Then size from the distance between your entry and that stop. A squeezed stop sits inside the normal noise, so good trades shake you out. And if the honest stop doesn't fit your risk, you skip the trade.",
+   "lesson_line": "Stop first, distance second, size last.",
+   "facts": [
+    "f58",
+    "f37",
+    "f59",
+    "h20",
+    "h25",
+    "f11",
+    "f14",
+    "rd21"
+   ],
+   "wrong": {
+    "Line 2": "Fine. A pullback to the rising 20 EMA is a setup we trade.",
+    "Line 3": "Fine. Over the prior day's high is a clear trigger.",
+    "Line 4": "Fine. Trailing the 20 EMA and selling on a close below it is how we hold steadier names."
+   },
+   "simple": "Line 1. The stop comes from the chart first, and the share count comes from the stop.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A3, E52)",
+     "story Line 4 reworded here, and rewritten before (2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q05",
+   "skill": "process.mistakes",
+   "rung": 1,
+   "format": "tf",
+   "q": "Your stock's a little red from where you bought it. Buying more here to lower your average cost is a smart fix.",
+   "answer": "False",
+   "why": "False. That's averaging down, and we never do it. A red trade is telling you the idea isn't working yet. Buying more puts extra money on the one idea that's proving wrong. And in the moment, a small dip and the start of a big drop look exactly the same. If it keeps falling, you take the bigger loss on more shares. Your stop is the plan, not a place to add.",
+   "lesson_line": "Never add to a loser. If it's red, the plan is the stop, not more shares.",
+   "facts": [
+    "f67",
+    "f61",
+    "f47",
+    "f48",
+    "f41",
+    "f42",
+    "f43",
+    "aw1"
+   ],
+   "simple": "False. Adding to a loser puts more money on an idea that's already going wrong.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the why now cites the owner's rule A5 (h06)",
+     "fixed before (verify notes)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "counter": "Some long-term and value investors do average down, with careful risk control. That's investing, not a swing trade with a stop. O'Neil's take for traders is blunt: it's throwing good money after bad."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "process.mistakes",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You've found a trade you like. Why pick the stop now, before you buy, and not once you're in?",
+   "choices": [
+    "So you set the exit while you're calm",
+    "So a gap can't jump past your stop",
+    "So your broker will accept the order",
+    "So you know where to add more shares"
+   ],
+   "answer": "So you set the exit while you're calm",
+   "why": "So you set the exit while you're calm. Before you're in, it's just a chart and a price. Once your money's on it, every tick down makes you want to give it a little more room. That's loss aversion, and it's why people pull their stops. Pick the level where the idea's wrong, put the order in with your broker, and then you just follow it.",
+   "lesson_line": "Plan the exit while you're calm. In the trade, you just follow it.",
+   "facts": [
+    "f53",
+    "f52",
+    "f20",
+    "f26",
+    "f01",
+    "f03",
+    "f59",
+    "f61",
+    "aw1",
+    "h11",
+    "h14"
+   ],
+   "wrong": {
+    "So a gap can't jump past your stop": "A stop can't stop a gap. Once it's hit it turns into a market order, and the fill can be far below it.",
+    "So your broker will accept the order": "Your broker doesn't need a stop from you. Some don't even offer every stop type. The stop is for you.",
+    "So you know where to add more shares": "The stop is where you're wrong, not where you buy more. We put the full size on at one price, with one stop."
+   },
+   "simple": "Set it before you buy, because once you're in, emotions make it hard to pick a fair exit.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the new wrong note rests on the owner's rule A5 (h06)",
+     "fixed before (verify notes)"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q07",
+   "skill": "process.mistakes",
+   "rung": 2,
+   "format": "fill",
+   "q": "Pick the order type for the premarket.",
+   "sentence": "In the premarket, many brokers take only ___ orders.",
+   "bank": [
+    "limit",
+    "market",
+    "stop",
+    "stop-limit"
+   ],
+   "answer": "limit",
+   "why": "Limit. Premarket trading is thin, with wider spreads or no quotes at all. Many brokers take only limit orders then, to protect you from bad prices. Schwab and Fidelity accept only limits in extended hours. A limit names your price, but it may fill only in part or not at all. Our own rule opens no new buys outside regular hours.",
+   "lesson_line": "Outside regular hours, many brokers take only limit orders. We open no new buys then.",
+   "facts": [
+    "f06",
+    "f05",
+    "f29",
+    "f56",
+    "f08",
+    "h10"
+   ],
+   "simple": "Limit, because premarket trading is thin, so many brokers only take orders that name a price.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "broker order rules for extended hours can change",
+     "the why now cites the owner's rule E58 (h10)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q08",
+   "skill": "process.mistakes",
+   "rung": 3,
+   "format": "tf",
+   "q": "You missed the breakout and buy it 8% past the buy point. A normal pullback is now more likely to shake you out.",
+   "answer": "True",
+   "why": "True. At 8% past the buy point you're twice as far out as our 4% chase line. Your stop still belongs under the breakout, so it's a long way down now. A normal pullback, the kind every leader takes, can run you right into it. Or the drop scares you out first. If you missed it, let it go and wait for the next tight spot.",
+   "lesson_line": "Missed the breakout, let it go. Wait for the next tight spot instead of chasing.",
+   "facts": [
+    "f71",
+    "f70",
+    "f69",
+    "f18",
+    "f65",
+    "h08"
+   ],
+   "simple": "True. The further past the breakout you buy, the more a normal dip can knock you out.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (C28, 4%)",
+     "a number set by a rule that can change"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "O'Neil puts his line at 5% to 10% past the pivot. Past that the stock is extended, and you're probably too late. Ours is tighter, at 4%."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "process.mistakes",
+   "rung": 4,
+   "format": "scenario",
+   "story": "1. Setup: it broke out of a base last week, without me. 2. Entry: buy now, 25% past the breakout after an eight-day run. 3. Stop: under the breakout level. 4. Size: from that stop, risking 1%.",
+   "q": "It broke out last week without you and ran eight days. You want in now. Which line breaks your plan?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 2",
+   "why": "Line 2, the entry. 25% past the breakout after an eight-day run is chasing, plain and simple. Our line is 4% above the buy point. Here's what it costs you. The honest stop is still back under the breakout, way below. Size from that and you get a tiny position. Tighten the stop instead and a normal pullback takes you out. Either way it's a bad trade. Keep it on your radar and wait for a pullback or a new base.",
+   "lesson_line": "If you missed it, you missed it. Keep it on your radar and wait for the next spot.",
+   "facts": [
+    "f70",
+    "f69",
+    "f18",
+    "f51",
+    "f65",
+    "f59",
+    "f34",
+    "h08",
+    "h23"
+   ],
+   "wrong": {
+    "Line 1": "Fine. Missing a breakout happens. It's only a note.",
+    "Line 3": "Fine as a level. Back under the breakout, the idea's wrong. The chase in Line 2 is what puts it so far away.",
+    "Line 4": "Fine. Sizing from the stop keeps the loss at 1%. It just can't fix a late entry."
+   },
+   "simple": "Line 2. 25% past the breakout is chasing, way past the 4% most we'll pay over a buy point.",
+   "deeper": {
+    "trap": "Line 4 looks like it fixes the chase. Size from the far stop and the planned loss stays at 1%. But the position comes out small, so the trade can't pay you much. Chasing costs you size, not risk. And the pullbacks that shake late buyers out are still coming."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (C28, 4%)",
+     "a number set by a rule that can change"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q10",
+   "skill": "process.mistakes",
+   "rung": 4,
+   "format": "scenario",
+   "story": "1. Bought the breakout over $31.20 on heavy volume. 2. Set no stop; I'd sell if it started to feel wrong. 3. Earnings were five weeks out; I noted the date. 4. Wrote the entry and my reason in my journal.",
+   "q": "You bought a breakout over $31.20 on heavy volume and wrote it up. What's the mistake?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 2",
+   "why": "Line 2. \"I'll sell if it feels wrong\" isn't a stop. Feelings show up late, and they always want to give it a bit more room. You need a price, picked before you buy and sitting with your broker as a real stop order. On a breakout over $31.20, that goes a few cents under the low of the day. Line 3 is good work, by the way. You know the report is five weeks out, so you can plan around it.",
+   "lesson_line": "A feeling isn't a stop. Put the price in with your broker before you buy.",
+   "facts": [
+    "f36",
+    "f54",
+    "f10",
+    "f13",
+    "f14",
+    "f15",
+    "h14",
+    "h02",
+    "h21"
+   ],
+   "wrong": {
+    "Line 1": "Fine. Buying over $31.20 is a set trigger.",
+    "Line 3": "Fine. Checking the earnings date before you buy is good practice.",
+    "Line 4": "Fine. Writing down the entry and your reason is part of the job."
+   },
+   "simple": "Line 2. Selling when it feels wrong isn't a stop, and a plan needs a real exit price.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the why now cites the owner's rule D41 (h14)",
+     "fixed before (verify notes)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q11",
+   "skill": "process.mistakes",
+   "rung": 4,
+   "format": "tf",
+   "q": "You've been stopped out five times in a row. Trading smaller for a while is a sound move.",
+   "answer": "True",
+   "why": "True, and it's your call. Less money on the line means less pressure and a clearer head. Once you're executing well again, you size back up. Just know it's a choice, not one of our rules. We don't cut size for a losing streak. The only thing that forces a cut is the drawdown, how far the account sits below its high in percent. Your recent results can still help you pick your risk inside 0.25% to 2%.",
+   "lesson_line": "Smaller after a rough patch is fine. Only the drawdown forces it.",
+   "facts": [
+    "f27",
+    "f25",
+    "f38",
+    "h16",
+    "h15"
+   ],
+   "simple": "True. A smaller size lowers the pressure while you get back on track, and you can size up later.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the key sits beside the owner's rules A1 and B17 (see owner_flags)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q12",
+   "skill": "process.mistakes",
+   "rung": 5,
+   "format": "scenario",
+   "house": true,
+   "story": "1. Bought at $25.40 with the stop at $24.60, a few cents under the low of the day. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 3R to review the trade.",
+   "q": "You bought at $25.40 and by noon it's hanging just over your stop. What did you do wrong?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 3",
+   "why": "Line 3, the stop move. That's moving the goal posts. Your stop at $24.60 sat right where the idea fails. Price getting close is just the stop doing its job, not a reason for more room. Drop it to $23.90 and you've made the loss bigger just to avoid being wrong. Our stop only moves up, never down. The one exception is a gap, and nothing gapped here.",
+   "lesson_line": "Stops move up behind a winner. They never move down to rescue a loser.",
+   "facts": [
+    "f19",
+    "f55",
+    "f20",
+    "f73",
+    "h02",
+    "r01",
+    "h11",
+    "h21"
+   ],
+   "wrong": {
+    "Line 1": "Fine. A few cents under the low of the day is where our stop goes.",
+    "Line 2": "Fine. That's just where the price is. The stop hasn't been hit.",
+    "Line 4": "Fine. An alert at 3R is just a mark to watch. The first sell is still your judgment."
+   },
+   "simple": "Line 3. Lowering the stop to give it room only lets the loss get bigger than you planned.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A4, F62, B19)",
+     "story Line 1 reworded here, and rewritten before (2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q13",
+   "skill": "process.mistakes",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You hold 200 shares from $50, stop at $48. It sags and you drop the stop to $46. How much are you risking now?",
+   "answer": "$800",
+   "prefix": "$",
+   "calc": {
+    "fn": "risk_dollars",
+    "args": {
+     "shares": 200,
+     "entry": 50,
+     "stop": 46
+    }
+   },
+   "why": "$800. $50 minus $46 is $4 a share. 200 shares times $4 is $800. Your old $48 stop risked $400, so lowering it doubled what you can lose. You didn't buy a single new share to do it. That's why our stop only moves up. Every dollar you drop it costs you a dollar on every share.",
+   "lesson_line": "Every dollar you lower the stop adds a dollar of risk on every share.",
+   "facts": [
+    "f33",
+    "f19",
+    "f55",
+    "h11"
+   ],
+   "simple": "$800. Each of the 200 shares now risks the drop from $50 to $46.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "the why cites the owner's rule A4 (h11)",
+     "fixed before (verify notes)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$1,200",
+    "$400",
+    "$9,200",
+    "$800"
+   ],
+   "wrong": {
+    "$400": "That's what the old $48 stop risked. The stop's at $46 now.",
+    "$9,200": "That's 200 shares priced at $46, the whole position at the stop, not the risk.",
+    "$1,200": "You added the old risk and the new risk together. Only the new stop counts."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "process.mistakes",
+   "rung": 5,
+   "format": "scenario",
+   "story": "1. First trade hit its stop, a 1% loss, as planned. 2. Second trade hit its stop too, another 1% loss. 3. Wrote both losses in my journal at lunch. 4. Next setup, I doubled my size to get both losses back in one trade.",
+   "q": "Two planned stops this morning, 1% each. Here's the rest of your day. Where does it go wrong?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 4",
+   "why": "Line 4, the doubled size. That's revenge trading. Two 1% stops in a morning is the plan working. Doubling up to win it back in one shot means the next stop costs twice as much. Do the math. The next loss is 2%, our absolute ceiling, and past the 1.5% even our best setups use. If that one fails too, a normal day just became a bad week. Take the next trade at your normal size, or walk away for the day.",
+   "lesson_line": "Two planned losses are just trading. Doubling up to get even is how small losses turn big.",
+   "facts": [
+    "f40",
+    "f23",
+    "f64",
+    "f74",
+    "f21",
+    "f39",
+    "h17"
+   ],
+   "wrong": {
+    "Line 1": "Fine. A planned loss, taken at the stop.",
+    "Line 2": "Fine. Two stops in a row happen. Small losses taken fast are the job.",
+    "Line 3": "Fine. Logging losses at lunch is how you learn from them."
+   },
+   "simple": "Line 4. Doubling your size to win back losses is revenge trading, and it makes the next loss twice as big.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the why cites the owner's rule A1 (h17)",
+     "story Line 4 reworded here; fixed before (verify notes)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "counter": "Revenge trading shows up as bigger and more frequent trades after a string of losses. The bigger size is the tell. Spot it in your journal and you can stop it."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "process.mistakes",
+   "rung": 6,
+   "format": "scenario",
+   "house": true,
+   "story": "1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. First sell: a judgment, not on day 1.",
+   "q": "Tight flag, trigger at $48.50. Here's your plan. Which line would you fix before the open?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 2",
+   "why": "Line 2, the size. Your cash isn't your size. Start with the stop: $48.50 down to $46.90 is your risk per share. Divide your dollar risk by that and you've got the shares. Then cap it. The size is the smaller of that number and 40% of the account. What your cash can buy never comes into it. Size by cash and your risk swings with every stop distance, so you never really know what you're betting.",
+   "lesson_line": "What you can afford isn't the test. The stop sets the size.",
+   "facts": [
+    "f34",
+    "f58",
+    "f12",
+    "f50",
+    "f59",
+    "r01",
+    "r02",
+    "h18",
+    "h19"
+   ],
+   "wrong": {
+    "Line 1": "Fine. A named setup with a clear trigger at the flag's high.",
+    "Line 3": "Fine. Under the flag's low is where the idea fails.",
+    "Line 4": "Fine. The first sell is a judgment, and we very rarely sell on day 1."
+   },
+   "simple": "Line 2. Your risk and the stop distance set the size, not how much cash you have.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (A5, A7, B19)",
+     "a number set by a rule that can change (the 40% cap)",
+     "rewritten before (2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q16",
+   "skill": "process.mistakes",
+   "rung": 6,
+   "format": "scenario",
+   "story": "1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: sell some into a 3, 5 or 7 day push, then the stop to breakeven.",
+   "q": "Flat base breakout over $50. Read the whole plan. Which line would you cross out?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 3",
+   "why": "Line 3 is the one. Planning to buy more if it slips to $48.50 is averaging down, written in before you even start. A dip from $50 toward your $47.50 stop isn't a bargain. It's the trade not working. We put the full size on at one price with one stop, and we never add to a loser. In the moment, a dip and the start of a bigger drop look the same.",
+   "lesson_line": "Never plan an add into a loser. Your size goes on at one price.",
+   "facts": [
+    "f61",
+    "f42",
+    "f17",
+    "f59",
+    "aw1",
+    "r03",
+    "h07"
+   ],
+   "wrong": {
+    "Line 1": "Fine. A flat base breakout with a set trigger over $50.",
+    "Line 2": "Fine. Under the base's last low is where the idea fails.",
+    "Line 4": "Fine. Selling some into a 3, 5 or 7 day push, then raising the stop to breakeven, is how we manage it."
+   },
+   "house": true,
+   "simple": "Line 3. Buying more as it slips toward the stop is adding to a loser, and we never do that.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A5, B19)",
+     "rewritten before (2026-11-09)"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q17",
+   "skill": "process.mistakes",
+   "rung": 6,
+   "format": "scenario",
+   "story": "1. Setup: tight flag on my list, already over the flag's high in the premarket. 2. Stop: under the flag's low. 3. Size: from that stop, risking 0.75%. 4. Order: a market order at 8:40 a.m., to get filled premarket.",
+   "q": "Your flag is over its high at 8:40 a.m., before the open. Which line of this plan has to go?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 4",
+   "why": "Line 4. We don't buy outside regular hours, and 8:40 a.m. is premarket. It's thin then: few buyers and sellers, wide spreads, prices that jump around. Many brokers only take limit orders before the open anyway. If yours holds the market order, it fills at the open, maybe far from your plan. Wait for the bell. If the flag trades through its high in regular hours, that's your buy.",
+   "lesson_line": "No buys before the bell. Let the flag trigger in regular hours.",
+   "facts": [
+    "f05",
+    "f06",
+    "f08",
+    "f29",
+    "f28",
+    "f59",
+    "f34",
+    "h10"
+   ],
+   "wrong": {
+    "Line 1": "Fine. A setup from your own list.",
+    "Line 2": "Fine. Under the flag's low is where the idea fails.",
+    "Line 3": "Fine. Sizing from the stop at 0.75% risk is sound."
+   },
+   "simple": "Line 4. We don't buy before the open, and premarket prices are thin and jumpy.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (E58)",
+     "broker order rules for extended hours can change"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "process.mistakes",
+   "rung": 7,
+   "format": "scenario",
+   "house": true,
+   "story": "1. Holding a breakout bought eight trading days ago, up 3%, about 1R. 2. Earnings come out after tomorrow's close. 3. Stop: 4% under the price, under the last higher low. 4. Plan: hold full size through the report, since the stop caps the loss.",
+   "q": "You've held this breakout eight days, and earnings come out after tomorrow's close. Which line would you change?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 4",
+   "why": "Line 4 has to change. A stop can't cap an earnings gap. The report hits after tomorrow's close, and the stock can open well under your stop the next morning. The stop then sells at whatever price is there. We hold through a report only when the trade is up 5R. This one's up about 1R, so it doesn't qualify. Sell it before the report and look at it again after.",
+   "lesson_line": "A stop can't catch an earnings gap. We hold through a report only when it's up 5R.",
+   "facts": [
+    "f30",
+    "f09",
+    "f01",
+    "f22",
+    "h05",
+    "f46",
+    "h09"
+   ],
+   "wrong": {
+    "Line 1": "Fine. It's just where the trade stands.",
+    "Line 2": "Fine. Knowing the report date is what lets you plan for it.",
+    "Line 3": "Fine. Under the last higher low is a good place for the stop."
+   },
+   "simple": "Line 4. An earnings gap can open far below the stop, so the stop can't cap the loss.",
+   "deeper": {
+    "trap": "Line 3 feels like a seat belt. But a stop only turns into a market order once price trades there. After a bad report the stock can open far below it and sell at the next price. The stop can't reach back and fill at its own level."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (B22)",
+     "a number set by a rule that can change (5R)",
+     "story Lines 1 and 3 reworded here (R stated so B22 decides; stop kept under the entry); fixed before (verify notes)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "process.mistakes",
+   "rung": 7,
+   "format": "scenario",
+   "house": true,
+   "story": "1. Bought 500 shares at $40 on the breakout. 2. My plan: risk 1% of my $50,000 account, $500 a trade. 3. My stop is $38, a $2 risk per share. 4. Put the $38 stop in as an order with my broker.",
+   "q": "A breakout trade in your $50,000 account. Which line breaks your own plan?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 1",
+   "why": "Line 1. Run the math. 500 shares with $2 of risk each is twice the $500 your plan allows. That's 2% of the account, our absolute ceiling, and past the 1.5% even our best setups use. And you planned 1%. Do the division before the order goes in: $500 over $2 a share. That's half the shares you bought.",
+   "lesson_line": "Check the shares against the stop before you buy. Risk dollars divided by risk per share.",
+   "facts": [
+    "f34",
+    "f60",
+    "f33",
+    "h01",
+    "h17",
+    "h14"
+   ],
+   "wrong": {
+    "Line 2": "Fine. 1% is a sound risk, inside our 0.25% to 2% range.",
+    "Line 3": "Fine. A set stop, $2 under the entry.",
+    "Line 4": "Fine. A real stop order with your broker is exactly what we want."
+   },
+   "simple": "Line 1. 500 shares at $2 of risk each is twice the $500 the plan allows.",
+   "deeper": {
+    "example": "Work it the right way round. $500 at risk divided by $2 a share gives the share count, half of 500. The mistake in Line 1 was buying first and checking after."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (A1, D41)",
+     "a number set by a rule that can change (2% ceiling, 1.5% grade maximum)",
+     "story Line 4 reworded here, and rewritten before (2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "process.mistakes",
+   "rung": 7,
+   "format": "tf",
+   "q": "Your stop is 3% under your entry, so even if earnings gap it down overnight, you can't lose more than 3%.",
+   "answer": "False",
+   "why": "False. A stop is a trigger, not a promise. If the stock opens below it after a report, the stop turns into a market order. It sells at the next price there. That can be a lot worse than 3%. It's why we don't hold into a report unless the trade is up 5R. You can't stop a gap, so you get out of its way.",
+   "lesson_line": "A stop is a trigger, not a guarantee. It can't catch a gap.",
+   "facts": [
+    "f02",
+    "f01",
+    "f46",
+    "f30",
+    "h09"
+   ],
+   "simple": "False. A gap can open below the stop, and the stop then sells at whatever price comes next.",
+   "deeper": {
+    "trap": "Lots of people read the stop price as the price they're promised. It isn't. Once it's reached, the order sells at the next available price, and in a gap that can be far away."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the deeper cites the owner's rule B22 (h09)",
+     "a number set by a rule that can change (5R)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q21",
+   "skill": "process.mistakes",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. On day 4 I sold a third into strength and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 9 EMA.",
+   "q": "You bought at $62.30, sold a third on day 4, then it dipped. Which line in your journal is the mistake?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 3",
+   "why": "It's Line 3. You raised the stop to breakeven at $62.30 so this trade could never turn into a loser. Then a dip to $62.50 made you take that back, and it hadn't even touched the breakeven stop. Dropping it to $60.90 puts the original loss right back on the table. Our stop only moves up, never down. If breakeven gets hit, fine. You already sold a third into strength and the rest comes out flat.",
+   "lesson_line": "A raised stop stays raised. Lowering it hands back the protection you earned.",
+   "facts": [
+    "f19",
+    "f55",
+    "f45",
+    "h02",
+    "h03",
+    "r02",
+    "h07",
+    "h05",
+    "h11",
+    "h22",
+    "h25",
+    "rd21"
+   ],
+   "wrong": {
+    "Line 1": "Fine. Under the prior day's low is where our stop goes.",
+    "Line 2": "Fine. Selling some into strength on day 4 and raising the stop to breakeven is how we manage a winner.",
+    "Line 4": "Fine. Trailing the rising 9 EMA is how we hold a fast mover."
+   },
+   "simple": "Line 3. Once the stop is at breakeven it only moves up, and lowering it puts the loss back.",
+   "deeper": {
+    "trap": "The dip feels like a reason to give it room. But room is what the first stop was for, and you traded it for breakeven. If it stops out and sets up again, buy it again as a new trade with its own stop."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A4, B19)",
+     "rewritten before (2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q22",
+   "skill": "process.mistakes",
+   "rung": 8,
+   "format": "scenario",
+   "story": "1. Bought at $91, up 14% on the day, so I wouldn't miss more. 2. My planned entry was over $80; I was away when it triggered. 3. Stop: under $80, the breakout level. 4. Sized from that stop, risking 1%.",
+   "q": "You planned to buy over $80, got pulled away, and it ran. Which line would you take back?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 1",
+   "why": "Line 1, the $91 buy. You planned to buy over $80 and paid $91. That's chasing. Our line is 4% above the buy point, and $91 is way past it. Your stop still belongs under $80. Size from it at 1% and you get a small position that a normal pullback can still shake out. Missing the trigger in Line 2 broke nothing. What you did after it did. Let it go, keep it on your radar, and wait for a pullback or a new base.",
+   "lesson_line": "If it ran without you, let it go. Chasing is the mistake, missing it isn't.",
+   "facts": [
+    "f70",
+    "f69",
+    "f71",
+    "f18",
+    "f51",
+    "f65",
+    "f59",
+    "h08",
+    "h23"
+   ],
+   "wrong": {
+    "Line 2": "Fine. Missing an alert happens. What you did next is what broke the plan.",
+    "Line 3": "Fine. Back under the $80 breakout, the idea's wrong.",
+    "Line 4": "Fine. Sizing from the stop is right. It just can't fix a chased entry."
+   },
+   "simple": "Line 1. Paying $91 for a stock you planned to buy over $80 is chasing it.",
+   "deeper": {
+    "trap": "Line 2 looks like the mistake because you missed the trigger. Missing it broke nothing. Rhodes says it plainly: if a trade is missed, wait for a correction before putting it on. The broken line is paying $91 to catch up."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (C28, 4%)",
+     "a number set by a rule that can change"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q23",
+   "skill": "process.mistakes",
+   "rung": 8,
+   "format": "scenario",
+   "story": "1. A stock I held gapped below my stop overnight; I sold that morning. 2. That cost 3%, more than the 1% I planned. 3. Angry, I bought a stock I'd never studied, to win it back fast. 4. Logged both trades that night.",
+   "q": "Rough morning, a gap blew right through your stop. Here's the rest of the day. Which line is the real mistake?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 3",
+   "why": "Line 3. That's revenge trading: a stock you never studied, bought angry, to win it back fast. We have a rule for exactly this. Tired, sick, angry or distracted, no new trades that day. The gap in Line 1 hurt, but you handled it right. 3% against a 1% plan is 3R. When a gap takes you past 2R in the first 30 minutes, you get out. After a hit like that, step away. The urge to make it back is the signal to stop.",
+   "lesson_line": "After a hard loss, step away. The urge to win it back is your signal to stop.",
+   "facts": [
+    "f40",
+    "f24",
+    "f64",
+    "f63",
+    "f39",
+    "f32",
+    "f46",
+    "h12",
+    "h13",
+    "h24"
+   ],
+   "wrong": {
+    "Line 1": "Fine. With the loss past 2R, getting out that morning is our gap rule.",
+    "Line 2": "Fine. That's a fact, not a choice. A gap can cost more than you planned.",
+    "Line 4": "Fine. Logging both trades is how you'll spot this pattern next time."
+   },
+   "simple": "Line 3. Buying a stock you never studied to win back a loss is revenge trading.",
+   "deeper": {
+    "trap": "Line 2 looks like the mistake, since the loss was three times the plan. But the gap was the market's doing. On a gap through your stop, the low of the first 30-minute bar becomes the new stop. If the loss goes past 2R, you're out. The broken line is the one you chose angry."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's gap rule (B20) and F67",
+     "story reworded here (Line 1 and Line 2)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q24",
+   "skill": "process.mistakes",
+   "rung": 9,
+   "format": "scenario",
+   "story": "1. Bought a flag breakout; earnings were four weeks out. 2. Report night, I kept full size with the stop 2% under. 3. It opened 11% lower the next morning, far under my stop. 4. Got out that morning and logged what went wrong.",
+   "q": "Your flag breakout opened 11% lower after earnings. Look back at the plan. Which line was the mistake?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 2",
+   "why": "Line 2, the night before. The choice that broke the plan was holding full size into the report. Line 3 is just where it showed up. We hold through a report only when the trade's up 5R, and nothing here says it was. A stop 2% under can't save you either. The stock opened 11% lower, way past it, and the stop sold at the open. Sell before the report. Judge the choice, not the result.",
+   "lesson_line": "Judge the choice, not the result. The mistake was made the night before the gap.",
+   "facts": [
+    "f35",
+    "f22",
+    "f09",
+    "f30",
+    "f46",
+    "h09"
+   ],
+   "wrong": {
+    "Line 1": "Fine. Four weeks gave the trade time to work before the report.",
+    "Line 3": "That's what the market did, not a choice you made. It just shows the risk Line 2 took on.",
+    "Line 4": "Fine. Getting out after the gap and logging it was the right move. The damage was done in Line 2."
+   },
+   "simple": "Line 2. Holding full size into earnings bets the stop will work, and a gap can skip right past it.",
+   "deeper": {
+    "trap": "Line 3 looks like the mistake because that's where the money went. But judge the choice, not the result. Had the report been great, holding full size would still have broken our rules."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (B22, B19)",
+     "a number set by a rule that can change (5R, 3R)",
+     "fixed before (verify notes); story Line 4 reworded here"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q25",
+   "skill": "process.mistakes",
+   "rung": 9,
+   "format": "scenario",
+   "story": "1. Bad news hit after the close on a stock I own. 2. My reason for owning it was gone, so I chose to sell. 3. At 7:15 a.m. I sent a market order to sell, premarket. 4. Logged the news and my exit in my journal.",
+   "q": "Bad news hits after the close on a stock you own. Here's how you handled it. Which line was wrong?",
+   "choices": [
+    "Line 1",
+    "Line 2",
+    "Line 3",
+    "Line 4"
+   ],
+   "answer": "Line 3",
+   "why": "Line 3. Selling was the right call. The order wasn't. At 7:15 a.m. the premarket is thin: few buyers, wide spreads, sometimes no quote at all. A market order there can fill at an ugly price. Many brokers only take limit orders before the open anyway. Put in a limit at the lowest price you'll take, and know it may fill only in part.",
+   "lesson_line": "Right call, wrong tool. Before the open, even an exit goes in as a limit.",
+   "facts": [
+    "f04",
+    "f05",
+    "f06",
+    "f08",
+    "f57",
+    "f07",
+    "f16"
+   ],
+   "wrong": {
+    "Line 1": "Fine. That's the news, not a choice you made.",
+    "Line 2": "Fine. When the reason for the trade is gone, you get out.",
+    "Line 4": "Fine. Writing down the news and the exit is good practice."
+   },
+   "simple": "Line 3. The premarket is thin, so a market order can sell at a very bad price.",
+   "deeper": {
+    "trap": "The trap is thinking a good decision makes any order fine. Line 2 is right, the reason for the trade is gone. Line 3 is the wrong tool for the hour. Judge the decision and the order apart."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "broker order rules for extended hours can change"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q26",
+   "skill": "process.mistakes",
+   "rung": 5,
+   "format": "tf",
+   "house": true,
+   "q": "The base triggered at $40 and it's at $42.40 now, 6% above. That's too far past the buy point to buy.",
+   "answer": "True",
+   "why": "True. Pass on it. Our line is 4% above the buy point, and you're at 6%. Your stop still belongs under the $40 trigger, so buying here makes the distance bigger and the shares fewer. Chasing costs you size. Wait for a pullback toward the trigger, or the next setup.",
+   "lesson_line": "Our chase line is 4% over the buy point. Past it, let the stock go.",
+   "simple": "True. We never buy more than 4% above the buy point, and 6% is past that.",
+   "deeper": {
+    "trap": "6% can feel close enough, and O'Neil's wider 5% to 10% line would allow it. Ours doesn't. The stop stays under the buy point, so the distance grows and the shares shrink."
+   },
+   "facts": [
+    "h08",
+    "h23",
+    "f70",
+    "f71",
+    "f65"
+   ],
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (C28, 4%)",
+     "a number set by a rule that can change"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "Format: units_plan.json says every F12.07 question is a Line 1-4 scenario for Spot the Mistake, but the validator needs at least 15% true/false. The unit has 18 Line scenarios plus 4 true/false, 1 multiple choice, 1 fill-in and 1 numeric that drill the rules behind the mistakes. The game should pick only items whose choices are exactly Line 1 to Line 4.",
+  "Averaging down: Investopedia (s15, f43) says long-term and value investors use it, and Bulkowski (thepatternsite.com/AveragingDown.html, not cited) lets a swing trader average down once in a rising market. O'Neil (s24), Rhodes (s23), Hirsch (s18) and Schwab (s06) call it a mistake in a trade. The file keys it as a mistake only inside a short-term trade with a stop (q03, q05, q16), never for long-term investing.",
+  "Our 2% ceiling (h01, sizing_rule.md section 1) is not line-marked '(Owner's answer.)' the way section 2.1 is. Same reading as F9.01: the file says it comes from the owner's workshop answers, and the spec's owner decision table (docs/superpowers/specs/2026-10-17-desk-practice-interactive-education-design.md, 'Sizing: risk per trade') records 0.25% to 2% as his decision, confirmed (R10). units_plan.json names 'our 2% ceiling' for this unit. Every house key with h01 also cites Tier 2 support (Investopedia f31, Fidelity f49, Schwab f12). Owner to confirm on review.",
+  "Fidelity's Hirsch (f49) words his 2% rule as a position never losing more than 2% of the portfolio; Investopedia (f31) says risking no more than 2% on a trade. Both mean a 2% cap on the loss, not on the position size, so they agree.",
+  "Premarket market orders: Schwab (f29) and Fidelity (f56) accept only limit orders in extended hours, and at Schwab a market order sent while the market is closed waits for the next open (f28). The SEC (f06) says 'many', not all, brokers take only limits. The file keys 'use a limit order in the premarket' as the sound rule (q07, q17, q25), never 'a market order can't be placed'.",
+  "Investopedia's stop-loss page (s17) has a second example where a stop 'triggers at $90, limiting the loss' after an earnings gap, which contradicts its own gap paragraph (f46), FINRA (f01) and the SEC (f02). Only the gap paragraph is cited.",
+  "Investopedia's 2% rule page (s11) prints the AAPL gap example as 'a 4% loss ($1,000 / $30)', which does not compute as written. Not cited; only its definition and its 'loss significantly greater than 2%' line are.",
+  "StockCharts Insider (s22): its NVDA example says $1,000 at risk over a stop about $38 wide 'limits you to 13 shares' ($1,000 / $38 is 26). Only its general lines (f58, f59, f60) are cited.",
+  "Chasing: Investopedia's chasing page says some momentum strategies do profit from trends. The file keys chasing only as buying well past your own planned entry or breakout point (O'Neil's more than 5% to 10% past the pivot, f70), never momentum trading in general.",
+  "The AAII article (s24) is from September 1999 and the IBD page (s25) is a 2022 page whose body is behind a paywall; only its open first paragraph is quoted. Both are O'Neil's rule, so every chase key also cites Schwab (f18) or Fidelity (f51) as an independent publisher.",
+  "q23 Line 2 says a gap cost 2% against a 1% plan. That fits Investopedia (f32: gaps can make a loss bigger than planned) and is presented as the market's doing, not a rule broken.",
+  "Checker, 2026-11-09: q18 had the trade up 9% with the stop 2% under the price, a profit cushion over the entry. Some position traders do hold a winner with a cushion through a report, so 'full size into earnings' was a less clear mistake there. Line 1 now says up 3%, so the stop sits near the entry and Line 4's belief that the stop caps the loss is the plain error. The earnings keys (q18, q24) now say 'I'd cut the size', in the first person, because Investopedia (f35, 'might halve') and Schwab (f22, 'may be best to avoid') hedge.",
+  "Track audit, 2026-11-09, source check: the quote checker shows f33, f34 and f35 (Investopedia, Master Position Sizing) 'unreachable'. The live page refused every allowed client today (plain curl HTTP 402, WebFetch blocked, the quote checker's cache holds a 403). f33 and f35 are word for word on the Wayback Machine capture of 2026-04-19 (page then 'Updated October 05, 2025', James Chen). f34 is on that capture in older wording ('To work out the correct position size from this information, the investor simply needs to divide the account risk, which is $500, by the trade risk, which is $20'), same rule and numbers; the wording quoted here, from the 2026-07-01 update this file cites, is identical to F9.02 f02, which F9.02's checker confirmed on the live page on 2026-11-08. f34 never carries a key alone: in q09, q15, q17 and q19 it sits beside StockCharts f58 / f59 / f60 (found live today), and in q02 it backs only Line 4's wrong note.",
+  "Replaced 2026-11-09: the 'Line 4' lines in q04, q12, q15, q19 and q21 took some off at 2R (TRADE_PLANS.md, the detectors' targets); the account rulebook (sizing_rule.md section 9, B19) makes the first trim a third at 3R with the stop to breakeven. q16's Line 4 taught adding to a winner, which A5 rules out ('The full size at one price with one stop; no adding'); it now carries the trim instead. f44 (Investopedia, start small and add) was removed; Rhodes' f62 and f66 (add higher, add on corrections) stay in the file for the record but nothing live cites them."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f11 and f10 (Schwab) and f36 (Investopedia) read in context on the live pages. 'One bad line is enough to sink the trade' overstated it; now 'can sink the trade'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f19 (Schwab), f61 (Rhodes, ChartSchool), f58 (StockCharts) confirmed; h01 matches sizing_rule.md section 1 word for word (owner decision, same reading as F9.01). Step 1 said each mistake 'makes' the loss bigger; now 'lets the loss grow past your plan'. Step 2 said sizing first 'does the same thing', then described a squeezed stop (more stop-outs, not a bigger loss); now names both outcomes. f58's quote extended by its next sentence on the page ('risk losing big or winning too small'), re-checked: found.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f70 (O'Neil, AAII), f40 (Investopedia), f30 (Schwab), f06 (SEC) confirmed in context. 'Smaller size limits what a gap can cost' had no cited fact; added f35 (Investopedia: halve size before earnings to cut gap risk). 'A limit order protects you' now 'guards against a bad fill' (f06 says it protects from bad prices; a limit can also go unfilled).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 4 right (D41, h02/h21 stop level). Numbers from the story. Stem sets the scene, not leading."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 1 right: 3% over the 2% ceiling, 1.5% top grade (h17). Blunt verdict, reason given."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 1 right (A3, f58). Stop-first reason given. Line 4 trail = 20 EMA, matches rd21/h25."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "kept text agrees (never average down); swapped the old 'no adding' fact h06 for aw1"
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
+  },
+  "q07": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True right; 8% vs 4% is twice (h08). O'Neil only in deeper."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 2 right (C28 4%). Chasing costs size explained (h23)."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 2 right (D41). LOD stop level from h02/h21."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True kept, B17/A1 nuance stated plainly, 'your call' is honest judgment. Existing owner flag stands."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 3 right (A4); gap exception named correctly; first sell judgment (r01)."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: (50-46) x 200 = 800; old risk 400; 400+800 = 1,200 distractor; 200 x 46 = 9,200. Steps shown."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 4 right. 2 x 1% = 2% ceiling, past 1.5% (h17)."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 2 right. Size = smaller of risk size and 40% cap (A5/A7, h18/h19). Day-1 sell note matches r02."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 4 right (E58, f05/f06/f28)."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 4 right: 1R, not 5R (B22). Gap/stop mechanics right (f01, f46)."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Math right: 500 x $2 = $1,000 = 2x $500 = 2% of $50,000; $500/$2 = 250 = half. Stem opened 'Look over this', too close to the banned 'Look at the' opener; reworded."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False right (f01, f02, f30). 5R hold rule correct (B22)."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 3 right (A4). Breakeven = $62.30 entry; $62.50 dip did not hit it. Correct."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: 'either the position is tiny or the loss is huge' contradicts Line 4 (sized from the stop at 1%, so the loss is not huge). Rewrote to the real cost: a small position that a pullback can still shake out (h23, f69)."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Line 3 right (F67). 'Once the loss runs past 2R, you get out' was vague about why Line 1 was right; now works the story's numbers (3% on a 1% plan is 3R) and states the B20 ceiling as it is (first 30 minutes, past 2R)."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 2 right (B22). 'Judge the choice, not the result' is mentor voice."
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Line 3 right (f05, f06, f08). Selling premarket is allowed; only the order type is wrong."
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True: 42.40/40 = 1.06, 6% > 4% (C28). Blunt 'Pass on it.'"
+  }
+ }
+}

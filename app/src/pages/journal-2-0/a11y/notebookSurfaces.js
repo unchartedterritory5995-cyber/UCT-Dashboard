@@ -138,6 +138,10 @@ export const SURFACES = Object.freeze({
   // notebook_passed_setups_enabled); rail a11y/researchCapture.a11y.test.jsx.
   'components/notebook/SaveTranscriptPassage.jsx': { recipe: 'save-transcript-passage' },
   'components/notebook/TranscriptDoors.jsx': { coveredBy: 'ticker-research-transcript' },
+  // Import a tweet (dark behind notebook_tweet_import_enabled); rail a11y/tweetImport.a11y.test.jsx.
+  'components/notebook/ImportTweetSheet.jsx': { recipe: 'import-tweet-sheet' },
+  'components/notebook/TweetDoors.jsx': { coveredBy: 'ticker-research-tweet' },
+  'components/notebook/TweetCard.jsx': { recipe: 'tweet-card' },
   'components/notebook/PassedSetups.jsx': { recipe: 'passed-setups' },
   // Wave 13 lane 13D: "what you wrote then", the resurfacing door's read-only version (dark
   // behind awareness_note_resurface_enabled); rail a11y/resurfaceVersion.a11y.test.jsx.
@@ -268,6 +272,10 @@ export const SURFACES = Object.freeze({
   // population (rail a11y/templateLibrary.a11y.test.jsx: the Templates tab; the Template library section; a
   // template's detail; the adoption sheet; one choice's picker; the share preview; the 3rd-day Helpful line).
   'components/notebook/myTools/TemplatesTab.jsx': { recipe: 'my-tools-templates' },
+  // Follow-up C: the member's archived and recently deleted templates (the tab's old list, moved here; the template
+  // manager's Archived and Recently deleted views draw it). Rail a11y/journalStyles.a11y.test.jsx, which also draws
+  // 'styles-manager-deleted'.
+  'components/notebook/myTools/TemplateList.jsx': { coveredBy: 'styles-manager-archived' },
   'components/notebook/library/TemplateLibrarySection.jsx': { recipe: 'template-library-section' },
   'components/notebook/library/LibraryCardFacts.jsx': { coveredBy: 'template-library-section' },
   'components/notebook/library/TemplateDetailSheet.jsx': { recipe: 'template-detail-sheet' },
@@ -353,9 +361,21 @@ export const SURFACES = Object.freeze({
   'components/notebook/FirstPlanAsk.jsx': { coveredBy: 'setups-board' },
   // S19 (audit 2026-11-05): the Share sheet's content, a lazy chunk the popover above renders when it opens.
   'components/notebook/NoteSharePanel.jsx': { coveredBy: 'share-popover' },
-  // P0.1: Research Home's New note split button. ResearchHome's own rail renders it closed only;
-  // a11y/newNoteMenu.a11y.test.jsx reads it closed and OPEN (the role="menu" with its menuitem rows).
+  // The Notebook's menu engine (useMenuButton + MenuRows). It began as P0.1's New note split button on Research Home,
+  // deleted in go-live wave 1; a11y/newNoteMenu.a11y.test.jsx reads the list's New menu closed and OPEN.
   'components/notebook/NewNoteMenu.jsx': { recipe: 'new-note-menu' },
+  // Go-live wave 1, fix round 1: the simplification's own menus and panel, each read OPEN with its rows drawn
+  // (a11y/simplifyMenus.a11y.test.jsx): the note's "Aa" menu (Task 4), the View menu's saved views (Task 2) and the
+  // notes list's AI section (Task 5).
+  'components/notebook/NoteFormatMenu.jsx': { recipe: 'note-format-menu' },
+  'components/notebook/SavedViewsMenuGroup.jsx': { recipe: 'saved-views-menu-group' },
+  'components/notebook/NotebookAiPanel.jsx': { recipe: 'notebook-ai-panel' },
+  // Fix round 1 (first-open bytes): the Daily brief's two note sections, a chunk of their own, read with rows.
+  'components/notebook/TodayHomeNotes.jsx': { recipe: 'today-home-notes' },
+  // Fix round 2: the find bar's and the AI section's slots (a warmed chunk drawn directly), read in the state drawn
+  // before or instead of the chunk: the find stand-in after a failed fetch, and the AI section's failure line.
+  'components/notebook/EditorToolSlots.jsx': { recipe: 'editor-find-stand-in' },
+  'components/notebook/NotebookAiPanelSlot.jsx': { recipe: 'notebook-ai-panel-failed' },
   // S12 (audit 2026-11-05, M9): the phone Notebook's one floating "+", read closed and OPEN (its Sheet).
   'components/notebook/NotebookPlusFab.jsx': { recipe: 'notebook-plus-fab' },
   // S14 (audit 2026-11-05): a feature's "?" to its own Quick Answer.
@@ -369,8 +389,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/NotebookPlusSheet.jsx': { coveredBy: 'notebook-plus-fab:open' },
   // Fix round 1 (Important 6): the phone note's folders sheet, read OPEN.
   'components/notebook/FolderSheet.jsx': { recipe: 'folder-sheet:open' },
-  // P0.4: Research Home's Notices box. ResearchHome's own rail renders no signed-in member, and the
-  // box reads nothing without one; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
+  // P0.4: the Notices box (Research Home's, on the Daily brief since go-live wave 1). The box reads nothing without a
+  // signed-in member; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
   'components/notebook/NoticesBox.jsx': { recipe: 'notices-box' },
   // Plan F Task 10: the one-time notice above the list for imports that lost pictures. The tab's
   // rails answer "no notice", so it has its own; rail a11y/importRepairNotice.a11y.test.jsx.
@@ -386,13 +406,8 @@ export const SURFACES = Object.freeze({
   // reads it through its slot, with the failure sentence on screen. The slot is the card's eager half.
   'components/notebook/FollowupOffer.jsx': { recipe: 'followup-card' },
   'components/notebook/FollowupOfferSlot.jsx': { coveredBy: 'followup-card' },
-  // P0.5: Research Home's Active setups box. ResearchHome's own rail runs with the setups board switch
-  // off (so the box is not on screen there); a11y/setupsBox.a11y.test.jsx reads it with a count,
-  // with none open, and with the read failed.
-  'components/notebook/SetupsBox.jsx': { recipe: 'setups-box' },
-  'components/notebook/ResearchHome.jsx': {
-    OTHER_LANES: { lane: '8C', railFile: 'components/notebook/ResearchHome.a11y.test.jsx' },
-  },
+  // Simplify pass 2 (C3): the Export menu's rows, a chunk of their own, read OPEN as the More panel's second view.
+  'components/notebook/export/NoteExportMenu.jsx': { coveredBy: 'note-more-export-view' },
   'components/notebook/NoteExportControls.jsx': {
     OTHER_LANES: { lane: '8C', railFile: 'components/notebook/NoteExportControls.a11y.test.jsx' },
   },
@@ -436,19 +451,11 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // a11y/entryContext.a11y.test.jsx.
   'components/EntryContextCard.jsx': { recipe: 'entry-context-card', railFile: 'a11y/entryContext.a11y.test.jsx' },
   'components/WhyPrompt.jsx': { recipe: 'entry-context-card', railFile: 'a11y/entryContext.a11y.test.jsx' },
-  // Wave 14 lane W14-A: the first-run welcome's capability preview (a lazy chunk of
-  // ResearchHome, under components/notebook/onboarding/, so outside the derived population);
-  // rail a11y/capabilityPreview.a11y.test.jsx (with the first-run-welcome recipe).
-  'components/notebook/onboarding/CapabilityPreview.jsx': { recipe: 'capability-preview', railFile: 'a11y/capabilityPreview.a11y.test.jsx' },
   // Wave 14 lane W14-C2: the one-time "new in your Notebook" offer (a lazy chunk behind an
   // eager gate, both under components/notebook/onboarding/); rail a11y/tourOffer.a11y.test.jsx
   // (the card alone, and the real gate offering into a first-run slot).
   'components/notebook/onboarding/TourOfferPrompt.jsx': { recipe: 'tour-offer-prompt', railFile: 'a11y/tourOffer.a11y.test.jsx' },
   'components/notebook/onboarding/TourOfferGate.jsx': { recipe: 'tour-offer-in-slot', railFile: 'a11y/tourOffer.a11y.test.jsx' },
-  // Notebook P0.12 / P0.15: Research Home's Learn menu, grouped, with the sample row and its
-  // refusal line, as the desktop popover (learn-menu-grouped) and as the phone's bottom Sheet
-  // (learn-menu-sheet); rail a11y/learnMenu.a11y.test.jsx.
-  'components/notebook/onboarding/LearnMenu.jsx': { recipe: 'learn-menu-grouped', railFile: 'a11y/learnMenu.a11y.test.jsx' },
   // Notebook P2a: Log Trade's pre-entry checklist (dark behind the journal styles switch and the member's
   // opt-in); rail a11y/logTradeChecklist.a11y.test.jsx.
   'components/LogTradeChecklist.jsx': { recipe: 'log-trade-checklist', railFile: 'a11y/logTradeChecklist.a11y.test.jsx' },
@@ -482,6 +489,12 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // the derived population; dark behind notebook_starter_packs_enabled); rail a11y/starterPackOffer.a11y.test.jsx
   // (the card, its answer, a failed install, offline, and the card at the top of the Styles manager).
   'components/notebook/styles/StarterPackOffer.jsx': { recipe: 'starter-pack-offer', railFile: 'a11y/starterPackOffer.a11y.test.jsx' },
+  // Follow-up C (one room for templates): Manage templates itself (under components/notebook/styles/, outside the
+  // derived population). Its rail draws it in every state a member meets: the list, the editor, the offer, a note type's
+  // delete question, the discard question, and with wave 11 on each view ('styles-manager-active-views',
+  // 'styles-manager-archived', 'styles-manager-deleted') and its Plain templates group populated and empty
+  // ('styles-manager-plain', 'styles-manager-plain-empty').
+  'components/notebook/styles/StylesManager.jsx': { recipe: 'styles-manager', railFile: 'a11y/journalStyles.a11y.test.jsx' },
   // Notebook P2 Tier 3 (dark behind journal_tier3_enabled): Insights > Psychology > By check-in,
   // Checklist from my winners, the Your trading year page and its Report page door; rail
   // a11y/tier3.a11y.test.jsx. The check-in block itself is in the population (trader-block-checkin).

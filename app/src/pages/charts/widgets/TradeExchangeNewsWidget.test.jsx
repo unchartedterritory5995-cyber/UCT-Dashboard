@@ -10,11 +10,11 @@ const feed = vi.hoisted(() => {
   const claimed = new Set()
   let state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true }
   return {
-    archive: null, dayCalls: [], dayOpts: null, daysOpts: null,
+    archive: null, dayCalls: [], dayOpts: null, daysOpts: null, dayGate: null,
     listeners, claimed,
     get: () => state,
     set(next) { state = { ...state, ...next }; for (const fn of [...listeners]) fn(state) },
-    reset() { this.archive = null; this.dayCalls = []; this.dayOpts = null; this.daysOpts = null; listeners.clear(); claimed.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
+    reset() { this.archive = null; this.dayCalls = []; this.dayOpts = null; this.daysOpts = null; this.dayGate = null; listeners.clear(); claimed.clear(); state = { status: 'idle', items: [], epoch: 'e', lastSeq: 0, firstSeq: 0, coverage: null, provisional: true } },
   }
 })
 vi.mock('../../../lib/tradeExchangeNewsStreamManager', async () => {
@@ -24,7 +24,8 @@ vi.mock('../../../lib/tradeExchangeNewsStreamManager', async () => {
   getSnapshot: () => feed.get(),
   retry: vi.fn(),
   // The server's days over the synthetic archive (the pool's rows unless a test sets one).
-  fetchDay: async (body) => { feed.dayCalls.push(body); return fakeNewsDay(feed.archive || feed.get().items, body, feed.dayOpts || {}) },
+  // `dayGate` (a promise) holds the day's answer back until a test releases it: the server is late.
+  fetchDay: async (body) => { feed.dayCalls.push(body); if (feed.dayGate) await feed.dayGate; return fakeNewsDay(feed.archive || feed.get().items, body, feed.dayOpts || {}) },
   fetchDays: async () => fakeNewsDays(feed.archive || feed.get().items, feed.daysOpts || {}),
   claimAnnouncement: (seq) => (feed.claimed.has(seq) ? false : (feed.claimed.add(seq), true)),
 }
@@ -195,7 +196,9 @@ describe('TradeExchangeNewsWidget', () => {
     expect(screen.queryByText(/graphic-only hidden/)).toBeNull()                 // never in the footer
     fireEvent.click(screen.getByTitle(/Click for feed health/))
     const health = await screen.findByRole('dialog', { name: 'Feed health' })
-    expect(health.querySelector('[data-key="graphic"]').textContent).toMatch(/2 hidden/)
+    // the hidden count is the day's server answer (day.hidden), rendered a task later: wait for it,
+    // as the footer test below does (same race; it went red here when the answer was made late)
+    await waitFor(() => expect(health.querySelector('[data-key="graphic"]').textContent).toMatch(/2 hidden/))
     unmount()
     render(<TradeExchangeNewsWidget color="A" opts={{ settings: { graphicPlaceholders: 'show' } }} onOptsChange={vi.fn()} />)
     act(() => feed.set({ status: 'live', items, lastSeq: 5, lastHeadlineAt: NOW }))
@@ -204,6 +207,13 @@ describe('TradeExchangeNewsWidget', () => {
   })
 
   it('the footer holds only the date and time controls; the count and notes are in the LIVE popover', async () => {
+    // ⛔ THE COUNT IS THE SERVER'S ANSWER, AND IT ARRIVES WHEN IT ARRIVES. This test used to read the
+    // popover the moment it opened and pass only while the day's answer had already rendered; on a
+    // busy runner (2026-11-17 run 44093629020, a 489-file shard) the popover was read first and said
+    // just 'This view Tue, Nov 17'. The answer is now HELD until the popover is open, so this test
+    // takes the late path every time: the date alone while the day loads, then the count.
+    let release
+    feed.dayGate = new Promise((r) => { release = r })
     const { container } = mount()
     const footer = container.querySelector('[class*="footer"]')
     expect(footer.querySelector('nav[aria-label="Date"]')).not.toBeNull()
@@ -214,8 +224,11 @@ describe('TradeExchangeNewsWidget', () => {
     expect(footer.textContent).not.toMatch(/headline|received times|provisional|graphic-only/)
     fireEvent.click(screen.getByTitle(/Click for feed health/))
     const health = await screen.findByRole('dialog', { name: 'Feed health' })
-    expect(health.querySelector('[data-key="view"]').textContent).toMatch(/headline/)
+    const view = () => health.querySelector('[data-key="view"]').textContent
+    expect(view()).not.toMatch(/headline/)                                  // still loading: the date, no count
     expect(health.querySelector('[data-key="times"]').textContent).toMatch(/received each headline, in ET/)
+    await act(async () => { release() })
+    await waitFor(() => expect(view()).toMatch(/3 headlines · .+ \(ET\)/))
   })
 
   it('the new-headline highlight lasts 2.1 s (1.5 s hold + fade) and never fires for history pages or old replays', () => {
@@ -232,6 +245,23 @@ describe('TradeExchangeNewsWidget', () => {
     act(() => { vi.advanceTimersByTime(150) })
     expect(container.querySelector('[data-seq="5"] [class*="flash"]')).toBeNull()
     vi.useRealTimers()
+  })
+
+  it('unmounting mid-flash leaves no timer behind: nothing fires after the widget is gone', () => {
+    vi.useFakeTimers({ now: NOW })
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { container, unmount } = mount()
+      act(() => feed.set({ items: [...HISTORY, H(6, 'SYNTHETIC: flashing', [], { received_at_ms: Date.now() })], lastSeq: 6 }))
+      expect(container.querySelector('[data-seq="6"] [class*="flash"]')).not.toBeNull()
+      unmount()
+      expect(vi.getTimerCount()).toBe(0)                            // the flash-clear (and every other timer) was cleared
+      expect(() => act(() => { vi.advanceTimersByTime(5000) })).not.toThrow()
+      expect(errors).not.toHaveBeenCalled()                         // no setState after unmount, no unhandled error
+    } finally {
+      errors.mockRestore()
+      vi.useRealTimers()
+    }
   })
 
   it('search narrows the feed (debounced)', async () => {
@@ -299,11 +329,14 @@ describe('TradeExchangeNewsWidget', () => {
   it('density and sound settings persist per widget through the shared settings panel', () => {
     const { onOptsChange, container } = mount()
     fireEvent.click(screen.getByLabelText('News widget settings'))
-    fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
+    // UCT Signature: Density is a dropdown (ChoiceMenu), the On/Off picks are soft-square switches
+    fireEvent.click(screen.getByRole('button', { name: 'Density: Comfortable' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Compact' }))
     expect(onOptsChange).toHaveBeenLastCalledWith(expect.objectContaining({
       settings: expect.objectContaining({ density: 'compact', sound: 'off' }) }))
-    const on = screen.getAllByRole('button', { name: 'On' })
-    fireEvent.click(on[on.length - 1])                            // Sound: On
+    const soundSwitch = screen.getByRole('switch', { name: 'New headline' })
+    expect(soundSwitch).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(soundSwitch)                                  // Sound: On
     expect(onOptsChange).toHaveBeenLastCalledWith(expect.objectContaining({
       settings: expect.objectContaining({ sound: 'on' }) }))
     expect(sound.preview).toHaveBeenCalled()

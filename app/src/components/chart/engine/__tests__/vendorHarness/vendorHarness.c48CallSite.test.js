@@ -49,7 +49,7 @@ import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefi
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
-import { translatePine } from '../../ast/pine'
+import { translatePine, SCREEN_GATE_SENTENCE } from '../../ast/pine'
 import { ONE_EXECUTION_TA, CHART_SERIES_WITNESSED } from '../../ast/objectFnInline'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
@@ -153,7 +153,7 @@ describe.each([[RDDT], [SPY]])('C48 — the capture %s: what TradingView reads',
     expect(texts).toContain(`A13 block bar_index[5]|${lastIndex - 5}|bar_index-5|${lastIndex - 5}`)
     expect(texts).toContain(`B01 bar_index[k]|NaN|bar_index-k|${lastIndex - 5}`)
     expect(texts).toContain(`A14 block volume[5]|${txt(k5.v)}`)
-    expect(texts).toContain(`B03 hlcc4[k]|${txt((k5.h + k5.l + k5.c + k5.c) / 4)}`)
+    expect(texts).toContain(`B03 hlcc4[k]|${txt((k5.h + k5.l + 2 * k5.c) / 4)}`)
     expect(texts).toContain(`B06 local x[0]|${txt(last.c * 2)}`)
     expect(texts).toContain(`B07 param src[0]|${txt(last.c)}`)
     // `time_close[5]`: a daily bar's close is the next session's 00:00 UTC — after bar −5's open, before bar −4's
@@ -408,15 +408,17 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
       // longer history, where our count is lower by a number of bars we cannot know - so
       // the plot is withheld BY NAME (`bar-index:window`), never drawn as the window's own
       // count. This test adds the offset itself (`firstIndex`); the product cannot.
-      if (file === SPY) {
-        expect(ours.plots[0].column).toBeNull()
-        expect(ours.notes.some((n) => n.includes('(bar-index:window)'))).toBe(true)
-        continue
-      }
+      // ⭐ DIV-1 RE-PIN (2026-11-09): SPY was "withheld by name (bar-index:window)". The
+      // harness now replays SPY's proved history from its 1993 listing before the window —
+      // the series the member's daily chart computes — so the count IS TradingView's
+      // (absolute, from the listing): served on SPY too, and compared with NO offset added.
+      const replayed = ours.historyReplay && ours.historyReplay.kind === 'replayed'
+      expect(replayed, file).toBe(file === SPY)
+      expect(ours.notes.some((n) => n.includes('(bar-index:window)')), file).toBe(false)
       const col = ours.plots[0].column
       const vendor = columnOf(cap, 'C06_bar_index1_cond')
       const at = vendor.findIndex((v) => v !== undefined && v !== null)
-      const firstIndex = vendor[at] - (at - 1)
+      const firstIndex = replayed ? 0 : vendor[at] - (at - 1)
       let ok = 0
       let n = 0
       vendor.forEach((v, i) => {
@@ -550,11 +552,22 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
       // so nothing the translator folds can renumber them - the property this pin guards.
       ['__uct_param_1001', 'Cond length'], ['__uct_param_1002', 'Mult'], ['__uct_param_1003', 'Other length']])
     expect((t.notes || []).filter((n) => n.code === 'pine:block')).toEqual([])
-    // ⛔ the screener lane binds no chart: no stamp, and the tree it always had
+    // ⭐⭐ COND-TA (engine 58) — THIS PIN IS FLIPPED, DELIBERATELY. It said "the screener
+    // lane binds no chart: no stamp, and the tree it always had", and that tree is the
+    // EVERY-BAR number: `close > open ? sma(close, 3) : na` against this file's own capture
+    // (`vw-call-site-history-rddt-1d-2026-10-01`, row C03) is wrong on 242 of 635 bars (the
+    // ⚰️ test above). Nothing binds a chart on that lane to stop it (the Import tab's Apply
+    // saves the formula; the server evaluates it column-wise), so the row is REFUSED BY
+    // NAME, with the gate's own sentence and the screener's reason. The every-bar plot
+    // ("every bar") is untouched, and no parameter id moves (the mint runs as before).
     const screen = translatePine(source, { paramManifest: true })
     expect(screen.mode).toBe('screener')
     expect(screen.blockRuns).toBeUndefined()
-    expect(screen.outputs[0].formula).toBe(t.outputs[0].formula)
+    expect(screen.outputs.map((o) => (o.refusal ? o.refusal.guard : 'ok'))).toEqual(['pine:block', 'ok'])
+    expect(screen.outputs[0].refusal.message).toMatch(/`v` calls `ta\.sma` inside a block that does not run on every bar/)
+    expect(screen.outputs[0].refusal.message).toContain(SCREEN_GATE_SENTENCE)
+    expect(screen.outputs[1].formula).toBe(t.outputs[1].formula)
+    expect(screen.inputParams.map((p) => p.id)).toEqual(t.inputParams.map((p) => p.id))
   })
 
   it('⭐ a tuple part is gated only when ITS OWN expression reads the call\'s history (H06)', () => {

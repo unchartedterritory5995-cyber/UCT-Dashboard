@@ -353,7 +353,36 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     #                             closedTable.json is dated.
     # The pair is what `closedTable.json` holds -- `len(scalars)` and
     # `len(_scalars_excluded)` -- and the JS pin on the excluded half is the same 110.
-    assert (len(declared), len(excluded)) == (149, 110)
+    # ⭐ (149, 110) → (149, 111) on 2026-11-10: `min_volume_3d_prior` (TC2000's MINV3.1, for the
+    # Anticipation starter) joined COLUMNS as a scan primitive and is EXCLUDED with the other
+    # scan primitives' dated reason -- screens filter on it through the catalog; a formula
+    # scalar is a separate decision. The declared half did not move.
+    # ⭐ (149, 111) → (149, 115) on 2026-11-10: the four `live_base_*` columns (the session-shifted
+    # levels the live tier restates the 5-day/1-month/1-year change and MINV3.1 from) joined COLUMNS.
+    # They are not member columns at all, so they are EXCLUDED with their own dated reason.
+    # 110 -> 111 on 2026-11-10 (RS split S1): rs_rating_9m, a rating-history column excluded like its siblings (R8).
+    # => 116: master's four live_base_* columns + the RS split's rs_rating_9m (both 2026-11-10).
+    # ⭐ (149, 116) → (149, 121) on 2026-11-13 (RS Exit Warnings in the screener): `rs_exit_last`
+    # (TEXT, a verdict: excluded for `rs_line_trend`'s reason) and the four exit ages
+    # (`rs_exit_bars_ago`, `rs_quick_break_bars_ago`, `rs_quicksand_bars_ago`,
+    # `rs_dead_break_bars_ago`) joined COLUMNS, NULL until the first build after deploy (R8);
+    # the ages are re-admitted once the artifact shows them filled. The declared half did not move.
+    # ⭐ (149, 121) → (149, 130) on 2026-11-14 (UCT RS screens, unit U1): the nine columns
+    # `rs_post_pass.run` writes (`rs_rating_session`, `rs_rating_score`, `rs_rating_pos`,
+    # `rs_rating_pos_n`, `rs_pos_1m/3m/6m/12m`, `rs_rating_pos_prev20`) joined COLUMNS, DARK
+    # behind RS_SCREENS_ENABLED and so NULL on every row (R8). The declared half did not move.
+    # ⭐ (149, 130) → (149, 144) on 2026-11-14 (UCT RS screens, unit U4): fourteen more columns
+    # joined COLUMNS (`rs_rating_prev20` from the rating pass; the six RS-line measures and the
+    # seven Setup label columns from the build's `bars_rs_screens` / `bars_rs_setup` steps), all
+    # DARK behind RS_SCREENS_ENABLED and so NULL on every row (R8); `rs_setup` and `rs_flag` are
+    # TEXT and stay excluded. The declared half did not move.
+    # ⭐ (149, 144) → (149, 146) on 2026-11-14 (UCT RS screens, unit U12): the two weekly RS new
+    # high columns (`rs_nh_weekly`, `rs_nhbp_weekly`) from the build's `bars_rs_weekly` step,
+    # DARK behind RS_SCREENS_ENABLED and so NULL on every row (R8). The declared half did not move.
+    # ⭐ (149, 146) → (149, 148) on 2026-11-14 (UCT RS screens, unit U12): UCT RS Leaders' two list
+    # columns (`rs_leaders_member`, `rs_leaders_days`) from `rs_leaders_list.run` inside the
+    # post-pass, DARK behind RS_SCREENS_ENABLED (R8). The declared half did not move.
+    assert (len(declared), len(excluded)) == (149, 148)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -906,7 +935,13 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # bar-derived RS columns DECLARED (see the partition pin for the names and the
     # arithmetic), each with its own case in `tests/fixtures/ast/scalars.json`. The bar
     # half is untouched at 138 -- a per-symbol column names no bar function.
-    assert len(parts["bar"]) == 138 and len(parts["scalar"]) == 149
+    # (2026-11-14, engine 57) 138 -> 139: `stochPine` (Pine's `ta.stoch`). Scalars untouched.
+    # ⭐ bar half 139 -> 140 (2026-11-14, engine 56 A3): `boolNaWithheld`, the Pine door's
+    # marker for a v1-v5 `bool` `na` meeting an unwitnessed operator, with its own bar-corpus
+    # case (`pine_bool_na_withheld_is_its_operand`). The scalar half is untouched at 149.
+    # ⭐ bar half 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`, with its own bar-corpus case
+    # (`pine_tie_newest_is_its_operand`).
+    assert len(parts["bar"]) == 148 and len(parts["scalar"]) == 149
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])

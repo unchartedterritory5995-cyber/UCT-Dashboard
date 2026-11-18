@@ -20,6 +20,7 @@
 import { allCapabilityNames, getCapability, onSurface } from './capabilities'
 import { lexiconFor, correctTypos, setBaseSources } from './nl/lexicon'
 import { chartQualifier, ordinalChart, ORD_RE } from './deixis'
+import { spatialTargetSpan } from './spatialCheck'
 
 // Phase 1: "change MY chart to 15 minutes", "change the timeframe to daily", "switch to the 15 minute"
 // are the same obvious commands as "15 minute chart" — no model call.
@@ -76,7 +77,7 @@ export function canon(text) {
 }
 const WORDNUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 }
 
-function matchClause(raw, host) {
+function matchClause(raw, host, typed = raw) {
   const lower = canon(raw)
   if (!lower) return null
   const core = lower.replace(LEAD, '').replace(TAIL, '').trim()
@@ -89,7 +90,7 @@ function matchClause(raw, host) {
     if (!onSurface(cap, host?.surface || 'charts')) continue
     // `host` lets a phrase resolve against REAL state (a layout name in the member's
     // catalog); a capability that can't resolve it with certainty returns null.
-    const args = cap.fast({ raw: raw.trim(), lower, core, host })
+    const args = cap.fast({ raw: raw.trim(), lower, core, host, typed })
     if (args) {
       // A capability that resolved its own target against real state names it as
       // `__target`; it becomes the op's target (still re-validated by the planner).
@@ -104,14 +105,14 @@ function matchClause(raw, host) {
 // Capabilities whose phrases are WHOLE SENTENCES with lists inside them ("add RKLB,
 // PLTR and ASTS to Momentum") declare `fastWhole`; they are tried on the whole text
 // BEFORE it is split into clauses on "," / "and".
-function matchWhole(text, host) {
+function matchWhole(text, host, typed = text) {
   const lower = canon(text)
   const hits = []
   for (const name of allCapabilityNames()) {
     const cap = getCapability(name)
     if (!cap.fastWhole || typeof cap.fast !== 'function') continue
     if (!onSurface(cap, host?.surface || 'charts')) continue
-    const args = cap.fast({ raw: String(text).trim(), lower, core: lower, host })
+    const args = cap.fast({ raw: String(text).trim(), lower, core: lower, host, typed })
     // PKG2: `__say` — the capability answers this whole sentence in its own FIXED words (an honest decline), no op, no model
     if (args && typeof args.__say === 'string') { hits.push({ say: args.__say }); continue }
     if (args) {
@@ -161,6 +162,14 @@ export function extractTarget(text, host = null) {
   // ⭐ PHASE 3: "add rsi to the first chart" — the preposition before the ordinal goes with it (as a position's does), so
   // the clause left is "add rsi", not "add rsi to"
   if (ord) return { text: cut(s, ord.match).replace(/\s+(?:on|to|onto|for|in|into)$/i, ''), target: ord.ref ? { chart: ord.ref, word: ord.word } : { ask: ord.ask } }
+  // AUDIT probe 17 (#988): a WHOLE absolute line ("the top row" → every cell of it, one change) or a relation from a NAMED
+  // anchor ("the one beside the top-left chart" → its neighbour; asked without the anchor when not one) — read before the
+  // position words, which would take the line's or the anchor's own word ("top", "top-left") for the target
+  const span = host ? spatialTargetSpan(s, host.charts?.list?.() || []) : null
+  if (span) {
+    const rest = (s.slice(0, span.start) + ' ' + s.slice(span.end)).replace(/\s+/g, ' ').trim().replace(/\s+(?:on|to|onto|for|in|into)$/i, '')
+    return { text: rest, target: span.target }
+  }
   const m = POS_RE.exec(s)
   if (m) {
     // ⭐ PHASE 2: "top left" / "upper right" (no hyphen) are the same position as "top-left"
@@ -215,7 +224,7 @@ export function fastParse(text, opts = {}) {
   // type are two different meanings, so nothing is corrected).
   const results = new Map()
   for (const v of variants) {
-    const r = fastParseExact(v.text, opts)
+    const r = fastParseExact(v.text, { ...opts, typed: text })
     if (r) { const key = JSON.stringify(r); if (!results.has(key)) results.set(key, { r, changes: v.changes }) }
   }
   if (results.size !== 1) return null
@@ -229,7 +238,8 @@ const LEXICON_SOURCES = () => [LEAD.source, TAIL.source, ...CANON.map(([re]) => 
   fastParseExact.toString(), controlWord.toString(), capabilityPhrases.toString()]
 setBaseSources(LEXICON_SOURCES)
 
-function fastParseExact(text, { host = null, controlWords = true } = {}) {
+// `typed`: what the member actually typed, when `text` is a typo reading of it
+function fastParseExact(text, { host = null, controlWords = true, typed = text } = {}) {
   const t = clean(String(text || ''))
   if (!t || t.length > 160) return null
   // `controlWords: false` (OWNER 2026-10-12): "apply it" with NO proposal waiting is not an approval —
@@ -238,7 +248,7 @@ function fastParseExact(text, { host = null, controlWords = true } = {}) {
     const ctl = controlWord(t)
     if (ctl) return ctl
   }
-  return capabilityPhrases(text, host)
+  return capabilityPhrases(text, host, typed)
 }
 
 // hotfix 2026-11-03 (live: "Undo the last change you made to my charts" missed the anchored Undo words and reached a model
@@ -266,6 +276,8 @@ export function undoWords(t0) {
   return noun && plain ? `${plain[1]} my last ${noun} change` : t
 }
 
+// the kinds a described Undo may name (useAgent UNDO_ABOUT + UNDO_SAYS); any other word is matched against the receipts
+const UNDO_KINDS = ['indicator', 'chart', 'widget', 'drawing', 'layout', 'colour', 'style', 'timeframe', 'symbol', 'pane', 'theme', 'resize', 'size', 'move', 'rename', 'link']
 /** undo / confirm / dismiss / "just the first N" — the universal control words, or null */
 function controlWord(t) {
   // M3: "Actually, undo that last change." — a leading filler word never changes what Undo means
@@ -288,6 +300,15 @@ function controlWord(t) {
   // change, when it IS that change (useAgent doUndo `about`); never an older one picked out of the stack
   const what = /^(?:undo|revert|reverse) (?:just |only )?(?:that|the|my)(?: last)? (colou?r|style|timeframe|time frame|symbol|ticker|pane|layout|theme|resize|size|move|rename|link) (?:change|edit|switch|swap)$/.exec(u)
   if (what) return { kind: 'undo', about: what[1].replace(/^colou?r$/, 'colour').replace('time frame', 'timeframe').replace('ticker', 'symbol') }
+  // ⭐ round 3 (pl-exec): any other DESCRIPTION of one change — "undo the timeframe bit", "take back only the weekly change",
+  // "revert just the rsi I added" — names it by a word its receipt says (useAgent undoMatches 'says:<word>'), or by a kind
+  // (a DESCRIPTION needs a word saying it is a change — just/only, change/edit/switch/bit/part, or "I added": "undo the 50 ema"
+  // alone may as well mean removing it, so the model reads that one)
+  const said = /^(?:undo|revert|reverse|take back)\s+(just |only )?(?:that|the|my)?\s*(?:last\s+)?([a-z0-9][a-z0-9%.-]*(?:\s+[a-z0-9][a-z0-9%.-]*){0,2}?)\s*(change|changes|edit|switch|swap|bit|thing|part)?(\s+(?:i|you)\s+(?:added|made|did|set|put on|asked for))?$/.exec(u)
+  if (said && (said[1] || said[3] || said[4]) && !/^(?:that|it|this|all|everything|them|those|last|one|change|edit)$/.test(said[2])) {
+    const w = said[2].replace(/^colou?r$/, 'colour').replace('time frame', 'timeframe').replace('ticker', 'symbol')
+    return { kind: 'undo', about: UNDO_KINDS.includes(w) ? w : `says:${w}` }
+  }
   if (/^(do it|yes|yes please|yep|go ahead|apply( it| that| them)?|ok(ay)?(,)? do it|confirm|sounds good,? do it)$/.test(t)) return { kind: 'confirm' }
   if (/^(no|nope|cancel|never ?mind|don'?t|skip it|forget it)$/.test(t)) return { kind: 'dismiss' }
   const sub = /^(just |only )?(apply|do) (just |only )?the first (\d|one|two|three|four|five|six)( ones?| changes?| items?)?$/.exec(t)
@@ -304,8 +325,8 @@ const ADD_LEAD = /^\s*(?:please\s+)?(?:add|put|throw|stick|slap|pop|plop|plot|lo
 export const slashPairs = (s) => (ADD_LEAD.test(s) ? s.replace(/\b(\d{1,3})\/(\d{1,3})\b(?!\/)/g, '$1 and $2') : s)
 
 /** Capability phrases: whole-sentence ones first, then clause by clause (all or nothing). */
-function capabilityPhrases(text, host) {
-  const whole = matchWhole(text, host)
+function capabilityPhrases(text, host, typed = text) {
+  const whole = matchWhole(text, host, typed)
   if (whole) return whole.say ? { kind: 'say', text: whole.say } : { kind: 'ops', ops: [whole], target: null }
   const { text: rest0, target } = extractTarget(text, host)
   const rest = slashPairs(rest0)
@@ -315,7 +336,7 @@ function capabilityPhrases(text, host) {
   let verb = null
   for (const c of clauses) {
     // "add VWAP and RSI": a bare follow-on clause takes the previous clause's verb
-    const op = matchClause(c, host) || (verb && !VERB_LEAD.test(canon(c)) ? matchClause(`${verb} ${c}`, host) : null)
+    const op = matchClause(c, host, typed) || (verb && !VERB_LEAD.test(canon(c)) ? matchClause(`${verb} ${c}`, host, typed) : null)
     if (!op) return null
     const v = VERB_LEAD.exec(canon(c))
     if (v) verb = v[1]

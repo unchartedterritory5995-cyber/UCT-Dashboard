@@ -1056,11 +1056,12 @@ def live_bars_for(daily_bars: Sequence[Mapping[str, Any]], quote: Any, *,
 # --------------------------------------------------------------------------- #
 
 def _read_bars(sym: str, tf: str, want: int) -> list:
-    """One symbol's bars, LOCAL. ⛔ No network, ever -- the whole affordability
-    argument for a sequential universe sweep is that `bars_sqlite` is a local
-    SQLite read, exactly as `snapshot_builder._read_daily_bars` does it."""
-    from api.services import bars_sqlite
-    return bars_sqlite.get_bar_dicts(sym, tf, want)
+    """One symbol's bars, LOCAL (`local_bars.read_bars`: `bars_sqlite`, no network, daily
+    bars cut to the current listing). Kept as this module's own name so the sweep's
+    callers and tests read it here; the alert lane reads `local_bars` directly, so the
+    two share one loader without the alert lane reaching this module."""
+    from api.services import local_bars
+    return local_bars.read_bars(sym, tf, want)
 
 
 def _scalar_columns(names: Sequence[str]) -> dict:
@@ -1396,6 +1397,8 @@ def _block_runs_withheld(definition: Any, key: Optional[str], bars: list, scalar
             "symbols": symbol_series,
             "now": _eval_now,
             "barIndexAbsolute":
+                ast_interpret.bar_index_absolute_for(definition),
+            "varOriginAbsolute":
                 ast_interpret.bar_index_absolute_for(definition),
             "semantics":
                 ast_interpret.semantics_for(definition)}
@@ -2188,6 +2191,10 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                                                    "symbols": symbol_series,
                                                    "now": _eval_now,
                                                    "barIndexAbsolute":
+                                                       ast_interpret.bar_index_absolute_for(definition),
+                                                   # 2026-11-09 -- and its `var` state began on the
+                                                   # symbol's first bar (`var_origin_mask`)
+                                                   "varOriginAbsolute":
                                                        ast_interpret.bar_index_absolute_for(definition),
                                                    "semantics":
                                                        ast_interpret.semantics_for(definition)})

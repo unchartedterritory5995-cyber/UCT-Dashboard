@@ -105,7 +105,10 @@ _RESULT_KEYS = frozenset({"job", "status", "columns", "refusals", "digest", "cac
 #: W5-T7b `WARMUP_FIELDS`: an ok result's run-wide warm-up, the bars [0, withheldBars) a run off the
 #: listing withheld. Required on ok, refused on withheld (T7b `RESULT_FIELDS`).
 _WARMUP_KEYS = frozenset({"withheldBars"})
-_REFUSAL_KEYS = frozenset({"key", "guard", "sentence", "bar"})
+_REFUSAL_KEYS = frozenset({"key", "guard", "sentence", "bar", "limit"})
+#: LIMITS r1: the engine limit a run-wide stop met (``CALL_COUNT``, ``WALL_TIME``), as a field;
+#: optional, and never in the sentence.
+_LIMIT_NAME = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 
 
 def _max_jobs() -> int:
@@ -126,6 +129,7 @@ class Refusal:
     guard: str
     sentence: str
     bar: Optional[int] = None
+    limit: Optional[str] = None   # LIMITS r1: the engine limit a stop met, when it names one
 
 
 @dataclass(frozen=True)
@@ -464,6 +468,18 @@ class PineRuntimeClient:
             return [_withheld(j.job, g, s) for j in jobs]
         doc_sha = hashlib.sha256(doc_text.encode("utf-8")).hexdigest()
         owner = owner_pseudonym(self.secret, owner_id)
+        # ⭐⭐ U15 -- THE LIBRARIES A RUNTIME DOCUMENT LINKS, from THIS server's store, held to the
+        # document's own pins (`meta.libraries`, the sha256 of the code it was saved against). The
+        # service has no store (no volume): it is handed the entries and checks each sha again. A
+        # pin the store cannot honour withholds every job by name and sends nothing.
+        libraries = None
+        pins = (doc.get("meta") or {}).get("libraries") if isinstance(doc.get("meta"), dict) else None
+        if pins:
+            from api.services import pine_library_store  # noqa: PLC0415 -- the store's one reader
+            libraries, why = pine_library_store.pinned_entries(pins)
+            if why:
+                self._loud(why[0], why[1], doc_sha[:12])
+                return [_withheld(j.job, why[0], why[1]) for j in jobs]
 
         out: List[Optional[JobResult]] = [None] * len(jobs)
         pending: List[Tuple[int, Job, Dict[str, Any], str]] = []
@@ -497,7 +513,8 @@ class PineRuntimeClient:
         for start in range(0, len(pending), size):
             chunk = pending[start:start + size]
             body = {"protocol": PROTOCOL, "profile": profile, "engine": dict(self.identity),
-                    "definition": {"def_id": def_id, "version": version, "doc_sha256": doc_sha, "doc": doc_text},
+                    "definition": {"def_id": def_id, "version": version, "doc_sha256": doc_sha, "doc": doc_text,
+                                   **({"libraries": libraries} if libraries else {})},
                     "owner": owner, "jobs": [w for (_, _, w, _) in chunk]}
             answers = self._run_chunk(body, [(j, w["bars"]["n"]) for (_, j, w, _) in chunk], profile, doc_sha, owner)
             for (i, _, _, key), res in zip(chunk, answers):
@@ -619,7 +636,10 @@ class PineRuntimeClient:
                 raise bad("carries a malformed refusal")
             if bar is not None and (isinstance(bar, bool) or not isinstance(bar, int) or bar < 0):
                 raise bad("carries a malformed refusal")
-            refusals.append(Refusal(key, guard, sentence, bar))
+            limit = x.get("limit")
+            if limit is not None and not (isinstance(limit, str) and _LIMIT_NAME.match(limit)):
+                raise bad("carries a malformed refusal")
+            refusals.append(Refusal(key, guard, sentence, bar, limit))
         wire_refusals = [{"key": x.key, "guard": x.guard, "bar": x.bar} for x in refusals]
         digest = r.get("digest")
         cache = r.get("cache") if isinstance(r.get("cache"), str) else None

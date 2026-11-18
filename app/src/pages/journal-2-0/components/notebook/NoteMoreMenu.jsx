@@ -44,16 +44,33 @@
  * the sanctioned JS breakpoint read (CLAUDE.md: useMediaQuery is stale at first paint; a
  * click-triggered decision reads the query at the click). A width change while open re-reads.
  */
-import { createContext, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { MQ } from '../../../../styles/breakpoints'
 import useDisclosureFocus from '../../lib/useDisclosureFocus'
+import { trackMenuRow } from '../../lib/notebookTelemetry'
 import styles from './NoteMoreMenu.module.css'
 
 export const MORE_NOTE_ACTIONS = 'More note actions'
 
+/** Follow-up A (usage counting): a press on a row of this panel counts once as `menu_row_used` ('note_more'), by the
+ *  `data-row` id the row carries where it is defined. A control inside a row's own form (a template name, the
+ *  Open-beside search) carries none and counts nothing. */
+function countRow(e) {
+  const row = e.target?.closest?.('[data-row]')
+  if (!row || !e.currentTarget.contains(row)) return
+  // Fix round 1 (M2): only a press that does something. A row that is busy (`aria-disabled`, Lock or Archive while one
+  // runs) does nothing, and a row pressed to CLOSE what it opened (Export's formats, the Open-beside search, the
+  // outline: `aria-expanded="true"` as the press lands) is not a use of it.
+  if (row.getAttribute('aria-disabled') === 'true' || row.getAttribute('aria-expanded') === 'true') return
+  trackMenuRow('note_more', row.getAttribute('data-row'))
+}
+
 /** Lane KEYS3: lets an action INSIDE the panel open the panel it lives in (the Export menu,
- *  asked for from the command palette). The value is a stable `() => void`, or null outside. */
+ *  asked for from the command palette): `open()`; `shown` says whether it is open. Simplify pass 2 (C3): and swap
+ *  the panel's content for a SECOND VIEW of its own, the way the menu engine's rows do (NewNoteMenu.jsx MenuRows `children`): `sub` is the open view's
+ *  key or null, `setSub` opens or closes it, and `slot` is the element it is drawn into (the panel's other content is
+ *  hidden meanwhile, never unmounted: a Lock sentence or a half-typed template name survives). Null outside a panel. */
 export const MoreMenuOpenContext = createContext(null)
 export const PANEL_GUTTER = 16
 
@@ -90,6 +107,12 @@ export default function NoteMoreMenu({ children, buttonClassName = '', phoneItem
   const panelRef = useRef(null)
   const close = useCallback(() => setOpen(false), [])
   const openPanel = useCallback(() => { setOnPhone(readIsPhone()); setOpen(true) }, [])
+  // Simplify pass 2 (C3): the panel's second view (Export's formats), and where it is drawn. A closed panel reopens on
+  // its first view.
+  const [sub, setSub] = useState(null)
+  const [slot, setSlot] = useState(null)
+  useEffect(() => { if (!open) setSub(null) }, [open])
+  const more = useMemo(() => ({ open: openPanel, shown: open, sub, setSub, slot }), [openPanel, open, sub, slot])
   const { disclosureProps } = useDisclosureFocus({
     open, containerRef: panelRef, onClose: close, openerRef: triggerRef,
   })
@@ -164,23 +187,27 @@ export default function NoteMoreMenu({ children, buttonClassName = '', phoneItem
         hidden={!open}
         data-export-exclude
         {...disclosureProps}
+        onClick={countRow}
       >
-        {onPhone && phoneItems && (
-          <>
-            {phoneItems({ close })}
-            {!leadItems && <div className={styles.sep} role="separator" />}
-          </>
-        )}
-        {leadItems && (
-          <>
-            {leadItems({ close, trigger: triggerRef.current })}
-            <div className={styles.sep} role="separator" />
-          </>
-        )}
-        {/* Final polish: a phone-only item AFTER the lead group (the Journal tools door on a note), so Ask, Find and
-            Outline stay first and Move to Trash stays last. */}
-        {onPhone && phoneTail && phoneTail({ close })}
-        <MoreMenuOpenContext.Provider value={openPanel}>{children}</MoreMenuOpenContext.Provider>
+        <div className={styles.view} hidden={Boolean(sub)}>
+          {onPhone && phoneItems && (
+            <>
+              {phoneItems({ close })}
+              {!leadItems && <div className={styles.sep} role="separator" />}
+            </>
+          )}
+          {leadItems && (
+            <>
+              {leadItems({ close, trigger: triggerRef.current })}
+              <div className={styles.sep} role="separator" />
+            </>
+          )}
+          {/* Final polish: a phone-only item AFTER the lead group (the Journal tools door on a note), so Ask, Find and
+              Outline stay first and Move to Trash stays last. */}
+          {onPhone && phoneTail && phoneTail({ close })}
+          <MoreMenuOpenContext.Provider value={more}>{children}</MoreMenuOpenContext.Provider>
+        </div>
+        <div ref={setSlot} className={styles.view} />
       </div>
     </span>
   )

@@ -31,6 +31,7 @@ const prepareMock = vi.fn(async () => new Promise(() => {}))   // pending by def
 vi.mock('../../../utils/prefetchBars', () => ({
   prefetchBarsToIDB: (...a) => prefetchMock(...a),
   prepareForDisplay: (...a) => prepareMock(...a),
+  prepareDailyForDisplay: async () => 'current',
   prefetchReplayTimeframes: () => {},
 }))
 

@@ -132,6 +132,26 @@ def test_the_python_readers_agree_with_the_javascript_ones():
         "`ast_table.bind_foldable_window`; they must admit the same shapes.")
 
 
+def test_an_unbounded_forward_leaf_still_has_a_bounded_back_on_both_readers():
+    """NUMBER PENDING (bt) -- `lastbaryear` declares lookback 0 and forward "unbounded": it
+    reads no earlier bar, so a tree holding one reaches back exactly as far as the rest of it.
+    The linter answered UNKNOWN for the back half because the FORWARD half was unbounded,
+    which disagreed with the interpreter on chart-champions' "Sun-2DVWAP" once its sessions
+    translated. The twin of `lintUnboundedForwardBack.test.js`; the repaint verdict stays."""
+    from api.services.ast_lint import lint_repaint
+
+    leaf = {"type": "series", "name": "lastbaryear"}
+    tree = {"type": "op", "name": "?:", "args": [
+        {"type": "op", "name": "==", "args": [{"type": "series", "name": "year"}, leaf]},
+        {"type": "call", "name": "sma", "args": [{"type": "series", "name": "close"},
+                                                  {"type": "num", "value": 20}]},
+        {"type": "num", "value": 0}]}
+    i, lv = _read_both(tree)
+    assert i is not None and lv == i, (i, lv)
+    assert lint_max(leaf) == 0
+    assert lint_repaint(tree)["mode"] == "repaints"
+
+
 def test_CONTROL_the_python_readers_really_can_disagree():
     """⛔ The corpus is clean after the fix, so every assertion above passes on a
     rail that had been broken into always-agreeing. This proves the comparison

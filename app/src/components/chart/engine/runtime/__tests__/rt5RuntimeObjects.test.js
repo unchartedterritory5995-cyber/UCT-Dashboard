@@ -76,10 +76,27 @@ describe('RT5 — the run keeps what its drawing calls make', () => {
 })
 
 describe('RT5 — conditional-call history refuses by name', () => {
-  it('a ta call inside a block that does not run every bar refuses', () => {
-    const r = build('if bar_index % 2 == 0\n    s = ta.sma(close, 3)\n    label.new(bar_index, s)\n')
+  // ⭐ L4d (re-pinned): `ta.sma` / `ta.ema` / `ta.rma` in a block are WITNESSED for a drawing
+  // (W3N-D1a/b/c, `l4dDrawingHistory.test.js`) and served per call site; any other kind refuses.
+  it('a ta call no capture witnesses for a drawing (`ta.wma`) inside a block that does not run every bar refuses', () => {
+    const r = build('if bar_index % 2 == 0\n    s = ta.wma(close, 3)\n    label.new(bar_index, s)\n')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:conditional-history')
+  })
+  it('L4d: `ta.sma` there builds and reads the sma over the RUNS (every other bar), not over every bar', () => {
+    const { fin } = run('if bar_index % 2 == 0\n    s = ta.sma(close, 3)\n    label.new(bar_index, s)\n')
+    const labels = ofFamily(fin, 'label')
+    const runs = BARS.map((b) => b.c).filter((_, i) => i % 2 === 0)
+    // (the default max_labels_count collects the oldest: grade the ones held, by their bar)
+    expect(labels.length).toBeGreaterThan(40)
+    const every = BARS.map((b) => b.c)
+    for (const l of labels) {
+      expect(l.props.x % 2).toBe(0)
+      const k = l.props.x / 2
+      expect(l.props.y).toBeCloseTo((runs[k] + runs[k - 1] + runs[k - 2]) / 3, 9)
+      // not the every-bar sma (the control the run count is about)
+      expect(Math.abs(l.props.y - (every[l.props.x] + every[l.props.x - 1] + every[l.props.x - 2]) / 3)).toBeGreaterThan(1e-6)
+    }
   })
 
   it('a function body with history refuses', () => {
@@ -130,9 +147,22 @@ describe('RT5 — conditional-call history refuses by name', () => {
   })
 })
 
-describe('RT5 — a drawing call in one arm of ?: refuses by name', () => {
-  it('refuses', () => {
-    const r = build('l = bar_index % 10 == 0 ? label.new(bar_index, close) : na\n')
+// ⭐ L4c (re-pinned): the witnessed shape `l = c ? label.new(…) : na` is now SERVED as a jump
+// (Q-RT5a T01/T02, rails in `l4cArmDrawing.test.js`); every other drawing in an arm still
+// refuses by name.
+describe('RT5 — a drawing call in one arm of ?:', () => {
+  it('L4c: `l = c ? label.new(…) : na` builds and draws only on the taken bars, as the `if` does', () => {
+    const { fin } = run('l = bar_index % 10 == 0 ? label.new(bar_index, close) : na\n')
+    expect(ofFamily(fin, 'label')).toHaveLength(30)
+  })
+  // ⭐ L4d (re-pinned): a LABEL in the ELSE arm is witnessed (Q-RS5 E01, `l4dArmShapes.test.js`)
+  // and builds; a line there has no witness and still refuses by name.
+  it('L4d: a label in the ELSE arm builds and draws only on the bars the test is false', () => {
+    const { fin } = run('l = bar_index % 10 != 0 ? na : label.new(bar_index, close)\n')
+    expect(ofFamily(fin, 'label')).toHaveLength(30)
+  })
+  it('refuses by name a LINE in the ELSE arm (no capture witnesses it)', () => {
+    const r = build('l = bar_index % 10 == 0 ? na : line.new(bar_index, close, bar_index + 1, close)\n')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:object-op')
     expect(r.refusal.message).toMatch(/\?:/)
@@ -159,3 +189,23 @@ describe('RT5 — a comma line of statements is split, as the host lane splits i
   })
 })
 
+
+// ⭐⭐ ENGINE 52 — Pine v6's INT text size (typographic points) in the runtime lane: a size the
+// reference equates with a word is carried as that number (`objectStore.js` `propValue`); any
+// other int withholds its family by name, as the host lane withholds the drawing.
+describe('engine 52 — an integer point size in the runtime lane', () => {
+  const NL = String.fromCharCode(10)
+  it('label size = 18 (the reference "large") is carried as the number', () => {
+    const { fin } = run(`if barstate.islast${NL}    label.new(bar_index, close, "x", size = 18)${NL}`)
+    expect(fin.status).toBe('ok')
+    const labels = ofFamily(fin, 'label')
+    expect(labels).toHaveLength(1)
+    expect(labels[0].props.size).toBe(18)
+  })
+  it('label size = 13 (no word) is withheld, never drawn at a guessed size', () => {
+    const { fin } = run(`if barstate.islast${NL}    label.new(bar_index, close, "x", size = 13)${NL}`)
+    const labels = ofFamily(fin, 'label')
+    expect(labels.some((l) => l.props.size === 13)).toBe(false)
+    expect(JSON.stringify(fin)).toContain('not one of the sizes the Pine reference equates')
+  })
+})

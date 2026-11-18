@@ -14,6 +14,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { memberPaneDefinition } from './memberPane/memberPaneDefinition'
 import { AuthContext } from '../../../context/AuthContext'
@@ -52,16 +53,18 @@ const flush = async () => {
   await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
 }
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={() => {}} onSaved={() => {}} settings={null} onChange={() => {}} sym="SPY" tf="D" />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 async function paste(script) {
-  fireEvent.click(screen.getByRole('tab', { name: /^import$/i }))
+  openSource('pine')
   fireEvent.change(screen.getByTestId('pine-box').querySelector('textarea'), { target: { value: script } })
   await act(async () => { vi.advanceTimersByTime(PINE_DEBOUNCE_MS + 1) })
   await flush()
@@ -137,12 +140,18 @@ describe('P0 gate D — the member-pane door acknowledges a preview repaint', ()
 })
 
 describe('P0 gate — fold notes print a human heading, not the channel key', () => {
-  it('DISCLOSED DIFFERENCE — HTF lookahead-off: heading is human copy, the raw key is not printed', async () => {
+  // ⭐⭐ ENGINE 55 — FLIPPED DELIBERATELY. The look-ahead-off weekly request is now
+  // `tf_merge` (TradingView's merge) and its step-back fold note is deleted, so the box
+  // prints neither the old heading nor the raw key. Its badge is `preview-repaints`
+  // (a forming newest bar shows the forming week, as TradingView's realtime bar does),
+  // so the pane asks for the acknowledgement it asks of any preview-repaints script.
+  it('ENGINE 55 — HTF lookahead-off: no step-back note, no raw key, and the repaint acknowledgement is offered', async () => {
     mount()
     await paste(PINE.htfOff)
     const box = screen.getByTestId('pine-box')
-    expect(box.textContent).toContain(FOLD_LABELS.htfLookaheadOffStepBacks)
-    expect(FOLD_LABELS.htfLookaheadOffStepBacks).toBe('Higher-timeframe timing differs from TradingView')
+    expect(box.textContent).not.toContain('Higher-timeframe timing differs from TradingView')
     expect(box.textContent).not.toContain('htfLookaheadOffStepBacks')
+    expect(FOLD_LABELS.htfLookaheadOffStepBacks).toBeUndefined()
+    expect(screen.getByTestId('pine-member-pane-repaint-ack')).toBeTruthy()
   })
 })

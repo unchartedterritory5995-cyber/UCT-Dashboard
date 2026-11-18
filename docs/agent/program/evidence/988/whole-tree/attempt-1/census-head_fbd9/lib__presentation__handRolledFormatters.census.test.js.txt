@@ -1,0 +1,12 @@
+rail src/lib/presentation/handRolledFormatters.census.test.js
+## Γ¡É HAND-ROLLED FORMATTERS MAY NOT GROW > no file gained a site, and no new file appeared
++     "file": "app/src/pages/admin/AiSpend.jsx",
++     "file": "app/src/pages/breadth/drill/scan/scanDeckModel.js",
++     "file": "app/src/pages/screener/focus/ScreenerHeatMap.jsx",
++     "file": "app/src/testing/scanDeck/scanDeckHarness.jsx",
++     "now": 2,
++     "now": 3,
++     "now": 4,
++   {
++   },
++ Received

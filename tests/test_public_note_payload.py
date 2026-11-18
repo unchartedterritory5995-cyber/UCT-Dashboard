@@ -747,6 +747,22 @@ def test_every_vendor_has_a_verdict():
         assert vendor in pnp.VENDOR_VERDICT, (key, vendor)
 
 
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_tweet_excerpt_is_reduced_on_share_and_publish(mode):
+    """A tweet card is an ordinary documentExcerpt node: it takes the neutral path in both modes.
+    The node here also carries the card's fields, so a reducer that kept attrs would leak them."""
+    body = doc(p(t("my words")), {"type": "documentExcerpt", "attrs": {
+        "excerptId": "ex-tweet",
+        "tweet": {"tweetId": "701", "name": "Fake Desk", "handle": "fakedesk_one",
+                  "text": "the words of the post", "price": {"symbol": "NVDA", "price": 188.2}}}})
+    out = reduce(body, mode)
+    assert "documentExcerpt" not in types_in(out)
+    assert NEUTRAL in texts_in(out)
+    dumped = json.dumps(out)
+    for secret in ("fakedesk_one", "Fake Desk", "the words of the post", "188.2", "ex-tweet", "701"):
+        assert secret not in dumped, (mode, secret)
+
+
 def test_the_owner_sign_off_in_words():
     v = pnp.market_data_verdict
     assert v("widgetEmbed", "chart") == pnp.NEUTRAL          # Massive bars

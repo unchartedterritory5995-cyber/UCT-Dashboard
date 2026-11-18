@@ -19,6 +19,7 @@ import { writeFlagged } from '../../../hooks/flaggedStore'
 import { getCapability } from '../../capabilities'
 import { mountedListViews } from '../../../pages/watchlist/watchlistViews'
 import { ChartsSymContext } from '../../../pages/charts/ChartsSymContext'
+import { MOVE_HELD_OUT, WIDTH_HELD_OUT, COLUMNS_REFUSE_HELD_OUT } from '../../agentWatchlistColumnsHeldOut.test.js'
 
 vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 vi.mock('../../../components/StockChart', () => ({ default: () => null }))
@@ -58,7 +59,10 @@ const LISTS = [
   { id: 'w2', name: 'Earnings', symbols: ['CRM', 'ADBE'] },
 ]
 const quote = (price, volume, change_pct) => ({ price, volume, change_pct, prev_close: price })
-const PRICES = { NVDA: quote(10, 500, 1), TSLA: quote(40, 300, -2), AMD: quote(30, 100, 4), AAPL: quote(20, 200, 3), MSFT: quote(50, 400, 2), CRM: quote(60, 10, 1), ADBE: quote(70, 20, 2) }
+// A watchlist sorts by % change (high to low) until the member picks a sort (owner 11-13), so each
+// list's % changes descend in its SAVED order: the default view and the saved order agree, and every
+// test below keeps reading the rows it was written against.
+const PRICES = { NVDA: quote(10, 500, 5), TSLA: quote(40, 300, 4), AMD: quote(30, 100, 3), AAPL: quote(20, 200, 2), MSFT: quote(50, 400, 1), CRM: quote(60, 10, 2), ADBE: quote(70, 20, 1) }
 const META = { NVDA: { rvol: 150 }, TSLA: { rvol: 900 }, AMD: { rvol: 300 }, AAPL: { rvol: 700 }, MSFT: { rvol: 500 } }
 const RVOL_ORDER = ['TSLA', 'AAPL', 'MSFT', 'AMD', 'NVDA']
 const SAVED = LISTS[0].symbols
@@ -106,7 +110,8 @@ function board(widgets = ON_MOMENTUM(), { sym = 'NVDA', lists = LISTS, syncFails
 }
 
 const rowsOf = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[data-watch-sym]')].map(e => e.getAttribute('data-watch-sym'))
-const headers = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[aria-label^="Sort by"]')].map(e => e.textContent)
+// the sorted column's ▲/▼ (owner 11-14) is drawn, not part of its name
+const headers = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[aria-label^="Sort by"]')].map(e => e.textContent.replace(/[▲▼]/g, ''))
 const cols = () => JSON.parse(localStorage.getItem(COLS) || 'null')
 const flags = () => JSON.parse(localStorage.getItem(FLAGGED) || '[]')
 const server = (m, name) => m.srv.lists.find(l => l.name === name)?.items.map(i => i.sym) ?? null
@@ -267,13 +272,14 @@ describe('2. add and hide columns: the header changes', () => {
     await waitFor(() => expect(cols().order).toEqual(expect.arrayContaining(['rvol', 'sector'])))
     expect(m.lastReceipt().textContent).toMatch(/Added RVOL and Sector to “Momentum” · Hid Volume on “Momentum”/)
     await m.say('undo')
-    await waitFor(() => expect(cols()).toEqual({}))
+    await waitFor(() => expect(cols()).toBe(null))            // F6: nothing was saved before, so the Undo leaves nothing saved (was `{}`)
   })
   it.each([
     ['sort by price', 'watchlist.sortColumn', { column: 'price', direction: null }],
     ['sort this by price', 'watchlist.sortColumn', { column: 'price', direction: null }],
     ['rank by price', 'watchlist.sortColumn', { column: 'price', direction: null }],
-    ['sorted by % change', 'watchlist.sortColumn', { column: '% change', direction: null }],
+    // (already the default sort, high to low — so the phrase that still changes the view is the other way)
+    ['sorted by % change, lowest first', 'watchlist.sortColumn', { column: '% change', direction: 'asc' }],
     ['sort by volume', 'watchlist.sortColumn', { column: 'volume', direction: null }],
     ['sort by market cap', 'watchlist.sortColumn', { column: 'market cap', direction: null }],
     ['hide price', 'watchlist.setColumns', { add: [], hide: ['price'], reset: false }],
@@ -537,6 +543,7 @@ describe('5. several at once, including everything except these', () => {
     await m.say('undo')
     await waitFor(() => expect(server(m, 'Momentum')).toEqual(SAVED))
   })
+  // ⛔ AUDIT #1247 (D19): "all five" names the whole list when it holds exactly five — acted on (its clear card, as before)
   it('listing EVERY ticker is a clear by another name, so it is proposed', async () => {
     const m = board()
     await m.say('remove all five', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: SAVED })])
@@ -547,11 +554,13 @@ describe('5. several at once, including everything except these', () => {
     await m.say('undo')
     await waitFor(() => expect(server(m, 'Momentum')).toEqual(SAVED))
   })
-  it('more than ten at once is proposed', async () => {
+  // ⛔ AUDIT #1247 (D19): "twelve" of fourteen — which twelve the words do not fix: ASKS, nothing written, no card
+  it('"remove twelve" (12 of 14: which twelve is not fixed by the words): asks, nothing written, no card', async () => {
     const big = Array.from({ length: 14 }, (_, i) => `T${i}`)
     const m = board(ON_MOMENTUM(), { lists: [{ id: 'w1', name: 'Momentum', symbols: big }] })
-    await m.say('remove twelve', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: big.slice(0, 12) })])
-    expect(proposalsNow()).toHaveLength(1)
+    const out = await m.say('remove twelve', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: big.slice(0, 12) })])
+    expect(out).toMatch(/didn’t change anything/)
+    expect(proposalsNow()).toHaveLength(0)
     expect(server(m, 'Momentum')).toEqual(big)
   })
   it('a list too big to take apart at once is refused and says where', async () => {
@@ -576,6 +585,7 @@ describe('7. what a list shows, so a follow-up can act on "the top three"', () =
     expect(out).toContain(`“Momentum” (5, sorted by RVOL, high to low): ${RVOL_ORDER.join(', ')}`)
     expect(out).not.toMatch(/\$\d/)
   })
+  // ⛔ AUDIT #1247 (D19): "the top three" = the rows the earlier view showed, the list unchanged since — acted on
   it('"remove the top three": the three on SCREEN, not the first three saved', async () => {
     const m = board()
     await sortRvol(m)
@@ -667,14 +677,15 @@ describe('the other lists a widget can show', () => {
     const m = board([CHART, wl('wl', 'flagged', 'Flagged')])
     writeFlagged(['NVDA', 'AMD'])
     await waitFor(() => expect(rowsOf()).toEqual(['NVDA', 'AMD']))
-    await m.say('flag TSLA', (c) => [op('watchlist.setFlag', flagRef(c), { symbols: ['TSLA'], flagged: true })])
-    await waitFor(() => expect(rowsOf()).toEqual(['NVDA', 'AMD', 'TSLA']))
+    // MSFT has the smallest % change, so under the default sort (owner 11-13) it lands last
+    await m.say('flag MSFT', (c) => [op('watchlist.setFlag', flagRef(c), { symbols: ['MSFT'], flagged: true })])
+    await waitFor(() => expect(rowsOf()).toEqual(['NVDA', 'AMD', 'MSFT']))
     await m.say('sort this list by price', (c) => {
-      expect(views(c)[0].rows).toEqual(['NVDA', 'AMD', 'TSLA'])
+      expect(views(c)[0].rows).toEqual(['NVDA', 'AMD', 'MSFT'])
       return [op('watchlist.sortColumn', only(c), { column: 'price', direction: 'desc' })]
     })
-    await waitFor(() => expect(rowsOf()).toEqual(['TSLA', 'AMD', 'NVDA']))
-    await m.say('what does it show', (c) => { expect(views(c)[0].rows).toEqual(['TSLA', 'AMD', 'NVDA']); return [op('watchlist.readView', only(c), { as: null })] })
+    await waitFor(() => expect(rowsOf()).toEqual(['MSFT', 'AMD', 'NVDA']))
+    await m.say('what does it show', (c) => { expect(views(c)[0].rows).toEqual(['MSFT', 'AMD', 'NVDA']); return [op('watchlist.readView', only(c), { as: null })] })
   })
   it('the same list twice on one board: two targets, each its own', async () => {
     const m = board([CHART, wl('wl', 'user:w1', 'Momentum'), wl('wl2', 'user:w1', 'Momentum', 12, 'A')])
@@ -707,7 +718,9 @@ describe('the member and the Agent on one widget', () => {
     await m.say('add rvol', (c) => [op('watchlist.setColumns', only(c), { add: ['rvol'], hide: [], reset: false })])
     await waitFor(() => expect(headers()).toContain('RVOL'))
     fireEvent.contextMenu(document.querySelector('[data-testid="w-wl"] [aria-label="Sort by RVOL"]'))
-    fireEvent.click(await screen.findByRole('button', { name: 'RVOL' }))
+    // the column library (owner 11-14) opens at the cursor; In use lists the shown columns, each with its ×
+    fireEvent.click(await screen.findByRole('tab', { name: /In use/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove RVOL' }))
     await waitFor(() => expect(headers()).not.toContain('RVOL'))
     await m.say('what shows', (c) => { expect(views(c)[0].columns).not.toContain('RVOL'); return [op('watchlist.readView', only(c), { as: null })] })
   })
@@ -735,5 +748,51 @@ describe('the widget unmounting takes its target with it', () => {
     const out = await m.say('undo')
     expect(out).not.toMatch(/Undid/)
     expect(JSON.stringify(cols())).toBe(before)
+  })
+})
+
+// pl-widget, watchlist group C (C3-085 / C3-086): a column moved as the header drag drops it, a width as the gridline sets it —
+// through watchlist.arrangeColumns, over the widget's own results (movedColCfg / resizedColCfg). Held-out: agentWatchlistColumnsHeldOut.
+describe('3. move a column, set its width (the header drag and the gridline)', () => {
+  it.each(MOVE_HELD_OUT.map(c => [c.text, c]))('held-out "%s": the stored order and the header follow; Undo restores the columns exactly', async (text, c) => {
+    const m = board()
+    const before = headers()
+    await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    await waitFor(() => expect((cols()?.order || []).filter(k => k !== 'flag')).toEqual(c.order))
+    expect(headers()).not.toEqual(before)
+    expect(headers().length).toBe(before.length)
+    expect(m.lastReceipt().textContent).toMatch(/On “Momentum”: moved/)
+    await m.say('undo')
+    await waitFor(() => expect(cols() ?? {}).toEqual({}))
+    expect(headers()).toEqual(before)
+  })
+  // ⛔ KNOWN GAP (found by this held-out set, not tuned away): "narrow the price column to 50" is answered BEFORE the model by the
+  // quote fast path, which reads "narrow" as a ticker ("I'm not sure which instrument …"). Pinned both ways: the outcome fails today,
+  // and today's exact answer is asserted, so a fix flips the first and breaks the second on purpose. Owner of the fix: the Lead (useAgent).
+  const GAP = (c) => /^narrow the price column/.test(c.text)
+  it.fails.each(WIDTH_HELD_OUT.filter(GAP).map(c => [c.text, c]))('GAP held-out "%s": the stored width is that (fails today: the quote fast path answers first)', async (text, c) => {
+    const m = board()
+    await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    await waitFor(() => expect(cols()?.widths?.[c.key]).toBe(c.px), { timeout: 1500 })
+  })
+  it.each(WIDTH_HELD_OUT.filter(GAP).map(c => [c.text, c]))('GAP held-out "%s": today the quote fast path answers, and nothing is written', async (text, c) => {
+    const m = board()
+    const out = await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    expect(out).toMatch(/not sure which instrument “?"?narrow/i)
+    expect(cols()).toBe(null)
+  })
+  it.each(WIDTH_HELD_OUT.filter(c => !GAP(c)).map(c => [c.text, c]))('held-out "%s": the stored width is that; Undo restores the columns exactly', async (text, c) => {
+    const m = board()
+    const out = await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    await waitFor(() => expect(cols()?.widths?.[c.key], out).toBe(c.px))
+    expect(m.lastReceipt().textContent).toMatch(new RegExp(`to ${c.px} px wide`))
+    await m.say('undo')
+    await waitFor(() => expect(cols() ?? {}).toEqual({}))
+  })
+  it.each(COLUMNS_REFUSE_HELD_OUT.map(c => [c.text, c]))('NEGATIVE held-out "%s": refused in words; the columns are untouched', async (text, c) => {
+    const m = board()
+    const out = await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    expect(out).toMatch(c.refuse)
+    expect(cols()).toBe(null)
   })
 })

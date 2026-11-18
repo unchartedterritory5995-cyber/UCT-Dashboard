@@ -188,9 +188,17 @@ def run(base: str, auth: bool, expect_pane: str | None = None) -> int:
         browser = p.chromium.launch()
         ctx = browser.new_context()
         page = ctx.new_page()
-        resp = page.request.post(f"{base}/api/auth/login",
-                                 data=json.dumps({"email": os.environ["SMOKE_EMAIL"], "password": os.environ["SMOKE_PASSWORD"]}),
-                                 headers={"Content-Type": "application/json"})
+        # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+        try:
+            from tools import synthetic_session as S  # noqa: PLC0415 — package import
+        except ImportError:
+            import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+        try:
+            resp = S.sign_in_playwright(page, base, "smoke")
+        except S.SignInError as exc:
+            say(f"INCONCLUSIVE: sign-in refused ({exc})")
+            browser.close()
+            return 2
         if not resp.ok:
             say(f"INCONCLUSIVE: login HTTP {resp.status}")
             browser.close()

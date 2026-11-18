@@ -19,13 +19,20 @@ const preloadMock = vi.fn()
 vi.mock('swr', () => ({ preload: (...a) => preloadMock(...a) }))
 
 const idbState = { entry: undefined, put: vi.fn(async () => {}) }
-vi.mock('./barsIDB', () => ({
+vi.mock('./barsIDB', async () => { const { mergeMonotonic } = await vi.importActual('./barsMerge'); return {
   idbGet: vi.fn(async () => idbState.entry),
   idbPut: (...a) => idbState.put(...a),
+  // The monotonic compare-and-write merges into the entry held NOW (review #1095).
+  idbPutMonotonic: async (sym, tf, bars, opts) => {
+    const next = mergeMonotonic(idbState.entry?.bars ?? null, bars, opts)
+    if (!next?.length) return null
+    await idbState.put(sym, tf, next)
+    return next
+  },
   // The real mergeDelta prepends history and lets the newer rows win; for this
   // test all that matters is that BOTH halves reach the write.
   mergeDelta: (a, b) => [...a, ...b],
-}))
+} })
 vi.mock('../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))
 
 import { prefetchBarsToIDB, _noteWarmResult, _resetRepairCooldown } from './prefetchBars'
@@ -37,7 +44,9 @@ const unix = (hhmm) => {
   const [h, m] = hhmm.split(':').map(Number)
   return Math.floor(new Date(`2026-09-16T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00-04:00`).getTime() / 1000)
 }
-const barsEnding = (tSec, n = 50) =>
+// (700 bars: a normal-depth store. A store shorter than half the chart's window is warmed with the
+// full window instead of a tail since 2026-11-15: prefetchBars.shortIntraday.test.js.)
+const barsEnding = (tSec, n = 700) =>
   Array.from({ length: n }, (_, i) => ({ t: tSec - (n - 1 - i) * 300, o: 1, h: 2, l: 0, c: 1, v: 9 }))
 
 const urls = () => preloadMock.mock.calls.map(c => c[0])

@@ -232,7 +232,8 @@ describe('A6.2 — CORE renders the declared groups; Simple open, the hinted gro
       const el = field(key)
       if (!el) continue
       expect(el.closest('[data-group]'), key).toBeNull()
-      expect(el.closest('[data-section="core"]'), key).toBeTruthy()
+      // ⭐ UCT Signature: where it draws is "On the chart"; its timeframes are "Show on" (both were CORE)
+      expect(el.closest(key === '__display__' ? '[data-section="chart"]' : '[data-section="showOn"]'), key).toBeTruthy()
     }
     expect(field('__visibility__')).not.toBeNull()
   })
@@ -401,7 +402,8 @@ describe('control — RSI and MACD are unchanged', () => {
       expect(field('__preset__')).toBeNull()
       expect(inspector().querySelector('[data-group]')).toBeNull()
       expect(inspector().querySelector('[data-active]')).toBeNull()
-      expect(inspector().querySelector('[aria-disabled="true"]')).toBeNull()
+      // (the editor's approved "Soon" rows are disabled by design and say so: title "Coming soon")
+      expect(inspector().querySelector('[aria-disabled="true"]:not([title="Coming soon"])')).toBeNull()
       const keys = [...core().querySelectorAll('[data-field]')].map((el) => el.getAttribute('data-field'))
         .filter((k) => !k.startsWith('__'))
       expect(keys).toEqual(coreInputKeys(def))

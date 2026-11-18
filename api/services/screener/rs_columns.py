@@ -145,6 +145,47 @@ PHASE3_MIN_BARS: Dict[str, int] = {
 #: :func:`_weekly_quadrant`): 260 sessions is ~52 weeks, almost four times the
 #: 14 the newest quadrant reads.
 RRG_DAILY_TAIL = 260
+
+# ── RS Exit Warnings (2026-11-13): five columns, the chart's `rsExit` study ─
+#
+# Mike Webster's Quick Break / Quicksand / Grateful Dead Break on the RS line,
+# DAILY bars against SPY at the daily auto lengths (21 / 50 simple averages of
+# the RS line, `relative_strength.resolve_exit_lengths("D")`). NO MATHS HERE
+# EITHER: the events are `relative_strength.compute_rs_exit_columns` over the
+# RS line phase 1 already drew (`rs_values=`, one join), the ages
+# `bars_ago_column`, the newest-and-worst `rs_exit_latest` — the functions the
+# chart's dots and legend read, so a scan and the chart name the same warning.
+# Written by the same RS_V2-gated `bars_rs` step as the ten (they are part of
+# that family: `filters.rs_dark_keys` darkens them with it).
+#
+# Why five and not two: `rs_exit_last` names only the NEWEST warning, so a
+# Grateful Dead Break yesterday hides a Quicksand three days ago. "Quicksand in
+# the last 5 sessions" needs Quicksand's own age; "any warning in the last 10"
+# is `rs_exit_bars_ago`. The three per-warning ages are the minimal set that
+# makes every "warning X within N sessions" screen answerable.
+EXIT_COLUMNS = (
+    "rs_exit_last",              # TEXT: Quick Break | Quicksand | Grateful Dead Break (newest; worse on a tie)
+    "rs_exit_bars_ago",          # sessions since that newest warning (0 = the newest bar)
+    "rs_quick_break_bars_ago",   # sessions since the last Quick Break
+    "rs_quicksand_bars_ago",     # sessions since the last Quicksand
+    "rs_dead_break_bars_ago",    # sessions since the last Grateful Dead Break
+)
+EXIT_TEXT_COLUMNS = frozenset({"rs_exit_last"})
+#: The values `rs_exit_last` can hold, mildest first (the order the warnings
+#: arrive in a typical cycle): the writer's own words, read by the screener's
+#: enum filter rather than retyped there.
+EXIT_NAMES = tuple(rs.RS_EXIT_LABELS[k] for k in rs.RS_EXIT_EVENT_COLUMNS)
+#: Each per-warning age column and the `rs_exit_events` column it counts back to.
+EXIT_AGE_EVENTS: Dict[str, str] = {
+    "rs_quick_break_bars_ago": "quickBreak",
+    "rs_quicksand_bars_ago": "quicksand",
+    "rs_dead_break_bars_ago": "deadBreak",
+}
+EXIT_FAST, EXIT_SLOW = rs.resolve_exit_lengths("D")   # 21 / 50, the chart's daily auto pair
+#: The slow average's warm-up plus the bar before a cross: below this no
+#: Grateful Dead Break can be judged, so no column claims "nothing fired".
+EXIT_MIN_BARS = EXIT_SLOW + 1
+
 #: Per-column outcomes counted into ``stats`` (the builder's
 #: ``sources["bars_rs"]``) when a Phase 3 column comes back ``None``:
 #: ``phase3_short:<col>`` when the history is below :data:`PHASE3_MIN_BARS`,
@@ -426,15 +467,37 @@ def _blank() -> dict:
         "mansfield": None,
         "mansfield_cross_bars_ago": None,
         "rs_benchmark_agree": None,
+        **{c: None for c in EXIT_COLUMNS},
     }
+
+
+def _exit_values(win: list, spy: list, rs_spy: list) -> dict:
+    """The five RS Exit Warning columns for one ticker's daily window (see
+    :data:`EXIT_COLUMNS`): every value read off `relative_strength`'s columns.
+    ``None`` throughout below :data:`EXIT_MIN_BARS`; an age is ``None`` when its
+    warning has not fired inside the window, and `rs_exit_last` is ``None`` when
+    none has."""
+    out = {c: None for c in EXIT_COLUMNS}
+    if len(win) < EXIT_MIN_BARS:
+        return out
+    cols = rs.compute_rs_exit_columns(win, spy, EXIT_FAST, EXIT_SLOW, rs_values=rs_spy)
+    for col, event in EXIT_AGE_EVENTS.items():
+        out[col] = _int(rs.bars_ago_column(cols[event])[-1])
+    kind, idx = rs.rs_exit_latest(cols)
+    if kind is not None:
+        out["rs_exit_last"] = rs.RS_EXIT_LABELS[kind]
+        out["rs_exit_bars_ago"] = len(win) - 1 - idx
+    return out
 
 
 def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
                 stats: Optional[dict] = None, phase3: bool = False,
                 full=None, weekly_cache: Optional[dict] = None,
-                timing: Optional[dict] = None) -> dict:
-    """The ten columns for ONE ticker — ``{column: value}``, every key present
-    (thirteen with ``phase3=True``: :data:`PHASE3_COLUMNS` as well).
+                timing: Optional[dict] = None,
+                phase1_out: Optional[dict] = None) -> dict:
+    """The ten columns for ONE ticker, plus the five :data:`EXIT_COLUMNS` —
+    ``{column: value}``, every key present (and :data:`PHASE3_COLUMNS` as well
+    with ``phase3=True``).
 
     ``bars`` is the ticker's daily window (the builder's sanitized 400 bars, or
     a float close list); ``spy_bars`` / ``rsp_bars`` the benchmark bar dicts
@@ -451,7 +514,14 @@ def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
     Phase 3 column lands in ``stats`` as ``phase3_short:<col>`` (history below
     :data:`PHASE3_MIN_BARS`) or ``phase3_none:<col>``, beside the row's own
     outcome; a row with no benchmark ratio at all is ``no_bench`` alone. With
-    ``phase3=False`` none of it runs and the result is exactly the ten keys.
+    ``phase3=False`` none of it runs and the result is exactly the ten keys and
+    the five exit keys.
+
+    ``phase1_out`` (RS screens unit U4) is an optional out-dict that receives the
+    Phase 1 columns this call computed, under ``"phase1"``, so the builder can hand
+    them to :func:`screen_fields` instead of paying for a second Phase 1 pass
+    (measured 2026-11-14: 0.10 ms a ticker handed in, 2.67 ms recomputed). Left
+    empty when the call returned before Phase 1 ran. It changes no value.
 
     Never raises on a short or empty input; a malformed bar (no ``c``) is a
     ``None`` in every derived column, as everywhere in `relative_strength`.
@@ -475,6 +545,8 @@ def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
     spy = _trim_to(spy_all, times)
 
     p1 = rs.compute_phase1_columns(win, spy)      # defaults: 252 / EMA 21 / 2 % / −0.5 %
+    if phase1_out is not None:
+        phase1_out["phase1"] = p1
     rs_spy = p1["rsLine"]
     if rs_spy[-1] is None:
         # SPY holds no bar at the ticker's newest time: no ratio to read today.
@@ -513,6 +585,8 @@ def collect_one(bars, spy_bars, rsp_bars=None, *, session=None,
     values["mansfield"] = _real(mans["mansfield"][-1], MANSFIELD_DP)
     values["mansfield_cross_bars_ago"] = _int(mans["mansfieldCrossBarsAgo"][-1])
     values["rs_benchmark_agree"] = _flag(agree)
+    # RS Exit Warnings: the chart's rsExit maths over the line drawn above.
+    values.update(_exit_values(win, spy, rs_spy))
 
     # The window rule, applied once and explicitly: a column whose minimum the
     # window does not meet is None whatever came back (the maths already says
@@ -559,3 +633,234 @@ def collect(tickers, bars_by_ticker, spy_closes, rsp_closes, *, session,
         out[key] = collect_one(bars or [], spy_closes, rsp_closes,
                                session=session, stats=stats)
     return out
+
+
+# ── RS screens (2026-11-14): six last-bar measures for the five RS lists ────
+#
+# Plan 2026-11-14 v2, sections 1.2 (RS New Highs) and 1.3 (RS New High Before
+# Price). Screener columns since unit U4, NOT written by `collect_one`: the
+# builder's own `bars_rs_screens` step stores them, only while RS_SCREENS_ENABLED
+# is on (`snapshot_builder.build_row`). NO MATHS HERE EITHER: each value is
+# a `relative_strength` helper asked of the Phase 1 columns `collect_one`
+# already computes, so a list, the chart's dot and the ten columns above read
+# one RS-new-high rule and one before-price rule.
+SCREEN_COLUMNS = (
+    "rs_nh_count_20",       # RS new highs in the last 20 sessions
+    "rs_nh_quiet",          # sessions between the newest RS new high and the one before it
+    "rs_nh_red_bars_ago",   # sessions since the newest RS new high on a market down day
+    "px_below_high_pct",    # close vs its highest close of 252 sessions, percent, <= 0
+    "rs_nhbp_age",          # sessions since an RS new high that price has not followed yet
+    "rs_nh_span",           # today is an RS new high: the highest in this many sessions
+)
+SCREEN_INT_COLUMNS = frozenset(SCREEN_COLUMNS) - {"px_below_high_pct"}
+SCREEN_NH_COUNT_WINDOW = rs.SCREEN_NH_COUNT_WINDOW     # 20
+SCREEN_NHBP_WINDOW = rs.SCREEN_NHBP_WINDOW             # 63 sessions counting today: ages 0-62
+#: `px_below_high_pct` is a PERCENT, rounded like `mansfield` and the table's
+#: other percent columns.
+PX_BELOW_HIGH_DP = 2
+#: The Phase 1 columns `screen_fields` reads. A caller's ``phase1`` is used only
+#: when it carries all four at the window's length.
+SCREEN_PHASE1_READS = ("rsLine", "rsNH", "rsNHred", "pxNH")
+
+
+def screen_fields(bars, spy_bars, *, session=None, phase1=None) -> dict:
+    """The six :data:`SCREEN_COLUMNS` for ONE ticker's newest bar, every key
+    present. ``bars`` / ``spy_bars`` / ``session`` are `collect_one`'s (hand it
+    the same RS window, `snapshot_builder.RS_WINDOW_BARS` deep, so an RS new
+    high up to 400 sessions old can be seen).
+
+    ``phase1`` is the caller's ``rs.compute_phase1_columns(window, spy)`` when
+    it already holds it (`collect_one` does): the six then cost a few backward
+    walks instead of a second Phase 1 pass. It is used only when aligned to the
+    window; anything else is ignored and recomputed (the ``rs_values``
+    convention of `compute_mansfield_columns`).
+
+    ``None`` per measure, never per row: ``px_below_high_pct`` reads the stock
+    alone and needs 252 closes; the five RS measures are ``None`` when SPY has
+    no bar at the newest time, and each is ``None`` on its own when the series
+    is too short or the event rule could not judge a bar it would have to read
+    (see the `relative_strength` helpers). ``rs_nh_red_bars_ago`` follows
+    ``rs_nh_bars_ago``: it counts back to the newest event the column saw.
+    """
+    values = {c: None for c in SCREEN_COLUMNS}
+    win = _clip(_as_bars(bars), session)
+    if not win:
+        return values
+    below = _real(rs.close_below_high_pct_last([b.get("c") for b in win], LOOKBACK),
+                  PX_BELOW_HIGH_DP)
+    # `+ 0.0`: a close a hair under the high rounds to 0.0, never a stored "-0.0".
+    values["px_below_high_pct"] = None if below is None else below + 0.0
+
+    spy_all = _as_bars(spy_bars, like=win)
+    if not spy_all:
+        return values
+    p1 = phase1
+    if not (isinstance(p1, dict)
+            and all(len(p1.get(k) or ()) == len(win) for k in SCREEN_PHASE1_READS)):
+        p1 = rs.compute_phase1_columns(win, _trim_to(spy_all, _times_of(win)))
+    line, nh = p1["rsLine"], p1["rsNH"]
+    if line[-1] is None:
+        # SPY holds no bar at the ticker's newest time: no RS reading for today.
+        return values
+
+    count = rs.rolling_count(nh[-SCREEN_NH_COUNT_WINDOW:], SCREEN_NH_COUNT_WINDOW)
+    values["rs_nh_count_20"] = _int(count[-1])
+    values["rs_nh_quiet"] = rs.event_gap_last(nh)
+    values["rs_nh_red_bars_ago"] = _int(rs.bars_ago_column(p1["rsNHred"])[-1])
+    values["rs_nhbp_age"] = rs.event_age_unbroken_last(nh, p1["pxNH"], SCREEN_NHBP_WINDOW)
+    if nh[-1] == 1.0:
+        values["rs_nh_span"] = rs.level_span_last(line)
+    return values
+
+
+# ── RS screens (unit U12, 2026-11-14): the WEEKLY RS new high ───────────────
+#
+# The house lesson is the weekly RS line making a new high before price; the six
+# above are its daily reading. Two more screener columns, written by the builder's
+# own `bars_rs_weekly` step for rows on the RS liquid floor only (the resample is
+# the cost, see `weekly_fields`). NO MATHS HERE EITHER: the weekly bars come from
+# the one weekly resampler (`_weekly`), the benchmark's from the build's weekly
+# cache (`_bench_weekly`), and both answers are `rs.weekly_rs_high_last`.
+WEEKLY_COLUMNS = (
+    "rs_nh_weekly",     # the last completed week's RS value is a 52-week high (ties count)
+    "rs_nhbp_weekly",   # ... while the weekly close is more than 3% under its own 52-week high
+)
+WEEKLY_LOOKBACK = rs.WEEKLY_NH_LOOKBACK                # 52 prior completed weeks
+WEEKLY_BELOW_PCT = rs.WEEKLY_NHBP_BELOW_PCT            # 3 (percent)
+#: Completed weeks a value needs: the week itself and the 52 before it.
+WEEKLY_MIN_WEEKS = WEEKLY_LOOKBACK + 1
+#: Daily bars resampled per ticker. The answer reads the newest 53 completed weeks
+#: and nothing older, so the series' tail is enough and is the whole-series answer:
+#: a week's close is its LAST daily close and the tail ends on the series' last bar
+#: (the `_weekly_quadrant` argument). 290 sessions is at least 58 weeks at five
+#: sessions a week, which leaves 53 completed after one week in progress and a
+#: first week cut short by the slice (its close is still that week's close).
+WEEKLY_DAILY_TAIL = 290
+
+
+def _week_over(week_t, asof) -> Optional[bool]:
+    """Has the ISO week whose weekly bar is dated ``week_t`` (its Friday, the
+    resampler's key) finished as of the session ``asof``? True when no NYSE
+    session is left in that week after ``asof``: a Friday close, or a Thursday
+    close before a Friday holiday. ``None`` when either date cannot be read or the
+    exchange calendar does not cover a day it would have to judge, so the caller
+    answers blank rather than guess a holiday."""
+    from api.services import session_calendar as sc
+    fri, day = _ymd(week_t), _ymd(asof)
+    if fri is None or day is None:
+        return None
+    try:
+        end = _dt.date(fri // 10000, fri // 100 % 100, fri % 100)
+        cur = _dt.date(day // 10000, day // 100 % 100, day % 100)
+    except ValueError:
+        return None
+    while cur < end:
+        cur += _dt.timedelta(days=1)
+        if not sc.covers(cur):
+            return None
+        if sc.is_trading_day(cur):
+            return False
+    return True
+
+
+def weekly_fields(bars, spy_bars, *, session=None,
+                  weekly_cache: Optional[dict] = None) -> dict:
+    """The two :data:`WEEKLY_COLUMNS` for ONE ticker, every key present.
+
+    ``bars`` is the ticker's daily series (the builder hands its RS window; only
+    the newest :data:`WEEKLY_DAILY_TAIL` bars are resampled), ``spy_bars`` the
+    benchmark's daily bars, ``session`` the session the values are for (bars
+    after it are not read; ``None`` = the newest bar), ``weekly_cache`` the
+    builder's per-build dict for SPY's weekly resample (`_bench_weekly`).
+
+    ⛔ COMPLETED WEEKS ONLY. The week of the newest bar read counts once its last
+    NYSE session has closed (`_week_over`: on Friday's close, or Thursday's before
+    a Friday holiday); until then the newest value is the week before's, so the
+    column changes once a week and never on a half-formed weekly bar. The clock
+    is the row's OWN newest bar, like every bar-derived column of the row: that
+    is the screener's settled session on every row whose bars are current, and a
+    stock whose bars stopped mid-week keeps the last week it finished.
+
+    ``None`` for both under :data:`WEEKLY_MIN_WEEKS` completed weeks, when SPY has
+    no bar in the newest completed week, when the calendar cannot say whether the
+    week is over, and for a series with no dated bars (the float-list compat path
+    carries no calendar a week could be read from)."""
+    values = {c: None for c in WEEKLY_COLUMNS}
+    win = _as_bars(bars)
+    last, s = (_ymd(win[-1].get("t")) if win else None), _ymd(session)
+    if not (last is not None and (s is None or last <= s)):
+        # Only a series that runs PAST the session (or is not dated) needs the
+        # per-bar clip; the builder's window ends on the session (`collect_one`'s
+        # Phase 3 rule), and the clip was a sixth of this call's time.
+        win = _clip(win, session)
+    win = win[-WEEKLY_DAILY_TAIL:]
+    if not win:
+        return values
+    asof = win[-1].get("t")
+    weeks = _weekly(win)
+    if not weeks:
+        return values
+    over = _week_over(weeks[-1].get("t"), asof)
+    if over is None:
+        return values
+    if not over:
+        weeks = weeks[:-1]
+    if len(weeks) < WEEKLY_MIN_WEEKS:
+        return values
+    spy_all = _as_bars(spy_bars, like=win)
+    if not spy_all:
+        return values
+    tail = weeks[-WEEKLY_MIN_WEEKS:]
+    b_week = _bench_weekly(spy_all, asof, weekly_cache, owner=spy_bars)
+    got = rs.weekly_rs_high_last(tail, _trim_to(b_week, _times_of(tail)),
+                                 WEEKLY_LOOKBACK, WEEKLY_BELOW_PCT)
+    values["rs_nh_weekly"] = _flag(got["rsNH"])
+    values["rs_nhbp_weekly"] = _flag(got["rsNHbeforePx"])
+    return values
+
+
+# ── The Leader score's two bar inputs (RS screens unit U9, 2026-11-14) ──────
+#
+# Plan 2026-11-14 v2, section 8: the Leader score is computed nightly, stored and
+# SHOWN TO NOBODY until it passes its pre-registered test. These two feed it.
+#
+# NOT `screener_rows` COLUMNS, ON PURPOSE. A scan answers `SELECT *` over that
+# table (`query.build_scan_sql`), so every column of it reaches every member's
+# browser whatever `meta()` lists. The builder hands these to
+# `rs_leader_shadow.write_inputs`, which keeps them in a side table no request
+# path reads. NO MATHS HERE EITHER: each value is a `relative_strength` helper.
+SHADOW_COLUMNS = (
+    "rs_steady",                # sign(return) x (share of up days - share of down days), t-252 .. t-21
+    "rs_line_below_high_pct",   # RS line vs its highest value of 252 sessions, percent, <= 0
+)
+#: `rs_steady` is a share difference between -1 and 1; four places keeps a single
+#: day of a 231-day window (0.0043) visible.
+STEADY_DP = 4
+
+
+def shadow_fields(bars, spy_bars, *, session=None, phase1=None) -> dict:
+    """The two :data:`SHADOW_COLUMNS` for ONE ticker's newest bar, every key present.
+    ``bars`` / ``spy_bars`` / ``session`` / ``phase1`` are `screen_fields`'s.
+
+    ``rs_steady`` reads the stock's closes alone (`rs.steady_last`: at least
+    `rs.STEADY_MIN_SESSIONS` closes of the window, no hole in it).
+    ``rs_line_below_high_pct`` is `rs.close_below_high_pct_last` asked of the RS
+    line instead of the close, so it is the same closing-basis measure as
+    ``px_below_high_pct``: ``None`` under 252 bars, when SPY has no bar at the
+    newest time, and when a bar of the window has no RS reading."""
+    values = {c: None for c in SHADOW_COLUMNS}
+    win = _clip(_as_bars(bars), session)
+    if not win:
+        return values
+    values["rs_steady"] = _real(rs.steady_last([b.get("c") for b in win]), STEADY_DP)
+
+    spy_all = _as_bars(spy_bars, like=win)
+    if not spy_all:
+        return values
+    p1 = phase1
+    if not (isinstance(p1, dict) and len(p1.get("rsLine") or ()) == len(win)):
+        p1 = rs.compute_phase1_columns(win, _trim_to(spy_all, _times_of(win)))
+    below = _real(rs.close_below_high_pct_last(p1["rsLine"], LOOKBACK), PX_BELOW_HIGH_DP)
+    # `+ 0.0`: a line a hair under its high rounds to 0.0, never a stored "-0.0".
+    values["rs_line_below_high_pct"] = None if below is None else below + 0.0
+    return values

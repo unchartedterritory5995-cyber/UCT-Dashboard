@@ -1140,6 +1140,9 @@
 .textInput:focus-visible { outline: none; border-color: var(--ut-gold); }
 .textInput[aria-invalid='true'] { border-color: var(--color-danger, #df4646); }
 .textInput:disabled { cursor: default; }
+/* 2026-11-12 — the theme chooser (a stacked row): the box is the row's full
+   width and never grows in height inside the chooser's column. */
+.pickInput { flex: none; width: 100%; max-width: none; font-family: inherit; }
 .paramMiss { margin-top: -4px; }
 
 /* `activeWhen` false: DIMMED, never removed. The row keeps its place and stays

@@ -54,3 +54,39 @@ export function runtimeWarmupOf(cols) {
   const w = cols && typeof cols === 'object' ? cols[RUNTIME_WARMUP_KEY] : null
   return w && typeof w === 'object' ? w : null
 }
+
+// ─── ⭐⭐ ENGINE 53 — THE RUN HALF OF A HOST DOCUMENT ─────────────────────────────
+//
+// A host (`ast`) document whose object program lost some of its drawings may carry
+// `compute.runtimeObjects` (`memberPaneDefinition::hostPartialRunHalf`): the same
+// script, run bar by bar, makes its drawings complete. Its plots stay the host's; the
+// run is asked only for its drawings, and only where it is proved to be the same
+// computation on THIS chart (`nativeRegistry.js::withRunHalf`, the column rail). What
+// the run decided rides beside the columns, non-enumerable, as every other record here.
+
+/** Where the run half's state rides on a host document's column record. */
+export const RUN_HALF_KEY = '__runHalf'
+
+/** The run-half states. `served`: the run's drawings replace the host program's on this
+ *  chart. `pending`: the run is in flight (the object layer draws nothing meanwhile, never
+ *  the host picture then a swap). `refused`: the host picture stays, and the member is
+ *  told why the complete one is not shown. */
+export const RUN_HALF_STATES = Object.freeze(['served', 'pending', 'refused'])
+
+/** Attach `{state, code}` to a column record (plain data). */
+export function withRunHalfState(out, record) {
+  if (out && typeof out === 'object' && record && RUN_HALF_STATES.includes(record.state)) {
+    Object.defineProperty(out, RUN_HALF_KEY, { value: Object.freeze({ ...record }), enumerable: false, configurable: true })
+  }
+  return out
+}
+
+/** The run half's state on a column record, or null (a document without one). */
+export function runHalfOf(cols) {
+  const r = cols && typeof cols === 'object' ? cols[RUN_HALF_KEY] : null
+  return r && typeof r === 'object' && RUN_HALF_STATES.includes(r.state) ? r : null
+}
+
+/** Does this definition carry a run half (an `ast` document with `compute.runtimeObjects`)? */
+export const carriesRunHalf = (def) => !!(def && def.compute
+  && def.compute.kind === 'ast' && def.compute.runtimeObjects && typeof def.compute.runtimeObjects === 'object')

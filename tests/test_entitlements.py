@@ -778,6 +778,12 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
     # carry `require_paid`. The red was a stale scope, never a missing gate.
     assert sorted(writes) == [
         ("POST", "/api/user-definitions"),
+        # 2026-11-16 (library moderation): UCT's takedown of a library entry. Paid-gated,
+        # then ADMIN ONLY in its body; it appends NO definition, so it is not in `appends`.
+        ("POST", "/api/user-definitions/library/{token}/takedown"),
+        # WS-I Part 2 (2026-11-13): the capability verdict door. Paid-gated, and it
+        # appends NO definition, so it is NOT in `appends` (no count cap).
+        ("POST", "/api/user-definitions/runtime-admission"),
         ("POST", "/api/user-definitions/shared/{token}/install"),
         # ⭐ PHASE 4 (2026-10-07) — "Create custom copy": it PERSISTS A NEW
         # DEFINITION, so it is in BOTH classes (paid AND counted) — see `appends`.
@@ -785,6 +791,12 @@ def test_the_WRITE_routes_carry_BOTH_gates_and_the_router_declares_NEITHER():
         ("POST", "/api/user-definitions/{def_id}/fork"),
         ("POST", "/api/user-definitions/{def_id}/list"),
         ("POST", "/api/user-definitions/{def_id}/share"),
+        # 2026-11-17 (Studio R4): the owner's status headline for their LIVE version. Paid-gated;
+        # it appends NO definition (a row in its own table), so it is not in `appends`.
+        ("POST", "/api/user-definitions/{def_id}/status-headline"),
+        # 2026-11-18 (what Create Indicator remembers): the member sets one remembered choice in
+        # their own account row. Paid-gated; it appends NO definition, so it is not in `appends`.
+        ("PUT", "/api/user-definitions/assistant-memory"),
         ("PUT", "/api/user-definitions/{def_id}"),
     ], writes
 

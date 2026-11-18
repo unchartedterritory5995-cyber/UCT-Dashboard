@@ -29,6 +29,7 @@ import { getCapability, getTargetKind } from './capabilities'
 import { indicatorRowsOf, indicatorEditsRef, defIdOfWords, inputsOfEditWords } from './capabilities/indicatorEdits'
 import { colorValueOf } from './capabilities/indicatorControls'
 import { selectedChart, ordinalChart } from './deixis'
+import { beforeRowsOf } from './stateRail'
 import { subjectChart } from './references'
 import { correctTypos, lexiconFor } from './nl/lexicon'
 
@@ -671,6 +672,34 @@ function copySource(last, host) {
   }
   return found.length === 1 ? { src: found[0].src, ids: [found[0].id] } : null
 }
+// (D19, AUDIT #1247) an indicator change repeated on other charts lands on each chart's instance with the SAME definition and
+// the same effective settings (its colour aside) as the one changed — by exact id. A chart with none is NAMED (not asked); a
+// chart with two or more is ASKED about alone, the rest acted on.
+const COLOURISH = /^(?:#[0-9a-f]{3,8}|rgba?\(|hsla?\()/i
+const settingsOfRow = (r) => JSON.stringify(Object.fromEntries(Object.entries(r?.inputs || {}).filter(([, v]) => !(typeof v === 'string' && COLOURISH.test(v))).sort(([a], [b]) => (a < b ? -1 : 1))))
+const fullRows = (host, chart) => { const c = chartSnap(host, chart); return c ? indicatorRowsOf(c.cs) : [] }
+function repeatExact(last, dests, host, memory = null) {
+  const ops = [], missing = [], ambiguous = []
+  for (const o of last.ops) {
+    const cap = getCapability(o.action)
+    if (cap?.target !== 'indicatorEdits' || typeof o.args?.instance !== 'string') return null
+    // the changed instance as it WAS before the change (a settings change: "the 20" that became a 50), else as it is
+    const srcRows = beforeRowsOf(memory, String(o.target)) || fullRows(host, String(o.target))
+    // by id, or by the portable form an instant edit names it with ("#20:ema": the ONE average of that length and type)
+    const pm = /^#(\d{1,4})(?::(\w+))?$/.exec(o.args.instance)
+    const byLen = pm ? srcRows.filter(r => r.defId === 'movingAverage' && Number(r.inputs?.period) === Number(pm[1]) && (!pm[2] || String(r.inputs?.maType) === pm[2])) : []
+    const src = srcRows.find(r => r.instanceId === o.args.instance) || (byLen.length === 1 ? byLen[0] : null)
+    if (!src) return null
+    for (const d of dests) {
+      const hits = fullRows(host, d).filter(r => r.defId === src.defId && settingsOfRow(r) === settingsOfRow(src))
+      const label = chartSnap(host, d)?.label || d
+      if (hits.length === 1) ops.push({ action: o.action, target: ixe(d), args: { ...o.args, instance: hits[0].instanceId } })
+      else if (!hits.length) missing.push(`${label}: it has no ${src.name}`)
+      else ambiguous.push({ op: { action: o.action, target: ixe(d), args: { ...o.args } }, label, rows: hits })
+    }
+  }
+  return { ops, missing: [...new Set(missing)], ambiguous }
+}
 function repeatOps(last, dests, host) {
   const out = []
   for (const o of last.ops) {
@@ -762,7 +791,19 @@ function readOnce(t, ctx) {
     const srcs = new Set(last.charts.map(c => String(c).replace(/^ixe:/, '')))
     const dests = set.refs.filter(r => !srcs.has(r))
     if (!dests.length) return { kind: 'say', text: 'That change is already on that chart.' }
-    const ops = repeatOps({ ops: last.ops.map(o => ({ ...o, target: String(o.target).replace(/^ixe:/, '') })) }, dests, host)
+    const plain = { ops: last.ops.map(o => ({ ...o, target: String(o.target).replace(/^ixe:/, '') })) }
+    // an indicator change: by exact instance on each chart (none → named; two → that chart asked)
+    const exact = repeatExact(plain, dests, host, memory)
+    if (exact) {
+      if (!exact.ops.length && !exact.ambiguous.length) return { kind: 'say', text: `None of those charts has that indicator, so nothing changed — not on ${exact.missing.join('; not on ')}. Which chart did you mean?` }
+      const note = exact.missing.length ? `Not on ${exact.missing.join('; not on ')}.` : null
+      const a = exact.ambiguous[0]
+      const ask = a ? { text: `${a.label} has more than one ${a.rows[0].name} — which one?`, choices: a.rows.map((r, i) => ({ ref: r.instanceId, label: `${r.name} (the ${['first', 'second', 'third', 'fourth'][i] || `#${i + 1}`} in the legend)` })), ops: [a.op] } : null
+      if (exact.ops.length > MAX_FOLLOW_OPS) return { kind: 'say', text: `That would be ${exact.ops.length} changes at once — UCT makes at most ${MAX_FOLLOW_OPS} in one follow-up. Name fewer charts. Nothing has changed.` }
+      if (!exact.ops.length && ask) return { kind: 'askArg', text: ask.text, choices: ask.choices, ops: ask.ops, arg: 'instance' }
+      return { kind: 'ops', ops: exact.ops, note, then: ask }
+    }
+    const ops = repeatOps(plain, dests, host)
     // ⭐ PACKAGE 3: "apply it to my other chart" right after building an indicator (or a change to it) means THE INDICATOR —
     // when the last turn can't be repeated there (it isn't on that chart), it is read as a copy of it (below)
     const copyIt = !ops && /^(?:apply|copy) (?:it|this|that)(?: one)? (?:to|onto|on) /.test(t)

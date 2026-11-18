@@ -69,7 +69,9 @@ def test_intraday_to_covered_window_never_calls_provider(monkeypatch):
     called = {}
     monkeypatch.setattr(
         bars_fetch._sqlite, "get_bars_before",
-        lambda t, tf, bars, key: _row_tuples(key),
+        # A COVERED window holds the bars asked for (W-S 2026-11-11: a SHORT one now
+        # fetches the stretch before its oldest row — tests/test_intraday_deep_history.py).
+        lambda t, tf, bars, key: [(key - 300 * (bars - i), 1.0, 1.2, 0.9, 1.1, 100) for i in range(bars)],
     )
     monkeypatch.setattr(
         bars_fetch, "_fetch_intraday_range",

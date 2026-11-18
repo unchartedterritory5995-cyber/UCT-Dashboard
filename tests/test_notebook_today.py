@@ -331,6 +331,40 @@ def test_I9_make_0_never_makes_the_note(app, client):
     assert _count_notes("u1") == 0
 
 
+def _count_rows(table, uid):
+    from api.services.auth_db import get_connection
+    c = get_connection()
+    n = c.execute(f"SELECT COUNT(*) FROM {table} WHERE user_id = ?", (uid,)).fetchone()[0]  # noqa: S608
+    c.close()
+    return n
+
+
+def test_B1_get_today_make_false_makes_neither_note_nor_folder(today):
+    """Simplify pass 2 (B1): the Daily brief reads with `make=False` on every open. For a member with no note it
+    answers `missing: true` and writes nothing -- no note and no Daily folder (row counts before and after)."""
+    before = (_count_rows("j2_notes", "u1"), _count_rows("j2_note_folders", "u1"))
+    out = today.get_today("u1", paid=True, make=False)
+    assert out["todayNote"]["missing"] is True and out["todayNote"]["id"] is None
+    assert out["todayNote"]["created"] is False
+    assert (_count_rows("j2_notes", "u1"), _count_rows("j2_note_folders", "u1")) == before == (0, 0)
+    # CONTROL: the same read allowed to make does write both, so the counts above can move.
+    made = today.get_today("u1", paid=True, make=True)
+    assert made["todayNote"]["created"] is True
+    assert (_count_rows("j2_notes", "u1"), _count_rows("j2_note_folders", "u1")) == (1, 1)
+
+
+def test_B1_make_false_on_an_existing_note_opens_it_and_on_a_trashed_one_never_remakes_it(app, client):
+    _login_as(app, "u1")
+    made = client.post("/api/j2/notes/daily", json={"date": DAY, "seedToday": True}).json()["note"]
+    got = client.get("/api/j2/notes/today", params={"make": 0}).json()["todayNote"]
+    assert got["id"] == made["id"] and got["missing"] is False and got["created"] is False
+    client.delete(f"/api/j2/notes/{made['id']}")
+    for _ in range(2):
+        again = client.get("/api/j2/notes/today", params={"make": 0}).json()["todayNote"]
+        assert again["trashed"] is True and again["id"] == made["id"]
+    assert _count_notes("u1") == 1
+
+
 def test_I9_build_makes_the_note_with_the_names_just_typed(app, client):
     _login_as(app, "u1")
     client.get("/api/j2/notes/today", params={"make": 0})               # Today, under the first-run sheet

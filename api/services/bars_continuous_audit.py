@@ -45,10 +45,40 @@ def stop():
         pass
 
 
+#: The audit_runs `scope` each sweep records itself under (bars_audit.audit_universe).
+PRIORITY_SCOPE = "continuous-priority"
+UNIVERSE_SCOPE = "continuous-universe"
+
+
+def _last_completed(scope: str) -> int:
+    """When the newest COMPLETED run of `scope` started (epoch s), 0 when there is none or it
+    cannot be read.
+
+    ⚡ THE HOURLY AND DAILY SWEEPS NO LONGER RUN ON EVERY BOOT (2026-11-14). `_loop` started both
+    clocks at 0, so the first pass after a boot ran the 5-minute check, the hourly priority sweep
+    AND the 24-hour universe sweep, back to back. Measured on production 2026-11-14: the universe
+    sweep (3,640 tickers, 12.2 M bars read and checked in Python on 4 threads) started 6 min after
+    the web pod booted, and for ~30 s every web request took 3-16 s, a tiny one included (bars,
+    served by its own tier, were unaffected). The run counter stood at 29,822: on a day of many
+    releases the "daily" sweep ran after every one. Each sweep already records its run in
+    audit_runs (bars_audit `_record_audit_run` / `_finish_audit_run`), so a boot now carries on
+    from the last COMPLETED one. A run a release killed midway never finished, so it still counts
+    as not done and is run again, as before."""
+    try:
+        import sqlite3
+        with sqlite3.connect(bars_audit._DB_PATH, timeout=5.0) as db:
+            row = db.execute(
+                "SELECT MAX(started_at) FROM audit_runs WHERE scope = ? AND finished_at IS NOT NULL",
+                (scope,)).fetchone()
+        return int(row[0] or 0) if row else 0
+    except Exception:                                    # no table yet, unreadable: run as before
+        return 0
+
+
 def _loop():
     last_5min = 0
-    last_1hr = 0
-    last_24hr = 0
+    last_1hr = _last_completed(PRIORITY_SCOPE)
+    last_24hr = _last_completed(UNIVERSE_SCOPE)
     while _running.is_set():
         now = int(time.time())
         try:
@@ -244,7 +274,7 @@ def _run_priority_sweep():
     if not tickers:
         return
     try:
-        bars_audit.audit_universe(tickers, scope="continuous-priority")
+        bars_audit.audit_universe(tickers, scope=PRIORITY_SCOPE, lane=PRIORITY_SCOPE)
     except Exception:
         _logger.exception("[continuous_audit] priority audit_universe failed")
 
@@ -262,6 +292,6 @@ def _run_universe_sweep():
     if not tickers:
         return
     try:
-        bars_audit.audit_universe(tickers, scope="continuous-universe")
+        bars_audit.audit_universe(tickers, scope=UNIVERSE_SCOPE, lane=UNIVERSE_SCOPE)
     except Exception:
         _logger.exception("[continuous_audit] universe audit_universe failed")

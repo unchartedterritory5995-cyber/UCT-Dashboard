@@ -33,6 +33,8 @@ import {
 import { reduceIfOversized, hydrateGraphDocument } from '../components/chart/engine/ast/graphDocument'
 import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
 import { withServedRowIdentities } from '../components/chart/engine/lineIdentity'
+// ⭐ SETTINGS PARITY (2a): the per-chart parameter settings are a load-time projection, never stored.
+import { stripParamInputs } from '../components/chart/engine/paramInputs'
 import {
   SCRIPT_ENGINE_VERSION, withoutEngineStamp, withinPineSourceCap,
 } from '../components/chart/engine/scriptEngineVersion'
@@ -101,6 +103,18 @@ async function fetcher(url) {
  *  2026-10-01). Frozen: no consumer may push into a list it does not own. */
 const NO_ROWS = Object.freeze([])
 
+/** ⭐ WS-I Part 2 (final verify of #1204) — while ANY row is served "still being checked"
+ *  (`meta.runtimePending`: runtime capability admission on, its capability set not computed yet),
+ *  the list is read again every `PENDING_REFRESH_MS`, so the row draws once the server's check
+ *  completes. Otherwise there is no periodic read (as before): 0. Polls still pause while hidden
+ *  (the app-wide SWR `isVisible`). */
+export const PENDING_REFRESH_MS = 15000
+export function pendingRefreshInterval(rows) {
+  if (!Array.isArray(rows)) return 0
+  return rows.some((r) => r && r.definition && r.definition.meta && r.definition.meta.runtimePending === true
+    && typeof r.definition.meta.runtimeNotGraded === 'string') ? PENDING_REFRESH_MS : 0
+}
+
 /**
  * Every live user definition, newest version of each.
  *
@@ -119,10 +133,21 @@ export function useUserDefinitions() {
   // throw only added a crash where there was already a correct reading.
   const ctx = useContext(AuthContext)
   const user = ctx ? ctx.user : null
+  // ⛔ THE POLL IS HANDED TO SWR AS A NUMBER, NEVER AS THE FUNCTION (2026-11-16). SWR 2.4.0 reads a
+  // function-form `refreshInterval` once, when its polling effect starts (mount, or a key change),
+  // against the cache as it stands THEN. On a cold load that is `undefined`, the function answered 0,
+  // no timer was set, and a row that was "still being checked" was never read again until a reload.
+  // The interval is derived from the rows this render holds and passed as a number, which SWR's
+  // polling effect lists as a dependency: 0 -> 15000 starts the poll, 15000 -> 0 stops it.
+  // Rail: useUserDefinitions.pendingPoll.test.jsx (a cold mount whose rows are pending reads again).
+  const [pollMs, setPollMs] = useState(0)
   const { data, error, isLoading } = useSWR(user ? USER_DEFINITIONS_KEY : null, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 10000,
+    refreshInterval: pollMs,
   })
+  const wantPollMs = pendingRefreshInterval(data)
+  useEffect(() => { setPollMs(wantPollMs) }, [wantPollMs])
   return {
     rows: Array.isArray(data) ? data : NO_ROWS,
     // A signed-out user is LOADING, not an error: SWR is handed a null key then
@@ -131,6 +156,46 @@ export function useUserDefinitions() {
     error: error || null,
     refresh: () => mutate(USER_DEFINITIONS_KEY),
   }
+}
+
+/** After an accepted save: this tab and every other open tab re-read the store. */
+function revalidateAfterSave() {
+  mutate(USER_DEFINITIONS_KEY)
+  announceDefinitionsChanged()   // A1.4 — other open tabs re-read the store
+  // K3: a saved definition can just have become (or stopped being) a
+  // scannable "My Scans" filter entry — revalidate the rail's category so
+  // every door (BuilderSheet included) sees it without waiting out
+  // useScreenerMeta's 6h SWR dedupe.
+  mutate(META_KEY)
+}
+
+/** ⭐⭐ COLD-LOAD STORM, MEASURED 2026-11-13 — ONE LIST RE-READ PER WRITE-BACK BURST.
+ *
+ *  Every `SCRIPT_ENGINE_VERSION` bump (several a day) makes every saved Pine script
+ *  stale, so the first /charts load after such a deploy re-translates each one and
+ *  writes it back (`savedScriptUpgrade.writeBackOnce`). Each write-back used to call
+ *  `revalidateAfterSave` itself: N scripts ⇒ N re-reads of the WHOLE list, each one
+ *  re-hydrating every row (`fetcher`), re-validating every row
+ *  (`installUserDefinitions`), bumping the registry generation and so re-running every
+ *  chart's `updateChart` — quadratic in the member's script count. Sandbox, 25 stale
+ *  scripts: 25 PUTs ⇒ 26 GETs of the list and ~3.2 s of React work vs 0.1 s warm; in
+ *  production (owner, 2026-11-13) the tab froze for minutes.
+ *
+ *  The write-back's re-read only refreshes the row's VERSION (the tab already draws the
+ *  new translation from the upgrade memo), so it can wait until the burst is quiet:
+ *  every write-back re-arms one trailing timer and the list is re-read once. Nothing
+ *  about what is drawn changes. The window in which this tab still holds the pre-upgrade
+ *  version is the one every re-read already had (a stale `base_version` edit answers
+ *  409 and the Builder says so); it is now `UPGRADE_REVALIDATE_QUIET_MS` longer.
+ *  Ordinary saves (Builder, Formula tab, delete, fork) still re-read at once. */
+export const UPGRADE_REVALIDATE_QUIET_MS = 1500
+let _upgradeRevalidateTimer = null
+function revalidateAfterUpgradeBurst() {
+  if (_upgradeRevalidateTimer !== null) clearTimeout(_upgradeRevalidateTimer)
+  _upgradeRevalidateTimer = setTimeout(() => {
+    _upgradeRevalidateTimer = null
+    revalidateAfterSave()
+  }, UPGRADE_REVALIDATE_QUIET_MS)
 }
 
 /**
@@ -197,6 +262,10 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
       definition = { ...definition, meta: { ...definition.meta, scriptEdited: true } }
     }
   }
+  // ⛔ SETTINGS PARITY (2a): a document that came off the registry carries its folded parameters
+  // as `param<N>` settings (`memberDocumentMigration`); they are a projection of its own manifest,
+  // so they are never written back.
+  definition = stripParamInputs(definition)
   const url = defId ? `${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}` : USER_DEFINITIONS_KEY
   let r
   try {
@@ -230,13 +299,10 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
     return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
   }
   if (r.ok) {
-    mutate(USER_DEFINITIONS_KEY)
-    announceDefinitionsChanged()   // A1.4 — other open tabs re-read the store
-    // K3: a saved definition can just have become (or stopped being) a
-    // scannable "My Scans" filter entry — revalidate the rail's category so
-    // every door (BuilderSheet included) sees it without waiting out
-    // useScreenerMeta's 6h SWR dedupe.
-    mutate(META_KEY)
+    // ⭐ COLD-LOAD STORM (2026-11-13) — an engine-upgrade write-back does NOT re-read the
+    // list on its own; the burst re-reads it ONCE (`revalidateAfterUpgradeBurst`). See there.
+    if (pineSource && options && options.reason === 'engine-upgrade') revalidateAfterUpgradeBurst()
+    else revalidateAfterSave()
     let row = null
     try { row = await r.json() } catch { /* a body-less 200 is still an accepted save */ }
     return { ok: true, row }
@@ -342,6 +408,9 @@ export async function forkUserDefinition(defId) {
  *   `status: 404` is the authoritative "not live"; `null` is a transport failure.
  */
 export async function readUserDefinition(defId, { withSource = false } = {}) {
+  // ⭐ `withSource: true` asks for the stored Pine script too (`?source=1`): the
+  // saved-script upgrade door, and the Agent's delete → Undo (F-15), which must be
+  // able to put the row back EXACTLY.
   let r
   try {
     r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}${withSource ? '?source=1' : ''}`, { credentials: 'include' })
@@ -655,7 +724,9 @@ async function shareCall(method, defId) {
   }
   let body = null
   try { body = await r.json() } catch { /* not JSON */ }
-  if (r.ok) return { ok: true, token: (body && body.token) || null }
+  // ⭐ `includesSource` (2026-11-13): the server's answer to "does a link to this carry the
+  // script's Pine source?" -- a runtime document's does. The panel says so BEFORE a link exists.
+  if (r.ok) return { ok: true, token: (body && body.token) || null, includesSource: !!(body && body.includesSource) }
   const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
   return { ok: false, error: detail || `The server refused that (${r.status}).` }
 }
@@ -703,8 +774,41 @@ async function listingCall(method, defId) {
       requested: body && body.requested !== undefined ? !!body.requested : undefined,
       shared: body && body.shared !== undefined ? !!body.shared : undefined,
       token: (body && body.token) || null,
+      // ⭐ MODERATION (2026-11-16): UCT took it down; and the licence its script declares
+      takenDown: !!(body && body.taken_down),
+      licence: (body && typeof body.licence === 'string' && body.licence) || null,
+      // ⭐ publishing mints a link, so its answer says whether that link carries the script
+      includesSource: body && body.includesSource !== undefined ? !!body.includesSource : undefined,
     }
   }
+  // ⛔ A PUBLISH REFUSAL NAMES ITS REASON (`{reason, message}`, the share refusals' shape);
+  // read as a string it reached the member as "The server refused that (409)".
+  const d = body && body.detail
+  if (d && typeof d === 'object' && typeof d.message === 'string') {
+    return { ok: false, reason: d.reason || null, error: d.message }
+  }
+  const detail = typeof d === 'string' ? d.trim() : ''
+  return { ok: false, error: detail || `The server refused that (${r.status}).` }
+}
+
+/**
+ * ADMIN ONLY. Take a library entry down (`down` true) or lift that, by the token the
+ * library shows. Never throws. The server refuses a member with 403.
+ */
+export async function moderateListing(token, { down = true, reason = 'other' } = {}) {
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/library/${encodeURIComponent(token)}/takedown`, {
+      method: down ? 'POST' : 'DELETE',
+      credentials: 'include',
+      ...(down ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) } : {}),
+    })
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+  let body = null
+  try { body = await r.json() } catch { /* not JSON */ }
+  if (r.ok) return { ok: true, takenDown: !!(body && body.taken_down) }
   const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
   return { ok: false, error: detail || `The server refused that (${r.status}).` }
 }
@@ -815,6 +919,29 @@ export async function installSharedDefinition(token) {
     error: typeof d === 'string' && d.trim()
       ? d.trim()
       : `That formula could not be installed (${r.status}).`,
+  }
+}
+
+/**
+ * ⭐ STUDIO R4 — put the AUTHOR's status-panel sentence on record for the version they just saved
+ * (`POST /{id}/status-headline`), so a share link, the install answer and a library entry can say
+ * what the author was told. Owner only and the live version only, both enforced by the server.
+ * ⛔ NEVER THROWS AND NEVER BLOCKS A SAVE: the caller does not wait on it, and a refusal (a newer
+ * version exists: 409) is an answer, not an error to show.
+ * @returns {Promise<{ok: boolean, status: number|null}>}
+ */
+export async function recordStatusHeadline(defId, { version, engine, headline } = {}) {
+  if (typeof defId !== 'string' || !defId || !Number.isInteger(version) || !Number.isInteger(engine)) return { ok: false, status: null }
+  const text = typeof headline === 'string' ? headline.trim() : ''
+  if (!text) return { ok: false, status: null }
+  try {
+    const r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}/status-headline`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version, engine, headline: text }),
+    })
+    return { ok: !!r.ok, status: r.status }
+  } catch {
+    return { ok: false, status: null }
   }
 }
 

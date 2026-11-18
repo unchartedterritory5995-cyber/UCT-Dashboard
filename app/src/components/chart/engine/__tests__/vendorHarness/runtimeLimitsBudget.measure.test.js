@@ -38,7 +38,9 @@ const FIX = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness')
 const DAILY = path.join(FIX, 'vw-deadband-ticks-aapl-1d-2026-09-28.json')
 const FIVE = path.join(FIX, 'vw-bar-origin-rddt-5-2026-10-02.json')
 const RUNS = 3
-const LIFTED = { HISTORY: 1e9, LOOP_ITERATIONS: 1e12 }
+// ⭐ 11/09: CALL_COUNT and ARRAY_OPERATIONS lifted too, so the 32,000-bar sizing in
+// `limits.js` is MEASURED for all three whole-run counts, not claimed for one.
+const LIFTED = { HISTORY: 1e9, LOOP_ITERATIONS: 1e12, CALL_COUNT: 1e12, ARRAY_OPERATIONS: 1e12 }
 /** The limits as they stood before this phase, for the adversarial comparison. */
 const OLD = { HISTORY: 20000, LOOP_ITERATIONS: 100000 }
 
@@ -80,7 +82,7 @@ function measure(def, rows, ctx, limits, budgetMs) {
     times.push(performance.now() - t0)
   }
   times.sort((a, b) => a - b)
-  const stop = err ? (String(err.message).match(/\((\w+): at most/) || [])[1] || err.guard || err.name : null
+  const stop = err ? err.limit || err.guard || err.name : null
   return {
     bars: rows.length,
     medianMs: Number(times[Math.floor(times.length / 2)].toFixed(1)),
@@ -89,6 +91,10 @@ function measure(def, rows, ctx, limits, budgetMs) {
     ...(counts ? {
       loopIterations: counts.LOOP_ITERATIONS,
       loopPerBar: Number((counts.LOOP_ITERATIONS / rows.length).toFixed(1)),
+      calls: counts.CALL_COUNT,
+      callsPerBar: Number((counts.CALL_COUNT / rows.length).toFixed(1)),
+      arrayOperations: counts.ARRAY_OPERATIONS,
+      arrayOperationsPerBar: Number((counts.ARRAY_OPERATIONS / rows.length).toFixed(1)),
       totalInstructions: counts.TOTAL_INSTRUCTIONS,
       peakInstructionsPerBar: counts.INSTRUCTIONS_PER_BAR,
       memoryEstimateMB: Number((counts.MEMORY / 1048576).toFixed(1)),

@@ -7,10 +7,10 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 2246,
+  "modules_scanned": 2360,
   "summary": {
     "named_access_count": 2,
-    "positional_count": 50,
+    "positional_count": 54,
     "named_access": [
       "api/services/canonical/resolver.py",
       "api/services/ticker_returns.py"
@@ -23,9 +23,9 @@
       "api/routers/screener_backtest.py",
       "api/routers/signature.py",
       "api/routers/study.py",
-      "api/services/adjustment_basis.py",
       "api/services/audit.py",
       "api/services/auto_structures.py",
+      "api/services/bar_contract.py",
       "api/services/bars_fetch.py",
       "api/services/bars_split_repair.py",
       "api/services/barspack.py",
@@ -34,6 +34,8 @@
       "api/services/discord_render/symbols.py",
       "api/services/fundamentals_pit/beta_store.py",
       "api/services/indicator_alert_evaluator.py",
+      "api/services/intraday_gap_audit.py",
+      "api/services/intraday_split_heal.py",
       "api/services/journal_two/excursion_engine.py",
       "api/services/journal_two/notebook_today.py",
       "api/services/journal_two/notebook_widgets.py",
@@ -41,6 +43,8 @@
       "api/services/journal_two/setups_board.py",
       "api/services/journal_two/tech_fingerprint.py",
       "api/services/journal_two/trader_blocks.py",
+      "api/services/journal_two/tweet_price.py",
+      "api/services/local_bars.py",
       "api/services/market_intel/price_reads.py",
       "api/services/pattern_engine/memory.py",
       "api/services/pattern_vision/modelbook_examples.py",
@@ -51,7 +55,6 @@
       "api/services/scan_ipo.py",
       "api/services/scan_volume.py",
       "api/services/screener/rs_history.py",
-      "api/services/screener/scan_evaluator.py",
       "api/services/screener/snapshot_builder.py",
       "api/services/screener/sparks.py",
       "api/services/setup_tags.py",
@@ -59,6 +62,7 @@
       "api/services/theme_engine/comovement.py",
       "api/services/theme_index.py",
       "api/services/uct_agent/marketdata/bars_daily.py",
+      "api/services/uct_agent/marketdata/rs_leadership.py",
       "api/services/voice_deep_data_tools.py",
       "api/services/wisdom/archive/levels.py",
       "api/services/wisdom/archive/setup_map.py",
@@ -74,23 +78,23 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 545
+          "line": 632
         },
         {
           "function": "get_bars",
-          "line": 834
+          "line": 921
         },
         {
           "function": "get_bars",
-          "line": 852
+          "line": 939
         },
         {
           "function": "get_bars",
-          "line": 5721
+          "line": 6519
         }
       ],
       "evidence": {
-        "line": 552,
+        "line": 87,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -128,11 +132,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 141
+          "line": 142
         }
       ],
       "evidence": {
-        "line": 145,
+        "line": 146,
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }
@@ -142,11 +146,11 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 889
+          "line": 895
         }
       ],
       "evidence": {
-        "line": 566,
+        "line": 572,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -156,15 +160,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 242
-        },
-        {
-          "function": "get_bars",
-          "line": 833
+          "line": 243
         }
       ],
       "evidence": {
-        "line": 246,
+        "line": 247,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -174,37 +174,19 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 599
+          "line": 807
         },
         {
           "function": "get_bars_before",
-          "line": 632
+          "line": 859
         },
         {
           "function": "get_bars_before",
-          "line": 641
+          "line": 870
         }
       ],
       "evidence": {
-        "line": 602,
-        "pattern": "int-subscript",
-        "index": 0
-      }
-    },
-    "api/services/adjustment_basis.py": {
-      "classification": "positional",
-      "calls": [
-        {
-          "function": "get_bars",
-          "line": 99
-        },
-        {
-          "function": "get_bars",
-          "line": 151
-        }
-      ],
-      "evidence": {
-        "line": 97,
+        "line": 810,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -245,80 +227,130 @@
         "index": 0
       }
     },
+    "api/services/bar_contract.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 256
+        },
+        {
+          "function": "get_bars_since",
+          "line": 273
+        },
+        {
+          "function": "get_bars_since",
+          "line": 346
+        }
+      ],
+      "evidence": {
+        "line": 112,
+        "pattern": "int-subscript",
+        "index": 1
+      }
+    },
     "api/services/bars_fetch.py": {
       "classification": "positional",
       "calls": [
         {
           "function": "get_bars_since",
-          "line": 261
-        },
-        {
-          "function": "get_bars",
-          "line": 1155
-        },
-        {
-          "function": "get_bars",
-          "line": 1590
+          "line": 371
         },
         {
           "function": "get_bars_since",
-          "line": 1922
-        },
-        {
-          "function": "get_bars",
-          "line": 2400
-        },
-        {
-          "function": "get_bars_before",
-          "line": 2478
-        },
-        {
-          "function": "get_bars_before",
-          "line": 2497
-        },
-        {
-          "function": "get_bars_before",
-          "line": 2557
-        },
-        {
-          "function": "get_bars_before",
-          "line": 2621
+          "line": 991
         },
         {
           "function": "get_bars_since",
-          "line": 2757
+          "line": 1044
+        },
+        {
+          "function": "get_bars_since",
+          "line": 1100
         },
         {
           "function": "get_bars",
-          "line": 2761
+          "line": 1969
         },
         {
           "function": "get_bars",
-          "line": 3344
+          "line": 2521
         },
         {
           "function": "get_bars",
-          "line": 3398
+          "line": 2579
+        },
+        {
+          "function": "get_bars_since",
+          "line": 2928
+        },
+        {
+          "function": "get_bars_since",
+          "line": 2941
+        },
+        {
+          "function": "get_bars_since",
+          "line": 3096
         },
         {
           "function": "get_bars",
-          "line": 3498
+          "line": 3596
+        },
+        {
+          "function": "get_bars_before",
+          "line": 3730
+        },
+        {
+          "function": "get_bars_before",
+          "line": 3757
+        },
+        {
+          "function": "get_bars_before",
+          "line": 3874
+        },
+        {
+          "function": "get_bars_before",
+          "line": 3972
+        },
+        {
+          "function": "get_bars_since",
+          "line": 4105
         },
         {
           "function": "get_bars",
-          "line": 3569
+          "line": 4109
         },
         {
           "function": "get_bars",
-          "line": 3666
+          "line": 4941
         },
         {
           "function": "get_bars",
-          "line": 3804
+          "line": 4997
+        },
+        {
+          "function": "get_bars",
+          "line": 5007
+        },
+        {
+          "function": "get_bars",
+          "line": 5132
+        },
+        {
+          "function": "get_bars",
+          "line": 5219
+        },
+        {
+          "function": "get_bars",
+          "line": 5333
+        },
+        {
+          "function": "get_bars",
+          "line": 5467
         }
       ],
       "evidence": {
-        "line": 261,
+        "line": 371,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -373,11 +405,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 609
+          "line": 791
         }
       ],
       "evidence": {
-        "line": 496,
+        "line": 678,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -429,11 +461,43 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 1442
+          "line": 1512
         }
       ],
       "evidence": {
-        "line": 1070,
+        "line": 1140,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/intraday_gap_audit.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_since",
+          "line": 106
+        },
+        {
+          "function": "get_bars_since",
+          "line": 171
+        }
+      ],
+      "evidence": {
+        "line": 103,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/intraday_split_heal.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 297
+        }
+      ],
+      "evidence": {
+        "line": 207,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -515,11 +579,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 171
+          "line": 176
         }
       ],
       "evidence": {
-        "line": 175,
+        "line": 180,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -552,6 +616,42 @@
       ],
       "evidence": {
         "line": 280,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/journal_two/tweet_price.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 198
+        },
+        {
+          "function": "get_bars_before",
+          "line": 217
+        },
+        {
+          "function": "get_bars_before",
+          "line": 246
+        }
+      ],
+      "evidence": {
+        "line": 127,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/local_bars.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 31
+        }
+      ],
+      "evidence": {
+        "line": 35,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -603,11 +703,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 67
+          "line": 185
         }
       ],
       "evidence": {
-        "line": 74,
+        "line": 192,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -631,11 +731,11 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 133
+          "line": 135
         }
       ],
       "evidence": {
-        "line": 209,
+        "line": 211,
         "pattern": "for-unpack",
         "size": 6
       }
@@ -687,27 +787,13 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 467
+          "line": 765
         }
       ],
       "evidence": {
-        "line": 190,
-        "pattern": "for-unpack",
-        "size": 6
-      }
-    },
-    "api/services/screener/scan_evaluator.py": {
-      "classification": "positional",
-      "calls": [
-        {
-          "function": "get_bars",
-          "line": 1063
-        }
-      ],
-      "evidence": {
-        "line": 708,
+        "line": 216,
         "pattern": "int-subscript",
-        "index": 0
+        "index": 1
       }
     },
     "api/services/screener/snapshot_builder.py": {
@@ -715,11 +801,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 810
+          "line": 1052
         }
       ],
       "evidence": {
-        "line": 814,
+        "line": 1056,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -785,11 +871,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 65
+          "line": 127
         }
       ],
       "evidence": {
-        "line": 69,
+        "line": 131,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -816,11 +902,29 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 121
+          "line": 149
+        },
+        {
+          "function": "get_bars_before",
+          "line": 247
         }
       ],
       "evidence": {
-        "line": 123,
+        "line": 151,
+        "pattern": "known-positional-delegate",
+        "delegate": "_fmt_sqlite_bars"
+      }
+    },
+    "api/services/uct_agent/marketdata/rs_leadership.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 124
+        }
+      ],
+      "evidence": {
+        "line": 126,
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }

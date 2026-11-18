@@ -735,19 +735,12 @@ const AWAITING_A_DECISION = {
     + 'public glossary page (RsGlossary.test.jsx pins that its import walk never reaches teaching.js) '
     + 'and nativeRegistry.js (rsLine meta.tour; importing teaching.js there is an import cycle). '
     + 'Do NOT mount it to green this rail.',
-  // ── W9-T13a STRATEGY REPORT METRICS — BUILT DARK, NOT MOUNTED (2026-11-08) ──
-  // `runtime/brokerReport.js` computes the strategy report from the run's record
-  // (W9 design rule 3: the one place report metrics are computed). Its only consumer
-  // is W9-T13b, the report panel, which is not built; W9 is DARK until the owner arms a
-  // stage (rulings D6, D8). Rails: w9T13aBrokerReport.test.js, w9T13aReportParity.test.js.
-  // ⏳ The decision owed by the expiry (2026-12-31, PARKING_EXPIRES): T13b mounts it (the entry
-  // goes in that commit), or the coordinator parks W9 again with a new date. The consumer in
-  // flight is W9-T13b on branch feat/pine-w9-t13b-report-panel (not yet on origin at the
-  // 2026-11-08 integration merge).
-  'app/src/components/chart/engine/runtime/brokerReport.js':
-    'W9-T13a report metrics, built dark; its consumer is W9-T13b (the report panel, '
-    + 'feat/pine-w9-t13b-report-panel, in flight). '
-    + 'Do NOT mount it to green this rail: mounting is T13b and arming is the owner (D6).',
+  // ⚰️ W9-T13a STRATEGY REPORT METRICS stood here until 2026-11-08: `runtime/brokerReport.js` was
+  // parked waiting for its consumer. W9-T13b mounted it the same day: `pane/AttachedStrategyReports.jsx`
+  // (imported by `ChartPane.jsx`) renders `pane/StrategyReportPanel.jsx` from `strategyReportOf`. It is
+  // REACHABLE and still DARK: the mount returns null unless VITE_PINE_STRATEGY_BROKER_ENABLED === '1'
+  // (`strategyBrokerGate.js`, unset on every service), railed by `strategyReportPanel.test.jsx`
+  // ("gate off"). Reachable is not armed: arming is the owner's act, per W2 stage (D6).
   // ── W5/W9 PINE + NLM-1 + SUPPORT LOOP — DRIVEN BY A TOOL OR A TEST, NOT A SCREEN (2026-11-08) ──
   // Recorded 2026-11-08 when master was found red with these orphans
   // (each landed 2026-10-30..11-07 while the rail was already red on the lapsed
@@ -763,6 +756,11 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/engine/runtime/columnDigest.js':
     'Reached ONLY through serverEntry.js (the W5 T3 column codec, JS half; the Python half is '
     + 'api/services/pine_runtime_codec.py). Leaves this register with serverEntry.js.',
+  // ⚰️ `engine/runtime/topLevelNames.js` stood here until 2026-11-17 (Studio R5): "Inspect a bar" imports it
+  // (`builder/inspect/inspectDoors.js`), so it is reachable from the app and needs no entry.
+  // ⚰️ `engine/headlessCompute.js` and `engine/referenceSeries.js` stood here until 2026-11-17 (Studio R6):
+  // the share page now imports both to time a formula on the viewer's own device
+  // (`pages/formulas/deviceDrawTime.js`), so they are reachable from the app and need no entry.
   'app/src/components/chart/engine/runtime/brokerPinsLock.js':
     'W9-T2 pin-ledger lock: a pure check its own header says is NOT imported by the bundle; '
     + 'its consumer is the rail __tests__/brokerPinsLock.test.js (docs/pine/W9-STRATEGY-DESIGN.md).',
@@ -786,6 +784,50 @@ const AWAITING_A_DECISION = {
   // deleting is the owner's call.
   'app/src/pages/study/ui/MarkBubble.jsx':
     'DEAD candidate: the Study kit mark+bubble, unused since the round 18 fix. Delete or re-mount.',
+  // ── BARSTORE P2 — BUILT OFF TO THE SIDE, WIRED IN P3 (2026-11-11) ──────────
+  // Chart-data consolidation program (ARCH-PLAN, BARSTORE-SPEC). Step 1 is owner-approved
+  // as NEW FILES ONLY with no live behavior change; StockChart starts consuming these in P3
+  // (S1 source switch, S3 diffRenderer + framing). types/reducer/status/registry land with
+  // P2a (PR #1105) — this PR (#1108) must merge with or after it.
+  // P3-S1 wired the store (types … prefetch) into StockChart behind the BARSTORE switch, so those
+  // entries left this register; the renderer + framing below wait for P3-S3.
+  'app/src/data/barStore/diffRenderer.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): the only future setData/update site.',
+  'app/src/data/barStore/framing.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): framing contract.',
+  // ── SEVERED BY A UI REMOVAL, FILE AND TESTS LEFT BEHIND (2026-11-17) ──────
+  // Found when master was red with these on 2026-11-17 (012f5adf1d). Each lost its LAST product
+  // importer in a change that removed the surface on purpose and left the module and its tests in
+  // place. Nobody owes a re-mount by default: the decision owed is "delete it with its tests, or
+  // put it back", and it belongs to whoever removed the surface (the owner for three of the four).
+  'app/src/components/chart/AdjustmentLabel.jsx':
+    'TERM-055 split-adjusted label. ee19cf34aa (2026-11-13, "remove split-adjustment label + As '
+    + 'traded toggle from chart header") removed its mount. Still read by AdjustmentLabel.test.jsx, '
+    + 'symbolPace.readers.test.jsx and symbolResourceWarm.surfaces.test.jsx. Delete or re-mount.',
+  'app/src/components/instruments/WhatElseOpenPrompt.jsx':
+    'TERM-093 "what else was open" capture, DARK behind WHAT_ELSE_OPEN_CAPTURE_ENABLED. a23d2d4bbf '
+    + '(2026-11-09, breadth drill owner polish) removed its one mount in BreadthDrillModal.jsx. '
+    + 'Delete with the capture, or re-mount it in the drill.',
+  'app/src/pages/breadth/drill/scan/useDayFacts.js':
+    'Scan Deck day-facts hook. 19722888a6 (2026-11-08, Scan Deck v2 layout) dropped its importer; '
+    + 'only barStoreAdapterItems.test.jsx (BarStore P3-S1 memPeek readers) reads it now. Delete the '
+    + 'hook and that case together, or re-mount it.',
+  'app/src/agent/agentExecTune.js':
+    'Partner-owned (Blake Bracco, 111d9b0dad 2026-11-07). Never had a product importer: read only by '
+    + 'agentExecFamilies/agentExecReach tests and qa/firstCallRatchet.test.js. Its owner says whether '
+    + 'it is a table the router should read or test data that belongs under a testing/ path.',
+  // ── TEST HELPERS OUTSIDE A TEST-INFRA PATH (2026-11-17) ─────────────────────
+  // Same shape as outcomeHarness.jsx above: their only importers are tests. The honest fix is moving
+  // each under a testing/ path in the owning session's next change, never widening TEST_INFRA.
+  'app/src/components/chart/rails/railScan.js':
+    'Source scanner for the chart-data P0 census rails (193c79dcb5); read only by '
+    + 'oneKey.census.test.js and writerCensus.census.test.js. Move under a testing/ path.',
+  'app/src/components/chart/rails/railSupport.js':
+    'Shared support for the chart-data P0 rails (193c79dcb5), read only by those rails and '
+    + 'railScan.js. Move under a testing/ path.',
+  'app/src/components/chart/builder/memberPane/costRouteParity.js':
+    'Route-by-cost parity checker (#1711, engine 73): compares a host document and its runtime '
+    + 'twin bar for bar; read only by routeByCost / costRoute tests. Move under a testing/ path.',
   }
 
 /**
@@ -836,8 +878,13 @@ const PARKING_EXPIRES = {
   'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
   'RS TEACHING EXPORT — A BUILD-TOOL ENTRY, NOT A SCREEN (2026-11-07)': '2026-12-31',
-  'W9-T13a STRATEGY REPORT METRICS — BUILT DARK, NOT MOUNTED (2026-11-08)': '2026-12-31',
+  // (W9-T13a STRATEGY REPORT METRICS' expiry, 2026-12-31, was deleted 2026-11-08 with its block:
+  // W9-T13b mounted brokerReport.js, dark, behind the broker gate.)
   'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
+  'BARSTORE P2 — BUILT OFF TO THE SIDE, WIRED IN P3 (2026-11-11)': '2026-12-31',
+  // Short on purpose: three of the four were removed by the owner, so the decision is one line each.
+  'SEVERED BY A UI REMOVAL, FILE AND TESTS LEFT BEHIND (2026-11-17)': '2026-11-30',
+  'TEST HELPERS OUTSIDE A TEST-INFRA PATH (2026-11-17)': '2026-12-31',
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
   // `origin/master` carries this parking block and has NO S4 rail; this branch

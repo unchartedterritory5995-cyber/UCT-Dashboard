@@ -1,0 +1,240 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "_readme": [
+  "Strategy value read-backs (2026-11-15): every rail of the unit, mutation-proved in CI. Run: python tools/ci_mutant_runner.py --manifest ci/mutants/strategy-readbacks-a.json --out <result.json>"
+ ],
+ "mutants": [
+  {
+   "id": "V1",
+   "mutant": "entry_time / exit_time returned in seconds, not milliseconds",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "return t * 1000",
+   "to": "return t",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "V2",
+   "mutant": "closedtrades.entry_time reads the EXIT bar",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "case 'strategy.closedtrades.entry_time': return barTimeMs(tradeAt(closed, a[0], fn).bar, fn)",
+   "to": "case 'strategy.closedtrades.entry_time': return barTimeMs(tradeAt(closed, a[0], fn).exitBar, fn)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "V3",
+   "mutant": "a run with no bar times answers anyway (NaN) instead of refusing",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (!finite(t)) throw new BrokerRefusal(`\\`${fn}\\` reads the time of a bar this run was given no time for`)",
+   "to": "void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R1",
+   "mutant": "B-ROUND rounds a tie DOWN",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "const roundToTick = (p) => Number((Math.floor(p / mintick + 0.5 + 1e-6) * mintick)",
+   "to": "const roundToTick = (p) => Number((Math.ceil(p / mintick - 0.5 - 1e-6) * mintick)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R2",
+   "mutant": "B-ROUND is never asked (an off-grid open fill is served unpinned)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    rule('B-ROUND')",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R3",
+   "mutant": "the off-grid open is filled RAW (no rounding)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    return roundToTick(px)",
+   "to": "    return px",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R4",
+   "mutant": "a LIMIT leg at an off-grid open is rounded like a stop (the unwitnessed kind served)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "      if (g.kind === 'exit' && g.leg === 'sl') continue",
+   "to": "      if (g.kind === 'exit') continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R5",
+   "mutant": "a fill on the closing tick / a path vertex at an off-grid price is rounded too",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    if (mode !== 'open') {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R6",
+   "mutant": "a limit entry beyond the market at an off-grid open is rounded too",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (m.immediate && m.type !== 'stop') unwitnessed(",
+   "to": "if (false) unwitnessed(",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "R7",
+   "mutant": "a STOP entry at an off-grid gap open is refused (the witnessed kind not served)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (g.kind === 'entry' && g.o.type === 'stop') continue",
+   "to": "if (false) continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "K1",
+   "mutant": "the mark is the RAW close",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    return roundToTick(c)",
+   "to": "    return c",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "K2",
+   "mutant": "B-ROUND-MARK is never asked",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    rule('B-ROUND-MARK')",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "K3",
+   "mutant": "a FLAT run asks B-ROUND-MARK on an off-grid close",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (!open.length || !finite(c) || onTick(c)) return c",
+   "to": "if (!finite(c) || onTick(c)) return c",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "F1",
+   "mutant": "an open trade's entry fee is taken off openprofit again",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "        return sum(open, (t) => (mark - t.price) * t.dir * t.qty) * pointvalue",
+   "to": "        return sum(open, (t) => (mark - t.price) * t.dir * t.qty) * pointvalue - openFees()",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9T5Costs.test.js"
+  },
+  {
+   "id": "F2",
+   "mutant": "netprofit forgets the open trade's paid entry fee",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "exactClosed('`strategy.netprofit`'); needSymbol(); return costOn ? moneyOfClosed() - openFees() : netPts() * pointvalue",
+   "to": "exactClosed('`strategy.netprofit`'); needSymbol(); return costOn ? moneyOfClosed() : netPts() * pointvalue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "F3",
+   "mutant": "grossprofit / grossloss are served while an open trade has paid a fee",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    if (costOn && openFees() > 0) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "F4",
+   "mutant": "the report serves its money figures while an open trade has paid a fee",
+   "file": "app/src/components/chart/engine/runtime/brokerReport.js",
+   "from": "    if (costOn && open.some((t) => t.commission > 0)) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T1",
+   "mutant": "strategy.close's generated exit id has another text",
+   "file": "app/src/components/chart/engine/runtime/strategyRecord.js",
+   "from": "text: `Close entry(s) order ${row.from}`",
+   "to": "text: `Close entry order ${row.from}`",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T2",
+   "mutant": "close_all's generated exit id has another text",
+   "file": "app/src/components/chart/engine/runtime/strategyRecord.js",
+   "from": "text: 'Close position order'",
+   "to": "text: 'Close position'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T3",
+   "mutant": "a reversing entry WITH a comment is served its id as the exit id (not witnessed)",
+   "file": "app/src/components/chart/engine/runtime/strategyRecord.js",
+   "from": "typeof row.id === 'string' && row.comment === null && row.commentRecorded === true) {",
+   "to": "typeof row.id === 'string') {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T4",
+   "mutant": "a witnessed exit id is served without asking its rule",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    rule(w.rule)",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T5",
+   "mutant": "B-TXT-NO-COMMENT is never asked",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "        rule('B-TXT-NO-COMMENT')",
+   "to": "        void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "T6",
+   "mutant": "a reversing entry's COMMENT is served as the exit comment (not witnessed)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (r.kind === 'entry' && (r.comment !== null || !r.commentRecorded)) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C1",
+   "mutant": "B-CANCEL: an exit waiting on a cancelled strategy.order is released (the old hypothesis)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (kind === 'order' && x.awaits === true && x.fromEntry === id) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C2",
+   "mutant": "B-CANCEL: a cancelled strategy.ENTRY keeps its exit waiting too (not witnessed)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (e.kind === 'order') for (const x of exits) if (x.orders.has(e) && x.fromEntry === id) x.awaits = true",
+   "to": "for (const x of exits) if (x.orders.has(e) && x.fromEntry === id) x.awaits = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C3",
+   "mutant": "B-CANCEL: the waiting exit binds a strategy.ENTRY placed under the id (not witnessed)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (kind === 'order' && x.awaits === true && x.fromEntry === id) {",
+   "to": "if (x.awaits === true && x.fromEntry === id) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "C4",
+   "mutant": "B-CANCEL: the waiting exit binds an order placed under ANOTHER id",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (kind === 'order' && x.awaits === true && x.fromEntry === id) {",
+   "to": "if (kind === 'order' && x.awaits === true) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "D1",
+   "mutant": "D12: a v4 strategy with no margin stated runs on the assumed default",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "if (cfg.version === 4 && defaulted.margin === true) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "D2",
+   "mutant": "D11: rules are dated with a constant bar (every rule looks exercised before the first bar)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    okRules.set(id, nowBar)",
+   "to": "    okRules.set(id, -1)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  }
+ ]
+}

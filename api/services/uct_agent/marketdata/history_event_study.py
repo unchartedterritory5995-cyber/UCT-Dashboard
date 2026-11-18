@@ -35,6 +35,7 @@ EPISODES = ("first", "all")
 ENTRIES = ("event_close", "next_close")
 MAX_HORIZONS = 4
 MAX_SESSIONS = 252
+MAX_LAST = 60          # event_study.MAX_LAST: "the last N times"
 _SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -42,7 +43,24 @@ NOTE_DESCRIPTIVE = "descriptive, not predictive: what happened after past events
 NOTE_COMPLETED = "completed sessions only, from UCT's stored daily closes (split-adjusted, not dividend-adjusted)"
 NOTE_LOCAL = "shown to the member only; the model receives the request and counts, never a return"
 NOTE_GAPS = "opening gaps on ANY session — UCT's data carries no past earnings dates, so earnings days are not separated"
+NOTE_SAMPLE = "a small sample of past events: the number of events and the study window are stated with every result"
 NOTE_BREADTH = "breadth-conditioned studies are not available to UCT Agent yet (ADR-005)"
+#: AUDIT independent check: with episodes="first" a run of consecutive qualifying sessions is ONE event (its first
+#: session), e.g. two consecutive days that both qualify count once. Said whenever that rule actually merged a run.
+NOTE_FIRST_OF_RUN = "a run of consecutive qualifying sessions counts once (its first session)"
+
+
+def first_of_run_applied(res: dict) -> bool:
+    """True when the study counted runs by their FIRST session and at least one run had more than one qualifying
+    session (so later sessions of a run were not counted). Never for crossings / releases (each is its own event)
+    or for episodes="all". Decided from the result's structure (counts), never from note text."""
+    q = res.get("request") or {}
+    c = res.get("counts") or {}
+    conds = q.get("conditions") or ([q["condition"]] if q.get("condition") else [])
+    if q.get("episodes") != "first" or any(str(x.get("op", "")).startswith("cross_") or x.get("op") == "on_release" for x in conds):
+        return False
+    qual, runs = c.get("qualifying_sessions"), c.get("episodes_or_crossings")
+    return isinstance(qual, int) and isinstance(runs, int) and qual > runs
 
 
 def _isnum(v: Any) -> bool:
@@ -78,6 +96,9 @@ def validate(params: dict) -> Optional[str]:
         return "episodes is first | all"
     if params.get("entry") is not None and params["entry"] not in ENTRIES:
         return "entry is event_close | next_close"
+    last = params.get("last")
+    if last is not None and (not isinstance(last, int) or isinstance(last, bool) or not 1 <= last <= MAX_LAST):
+        return f"last is a whole number of events from 1 to {MAX_LAST}"
     since = params.get("since")
     if since is not None and (not isinstance(since, str) or not _DATE_RE.match(since)):
         return "`since` must be a date like 2024-01-01"
@@ -107,6 +128,9 @@ def summary_of(res: dict) -> dict:
                      for h in (res.get("horizons") or [])],
         "small_sample": any(int(h.get("n") or 0) < 10 for h in (res.get("horizons") or [])),
         "series_label": res.get("series_label"),
+        "first_of_run": first_of_run_applied(res),
+        **({"last": int((res.get("request") or {}).get("last")), "events_before_last": int(c.get("events_before_last") or 0)}
+           if (res.get("request") or {}).get("last") else {}),
     }
 
 
@@ -127,9 +151,11 @@ def read_event_study(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no pe
     as_of = _session_close_utc(_ymd(price_last)) if price_last else None
     latest = last_completed_session()
     stale = bool(price_last) and _ymd(price_last) < latest
-    notes = [NOTE_DESCRIPTIVE, NOTE_COMPLETED, NOTE_LOCAL]
+    notes = [NOTE_DESCRIPTIVE, NOTE_SAMPLE, NOTE_COMPLETED, NOTE_LOCAL]
     if params.get("indicator") == "gap_pct":
         notes.append(NOTE_GAPS)
+    if first_of_run_applied(res):
+        notes.append(NOTE_FIRST_OF_RUN)
     if stale:
         notes.append(f"the stored closes end {price_last}; the newest completed session is "
                      f"{str(latest)[:4]}-{str(latest)[4:6]}-{str(latest)[6:]}")

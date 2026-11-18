@@ -75,6 +75,8 @@ _PLAIN = {
     "adr_pct": r"daily range",
     "dollar_vol_30d": r"traded",
     "price": r"\bprice\b",
+    "chg_pct_1w": r"\bin 5 days\b",
+    "min_volume_3d_prior": r"\b3 prior days\b",
     "above_50sma": r"\b50 day\b",
     "pct_vs_ema20": r"\b20 day EMA\b",
     "ema_stack_intact": r"\bEMAs stacked\b",

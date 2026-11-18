@@ -1,0 +1,6 @@
+[suite-lock] all 2 slots busy (pl-grid, pl-widget); waiting 15s
+[bn] free memory GB: 41.9
+(node:21308) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node --trace-warnings ...` to show where the warning was created)
+JSON report written to C:/Users/blake/AppData/Local/Temp/claude/2ef397b80db79bf7/56266831-c770-46eb-8e87-f65def6d19f9/scratchpad/pl-auto/runs/ledger6/M/vitest-agent.json

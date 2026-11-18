@@ -17,7 +17,10 @@ describe('the export doors load their module on use', () => {
     render(<NoteExportControls noteId="n1" title="T" columnRef={{ current: null }} onMessage={() => {}} />)
     await new Promise((r) => setTimeout(r, 20))
     expect(loads.factoryRuns).toBe(0)
-    fireEvent.click(screen.getByRole('button', { name: /Print/ }))
+    // Notebook simplify, Task 4: Print is an item of the Export menu.
+    fireEvent.click(screen.getByRole('button', { name: /^export/i }))
+    // Simplify pass 2: the menu itself is a held chunk (export/NoteExportMenu.jsx), here pressed before it landed.
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Print' }))
     await waitFor(() => expect(loads.printNote).toHaveBeenCalledTimes(1))
     expect(loads.factoryRuns).toBe(1)
   })

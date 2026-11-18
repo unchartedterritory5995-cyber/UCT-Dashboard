@@ -8,6 +8,7 @@ import { mergeChartSettings, instanceTombstone } from './chartDefaults'
 import { getDefinition, listDefinitions } from './engine/nativeRegistry'
 import { CARVED_OUT_ROWS } from './indicatorCatalog'
 import { LIBRARY_HIDDEN_IDS } from './discoveryCatalog'
+import { isDefinitionOffered } from './engine/serverCompute'
 import { resultRows, getResultRow, resultIsOn, rowIsSelected } from './__tests__/resultRows'
 
 // ─── THE INDICATORS TAB, END TO END ─────────────────────────────────────────
@@ -252,6 +253,10 @@ describe('ChartSettingsModal — the ACTIVE list is what the chart draws', () =>
       // reachable from Chart Settings. The sweep stays a sweep; the exclusion is
       // read from the frozen list rather than spelled again.
       if (LIBRARY_HIDDEN_IDS.includes(def.id)) continue
+      // ⭐ RS split U1 — a `meta.requiresServer` definition is REGISTERED and not
+      // OFFERED until the live server lists it; nothing lands under vitest, so the
+      // sweep reads the same gate the tab reads (`isDefinitionOffered`).
+      if (!isDefinitionOffered(def)) continue
       expect(options, `${def.id} is in the registry and offered nowhere`).toContain(def.id)
     }
     for (const row of CARVED_OUT_ROWS) {
@@ -297,7 +302,7 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     expect(next.indicatorInstances.some(i => i.instanceId === 'legacy:vwap' && i.deleted === true)).toBe(true)
   })
 
-  it('⛔ THE INSPECTOR IS THE ONLY REMOVE DOOR — a row carries ORDER and nothing else', () => {
+  it('⛔ ONE WRITER PER VERB — a row carries order, colour and its three verbs, nothing else', () => {
     // ⚰️ FOUR ANSWERS, IN ORDER. A labelled "Remove indicator" inside the
     // expanded row ("accidental removal should not be one click away in a dense
     // list"); then a ✕ on every row header, which the owner asked for after
@@ -325,36 +330,43 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={vi.fn()} />)
     openIndicators()
 
-    // Nothing selected: no Remove anywhere, and no row control except order.
-    expect(screen.queryByRole('button', { name: /^Remove / }),
-      'a Remove button exists before anything is selected').toBeNull()
+    // ⭐⭐ UCT SIGNATURE (owner-approved lab, 2026-11-15): a row now carries its verbs again —
+    // settings, show / hide and remove, revealed on hover — plus its colour bar. ⛔ THE RULE THIS
+    // CASE PROTECTS IS UNCHANGED: ONE WRITER PER VERB. The row's Remove and the editor's Remove are
+    // the same `removeRow` (asserted byte-identical below), and the row's eye is the same
+    // `setInstanceHidden`. What is swept is that a row holds exactly that set and nothing else.
+    const allowed = (b) => b.hasAttribute('data-row-grip') || b.hasAttribute('data-color-swatch')
+      || /^(Edit|Hide|Show|Remove) /.test(b.getAttribute('aria-label') || '')
     for (const r of rows()) {
       // ⚠️ The row's own name button is the row (it was the option itself).
       for (const b of r.querySelectorAll('button:not([data-row-primary])')) {
-        expect(b.hasAttribute('data-row-grip'),
-          `the row ${nameOf(r)} carries a control that is not the order handle`).toBe(true)
+        expect(allowed(b),
+          `the row ${nameOf(r)} carries an unexpected control: ${b.getAttribute('aria-label') || b.outerHTML}`).toBe(true)
       }
-      // ⛔ AND THE HANDLE SAYS ONLY "Reorder". A verb smuggled onto it would pass
-      // the check above — it IS the grip — and fail this one.
-      // ⚰️ IT WAS A PAIR OF `Move …` BUTTONS AND IT IS ONE `Reorder …` HANDLE.
-      // Same verb, same writer, one control instead of two.
-      const grip = r.querySelector('[data-row-grip]')
-      if (grip) {
-        expect(grip.getAttribute('aria-label'),
-          `the order handle on ${nameOf(r)} carries a verb: ${grip.getAttribute('aria-label')}`)
-          .toMatch(/^Reorder .+ within /)
-        expect(r.querySelectorAll('[data-row-grip]'),
-          `${nameOf(r)} grew a second order handle`).toHaveLength(1)
-      }
+      expect(r.querySelectorAll('button[aria-label^="Remove "]'), `${nameOf(r)}: not exactly one Remove`).toHaveLength(1)
     }
 
-    // Selected: exactly one, and it is inside the Inspector.
+    // Selected: the editor replaces the list, so exactly one Remove is on screen — the editor's.
     expand(/Session VWAP/)
     const doors = screen.queryAllByRole('button', { name: /^Remove / })
     expect(doors, 'there is not exactly one Remove door').toHaveLength(1)
     expect(doors[0].closest('[data-inspector-for]'), 'the Remove door is not in the Inspector').toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Remove indicator' }),
       'the old labelled second door came back').toBeNull()
+    cleanup()
+
+    // ⛔ ONE WRITER: the row's Remove and the editor's Remove write the byte-identical blob.
+    const viaEditor = vi.fn()
+    render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={viaEditor} />)
+    openIndicators()
+    act(/Session VWAP/, /^Remove /)
+    cleanup()
+    const viaRow = vi.fn()
+    render(<ChartSettingsModal open settings={base(WITH_INSTANCE)} onChange={viaRow} />)
+    openIndicators()
+    const vrow = rows().find((r) => /Session VWAP/.test(nameOf(r)))
+    fireEvent.click(vrow.querySelector('button[aria-label^="Remove "]'))
+    expect(JSON.stringify(lastCall(viaRow)), 'the row Remove took a different path').toBe(JSON.stringify(lastCall(viaEditor)))
   })
 
   it('🔴 removing a MOVING AVERAGE tombstones its slot — it never SPLICES', () => {
@@ -420,7 +432,7 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     // Average". `isRowOn` for this row means "at least one moving average is
     // live" — true on exactly the chart where one is tombstoned — so the state was
     // right and the VERB was wrong. A restore is one click on the row.
-    expect(within(row).queryByText('Active'), 'a restore offer must not read as Active').toBeNull()
+    expect(within(row).queryByText('On chart'), 'a restore offer must not read as On chart').toBeNull()
     fireEvent.click(row)
     const next = lastCall(onChange)
     // ⭐ 2026-09-28 — the revived slot is RE-ADOPTED on the spot (`maAdoption.reviveSlot`):
@@ -460,8 +472,9 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
     openIndicators()
     const row = document.body.querySelector('[data-row-id="volume"][data-structure-row]')
+    // ⭐ UCT Signature: the row's colour bar opens ONE picker — the up colour, the one its bar wears.
     expect(row.querySelectorAll('[data-color-swatch]'),
-      'the structure row grew colour pickers again').toHaveLength(0)
+      'the structure row should carry exactly one picker (its colour bar)').toHaveLength(1)
     expect(row.querySelector('[class*="insRail"]'), 'the volume row lost its micro-rail').toBeTruthy()
 
     expand(/^Volume$/)
@@ -567,7 +580,7 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     search('vwap')
     const row = result(/Session VWAP/)
     expect(resultIsOn(row)).toBe(true)
-    expect(within(row).getByText('Active')).toBeTruthy()
+    expect(within(row).getByText('On chart')).toBeTruthy()
     fireEvent.click(within(row).getByRole('button', { name: /Add another Session VWAP/ }))
     const next = lastCall(onChange)
     expect((next.indicatorInstances || []).filter(i => i.defId === 'vwap' && !i.deleted).length,
@@ -585,14 +598,16 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     const { unmount } = render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
     openIndicators()
     fireEvent.click(screen.getByTestId('add-enter'))
-    expect(screen.queryByRole('button', { name: /New Formula/ })).toBeNull()
+    // ⭐ UCT Signature R2 (owner Option 1): the builder's door in this window is "✦ Create indicator".
+    expect(screen.queryByRole('button', { name: /Create indicator/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /New Formula/i })).toBeNull()
     unmount()
 
     const onCreateFormula = vi.fn()
     render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} onCreateFormula={onCreateFormula} />)
     openIndicators()
     fireEvent.click(screen.getByTestId('add-enter'))
-    fireEvent.click(screen.getByRole('button', { name: /New Formula/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Create indicator/i }))
     expect(onCreateFormula, 'the launcher renders but is wired to nothing').toHaveBeenCalledTimes(1)
   })
 

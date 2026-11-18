@@ -248,7 +248,10 @@ def test_edit_original_multipart_shape_and_failure_paths():
 
     ok = edit_original("123", "tok", content="No bars for X (Daily).", client=client)
     assert ok == {"id": "1"}
-    assert json.loads(seen[-1].content) == {"content": "No bars for X (Daily)."}
+    # `allowed_mentions` rides every reply since 2026-11-13: nothing a member typed may ping
+    # (tests/test_discord_public_replies_cannot_ping.py).
+    assert json.loads(seen[-1].content) == {"content": "No bars for X (Daily).",
+                                            "allowed_mentions": {"parse": []}}
 
     def failing(request):
         return httpx.Response(404, json={"message": "Unknown Webhook"})

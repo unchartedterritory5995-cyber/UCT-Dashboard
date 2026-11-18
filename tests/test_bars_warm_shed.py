@@ -60,6 +60,7 @@ def test_a_COLD_warm_request_sheds_fast_when_slots_full():
         r = _client().get("/api/bars/AAPL?tf=D&bars=200&warm=1")
         assert r.status_code == 503, "a COLD warm must shed when the warm-serve slots are full"
         assert r.headers.get("Retry-After") == "4"
+        assert r.headers.get("X-Bars-Shed") == "warm-shed", "edge must see a deliberate shed"
         body = r.json()
         assert body.get("warming") is True and body.get("bars") == []
     finally:

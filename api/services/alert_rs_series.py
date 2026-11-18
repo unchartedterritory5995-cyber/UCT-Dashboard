@@ -84,6 +84,7 @@ from typing import Any, Callable, Mapping, NamedTuple, Optional, Sequence
 
 from api.services import relative_strength as rsm
 from api.services import rs_benchmarks
+from api.services.alert_rev_migration import ADDRESS_BASE_DEFINITION
 from api.services.signature import registry_defs
 
 Series = list[Optional[float]]
@@ -124,9 +125,23 @@ RATING_READ_PAD = 40
 #: it), and an alert on an arbitrary symbol would bypass the benchmark cache this
 #: lane depends on, so a future edit that folds it into the shared list still
 #: cannot reach the alert popover.
-RS_ALERT_EXCLUDED_BENCHMARKS: tuple[str, ...] = ("INDUSTRY", rs_benchmarks.CUSTOM_BENCHMARK)
+#
+#: ⭐ 2026-11-12 (sector and theme benchmarks): THEME (the stock's own UCT theme)
+#: JOINS by name, appended so the existing options keep their order. A theme is
+#: at most ~40 names (the taxonomy's largest, under `MAX_INDUSTRY_MEMBERS`), and
+#: its composite is memoised per reader (`rs_benchmarks._composite`, the pass
+#: hands it the lane's own loader), so a cycle of THEME alerts costs one build
+#: per theme per five minutes, not one per alert. The alert evaluates exactly the
+#: chart's composite: the same resolver, the same members, the stock left out.
+#: The two PICKS (SECTOR_PICK, THEME_PICK) stay chart-only: each needs a second
+#: parameter the alert form would show on every RS alert; they are excluded by
+#: name with INDUSTRY and CUSTOM.
+RS_ALERT_EXCLUDED_BENCHMARKS: tuple[str, ...] = (
+    "INDUSTRY", rs_benchmarks.CUSTOM_BENCHMARK, rs_benchmarks.SECTOR_PICK_BENCHMARK,
+    rs_benchmarks.THEME_PICK_BENCHMARK)
 RS_ALERT_BENCHMARKS: tuple[str, ...] = tuple(
-    b for b in registry_defs.RS_LINE_BENCHMARKS if b not in RS_ALERT_EXCLUDED_BENCHMARKS)
+    b for b in registry_defs.RS_LINE_BENCHMARKS if b not in RS_ALERT_EXCLUDED_BENCHMARKS
+) + (rs_benchmarks.THEME_BENCHMARK,)
 
 #: The chart's defaults, read off the module that computes with them.
 PHASE1_DEFAULTS: dict[str, Any] = {
@@ -141,14 +156,38 @@ MANSFIELD_DEFAULTS: dict[str, Any] = {
     "benchmark": rs_benchmarks.DEFAULT_BENCHMARK,
     "mansfieldLength": rsm.DEFAULT_MANSFIELD_LENGTH,
 }
+#: 2026-11-10 (RS split, lane S2) — the two new split families' inputs, read off
+#: the module that computes with them, exactly as the chart's `rsPhases` /
+#: `rsVsEma` rows default them (`registry_defs._rs_phases_row`). The vs-21-EMA
+#: alert has no length knob: the chart's definition fixes the EMA at 21.
+PHASES_DEFAULTS: dict[str, Any] = {
+    "benchmark": rs_benchmarks.DEFAULT_BENCHMARK,
+    "shortEma": rsm.DEFAULT_PHASES_SHORT,
+    "longEma": rsm.DEFAULT_PHASES_LONG,
+}
+VS_EMA_DEFAULTS: dict[str, Any] = {
+    "benchmark": rs_benchmarks.DEFAULT_BENCHMARK,
+}
+#: 2026-11-12 -- UCT RS Exit Warnings (`rsExit`): 0 is AUTO (daily 21 / 50, weekly 8 / 21,
+#: `relative_strength.resolve_exit_lengths`), the same default the chart's row declares.
+EXIT_DEFAULTS: dict[str, Any] = {
+    "benchmark": rs_benchmarks.DEFAULT_BENCHMARK,
+    "fastLength": 0,
+    "slowLength": 0,
+}
 _RANGES: dict[str, tuple[float, float]] = {
+    "fastLength": (0, rsm.EXIT_LENGTH_RANGE[1]),     # 0 = auto
+    "slowLength": (0, rsm.EXIT_LENGTH_RANGE[1]),
+    "shortEma": rsm.PHASES_SHORT_RANGE,
+    "longEma": rsm.PHASES_LONG_RANGE,
     "maLength": rsm.MA_LENGTH_RANGE,
     "lookback": rsm.LOOKBACK_RANGE,
     "priceTolerance": rsm.PRICE_TOLERANCE_RANGE,
     "redDayThreshold": rsm.RED_DAY_RANGE,
     "mansfieldLength": rsm.MANSFIELD_LENGTH_RANGE,
 }
-_INT_KEYS: tuple[str, ...] = ("maLength", "lookback", "mansfieldLength")
+_INT_KEYS: tuple[str, ...] = ("maLength", "lookback", "mansfieldLength", "shortEma", "longEma",
+                              "fastLength", "slowLength")
 MA_TYPES: tuple[str, ...] = ("EMA", "SMA")
 
 #: EMA convergence prefix — the same multiplier `alert_series.MA_CROSS_EMA_PREFIX_MULT`
@@ -243,6 +282,8 @@ class RsTimeframeRefused(ValueError):
 class RsSpec(NamedTuple):
     column: str              # the `relative_strength` column this address IS
     family: str              # "phase1" (`compute_phase1_columns`) | "mansfield" (`compute_mansfield_columns`)
+    #                          # | "phases" (`compute_rs_phases_columns`) | "vs_ema" (`compute_rs_vs_ema_columns`)
+    #                          # | "exit" (`compute_rs_exit_columns`, 2026-11-12)
     inputs: tuple[str, ...]  # the knobs this column reads (its `fn.inputs` keys)
     kind: str                # "line" (a number) | "event" ({0, 1, None}) | "state" ({0, 1, None}, a level)
     rounded: bool            # rounded to `LINE_DECIMALS` like the provider's line columns
@@ -251,6 +292,31 @@ class RsSpec(NamedTuple):
 _MA_INPUTS: tuple[str, ...] = ("benchmark", "maLength", "maType")
 _NH_INPUTS: tuple[str, ...] = ("benchmark", "lookback")
 _MANSFIELD_INPUTS: tuple[str, ...] = ("benchmark", "mansfieldLength")
+_PHASES_INPUTS: tuple[str, ...] = ("benchmark", "shortEma", "longEma")
+_VS_EMA_INPUTS: tuple[str, ...] = ("benchmark",)
+_EXIT_INPUTS: tuple[str, ...] = ("benchmark", "fastLength", "slowLength")
+
+#: 2026-11-10 (RS split, lane S2) — the bases of the two split families. Their
+#: addresses are `rs_phases.<plot>` / `rs_vs_ema.<plot>`, the snake_case spelling
+#: of the chart definitions `rsPhases` / `rsVsEma` (`alertSets.idKey` binds the
+#: two spellings, as `rs_line` is bound to `rsLine`).
+RS_PHASES_BASE = "rs_phases"
+RS_VS_EMA_BASE = "rs_vs_ema"
+#: 2026-11-12 -- UCT RS Exit Warnings (`rsExit`): Webster's three warnings.
+RS_EXIT_BASE = "rs_exit"
+
+#: The three Mansfield addresses stay REGISTERED and EVALUATING (an alert already
+#: bound to one keeps firing) but are no longer OFFERED to a new alert — owner
+#: decision 2026-11-09. The offer gate reads this (`indicator_alert_evaluator.
+#: rs_address_offered`); nothing here unregisters them.
+RS_WITHHELD_ADDRESSES: tuple[str, ...] = (
+    f"{RS_BASE}.mansfield", f"{RS_BASE}.mansfieldCrossUp", f"{RS_BASE}.mansfieldCrossDown")
+
+#: The addresses of the two split families, in catalog order.
+RS_SPLIT_ADDRESSES: tuple[str, ...] = (
+    f"{RS_PHASES_BASE}.flipBlue", f"{RS_PHASES_BASE}.flipRed",
+    f"{RS_VS_EMA_BASE}.crossUp", f"{RS_VS_EMA_BASE}.crossDown",
+    f"{RS_EXIT_BASE}.quickBreak", f"{RS_EXIT_BASE}.quicksand", f"{RS_EXIT_BASE}.deadBreak")
 
 #: ⭐ THE RS ADDRESSES, in catalog order. Names after the dot follow the house
 #: convention of the other multi-plot bases (`sar.priceCrossedSar`,
@@ -281,8 +347,29 @@ RS_ADDRESS_SPECS: dict[str, RsSpec] = {
 }
 
 
+#: 2026-11-10 (RS split, lane S2) -- the four split addresses' specs, kept apart from
+#: the eleven above so the legacy table (and every rail that walks it as "the
+#: compute-backed `rs_line` addresses") is unmoved. `_ALL_SPECS` is the one lookup.
+#: The phase flips are derived from the SAME `phase` column the chart shades
+#: (`relative_strength.rs_phase_flip_columns`); the 21 EMA crosses are
+#: `cross_columns` over `dist >= 0`, the Mansfield zero cross's own shape. Events
+#: are 0 / 1 / None and unrounded.
+RS_SPLIT_SPECS: dict[str, RsSpec] = {
+    f"{RS_PHASES_BASE}.flipBlue": RsSpec("flipBlue", "phases", _PHASES_INPUTS, "event", False),
+    f"{RS_PHASES_BASE}.flipRed": RsSpec("flipRed", "phases", _PHASES_INPUTS, "event", False),
+    f"{RS_VS_EMA_BASE}.crossUp": RsSpec("crossUp", "vs_ema", _VS_EMA_INPUTS, "event", False),
+    f"{RS_VS_EMA_BASE}.crossDown": RsSpec("crossDown", "vs_ema", _VS_EMA_INPUTS, "event", False),
+    # 2026-11-12: Webster's three warnings, {0, 1, None} events (`rs_exit_events`), closed bars.
+    f"{RS_EXIT_BASE}.quickBreak": RsSpec("quickBreak", "exit", _EXIT_INPUTS, "event", False),
+    f"{RS_EXIT_BASE}.quicksand": RsSpec("quicksand", "exit", _EXIT_INPUTS, "event", False),
+    f"{RS_EXIT_BASE}.deadBreak": RsSpec("deadBreak", "exit", _EXIT_INPUTS, "event", False),
+}
+_ALL_SPECS: dict[str, RsSpec] = {**RS_ADDRESS_SPECS, **RS_SPLIT_SPECS}
+
+
 def _defaults_for(spec: RsSpec) -> dict:
-    src = PHASE1_DEFAULTS if spec.family == "phase1" else MANSFIELD_DEFAULTS
+    src = {"phase1": PHASE1_DEFAULTS, "mansfield": MANSFIELD_DEFAULTS,
+           "phases": PHASES_DEFAULTS, "vs_ema": VS_EMA_DEFAULTS, "exit": EXIT_DEFAULTS}[spec.family]
     return {k: src[k] for k in spec.inputs}
 
 
@@ -300,6 +387,27 @@ def phase1_inputs(params: Optional[Mapping]) -> dict:
     row written around the door with `lookback: 99999` computes what the chart
     would show for the same request (500)."""
     return rsm.resolve_phase1_inputs(dict(params or {}))
+
+
+def phases_inputs(params: Optional[Mapping]) -> dict:
+    """The two phase EMA lengths, clamped and rounded exactly as the chart's
+    provider does (`rs_provider.rs_phases_envelope`: ``int(round(_clamp(...)))``)."""
+    p = params or {}
+    return {
+        "shortEma": int(round(rsm._clamp(p.get("shortEma"), *rsm.PHASES_SHORT_RANGE,
+                                         default=rsm.DEFAULT_PHASES_SHORT))),
+        "longEma": int(round(rsm._clamp(p.get("longEma"), *rsm.PHASES_LONG_RANGE,
+                                        default=rsm.DEFAULT_PHASES_LONG))),
+    }
+
+
+def exit_lengths(params: Optional[Mapping], tf: Optional[str] = None) -> tuple:
+    """``(fast, slow)`` for an RS Exit Warnings alert on a timeframe, resolved exactly as
+    the chart's provider does (`relative_strength.resolve_exit_lengths`: 0 is auto,
+    daily 21 / 50, weekly 8 / 21). ``tf`` None reads the daily pair."""
+    p = params or {}
+    code = normalize_tf(tf) if tf else "D"
+    return rsm.resolve_exit_lengths(code, p.get("fastLength"), p.get("slowLength"))
 
 
 def mansfield_length(params: Optional[Mapping]) -> int:
@@ -320,7 +428,7 @@ def rs_refusal(address: str, params: Optional[Mapping], condition: Optional[str]
     one. ``condition`` is accepted for the call shape; the offered-rule check is
     `params_refusal`'s own.
     """
-    spec = RS_ADDRESS_SPECS[address]
+    spec = _ALL_SPECS[address]
     p = params or {}
     if "benchmark" in spec.inputs and p.get("benchmark") is not None:
         b = str(p["benchmark"]).strip().upper()
@@ -328,7 +436,11 @@ def rs_refusal(address: str, params: Optional[Mapping], condition: Optional[str]
             why = (" INDUSTRY composites are not offered for alerts yet."
                    if b == "INDUSTRY" else
                    " Custom benchmarks are chart-only; alerts take a listed benchmark."
-                   if b == rs_benchmarks.CUSTOM_BENCHMARK else "")
+                   if b == rs_benchmarks.CUSTOM_BENCHMARK else
+                   " A picked sector or theme is chart-only for now; alerts take a listed"
+                   " benchmark, or THEME for the stock's own theme."
+                   if b in (rs_benchmarks.SECTOR_PICK_BENCHMARK, rs_benchmarks.THEME_PICK_BENCHMARK)
+                   else "")
             return (f"RS benchmark must be one of {', '.join(RS_ALERT_BENCHMARKS)} "
                     f"— got {p['benchmark']!r}.{why}")
     if "maType" in spec.inputs and p.get("maType") is not None:
@@ -356,7 +468,7 @@ def rs_refusal(address: str, params: Optional[Mapping], condition: Optional[str]
 def normalize_rs_params(address: str, params: Optional[Mapping]) -> dict:
     """The stored spelling: enums upper-cased, whole-number knobs as ints,
     the rest as floats. Only called on params `rs_refusal` accepted."""
-    spec = RS_ADDRESS_SPECS[address]
+    spec = _ALL_SPECS[address]
     out = dict(params or {})
     for key in ("benchmark", "maType"):
         if key in spec.inputs and out.get(key) is not None:
@@ -375,9 +487,18 @@ def rs_lookback(address: str, params: Optional[Mapping]) -> int:
     (SMA, exact) or ``EMA_PREFIX_MULT × maLength`` (EMA convergence); Mansfield
     its SMA length. The line itself needs nothing beyond the bar.
     """
-    spec = RS_ADDRESS_SPECS[address]
+    spec = _ALL_SPECS[address]
     if spec.family == "mansfield":
         return mansfield_length(params)
+    if spec.family == "phases":
+        return EMA_PREFIX_MULT * phases_inputs(params)["longEma"]
+    if spec.family == "vs_ema":
+        return EMA_PREFIX_MULT * rsm.DEFAULT_VS_EMA_LENGTH
+    if spec.family == "exit":
+        # the SLOW simple average (exact, no EMA convergence) plus the cycle history a Quicksand
+        # needs to see its Quick Break. The daily pair is the longer one, so it is read for a
+        # timeframe-blind lookback.
+        return exit_lengths(params)[1] + rsm.EXIT_CYCLE_HISTORY
     p = phase1_inputs(params)
     if "lookback" in spec.inputs:
         return int(p["lookback"])
@@ -388,10 +509,25 @@ def rs_lookback(address: str, params: Optional[Mapping]) -> int:
 
 def describe_rs(address: str, params: Optional[Mapping]) -> str:
     """The instance label: ``vs SPY · EMA(21)`` — the chip's grammar."""
-    spec = RS_ADDRESS_SPECS[address]
+    spec = _ALL_SPECS[address]
     parts = [f"vs {rs_benchmark_of(params)}"]
     if spec.family == "mansfield":
         parts.append(f"SMA({mansfield_length(params)})")
+        return " · ".join(parts)
+    if spec.family == "phases":
+        p = phases_inputs(params)
+        parts.append(f"{p['shortEma']}/{p['longEma']} EMA")
+        return " · ".join(parts)
+    if spec.family == "vs_ema":
+        parts.append(f"EMA({rsm.DEFAULT_VS_EMA_LENGTH})")
+        return " · ".join(parts)
+    if spec.family == "exit":
+        given = params or {}
+        if not given.get("fastLength") and not given.get("slowLength"):
+            parts.append("21/50 SMA (weekly 8/21)")
+        else:
+            f, s_ = exit_lengths(params)
+            parts.append(f"{f}/{s_} SMA")
         return " · ".join(parts)
     p = phase1_inputs(params)
     if "maLength" in spec.inputs:
@@ -587,13 +723,17 @@ class RsPass:
     def resolve(self, sym: str, requested: Optional[str], tf: str, want: int) -> dict:
         """`rs_benchmarks.resolve_benchmark` through this pass's reader, once per
         ``(symbol, requested, tf, want)`` — a literal benchmark is symbol-free,
-        SECTOR / INDUSTRY depend on the symbol's group."""
+        SECTOR / INDUSTRY / THEME depend on the symbol's group. A composite is
+        memoised under this pass's READER (`fetch_bars`, the lane's own loader in
+        production), so the next cycle reuses it (`rs_benchmarks._composite`)."""
         req = str(requested or rs_benchmarks.DEFAULT_BENCHMARK).upper()
-        sym_key = str(sym or "").upper() if req in rs_benchmarks.AUTO_BENCHMARKS else ""
+        sym_key = (str(sym or "").upper()
+                   if req in rs_benchmarks.AUTO_BENCHMARKS or req == rs_benchmarks.THEME_BENCHMARK else "")
         key = (sym_key, req, str(tf), int(want))
         hit = self._resolved.get(key)
         if hit is None:
-            hit = rs_benchmarks.resolve_benchmark(sym, req, tf, int(want), fetch_bars=self.fetch)
+            hit = rs_benchmarks.resolve_benchmark(sym, req, tf, int(want), fetch_bars=self.fetch,
+                                                  memo=self.fetch_bars)
             self._resolved[key] = hit
         return hit
 
@@ -684,7 +824,7 @@ def build_rs_series(address: str, bars: Sequence[Mapping], benchmark_bars: Seque
     ``short_history`` is left at the compute's default (off): the partial-lookback
     dots are a chart affordance for a whole-history window and have no address.
     """
-    spec = RS_ADDRESS_SPECS[address]            # an unknown address is a caller bug, like `series_for`
+    spec = _ALL_SPECS[address]            # an unknown address is a caller bug, like `series_for`
     n = len(bars)
     if n == 0:
         return []
@@ -695,6 +835,25 @@ def build_rs_series(address: str, bars: Sequence[Mapping], benchmark_bars: Seque
 
         def compute() -> dict:
             return rsm.compute_phase1_columns(bars, benchmark_bars, inputs)
+    elif spec.family == "phases":
+        ph = phases_inputs(params)
+        inputs_key = json.dumps(ph, sort_keys=True)
+
+        def compute() -> dict:
+            cols = rsm.compute_rs_phases_columns(bars, benchmark_bars, ph["shortEma"], ph["longEma"])
+            return rsm.rs_phase_flip_columns(cols)
+    elif spec.family == "vs_ema":
+        inputs_key = str(rsm.DEFAULT_VS_EMA_LENGTH)
+
+        def compute() -> dict:
+            cols = rsm.compute_rs_vs_ema_columns(bars, benchmark_bars)
+            return rsm.cross_columns(rsm.above_zero_column(cols["dist"]))
+    elif spec.family == "exit":
+        ex_fast, ex_slow = exit_lengths(params, tf)
+        inputs_key = f"{ex_fast}/{ex_slow}"
+
+        def compute() -> dict:
+            return rsm.compute_rs_exit_columns(bars, benchmark_bars, ex_fast, ex_slow)
     else:
         n_len = mansfield_length(params)
         inputs_key = str(n_len)
@@ -721,11 +880,17 @@ def build_rs_series(address: str, bars: Sequence[Mapping], benchmark_bars: Seque
     return column
 
 
+# The chart definition whose instances an address of each base reads (the catalog's
+# ``instance_defs``) is `alert_rev_migration.ADDRESS_BASE_DEFINITION[base]`: the ONE
+# base -> definition map (2026-11-12: this module's own copy named four definition ids, a
+# second authority over one fact; it is read from there now).
+
+
 def _rs_column(address: str) -> Callable[..., Series]:
     """The SERIES function for one RS address — `alert_series._column`'s shape
     with the two extra keyword arguments the lane passes a `reads_benchmark`
     column (`alert_user_series.call_series`)."""
-    spec = RS_ADDRESS_SPECS[address]
+    spec = _ALL_SPECS[address]
 
     def fn(bars: list, params: Mapping, tf: Optional[str] = None, sym: Optional[str] = None) -> Series:
         n = len(bars)
@@ -766,7 +931,7 @@ def _rs_column(address: str) -> Callable[..., Series]:
     if "maType" in spec.inputs:
         options["maType"] = list(MA_TYPES)
     fn.input_options = options                                          # type: ignore[attr-defined]
-    fn.instance_defs = ["rsLine"]                                       # type: ignore[attr-defined]
+    fn.instance_defs = [ADDRESS_BASE_DEFINITION[address.split(".", 1)[0]]]   # type: ignore[attr-defined]
     fn.validate = lambda params, condition=None: rs_refusal(address, params, condition)  # type: ignore[attr-defined]
     fn.normalize = lambda params: normalize_rs_params(address, params)  # type: ignore[attr-defined]
     fn.lookback = lambda params: rs_lookback(address, params)           # type: ignore[attr-defined]
@@ -812,7 +977,7 @@ def self_benchmark_refusal(address: Optional[str], sym: Optional[str],
     """The member sentence when this RS alert would measure ``sym`` against
     itself, else ``None``. Only the benchmark-reading addresses ask (the rating
     reads no benchmark)."""
-    if address not in RS_ADDRESS_SPECS or not sym:
+    if address not in _ALL_SPECS or not sym:
         return None
     symbol = str(sym).strip().upper()
     name = resolved_benchmark_name(symbol, params)
@@ -830,7 +995,7 @@ def benchmark_fault(address: Optional[str], sym: Optional[str], tf: Any,
     """Why this RS alert's benchmark blanks its column for good, or ``None``:
     it resolves to the symbol itself, or it has no stored bars. Read through the
     current pass (one read per pass) or a default one. Never raises."""
-    if address not in RS_ADDRESS_SPECS or not sym or not bars:
+    if address not in _ALL_SPECS or not sym or not bars:
         return None
     try:
         code = normalize_tf(tf)
@@ -937,9 +1102,13 @@ def _rs_rating_column() -> Callable[..., Series]:
 
 #: ⭐ THE ENTRIES `register_rs_series` APPENDS to `alert_series.SERIES_FUNCS`, in catalog order:
 #: the eleven compute-backed addresses, then (2026-11-07, RS 2b-06) the rating, LAST.
+#: 2026-11-10 (RS split, lane S2): the four split addresses are appended AFTER the
+#: rating, so every pre-existing address keeps its position in the table (the
+#: dropdown order and `all_addresses()[32:44]` do not move).
 RS_SERIES: dict[str, Callable[..., Series]] = {
     **{a: _rs_column(a) for a in RS_ADDRESS_SPECS},
     RS_RATING_ADDRESS: _rs_rating_column(),
+    **{a: _rs_column(a) for a in RS_SPLIT_SPECS},
 }
 RS_ADDRESSES: tuple[str, ...] = tuple(RS_SERIES)
 

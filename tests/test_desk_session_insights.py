@@ -155,7 +155,8 @@ def test_generate_insights_overrides_short_shared_client_timeout(monkeypatch):
 
 
 def test_model_defaults_to_haiku():
-    assert si._MODEL == "claude-haiku-4-5"
+    from api.services import llm_models
+    assert si._MODEL == llm_models.HAIKU == "claude-haiku-5-5"
 
 
 # ── _hms_to_secs ─────────────────────────────────────────────────────────────────

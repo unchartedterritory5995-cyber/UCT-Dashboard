@@ -61,7 +61,7 @@ export function deterministicReading(text, host) {
   const fp = fastParse(text, { host })
   if (fp?.kind === 'ops') return { plan: fp.ops.map(o => ({ action: o.action, args: o.args || {} })), via: 'fastPath' }
   if (fp?.kind === 'undo') return { plan: [{ action: 'agent.undo', args: fp.about ? { about: fp.about } : {} }], via: 'fastPath' }
-  if (fp?.kind === 'say') return { say: true, via: 'fastPath' }
+  if (fp?.kind === 'say') return { say: true, text: fp.text, via: 'fastPath' }
   if (fp) return { kind: fp.kind, via: 'fastPath' }
   if (!cued) { const f = follow(); if (f) return f }
   const cp = planCompound(text, { host })
@@ -84,5 +84,7 @@ export function equivalent(reading, det) {
   if (!reading) return false
   if (det.steps) return Array.isArray(reading.steps) && reading.steps.join() === det.steps.join()
   if (det.plan) return Array.isArray(reading.plan) && partialMatch(upperSymbols(reading.plan), det.plan)
+  // a fixed-words answer (a capability's `__say`, e.g. uctIntelligence.set asking which "patterns"): no op, the words match `say`
+  if (det.say) return reading.say === true && new RegExp(det.say, 'i').test(String(reading.text || ''))
   return false
 }

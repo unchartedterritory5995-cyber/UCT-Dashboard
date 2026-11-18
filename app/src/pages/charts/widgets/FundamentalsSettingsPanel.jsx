@@ -8,9 +8,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../../components/chart/ColorPanel'
-import UIcon from '../../../components/ui/UIcon'
+import ChoiceMenu from '../../../components/chart/ChoiceMenu'
 import WidgetThemeSection from './WidgetThemeSection'
 import styles from './FundamentalsSettingsPanel.module.css'
+import useWidgetMenuPlacement from './useWidgetMenuPlacement'
 
 const PANEL_W = 268
 
@@ -40,25 +41,7 @@ export default function FundamentalsSettingsPanel({ settings: s, onChange, onRes
   // Place the settings menu on the side of the widget CLOSEST TO THE MIDDLE of
   // the layout (a widget docked left gets the menu on its right, and vice
   // versa). Flips if there's no room. Portaled so widget overflow can't clip it.
-  useLayoutEffect(() => {
-    if (!hostEl) return
-    const place = () => {
-      const r = hostEl.getBoundingClientRect()
-      const gap = 8
-      const preferRight = (r.left + r.width / 2) < window.innerWidth / 2
-      let left = preferRight ? r.right + gap : r.left - gap - PANEL_W
-      if (preferRight && left + PANEL_W > window.innerWidth - 8) left = r.left - gap - PANEL_W
-      if (!preferRight && left < 8) left = Math.min(window.innerWidth - PANEL_W - 8, r.right + gap)
-      left = Math.max(8, Math.min(left, window.innerWidth - PANEL_W - 8))
-      let top = Math.max(8, r.top)
-      const panelH = Math.min(420, Math.round(window.innerHeight * 0.8))
-      if (top + panelH > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - panelH)
-      setPos({ left: Math.round(left), top: Math.round(top) })
-    }
-    place()
-    window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
-  }, [hostEl])
+  useWidgetMenuPlacement({ hostEl, gearEl, panelW: PANEL_W, setPos, onClose })
 
   // Pop the ColorPanel out to the RIGHT of the settings menu (flip left if tight),
   // bottom-aligned to the menu — exactly like Chart/Watchlist Settings.
@@ -79,6 +62,7 @@ export default function FundamentalsSettingsPanel({ settings: s, onChange, onRes
       if (e.target.closest?.('[data-color-swatch]')) return
       if (e.target.closest?.('[data-color-panel]')) return
       if (e.target.closest?.('[data-uct-theme-gallery]')) return
+      if (e.target.closest?.('[data-choice-menu]')) return  // a ChoiceMenu's list is portalled outside the panel
       if (panelRef.current && panelRef.current.contains(e.target)) { setActiveTarget(null); return }
       if (gearEl && gearEl.contains(e.target)) return
       onClose?.()
@@ -121,33 +105,29 @@ export default function FundamentalsSettingsPanel({ settings: s, onChange, onRes
     <>
       <div
         ref={panelRef}
+        data-side={pos?.side}
         className={styles.panel}
-        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}
+        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxHeight } : { visibility: 'hidden' }) }}
         onClick={e => e.stopPropagation()}
       >
         <div className={styles.head}>
-          <span className={styles.title}><UIcon name="gear" size={13} /> Fundamentals Settings</span>
+          <span className={styles.title}>Fundamentals settings</span>
           <div className={styles.headRight}>
-            <button className="btn btn-ghost btn-sm" onClick={onReset} title="Restore fundamentals settings to defaults">↺ Reset</button>
-            <button className={styles.close} onClick={onClose} title="Close">✕</button>
+            <button className={styles.uReset} onClick={onReset} title="Restore fundamentals settings to defaults">Reset</button>
+            <button className={styles.close} onClick={onClose} title="Close" aria-label="Close">✕</button>
           </div>
         </div>
 
         <div className={styles.body}>
           <div className={styles.sectionLabel}>Theme</div>
           <Row label="UCT theme" hint="whole-widget look">
-            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass="btn btn-ghost btn-sm" />
+            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass={styles.uBtn} buttonLabel="UCT themes" />
           </Row>
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">
-            <div className={styles.seg}>
-              {BG_MODES.map(m => (
-                <button key={m.key}
-                  className={`${styles.segBtn}${s.bgMode === m.key ? ' ' + styles.segBtnOn : ''}`}
-                  onClick={() => set({ bgMode: m.key })}>{m.label}</button>
-              ))}
-            </div>
+            <ChoiceMenu ariaLabel="Background" value={s.bgMode}
+              options={BG_MODES.map(m => ({ value: m.key, label: m.label }))} onChange={(v) => set({ bgMode: v })} />
           </Row>
           {s.bgMode === 'solid' && <Row label="Canvas color">{swatch('bg', 'Canvas')}</Row>}
           {s.bgMode === 'gradient' && (
@@ -165,9 +145,9 @@ export default function FundamentalsSettingsPanel({ settings: s, onChange, onRes
           <Row label="Text" hint="values + labels">{swatch('textColor', 'Text')}</Row>
 
           {/* % change */}
-          <div className={styles.sectionLabel}>% Change</div>
-          <Row label="Up">{swatch('upColor', 'Up')}</Row>
-          <Row label="Down">{swatch('downColor', 'Down')}</Row>
+          <div className={styles.sectionLabel}>% change</div>
+          {/* up / down pair in one row (owner 11-15) */}
+          <Row label="Up / down">{swatch('upColor', 'Up')}{swatch('downColor', 'Down')}</Row>
         </div>
       </div>
 

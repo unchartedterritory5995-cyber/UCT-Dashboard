@@ -182,3 +182,91 @@ describe('revisits', () => {
     expect(scans()).toBe(2)
   })
 })
+
+// ── live refresh (2026-11-10): the CURRENT spec is asked again while the session is live, quietly ──
+describe('live refresh', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+  const scanCalls = () => globalThis.fetch.mock.calls.filter(([u]) => u === '/api/screener/scan')
+  const answer = (tickers) => Promise.resolve({ ok: true, json: () => Promise.resolve({
+    total: tickers.length, rows: tickers.map(ticker => ({ ticker })), view_columns: ['ticker'] }) })
+  const spec = { filters: [], view: 'overview' }
+
+  test('a live session asks again every refreshMs, and the new list replaces the old one in place', async () => {
+    let release
+    const held = new Promise(r => { release = () => r({ ok: true, json: () => Promise.resolve({
+      total: 2, rows: [{ ticker: 'AAA' }, { ticker: 'NEW' }], view_columns: ['ticker'] }) }) })
+    globalThis.fetch = vi.fn().mockReturnValueOnce(answer(['AAA'])).mockReturnValue(held)
+    const { result } = renderHook(() => useScreenerScan(spec, { leading: true, refreshMs: 15_000, isLive: () => true }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(result.current.result.total).toBe(1)
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_000) })
+    // the refresh is ON THE WIRE and unanswered: quiet means the old rows stay and no spinner shows
+    expect(scanCalls()).toHaveLength(2)
+    expect(JSON.parse(scanCalls()[1][1].body)).toEqual(spec)
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.result.rows.map(r => r.ticker)).toEqual(['AAA'])
+    await act(async () => { release(); await vi.advanceTimersByTimeAsync(0) })
+    expect(result.current.result.rows.map(r => r.ticker)).toEqual(['AAA', 'NEW'])
+    expect(result.current.answeredSpec).toBe(spec)
+  })
+
+  test('outside the session it never asks again (the control for the test above)', async () => {
+    renderHook(() => useScreenerScan(spec, { leading: true, refreshMs: 15_000, isLive: () => false }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(scanCalls()).toHaveLength(1)
+  })
+
+  test('refreshMs unset is the old behaviour: one request per spec', async () => {
+    renderHook(() => useScreenerScan(spec, { leading: true, isLive: () => true }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(scanCalls()).toHaveLength(1)
+  })
+
+  test('a failed refresh keeps the list already shown and raises no error', async () => {
+    globalThis.fetch = vi.fn().mockReturnValueOnce(answer(['AAA']))
+      .mockReturnValue(Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) }))
+    const { result } = renderHook(() => useScreenerScan(spec, { leading: true, refreshMs: 15_000, isLive: () => true }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_000) })
+    expect(scanCalls()).toHaveLength(2)
+    expect(result.current.result.rows.map(r => r.ticker)).toEqual(['AAA'])
+    expect(result.current.error).toBe(null)
+  })
+
+  test('an edit waiting on the debounce owns the next request; the refresh does not jump it', async () => {
+    const { rerender } = renderHook(({ s }) => useScreenerScan(s, { refreshMs: 1_000, isLive: () => true }),
+      { initialProps: { s: spec } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(scanCalls()).toHaveLength(1)
+    rerender({ s: { filters: [{ key: 'a' }], view: 'overview' } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(299) })
+    // the interval was re-armed by the new key and has not fired; the old spec is never re-asked
+    expect(scanCalls().map(([, o]) => JSON.parse(o.body).filters)).toEqual([[]])
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(JSON.parse(scanCalls()[1][1].body).filters).toEqual([{ key: 'a' }])
+  })
+
+  test('the default live check never fires under the test runner, whatever the hour', async () => {
+    const { defaultIsLive } = await import('./useScreenerScan')
+    expect(defaultIsLive(new Date('2026-11-10T15:00:00Z'))).toBe(false) // 10:00 ET on a trading day
+  })
+})
+
+describe('live refresh and paging', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+  const scanCalls = () => globalThis.fetch.mock.calls.filter(([u]) => u === '/api/screener/scan')
+
+  test('a list scrolled past page 1 is never re-asked: pages accumulate, a refresh would corrupt them', async () => {
+    renderHook(() => useScreenerScan({ filters: [], page: 3 }, { leading: true, refreshMs: 1_000, isLive: () => true }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000) })
+    expect(scanCalls()).toHaveLength(1)
+  })
+
+  test('page 1 is (the control)', async () => {
+    renderHook(() => useScreenerScan({ filters: [], page: 1 }, { leading: true, refreshMs: 1_000, isLive: () => true }))
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000) })
+    expect(scanCalls().length).toBeGreaterThan(1)
+  })
+})

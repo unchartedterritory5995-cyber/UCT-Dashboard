@@ -65,6 +65,7 @@ import { MAIN_PRICE_SCALE_ID } from './placement'
 import { presentedPlot } from './presentation'
 import { LINE_WIDTH_HARD_MAX } from './defSchema'
 import { inputsAsServed, hasServerGate } from './legacyInputs'
+import { isThemeColour, resolveThemeColour } from './objectTheme'
 
 /** The four LWC series constructors any v1 plot can need. */
 /**
@@ -591,6 +592,47 @@ function providerFor(mode, range, include) {
   return autoscaleProvider(mode)
 }
 
+/**
+ * ⭐⭐ 2026-11-17 (backlog row 41) — DOES A GLYPH MARKER'S COLUMN GIVE IT A Y?
+ *
+ * A `markers` plot with a `marker` block draws a glyph on the bars its column
+ * marks. Only ONE of its positions reads the column as a coordinate: `inBar`,
+ * which is what the translator makes of Pine's `location.absolute` — reference:
+ * *"Shape is plotted on chart using indicator value as a price coordinate."* For
+ * every other location the reference says the series *"is treated as a series of
+ * boolean values"*, and the User Manual uses `location.top` precisely so a
+ * `plotchar` value does not enter the scale (*"We use location.top because the
+ * default location.abovebar will put the price into play in the script's scale,
+ * which will often interfere with other plots."* — the PRICE, never the value).
+ * So an `aboveBar` / `belowBar` glyph's column is an EVENT (0/1), not a y.
+ *
+ * ⭐ AND SO IS AN `inBar` GLYPH ON AN AUTHORED YES/NO OUTPUT (`outputType`
+ * CONDITION in a house / member definition). A condition's 1 is "true", not a
+ * price: drawn at its value it sat at y = 1 and stretched its pane to 0..1,
+ * flattening a relative strength line of ~0.15 (production, AGL daily,
+ * 2026-11-17). A number output at `inBar` keeps its value as its y, and keeps its
+ * place in the autoscale walk.
+ * ⛔ A PINE IMPORT IS NEVER AUTHORED here (coordinator ruling on #1550): at
+ * `location.absolute` TradingView reads the value as the y, a yes/no included,
+ * so the binder passes `false` for every Pine document (`binder.isConditionOutput`)
+ * until a capture shows TradingView's own picture (queue row Q-MK1).
+ *
+ * A `markers` plot WITHOUT a glyph (SAR's dots, Pine's `plot.style_circles`) is a
+ * plotted value and is never an event here.
+ *
+ * @param {object} plot
+ * @param {boolean} conditionOutput  the plot's output is an AUTHORED yes/no
+ *   (CONDITION, never a Pine import)
+ * @returns {boolean} true when the glyph has no y of its own
+ */
+export function markerIsEvent(plot, conditionOutput) {
+  if (!plot || plot.style !== 'markers') return false
+  const m = plot.marker
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return false
+  const position = m.position || 'aboveBar'
+  return position !== 'inBar' || conditionOutput === true
+}
+
 /** The provider for a placement's mode. Total: never returns undefined, so the
  *  complete-key-set rule cannot be broken by a bad mode. */
 export function autoscaleProvider(mode) {
@@ -742,8 +784,16 @@ export function seriesOptionsForPlot(plot, ctx) {
     // ⭐ …AND THE SAME OUTRANKING FOR AUTOSCALE: a moving average on price is
     // part of the candles' framing (a far SMA 200 stays in view), as the overlay
     // renderer drew it, unless the surface fits price to the candles.
-    autoscaleInfoProvider: providerFor((plot && plot.autoscale) || c.autoscale, c.autoscaleRange,
-      plot && plot.autoscaleInclude),
+    // ⭐⭐ 2026-11-17 (row 41) — AN EVENT GLYPH THAT RIDES A HOST TAKES NO PART IN
+    // THE WALK (`markerIsEvent`). Its own series holds a 0/1 column and draws
+    // nothing (no line, no point markers under a glyph); the glyph rides a series
+    // that IS on the scale (the price series, or the pane's own line —
+    // `binder.js`), so excluding the column moves no glyph off screen. A glyph
+    // with NO host (a pane of markers only) keeps today's walk: its column is the
+    // only thing that frames the pane.
+    autoscaleInfoProvider: c.markerOnHost === true ? AUTOSCALE_EXCLUDE
+      : providerFor((plot && plot.autoscale) || c.autoscale, c.autoscaleRange,
+        plot && plot.autoscaleInclude),
   }
 
   // ── A CANDLESTICK, WHICH SHARES ONLY THE BASE ─────────────────────────
@@ -1124,6 +1174,17 @@ function guidePlots(def) {
 // ⚠️ ONE-WAY: `presentation.js` imports nothing from here, so this is not a
 // cycle. The plan needs it because `poolKey` — which decides the SERIES TYPE —
 // must see the RESTYLED plot, not the definition's.
+/** ⭐⭐ ENGINE 58 — a plot whose colour is a THEME REFERENCE (`chart.fg_color@85`,
+ *  carried by the Pine translator: `pine.js::themePlotColourOf`) drawn in THIS
+ *  chart's colour (`objectTheme.resolveThemeColour`, the C37 rule the object lane
+ *  follows). ⛔ A reference this chart cannot answer (a gradient background, no
+ *  theme) draws in NO colour, never a guess. Any other plot is returned as is. */
+export function withThemeColour(plot, theme) {
+  if (!plot || !isThemeColour(plot.color)) return plot
+  const c = resolveThemeColour(plot.color, theme)
+  return { ...plot, color: typeof c === 'string' ? c : '#00000000' }
+}
+
 export function planBindings(instances, registry, prevBindings, opts) {
   const get = resolveGet(registry)
   const hasData = opts && typeof opts.hasData === 'function' ? opts.hasData : null
@@ -1144,6 +1205,9 @@ export function planBindings(instances, registry, prevBindings, opts) {
   // Asked only for a definition that marks something `requiresServer`, so every
   // other definition's guides are planned exactly as before. Absent ⇒ not known.
   const serverDeclares = opts && typeof opts.serverDeclares === 'function' ? opts.serverDeclares : null
+  // ⭐ ENGINE 58 — the chart's own two colours (`objectTheme.chartThemeOf`), for a
+  // Pine plot whose colour is `chart.fg_color` / `chart.bg_color`. Absent ⇒ none.
+  const theme = (opts && opts.theme && typeof opts.theme === 'object') ? opts.theme : null
 
   // ── 1. What the chart SHOULD hold ──
   const desired = []
@@ -1169,6 +1233,13 @@ export function planBindings(instances, registry, prevBindings, opts) {
     let first = true
 
     for (const rawPlot of dataPlots(def)) {
+      // ⭐ UCT RS split, U7 (2026-11-09): a DATA plot may carry `activeWhen` too —
+      // the schema admits it on a server definition for a presentation key the
+      // server never hears of (`defSchema.validatePlotActiveWhen`), so nothing
+      // blanks the column and the plan is where the member's switch takes effect.
+      // Read exactly as the guides are, one line above; a plot with no condition
+      // is planned as it always was.
+      if (!plotActiveFor(rawPlot, def, inst.inputs, declared)) continue
       // ⭐ INPUTS FIRST, THEN PRESENTATION. `resolvePlotForInstance` answers "what
       // did the member set for colour and width"; `presentedPlot` answers "what
       // SHAPE did they ask this output to be". The second reads the first's
@@ -1179,8 +1250,8 @@ export function planBindings(instances, registry, prevBindings, opts) {
       // cannot mean has to be clamped HERE too — otherwise the plan would create
       // a candlestick the binder then refuses to feed.
       const srcCap = sourceCapability ? sourceCapability(inst) : null
-      const plot = presentedPlot(resolvePlotForInstance(rawPlot, inst.inputs,
-        { pickReplacesOpacity: !!(def && def.meta && def.meta.recurrenceOrigin === 'pine') }), inst,
+      const plot = presentedPlot(withThemeColour(resolvePlotForInstance(rawPlot, inst.inputs,
+        { pickReplacesOpacity: !!(def && def.meta && def.meta.recurrenceOrigin === 'pine') }), theme), inst,
         { ohlcCapable: !!(ohlcCapable && ohlcCapable(inst)),
           candles,
           // ⛔ THE SOURCE ANSWER REACHES THE PLAN, NOT ONLY THE MENU. `poolKey` picks

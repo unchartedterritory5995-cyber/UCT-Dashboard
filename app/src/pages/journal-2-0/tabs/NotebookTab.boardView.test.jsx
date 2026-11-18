@@ -57,9 +57,6 @@ vi.mock('../components/notebook/NoteEditorPage', () => ({
 }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({
-  default: () => <div data-testid="research-home" />,
-}))
 
 import NotebookTab from './NotebookTab'
 import { offersSaveView, pressSaveView, viewOption } from './__tests__/toolbarDoors'

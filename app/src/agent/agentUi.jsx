@@ -1,7 +1,7 @@
 // Small pieces both the chat and History draw with: icons, the two avatars, the
 // "Name  time" sender line, and gold match highlighting.
 import { useState } from 'react'
-import compassMark from '../components/intro/assets/compass-mark.png'
+import compassMark from '../components/intro/assets/compass-mark.webp'
 import { stampText } from './chatTime'
 import { highlightRuns } from './chatSearch'
 import styles from './AgentPanel.module.css'

@@ -36,6 +36,7 @@ import { render, screen, cleanup, fireEvent, act, within } from '@testing-librar
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { reconcileParams } from './paramEdit'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { PINE_DEBOUNCE_MS } from './PineBox'
@@ -120,7 +121,7 @@ function mountFresh() {
   )
 }
 
-const formulaField = () => screen.getByLabelText('Formula')
+const formulaField = () => formulaBox()
 const pineField = () => screen.getByTestId('pine-box').querySelector('textarea')
 const tab = (name) => screen.getByRole('tab', { name })
 
@@ -135,7 +136,7 @@ async function settleFormula() {
 }
 
 async function paste(script) {
-  fireEvent.click(tab(/^import$/i))
+  openSource('pine')
   fireEvent.change(pineField(), { target: { value: script } })
   await settlePine()
 }
@@ -187,6 +188,7 @@ describe('a window-bound input.bool through the real "Your formulas" reopen door
     // ── 3. Reopen through the real "Your formulas" door ─────────────────
     mountFresh()
     await flushSwr()
+    toStart()
     const savedRow = screen.getByText('Bool Reopen Test')
     const listRow = savedRow.closest('li')
     expect(listRow, '"Your formulas" did not render the saved row').toBeTruthy()
@@ -237,6 +239,7 @@ describe('a window-bound input.bool through the real "Your formulas" reopen door
     cleanup()
     mountFresh()
     await flushSwr()
+    toStart()
     const row = screen.getByText('Bool Toggle Test').closest('li')
     fireEvent.click(within(row).getByRole('button', { name: /^Edit Bool Toggle Test$/i }))
     await settleFormula()

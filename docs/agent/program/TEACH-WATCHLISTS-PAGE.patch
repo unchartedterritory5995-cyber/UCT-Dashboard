@@ -1,0 +1,69 @@
+diff --git a/app/src/agent/hosts/usePageAgentHosts.js b/app/src/agent/hosts/usePageAgentHosts.js
+index 57982a3abe..ff986f04d5 100644
+--- a/app/src/agent/hosts/usePageAgentHosts.js
++++ b/app/src/agent/hosts/usePageAgentHosts.js
+@@ -16,7 +16,7 @@ import { mutate as globalMutate } from 'swr'
+ import { useAgentPageHost, useAgentApp } from '../agentApp'
+ import useSavedScreens from '../../pages/screener/hooks/useSavedScreens'
+ import useJ2Notes from '../../pages/journal-2-0/hooks/useJ2Notes'
+-import { buildScreenerPageHost, buildBreadthPageHost, buildCalendarPageHost, buildJournalPageHost } from './pageHosts'
++import { buildScreenerPageHost, buildBreadthPageHost, buildCalendarPageHost, buildJournalPageHost, buildPageHost } from './pageHosts'
+ 
+ const here = () => { try { return window.location.pathname } catch { return null } }
+ 
+@@ -106,3 +106,18 @@ export function useJournalAgentHost(values = {}) {
+   useAgentPageHost('journal', host)
+   return host
+ }
++
++/**
++ * The Watchlists page's Agent (pl-teach cov-4 item 8): TEACHING ONLY. A read-only host with no capabilities of its own, so a
++ * walkthrough the member said Yes to on Charts can start here; never registered for the Charts widget's embedded list.
++ */
++export function useWatchlistsAgentHost({ embedded = false } = {}) {
++  const app = useAgentApp()
++  const host = useLiveHost(app, { app }, (live) => buildPageHost({
++    surface: 'watchlists',
++    location: () => here() || '/watchlists',
++    navigate: (to) => live().app?.navigate(to),
++  }))
++  useAgentPageHost('watchlists', embedded ? null : host)
++  return embedded ? null : host
++}
+diff --git a/app/src/pages/Watchlists.jsx b/app/src/pages/Watchlists.jsx
+index f92088e8fe..850402b3f8 100644
+--- a/app/src/pages/Watchlists.jsx
++++ b/app/src/pages/Watchlists.jsx
+@@ -117,6 +117,7 @@ import { chordById, matchesChord } from './command/chords.js'
+ import fetcher from '../utils/jsonFetcher'
+ import { readSuccessBody } from '../lib/responseBody'
+ import { nextSort } from '../lib/presentation/dataGrid'
++import { useWatchlistsAgentHost } from '../agent/hosts/usePageAgentHosts'
+ 
+ // TERM-065: a column-header click asks the DataGrid seed which way the sort turns
+ // (same column flips; a new column starts Symbol A→Z, numbers high→low). The frozen
+@@ -722,6 +723,8 @@ function CompareSearch({ onPick, baseSym }) {
+ }
+ 
+ export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null }) {
++  // the Agent on the Watchlists page (teaching only: a read-only host), never in the Charts widget's embedded list
++  useWatchlistsAgentHost({ embedded })
+   // Entry-point convergence (owner authorization): the shared door into canonical
+   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
+   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
+@@ -2574,6 +2577,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
+           ) : (
+             <span
+               className={styles.wlName}
++              data-guide="watchlist.listName"
+               onContextMenu={e => handleContextMenu(e, wl.id, isOwner, items.map(i => i.sym))}
+               {...longPressMenu(e => ({ x: Math.min(e.clientX, window.innerWidth - 220), y: Math.min(e.clientY, window.innerHeight - 300), id: wl.id, isOwner, symbols: items.map(i => i.sym) }))}
+             >{wl.name}</span>
+@@ -2867,6 +2871,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
+   return (
+     <div
+       ref={pageRef}
++      data-guide={embedded ? undefined : 'watchlists.page'}
+       className={`${styles.page} ${embedded ? styles.pageEmbedded : ''}`}
+       style={wlStyle}
+       onPointerDown={markActiveWidget}

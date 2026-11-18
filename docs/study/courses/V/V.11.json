@@ -1,0 +1,4463 @@
+{
+ "unit": "V.11",
+ "track": "V",
+ "title": "Breadth words",
+ "teaches": "The words on a breadth page: advancers and decliners, net advances, the A/D line and ratio, divergence, new highs and lows, the share of stocks above the 50-day and 200-day, the McClellan Oscillator and Summation Index, breadth thrusts, up and down volume, the Arms Index, and IBD's distribution and follow-through days.",
+ "skills": [
+  {
+   "id": "vocab.breadth_terms",
+   "title": "Breadth words"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Advance Decline Ratio",
+   "url": "https://www.nasdaq.com/glossary/a/advance-decline-ratio",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Breadth of the market",
+   "url": "https://www.nasdaq.com/glossary/b/breadth-of-the-market",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Breadth",
+   "url": "https://www.nasdaq.com/glossary/b/breadth",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Arms index",
+   "url": "https://www.nasdaq.com/glossary/a/arms-index",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Up volume",
+   "url": "https://www.nasdaq.com/glossary/u/up-volume",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Down volume",
+   "url": "https://www.nasdaq.com/glossary/d/down-volume",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: New high/new low",
+   "url": "https://www.nasdaq.com/glossary/n/new-high",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Introduction to Market Indicators",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/introduction-to-market-indicators",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Advance-Decline Line",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/advance-decline-line",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Percent Above Moving Average",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/percent-above-moving-average",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Net New 52-Week Highs",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/net-new-52-week-highs",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: High-Low Index",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/high-low-index",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: McClellan Oscillator",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/mcclellan-oscillator",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: McClellan Summation Index",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/mcclellan-summation-index",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Arms Index (TRIN)",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/arms-index-trin",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Advance-Decline Volume Line",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-indicators/advance-decline-volume-line",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "A Proven Technique That's Identified Every Market Bottom (Mary Ellen McGonagle, April 3, 2026)",
+   "url": "https://articles.stockcharts.com/article/a-proven-technique-that-identifies-every-market-bottom/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A StockCharts.com editorial article, not ChartSchool. The author bio on the page says she spent years working under William O'Neil, whose method the follow-through day is. Filed under the same publisher as ChartSchool, so the two never count as two publishers."
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Market Breadth: Definition, Indicators, and How Investors Use It (Cory Mitchell, CMT; updated May 25, 2023)",
+   "url": "https://www.investopedia.com/terms/m/market_breadth.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Advance/Decline (A/D) Line: Definition and What It Tells You (Cory Mitchell, CMT; updated August 16, 2024)",
+   "url": "https://www.investopedia.com/terms/a/advancedeclineline.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "McClellan Oscillator: Definition, Uses, and What It Indicates (Cory Mitchell, CMT; updated October 22, 2021)",
+   "url": "https://www.investopedia.com/terms/m/mcclellanoscillator.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "High-Low Index Overview: Trends and Trading Signals (James Chen, CMT; updated February 18, 2026)",
+   "url": "https://www.investopedia.com/terms/h/high-low-index.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "What Is the Arms Index (TRIN), and How Do You Calculate It? (Cory Mitchell, CMT; updated April 21, 2024)",
+   "url": "https://www.investopedia.com/terms/a/arms.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Advance/decline signal looks bullish (Fidelity Viewpoints, April 20, 2026)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/advance-decline",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Technical Indicator Guide: Arms Index (TRIN)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/trin",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Breadth Check: Strength and Weakness Trend Tracker (June 26, 2025)",
+   "url": "https://www.schwab.com/learn/story/breadth-check-strength-and-weakness-trend-tracker",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "McClellan Financial Publications",
+   "title": "The McClellan Oscillator & Summation Index (Learning Center)",
+   "url": "https://www.mcoscillator.com/learning_center/kb/mcclellan_oscillator/the_mcclellan_oscillator_summation_index/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The publisher run by the family that developed the McClellan Oscillator and Summation Index (Sherman and Marian McClellan); it still publishes the indicators daily."
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "McClellan Financial Publications",
+   "title": "Chart In Focus: A-D Line Divergence (Tom McClellan, December 19, 2013)",
+   "url": "https://www.mcoscillator.com/learning_center/weekly_chart/a-d_line_divergence/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Tom McClellan, editor of The McClellan Market Report, a named analyst with a long published record on advance-decline data; his parents developed the McClellan Oscillator."
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "McClellan Financial Publications",
+   "title": "Chart In Focus: A-D Line Divergence Shows Bull Market Starting To Crack (Tom McClellan, June 7, 2024)",
+   "url": "https://www.mcoscillator.com/learning_center/weekly_chart/a-d_line_divergence_shows_bull_market_starting_to_crack/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Tom McClellan, editor of The McClellan Market Report, a named analyst with a long published record on advance-decline data."
+  },
+  {
+   "id": "s30",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "Watch For Distribution Days To Spot Peaks In The Market (IBD, July 9, 2014; republished on Yahoo Finance)",
+   "url": "https://finance.yahoo.com/news/watch-distribution-days-spot-peaks-220700524.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "An Investor's Business Daily article republished in full on Yahoo Finance under IBD's byline. IBD's own site shows only the opening lines to non-subscribers; the text is IBD's."
+  },
+  {
+   "id": "s31",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "Looking For Next Market Top? Try Tracking Distribution Days (IBD, May 8, 2015; republished on Yahoo Finance)",
+   "url": "https://finance.yahoo.com/news/looking-next-market-top-try-225900766.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "An Investor's Business Daily article republished in full on Yahoo Finance under IBD's byline; the text is IBD's."
+  },
+  {
+   "id": "s32",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "Follow-Through Day Tells You That It's Go Time To Buy Stocks (IBD, May 13, 2015; republished on Yahoo Finance)",
+   "url": "https://finance.yahoo.com/news/day-tells-time-buy-stocks-215900253.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "An Investor's Business Daily article republished in full on Yahoo Finance under IBD's byline; the text is IBD's."
+  },
+  {
+   "id": "s33",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "Learn To Wait For, Recognize Market's Follow-Through Day (IBD, November 29, 2013; republished on Yahoo Finance)",
+   "url": "https://finance.yahoo.com/news/learn-wait-recognize-markets-day-230300058.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "An Investor's Business Daily article republished in full on Yahoo Finance under IBD's byline; the text is IBD's."
+  },
+  {
+   "id": "s34",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "Time The Stock Market? IBD Says: Yes, We Can (IBD, December 6, 2012; republished on Yahoo Finance)",
+   "url": "https://finance.yahoo.com/news/time-stock-market-ibd-says-223000999.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "An Investor's Business Daily article republished in full on Yahoo Finance under IBD's byline; the text is IBD's."
+  },
+  {
+   "id": "s35",
+   "tier": 2,
+   "publisher": "Thomas N. Bulkowski, ThePatternSite.com",
+   "title": "Bulkowski on Distribution Days",
+   "url": "https://thepatternsite.com/DistributionDay.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s36",
+   "tier": 2,
+   "publisher": "CMT Association",
+   "title": "Spotting a Market Bottom (Market Mosaic Daily, Scott Brown, CMT, May 1, 2026)",
+   "url": "https://content.cmtassociation.org/a/spotting-a-market-bottom",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s37",
+   "tier": 2,
+   "publisher": "AAII (American Association of Individual Investors)",
+   "title": "Technically Speaking: Net New Highs (Wayne A. Thorp, AAII Journal, December 2014)",
+   "url": "https://www.aaii.com/journal/article/technicalspeaking-net-new-highs",
+   "accessed": "2026-11-09",
+   "why_reliable": "AAII is a long-running non-profit investor-education association; this is a signed AAII Journal article, and its definition matches ChartSchool's word for word in substance."
+  },
+  {
+   "id": "s38",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "What Is A Follow-Through Day? (David Saito-Chung, updated March 23, 2026; opening lines only, the rest is for subscribers)",
+   "url": "https://www.investors.com/how-to-invest/investors-corner/what-is-a-follow-through-day/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s39",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hwr",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-17"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "Ratio of the number of stocks that advance in value to the number of stocks that decline in value over a given time period.",
+   "claim": "The advance-decline ratio is the number of advancing stocks divided by the number of declining stocks."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "An increasing advance-decline ratio signals a bullish trend while a decreasing advance-decline ratio signals a bearish trend.",
+   "claim": "A rising advance-decline ratio is read as bullish, a falling one as bearish."
+  },
+  {
+   "id": "f03",
+   "source": "s2",
+   "quote": "In the context of general equities, percentage of stocks participating in a particular market move.",
+   "claim": "Breadth of the market is the share of stocks taking part in a market move."
+  },
+  {
+   "id": "f04",
+   "source": "s3",
+   "quote": "The percentage of assets or stocks advancing relative to those unchanged or declining.",
+   "claim": "Breadth sorts stocks into advancing, unchanged and declining."
+  },
+  {
+   "id": "f05",
+   "source": "s4",
+   "quote": "The index is usually calculated as the number of advancing issues divided by the number of declining issues. This, in turn, is divided by the advancing volume divided by the declining volume.",
+   "claim": "The Arms Index (TRIN) is advancers over decliners, divided by advancing volume over declining volume."
+  },
+  {
+   "id": "f06",
+   "source": "s4",
+   "quote": "Hence, a value less than 1.0 is bullish while values greater than 1.0 indicate bearish demand.",
+   "claim": "A TRIN below 1.0 is read as bullish and above 1.0 as bearish."
+  },
+  {
+   "id": "f07",
+   "source": "s5",
+   "quote": "When a stock closes increases in value on a particular day, the volume in that stock is considered up volume.",
+   "claim": "Up volume is the volume traded in stocks that closed higher on the day."
+  },
+  {
+   "id": "f08",
+   "source": "s6",
+   "quote": "When a stock decreases in value on a particular day, the volume in that stock is considered down volume.",
+   "claim": "Down volume is the volume traded in stocks that closed lower on the day."
+  },
+  {
+   "id": "f09",
+   "source": "s7",
+   "quote": "A stock valued at its highest or lowest price in the last year.",
+   "claim": "A new high or new low is a stock at its highest or lowest price of the past year."
+  },
+  {
+   "id": "f10",
+   "source": "s8",
+   "quote": "Breadth indicators measure the number or percentage of stocks in the group that are participating in a trend.",
+   "claim": "Breadth indicators count how many stocks in a group take part in a trend."
+  },
+  {
+   "id": "f11",
+   "source": "s8",
+   "quote": "the Advance-Decline Line is calculated using the number of stocks in the group that increased in price (“advancers”) vs. the number that decreased in price (“decliners”).",
+   "claim": "Advancers are stocks that rose in price; decliners are stocks that fell."
+  },
+  {
+   "id": "f12",
+   "source": "s9",
+   "quote": "The Advance-Decline Line (AD Line) is a breadth indicator based on Net Advances, which is the number of advancing stocks less the number of declining stocks.",
+   "claim": "Net advances are advancers minus decliners, and the A/D line is built from them."
+  },
+  {
+   "id": "f13",
+   "source": "s9",
+   "quote": "The AD Line is a cumulative measure of Net Advances, rising when it is positive and falling when it is negative.",
+   "claim": "The A/D line is a running total of net advances."
+  },
+  {
+   "id": "f14",
+   "source": "s9",
+   "quote": "Subsequent values are calculated using the AD Line value for the previous period's value plus Net Advances for the current period.",
+   "claim": "Each day's A/D line value is yesterday's value plus today's net advances."
+  },
+  {
+   "id": "f15",
+   "source": "s9",
+   "quote": "The shape and direction of the AD Line are important, not the actual value.",
+   "claim": "What matters on the A/D line is its shape and direction, not its number."
+  },
+  {
+   "id": "f16",
+   "source": "s9",
+   "quote": "An AD Line that rises and records new highs along with the underlying index shows strong participation that is bullish.",
+   "claim": "An A/D line making new highs with the index shows strong participation."
+  },
+  {
+   "id": "f17",
+   "source": "s9",
+   "quote": "An AD Line that fails to keep pace with the underlying index and confirm new highs shows narrowing participation.",
+   "claim": "An A/D line that fails to confirm the index's new highs shows narrowing participation."
+  },
+  {
+   "id": "f18",
+   "source": "s9",
+   "quote": "Narrowing participation is often identified with a bearish divergence between the AD Line and the underlying index.",
+   "claim": "Narrowing participation shows up as a bearish divergence between the A/D line and the index."
+  },
+  {
+   "id": "f19",
+   "source": "s9",
+   "quote": "A bullish divergence forms when the AD Line fails to record a lower low along with the index. This means fewer stocks are declining and the decline in the index may be nearing an end.",
+   "claim": "A bullish divergence: the index makes a lower low but the A/D line does not, so fewer stocks are falling."
+  },
+  {
+   "id": "f20",
+   "source": "s9",
+   "quote": "First, the Nasdaq AD Line can fall for extended periods, even if the Nasdaq itself is rising. This is because Nasdaq listing requirements are not as strict as NYSE listing requirements.",
+   "claim": "The Nasdaq A/D line can fall for long stretches while the Nasdaq rises, because of its looser listing rules."
+  },
+  {
+   "id": "f21",
+   "source": "s9",
+   "quote": "Regardless of market cap or volume, an advance counts as +1 and a decline counts as -1.",
+   "claim": "In the A/D line every stock counts the same, whatever its size."
+  },
+  {
+   "id": "f22",
+   "source": "s9",
+   "quote": "A broad-based advance shows underlying strength that lifts most boats. This is bullish. A narrow advance shows a relatively mixed market that is selective.",
+   "claim": "A broad advance lifts most stocks and is bullish; a narrow advance is selective."
+  },
+  {
+   "id": "f23",
+   "source": "s9",
+   "quote": "The AD Line should confirm an advance or a decline with similar movements.",
+   "claim": "The A/D line should confirm the index's move by moving the same way."
+  },
+  {
+   "id": "f24",
+   "source": "s10",
+   "quote": "The percentage of stocks trading above a specific moving average is a market breadth indicator that can measure the internal strength or weakness in an underlying index.",
+   "claim": "The share of stocks above a moving average is a breadth gauge of an index's internal strength."
+  },
+  {
+   "id": "f26",
+   "source": "s10",
+   "quote": "For medium-to-long-term-timeframes, it's best to look at the percentage of stocks trading above the 150-day and 200-day moving averages.",
+   "claim": "For the medium to long term, look at the share above the 150-day and 200-day averages."
+  },
+  {
+   "id": "f27",
+   "source": "s10",
+   "quote": "The calculation is straightforward: divide the number of stocks above their XX-day moving average by the total number of stocks in the underlying index.",
+   "claim": "The percent above a moving average is stocks above it divided by all stocks in the index."
+  },
+  {
+   "id": "f28",
+   "source": "s10",
+   "quote": "Breadth is strong when the majority of stocks in an index are trading above a specific moving average.",
+   "claim": "Breadth is strong when most of an index's stocks trade above the moving average."
+  },
+  {
+   "id": "f29",
+   "source": "s10",
+   "quote": "The percent of stocks above their 50-day moving average is more volatile and crosses the 50% threshold more often.",
+   "claim": "The 50-day version is more volatile than the longer versions and crosses 50% more often."
+  },
+  {
+   "id": "f30",
+   "source": "s10",
+   "quote": "Simply becoming oversold is not always a buy signal. It is often prudent to wait for an upturn from oversold levels.",
+   "claim": "An oversold breadth reading is not a buy signal by itself; wait for it to turn up."
+  },
+  {
+   "id": "f31",
+   "source": "s11",
+   "quote": "Net New 52-Week Highs is a simple breadth indicator found by subtracting new lows from new highs.",
+   "claim": "Net new highs are new 52-week highs minus new 52-week lows."
+  },
+  {
+   "id": "f32",
+   "source": "s11",
+   "quote": "“New lows” is the number of stocks recording new 52-week lows. “New highs” is the number of stocks making new 52-week highs.",
+   "claim": "New highs and new lows count stocks at 52-week highs and 52-week lows."
+  },
+  {
+   "id": "f33",
+   "source": "s11",
+   "quote": "New highs and new lows often lag the underlying index at major turning points.",
+   "claim": "New highs and new lows often lag the index at major turns."
+  },
+  {
+   "id": "f34",
+   "source": "s12",
+   "quote": "The Record High Percent equals new highs divided by new highs plus new lows. The High-Low Index is simply a 10-day SMA of the Record High Percent",
+   "claim": "Record High Percent is new highs over new highs plus new lows; the High-Low Index is its 10-day average."
+  },
+  {
+   "id": "f35",
+   "source": "s12",
+   "quote": "Record High Percent = {New Highs / (New Highs + New Lows)} x 100",
+   "claim": "Record High Percent is new highs divided by (new highs plus new lows), times 100."
+  },
+  {
+   "id": "f36",
+   "source": "s12",
+   "quote": "Readings below 50 indicate that there were more new lows than new highs. Readings above 50 indicate that there were more new highs than new lows.",
+   "claim": "Below 50 means more new lows than new highs; above 50 means the reverse."
+  },
+  {
+   "id": "f37",
+   "source": "s13",
+   "quote": "Developed by Sherman and Marian McClellan, the McClellan Oscillator is a breadth indicator derived from Net Advances, which is the number of advancing issues less the number of declining issues.",
+   "claim": "The McClellan Oscillator is a breadth indicator built from net advances."
+  },
+  {
+   "id": "f38",
+   "source": "s13",
+   "quote": "Subtracting the 39-day exponential moving average of Net Advances from the 19-day exponential moving average of Net Advances forms the oscillator.",
+   "claim": "The oscillator is the 19-day EMA of net advances minus the 39-day EMA."
+  },
+  {
+   "id": "f39",
+   "source": "s13",
+   "quote": "As the formula reveals, the McClellan Oscillator is a momentum indicator that works similar to Moving Average Convergence/Divergence (MACD).",
+   "claim": "The McClellan Oscillator works like MACD, applied to net advances."
+  },
+  {
+   "id": "f40",
+   "source": "s13",
+   "quote": "The McClellan Oscillator is positive when the 19-day EMA (shorter moving average) is above the 39-day (longer moving average) EMA. This signals that advances are gaining the upper hand.",
+   "claim": "A positive oscillator means the 19-day EMA is above the 39-day: advances are gaining the upper hand."
+  },
+  {
+   "id": "f41",
+   "source": "s13",
+   "quote": "A breadth thrust occurs when the McClellan Oscillator surges from deep negative readings to strong positive readings.",
+   "claim": "A breadth thrust is a surge in the oscillator from deep negative to strong positive."
+  },
+  {
+   "id": "f42",
+   "source": "s13",
+   "quote": "Not all breadth thrusts foreshadow extended advances, but most important lows are marked by a sharp surge in breadth.",
+   "claim": "Most important lows show a breadth thrust, but not every thrust leads to an extended advance."
+  },
+  {
+   "id": "f43",
+   "source": "s14",
+   "quote": "The Summation Index is simply a running total of the McClellan Oscillator values.",
+   "claim": "The Summation Index is a running total of the McClellan Oscillator."
+  },
+  {
+   "id": "f44",
+   "source": "s14",
+   "quote": "Because of its cumulative nature, the Summation Index is a slower version of the McClellan Oscillator.",
+   "claim": "The Summation Index is the slower of the two."
+  },
+  {
+   "id": "f45",
+   "source": "s14",
+   "quote": "Whereas the McClellan Oscillator can be used for short-term and medium-term timing, the Summation Index is generally used for medium-term and long-term timing.",
+   "claim": "The oscillator serves short and medium term; the Summation Index medium and long term."
+  },
+  {
+   "id": "f46",
+   "source": "s15",
+   "quote": "The index is calculated by dividing the Advance-Decline Ratio by the Advance-Decline Volume Ratio.",
+   "claim": "TRIN is the advance-decline ratio divided by the advance-decline volume ratio."
+  },
+  {
+   "id": "f47",
+   "source": "s15",
+   "quote": "Advances: number of stocks in the index that closed up on the day Declines: number of stocks in the index that closed down on the day Advancing Volume: total volume of advancing stocks Declining Volume: total volume of declining stocks",
+   "claim": "Advances closed up on the day, declines closed down; advancing and declining volume are their total volume."
+  },
+  {
+   "id": "f48",
+   "source": "s15",
+   "quote": "(advances / declines) / (advancing volume / declining volume)",
+   "claim": "The TRIN formula: (advances / declines) / (advancing volume / declining volume)."
+  },
+  {
+   "id": "f49",
+   "source": "s15",
+   "quote": "A strong up day in the market usually pushes the Arms Index lower, while a strong down day often pushes the Arms Index higher.",
+   "claim": "Strong up days push TRIN lower and strong down days push it higher."
+  },
+  {
+   "id": "f50",
+   "source": "s15",
+   "quote": "Low readings (below one) show relative strength in the AD Volume Ratio. High readings (above one) show relative weakness in the AD Volume Ratio.",
+   "claim": "TRIN above one means the volume ratio was weak relative to the issues ratio."
+  },
+  {
+   "id": "f51",
+   "source": "s15",
+   "quote": "Surges above three are deemed oversold, and dips below 0.50 are deemed overbought.",
+   "claim": "On the daily NYSE TRIN, surges above three are read as oversold and dips below 0.50 as overbought."
+  },
+  {
+   "id": "f52",
+   "source": "s15",
+   "quote": "Even though it generates plenty of signals, it is preferable to trade in the direction of the underlying trend.",
+   "claim": "TRIN gives many signals; trade in the direction of the bigger trend."
+  },
+  {
+   "id": "f53",
+   "source": "s16",
+   "quote": "The Advance-Decline Volume Line (AD Volume Line) is a breadth indicator based on Net Advancing Volume, which is the volume of advancing stocks less the volume of declining stocks.",
+   "claim": "Net advancing volume is advancing volume minus declining volume; the AD Volume Line is built from it."
+  },
+  {
+   "id": "f54",
+   "source": "s16",
+   "quote": "The AD Volume Line is a cumulative measure of Net Advancing Volume, rising when Net Advancing Volume is positive and falling when it is negative.",
+   "claim": "The AD Volume Line is a running total of net advancing volume."
+  },
+  {
+   "id": "f55",
+   "source": "s15",
+   "quote": "Because of this, the TRIN appears to move “inverse” to the market.",
+   "claim": "TRIN tends to move opposite to the market."
+  },
+  {
+   "id": "f56",
+   "source": "s18",
+   "quote": "A Follow-Through Day typically occurs several days after a market low, once an initial rally attempt is underway. It’s marked by a strong advance in a major index, together with higher trading volume.",
+   "claim": "A follow-through day comes several days into a rally attempt: a strong gain in a major index on higher volume."
+  },
+  {
+   "id": "f57",
+   "source": "s18",
+   "quote": "These don’t occur in moments of clarity. Instead, they form in environments dominated by fear, negative headlines, and persistent selling pressure.",
+   "claim": "Follow-through days come while fear and bad headlines still dominate."
+  },
+  {
+   "id": "f58",
+   "source": "s18",
+   "quote": "Even after the market appears to stabilize, early rallies often fail and pull investors back into the decline.",
+   "claim": "Early rally attempts often fail."
+  },
+  {
+   "id": "f59",
+   "source": "s18",
+   "quote": "While not every signal works, the absence of one is often a reason to remain defensive.",
+   "claim": "Not every follow-through day works."
+  },
+  {
+   "id": "f60",
+   "source": "s19",
+   "quote": "Market breadth refers to how many stocks are participating in a given move in an index or on a stock exchange.",
+   "claim": "Market breadth is how many stocks take part in an index's move."
+  },
+  {
+   "id": "f61",
+   "source": "s19",
+   "quote": "An index may be rising yet more than half the stocks in the index are falling because a small number of stocks have such large gains that they drag the whole index higher.",
+   "claim": "An index can rise while most of its stocks fall, when a few big gainers drag it up."
+  },
+  {
+   "id": "f62",
+   "source": "s19",
+   "quote": "Market breadth indicators are poor timing signals. They may provide signals way too early or may not forecast an index reversal that does occur.",
+   "claim": "Breadth indicators are poor timing tools: they can be early or miss a reversal."
+  },
+  {
+   "id": "f63",
+   "source": "s19",
+   "quote": "A good rule of thumb is to never base trading decisions on what the indicator is saying. Always confirm with price.",
+   "claim": "Confirm any breadth reading with price before acting."
+  },
+  {
+   "id": "f64",
+   "source": "s19",
+   "quote": "Market depth, on the other hand, is a market's ability to handle relatively large orders without significantly impacting the price of a security.",
+   "claim": "Market depth is different: it is how big an order a market can absorb without moving price."
+  },
+  {
+   "id": "f65",
+   "source": "s19",
+   "quote": "Confirmation is when the indicator is moving favorably and the index is rising. Divergence is when the index and indicator move in opposite directions.",
+   "claim": "Confirmation: breadth and the index move together. Divergence: they move apart."
+  },
+  {
+   "id": "f66",
+   "source": "s19",
+   "quote": "Short-term traders who want a more sensitive moving average to provide earlier signals can use a 50-day index that shows what percentage of stocks are trading above their 50-day moving average.",
+   "claim": "The 50-day version is more sensitive and gives earlier signals."
+  },
+  {
+   "id": "f67",
+   "source": "s19",
+   "quote": "Stocks that rise have their volume added to the positive volume. Stocks that declined have negative volume. The indicator keeps a running total of whether the overall volume is positive or negative",
+   "claim": "A cumulative volume line adds up-stock volume, subtracts down-stock volume and keeps a running total."
+  },
+  {
+   "id": "f68",
+   "source": "s20",
+   "quote": "The advance/decline line (or A/D line) is a technical indicator that plots the difference between the number of advancing and declining stocks on a daily basis.",
+   "claim": "The A/D line plots advancers minus decliners each day."
+  },
+  {
+   "id": "f69",
+   "source": "s20",
+   "quote": "The indicator is cumulative, with a positive number being added to the prior number, or if the number is negative it is subtracted from the prior number.",
+   "claim": "The A/D line is cumulative: each day's net number is added to the prior total."
+  },
+  {
+   "id": "f70",
+   "source": "s20",
+   "quote": "If the indexes are moving up but the A/D line is sloping downwards, called bearish divergence, it's a sign that the markets are losing their breadth and may be about to reverse direction.",
+   "claim": "Index up, A/D line down is a bearish divergence: breadth is fading."
+  },
+  {
+   "id": "f71",
+   "source": "s20",
+   "quote": "Conversely, if the indexes are continuing to move lower and the A/D line has turned upwards, called bullish divergence, it may be an indication that the sellers are losing their conviction.",
+   "claim": "Index down, A/D line up is a bullish divergence: sellers may be losing conviction."
+  },
+  {
+   "id": "f72",
+   "source": "s20",
+   "quote": "Because of this, the A/D line will sometimes fall for extended periods of time, even while NASDAQ-related indexes are rising.",
+   "claim": "The Nasdaq A/D line can fall for long periods while Nasdaq indexes rise."
+  },
+  {
+   "id": "f73",
+   "source": "s20",
+   "quote": "Another thing to be aware of is that some indexes are market capitalization weighted. This means that the bigger the company the more impact they have on the index's movement.",
+   "claim": "In a cap-weighted index the biggest companies move the index most."
+  },
+  {
+   "id": "f74",
+   "source": "s20",
+   "quote": "The A/D line gives equal weight to all stocks.",
+   "claim": "The A/D line weighs every stock equally."
+  },
+  {
+   "id": "f75",
+   "source": "s21",
+   "quote": "Positive and negative values indicate whether more stocks, on average, are advancing or declining. The indicator is positive when the 19-day EMA is above the 39-day EMA, and negative when the 19-day EMA is below the 39-day EMA.",
+   "claim": "The oscillator's sign says whether more stocks, on average, are advancing or declining."
+  },
+  {
+   "id": "f76",
+   "source": "s21",
+   "quote": "When the indicator makes a large move, typically of 100 points or more, from negative to positive territory, that is called a breadth thrust.",
+   "claim": "A breadth thrust is a big jump in the oscillator, typically 100 points or more, from negative to positive."
+  },
+  {
+   "id": "f77",
+   "source": "s21",
+   "quote": "The McClellan Summation Index adds the current day's McClellan Oscillator to the previous day's McClellan Summation Index. In other words, the Summation Index is a cumulative measure, whereas the oscillator is not.",
+   "claim": "The Summation Index is cumulative; the oscillator is not."
+  },
+  {
+   "id": "f78",
+   "source": "s21",
+   "quote": "While the oscillator may be more useful for analyzing shorter-term trends, the Summation Index is more applicable to broader and longer-term price trends.",
+   "claim": "The oscillator suits shorter-term trends, the Summation Index longer-term ones."
+  },
+  {
+   "id": "f79",
+   "source": "s21",
+   "quote": "Breadth thrusts, divergence, and crossovers all occur with some frequency, but not all these signals will result in the price/index moving in the expected direction.",
+   "claim": "Thrusts, divergences and crossovers do not always lead to the expected move."
+  },
+  {
+   "id": "f80",
+   "source": "s22",
+   "quote": "The high-low index is simply a 10-day moving average of the record high percent indicator, which divides new highs by new highs plus new lows.",
+   "claim": "The High-Low Index is a 10-day average of Record High Percent."
+  },
+  {
+   "id": "f81",
+   "source": "s22",
+   "quote": "A high-low index above 50 means more stocks are reaching 52-week highs than reaching 52 lows. Conversely, a reading below 50 shows that more stocks are making 52-week lows compared to stocks making 52-week highs.",
+   "claim": "Above 50, new highs outnumber new lows; below 50, new lows outnumber new highs."
+  },
+  {
+   "id": "f82",
+   "source": "s23",
+   "quote": "The Arms index, also called the short-term trading index (TRIN) is a technical analysis indicator that compares the number of advancing and declining stocks (AD Ratio) to advancing and declining volume (AD volume).",
+   "claim": "TRIN compares the advance-decline ratio with the advancing-to-declining volume ratio."
+  },
+  {
+   "id": "f83",
+   "source": "s23",
+   "quote": "Suppose that another bullish scenario occurs where there are three times as many advancing issues as declining issues and twice as much advancing volume than declining volume.",
+   "claim": "Investopedia's example: a bullish day with advancers 3 to 1 and up volume 2 to 1."
+  },
+  {
+   "id": "f84",
+   "source": "s23",
+   "quote": "In this case, the Arms Index would actually yield a bearish (3/1)/(2/1) = 1.5 reading, again suggesting an inaccuracy.",
+   "claim": "On that bullish day TRIN reads 1.5, a bearish-looking number: a quirk of the formula."
+  },
+  {
+   "id": "f85",
+   "source": "s23",
+   "quote": "A value that exceeds 3.00 indicates an oversold market and that bearish sentiment is too dramatic.",
+   "claim": "A TRIN above 3.00 is read as oversold."
+  },
+  {
+   "id": "f86",
+   "source": "s24",
+   "quote": "The advance/decline line takes the cumulative total of the number of stocks advancing less the number of stocks declining over some period of time.",
+   "claim": "The A/D line is the cumulative total of advancers minus decliners."
+  },
+  {
+   "id": "f87",
+   "source": "s24",
+   "quote": "If stocks or an index are rising but the A/D line is falling, fewer stocks are contributing to the rally and that could signal a potential reversal of the uptrend.",
+   "claim": "Index rising, A/D line falling: fewer stocks are carrying the rally."
+  },
+  {
+   "id": "f88",
+   "source": "s24",
+   "quote": "If stocks or an index are falling but the A/D line is rising, fewer stocks are declining and that could signal a potential reversal of the downtrend.",
+   "claim": "Index falling, A/D line rising: fewer stocks are declining."
+  },
+  {
+   "id": "f89",
+   "source": "s24",
+   "quote": "This is the number of advancing stocks divided by the number of declining stocks.",
+   "claim": "The advance/decline ratio is advancers divided by decliners."
+  },
+  {
+   "id": "f91",
+   "source": "s25",
+   "quote": "The TRIN will read under 1.0 when advancing stocks are the major source of volume and above 1.0 when declining stocks are the predominant source of volume flow in the market.",
+   "claim": "TRIN reads under 1.0 when advancing stocks carry most of the volume."
+  },
+  {
+   "id": "f92",
+   "source": "s26",
+   "quote": "A major rally built on narrow participation, or breadth, can quickly fade if a handful of stocks doing the heavy lifting start struggling.",
+   "claim": "A rally carried by a handful of stocks can fade fast if those stocks stumble."
+  },
+  {
+   "id": "f93",
+   "source": "s26",
+   "quote": "The broader the participation, the stronger the signal.",
+   "claim": "Broader participation means a stronger signal."
+  },
+  {
+   "id": "f94",
+   "source": "s26",
+   "quote": "if the market rallies for several days and 80% of S&P 500 ® index (SPX) stocks are trading above their respective 50-day moving averages, that's one signal the rally is broad-based",
+   "claim": "With 80% of S&P 500 stocks above their 50-day averages after a rally, the rally is broad-based."
+  },
+  {
+   "id": "f95",
+   "source": "s26",
+   "quote": "This didn't necessarily mean the sell-off was over, but breadth under 10%, as it was at the time, can hint that a dive in the market has become overdone.",
+   "claim": "Breadth under 10% can hint a selloff is overdone, but it does not mean the selloff is over."
+  },
+  {
+   "id": "f96",
+   "source": "s26",
+   "quote": "Those who regularly trade often focus on stocks trading above their 50-day moving average because this gives a nearer-term look at trends.",
+   "claim": "Active traders watch the 50-day version for the nearer-term picture."
+  },
+  {
+   "id": "f97",
+   "source": "s26",
+   "quote": "But long-term investors who focus on longer holding periods should consider longer-term trends like the 200-day average.",
+   "claim": "Long-term investors look at the 200-day version."
+  },
+  {
+   "id": "f98",
+   "source": "s26",
+   "quote": "In 2023, we saw that a rally like that can be sustained—until some catalyst hits.",
+   "claim": "A narrow rally can keep going until a catalyst hits."
+  },
+  {
+   "id": "f99",
+   "source": "s27",
+   "quote": "Every day that stocks are traded, financial publications list the number of stocks that closed higher (advances) and that closed lower (declines).",
+   "claim": "Advances are stocks that closed higher; declines are stocks that closed lower."
+  },
+  {
+   "id": "f100",
+   "source": "s27",
+   "quote": "The difference between these numbers is called the daily breadth. The running cumulative total of daily breadth is known as the Daily Advance-Decline Line.",
+   "claim": "Advances minus declines is the daily breadth; its running total is the A/D line."
+  },
+  {
+   "id": "f101",
+   "source": "s27",
+   "quote": "We use two different EMAs: one with a 10% smoothing constant, and one with a 5% smoothing constant.",
+   "claim": "The McClellan Oscillator uses two EMAs of daily breadth, a faster and a slower one."
+  },
+  {
+   "id": "f102",
+   "source": "s27",
+   "quote": "The numerical difference between these two EMAs is the value of the McClellan Oscillator.",
+   "claim": "The oscillator is the difference between the two EMAs."
+  },
+  {
+   "id": "f103",
+   "source": "s27",
+   "quote": "By adding up all of the daily values of the McClellan Oscillator, one can produce an indicator known as the McClellan Summation Index.",
+   "claim": "Adding up the oscillator's daily values gives the Summation Index."
+  },
+  {
+   "id": "f104",
+   "source": "s27",
+   "quote": "It is the basis for intermediate and long term interpretation of the stock market’s direction and power.",
+   "claim": "The Summation Index is for the intermediate and long term."
+  },
+  {
+   "id": "f105",
+   "source": "s28",
+   "quote": "The scaling of the numbers on the Y-axis is not important; it just reflects what has happened in the time since one's chosen start point for the data.",
+   "claim": "The A/D line's number depends on its start date and is not important."
+  },
+  {
+   "id": "f106",
+   "source": "s28",
+   "quote": "That sort of bearish divergence is not good news, although it does not necessarily have to bring the price uptrend to an immediate halt.",
+   "claim": "A bearish divergence is a warning but need not end the uptrend right away."
+  },
+  {
+   "id": "f107",
+   "source": "s29",
+   "quote": "Most price indices are dominated by the largest capitalization stocks, but every stock gets an equal vote in the A-D Line.",
+   "claim": "Big caps dominate price indexes; in the A/D line every stock gets one vote."
+  },
+  {
+   "id": "f108",
+   "source": "s29",
+   "quote": "Any divergence represents a \"condition\", and is not a \"signal\".",
+   "claim": "A divergence is a condition to note, not a signal to act on."
+  },
+  {
+   "id": "f109",
+   "source": "s29",
+   "quote": "The Nasdaq Composite Index is currently making new all-time highs, but its A-D Line is near its all-time low readings. This is not unusual.",
+   "claim": "The Nasdaq can make all-time highs while its A/D line sits near all-time lows; that is not unusual."
+  },
+  {
+   "id": "f110",
+   "source": "s29",
+   "quote": "the concentration of buying in certain big cap stocks which drive the major averages is not being confirmed by what the rest of the market is doing.",
+   "claim": "Buying concentrated in a few big caps can drive the averages while the rest of the market lags."
+  },
+  {
+   "id": "f111",
+   "source": "s29",
+   "quote": "Most of the time, the NYSE's A-D Line will echo what prices are doing. That is the normal behavior.",
+   "claim": "Normally the A/D line echoes the index."
+  },
+  {
+   "id": "f112",
+   "source": "s30",
+   "quote": "A distribution day is marked by a loss of 0.2% or greater in the Nasdaq composite or S&P 500 in higher volume than the previous session.",
+   "claim": "IBD: a distribution day is a Nasdaq or S&P 500 drop of 0.2% or more on higher volume than the prior session."
+  },
+  {
+   "id": "f113",
+   "source": "s30",
+   "quote": "This indicates heavy selling activity by mutual funds and other institutional investors.",
+   "claim": "IBD reads a distribution day as heavy institutional selling."
+  },
+  {
+   "id": "f114",
+   "source": "s30",
+   "quote": "That said, a few distribution days during a confirmed market uptrend aren't reason enough to dump all your stocks.",
+   "claim": "A few distribution days in an uptrend are no reason to dump everything."
+  },
+  {
+   "id": "f115",
+   "source": "s30",
+   "quote": "It usually takes five or six clear distribution days over a few weeks before they pose problems for a market rally.",
+   "claim": "IBD: it usually takes five or six distribution days in a few weeks to hurt a rally."
+  },
+  {
+   "id": "f116",
+   "source": "s31",
+   "quote": "A distribution day results from a drop of 0.2% or more on the Nasdaq composite or S&P 500 in volume that's higher (on the Nasdaq and NYSE, respectively) than the prior session.",
+   "claim": "IBD: a 0.2% or bigger index drop on higher volume than the prior session is a distribution day."
+  },
+  {
+   "id": "f117",
+   "source": "s31",
+   "quote": "A random distribution day here or there won't hurt an uptrend.",
+   "claim": "One distribution day here or there does not hurt an uptrend."
+  },
+  {
+   "id": "f118",
+   "source": "s31",
+   "quote": "What you're looking for is a cluster of heavy selling sessions — usually five or six or more — in several weeks' time or less.",
+   "claim": "IBD watches for a cluster: usually five or six or more in several weeks or less."
+  },
+  {
+   "id": "f119",
+   "source": "s31",
+   "quote": "That doesn't mean the market rally immediately comes to a screeching halt. But it's a smart time to get defensive by locking in profits and cutting losses short.",
+   "claim": "A cluster does not stop the rally at once, but it is time to get defensive."
+  },
+  {
+   "id": "f120",
+   "source": "s31",
+   "quote": "It's worth reiterating here that daily volume doesn't have to run above average to count as a distribution day — it just needs to be higher than the prior day.",
+   "claim": "Volume only needs to beat the prior day, not the average, for a distribution day."
+  },
+  {
+   "id": "f121",
+   "source": "s32",
+   "quote": "The first up day tells you that the bleeding has stopped for now. This action marks Day 1 of a rally attempt.",
+   "claim": "IBD: the first up day after a low is Day 1 of a rally attempt."
+  },
+  {
+   "id": "f122",
+   "source": "s32",
+   "quote": "The follow-through signal takes place on Day 4 or thereafter of the rally attempt.",
+   "claim": "IBD: a follow-through day comes on Day 4 or later of a rally attempt."
+  },
+  {
+   "id": "f123",
+   "source": "s32",
+   "quote": "The percentage gain needed for a follow-through signal is a moving target. But generally, the gain should be at least 1% to 1.25%. Volume must rise vs. the prior session; it doesn't need to be above average.",
+   "claim": "IBD's gain threshold moves over time; volume must beat the prior session, not the average."
+  },
+  {
+   "id": "f124",
+   "source": "s32",
+   "quote": "The follow-through signal isn't perfect. Nothing is. So don't immediately get fully invested once a follow-through happens.",
+   "claim": "A follow-through day is not perfect; do not go all in at once."
+  },
+  {
+   "id": "f125",
+   "source": "s32",
+   "quote": "a follow-through tells you that the selling has likely ended and the market has started a new uptrend.",
+   "claim": "IBD: a follow-through says the selling has likely ended and a new uptrend has started."
+  },
+  {
+   "id": "f126",
+   "source": "s32",
+   "quote": "Use the Nasdaq composite or the S&P 500 when scouting a market follow-through.",
+   "claim": "IBD watches the Nasdaq Composite or the S&P 500 for a follow-through."
+  },
+  {
+   "id": "f127",
+   "source": "s33",
+   "quote": "An attempted rally starts when a correcting index bottoms, then turns higher.",
+   "claim": "A rally attempt starts when a falling index bottoms and turns up."
+  },
+  {
+   "id": "f128",
+   "source": "s33",
+   "quote": "Not all follow-throughs work out well. Sometimes the market will reverse and fall to new lows.",
+   "claim": "Some follow-through days fail and the market falls to new lows."
+  },
+  {
+   "id": "f129",
+   "source": "s33",
+   "quote": "When it happens, most investors are scared or bearish.",
+   "claim": "When a follow-through day comes, most investors are scared or bearish."
+  },
+  {
+   "id": "f131",
+   "source": "s34",
+   "quote": "Keep in mind that a follow-through doesn't have much to do with that week's headlines.",
+   "claim": "A follow-through day has little to do with the headlines."
+  },
+  {
+   "id": "f133",
+   "source": "s35",
+   "quote": "A cluster of distribution days within 21 calendar days during a rising price trend is supposed to predict a price drop. It doesn't.",
+   "claim": "Bulkowski's tests: clusters of distribution days in a rising trend did not predict drops."
+  },
+  {
+   "id": "f134",
+   "source": "s35",
+   "quote": "Clusters of distribution days only work in a falling price trend, regardless of whether volume is heavy or light.",
+   "claim": "Bulkowski found clusters worked only in a falling trend, heavy volume or not."
+  },
+  {
+   "id": "f135",
+   "source": "s35",
+   "quote": "Look for a day when an index sells off in heavier volume than in the previous session. That's known as a distribution day",
+   "claim": "A distribution day is an index selloff on heavier volume than the previous session."
+  },
+  {
+   "id": "f136",
+   "source": "s35",
+   "quote": "I also threw out distribution days if the stock did not drop by more than 0.2%, so that it matched the Investor's Business Daily implementation.",
+   "claim": "IBD's version needs a drop of more than 0.2%."
+  },
+  {
+   "id": "f137",
+   "source": "s35",
+   "quote": "Investor's Business Daily's research into past corrections and downtrends shows that five or six distribution days over a period of about four weeks can be a signal that the market's uptrend is weakening.",
+   "claim": "IBD's research: five or six distribution days in about four weeks can signal a weakening uptrend."
+  },
+  {
+   "id": "f138",
+   "source": "s36",
+   "quote": "Once the low is in, multiple breadth thrusts (or signs of aggressive, broad-based buying) are common.",
+   "claim": "A breadth thrust is a burst of aggressive, broad-based buying."
+  },
+  {
+   "id": "f139",
+   "source": "s36",
+   "quote": "while you might get one or two in a bear market rally, a collection of them are rarely seen until the ultimate low is in.",
+   "claim": "One or two thrusts can show up in a bear market rally; a cluster rarely comes before the real low."
+  },
+  {
+   "id": "f140",
+   "source": "s37",
+   "quote": "Net new 52-week highs is the difference between the number of stocks hitting new 52-week highs and those hitting new 52-week lows.",
+   "claim": "Net new highs are new 52-week highs minus new 52-week lows."
+  },
+  {
+   "id": "f141",
+   "source": "s37",
+   "quote": "Net new highs is a lagging indicator, as are the underlying new 52-week high and 52-wek low figures.",
+   "claim": "Net new highs lag, like the new high and new low counts behind them."
+  },
+  {
+   "id": "f142",
+   "source": "s37",
+   "quote": "This means that the market will have changed direction before there is a corresponding shift in new highs and new lows.",
+   "claim": "The market turns before new highs and new lows shift."
+  },
+  {
+   "id": "f143",
+   "source": "s37",
+   "quote": "When there are more stocks hitting new highs than there are those hitting new lows, the indicator is positive, which is bullish.",
+   "claim": "Positive net new highs means more new highs than new lows, which is bullish."
+  },
+  {
+   "id": "f144",
+   "source": "s29",
+   "quote": "Divergences can also sometimes get \"rehabilitated\".",
+   "claim": "A divergence can heal if breadth goes on to make new highs."
+  },
+  {
+   "id": "f145",
+   "source": "s9",
+   "quote": "On the downside, the market is considered weak when the AD Line moves to new lows along with the underlying index. This reflects broad participation in the decline.",
+   "claim": "An A/D line making new lows with the index shows broad selling."
+  },
+  {
+   "id": "f146",
+   "source": "s11",
+   "quote": "It takes at least 52 weeks to forge a new high or a new low. An extended move, therefore, is required for a stock to record a 52-week milestone.",
+   "claim": "A stock needs an extended move to reach a 52-week high or low."
+  },
+  {
+   "id": "f147",
+   "source": "s11",
+   "quote": "Net New Highs can also be used like the AD Line by creating a High-Low Line based on cumulative Net New Highs.",
+   "claim": "The High-Low Line is a running total of net new highs."
+  },
+  {
+   "id": "f148",
+   "source": "s10",
+   "quote": "A bullish bias is present when the indicator is above 50%. This means more than half the stocks in the index are above a particular moving average. A bearish bias is present when below 50%.",
+   "claim": "Above 50% means most stocks are above the average, a bullish bias; below 50% is bearish."
+  },
+  {
+   "id": "f149",
+   "source": "s10",
+   "quote": "Multiple overbought readings are a sign of strength, not weakness.",
+   "claim": "Repeated high readings in an uptrend show strength, not weakness."
+  },
+  {
+   "id": "f150",
+   "source": "s10",
+   "quote": "This volatility makes it more prone to whipsaws.",
+   "claim": "The faster 50-day version gives more false signals."
+  },
+  {
+   "id": "f151",
+   "source": "s19",
+   "quote": "On-Balance Volume: This indicator also looks at volume, except up or down volume is based on whether the index rises or falls.",
+   "claim": "On-balance volume sorts volume by the index's direction, not each stock's."
+  },
+  {
+   "id": "f152",
+   "source": "s16",
+   "quote": "The advance-decline volume statistics favor large-cap stocks over small-cap and mid-cap stocks.",
+   "claim": "Volume-based breadth leans toward large caps, which trade the most shares."
+  },
+  {
+   "id": "f153",
+   "source": "s8",
+   "quote": "Popular sentiment indicators include the Put Call Ratio, Volatility Indices, and the DecisionPoint Rydex Ratio.",
+   "claim": "The put/call ratio is a sentiment indicator, not a breadth indicator."
+  },
+  {
+   "id": "f154",
+   "source": "s31",
+   "quote": "History shows that major market tops are preceded by a flurry of distribution days and severe weakness among the leading stocks.",
+   "claim": "IBD: major tops come after a flurry of distribution days and weakness in leading stocks."
+  },
+  {
+   "id": "f155",
+   "source": "s31",
+   "quote": "Also, the market tends to peak well before the economy does.",
+   "claim": "The market tends to peak well before the economy."
+  },
+  {
+   "id": "f156",
+   "source": "s32",
+   "quote": "The action on Day 2 and Day 3 is irrelevant as long as the index doesn't undercut its recent low. If it undercuts, the rally attempt fails; the market needs to try again.",
+   "claim": "IBD: a rally attempt fails if the index undercuts its recent low."
+  },
+  {
+   "id": "f157",
+   "source": "s38",
+   "quote": "The start of a major stock market uptrend is difficult to identify if you are relying on headlines and news.",
+   "claim": "Headlines and news are a poor guide to the start of a new uptrend."
+  },
+  {
+   "id": "f158",
+   "source": "s34",
+   "quote": "You get a follow-through when a major stock index (the S&P 500, Nasdaq or NYSE composite) closes up significantly from the prior session",
+   "claim": "IBD: a follow-through is a major index closing up significantly from the prior session."
+  },
+  {
+   "id": "f159",
+   "source": "s26",
+   "quote": "If you notice that breadth has become extremely shallow in a downturn, it can show exhaustion on the selling side",
+   "claim": "Extremely weak breadth in a downturn can show the selling is exhausted."
+  },
+  {
+   "id": "h1",
+   "source": "s39",
+   "quote": "F68. After a market correction, when the reading turns Green again, start with a few positions and add more only as the first ones work (the account's number of positions, not adds to one trade, A5).",
+   "claim": "Our rule: after a correction, when the reading turns Green again, start with a few positions and add more positions only as the first ones work."
+  },
+  {
+   "id": "h2",
+   "source": "s39",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "Our rule: each trade goes on at full size, at one price, with one stop; we never add to a trade."
+  },
+  {
+   "id": "h3",
+   "source": "s39",
+   "quote": "A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red).",
+   "claim": "Our rule: a market filter, the app's market reading, decides when we trade."
+  },
+  {
+   "id": "aw_r",
+   "source": "hwr",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Counting the crowd",
+   "steps": [
+    "Every day some stocks close up and some close down. The ones up are advancers. The ones down are decliners.",
+    "Take advancers minus decliners and you get net advances. Keep a running total of that and you have the A/D line.",
+    "Don't read the number on it. Read the direction and the shape. The number just depends on when the count started."
+   ],
+   "facts": [
+    "f99",
+    "f12",
+    "f13",
+    "f15",
+    "f105"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "When the index and the crowd disagree",
+   "steps": [
+    "A big index gets moved most by its biggest names. The A/D line gives every stock one vote.",
+    "Index makes a new high, A/D line makes a lower high. That's a bearish divergence: fewer stocks doing the work.",
+    "I treat it as a warning, not a sell signal. Breadth is a lousy timing tool. Let price confirm it."
+   ],
+   "facts": [
+    "f73",
+    "f107",
+    "f70",
+    "f18",
+    "f108",
+    "f62",
+    "f63"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "IBD's two days",
+   "steps": [
+    "IBD's distribution day: the Nasdaq or S&P 500 down 0.2% or more, on higher volume than the day before.",
+    "One here or there means little. Five or six over a few weeks, and IBD says the rally's in trouble.",
+    "The follow-through day is the flip side. A strong index gain on higher volume, Day 4 or later of a rally attempt.",
+    "No guarantees. Some follow-throughs fail, so don't go all in. One study found distribution clusters in a rising market didn't predict drops."
+   ],
+   "facts": [
+    "f112",
+    "f117",
+    "f115",
+    "f122",
+    "f56",
+    "f124",
+    "f128",
+    "f133"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "vocab.breadth_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Market breadth",
+   "q": "A friend texts you after the close: \"Breadth was great today.\" What's he actually telling you?",
+   "choices": [
+    "How many stocks join the index's move",
+    "How far the index moved on the day",
+    "How big an order the market can absorb",
+    "How fast the index climbs or falls"
+   ],
+   "answer": "How many stocks join the index's move",
+   "why": "Most stocks joined the index's move. That's all breadth is: how many stocks took part. It's not how far the index went or how fast. An index can rise on a handful of giants. Breadth tells you whether the rest of the market came along. I want to know that before I press, because a move most stocks join has more under it. Don't mix it up with market depth. That's how big an order trades without moving the price.",
+   "lesson_line": "The index tells you where. Breadth tells you how many came along.",
+   "facts": [
+    "f03",
+    "f60",
+    "f10",
+    "f64"
+   ],
+   "wrong": {
+    "How big an order the market can absorb": "That's market depth. Different idea. It's about order size, not how many stocks moved.",
+    "How far the index moved on the day": "That's the index's own change. Breadth looks underneath it.",
+    "How fast the index climbs or falls": "That's speed. Breadth doesn't care how fast, only how many."
+   },
+   "simple": "Breadth counts how many stocks join the index's move, not how far or how fast the index went.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Nasdaq's glossary defines breadth as the percentage of stocks taking part in a market move. Investopedia defines market depth as how big an order a market can handle without moving the price much."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Market breadth",
+   "q": "An index can close higher on a day when more than half of its stocks fell.",
+   "answer": "True",
+   "why": "True. Investopedia notes an index may rise while more than half its stocks fall. A small number of stocks can post such large gains that they drag the whole index higher. Tom McClellan describes buying in a few big caps that the rest of the market does not confirm. So a green index can sit on top of a red market.",
+   "lesson_line": "A green index can hide a red market. Check breadth before you trust the move.",
+   "facts": [
+    "f61",
+    "f110"
+   ],
+   "simple": "True, because a few huge winners can lift the index while most of its stocks fall.",
+   "deeper": {
+    "trap": "The trap is reading the index's close as the whole market's day. A few stocks with large gains can drag the whole index higher while most stocks fall. Check advancers against decliners before you call the day strong."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q03",
+   "skill": "vocab.breadth_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Advancers",
+   "q": "You pull up the day's breadth after the close. What do you call the stocks that finished higher than yesterday?",
+   "choices": [
+    "Advancers",
+    "New highs",
+    "Up volume",
+    "Net advances"
+   ],
+   "answer": "Advancers",
+   "why": "Advancers. Any stock that closed up on the day is an advancer, even by a penny. The ones that closed down are decliners. Every breadth gauge starts from that count. On our Breadth page, Net Advancers is simply advancers minus decliners. A new high is a much bigger ask. The stock has to be at its best price of the past year. Up volume counts shares traded, not stocks.",
+   "lesson_line": "A stock that closed up on the day is an advancer. Everything else on the page builds from there.",
+   "facts": [
+    "f99",
+    "f47",
+    "f11",
+    "f09",
+    "f07",
+    "f12"
+   ],
+   "wrong": {
+    "New highs": "A new high is the best price of the past year. One up day isn't enough.",
+    "Up volume": "That counts the shares traded in rising stocks, not the stocks themselves.",
+    "Net advances": "That's one number for the day, advancers minus decliners. It's not a group of stocks."
+   },
+   "simple": "Stocks that closed higher on the day are advancers, and every breadth gauge starts from that count.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "McClellan Financial says publications list each day the number of stocks that closed higher, the advances. ChartSchool calls them advancers and builds the A/D line from their count."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "Decliners",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Stocks that closed lower than the day before count as ___ on a breadth page.",
+   "bank": [
+    "decliners",
+    "advancers",
+    "new lows",
+    "unchanged",
+    "down volume"
+   ],
+   "answer": "decliners",
+   "why": "Decliners. McClellan Financial and ChartSchool both count a stock that closed down on the day as a decline. ChartSchool's name for these stocks is decliners. The test is that one day's close.",
+   "lesson_line": "Down on the day makes a decliner. One close is the whole test.",
+   "facts": [
+    "f47",
+    "f99",
+    "f11"
+   ],
+   "simple": "A stock that closed lower than the day before is a decliner, because the test is just that one day's close.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q05",
+   "skill": "vocab.breadth_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Unchanged issues",
+   "q": "Your stock closes exactly where it closed yesterday. The day's breadth count logs it as an advancer.",
+   "answer": "False",
+   "why": "False. Flat is flat. Breadth sorts every stock three ways: up, down or unchanged. Only a higher close makes an advancer, and only a lower close makes a decliner. Your stock goes in the unchanged pile. It adds nothing to net advances and takes nothing away. So when you add up advancers and decliners, don't expect them to cover every stock on the list.",
+   "lesson_line": "Up, down or unchanged. Only a higher close counts as an advance.",
+   "facts": [
+    "f04",
+    "f47",
+    "f99",
+    "f12"
+   ],
+   "simple": "False, because a flat close is counted as unchanged, not as an advancer.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "scenario",
+   "term": "Net advances",
+   "q": "What did that number just count?",
+   "choices": [
+    "Advancers minus decliners",
+    "Advancers divided by decliners",
+    "Up volume minus down volume",
+    "New highs minus new lows"
+   ],
+   "answer": "Advancers minus decliners",
+   "why": "Advancers minus decliners. Count the stocks that closed up, take away the ones that closed down, and you get one score for the day. Positive means more stocks rose than fell. Negative means the reverse. I use it as a quick gut check on the day. Add each day's score to a running total and you've built the A/D line, which our Breadth page charts too.",
+   "lesson_line": "Net advances is the day's score: stocks up minus stocks down.",
+   "facts": [
+    "f12",
+    "f68",
+    "f100",
+    "f01",
+    "f13",
+    "f53",
+    "f31"
+   ],
+   "wrong": {
+    "Advancers divided by decliners": "Dividing gives you the advance-decline ratio. Net advances subtracts.",
+    "Up volume minus down volume": "That's the volume version. Net advances counts stocks, not shares.",
+    "New highs minus new lows": "That's net new highs, a different count."
+   },
+   "simple": "Net advances are the stocks that closed up minus the ones that closed down, one score for the day.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "story": "The bell just rang. You open our Breadth page, and the Net Advancers reading is a big positive number."
+  },
+  {
+   "key": "q07",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Net advances",
+   "q": "After the close you count 2,150 stocks up and 950 down. What are net advances for the day?",
+   "answer": "1,200",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv - dec",
+     "adv": 2150,
+     "dec": 950
+    }
+   },
+   "why": "1,200. Up minus down: 2,150 minus 950 is 1,200. Positive, so the up side won the day, and by a lot. That's more than two stocks up for every one down. Put that number on the A/D line's running total and the line ticks up by 1,200.",
+   "lesson_line": "Net advances is a subtraction. Positive means the up side won the day.",
+   "facts": [
+    "f12",
+    "f68",
+    "f13"
+   ],
+   "simple": "Net advances are 1,200, because 2,150 up minus 950 down is 1,200.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "3,100",
+    "120",
+    "2,150",
+    "1,200"
+   ],
+   "wrong": {
+    "3,100": "You added the two. Net advances takes the decliners away.",
+    "2,150": "That's just the advancers. Take the 950 decliners off.",
+    "120": "The decimal slipped. 2,150 minus 950 is 1,200."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's breadth",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Advanced",
+      "value": 2150,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Declined",
+      "value": 950,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Net advances",
+     "as": "num",
+     "unit": "stocks"
+    }
+   },
+   "deeper": {
+    "example": "ChartSchool defines net advances as the number of advancing stocks less the number of declining stocks."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "vocab.breadth_terms",
+   "rung": 1,
+   "format": "scenario",
+   "term": "Advance-decline line",
+   "q": "What is that line built from?",
+   "choices": [
+    "A running total of net advances",
+    "Today's advancers over decliners",
+    "An equal-weight version of the index",
+    "A count of stocks at 52-week highs"
+   ],
+   "answer": "A running total of net advances",
+   "why": "A running total of net advances. Every day, that day's advancers minus decliners gets added to yesterday's total. Good days push the line up, bad days pull it down. So a line rising for weeks tells you more stocks have been going up than down, day after day. That's participation, and it's what I want to see under a rally. And it's a count, so every stock gets one vote, big or small.",
+   "lesson_line": "The A/D line keeps score day after day. That's how it shows you participation.",
+   "facts": [
+    "f13",
+    "f69",
+    "f86",
+    "f100",
+    "f14",
+    "f89",
+    "f74",
+    "f21",
+    "f32"
+   ],
+   "wrong": {
+    "Today's advancers over decliners": "That's the advance-decline ratio, one day's reading. The line keeps a running score.",
+    "An equal-weight version of the index": "Close. Every stock does count the same. But it adds up ups and downs, not prices.",
+    "A count of stocks at 52-week highs": "That's the new highs count, a different gauge."
+   },
+   "simple": "It's a running total of net advances, so each day's score is added to the total before it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool: the AD Line is a cumulative measure of Net Advances, rising when it is positive and falling when it is negative."
+   },
+   "story": "You open the A/D Line chart on our Breadth page. It's been rising for weeks while the index climbs."
+  },
+  {
+   "key": "q09",
+   "skill": "vocab.breadth_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Advance-decline line",
+   "q": "The A/D line closed yesterday at 5,000. Today 1,200 stocks rose and 2,000 fell. Where does the line close today?",
+   "answer": "4,200",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "prev + (adv - dec)",
+     "prev": 5000,
+     "adv": 1200,
+     "dec": 2000
+    }
+   },
+   "why": "4,200. Start with today's net advances: 1,200 minus 2,000 is -800. Add that to yesterday's 5,000 and the line drops to 4,200. More stocks fell than rose, so the line goes down. That's the whole mechanic. You won't do this by hand, our Breadth page plots the A/D Line for you. But knowing how it moves tells you what a down tick means.",
+   "lesson_line": "Yesterday's line plus today's score. Down days pull it lower, up days push it higher.",
+   "facts": [
+    "f14",
+    "f69",
+    "f13"
+   ],
+   "simple": "It drops to 4,200, because more stocks fell than rose, so today's score is below zero.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "5,800",
+    "3,800",
+    "8,200",
+    "4,200"
+   ],
+   "wrong": {
+    "5,800": "Wrong order. You did 2,000 minus 1,200 and the line went up on a down day.",
+    "3,800": "You only took the 1,200 advancers off. The day's score is 1,200 minus 2,000.",
+    "8,200": "You added both the advancers and the decliners onto the line."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The A/D line",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "A/D line yesterday",
+      "value": 5000,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Stocks that rose today",
+      "value": 1200,
+      "fmt": "count"
+     },
+     {
+      "key": "r3",
+      "label": "Stocks that fell today",
+      "value": 2000,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "The A/D line now",
+     "as": "num"
+    }
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Advance-decline line",
+   "q": "You're checking the A/D line on our Breadth page. What you read is its shape and direction, not the number on the scale.",
+   "answer": "True",
+   "why": "True. The A/D line is a running total, so its number depends on the day somebody started counting. Start on another day and you get a different number with the exact same shape. So I don't care what the scale says. I care whether the line is making new highs with the index, or lagging behind it. That's the information.",
+   "lesson_line": "Read the A/D line like a chart: highs, lows, divergences. Ignore the number on the scale.",
+   "facts": [
+    "f15",
+    "f105",
+    "f13",
+    "f16",
+    "f17"
+   ],
+   "simple": "True, because the number depends on when the count began, so you read the line's shape and direction.",
+   "deeper": {
+    "trap": "The trap is comparing the number on one A/D line with the number on another site. Each line's level depends on the day its count began, so the two numbers can't be compared. Compare a line with its own past instead. ChartSchool and Tom McClellan both say the level is not what matters."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q11",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Advance-decline line",
+   "q": "NVDA closes up 6%. A small software stock closes up 1%. How does each one count on the A/D line?",
+   "choices": [
+    "Exactly the same: one advance",
+    "More, weighted by its market cap",
+    "More, weighted by its trading volume",
+    "Same, but a bigger gain counts more"
+   ],
+   "answer": "Exactly the same: one advance",
+   "why": "Exactly the same, one advance each. The A/D line gives every stock one vote: +1 for up, -1 for down. Size doesn't matter. Volume doesn't matter. How far it moved doesn't matter. NVDA's 6% and the small name's 1% both count +1. That's the whole point. The index leans on its biggest names. The A/D line shows you what the average stock is doing.",
+   "lesson_line": "One stock, one vote, whatever its size.",
+   "facts": [
+    "f21",
+    "f74",
+    "f107",
+    "f11"
+   ],
+   "wrong": {
+    "More, weighted by its market cap": "Cap is how the index weighs stocks. The A/D line ignores it.",
+    "More, weighted by its trading volume": "Volume plays no part. An advance is +1 however many shares traded.",
+    "Same, but a bigger gain counts more": "The size of the move doesn't count either. Up is +1, period."
+   },
+   "simple": "The same, because the breadth line gives every stock one vote, whatever its size or its move.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool: regardless of market cap or volume, an advance counts as +1 and a decline as -1. Tom McClellan says every stock gets an equal vote in the A-D Line."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "vocab.breadth_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Advance-decline line",
+   "story": "The Nasdaq Composite is at an all-time high. Its A/D line sits near the lowest readings it has ever had. A friend calls it a screaming sell.",
+   "q": "What's actually going on here?",
+   "choices": [
+    "A known quirk of that A/D line",
+    "Proof that the top is already in",
+    "A bullish divergence in breadth",
+    "A sign the index data is wrong"
+   ],
+   "answer": "A known quirk of that A/D line",
+   "why": "It's a known quirk of the Nasdaq's A/D line. That line can drift lower for long stretches while the index climbs. The reason is the Nasdaq's looser listing rules. This picture isn't unusual there. So the gap on its own proves little, and I'd never sell a leader off it. Watch the price of what you own. On the NYSE, the A/D line echoes prices most of the time, so a gap there is worth more of your attention.",
+   "lesson_line": "Judge Nasdaq breadth with care. Its A/D line can drift lower even while the index climbs.",
+   "facts": [
+    "f20",
+    "f72",
+    "f109",
+    "f111"
+   ],
+   "wrong": {
+    "Proof that the top is already in": "That line can fall for long stretches while the index rises. The gap alone proves little.",
+    "A bullish divergence in breadth": "Nothing bullish here. The index is at a high while breadth sits near its lows.",
+    "A sign the index data is wrong": "The data's fine. This gap is normal for the Nasdaq."
+   },
+   "simple": "It's a known Nasdaq quirk, because its breadth line can fall for long stretches while the index rises.",
+   "deeper": {
+    "trap": "The trap is reading the Nasdaq A/D line the way you read the NYSE's. Tom McClellan says the NYSE's A-D line echoes prices most of the time, and calls an all-time high in the Nasdaq with its A-D line near all-time lows 'not unusual'. ChartSchool says the Nasdaq's line can fall for extended periods while the index rises, because its listing rules are looser."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (lesson and a wrong note softened by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q13",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Advance-decline ratio",
+   "q": "Your breadth screen shows an advance-decline ratio for the day. How is that number worked out?",
+   "choices": [
+    "Advancers divided by decliners",
+    "Advancers minus decliners",
+    "Up volume divided by down volume",
+    "New highs over highs plus lows"
+   ],
+   "answer": "Advancers divided by decliners",
+   "why": "Advancers divided by decliners. Divide and you get a ratio: how many stocks rose for each one that fell. Subtract and you get net advances instead. The nice thing about a ratio is it doesn't care how many stocks are on the list. Above one, more rose than fell. A ratio rising over time is the bullish read, a falling one the bearish read.",
+   "lesson_line": "Subtract and you get net advances. Divide and you get the ratio.",
+   "facts": [
+    "f01",
+    "f89",
+    "f02",
+    "f12",
+    "f48",
+    "f35"
+   ],
+   "wrong": {
+    "Advancers minus decliners": "Subtracting gives you net advances, not the ratio.",
+    "Up volume divided by down volume": "Same division, but on shares traded. That's the up/down volume ratio.",
+    "New highs over highs plus lows": "That's Record High Percent, a new-highs gauge."
+   },
+   "simple": "It's the stocks that rose divided by the stocks that fell, so you divide instead of subtract.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Nasdaq defines the advance-decline ratio as the number of stocks that advanced over the number that declined in a given period, and reads a rising ratio as bullish and a falling one as bearish."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Advance-decline ratio",
+   "q": "2,400 stocks closed up and 800 closed down. What's the advance-decline ratio?",
+   "answer": "3.0",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv / dec",
+     "adv": 2400,
+     "dec": 800
+    }
+   },
+   "why": "3.0. 2,400 divided by 800 is 3. Three stocks up for every one down. That's a strong, broad day. A ratio climbing day after day is the bullish read, and a falling one the bearish read. One day is one day, though. I want to see days like this keep showing up.",
+   "lesson_line": "A ratio of 3 means three stocks up for every one down.",
+   "facts": [
+    "f01",
+    "f89",
+    "f02"
+   ],
+   "simple": "It's 3, because 2,400 stocks up divided by 800 stocks down is three up for each one down.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "0.33",
+    "0.75",
+    "3.0",
+    "2.0"
+   ],
+   "wrong": {
+    "0.33": "Upside down. That's 800 over 2,400.",
+    "0.75": "You divided by the total of both. The ratio is up over down.",
+    "2.0": "You divided net advances by the decliners. Just divide 2,400 by 800."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's breadth",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Advanced",
+      "value": 2400,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Declined",
+      "value": 800,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Advance-decline ratio",
+     "as": "num",
+     "unit": "ratio"
+    }
+   },
+   "deeper": {
+    "example": "Nasdaq and Fidelity both define the advance-decline ratio as advancing stocks divided by declining stocks. Nasdaq reads a rising ratio as bullish and a falling one as bearish."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "vocab.breadth_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Bearish divergence",
+   "q": "The index makes a new high, but the A/D line makes a lower high. What is that called?",
+   "choices": [
+    "Bearish divergence",
+    "Bullish divergence",
+    "Confirmation",
+    "Breadth thrust"
+   ],
+   "answer": "Bearish divergence",
+   "why": "Bearish divergence. The index went up but fewer stocks came along, so participation is narrowing.",
+   "lesson_line": "New high in price, lower high in breadth. Fewer stocks are doing the work.",
+   "facts": [
+    "f18",
+    "f17",
+    "f70",
+    "f87"
+   ],
+   "wrong": {
+    "Bullish divergence": "That's the mirror image: the index makes a lower low while the A/D line holds a higher low.",
+    "Confirmation": "Confirmation would be the A/D line making a new high with the index.",
+    "Breadth thrust": "A thrust is a sudden surge of broad buying, not a lagging A/D line."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Bearish divergence",
+   "story": "The S&P 500 closes at a record. The A/D line peaked six weeks ago and has made lower highs since. You hold a leader that's still acting well.",
+   "q": "What do you do with your leader?",
+   "choices": [
+    "Hold it and watch it closer",
+    "Sell it at tomorrow's open",
+    "Hold it and tune out breadth",
+    "Add to it, breadth will catch up"
+   ],
+   "answer": "Hold it and watch it closer",
+   "why": "Hold it and watch it closer. Index at a record, A/D line making lower highs: that's a bearish divergence. Fewer stocks are carrying the rally. It's a warning, not a sell signal. Breadth can warn way too early, and a divergence can even heal if breadth makes new highs again. Your leader is still acting well, so price hasn't confirmed anything. Your stop stays where it is. If the stock breaks, you're out. Simple as that.",
+   "lesson_line": "A divergence is a condition, not a signal. Let your stock make the call.",
+   "facts": [
+    "f108",
+    "f106",
+    "f62",
+    "f63",
+    "f144",
+    "f18"
+   ],
+   "wrong": {
+    "Sell it at tomorrow's open": "Breadth warns early, and your stock hasn't done anything wrong. Let price confirm first.",
+    "Hold it and tune out breadth": "Fewer stocks carrying the rally is real information. Watch your names closer.",
+    "Add to it, breadth will catch up": "Nothing says breadth has to catch up. A divergence is no reason to add."
+   },
+   "simple": "Hold and watch it closer, because a divergence is a warning, not a sell signal, and your stock still acts well.",
+   "deeper": {
+    "trap": "The trap runs both ways. Selling on the divergence alone can mean leaving a rally early, since breadth can warn too early. Ignoring it can mean holding on as the rally narrows to a few names. Tom McClellan calls a divergence a condition, not a signal, and says divergences can get 'rehabilitated' if breadth goes on to new highs."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "choices rewritten in the 2026-11-10 variety pass"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q17",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Bullish divergence",
+   "q": "You're watching for a bottom. Which picture is a bullish divergence on the A/D line?",
+   "choices": [
+    "Index lower low, A/D line higher low",
+    "Index higher high, A/D line lower high",
+    "Index and A/D line both at new lows",
+    "A sudden surge of advancing stocks"
+   ],
+   "answer": "Index lower low, A/D line higher low",
+   "why": "Index lower low, A/D line higher low. Price breaks to a new low, but the A/D line doesn't follow it down. Fewer stocks are falling with it, so the selling is thinning out underneath. That's a clue a low may be forming, not a buy signal. I start sharpening my list of leaders here, and I let price confirm before I buy. If the A/D line makes a new low with the index, that's broad selling. No divergence.",
+   "lesson_line": "Lower low in price, higher low in breadth. The selling is thinning out.",
+   "facts": [
+    "f19",
+    "f71",
+    "f88",
+    "f145",
+    "f63",
+    "f138",
+    "f41"
+   ],
+   "wrong": {
+    "Index higher high, A/D line lower high": "That's the bearish one, the warning at a top.",
+    "Index and A/D line both at new lows": "That's breadth confirming the decline. Broad selling.",
+    "A sudden surge of advancing stocks": "That's a breadth thrust, a different signal."
+   },
+   "simple": "The index makes a lower low but breadth makes a higher low, so fewer stocks are falling.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Bullish divergence",
+   "story": "The index undercuts last month's low. This time the A/D line holds well above its own low from last month.",
+   "q": "What's breadth telling you here?",
+   "choices": [
+    "Selling is thinning, a low may be near",
+    "The decline is spreading, sell more",
+    "Breadth confirms the downtrend",
+    "Nothing until the index makes a high"
+   ],
+   "answer": "Selling is thinning, a low may be near",
+   "why": "The selling is thinning out, and a low may be near. The index made a lower low. The A/D line didn't, it held well above last month's low. That's a bullish divergence. Fewer stocks are joining the drop. Note the word may. It's a clue, not a bottom call. This is when I sharpen my watchlist and look for the stocks holding up best. Then I wait for price to turn before I buy.",
+   "lesson_line": "When the index breaks a low and breadth doesn't, I start watching for the turn.",
+   "facts": [
+    "f19",
+    "f88",
+    "f71",
+    "f63",
+    "f145",
+    "f62"
+   ],
+   "wrong": {
+    "The decline is spreading, sell more": "Spreading would mean the A/D line making new lows with the index. Here it held up.",
+    "Breadth confirms the downtrend": "Confirming needs the A/D line at a new low too. It held well above it.",
+    "Nothing until the index makes a high": "That throws the clue away. A bullish divergence shows up while the index is still making lows."
+   },
+   "simple": "Fewer stocks are falling with the index, so a low may be near. It's a clue, not a buy signal.",
+   "deeper": {
+    "counter": "A bullish divergence is not a bottom call. Breadth indicators are poor timing tools and can signal far too early. The index can keep sliding for a while even as fewer stocks join the fall. Wait for price to turn up, then act."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "Confirmation",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The index and the A/D line make new highs together. Breadth is ___ the move.",
+   "bank": [
+    "confirming",
+    "diverging from",
+    "lagging",
+    "distributing"
+   ],
+   "answer": "confirming",
+   "why": "Confirming. When the A/D line moves the same way as the index, breadth confirms the move. New highs on both show strong participation, which ChartSchool reads as bullish. Most of the time the A/D line echoes the index, and that is normal. Diverging would mean the two move apart, such as the index at a new high while the A/D line is not.",
+   "lesson_line": "Most of the time breadth echoes price. The days it stops echoing are the ones to note.",
+   "facts": [
+    "f65",
+    "f23",
+    "f16",
+    "f111",
+    "f17"
+   ],
+   "simple": "Confirming, because breadth and the index are moving the same way and making new highs together.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q20",
+   "skill": "vocab.breadth_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Narrow breadth",
+   "story": "The index is up 8% this quarter. Five giant tech stocks did most of the work. Most other stocks are flat or down.",
+   "q": "What kind of rally is this?",
+   "choices": [
+    "Narrow breadth",
+    "Breadth thrust",
+    "Broad participation",
+    "Bullish divergence"
+   ],
+   "answer": "Narrow breadth",
+   "why": "Narrow breadth. Five giants did the lifting and most stocks went nowhere. The index can still post 8%, because a cap-weighted index leans on its biggest names. But a rally on a few shoulders is fragile. If those few stumble, there's not much under it. For me it changes how picky I am. I stick with the names that are actually showing relative strength.",
+   "lesson_line": "Ask who's doing the lifting. A rally on a few shoulders is fragile.",
+   "facts": [
+    "f92",
+    "f22",
+    "f17",
+    "f73",
+    "f24",
+    "f138",
+    "f19"
+   ],
+   "wrong": {
+    "Breadth thrust": "A thrust is a sudden burst of buying across most stocks. Here most stocks are flat or down.",
+    "Broad participation": "Broad means most stocks rise with the index. Here only a few did.",
+    "Bullish divergence": "That's a clue at a low: the index makes a lower low while breadth holds up."
+   },
+   "simple": "It's narrow breadth, because a few giant stocks are doing the lifting while most others sit flat or fall.",
+   "deeper": {
+    "trap": "The trap is judging the market by the index alone. A cap-weighted index can climb on a few giants while most stocks go nowhere. Schwab warns a rally like this can fade fast if the few leaders doing the heavy lifting start to struggle. Check a breadth gauge first: the A/D line or the share of stocks above a moving average."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q21",
+   "skill": "vocab.breadth_terms",
+   "rung": 9,
+   "format": "tf",
+   "term": "Narrow breadth",
+   "q": "Five giants are carrying the index while most stocks lag. Narrow breadth like this tells you when the rally ends.",
+   "answer": "False",
+   "why": "False. Narrow breadth tells you the rally is fragile. It doesn't tell you when it ends. A narrow rally can keep going until some catalyst knocks it over. Breadth is a poor timing tool, and it can warn way too early. So I never sell or short on narrowness alone. I watch my own stocks closer and let price make the call.",
+   "lesson_line": "Narrow breadth tells you the rally is fragile. It doesn't tell you when it ends.",
+   "facts": [
+    "f98",
+    "f106",
+    "f62",
+    "f63",
+    "f92",
+    "f18"
+   ],
+   "simple": "False, because breadth is a poor timing tool, and a narrow rally can last until something knocks it over.",
+   "deeper": {
+    "trap": "The trap is treating narrow breadth as a countdown. Traders who sell or short the moment a few giants carry the index can be early by a long way. Schwab's 2023 example kept going until a catalyst hit, and Tom McClellan says a bearish divergence need not halt an uptrend right away. Use narrowness as a reason to watch your stocks more closely, and let price trigger the action."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "statement reworded in wave8 to remove a hedge tell; the key is now False"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q22",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Broad participation",
+   "q": "The morning note says yesterday's rally had broad participation. What does that mean?",
+   "choices": [
+    "Most stocks are joining the move",
+    "A few big stocks carry the index",
+    "Volume is above its average",
+    "The index gapped up at the open"
+   ],
+   "answer": "Most stocks are joining the move",
+   "why": "Most stocks joined the move. Not just the giants, the average stock too. That's the healthy kind of rally. The broader the participation, the stronger the signal. It's the market I want to be long in, because more stocks are acting right and there's more to pick from. The opposite is narrow, where a few big names carry the index. Volume and gaps are separate questions.",
+   "lesson_line": "Broad rallies lift most boats. That's the kind I want to be long in.",
+   "facts": [
+    "f22",
+    "f93",
+    "f16",
+    "f92",
+    "f60"
+   ],
+   "wrong": {
+    "A few big stocks carry the index": "That's narrow participation, the opposite.",
+    "Volume is above its average": "Volume isn't breadth. Breadth counts how many stocks take part.",
+    "The index gapped up at the open": "A gap is about the index's price, not how many stocks came along."
+   },
+   "simple": "Broad means most stocks are rising with the index, not just a few big names.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool says a broad-based advance shows underlying strength that lifts most boats, and reads it as bullish. Schwab adds that the broader the participation, the stronger the signal."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "vocab.breadth_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "New high",
+   "q": "On a breadth page, what counts as a new high?",
+   "choices": [
+    "A stock at its highest price in a year",
+    "A stock at its all-time high only",
+    "The biggest gainer of the day",
+    "An index closing at a record"
+   ],
+   "answer": "A stock at its highest price in a year",
+   "why": "A stock at its highest price in a year. The breadth page counts stocks making new 52-week highs.",
+   "lesson_line": "New highs count stocks, not the index. One year is the yardstick.",
+   "facts": [
+    "f09",
+    "f32",
+    "f140"
+   ],
+   "wrong": {
+    "A stock at its all-time high only": "All-time highs count, but so does any stock at its highest price of the past 52 weeks.",
+    "The biggest gainer of the day": "A big gainer can still sit far below its 52-week high.",
+    "An index closing at a record": "That's the index. New highs count individual stocks."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "New lows",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Stocks that hit their worst price in 52 weeks show up on a breadth page as ___.",
+   "bank": [
+    "new lows",
+    "new highs",
+    "net advances",
+    "down volume"
+   ],
+   "answer": "new lows",
+   "why": "New lows. ChartSchool counts new lows as the number of stocks recording new 52-week lows. Nasdaq's glossary agrees: a stock at its lowest price in the last year. New highs are the other end, stocks at 52-week highs. Net advances and down volume are daily measures, not one-year tests.",
+   "lesson_line": "New lows is a one-year test. One bad day is not enough.",
+   "facts": [
+    "f32",
+    "f09",
+    "f68",
+    "f08"
+   ],
+   "simple": "Stocks at their lowest price of the past 52 weeks are new lows, which is a one-year test, not a one-day one.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (blank and bank rebuilt by the checker)"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q25",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Net new highs",
+   "q": "Our Breadth page lists 52W Highs and 52W Lows. What are net new highs?",
+   "choices": [
+    "New highs minus new lows",
+    "New highs divided by new lows",
+    "New highs over the last 10 days",
+    "Advancers minus decliners"
+   ],
+   "answer": "New highs minus new lows",
+   "why": "New highs minus new lows. A new high is a stock at its best price of the past year, a new low at its worst. Take the lows away from the highs and you get one number. Positive means more stocks are at highs than at lows, and that's the bullish read. I care about that list for another reason too. Stocks pushing to new highs are where leaders come from.",
+   "lesson_line": "Above zero, more stocks sit at 52-week highs than at 52-week lows.",
+   "facts": [
+    "f31",
+    "f140",
+    "f143",
+    "f32",
+    "f12"
+   ],
+   "wrong": {
+    "New highs divided by new lows": "Dividing gives a ratio. Net new highs is a subtraction.",
+    "New highs over the last 10 days": "It's not a count over days. It takes new lows away from new highs.",
+    "Advancers minus decliners": "That's net advances, built from every stock's daily close."
+   },
+   "simple": "Net new highs are new highs minus new lows, so a plus number means more stocks hit year highs than year lows.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q26",
+   "skill": "vocab.breadth_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Net new highs",
+   "q": "180 stocks made 52-week highs today and 45 made 52-week lows. What's the net new highs number?",
+   "answer": "135",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "highs - lows",
+     "highs": 180,
+     "lows": 45
+    }
+   },
+   "why": "135. Highs minus lows: 180 minus 45 is 135. Positive, and big. That's four stocks at highs for every one at a low. That's a market where stocks are working, and it's where your scans fill up with leaders.",
+   "lesson_line": "Positive net new highs means more stocks at highs than at lows.",
+   "facts": [
+    "f31",
+    "f140",
+    "f143"
+   ],
+   "simple": "Net new highs are 135, because you take the 45 new lows away from the 180 new highs.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "225",
+    "180",
+    "135",
+    "1,350"
+   ],
+   "wrong": {
+    "225": "You added highs and lows. Take the lows away.",
+    "180": "That's just the new highs. Take the 45 lows off.",
+    "1,350": "The decimal slipped. 180 minus 45 is 135."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's extremes",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "52-week highs",
+      "value": 180,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "52-week lows",
+      "value": 45,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Net new highs",
+     "as": "num",
+     "unit": "stocks"
+    }
+   },
+   "deeper": {
+    "example": "ChartSchool and AAII both define net new highs as new 52-week highs minus new 52-week lows. AAII calls a positive reading bullish."
+   }
+  },
+  {
+   "key": "q27",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Net new highs",
+   "story": "The index bottomed six weeks ago and has rallied hard since. Net new highs are still hovering near zero.",
+   "q": "What's the best read?",
+   "choices": [
+    "Normal, new highs lag at turns",
+    "The rally is fake, sell it",
+    "Breadth is confirming the rally",
+    "New highs lead, so a top is near"
+   ],
+   "answer": "Normal, new highs lag at turns",
+   "why": "Normal. New highs lag at turns. To hit a 52-week high a stock needs a big move, and six weeks off a low most stocks aren't there yet. The market turns first and the count follows. So a slow count early isn't a failed rally. It isn't proof of a healthy one either. I judge the rally by price and by my leaders. They're the ones that get to new highs first.",
+   "lesson_line": "Early in a new rally, new highs are slow to show up. Don't read the lag as a failed rally.",
+   "facts": [
+    "f33",
+    "f141",
+    "f142",
+    "f146"
+   ],
+   "wrong": {
+    "Breadth is confirming the rally": "Not yet. Near zero means highs and lows are roughly even.",
+    "New highs lead, so a top is near": "They lag, they don't lead. The market turns first and the count follows.",
+    "The rally is fake, sell it": "A slow new-highs count early in a rally is expected. It's no evidence the rally is fake."
+   },
+   "simple": "It's normal, because a stock needs a long move to reach a year high, so the count shows up late.",
+   "deeper": {
+    "trap": "The trap is reading the slow count as a failed rally and selling the first weeks of a new uptrend. ChartSchool says new highs and new lows often lag the index at major turning points. AAII says the market changes direction before there is a matching shift in new highs and new lows. Judge the rally by price first, and let the count catch up."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (lesson line reworded by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q28",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Record High Percent",
+   "q": "Today's count: 60 stocks at 52-week highs, 20 at 52-week lows. What's the Record High Percent?",
+   "answer": "75%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "highs / (highs + lows) * 100",
+     "highs": 60,
+     "lows": 20
+    }
+   },
+   "why": "75%. Add the highs and lows first: 60 plus 20 is 80. Then highs as a share of that: 60 over 80 is 0.75. Times 100 is 75. So three of every four stocks at an extreme are at the high end. That's the bullish side. I like it as a gauge because it reads as a percent, so a busy day and a quiet day compare cleanly.",
+   "lesson_line": "Record High Percent is new highs as a share of all new highs and lows.",
+   "facts": [
+    "f35"
+   ],
+   "simple": "It's 75, because 60 highs out of 80 highs and lows, times 100, gives 75.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "300%",
+    "133%",
+    "80%",
+    "75%"
+   ],
+   "wrong": {
+    "300%": "You divided highs by lows and skipped the total.",
+    "80%": "That's the total of highs and lows, not a share.",
+    "133%": "Upside down. You divided the total by the highs."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's extremes",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "52-week highs",
+      "value": 60,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "52-week lows",
+      "value": 20,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Record High Percent",
+     "as": "pct"
+    }
+   },
+   "deeper": {
+    "example": "ChartSchool: Record High Percent = {New Highs / (New Highs + New Lows)} x 100."
+   }
+  },
+  {
+   "key": "q29",
+   "skill": "vocab.breadth_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "High-Low Index",
+   "q": "The High-Low Index on your screen just dropped to 38. That means new lows are outnumbering new highs.",
+   "answer": "True",
+   "why": "True. 50 is the line. Below it, more stocks are making 52-week lows than 52-week highs. Above it, the reverse. At 38, the lows are winning. That tells me to be picky and patient, not to press. It's a backdrop, though. My own stocks still make the call on each trade.",
+   "lesson_line": "50 is the line. Below it, the lows are winning.",
+   "facts": [
+    "f81",
+    "f36"
+   ],
+   "simple": "True, because a reading under 50 means more stocks have been hitting year lows than year highs.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (why tied to the High-Low Index by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia says a high-low index reading below 50 shows more stocks making 52-week lows than 52-week highs, and above 50 the reverse. ChartSchool reads the 50 line the same way."
+   }
+  },
+  {
+   "key": "q30",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "High-Low Index",
+   "q": "Your breadth chart has a line called the High-Low Index. What is it?",
+   "choices": [
+    "10-day average of Record High Percent",
+    "New highs minus new lows each day",
+    "Running total of net new 52-week highs",
+    "Share of stocks above their 200-day"
+   ],
+   "answer": "10-day average of Record High Percent",
+   "why": "A 10-day average of Record High Percent. Record High Percent is the day's new highs as a share of all new highs and lows. One day's reading can swing hard. The High-Low Index smooths it over 10 days, so you read the trend, not one wild day. Above 50, highs are winning, and that's the backdrop where leaders show up. Below 50, lows are. Don't mix it up with net new highs, a plain subtraction. Or the High-Low Line, which is a running total.",
+   "lesson_line": "Record High Percent is the daily reading. The High-Low Index is its smoothed 10-day version.",
+   "facts": [
+    "f34",
+    "f80",
+    "f147",
+    "f35",
+    "f36",
+    "f31",
+    "f24"
+   ],
+   "wrong": {
+    "New highs minus new lows each day": "That's net new highs. A plain subtraction, no smoothing.",
+    "Running total of net new 52-week highs": "That's the High-Low Line, the running version.",
+    "Share of stocks above their 200-day": "That's a moving-average gauge, not a new-highs one."
+   },
+   "simple": "It's a 10-day average of Record High Percent, the daily share of new highs among all new highs and lows.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q31",
+   "skill": "vocab.breadth_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Percent above 50-day",
+   "q": "On our Breadth page, % Above 50SMA reads 72%. What is that measuring?",
+   "choices": [
+    "Share of stocks above their 50-day MA",
+    "How far the index is above its 50-day",
+    "Share of days the index closed up",
+    "Stocks up 50% from their lows"
+   ],
+   "answer": "Share of stocks above their 50-day MA",
+   "why": "The share of stocks above their own 50-day moving average. Count the stocks above it and divide by all the stocks on the list. At 72%, most stocks are above it, so breadth is strong. It's a count of stocks, not the index's distance from its average. I like the 50-day version for trading because it's the sensitive one and turns early. The cost is it whipsaws more.",
+   "lesson_line": "It counts stocks, not points. The more stocks above their 50-day, the stronger the breadth.",
+   "facts": [
+    "f24",
+    "f27",
+    "f66",
+    "f28",
+    "f150"
+   ],
+   "wrong": {
+    "How far the index is above its 50-day": "That's the index's own distance from its average. This counts the stocks inside it.",
+    "Share of days the index closed up": "That's a win rate on the index, not breadth.",
+    "Stocks up 50% from their lows": "Nothing to do with gains off lows. The 50 is the average's length in days."
+   },
+   "simple": "It counts what share of the stocks trade above their own 50-day average, so it shows how many are strong.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q32",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Percent above 50-day",
+   "q": "A 500-stock index has 340 names above their 50-day moving average. What's the percent above?",
+   "answer": "68%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "above / total * 100",
+     "above": 340,
+     "total": 500
+    }
+   },
+   "suffix": "%",
+   "why": "68%. 340 divided by 500 is 0.68, and times 100 is 68%. More than half are above, so the bias is bullish. Under 50%, most stocks sit below their 50-day and the bias flips bearish. Our Breadth page does this math for you every day as % Above 50SMA.",
+   "lesson_line": "Above 50%, most stocks sit above their 50-day. Below 50%, most sit under it.",
+   "facts": [
+    "f27",
+    "f148"
+   ],
+   "simple": "It's 68 percent, because 340 of the 500 stocks are above their 50-day average.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "32%",
+    "50%",
+    "68%",
+    "680%"
+   ],
+   "wrong": {
+    "32%": "That's the share below the average, not above.",
+    "50%": "You took the 50 in 50-day as the answer.",
+    "680%": "You divided by 50 instead of the 500 stocks."
+   },
+   "deeper": {
+    "example": "ChartSchool: divide the number of stocks above their moving average by the total number of stocks in the index. Above 50% is a bullish bias, below 50% a bearish one."
+   }
+  },
+  {
+   "key": "q33",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Percent above 50-day",
+   "story": "The S&P 500 has rallied for two weeks. Now 80% of its stocks trade above their 50-day moving average.",
+   "q": "What's that 80% telling you?",
+   "choices": [
+    "Broad: most of the index joined",
+    "Narrow: a few big caps carry it",
+    "Overbought: a sell signal now",
+    "Fading: breadth is weakening"
+   ],
+   "answer": "Broad: most of the index joined",
+   "why": "It's broad. Most of the index joined. 80% above the 50-day after a two-week run means this isn't a few giants doing the work. That's the rally I want to be long in. And no, a high reading isn't a sell signal on its own. Repeated high readings in an uptrend are strength, not weakness. What would worry me is that number rolling over while the index keeps climbing. That's a divergence.",
+   "lesson_line": "When most stocks are above their 50-day, the rally has real support under it.",
+   "facts": [
+    "f94",
+    "f28",
+    "f149",
+    "f65"
+   ],
+   "wrong": {
+    "Narrow: a few big caps carry it": "Narrow would show a low share above the 50-day. 80% is most of the index.",
+    "Overbought: a sell signal now": "High readings in an uptrend are strength, not weakness. High alone is no sell signal.",
+    "Fading: breadth is weakening": "Weakening means the share is falling. Here it's high after a rally."
+   },
+   "simple": "The rally is broad, because 80 percent of the stocks sit above their 50-day average, so most of the market joined.",
+   "deeper": {
+    "trap": "The trap is reading 80% as 'overbought, so sell'. ChartSchool calls multiple overbought readings a sign of strength, not weakness. Schwab gives this exact case: 80% of S&P 500 stocks above their 50-day after several days of rally is one sign the rally is broad-based. The reading that should worry you is the share falling while the index climbs."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Schwab (s26) blocked WebFetch on 2026-11-12; ChartSchool f28 and f149 re-confirmed on the page"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q34",
+   "skill": "vocab.breadth_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Oversold breadth",
+   "story": "The index has fallen hard for a month. Today only 6% of its stocks are above their 50-day moving average.",
+   "q": "What's your move?",
+   "choices": [
+    "Washed out, wait for an upturn",
+    "Oversold, so buy the dip now",
+    "Wait for a new low, then buy",
+    "The selloff is over, the low is in"
+   ],
+   "answer": "Washed out, wait for an upturn",
+   "why": "Washed out, but wait for the upturn. Only 6% above the 50-day after a month of selling is extreme. Under 10% can hint the dive is overdone and the sellers are exhausted. But oversold isn't a buy signal by itself. Stocks can stay oversold and get cheaper. The clue is the turn: that 6% starting to climb, with price confirming. Until then I'm mostly in cash, building the list of stocks holding up best.",
+   "lesson_line": "Extreme weakness says the selling is stretched. Wait for breadth to turn up before you act.",
+   "facts": [
+    "f95",
+    "f30",
+    "f159",
+    "f63"
+   ],
+   "wrong": {
+    "Oversold, so buy the dip now": "Oversold alone isn't a buy signal. Wait for an upturn first.",
+    "Wait for a new low, then buy": "You're waiting for an upturn. A fresh low is the opposite of one.",
+    "The selloff is over, the low is in": "Under 10% hints the dive is overdone. It doesn't say the selloff is over."
+   },
+   "simple": "The selling looks stretched, but oversold alone isn't a buy signal, so wait for breadth to turn up first.",
+   "deeper": {
+    "trap": "The trap is treating the deepest reading as the bottom. Schwab notes breadth under 10% did not necessarily mean the selloff was over. ChartSchool's advice is to wait for an upturn from oversold levels, not to act on the oversold level itself. The turn, not the depth, is the clue."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a distractor replaced by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q35",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "Percent above 200-day",
+   "q": "You want the long-term picture of the market, not this week's swings. Which number fills the blank?",
+   "sentence": "Check the share of stocks above their ___-day moving average.",
+   "bank": [
+    "200",
+    "50",
+    "10",
+    "20"
+   ],
+   "answer": "200",
+   "why": "200. The share above the 200-day tells you how many stocks are in a real long-term uptrend. That's the big picture. The 50-day is the nearer-term look, the one active traders watch day to day. I use both. The 200-day tells me what kind of market I'm in. The 50-day tells me what it's doing right now. Our Breadth page has both.",
+   "lesson_line": "The 50-day for the nearer term. The 200-day for the big picture.",
+   "facts": [
+    "f26",
+    "f97",
+    "f96"
+   ],
+   "simple": "The 200-day, because the 50-day gives the nearer-term look and the 200-day shows the longer trend.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool says that for medium-to-long-term timeframes it's best to look at the share above the 150-day and 200-day averages. Schwab says long-term investors should consider the 200-day, while active traders watch the 50-day for a nearer-term look."
+   }
+  },
+  {
+   "key": "q36",
+   "skill": "vocab.breadth_terms",
+   "rung": 6,
+   "format": "tf",
+   "term": "Percent above 200-day",
+   "q": "The share of stocks above their 50-day swings faster than the share above their 200-day.",
+   "answer": "True",
+   "why": "True. The 50-day version is more volatile and more sensitive. It gives earlier signals and more whipsaws.",
+   "lesson_line": "The faster gauge warns sooner and fakes out more. I check both.",
+   "facts": [
+    "f29",
+    "f66",
+    "f150"
+   ]
+  },
+  {
+   "key": "q37",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "McClellan Oscillator",
+   "q": "Our Breadth page also plots the McClellan Osc. What is that line?",
+   "choices": [
+    "Net advances: 19-day EMA minus 39-day",
+    "A running total of net advances",
+    "Up volume divided by down volume",
+    "New highs as a share of highs and lows"
+   ],
+   "answer": "Net advances: 19-day EMA minus 39-day",
+   "why": "A fast average of net advances minus a slow one: the 19-day EMA minus the 39-day. It's momentum, only for the crowd instead of one stock. Above zero, the fast average is on top, so advances are gaining the upper hand. Below zero, declines are. It's not the A/D line. That one just keeps a running total.",
+   "lesson_line": "A fast average of net advances minus a slow one. Momentum, applied to the crowd.",
+   "facts": [
+    "f38",
+    "f37",
+    "f75",
+    "f102",
+    "f39",
+    "f40",
+    "f101",
+    "f13",
+    "f48",
+    "f35"
+   ],
+   "wrong": {
+    "A running total of net advances": "That's the A/D line. The oscillator compares two averages instead.",
+    "Up volume divided by down volume": "That's the up/down volume ratio. The oscillator counts stocks, not shares.",
+    "New highs as a share of highs and lows": "That's Record High Percent."
+   },
+   "simple": "It's a fast average of net advances minus a slow one, so it shows the momentum of breadth.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool forms it by subtracting the 39-day EMA of net advances from the 19-day EMA. McClellan Financial describes the same pair as EMAs with 10% and 5% smoothing constants."
+   }
+  },
+  {
+   "key": "q38",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "McClellan Oscillator",
+   "q": "19-day EMA of net advances: +140. 39-day EMA: +65. What does the McClellan Oscillator read?",
+   "answer": "75",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "fast - slow",
+     "fast": 140,
+     "slow": 65
+    }
+   },
+   "why": "75. Fast minus slow: 140 minus 65 is 75. Positive, so advances have the upper hand, and by a good margin. You won't do this math in real life, our Breadth page plots it. But knowing it's fast minus slow tells you what a rising reading means. Recent breadth is beating the longer run.",
+   "lesson_line": "Fast minus slow. Above zero, advancers have the upper hand.",
+   "facts": [
+    "f38",
+    "f40",
+    "f101"
+   ],
+   "simple": "It reads 75, because you take the slow average of 65 away from the fast average of 140.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "205",
+    "75",
+    "20",
+    "2.15"
+   ],
+   "wrong": {
+    "205": "You added the two averages. It's fast minus slow.",
+    "20": "You subtracted the day counts, 39 minus 19. Use the readings.",
+    "2.15": "You divided fast by slow. It's a subtraction."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The two EMAs",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "19-day EMA of net adv.",
+      "value": 140,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "39-day EMA of net adv.",
+      "value": 65,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "McClellan Oscillator",
+     "as": "num",
+     "unit": "points"
+    }
+   },
+   "deeper": {
+    "example": "ChartSchool forms the McClellan Oscillator by subtracting the 39-day EMA of net advances from the 19-day EMA. Versions differ in their settings: McClellan Financial states its two EMAs as 10% and 5% smoothing constants."
+   }
+  },
+  {
+   "key": "q39",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "McClellan Oscillator",
+   "q": "SPY closed down today, yet the McClellan Oscillator is still positive. Something in your data is off.",
+   "answer": "False",
+   "why": "False. Nothing's broken. The oscillator isn't today's index move. It's built from stock counts, every stock one vote, smoothed with 19-day and 39-day averages. Positive means more stocks, on average, have been advancing lately. The index can close red on a day the crowd's momentum stays positive, and the other way around. Two different measures. Read each for what it is.",
+   "lesson_line": "The oscillator reads the crowd's momentum, not the index's day.",
+   "facts": [
+    "f75",
+    "f40",
+    "f74",
+    "f73"
+   ],
+   "simple": "False, because the sign shows whether more stocks have been rising than falling lately, not what the index did today.",
+   "deeper": {
+    "trap": "The trap is mixing up two different measures. The index reports one day's price change and leans on its biggest companies. The oscillator counts rising and falling stocks, gives each one equal weight, and smooths the counts with 19-day and 39-day averages. A positive reading tells you about the crowd over recent weeks, not about today's close."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (why softened by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q40",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "McClellan Oscillator",
+   "q": "You know MACD on a stock chart. Which breadth gauge works the same way, only on net advances?",
+   "choices": [
+    "McClellan Oscillator",
+    "Arms Index (TRIN)",
+    "Advance-decline line",
+    "High-Low Index"
+   ],
+   "answer": "McClellan Oscillator",
+   "why": "The McClellan Oscillator. Same idea as MACD: a fast average minus a slow one. Only it runs on net advances instead of a stock's price, the 19-day EMA minus the 39-day. If MACD makes sense to you on a chart, this one will too. TRIN divides two ratios. The A/D line is a running total. The High-Low Index smooths Record High Percent.",
+   "lesson_line": "Like MACD, but on breadth: a fast average of net advances minus a slow one.",
+   "facts": [
+    "f39",
+    "f102",
+    "f101",
+    "f38",
+    "f46",
+    "f13",
+    "f34"
+   ],
+   "wrong": {
+    "Arms Index (TRIN)": "TRIN divides the stock ratio by the volume ratio. No moving averages in its basic form.",
+    "Advance-decline line": "That's a plain running total, not a gap between two averages.",
+    "High-Low Index": "That smooths Record High Percent, a new-highs gauge."
+   },
+   "simple": "The McClellan Oscillator, a momentum gauge built from a fast average of net advances minus a slow one.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q41",
+   "skill": "vocab.breadth_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "McClellan Summation Index",
+   "q": "The McClellan Oscillator has a slower sister line, the Summation Index. What is it?",
+   "choices": [
+    "Running total of McClellan Oscillator",
+    "Running total of net advancing stocks",
+    "10-day average of the Oscillator",
+    "Oscillator readings above 100"
+   ],
+   "answer": "Running total of McClellan Oscillator",
+   "why": "A running total of the McClellan Oscillator. Every day's reading gets added to the total before it. Add things up and the line gets slow and steady. So the oscillator is your short-term read, and the Summation Index shows the bigger trend in breadth. When it's rising, the oscillator has been positive, day after day. That's the crowd's momentum holding up for a while, not just this week. Don't mix it up with the A/D line, which totals net advances.",
+   "lesson_line": "The oscillator is the daily reading. The Summation Index adds every reading up.",
+   "facts": [
+    "f43",
+    "f77",
+    "f103",
+    "f13",
+    "f76"
+   ],
+   "wrong": {
+    "Running total of net advancing stocks": "That's the A/D line.",
+    "10-day average of the Oscillator": "An average smooths readings. The Summation Index adds every one up.",
+    "Oscillator readings above 100": "Big jumps matter for breadth thrusts. The Summation Index is a running total."
+   },
+   "simple": "It's a running total of the McClellan Oscillator, so each day's reading is added to the total before it.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "choices rewritten in the 2026-11-10 variety pass"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q42",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "McClellan Summation Index",
+   "q": "Breadth just turned up after a selloff. The McClellan Oscillator will show it before the Summation Index does.",
+   "answer": "True",
+   "why": "True. The Summation Index is a running total of the oscillator, so it only moves as the readings pile up. That makes it the slow one. The oscillator is your early read on a turn, good for the short and medium term. The Summation Index tells you whether the bigger trend in breadth has really changed. I like seeing both point the same way before I lean in harder.",
+   "lesson_line": "Adding things up slows them down. The Summation Index is the patient one.",
+   "facts": [
+    "f44",
+    "f45",
+    "f78",
+    "f104",
+    "f43"
+   ],
+   "simple": "True, because adding up every day's reading makes the Summation Index slow, so the oscillator turns first.",
+   "deeper": {
+    "trap": "Don't expect the Summation Index to flag a turn first. It moves only as the oscillator's readings pile up, so it shows a shift in breadth later. ChartSchool uses the oscillator for short and medium-term timing and the Summation Index for the medium and long term."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q43",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Breadth thrust",
+   "q": "Someone in chat says the market just had a breadth thrust. What happened?",
+   "choices": [
+    "A sudden burst of broad buying",
+    "A slow fade in the A/D line",
+    "A big gain in one mega-cap stock",
+    "A spike in new 52-week lows"
+   ],
+   "answer": "A sudden burst of broad buying",
+   "why": "A sudden burst of broad buying. The McClellan Oscillator surges from deep negative to strong positive, fast. A move of 100 points or more is the common bar. That means a huge number of stocks flipped from selling to buying at once. Once a real low is in, you tend to see several of these. It's about the whole market moving, not one giant stock.",
+   "lesson_line": "A thrust is breadth swinging from deep negative to strong positive, fast.",
+   "facts": [
+    "f138",
+    "f41",
+    "f76"
+   ],
+   "wrong": {
+    "A slow fade in the A/D line": "A thrust is fast and up. A slow fade is breadth getting weaker.",
+    "A big gain in one mega-cap stock": "One stock can move the index. A thrust needs buying across most stocks.",
+    "A spike in new 52-week lows": "That's broad selling, the opposite."
+   },
+   "simple": "A breadth thrust is a sudden rush of buying across many stocks at once, not a jump in one big name.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (lesson line reworded by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool: a breadth thrust occurs when the McClellan Oscillator surges from deep negative readings to strong positive readings. Investopedia puts it as a large move, typically of 100 points or more, from negative to positive. The CMT Association calls thrusts signs of aggressive, broad-based buying."
+   }
+  },
+  {
+   "key": "q44",
+   "skill": "vocab.breadth_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Breadth thrust",
+   "story": "After a long slide, the McClellan Oscillator jumps from -70 to +60 in a few days. A friend says the bottom is now guaranteed.",
+   "q": "What do you tell him?",
+   "choices": [
+    "A good sign, but thrusts can fail",
+    "Right, the low is in, so go all in",
+    "A good sign, but not a thrust yet",
+    "Noise, thrusts rarely mark lows"
+   ],
+   "answer": "A good sign, but thrusts can fail",
+   "why": "Good sign, but thrusts can fail. From -70 to +60 clears the bar of 100 points or more, so it counts as a thrust. Most important lows show one. But one or two can show up in a bear market rally too. A cluster of them is what tends to mark the real low. So I start with a few of my best setups, not the whole list. Then I add positions only as they work.",
+   "lesson_line": "A thrust raises the odds. It doesn't remove the risk.",
+   "facts": [
+    "f42",
+    "f139",
+    "f79",
+    "f41",
+    "f76",
+    "f63"
+   ],
+   "wrong": {
+    "A good sign, but not a thrust yet": "It is one. The bar is a move of 100 points or more, and -70 to +60 clears it.",
+    "Right, the low is in, so go all in": "Not every thrust leads to a lasting advance. Let price confirm, and start with a few positions.",
+    "Noise, thrusts rarely mark lows": "The reverse. Most important lows are marked by a sharp surge in breadth."
+   },
+   "simple": "It's a good sign but not a sure one, because most big lows have a thrust, yet some thrusts fail.",
+   "deeper": {
+    "trap": "The trap is the single thrust. The CMT Association says you might get one or two in a bear market rally, and a collection of them is rarely seen until the ultimate low is in. ChartSchool says not all breadth thrusts foreshadow extended advances. Several in the weeks after a low, with price holding up, make a much stronger case."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "key text reworded in wave8 (it echoed the story's 'guaranteed')"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q45",
+   "skill": "vocab.breadth_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Up volume",
+   "q": "Our Breadth page shows Up/Down Volume. What counts as up volume?",
+   "choices": [
+    "Volume in stocks that closed higher",
+    "Volume above the 50-day average",
+    "Volume on days the index rose",
+    "Buy orders minus sell orders"
+   ],
+   "answer": "Volume in stocks that closed higher",
+   "why": "Volume in stocks that closed higher. If a stock closes up, every share it traded that day goes in the up volume pile. It's sorted by each stock's own close, not by what the index did. When up volume swamps down volume, the money went into the gainers. On-balance volume is a different tool. It sorts volume by the index's direction.",
+   "lesson_line": "Up volume follows each stock that rose, not the index.",
+   "facts": [
+    "f07",
+    "f47",
+    "f67",
+    "f151"
+   ],
+   "wrong": {
+    "Volume above the 50-day average": "Up volume is sorted by whether a stock closed higher, not by how heavy its volume was.",
+    "Volume on days the index rose": "That's how on-balance volume sorts it. Up volume follows each rising stock.",
+    "Buy orders minus sell orders": "Up volume isn't built from orders. It adds up the volume of stocks that closed higher."
+   },
+   "simple": "Up volume is the shares traded in stocks that closed higher on the day.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q46",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "Down volume",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Shares traded in stocks that closed lower on the day add up to ___ volume.",
+   "bank": [
+    "down",
+    "relative",
+    "average",
+    "heavy"
+   ],
+   "answer": "down",
+   "why": "Down. When a stock closes lower on the day, its volume that day counts as down volume. Up volume is the same for stocks that closed higher. It is sorted by whether each stock closed up or down, not by how heavy the volume was.",
+   "lesson_line": "Down volume is the weight behind the selling.",
+   "facts": [
+    "f08",
+    "f47",
+    "f67",
+    "f07"
+   ],
+   "simple": "Down volume, because the shares traded in stocks that fell on the day add up to down volume.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q47",
+   "skill": "vocab.breadth_terms",
+   "rung": 6,
+   "format": "mcq",
+   "term": "Up/down volume ratio",
+   "q": "Shares traded in rising stocks: 3.6 billion. In falling stocks: 1.2 billion. What's the up/down volume ratio?",
+   "answer": "3.0",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "up / down",
+     "up": 3.6,
+     "down": 1.2
+    }
+   },
+   "why": "3.0. 3.6 divided by 1.2 is 3. Three shares traded in rising stocks for every one in falling stocks. That's real money going into the gainers. One thing to know: volume leans toward big caps, since they trade the most shares. So this ratio tells you where the size went, and the plain stock count tells you what the average stock did. I look at both.",
+   "lesson_line": "The issues ratio counts stocks. The volume ratio weighs them by shares traded.",
+   "facts": [
+    "f48",
+    "f47",
+    "f46",
+    "f152"
+   ],
+   "simple": "The ratio is 3, because 3.6 billion shares in rising stocks divided by 1.2 billion in falling ones is three to one.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "0.33",
+    "2.0",
+    "2.4",
+    "3.0"
+   ],
+   "wrong": {
+    "0.33": "Upside down. That's down volume over up volume.",
+    "2.0": "You divided the gap between the two by the down volume. Just divide up by down.",
+    "2.4": "You subtracted. The ratio divides up volume by down volume."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's volume",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Up volume, in billions",
+      "value": 3.6,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Down volume, in billions",
+      "value": 1.2,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Up/down volume ratio",
+     "as": "num",
+     "unit": "ratio"
+    }
+   },
+   "deeper": {
+    "example": "ChartSchool defines advancing volume as the total volume of advancing stocks, and declining volume as that of declining stocks. It notes the advance-decline volume statistics favor large-cap stocks over small and mid caps."
+   }
+  },
+  {
+   "key": "q48",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "AD Volume Line",
+   "q": "A friend charts the AD Volume Line instead of the A/D line. What is he charting?",
+   "choices": [
+    "Running total of up minus down volume",
+    "Running total of net advances",
+    "Today's up volume over down volume",
+    "Total volume versus its average"
+   ],
+   "answer": "Running total of up minus down volume",
+   "why": "A running total of up volume minus down volume. Same build as the A/D line, but it counts shares instead of stocks. Each day's up volume minus down volume goes onto the total. Because it counts shares, the big, busy stocks weigh the most, so it leans toward large caps. The plain A/D line gives every stock one vote. Run both and you see whether the size and the crowd agree.",
+   "lesson_line": "Same idea as the A/D line, weighted by shares traded. Big, busy stocks count more.",
+   "facts": [
+    "f53",
+    "f54",
+    "f67",
+    "f152",
+    "f13",
+    "f46"
+   ],
+   "wrong": {
+    "Today's up volume over down volume": "That's the up/down volume ratio, one day's reading.",
+    "Running total of net advances": "That's the plain A/D line. It counts stocks, not shares.",
+    "Total volume versus its average": "That compares volume to normal. It doesn't split rising and falling stocks."
+   },
+   "simple": "It's a running total of up volume minus down volume, the breadth line built from shares traded.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q49",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Arms Index (TRIN)",
+   "q": "A trader calls TRIN, the Arms Index, his favorite breadth tool. What does it actually compare?",
+   "choices": [
+    "A/D ratio to A/D volume ratio",
+    "Today's volume to average volume",
+    "Calls traded to puts traded",
+    "52-week new highs to new lows"
+   ],
+   "answer": "A/D ratio to A/D volume ratio",
+   "why": "The A/D ratio against the A/D volume ratio. Advancers over decliners, divided by up volume over down volume. It checks whether the volume backed up the count of rising and falling stocks. Under one, the volume favored the gainers even more than the count did, and that's the bullish read. It's not relative volume, and it's not the put/call ratio. That's a sentiment gauge.",
+   "lesson_line": "TRIN checks whether volume backs up the count of rising and falling stocks.",
+   "facts": [
+    "f05",
+    "f46",
+    "f82",
+    "f153"
+   ],
+   "wrong": {
+    "Today's volume to average volume": "That's relative volume, not breadth.",
+    "Calls traded to puts traded": "That's the put/call ratio, a sentiment gauge.",
+    "52-week new highs to new lows": "That's the new highs and new lows family."
+   },
+   "simple": "TRIN compares how many stocks rose versus fell with how much volume went into rising versus falling stocks.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (lesson line reworded by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Nasdaq's glossary: TRIN is advancing issues divided by declining issues, then divided by advancing volume over declining volume. ChartSchool says the same, and lists the put/call ratio as a sentiment indicator."
+   }
+  },
+  {
+   "key": "q50",
+   "skill": "vocab.breadth_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Arms Index (TRIN)",
+   "q": "1,800 advancers, 1,200 decliners. Up volume 3 billion, down volume 1 billion. What does TRIN print?",
+   "answer": "0.5",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(adv / dec) / (upv / dnv)",
+     "adv": 1800,
+     "dec": 1200,
+     "upv": 3,
+     "dnv": 1
+    }
+   },
+   "why": "0.5. Do it in two steps. Stocks: 1,800 over 1,200 is 1.5. Volume: 3 over 1 is 3. Now divide the first by the second: 1.5 over 3 is 0.5. That's under 1.0, so volume favored the gainers even more than the count did. That's the bullish read. A strong day under the surface.",
+   "lesson_line": "Below 1.0, the volume ratio beat the issue ratio. That's the bullish read.",
+   "facts": [
+    "f05",
+    "f48",
+    "f06",
+    "f50",
+    "f91"
+   ],
+   "simple": "TRIN is 0.5, under 1.0, because volume favored the rising stocks even more than the stock count did.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (why and lesson reworded by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "2.0",
+    "0.5",
+    "1.5",
+    "4.5"
+   ],
+   "wrong": {
+    "2.0": "Flipped. You put the volume ratio over the stock ratio.",
+    "1.5": "That's just the stock ratio. You skipped the volume ratio.",
+    "4.5": "You multiplied the two ratios. TRIN divides them."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day's breadth",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Advancers",
+      "value": 1800,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Decliners",
+      "value": 1200,
+      "fmt": "count"
+     },
+     {
+      "key": "r3",
+      "label": "Up volume, billions",
+      "value": 3,
+      "fmt": "count"
+     },
+     {
+      "key": "r4",
+      "label": "Down volume, billions",
+      "value": 1,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "TRIN",
+     "as": "num"
+    }
+   },
+   "deeper": {
+    "example": "ChartSchool: TRIN = (advances / declines) / (advancing volume / declining volume). Low readings, below one, show relative strength in the volume ratio. Nasdaq reads a value under 1.0 as bullish."
+   }
+  },
+  {
+   "key": "q51",
+   "skill": "vocab.breadth_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Arms Index (TRIN)",
+   "q": "The market rips higher all day and almost everything is green. You should expect TRIN to rise.",
+   "answer": "False",
+   "why": "False. TRIN works upside down. A strong up day pushes it lower, and a strong down day pushes it higher. That's why it seems to move against the market. Low is the good reading, high the bad one. It's a tendency, not a law. The formula can throw a strange number now and then, so check what's inside it.",
+   "lesson_line": "TRIN runs against the market. Strong up days pull it down.",
+   "facts": [
+    "f49",
+    "f55",
+    "f91",
+    "f06"
+   ],
+   "simple": "False, because TRIN tends to move opposite the market, so strong up days push it lower.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "statement reworded in wave8 so its hedge does not give away the answer"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q52",
+   "skill": "vocab.breadth_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Arms Index (TRIN)",
+   "story": "Advancers beat decliners 3 to 1 today. Up volume beat down volume 2 to 1. TRIN prints 1.5.",
+   "q": "What does that 1.5 tell you?",
+   "choices": [
+    "A strong day, TRIN's math is quirky",
+    "A bearish day, sellers won it",
+    "The volume figures must be wrong",
+    "A breadth thrust just fired"
+   ],
+   "answer": "A strong day, TRIN's math is quirky",
+   "why": "A strong day. The 1.5 is a quirk of the formula. Three stocks up for every one down, and twice the up volume. That's a good day by any normal read. But TRIN divides one ratio by the other: (3/1)/(2/1) is 1.5. Above 1.0 looks bearish. Here it only means the volume edge was smaller than the stock edge. Whenever TRIN looks off, check the two ratios inside it.",
+   "lesson_line": "When TRIN looks odd, check the two ratios inside it. The quirk is in the division.",
+   "facts": [
+    "f83",
+    "f84",
+    "f50",
+    "f06",
+    "f48",
+    "f41"
+   ],
+   "wrong": {
+    "The volume figures must be wrong": "The data's fine. The formula divides one ratio by another, and that can mislead.",
+    "A bearish day, sellers won it": "Three stocks rose for every one that fell, with twice the up volume. Buyers had the day.",
+    "A breadth thrust just fired": "A thrust is a surge in a gauge like the McClellan Oscillator. One TRIN print doesn't show it."
+   },
+   "simple": "It was a strong day, and TRIN reads 1.5 only because the volume edge was smaller than the stock edge.",
+   "deeper": {
+    "trap": "The trap is reading every TRIN above 1.0 as bearish. TRIN drops below 1.0 only when the volume ratio beats the stock ratio. Investopedia uses this exact case, advancers 3 to 1 and up volume 2 to 1, to show the formula's flaw. Before you trust a TRIN print, check the advance-decline ratio and the up/down volume ratio inside it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q53",
+   "skill": "vocab.breadth_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Arms Index (TRIN)",
+   "story": "After a brutal week of selling, the daily NYSE TRIN closes above 3.0. The index is in a downtrend.",
+   "q": "What's a TRIN that high telling you?",
+   "choices": [
+    "Oversold, selling looks overdone",
+    "Overbought, buyers are exhausted",
+    "Neutral, near its balance point",
+    "Bullish, up volume dominated"
+   ],
+   "answer": "Oversold, selling looks overdone",
+   "why": "Oversold. The selling looks overdone. On the daily NYSE TRIN, a surge above 3.0 is the panic print. Down volume swamped everything. But you're in a downtrend, and oversold isn't a turn. Trade with the bigger trend. I'd wait for price to turn up before buying anything, and use the time to build the list.",
+   "lesson_line": "Extreme TRIN marks panic. In a downtrend, wait for price to turn before you buy.",
+   "facts": [
+    "f51",
+    "f85",
+    "f52",
+    "f06",
+    "f50"
+   ],
+   "wrong": {
+    "Overbought, buyers are exhausted": "Overbought is the other extreme, dips below 0.50.",
+    "Neutral, near its balance point": "Neutral sits around 1.0. Above three is far from it.",
+    "Bullish, up volume dominated": "The reverse. Above three, the volume ratio was far weaker than the stock ratio."
+   },
+   "simple": "It's read as oversold, a sign the selling went too far, but in a downtrend it's no buy signal.",
+   "deeper": {
+    "trap": "The trap is buying the panic reading inside a downtrend. ChartSchool says surges above three are deemed oversold, notes TRIN generates plenty of signals, and prefers trading in the direction of the underlying trend. Investopedia agrees a value above 3.00 marks an oversold market. It doesn't say the trend has turned."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a wrong note tied to the story by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q54",
+   "skill": "vocab.breadth_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Distribution day",
+   "q": "You keep a distribution-day count the way IBD does. Which day goes in the count?",
+   "choices": [
+    "Index drop on heavier volume",
+    "Index gain on heavier volume",
+    "Index drop on lighter volume",
+    "A fund paying out its dividends"
+   ],
+   "answer": "Index drop on heavier volume",
+   "why": "An index drop on heavier volume than the day before. That's IBD's footprint of big funds selling: the Nasdaq or S&P 500 closes down, and more shares trade than yesterday. The drop has to clear a small minimum too. One of these alone means little. A pile of them is the warning. So when one prints, log it and watch the count. One day is no reason to panic.",
+   "lesson_line": "Price down, volume up. That's the footprint of big sellers.",
+   "facts": [
+    "f112",
+    "f135",
+    "f113"
+   ],
+   "wrong": {
+    "Index gain on heavier volume": "A distribution day is a drop. A gain doesn't count, whatever the volume.",
+    "Index drop on lighter volume": "Volume has to beat the prior session. A drop on lighter volume doesn't count.",
+    "A fund paying out its dividends": "Different meaning of the word. This is about an index's price and volume."
+   },
+   "simple": "It's a day the index falls on heavier volume than the day before, a sign of big sellers.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on IBD's rule, which IBD can change (read from 2012-2015 republished articles)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q55",
+   "skill": "vocab.breadth_terms",
+   "rung": 5,
+   "format": "fill",
+   "term": "Distribution day",
+   "q": "The Nasdaq slips on higher volume than yesterday. How big a drop does IBD need to count it?",
+   "sentence": "IBD counts a distribution day when the Nasdaq or S&P 500 falls at least ___% on higher volume.",
+   "bank": [
+    "0.2",
+    "0.5",
+    "1.25",
+    "3"
+   ],
+   "answer": "0.2",
+   "why": "0.2. A drop of 0.2% or more on the Nasdaq or S&P 500, on higher volume than the prior day. That's it. It doesn't take a crash. A quiet little slip on rising volume counts. That's the point of the count. It catches the selling that never makes a headline. Keep in mind this is IBD's method as its articles state it, not a law of the market.",
+   "lesson_line": "It doesn't take a crash. A small drop on rising volume still counts.",
+   "facts": [
+    "f112",
+    "f116",
+    "f136"
+   ],
+   "simple": "The bar is a drop of 0.2% or more on higher volume, so no crash is needed.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "IBD's rule can change (its live page is for subscribers)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "IBD: a distribution day results from a drop of 0.2% or more on the Nasdaq composite or S&P 500 in volume higher than the prior session. Bulkowski threw out days that did not drop by more than 0.2%, so his tests matched IBD."
+   }
+  },
+  {
+   "key": "q56",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Distribution day",
+   "q": "The S&P 500 drops 0.4% on volume below its average but above yesterday's. Under IBD's rule, that's a distribution day.",
+   "answer": "True",
+   "why": "True. 0.4% clears the 0.2% bar, and volume beat yesterday. That's all IBD asks. Volume doesn't have to run above average, it only has to beat the day before. A lot of people check the average instead. Do that and you undercount, and you can miss a cluster building.",
+   "lesson_line": "Compare the volume with yesterday's, not with the average.",
+   "facts": [
+    "f120",
+    "f135",
+    "f112"
+   ],
+   "simple": "True, because volume only has to beat the day before, not run above average.",
+   "deeper": {
+    "trap": "The trap is checking volume against its average. IBD says daily volume doesn't have to run above average to count, it just needs to be higher than the prior day. Bulkowski uses the same test. If you wait for heavy, above-average volume, you undercount distribution days."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on IBD's rule, which IBD can change (read from 2012-2015 republished articles)",
+     "choices rewritten in the 2026-11-10 variety pass"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q57",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Distribution day",
+   "story": "The Nasdaq is in a healthy uptrend. Today it slips 0.3% on volume a bit higher than yesterday. There hasn't been a day like it in weeks.",
+   "q": "What do you do?",
+   "choices": [
+    "Log it, one day means little",
+    "Sell everything at the open",
+    "Short the Nasdaq right away",
+    "Ignore it, a 0.3% dip doesn't count"
+   ],
+   "answer": "Log it, one day means little",
+   "why": "Log it and move on. Under IBD's rule it does count: 0.3% down on higher volume clears the 0.2% bar. But IBD says one distribution day here or there won't hurt a healthy uptrend. What IBD warns about is a cluster, five or six in a few weeks. So keep the count going. Until it builds, hold your stocks and let your stops do their job.",
+   "lesson_line": "One distribution day is noise. Start paying attention when they pile up.",
+   "facts": [
+    "f117",
+    "f114",
+    "f118",
+    "f112",
+    "f136"
+   ],
+   "wrong": {
+    "Sell everything at the open": "A few distribution days in an uptrend are no reason to dump your stocks. One is even less.",
+    "Short the Nasdaq right away": "One day of selling isn't a trend change.",
+    "Ignore it, a 0.3% dip doesn't count": "Under IBD's rule it does. The bar is a drop of 0.2% or more on higher volume."
+   },
+   "simple": "Write it down and move on, because one distribution day doesn't hurt an uptrend. A cluster does.",
+   "deeper": {
+    "trap": "The trap is reacting to the first one. IBD says a random distribution day here or there won't hurt an uptrend, and even a few during a confirmed uptrend aren't reason enough to dump all your stocks. Keep the count and let it build before it changes what you do."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on IBD's rule, which can change"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q58",
+   "skill": "vocab.breadth_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Distribution-day cluster",
+   "story": "In four weeks the S&P 500 has logged six distribution days. Several of your leading stocks are breaking support.",
+   "q": "Read IBD's way, what's this telling you?",
+   "choices": [
+    "A warning, time to get defensive",
+    "Healthy, keep buying breakouts",
+    "Meaningless without a recession",
+    "A follow-through day is near"
+   ],
+   "answer": "A warning, time to get defensive",
+   "why": "Time to get defensive. Six distribution days in four weeks is the cluster IBD warns about. A cluster alone doesn't stop a rally right away. What makes this one serious is your leaders breaking support. Major tops come with exactly that pair: a flurry of distribution and the leaders cracking. So I lock in profits, cut losers fast, and I'm not hunting for new buys here.",
+   "lesson_line": "A pile of distribution days plus cracking leaders means get defensive.",
+   "facts": [
+    "f118",
+    "f119",
+    "f137",
+    "f154",
+    "f155"
+   ],
+   "wrong": {
+    "Meaningless without a recession": "The market tends to peak well before the economy does.",
+    "A follow-through day is near": "A follow-through confirms a new uptrend after a correction. You're at the other end.",
+    "Healthy, keep buying breakouts": "A cluster like this warns that the uptrend is weakening."
+   },
+   "simple": "Get defensive, because six distribution days in four weeks plus weak leaders is the warning sign.",
+   "deeper": {
+    "counter": "IBD's own words are hedged. It says a cluster doesn't stop a rally at once, but it's a smart time to get defensive by locking in profits and cutting losses short. It also says major tops are preceded by a flurry of distribution days and severe weakness among the leading stocks. The leaders breaking is what makes this case strong."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on IBD's cluster rule, which can change"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q59",
+   "skill": "vocab.breadth_terms",
+   "rung": 9,
+   "format": "tf",
+   "term": "Distribution-day cluster",
+   "q": "The market is trending up and distribution days start to cluster. A price drop reliably follows.",
+   "answer": "False",
+   "why": "False. Bulkowski tested it. Clusters within 21 calendar days in a rising trend did not predict a drop. They only worked in a falling trend, heavy volume or light. So treat the count as a caution light, not a forecast. IBD reads a cluster as a time to get defensive, and that's sensible. But your stocks and price make the call, not the count.",
+   "lesson_line": "A distribution count is a caution light, not a sell signal. Price and your stocks decide.",
+   "facts": [
+    "f133",
+    "f134",
+    "f119"
+   ],
+   "simple": "False, because tests found clusters in a rising market did not predict drops. They only worked in falling markets.",
+   "deeper": {
+    "trap": "The trap is the word 'reliably'. IBD reads a cluster as a warning to get defensive, and that is a sensible caution. But Bulkowski's tests say a rising-trend cluster is not a dependable forecast of a drop. Treat the count as a caution light, and let price and your own stocks decide."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q60",
+   "skill": "vocab.breadth_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Follow-through day",
+   "q": "The market's been bouncing off a low for a few days. What would IBD call a follow-through day?",
+   "choices": [
+    "A strong index gain on higher volume",
+    "Strong index drop on higher volume",
+    "The first up day after a market low",
+    "An index gap up that holds all day"
+   ],
+   "answer": "A strong index gain on higher volume",
+   "why": "A strong index gain on higher volume, a few days into the bounce. The Nasdaq or S&P 500 closes up big from the day before, on more volume than the day before. IBD reads it as the selling likely being over and a new uptrend starting. For me it's a sign to start looking for buys again, a few names at a time, not a reason to go all in. Our Breadth charts have a toggle that marks follow-through days.",
+   "lesson_line": "A follow-through day says the bounce off the low has real buyers behind it.",
+   "facts": [
+    "f56",
+    "f122",
+    "f125",
+    "f158",
+    "f123",
+    "f126",
+    "f112"
+   ],
+   "wrong": {
+    "Strong index drop on higher volume": "That's a distribution day, the selling side.",
+    "The first up day after a market low": "Too early. The follow-through comes on Day 4 or later.",
+    "An index gap up that holds all day": "A gap isn't the test. It's a strong close above the prior day on higher volume."
+   },
+   "simple": "It's a strong index gain on higher volume, a few days after a market low.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on IBD's rule, which IBD can change (read from 2012-2015 republished articles)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q61",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Follow-through day",
+   "story": "After a long selloff, the Nasdaq closes at a new low on Tuesday. It closes higher Wednesday, Thursday and Friday, never undercutting that low. Monday it gains 1.8% on higher volume than Friday.",
+   "q": "What does IBD call Monday?",
+   "choices": [
+    "A follow-through day",
+    "A distribution day",
+    "Day 1 of a rally attempt",
+    "A failed rally attempt"
+   ],
+   "answer": "A follow-through day",
+   "why": "A follow-through day. Count it out. Tuesday is the low. Wednesday is the first up close, so that's Day 1 of the rally attempt. Thursday is Day 2, Friday Day 3, Monday Day 4. IBD wants the signal on Day 4 or later. It calls the gain needed a moving target, at least 1% to 1.25% in one version. Volume has to beat the day before. Monday's 1.8% on higher volume clears both. The low never broke, so the attempt stayed alive. Not every one works, so start small.",
+   "lesson_line": "Count from the first up close after the low. Day 4 or later, a strong gain, more volume.",
+   "facts": [
+    "f121",
+    "f122",
+    "f123",
+    "f56",
+    "f156",
+    "f128",
+    "f124"
+   ],
+   "wrong": {
+    "A distribution day": "Distribution needs the index to fall. It rose.",
+    "Day 1 of a rally attempt": "Day 1 was Wednesday, the first up close after the low.",
+    "A failed rally attempt": "It fails only if the index undercuts its low. It never did."
+   },
+   "simple": "Monday is a follow-through day, because it's Day 4 of the rally attempt and the gain came on higher volume.",
+   "deeper": {
+    "trap": "Two traps. First, counting the low day itself as Day 1. IBD's Day 1 is the first up day after the low, so Tuesday does not count. Second, treating the signal as an all-clear. IBD says the follow-through isn't perfect, so don't immediately get fully invested. Some follow-throughs fail, and the market falls to new lows."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "IBD's gain threshold is a moving target"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q62",
+   "skill": "vocab.breadth_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Follow-through day",
+   "q": "A follow-through day just fired. IBD's advice is not to go fully invested right away.",
+   "answer": "True",
+   "why": "True. The signal isn't perfect. It says the selling has likely ended, not surely. Some follow-throughs fail and the market goes on to new lows. That's why we ease in. A few positions first, then more as they work. If the follow-through fails, you've lost a little and you're still mostly in cash.",
+   "lesson_line": "A follow-through day opens the door. It doesn't mean go all in.",
+   "facts": [
+    "f124",
+    "f128",
+    "f125",
+    "f59"
+   ],
+   "simple": "True, because the signal isn't perfect and some follow-through days fail.",
+   "deeper": {
+    "counter": "A follow-through day can fire and then fail, with the market reversing to new lows. That is why IBD warns against getting fully invested at once."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "statement reworded in wave8 to IBD's own advice; the key is now True"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q63",
+   "skill": "vocab.breadth_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Follow-through day",
+   "story": "A follow-through day fires on a session full of grim headlines. Most people you know are still bearish.",
+   "q": "Do the headlines change how you read it?",
+   "choices": [
+    "Bad news is normal at a follow-through",
+    "Wait for good news to confirm it first",
+    "Grim headlines cancel out the signal",
+    "It needs a Fed rate cut to count"
+   ],
+   "answer": "Bad news is normal at a follow-through",
+   "why": "No. Bad news is normal at a follow-through. These form when fear is high and most people are still bearish. If you wait for the news to feel good, you'll be late. The signal is the index's price and volume, not that week's headlines. Read the market, not the news.",
+   "lesson_line": "Follow-throughs show up while the news still looks bad. Read price and volume, not headlines.",
+   "facts": [
+    "f129",
+    "f131",
+    "f57",
+    "f157",
+    "f158",
+    "f123"
+   ],
+   "wrong": {
+    "Wait for good news to confirm it first": "Headlines are a poor guide to the start of an uptrend. IBD says most investors are still scared when it comes.",
+    "Grim headlines cancel out the signal": "IBD says a follow-through doesn't have much to do with the week's headlines.",
+    "It needs a Fed rate cut to count": "IBD's test is price and volume. Policy news isn't part of it."
+   },
+   "simple": "Bad news is normal, because follow-throughs form amid fear and grim headlines, while most investors are scared.",
+   "deeper": {
+    "trap": "The trap is waiting for the news to feel safe. IBD says most investors are scared or bearish when a follow-through comes, and that it doesn't have much to do with that week's headlines. StockCharts says these days form amid fear, negative headlines and persistent selling."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "choices rewritten in the 2026-11-10 variety pass"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q64",
+   "skill": "vocab.breadth_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Rally attempt",
+   "q": "You hear the market is in a rally attempt. In IBD's terms, where are we?",
+   "choices": [
+    "The first bounce off a market low",
+    "A confirmed new market uptrend",
+    "A rally to a new all-time high",
+    "A short squeeze in a single stock"
+   ],
+   "answer": "The first bounce off a market low",
+   "why": "Right off the low. A rally attempt starts when a falling index bottoms and turns up. The first up day is Day 1. Nothing's confirmed yet. If the index undercuts that low, the attempt fails and it starts over. Confirmation comes later, with a follow-through day. Early rallies fail a lot, so use this stretch to build your list, not to load up.",
+   "lesson_line": "A rally attempt is a question. The follow-through day is the answer.",
+   "facts": [
+    "f127",
+    "f58",
+    "f121",
+    "f122",
+    "f126",
+    "f156"
+   ],
+   "wrong": {
+    "A rally to a new all-time high": "A rally attempt starts right off a market low, nowhere near a high.",
+    "A confirmed new market uptrend": "Confirmation comes later, with a follow-through day.",
+    "A short squeeze in a single stock": "A rally attempt is about a major index, not one stock."
+   },
+   "simple": "A rally attempt is the first bounce after a falling index bottoms and turns higher. Nothing's confirmed yet.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on IBD's rule, which IBD can change (read from 2012-2015 republished articles)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q65",
+   "skill": "vocab.breadth_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Cap-weighted index",
+   "story": "The S&P 500 rose 1% today. Yet more of its stocks fell than rose, so its A/D line dropped.",
+   "q": "How can both be true?",
+   "choices": [
+    "Big caps weigh more in the index",
+    "The A/D line has a data error",
+    "Volume was too light to count",
+    "The A/D line lags the index by a day"
+   ],
+   "answer": "Big caps weigh more in the index",
+   "why": "Big caps weigh more in the index. The S&P 500 is cap-weighted, so the biggest companies move it most. The A/D line gives every stock one vote. A few giants jump, most stocks slip, and you get exactly this: index up 1%, A/D line down. Neither number is wrong. They measure different things. That's why I watch both. When they split like this, the rally is narrower than it looks.",
+   "lesson_line": "The index weighs by size. The A/D line counts heads. Watch both.",
+   "facts": [
+    "f73",
+    "f107",
+    "f74",
+    "f110",
+    "f108",
+    "f21",
+    "f99"
+   ],
+   "wrong": {
+    "The A/D line has a data error": "Both are right. They just weigh stocks differently.",
+    "Volume was too light to count": "Volume doesn't enter the A/D line at all. It counts stocks up versus down.",
+    "The A/D line lags the index by a day": "Both use the same day's closes. The gap comes from how each one weighs stocks."
+   },
+   "simple": "The big companies count most in the index, while the breadth line gives every stock one vote, so the two can disagree.",
+   "deeper": {
+    "example": "Picture a day when a few of the largest companies jump and most smaller members slip. The index rises, because those few carry most of the weight. The A/D line falls, because more members declined than advanced. Tom McClellan describes this as buying in a few big caps that the rest of the market is not confirming. He calls any divergence a condition, not a signal."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a distractor replaced by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q66",
+   "skill": "vocab.breadth_terms",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "term": "Rebuilding after a correction",
+   "story": "The market just came out of a correction. The app's market reading, our market filter, flips back to Green, its healthy reading. You hold no stocks yet.",
+   "q": "How do you start buying again?",
+   "choices": [
+    "A few positions, more as they work",
+    "Buy a full book of stocks that same day",
+    "Add to your first trade as it rises",
+    "Wait for the reading to hold a month"
+   ],
+   "answer": "A few positions, more as they work",
+   "wrong": {
+    "Buy a full book of stocks that same day": "If the turn is a head fake, every stop hits at once. Start with a few.",
+    "Add to your first trade as it rises": "Rebuilding is new positions, not more shares in one trade. Each goes on at full size, once.",
+    "Wait for the reading to hold a month": "You start when the reading turns Green. A few positions, not a waiting period."
+   },
+   "simple": "Start with a few positions, then add more positions only as the first ones work.",
+   "why": "A few positions, then more as they work. The first Green day after a correction can be a head fake. Buy a full book, it fails, and every stop hits at once. Start with a few of your best setups. If they work, the market's telling you the turn is real, and you add more positions. If they fail, you lost a little and you're still mostly in cash. Each trade goes on at full size, at one price, with one stop. Let the market earn your exposure.",
+   "lesson_line": "After a correction, ease back in: a few positions first, more only as they work.",
+   "deeper": {
+    "trap": "The trap is going all in the day the reading turns Green. Start with a few positions instead, and add more positions only as the first ones work. Don't rebuild by adding shares to one trade: each goes on at full size, at one price, with one stop."
+   },
+   "facts": [
+    "h1",
+    "aw_r",
+    "h3"
+   ],
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a rule from the owner's rulebook (F68, A5, B18)",
+     "new in wave8"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "IBD's own pages show only the opening lines to non-subscribers (s38 is cited for its open lead only). The distribution-day and follow-through-day rules come from full IBD articles republished on Yahoo Finance (2012-2015, s30-s34). IBD's live rule could not be read, so every question says 'IBD's method' or 'IBD's rule', and all six IBD sources share one publisher name so they never count as two publishers.",
+  "Follow-through gain: IBD calls it 'a moving target' (2015: 'at least 1% to 1.25%'; 2012: '1.3% to 1.4% or more'). No question asks for a threshold. q61's 1.8% gain clears both versions, and its key also rests on the day count and the volume test.",
+  "Follow-through timing: IBD 2015 says 'Day 4 or thereafter'; IBD 2013 says four or more sessions in, but 'once in a while, they can occur earlier' (with early ones more often short-lived). q61 keys a Day 4 signal only; no question asks whether an earlier day can count.",
+  "Distribution-day threshold: 0.2% is in IBD 2014 (s30) and IBD 2015 (s31), and Bulkowski says his test used 'more than 0.2%' to match IBD (s35). q55 keys 0.2 as IBD's rule only.",
+  "Distribution days, rule vs test: IBD treats a cluster of five or six in a few weeks as a warning (s30, s31; Bulkowski quotes the same IBD research). Bulkowski's tests (stocks 2005-2010, S&P 500 1950-2010) found clusters in a rising trend did not predict drops and worked only in a falling trend. The file teaches IBD's reading as IBD's (q58) and Bulkowski's finding as his (q57 wrong note, q59, w3).",
+  "McClellan Oscillator versions: ChartSchool and Investopedia give the 19-day minus 39-day EMA of net advances; McClellan Financial describes the same pair as EMAs with 10% and 5% smoothing constants; ChartSchool's own oscillator is ratio-adjusted. q38 states its own EMA values and keys only fast minus slow; no question asks for an oscillator level.",
+  "McClellan Summation Index level: McClellan Financial says the properly calibrated index is neutral at +1000; ChartSchool's version fluctuates around zero. No question asks about its level.",
+  "Breadth thrust: ChartSchool's oscillator thrust runs from below -50 to above +50; Investopedia's is a move of 100 points or more from negative to positive; Martin Zweig's breadth thrust is a different, 10-day measure (not used). q43 and q44 key only the shared idea, a sudden surge of broad buying; q44's -70 to +60 fits both oscillator definitions.",
+  "TRIN extremes: ChartSchool's 'above three oversold, below 0.50 overbought' is for the unsmoothed daily NYSE TRIN (its 10-day smoothed example uses 1.20 / 0.80); Investopedia gives 3.00 / 0.50. q53 says 'daily NYSE TRIN' and keys only the direction (oversold), with ChartSchool's advice to trade with the bigger trend.",
+  "Up and down volume: Nasdaq's glossary and ChartSchool sort volume by whether the stock closed up or down on the day. Investopedia's 'Upside/Downside Ratio' page sorts it by close versus the day's open. The file uses the Nasdaq / ChartSchool definition and does not cite that page.",
+  "Percent of stocks above a moving average: ChartSchool calls 70% / 30% overbought / oversold for the 50-day version and says levels vary; Schwab calls 80% above the 50-day 'solid bullish breadth' and under 10% a hint of an overdone selloff. No question keys a fixed threshold: q33 uses Schwab's own 80% example and q34 keys only 'wait for an upturn'. Schwab's line 'Eighty percent, meaning 400 of 500 SPX stocks are moving upward' mixes up 'above the 50-day' with 'rising'; it is not quoted.",
+  "Nasdaq glossary 'Highs' entry reads 'an all-time high for the current 52-week time period', which garbles two ideas; the file uses its 'New high/new low' entry (a stock at its highest or lowest price in the last year) instead.",
+  "Advance-decline counts differ by data vendor (McClellan, s28: the sources 'almost never agree'). Every computed question supplies its own counts.",
+  "Market breadth vs sentiment: Fidelity (s24) calls the A/D line a sentiment indicator; ChartSchool files it under breadth and keeps sentiment indicators (put/call ratio, volatility indices) separate. The unit calls it breadth.",
+  "Access on 2026-11-09: Investopedia refused Python's urllib client (403) while serving plain curl (200); the quote checker's cache held 200 copies of four of the five Investopedia pages from earlier today. Every Investopedia quote was confirmed in the curl-fetched page text. The arms.asp page (s23) may show as 'unreachable' to the quote checker.",
+  "TRIN above or below 1.0 (checker, 2026-11-09): Nasdaq's glossary and Fidelity describe under 1.0 as volume favoring advancing stocks; ChartSchool defines it as the volume ratio beating the issue ratio, and Investopedia's own example prints 1.5 on a day with 3:1 advancers and 2:1 up volume. The checker reworded q49, q50, q51 and a q53 note so no line says TRIN over 1.0 always means volume favored the sellers.",
+  "thepatternsite.com (s35, Bulkowski) carries a notice that the site 'shall not be used to train artificial intelligence (AI) systems'. The unit quotes it briefly as a source. If Study content is used as training material, the owner may want to drop s35's quotes (they back q55-q59 and w3 alongside IBD sources)."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f99, f12, f13, f15, f105 read in context. Step 3 said the number 'only depends on' the start date; it also reflects the data since. Now 'depends on'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f73, f107, f70, f18, f108, f62, f63 read in context (McClellan: a divergence is a 'condition', not a 'signal'). Right as written.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "IBD 0.2% rule, five-or-six cluster and Day 4+ follow-through confirmed on the Yahoo copies (IBD bylines and dates checked). Step 4 said Bulkowski's tests covered both days; he tested distribution days only. Rewrote to say what each source found.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Friend's text is a real situation; depth kept as a wrong note; reason to care (before I press) added. f03/f60/f64."
+  },
+  "q02": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Same fact, same situation as q65: q65's story ('rose 1% today. Yet more of its stocks fell than rose') states q02's True answer outright, and q02's why gives q65's mechanism (a few big gainers drag the index). Also a hedged 'can' statement keyed True, the predictability tell the resolver fixed in q51. q65 (rung 8) and q11 already teach it. TF share stays above 15% without it."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Advancer definition right (f99/f47); Net Advancers label verified on the Breadth page (chartMetrics.js)."
+  },
+  "q04": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False is right: flat goes to unchanged (f04). Clear practical tail."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Net Advancers label verified in the app; subtraction right (f12/f100)."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "2,150 minus 950 is 1,200; wrong-answer math checked (3,100 sum, 120 slip). 'More than two up per down' holds (2.26)."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Running total right (f13/f69); one-vote point from f74."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "1,200 minus 2,000 is -800; 5,000 to 4,200. Each wrong value traced to its mistake."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True is right (f15/f105). Reads like a trader: shape over scale."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "NVDA vs a small name, one vote each (f21/f74/f107). Could be his."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Nasdaq A/D quirk right (f20/f109/f111). 'I'd never sell a leader off it' is his kind of line."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Divide vs subtract right (f01/f12); rising ratio bullish (f02)."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "2,400/800 is 3; 0.75 (over total) and 2.0 (net over decliners) traced."
+  },
+  "q15": {
+   "status": "cut",
+   "notes": "duplicate of F7.05#q07 (the same divergence question across tracks; found by course_dups). The word stays taught by q16.",
+   "fixed": false,
+   "by": "integrator"
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "a divergence is no reason to add: a specific reason, not an absolute. Voice 4."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Bullish divergence right (f19/f71); 'let price confirm' (f63)."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Story gives the screen; may-not-will framed honestly (f88/f62)."
+  },
+  "q19": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Narrow breadth right (f22/f92/f73); practical line on staying with RS names."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False is right (f98/f62/f106). Not a short lesson, no D-001 line needed."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Broad participation right (f22/f93)."
+  },
+  "q23": {
+   "status": "cut",
+   "notes": "duplicate of V.02#q47. Track audit 2026-11-09: both ask what a new 52-week high is and key the highest price in the past year, with 'all-time high' as the main wrong choice. V.02 comes first in the track and keeps it. This unit keeps new lows (q24) and net new highs (q25 to q27).",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q24": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "52W Highs/Lows labels verified; subtraction right (f31/f143)."
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "180 minus 45 is 135; four-to-one holds."
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Lag at turns right (f33/f142/f146); judges by price and leaders."
+  },
+  "q28": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "60/80 x 100 is 75; 300 (60/20), 133 (80/60), 80 (the total) traced."
+  },
+  "q29": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Below 50, lows win (f81/f36). True/false stem is one plain claim."
+  },
+  "q30": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: a definition list with no reason a trader cares. Rewrote with the why (smoothing) and where it sits for a leader hunter, no new numbers."
+  },
+  "q31": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "% Above 50SMA label verified; f150 whipsaw fact added and used correctly."
+  },
+  "q32": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "340/500 is 68%; 680% is 340/50; 32% is the share below."
+  },
+  "q33": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Schwab's 80% case (f94) used as the question's own number, not as a threshold of ours. Repeated highs = strength (f149)."
+  },
+  "q34": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Wait for the upturn (f30/f95). Keys no threshold; 'under 10%' stays Schwab's hint, said as a hint."
+  },
+  "q35": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "200-day for the big picture (f97/f96); % Above 200SMA verified in the app."
+  },
+  "q36": {
+   "status": "cut",
+   "notes": "duplicate of F7.05#q12 (the same true/false statement across tracks; both would land in the True or False pool). The word stays taught by q35.",
+   "fixed": false,
+   "by": "integrator"
+  },
+  "q37": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "19 minus 39 EMA right (f38/f40); McClellan Osc label verified."
+  },
+  "q38": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "140 minus 65 is 75; 20, 205, 2.15 traced."
+  },
+  "q39": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False is right: crowd momentum vs index day (f75/f73)."
+  },
+  "q40": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "MACD analogy right (f39); wrong notes accurate."
+  },
+  "q41": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: textbook, and 'not an average either' was filler. Rewrote around what a rising line tells you and when you use each."
+  },
+  "q42": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True: summation is the slow one (f44/f45)."
+  },
+  "q43": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Thrust definition right (f41/f76/f138); 'several once a real low is in' reads f139 fairly."
+  },
+  "q44": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "-70 to +60 is 130 points, clears the 100 bar; thrusts can fail (f42/f139). Ease-in line matches F68."
+  },
+  "q45": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Up/Down Volume label verified; OBV contrast from f151."
+  },
+  "q46": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q47": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "3.6/1.2 is 3; 2.4 is the difference, 2.0 is difference over down. Big-cap lean from f152."
+  },
+  "q48": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "AD Volume Line right (f53/f54/f152)."
+  },
+  "q49": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "TRIN definition right (f05/f46); under-one wording follows the conflicts note."
+  },
+  "q50": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "1.5 over 3 is 0.5; 2.0 flipped, 4.5 multiplied, 1.5 stock ratio only."
+  },
+  "q51": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False: TRIN runs opposite (f49/f55); 'tendency, not a law' keeps the q52 quirk honest."
+  },
+  "q52": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "(3/1)/(2/1) is 1.5, Investopedia's quirk case (f83/f84)."
+  },
+  "q53": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Daily NYSE TRIN named; oversold, trade with the trend (f51/f52)."
+  },
+  "q54": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: 'For us one is a reason to be more mindful' states a house stance on distribution days that no ruling or fact backs. Replaced with plain practice."
+  },
+  "q55": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "0.2% kept as IBD's rule, named in stem and why (conflicts note)."
+  },
+  "q56": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "0.4% clears 0.2%; volume vs the prior day, not the average (f120)."
+  },
+  "q57": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: the rewrite dropped every IBD attribution, so the 0.2% bar and the five-or-six cluster read as our rule ('What I watch for'). The conflicts note requires IBD's method be named as IBD's. Restored in the why and the wrong note."
+  },
+  "q58": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Six in four weeks plus leaders breaking (f118/f154); stem says 'IBD's way'."
+  },
+  "q59": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False is right; Bulkowski in the why is allowed, the question is about his tested finding (rule 13)."
+  },
+  "q60": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Follow-through definition right (f56/f158); the FTD toggle on Breadth charts verified (v2-ftd-toggle)."
+  },
+  "q61": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: 'The gain should be at least 1% to 1.25%' stated one IBD version as a fixed bar; IBD calls it a moving target (conflicts note). Restored the moving-target wording."
+  },
+  "q62": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True (f124/f128); ease-in matches F68."
+  },
+  "q63": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Headlines vs price and volume (f129/f131/f57)."
+  },
+  "q64": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Rally attempt right (f127/f156/f58)."
+  },
+  "q65": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cap weight vs one vote (f73/f107); no data error, two measures."
+  },
+  "q66": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "rebuilding is new positions, not more shares in one trade; adding to a winner isn't taught as routine and isn't banned outright. Voice 4."
+  }
+ }
+}

@@ -261,22 +261,47 @@ describe('⭐⭐ the NA POLICIES, over a GAPPY RUNTIME SERIES (2026-09-08 ruling
   // suite can lose coverage by a change that breaks nothing.
   const gappy = `var x = 0.0\nx := bar_index % 7 == 0 and bar_index > 4 ? na : close\n`
 
-  it('⭐⭐ RESTART — `highest` begins again after a hole, and stops AT it', () => {
+  // ⚰️ THIS CASE ASSERTED RESTART ("begins again after a hole, and stops AT it"), the 2026-09-08
+  // reading S10 refuted (engine HL, `engineHlHoles.test.js`). `highest` / `lowest` are `finite` now:
+  // the last 5 FINITE values, reaching back past the hole, answered on the hole bar.
+  it('⭐⭐ FINITE — `highest` reaches back past a hole and answers ON it (S10)', () => {
     const { outs } = runPine(`${head}${gappy}plot(ta.highest(x, 5))\nplot(ta.lowest(x, 5))\n`)
     const [hi, lo] = outs
     const src = BARS.map((b, i) => (i % 7 === 0 && i > 4 ? NaN : b.c))
-    for (let i = 6; i < N; i += 1) {
-      if (Number.isNaN(src[i])) { expect(Number.isNaN(hi[i]), `bar ${i} is the hole`).toBe(true); continue }
-      let start = i
-      while (start > i - 4 && start > 0 && Number.isFinite(src[start - 1])) start -= 1
-      const run = src.slice(start, i + 1)
-      expect(hi[i], `bar ${i}`).toBeCloseTo(Math.max(...run), 10)
-      expect(lo[i], `bar ${i}`).toBeCloseTo(Math.min(...run), 10)
+    for (let i = 4; i < N; i += 1) {
+      const f = []
+      for (let k = i; k >= 0 && f.length < 5; k -= 1) if (Number.isFinite(src[k])) f.push(src[k])
+      expect(hi[i], `bar ${i}`).toBe(Math.max(...f))
+      expect(lo[i], `bar ${i}`).toBe(Math.min(...f))
     }
-    // ⛔ NON-VACUITY: reducing across the hole would give a different answer.
+    for (let i = 0; i < 4; i += 1) expect(Number.isNaN(hi[i]), `bar ${i}`).toBe(true)
+    // ⛔ NON-VACUITY: the old RESTART answer one bar after the hole is the lone value, and this is not it.
     const after = 7 + 1
-    expect(hi[after]).toBeCloseTo(src[after], 10)
-    expect(hi[after]).not.toBeCloseTo(Math.max(...src.slice(after - 4, after + 1).filter(Number.isFinite)), 6)
+    expect(hi[after] !== src[after] || lo[after] !== src[after], 'RESTART reads highest === lowest === the lone value').toBe(true)
+    expect(Number.isFinite(hi[7]), 'it answers ON the hole').toBe(true)
+  })
+
+  // ⭐⭐ S17 (`vw-cs2-holed-highestbars-rddt-1d-2026-11-15`): `highestbars` / `lowestbars` read the same
+  // last n FINITE values, the offset counted in BARS (so past a hole it reaches below -(n - 1)).
+  it('⭐⭐ FINITE — `highestbars` / `lowestbars` count their offset in BARS past a hole (S17)', () => {
+    const { outs } = runPine(`${head}${gappy}plot(ta.highestbars(x, 5))\nplot(ta.lowestbars(x, 5))\n`)
+    const [hb, lb] = outs
+    const src = BARS.map((b, i) => (i % 7 === 0 && i > 4 ? NaN : b.c))
+    let reached = 0
+    for (let i = 4; i < N; i += 1) {
+      const idx = []
+      for (let k = i; k >= 0 && idx.length < 5; k -= 1) if (Number.isFinite(src[k])) idx.unshift(k)
+      let hi = idx[0]
+      let lo = idx[0]
+      for (const k of idx) { if (src[k] > src[hi]) hi = k; if (src[k] < src[lo]) lo = k }
+      expect(hb[i] + 0, `bar ${i}`).toBe(hi - i + 0) // `+ 0`: the negation of a 0 offset is -0
+      expect(lb[i] + 0, `bar ${i}`).toBe(lo - i + 0)
+      if (hi - i < -4 || lo - i < -4) reached += 1
+    }
+    for (let i = 0; i < 4; i += 1) expect(Number.isNaN(hb[i]), `bar ${i}`).toBe(true)
+    // ⛔ NON-VACUITY: some offset reaches past the 5-bar span (a bar count, not a value count)
+    expect(reached).toBeGreaterThan(0)
+    expect(Number.isFinite(hb[7]), 'it answers ON the hole').toBe(true)
   })
 
   it('⭐ SKIP — `sma` answers ON the hole, over the last 5 finite values', () => {
@@ -484,13 +509,18 @@ plot(ta.dmiplusleg(x, 105))
     expect(b.ir.history, 'the hoisted source gets a ring').toHaveLength(1)
   })
 
-  it('⛔ but a window over an EXPRESSION inside a BRANCH still says so', () => {
-    // ⛔ THE BOUND IS A CORRECTNESS ARGUMENT, NOT CAUTION. A declare hoisted out
-    // of this branch would run on every bar while the window inside it runs only
-    // on the bars the branch takes — two different series, and the vendor answer
-    // for a conditionally-called `ta.*` is not pinned here.
+  // ⚰️ WAS refused (`runtime:history-expression`): a declare hoisted out of the branch would run on
+  // every bar while the window runs only on the branch's bars. ⭐ HIST-S2 hoists NOTHING: `ta.sma`
+  // keeps its own ring of the values it is handed, so the expression is handed in place and steps only
+  // when the branch runs, which is Pine's per-call-site `ta.sma` (C48 C03 / D02). Here it runs every bar.
+  it('a window over an EXPRESSION inside a BRANCH is handed the expression in place (HIST-S2), never hoisted', () => {
     const src = `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := ta.sma(x + 1, 3)\nplot(y)\n`
-    expect(refusalOf(src).guard).toBe('runtime:history-expression')
+    const b = buildRuntimeIr(src, { bars: BARS, inputs: {} })
+    expect(b.ok, JSON.stringify(b.refusal || {})).toBe(true)
+    expect(b.ir.history, 'nothing hoisted: no ring for an expression slot').toHaveLength(0)
+    const got = runPine(src).out
+    const want = runPine(`${head}var x = 0.0\nx := close + 1\nplot(ta.sma(x, 3))\n`).out
+    got.forEach((v, i) => expect(Number.isNaN(v) ? Number.isNaN(want[i]) : Math.abs(v - want[i]) < 1e-9, `bar ${i}`).toBe(true))
   })
 
   it('⛔ a non-value namespace cannot reach a window reducer', () => {

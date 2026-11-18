@@ -1,0 +1,7 @@
+rail src/components/provenance/panelAdoption.ratchet.test.js
+## TERM-047 ΓÇö CoverageLine on every result surface > every result surface renders CoverageLine or is exempt with a reason ΓÇö FAILING BY NAME
++   "app/src/components/chart/pane/ChartPane.jsx   doors: /api/screener/volume-curve?tickers=
++   "app/src/components/terminal/SecurityHeadline.jsx   doors: /api/screener/volume-curve?tickers=
++   "app/src/pages/Watchlists.jsx   doors: /api/screener/volume-curve?tickers= /api/screener/volume-curve",
++   "app/src/pages/screener/focus/ResultList.jsx   doors: /api/screener/sparks?tickers=",
++ Received

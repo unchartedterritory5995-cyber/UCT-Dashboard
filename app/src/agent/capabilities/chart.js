@@ -34,7 +34,10 @@ import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/c
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
 import { TF_ORDER } from '../../components/chart/keyboardShortcuts'
 import { paneVolumePct } from '../../components/chart/pane/paneLook'
-import { HEADER_FIELDS, headerFieldKeys } from '../../components/chart/headerFields'
+import { HEADER_FIELDS } from '../../components/chart/headerFields'
+// the stored list may hold any library stat a member picked in Chart Settings (headerStatCatalog.js); the Agent adds and
+// removes only the HEADER_FIELDS members below, and never drops a member's other picks or their order
+import { headerStatKeys } from '../../components/chart/headerStatCatalog'
 import { BAR_INFO_FIELDS, barInfoFieldsOf, withBarInfoField } from '../../components/chart/barInfoFields'
 import { ELIGIBLE_SETTINGS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue, canvasLock, settingHiddenNote } from '../../components/chart/chartSettingsDescriptors'
 import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
@@ -46,6 +49,12 @@ import { MAX_COMPARISONS } from '../../components/chart/chartCeilings'
 import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
 import { plainSymbolWord } from '../nl/lexicon'
 import { matchName } from '../nl/match'
+import { whenVisible } from '../frames'
+// C1-178: as app.js NAV_DELAY_MS — the receipt is on screen before Ask AI leaves Charts
+const ASK_AI_DELAY_MS = 900
+import { readFavoriteTools, writeFavoriteTools } from '../../components/chart/drawToolFavorites'
+import { normalizeDock } from '../../pages/charts/widgets/chartDock'
+import { replayDone, replaySig, replayContext, bareExitFast, exitGuard, isCutoffExit, replayStopped } from './chartReplay'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -166,14 +175,14 @@ function writeSetting(st, d, v) {
   return { ...st, cs: withSetting(st.cs, d, v) }
 }
 // ── Execution family L (pl-exec): a chart's LIST settings — which fields a strip prints — one member at a time ──
-// Chart Settings → Header → Info row (`header.fields`, ChartSettingsModal toggleInfoField: a pick is appended, an unpick
+// Chart Settings → Header & legend → Stats beside the ticker (`header.fields`, ChartSettingsModal toggleInfoField: a pick is appended, an unpick
 // removed) and the Bar info strip (`header.barInfo`, toggleBarField → withBarInfoField: the complete set in canonical
 // order). Each row is DATA: its members (the product's own catalog), how the chart reads it, and the product's own writer.
 // value = "+member" or "-member", by key or by the label Chart Settings shows. Read back through the same resolver.
 const LIST_SETTINGS = [
   { id: 'header.fields', label: 'Info row', members: HEADER_FIELDS.map(f => ({ value: f.key, label: f.label })),
-    read: (cs) => headerFieldKeys(cs?.header),
-    write: (cs, key, on) => { const cur = headerFieldKeys(cs?.header); return { ...cs, header: { ...(cs?.header || {}), fields: on ? [...cur, key] : cur.filter(k => k !== key) }, preset: 'custom' } } },
+    read: (cs) => headerStatKeys(cs?.header),
+    write: (cs, key, on) => { const cur = headerStatKeys(cs?.header); return { ...cs, header: { ...(cs?.header || {}), fields: on ? [...cur, key] : cur.filter(k => k !== key) }, preset: 'custom' } } },
   { id: 'header.barInfo', label: 'Bar info', members: BAR_INFO_FIELDS.map(f => ({ value: f.id, label: f.label })),
     read: (cs) => barInfoFieldsOf(cs),
     write: (cs, id, on) => ({ ...cs, header: { ...(cs?.header || {}), barInfo: withBarInfoField(cs, id, on) }, preset: 'custom' }) },
@@ -191,12 +200,24 @@ function listMember(l, raw) {
   return { member: near[0], on: m[1] === '+' }
 }
 const listWord = (l, keys) => (keys.length ? keys.map(k => l.members.find(x => x.value === k)?.label || k).join(', ') : 'none')
-const settingWord = (d, v) => (d.type === 'bool' ? (v ? 'on' : 'off')
+const settingWord = (d, v) => (d.word ? d.word(v) : d.type === 'bool' ? (v ? 'on' : 'off')
   : d.labels ? (Object.entries(d.labels).find(([, x]) => x === v)?.[0] ?? String(v)) : String(v))
+// R2 (owner 11-16): the view options promoted from "Soon" carry their values in the capability's `shape`, not the hints —
+// the hints already sit at the manifest's 1000-char cap; the shape is a second budget (≤ 600). Values read from the rows.
+const SHAPE_HINTED = new Set(['grid.lines', 'scaleTime.rightMargin', 'scaleTime.priceDecimals', 'scaleTime.timeFormat', 'scaleTime.timeZone'])
+const hintedInHints = (d) => !SHAPE_HINTED.has(d.id)
+const _sv = (id) => {
+  const d = ELIGIBLE_SETTINGS.find(x => x.id === id)
+  if (d.type === 'number') return `${d.min}–${d.max}`
+  const n = d.options.filter(o => typeof o === 'number')   // a run of whole numbers is written as a range ("auto|0–4")
+  return n.length > 2 ? [...d.options.filter(o => typeof o !== 'number'), `${Math.min(...n)}–${Math.max(...n)}`].join('|') : d.options.join('|')
+}
+const SETTING_SHAPE_VALUES = `grid.lines ${_sv('grid.lines')}; scaleTime.{rightMargin ${_sv('scaleTime.rightMargin')},`
+  + `priceDecimals ${_sv('scaleTime.priceDecimals')},timeFormat ${_sv('scaleTime.timeFormat')},timeZone ${_sv('scaleTime.timeZone')}}`
 const SETTING_HINTS = (() => {
   // Settings that share one option list are written once ("prevDayLevels.high|low|close.style: …").
   const groups = new Map()
-  for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'enum')) {
+  for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'enum' && hintedInHints(x))) {
     const key = d.labels ? Object.keys(d.labels).join('|') : d.options.join('|')
     groups.set(key, [...(groups.get(key) || []), d.id])
   }
@@ -219,13 +240,13 @@ const SETTING_HINTS = (() => {
   const enums = [...groups.entries()].map(([opts, ids]) => `${short(ids)}: ${opts}`)
   // W1-B: number settings, grouped by range ("watermark.opacity|x|y: 0–1")
   const ranges = new Map()
-  for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'number')) {
+  for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'number' && hintedInHints(x))) {
     const key = `${d.min}–${d.max}${d.integer ? ' (whole)' : ''}`
     ranges.set(key, [...(ranges.get(key) || []), d.id])
   }
   const nums = [...ranges.entries()].map(([r, ids]) => `${short(ids)}: ${r}`)
   // (kept under the manifest's 1000-char hints cap — agentContracts.test.js; the exact arg SHAPE is the capability's `shape`)
-  return 'value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. '
+  return 'value = true/false for on/off (crosshair.mode, header.legendMode, bgMode too); a hex color (#2962ff); a number in range. '
     + `Allowed — ${enums.join('; ')}; ${nums.join('; ')}. `
     + 'header.fields|barInfo: +/-field ("+Market Cap"). '
     + 'Anything else: no op — say where it lives in Chart Settings.'
@@ -252,15 +273,44 @@ function fastSetting(text) {
 // ── the date view (chart.goToDate) ──
 const DAY_MS = 86400000
 // Did the chart's own view control land? Read from getDateMeta, which asks the time scale.
-export function viewDone(meta, { op, arg }) {
+export function viewDone(meta, { op, arg, want }) {
   if (!meta) return false
   if (op === 'applyRange') return meta.activeRange === arg
   if (op === 'resetView') return meta.atDefaultView === true
   if (op === 'restoreView') return sameFrame(meta.frame, arg)
+  // the ◀ / ▶ step: the window moved by exactly the bars asked (right-relative, within a bar), never just "it moved"
+  if (op === 'stepBar') return !!meta.frame && !!want && Math.abs(meta.frame.fromRight - want.fromRight) < 0.6 && Math.abs(meta.frame.toRight - want.toRight) < 0.6
+  // the + / - zoom: the window narrowed (in) or widened (out) by at least half a bar, and its width is the one asked within a bar
+  if (op === 'zoom') return !!meta.frame && !!want && zoomedTo(meta.frame, want)
+  // Auto-scale: the price scale itself says it fits the bars (unreadable is never "done")
+  if (op === 'autoScale') return meta.priceAuto === true
+  // the Position Calculator (drawing extras): open or closed, and its entry / stop / target, as the panel shows them
+  if (op === 'positionCalc') return samePositionCalc(meta.positionCalc, arg)
+  // chartReplay.playback: the Replay / Time Machine bar's own state (on, playing, speed, scrubber index) as asked
+  if (op === 'replay') return replayDone(meta.replay, want)
   return meta.indicatorsHidden === arg
 }
 // The window (right-relative, within a bar: the tolerance of the range read-back) and the view lock, as a range button found them.
-const sameFrame = (a, b) => !!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
+// What a view change's Undo is pinned to: the range shown, the window a step left (to a tenth of a bar), or hide-all.
+const viewFp = (snap, op, vd) => {
+  if (op === 'applyRange') return snap.view?.activeRange ?? null
+  // a replay Undo is stale once the member moved the replay themselves (its bar's buttons, the scrubber, the speed)
+  if (op === 'replay') return replaySig(snap.view?.replay, vd?.arg?.op)
+  // a Position Calculator's Undo is stale once the member typed in its panel or closed it themselves
+  if (op === 'positionCalc') return positionCalcSig(snap.view?.positionCalc)
+  if (op === 'stepBar' || op === 'zoom') { const f = snap.view?.frame; return f ? `${f.fromRight.toFixed(1)}|${f.toRight.toFixed(1)}` : null }
+  return !!snap.view?.indicatorsHidden
+}
+/** The Position Calculator's read-back: open, and its three prices (as numbers; '' = empty). */
+export const positionCalcSig = (p) => (p ? JSON.stringify([!!p.open, ...['entry', 'stop', 'target'].map(k => (p[k] === '' || p[k] == null ? null : Number(p[k])))]) : null)
+const samePositionCalc = (a, b) => !!a && !!b && positionCalcSig(a) === positionCalcSig(b)
+// the window's width in bars (logical to − from), and whether a zoom landed: the right direction, by the width asked
+const frameWidth = (f) => f.fromRight - f.toRight
+const zoomedTo = (f, want) => {
+  const w = frameWidth(f)
+  return (want.out ? w > want.from + 0.5 : w < want.from - 0.5) && Math.abs(w - want.width) < 1
+}
+const sameFrame = (a, b) =>!!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
 // edge (clamped to the first bar before inception, and to the last bar for a future date).
 export function viewAt(meta, target) {
@@ -298,20 +348,49 @@ function withMemberState(host, snap) {
   if (!snap) return null
   const prefs = host?.prefs?.read?.() || null
   const raw = prefs?.[VOL_PANE_PREF]
-  return { ...snap, volPanePref: raw == null || raw === '' ? null : String(raw), volPanePct: paneVolumePct(prefs), prefsWritable: typeof host?.prefs?.write === 'function' }
+  return { ...snap, volPanePref: raw == null || raw === '' ? null : String(raw), volPanePct: paneVolumePct(prefs), prefsWritable: typeof host?.prefs?.write === 'function',
+    // C1-165: the member's favourite drawing tools (the toolbar's ★, per browser — drawToolFavorites), as volPanePref is a member pref
+    favoriteTools: readFavoriteTools() }
 }
 
 // ── target kind ─────────────────────────────────────────────────────────────
 // `host.charts` is the workspace binding (agent/host.js) over every mounted
 // ChartWidget's agent adapter.
+// the top-level settings keys a change wrote (`preset` is bookkeeping every manual write stamps)
+// AUDIT D1: against the EFFECTIVE settings before (mergeChartSettings of the stored blob): a chart still inheriting the seed
+// (a null or partial blob) gets its defaults filled in by the first write, and those filled-in keys were not changed by it
+function settingsKeysOf(item) {
+  const was = mergeChartSettings(item?.before?.stored ?? null) || {}, now = item?.patch?.settings || {}
+  return [...new Set([...Object.keys(was), ...Object.keys(now)])].filter(k => k !== 'preset' && !sameJson(was[k], now[k]))
+}
+const settingsOutside = (blob, keys) => Object.fromEntries(Object.entries(blob || {}).filter(([k]) => k !== 'preset' && !keys.includes(k)))
+/** What a change's staleness is read from: only the fields it touched. */
+function scopedFp(snap, item) {
+  const p = item.patch
+  return [
+    // the ticker always: a chart showing another ticker now (its link group moved) is not the chart the change was made on
+    'tf' in p ? snap.tf : '·', snap.symbol,
+    'settings' in p ? settingsKeysOf(item).map(k => [k, snap.stored?.[k] ?? null]) : '·',
+  ]
+}
 export const chartKind = {
   name: 'chart',
+  source: 'charts',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Charts aren't available on this page — open Charts to change a chart.",
+  empty: "There are no charts on this board yet.",
   list: (host) => (host?.charts?.list() || []).map(s => withMemberState(host, s)),
   read: (host, ref) => withMemberState(host, host?.charts?.read(ref) || null),
   // `replay`: the workspace's Replay Mode cutoff (W1-B B-06) — undefined when the host has none (then chart.replay refuses)
-  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, goto: null, replay: snap.replay,
+  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, drawSym: snap.drawSym || snap.symbol, goto: null, replay: snap.replay,
     watermarkPos: snap.watermarkPos ?? null, volPanePref: snap.volPanePref ?? null, volPanePct: snap.volPanePct, prefsWritable: !!snap.prefsWritable,
-    canvasTheme: snap.canvasTheme ?? null, view: snap.view ?? null, viewDo: null }),
+    canvasTheme: snap.canvasTheme ?? null, view: snap.view ?? null, viewDo: null, favoriteTools: snap.favoriteTools || [],
+    // C1-127: the chart's own Chart Settings door — may it open here (absent = no door: false), and is it open now
+    canOpenSettings: snap.canOpenSettings === true, settingsOpen: !!snap.settingsOpen, openSettings: null,
+    // C1-178: the right-click "Ask AI about {sym}" door (absent = none)
+    canAskAi: snap.canAskAi === true, askAi: null,
+    // chartFeatures.*: the widget's Company Info panel / Earnings Strip as ChartWidget's normalizeDock reads them (null = this
+    // chart has no dock here: a Multi Chart cell, a pop-out); `dockTabs` = the chart tabs that share it (it is per WIDGET)
+    canDock: snap.canDock === true, dock: snap.canDock === true ? normalizeDock(snap.dock) : null, dockTabs: snap.dockTabs || 1 }),
   patch(before, after) {
     const p = {}
     if (after.cs !== before.cs) p.settings = after.cs
@@ -321,14 +400,19 @@ export const chartKind = {
     if (after.replay !== before.replay) p.replay = after.replay ?? null
     if (after.watermarkPos !== before.watermarkPos) p.watermarkPos = after.watermarkPos
     if (after.volPanePref !== before.volPanePref) p.volPanePref = after.volPanePref
+    if (after.favoriteTools !== before.favoriteTools) p.favoriteTools = after.favoriteTools
     if (after.viewDo != null) p.viewDo = after.viewDo
+    if (after.openSettings === true) p.openSettings = true
+    if (after.askAi === true) p.askAi = true
+    // chartFeatures.*: a dock the product's transforms changed (they hand back the SAME object when nothing changes)
+    if (after.dock !== before.dock) p.dock = after.dock
     return Object.keys(p).length ? p : null
   },
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
   async commit(host, ref, patch) {
-    const { goto, replay, volPanePref, viewDo, ...rest } = patch
+    const { goto, replay, volPanePref, viewDo, openSettings, askAi, favoriteTools, ...rest } = patch
     let ok = true
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
@@ -337,13 +421,25 @@ export const chartKind = {
       const t0 = Date.now()
       while (Date.now() - t0 < 2000 && (chartKind.read(host, ref)?.volPanePref ?? null) !== (volPanePref ?? null)) await new Promise(r => setTimeout(r, 50))
     }
+    // C1-165: the toolbar's ★ writer (drawToolFavorites.writeFavoriteTools — it tells every mounted toolbar); true once storage holds it
+    if ('favoriteTools' in patch && ok && !writeFavoriteTools(favoriteTools)) throw new Error('this browser did not keep the change (its storage is blocked), so nothing is saved')
     // Replay Mode: ChartsWorkspace's own startReplay / exitReplayMode (a VIEW on every linked chart; nothing is saved)
     if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
     // The chart's own view control; a long range may load history first (its "Loading chart history…", capped at 6s)
     if (viewDo && ok) {
-      if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
-      const t0 = Date.now()
-      while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, viewDo)) await new Promise(r => setTimeout(r, 100))
+      // chartReplay.playback: several replay ops of ONE plan ride as ordered `steps` — each pressed only once the one before it
+      // is READ BACK (the chart's door acts on its last render), and the sequence stops at the first that did not land
+      const steps = viewDo.steps || [viewDo]
+      // a step that fails AFTER earlier ones landed stops there and says exactly what the chart now shows (they stay: a
+      // receipt never claims "nothing was left changed" over a replay that is on)
+      const stop = (done) => { if (done) throw replayStopped(done, steps.length, host.charts.read(ref)?.view?.replay, steps.slice(0, done).map(s => s.arg)) }
+      for (const [done, s] of steps.entries()) {
+        const one = { op: viewDo.op, arg: s.arg, want: s.want }
+        if (!host.charts.viewDo?.(ref, one.op, one.arg)) { stop(done); return false }
+        const t0 = Date.now()
+        while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, one)) await new Promise(r => setTimeout(r, 100))
+        if (steps.length > 1 && !viewDone(host.charts.read(ref)?.view, one)) { stop(done); return false }
+      }
     }
     if (goto != null && ok) {
       if (!host.charts.goTo?.(ref, goto)) return false
@@ -352,6 +448,20 @@ export const chartKind = {
         if (viewAt(host.charts.read(ref)?.view, goto)) break
         await new Promise(r => setTimeout(r, 150))
       }
+    }
+    // C1-127: the chart's OWN Chart Settings dialog (the gear's openSettings), opened last — after anything else asked of
+    // this chart — then read back from the pane: the receipt says "opened" only once it is open. It writes nothing.
+    if (openSettings && ok) {
+      if (!host.charts.openSettings?.(ref)) return false
+      const t0 = Date.now()
+      while (Date.now() - t0 < 2000 && !host.charts.read(ref)?.settingsOpen) await new Promise(r => setTimeout(r, 50))
+    }
+    // C1-178: the chart's own right-click "Ask AI about {sym}" (ChartWidget openAskAi → /research/:sym?section=ai). It leaves
+    // Charts, so — as app.open — it runs AFTER the receipt is on screen (and from a hidden tab only once the member is back).
+    // The door must be there now; what it opens is the chart's symbol at that moment, exactly as the menu item would.
+    if (askAi && ok) {
+      if (typeof host.charts.askAi !== 'function' || !host.charts.read(ref)?.canAskAi) return false
+      setTimeout(() => whenVisible(() => host.charts.askAi(ref)), ASK_AI_DELAY_MS)
     }
     return ok
   },
@@ -364,10 +474,20 @@ export const chartKind = {
     if ('replay' in patch && (snap.replay ?? null) !== patch.replay) return false
     if ('watermarkPos' in patch && !sameJson(watermarkSpot(snap.watermarkPos), watermarkSpot(patch.watermarkPos))) return false
     if ('volPanePref' in patch && (snap.volPanePref ?? null) !== (patch.volPanePref ?? null)) return false
+    if ('favoriteTools' in patch && !sameJson(snap.favoriteTools, patch.favoriteTools)) return false
     if ('viewDo' in patch && !viewDone(snap.view, patch.viewDo)) return false
+    if ('openSettings' in patch && !snap.settingsOpen) return false
+    // chartFeatures.*: the widget's opts.dock read back exactly as written (an Undo's null = the key gone)
+    if ('dock' in patch && !sameJson(snap.dock ?? null, patch.dock ?? null)) return false
+    // C1-178: leaving the page happens after the receipt (app.open's rule): there is nothing on the chart to read back
     return true
   },
   undoPatch(item) {
+    // C1-127: opening Chart Settings changed nothing, so on its own there is nothing to undo (chartSetup.openSettings,
+    // undo 'none'); asked together with a real change, that change keeps its own Undo — the dialog is not part of it
+    if ('openSettings' in item.patch && Object.keys(item.patch).length === 1) return null
+    // C1-178: Ask AI opens a page; nothing on the chart changed, and leaving the page has no Undo (as app.open)
+    if ('askAi' in item.patch && Object.keys(item.patch).length === 1) return null
     const p = {}
     if ('settings' in item.patch) p.settings = item.before.stored ?? null
     if ('tf' in item.patch) p.tf = item.before.tf
@@ -379,28 +499,56 @@ export const chartKind = {
     if ('replay' in item.patch) p.replay = item.before.replay ?? null
     if ('watermarkPos' in item.patch) p.watermarkPos = item.before.watermarkPos ?? null
     if ('volPanePref' in item.patch) p.volPanePref = item.before.volPanePref ?? null
+    if ('favoriteTools' in item.patch) p.favoriteTools = item.before.favoriteTools || []
+    // chartFeatures.*: the RAW opts.dock snapshot before (a removed panel's own width, the strip's height, its tab) — never a
+    // transform's inverse: addFeature lands at the default width, so only the snapshot is exact
+    if ('dock' in item.patch) p.dock = item.before.dock ?? null
     // A range goes back to the window and the view lock it replaced (never read = no Undo, and `undoNote` says so).
     // A reset has no way back: it also drops a dragged price scale, which nothing reads back (undo: 'none').
     if ('viewDo' in item.patch) {
       const { op } = item.patch.viewDo
       if (op === 'setIndicatorsHidden') p.viewDo = { op, arg: !!item.before.view?.indicatorsHidden }
-      else if (op === 'applyRange' && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
+      else if ((op === 'applyRange' || op === 'stepBar' || op === 'zoom') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
+      // the Position Calculator back to exactly what it showed before (closed stays closed, its old prices kept)
+      else if (op === 'positionCalc' && item.before.view?.positionCalc) p.viewDo = { op, arg: { ...item.before.view.positionCalc } }
+      // chartReplay.playback: the way back its plan worked out (none for play / pause, or for a replay that was playing)
+      else if (op === 'replay' && item.patch.viewDo.back) p.viewDo = { op, ...item.patch.viewDo.back }
       else return null
     }
     return p
   },
+  // ⭐ round 3 (pl-exec): Undo is FIELD-SCOPED. A change is stale only when what IT touched (its timeframe, its ticker, the
+  // settings keys it changed) has moved since; a newer edit to anything else ("undo the timeframe change" after an RSI was
+  // added) leaves it undoable, and the Undo writes back only those fields over the chart as it is now (undoPatchNow).
+  undoPatchNow(item, cur) {
+    const p = chartKind.undoPatch(item)
+    if (!p || !('settings' in item.patch) || !cur) return p
+    const keys = settingsKeysOf(item)
+    const now = cur.stored ?? null
+    // nothing else changed since: the exact blob it replaced (byte-exact, null included)
+    if (sameJson(settingsOutside(now, keys), settingsOutside(item.patch.settings, keys))) return p
+    const back = { ...(now || {}) }
+    for (const k of keys) { if (item.before.stored && k in item.before.stored) back[k] = item.before.stored[k]; else delete back[k] }
+    return { ...p, settings: back }
+  },
   fingerprint: (snap) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol]),
   // ⛔ F6: a date jump's Undo is stale once the member has moved the view since — scrolling back
   // would overwrite where they are now. Every other chart change ignores the view.
-  fingerprintFor: (host, snap, item) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol,
+  fingerprintFor: (host, snap, item) => JSON.stringify([
+    ...(item?.patch ? scopedFp(snap, item) : [snap.stored ?? null, snap.tf, snap.symbol]),
     ...('goto' in (item?.patch || {}) ? [snap.view?.rightMs ?? null] : []),
     // a replay's Undo is stale once the member changed the cutoff themselves (the Replay dialog)
     ...('replay' in (item?.patch || {}) ? [snap.replay ?? null] : []),
     // x/y, never the anchor the chart derives from them a moment later (derivedOpts.js)
     ...('watermarkPos' in (item?.patch || {}) ? [watermarkSpot(snap.watermarkPos)] : []),
     ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : []),
+    // a ★ Undo is stale once the member starred or unstarred a tool themselves
+    ...('favoriteTools' in (item?.patch || {}) ? [snap.favoriteTools || []] : []),
+    // a panel / strip Undo is stale once the member changed the dock themselves (Add to Chart, the chevron, a tab, a drag)
+    ...('dock' in (item?.patch || {}) ? [snap.dock ?? null] : []),
     // a range's Undo is stale once the member panned or zoomed off it
-    ...('viewDo' in (item?.patch || {}) ? [item.patch.viewDo.op === 'applyRange' ? (snap.view?.activeRange ?? null) : !!snap.view?.indicatorsHidden] : [])]),
+    // a step's Undo is stale once the member moved the window themselves (pan, zoom, another step)
+    ...('viewDo' in (item?.patch || {}) ? [viewFp(snap, item.patch.viewDo.op, item.patch.viewDo)] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.
@@ -459,6 +607,8 @@ export function describeChart(snap, shortRef) {
     extendedHours: sessionOf(cs, snap.tf) === 'extended',
     scale: scaleOf(cs),
     linkedWidgets: snap.linkedCount || 0,
+    // chartReplay.playback: only while this chart's bar replay (the Replay / Time Machine button) is on
+    ...replayContext(snap.view?.replay),
     // the chart the member last clicked ("this chart" / "this stock"); omitted on every other chart
     ...(snap.selected ? { selected: true } : {}),
   }
@@ -771,7 +921,7 @@ const CAPABILITIES = [
     // read back, and undoable like every other chart change. A UI prerequisite (thin bars only
     // on Bars/HLC) refuses exactly where the dialog hides the control.
     name: 'chart.setSetting',
-    summary: 'Change one chart display setting from UCT\'s approved list (grid, crosshair, scale text, legend, watermark, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane look, Heikin Ashi, Chart IQ, position calculator, Info row / Bar info fields).',
+    summary: 'Change one chart display setting from UCT\'s list (grid, crosshair, scale text/time, legend, watermark, labels, event/IPO/earnings markers, dark pool, swing labels, prev-day/pre-market lines, session breaks, countdown, title, color mode, candle parts, price line, thin bars, inverted scale, gradient, Volume look, Heikin Ashi, Chart IQ, position calculator, alerts, my trades, Info row/Bar info).',
     hints: SETTING_HINTS,
     args: { type: 'object', properties: {
       setting: { type: 'string', enum: [...ELIGIBLE_SETTINGS.map(d => d.id), ...LIST_SETTINGS.map(l => l.id)] },
@@ -783,7 +933,8 @@ const CAPABILITIES = [
     argAliases: { setting: ['key', 'id', 'name', 'option', 'settingId', 'setting_id', 'path', 'property'] },
     shape: 'args {"setting": <one id from the list>, "value": …} — "turn the gradient off" = {"setting":"bgMode","value":"solid"}, '
       + '"gradient on" = {"setting":"bgMode","value":"gradient"}, "hide the grid" = {"setting":"grid.visible","value":false}. Never invent '
-      + 'a setting id (no "bgGradient.enabled", no "background.gradient"): an on/off wish for a setting not listed is unsupported.',
+      + 'a setting id (no "bgGradient.enabled", no "background.gradient"): an on/off wish for a setting not listed is unsupported. '
+      + `${SETTING_SHAPE_VALUES}; header.statLabels "stat=name"`,
     check(st, { setting, value }) {
       const l = listSetting(setting)
       if (l) return listMember(l, value).why || null
@@ -828,7 +979,7 @@ const CAPABILITIES = [
   },
   {
     // ── chart.applyTemplate: EXACTLY what clicking a saved template does ──
-    // (Chart Settings → Templates, and right-click → Chart template). All three doors call the
+    // (Chart Settings → Chart templates, and right-click → Chart template). All three doors call the
     // ONE shared apply, `chartTemplateSettings` (chartTemplateApply.js): the template's whole
     // saved settings, its indicators included. Integrator ruling 2026-10-11 (owner delegated):
     // one behaviour, the one members already know from clicking; parity is asserted in
@@ -836,7 +987,7 @@ const CAPABILITIES = [
     // Undo restores the chart exactly as it was, indicators included.
     name: 'chart.applyTemplate',
     risk: 'confirm',
-    summary: "Apply one of the member's saved chart templates to ONE chart, exactly as clicking it does (Chart Settings → Templates, or right-click → Chart template): the chart takes the template's whole saved setup, its indicators included.",
+    summary: "Apply one of the member's saved chart templates to ONE chart, exactly as clicking it does (Chart Settings → Chart templates, or right-click → Chart template): the chart takes the template's whole saved setup, its indicators included.",
     hints: 'template = a name from chartTemplates, exactly. For several charts ("all my charts"), one op per chart.',
     args: { type: 'object', properties: { template: { type: 'string' } }, required: ['template'], additionalProperties: false },
     // NL N2: a template name that is not exact but close ("swing setp") is HIGH-IMPACT (it replaces the
@@ -850,7 +1001,7 @@ const CAPABILITIES = [
       return { ask: { arg: 'template', text: names.length === 1 ? `Did you mean your template “${names[0]}”?` : `Which template — ${names.map(n => `“${n}”`).join(' or ')}?`, choices: names.map(n => ({ ref: n, label: n })) } }
     },
     check: (st, { template }) => (findTemplate(template) ? null
-      : templatesNow().length ? `You have no chart template named “${template}” (you have: ${templatesNow().map(t => t.name).slice(0, 8).join(', ')}).` : 'You have no saved chart templates yet — save one in Chart Settings → Templates.'),
+      : templatesNow().length ? `You have no chart template named “${template}” (you have: ${templatesNow().map(t => t.name).slice(0, 8).join(', ')}).` : 'You have no saved chart templates yet — save one in Chart Settings → Save as chart template.'),
     apply: (st, { template }) => ({ ...st, cs: chartTemplateSettings(findTemplate(template)) }),
     describe: (b, a, { template }) => (sameJson(b.cs, a.cs) ? null : `Applied your chart template “${findTemplate(template)?.name || template}” — its look and its indicators, as clicking it does: the indicators on this chart now are replaced by the template’s`),
     noop: () => 'The chart already looks exactly like that template',
@@ -860,7 +1011,7 @@ const CAPABILITIES = [
     // CHART_DEFAULTS), EXCEPT the indicator-owned keys, which stay exactly as the chart has them ──
     name: 'chart.resetDefaults',
     risk: 'confirm',
-    summary: "Restore ONE chart's look to UCT's defaults (Chart Settings → Restore defaults): colours, markers, header, watermark and display settings. The chart's indicators are kept exactly as they are.",
+    summary: "Restore ONE chart's look to UCT's defaults (Chart Settings → Restore defaults): colors, markers, header, watermark and display settings. The chart's indicators are kept exactly as they are.",
     hints: 'target = the chart. Always shown as a proposal first.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     check: () => null,
@@ -898,6 +1049,11 @@ const CAPABILITIES = [
     argAliases: { date: ['cutoff', 'to', 'until', 'day', 'at', 'as_of', 'asOf', 'replay_date', 'replayDate'] },
     // (W1.1 review NB-1: "none"/"nothing" are no longer null words for a string arg — replay declares them itself)
     coerce: { date: { exit: null, off: null, stop: null, end: null, false: null, clear: null, 'exit replay': null, none: null, nothing: null, nil: null } },
+    // AUDIT #1174 ruling 1: an EXIT here writes every chart, so "exit / stop the replay" is decided from state with the bar
+    // replay's (chartReplay.exitVerdict): only Replay Mode on → this; the bar replay on, or both → never this without its name
+    fastWhole: true,
+    fast: bareExitFast('cutoff'),
+    resolveArgs: exitGuard(isCutoffExit, 'cutoff'),
     shape: '{"date":"YYYY-MM-DD"} to replay from a date; {"date":null} to EXIT replay ("exit replay", "leave replay", "replay off", '
       + '"show every bar again") — the JSON null, never the word "null" and never an "exit" or "enabled" key.',
     check(st, { date }) {

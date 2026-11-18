@@ -1,0 +1,11 @@
+[
+ {"id":"r1-position","file":"app/src/agent/whichWidget.js","from":"    return [...places.map(p => p.replace(/-/g, ' ')), ...pos.split('-')","to":"    return [...shown, ...(symUnique ? [sym] : [])].map(WORDS).filter(x => x.trim())"},
+ {"id":"r2-shown-name","file":"app/src/agent/whichWidget.js","from":"    const shown = ['watchName', 'scanName', 'title', 'name']","to":"    const shown = []"},
+ {"id":"r3a-linked-ticker-dropped","file":"app/src/agent/whichWidget.js","from":"    const symUnique = sym && same.filter(","to":"    const symUnique = false"},
+ {"id":"r3b-ticker-not-unique","file":"app/src/agent/whichWidget.js","from":"    const symUnique = sym && same.filter(","to":"    const symUnique = !!sym"},
+ {"id":"r4-fail-open-no-words","file":"app/src/agent/whichWidget.js","from":"    if (approved) return null","to":"    if (approved || !String(member || '').trim()) return null"},
+ {"id":"r5-across-types","file":"app/src/agent/whichWidget.js","from":"  const all = raw.filter(x => x.type === w.type)","to":"  const all = raw"},
+ {"id":"r6-approved-reasked","file":"app/src/agent/whichWidget.js","from":"    if (approved) return null","to":"    if (false) return null"},
+ {"id":"r7-no-can-filter","file":"app/src/agent/whichWidget.js","from":"    if (typeof how.can === 'function')","to":"    // (mutant) can filter removed"},
+ {"id":"r8-unaimed-skipped","file":"app/src/agent/whichWidget.js","from":"    if (!w && how.type) return unaimed(","to":"    if (!w && how.type) return null"}
+]

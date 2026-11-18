@@ -64,13 +64,51 @@ export const PLAIN_COLUMN_LABELS = {
   rs_rating_chg_5: 'RS rating change, 1 week',
   rs_rating_chg_20: 'RS rating change, 1 month',
   rs_rating_1m: '1-month return rank',
-  rs_rating_3m: '3-month return rank',
-  rs_rating_6m: '6-month return rank',
-  rs_rating_12m: '12-month return rank',
+  rs_rating_3m: '3-month average return rank',
+  rs_rating_6m: '6-month weighted return rank',
+  rs_rating_9m: '9-month weighted return rank',
+  rs_rating_12m: '12-month weighted return rank',
   // UCT RS Phase 3 (unit 3-11). The quadrant is read on WEEKLY bars, the other two on daily.
   rrg_quadrant: 'Rotation vs SPY (weekly)',
   clenow_score: 'Clenow trend score (90 days)',
   vars_state: 'Volatility-adjusted RS vs SPY',
+  // UCT RS Exit Warnings (Mike Webster's method): the RS line against SPY, daily.
+  rs_exit_last: 'Latest RS exit warning',
+  rs_exit_bars_ago: 'Sessions since an RS exit warning',
+  rs_quicksand_bars_ago: 'Sessions since a Quicksand',
+  rs_quick_break_bars_ago: 'Sessions since a Quick Break',
+  rs_dead_break_bars_ago: 'Sessions since a Grateful Dead Break',
+  // UCT RS screens (unit U1): a place is a position in the liquid-stock ranking, 1 = strongest.
+  rs_rating_pos: 'RS Rating place',
+  rs_rating_pos_n: 'Stocks ranked',
+  rs_rating_pos_prev20: 'Place a month ago',
+  rs_pos_1m: '1-month place',
+  rs_pos_3m: '3-month place',
+  rs_pos_6m: '6-month place',
+  rs_pos_12m: '12-month place',
+  rs_rating_session: 'Ratings as of',
+  rs_rating_score: 'RS Rating score',
+  // UCT RS screens (unit U4): the rating a month ago, the RS line's recent highs, the Setup label.
+  rs_rating_prev20: 'RS Rating a month ago',
+  rs_nh_count_20: 'RS highs in the last 20 sessions',
+  rs_nh_quiet: 'Sessions between the last two RS highs',
+  rs_nh_red_bars_ago: 'Sessions since an RS high on a market down day',
+  rs_nhbp_age: 'Sessions since an RS high ahead of price',
+  rs_nh_span: 'How long a high the RS line made',
+  px_below_high_pct: 'Below its 52-week closing high',
+  rs_setup: 'Setup',
+  rs_tight: 'Tight range',
+  rs_flag: 'Setup flag',
+  rs_near_buy: 'Near a buy point',
+  atr_ext_ema21: 'ATRs from 21-day exp. avg',
+  pct_vs_ema8: 'vs 8-day exp. avg',
+  pct_vs_ema21: 'vs 21-day exp. avg',
+  // UCT RS screens (unit U12): the weekly RS new high.
+  rs_nh_weekly: 'Weekly RS line at a 52-week high',
+  rs_nhbp_weekly: 'Weekly RS high ahead of price',
+  // UCT RS screens (unit U12): UCT RS Leaders' list.
+  rs_leaders_member: 'On the UCT RS Leaders list',
+  rs_leaders_days: 'Sessions on the UCT RS Leaders list',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null
@@ -126,11 +164,17 @@ const FACTS = {
   rs_rating_chg_5: v => `RS rating ${ratingDelta(v, 'week')}`,
   rs_rating_chg_20: v => `RS rating ${ratingDelta(v, 'month')}`,
   rs_rating_1m: v => `1-month return rank ${Math.round(v)} of 99`,
-  rs_rating_3m: v => `3-month return rank ${Math.round(v)} of 99`,
-  rs_rating_6m: v => `6-month return rank ${Math.round(v)} of 99`,
-  rs_rating_12m: v => `12-month return rank ${Math.round(v)} of 99`,
+  rs_rating_3m: v => `3-month average return rank ${Math.round(v)} of 99`,
+  rs_rating_6m: v => `6-month weighted return rank ${Math.round(v)} of 99`,
+  rs_rating_9m: v => `9-month weighted return rank ${Math.round(v)} of 99`,
+  rs_rating_12m: v => `12-month weighted return rank ${Math.round(v)} of 99`,
   // UCT RS Phase 3 (unit 3-11): the Clenow score is a fraction, so it prints as the number, never a %.
   clenow_score: v => `Clenow trend score ${v.toFixed(2)} over 90 sessions`,
+  // RS Exit Warnings: an age of 0 is "today"; a warning is a prompt to review, never "sell".
+  rs_exit_bars_ago: v => v === 0 ? 'RS exit warning today' : `RS exit warning ${sessions(v)} ago`,
+  rs_quicksand_bars_ago: v => v === 0 ? 'RS Quicksand today' : `RS Quicksand ${sessions(v)} ago`,
+  rs_quick_break_bars_ago: v => v === 0 ? 'RS Quick Break today' : `RS Quick Break ${sessions(v)} ago`,
+  rs_dead_break_bars_ago: v => v === 0 ? 'RS Grateful Dead Break today' : `RS Grateful Dead Break ${sessions(v)} ago`,
 }
 
 export function plainFact(key, v) {

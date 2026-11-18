@@ -100,6 +100,30 @@ def failures_from_junit(xml_text: str):
     return out
 
 
+def merge_junit(texts):
+    """(merged_xml_text, unreadable_count): every `<testsuite>` of every report under one
+    `<testsuites>` root.
+
+    ⛔ VITEST IS SHARDED (`--shard=i/4`) and each shard writes its own junit report. The
+    merged report is for failure NAMES (this tool) and the RAN set
+    (`ci_inventory.ran_keys`) only — the suite's COUNTS come from the shard logs'
+    totals lines (`ci_aggregate.aggregate_vitest`), never from a junit, so a truncated
+    report here can hide a name but can never inflate or complete a count.
+    ⛔ An unparseable report is COUNTED, not silently dropped."""
+    root = ET.Element("testsuites")
+    bad = 0
+    for text in texts:
+        try:
+            r = ET.fromstring(text)
+        except ET.ParseError:
+            bad += 1
+            continue
+        suites = [r] if r.tag == "testsuite" else list(r.iter("testsuite"))
+        for s in suites:
+            root.append(s)
+    return ET.tostring(root, encoding="unicode"), bad
+
+
 def _write(path: pathlib.Path, lines, what: str):
     """⛔ Always writes the file. ZERO is a finding, not a missing artifact."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -168,15 +192,33 @@ def run(pytest_log, vitest_log, vitest_junit, out_dir, head=40, pytest_junit=Non
                "no <failure>/<error> entries across %d shard junit report(s)" % len(jun))
         n_pfails = len(pfails)
 
-    if vitest_junit and pathlib.Path(vitest_junit).is_file():
-        fails = failures_from_junit(
-            pathlib.Path(vitest_junit).read_text(encoding="utf-8", errors="replace"))
+    if isinstance(vitest_junit, str):
+        vitest_junit = [vitest_junit]
+    vjun = [j for j in (vitest_junit or []) if j and pathlib.Path(j).is_file()]
+    if vjun:
+        merged, bad = merge_junit(pathlib.Path(j).read_text(encoding="utf-8", errors="replace")
+                                  for j in vjun)
+        # ⛔ Written into the record directory as THE vitest junit, so
+        # `ci_inventory.ran_keys` reads every shard's testcases, not one shard's.
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "vitest-junit.xml").write_text(merged, encoding="utf-8")
+        if bad:
+            print("[ci-extract] %d of %d vitest junit report(s) UNPARSEABLE - their "
+                  "failure names are absent, which is not zero" % (bad, len(vjun)))
+        fails = failures_from_junit(merged)
         lines = ["%s :: %s\n    %s" % (f, n, a) for f, n, a in fails]
         n_vit = _write(out / "vitest_failures.txt", lines,
-                       "no <failure>/<error> entries in the vitest junit report")
+                       "no <failure>/<error> entries across %d vitest junit report(s)"
+                       % len(vjun))
     elif vitest_log and pathlib.Path(vitest_log).is_file():
         _write(out / "vitest_failures.txt", [],
                "no vitest junit report was produced; only the text log exists")
+    elif vitest_junit:
+        # ⛔ Shard junits were NAMED but none was readable: the file is still written, and it
+        # says UNREADABLE — a record must not name a path it did not write (E CP19).
+        _write(out / "vitest_failures.txt", [],
+               "NO vitest junit report was readable across %d named — UNREADABLE, "
+               "not a clean run" % len(vitest_junit))
 
     print("[ci-extract] pytest collection-error sections: %d" % n_sections)
     print("[ci-extract] vitest failure entries: %d" % n_vit)
@@ -283,6 +325,27 @@ def _self_check() -> int:
         # "the file exists" proves nothing about whether anything was read.
         show("many-shard output differs from the empty one", pf.startswith("ZERO"), False)
 
+    # ⛔ VITEST SHARDS — four junit reports merge into ONE, and an unparseable one is counted.
+    with tempfile.TemporaryDirectory() as td:
+        d = pathlib.Path(td)
+        vj = ('<testsuites><testsuite name="s"><testcase classname="src/%s.test.js" '
+              'name="t"><failure message="boom %s">x</failure></testcase></testsuite>'
+              '</testsuites>')
+        paths = []
+        for i in "123":
+            (d / ("v%s.xml" % i)).write_text(vj % (i, i), encoding="utf-8")
+            paths.append(str(d / ("v%s.xml" % i)))
+        (d / "v4.xml").write_text("<truncated", encoding="utf-8")
+        paths.append(str(d / "v4.xml"))
+        run(None, None, paths, str(d / "vo"))
+        vf = (d / "vo" / "vitest_failures.txt").read_text(encoding="utf-8")
+        show("every readable shard junit contributes its failure", vf.count(" :: "), 3)
+        merged = (d / "vo" / "vitest-junit.xml").read_text(encoding="utf-8")
+        show("...and the merged junit holds every shard's testcases",
+             len(list(ET.fromstring(merged).iter("testcase"))), 3)
+        show("...an unparseable report is counted, not crashed on",
+             merge_junit(["<x", "<testsuite/>"])[1], 1)
+
     print("SELF-CHECK:", "PASS" if ok else "FAIL")
     return OK if ok else FAIL
 
@@ -292,7 +355,7 @@ def main(argv=None) -> int:
     ap.add_argument("--pytest-log", action="append", default=[])
     ap.add_argument("--pytest-junit", action="append", default=[])
     ap.add_argument("--vitest-log")
-    ap.add_argument("--vitest-junit")
+    ap.add_argument("--vitest-junit", action="append", default=[])
     ap.add_argument("--out-dir")
     ap.add_argument("--head", type=int, default=40)
     ap.add_argument("--self-check", action="store_true")

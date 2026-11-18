@@ -1,0 +1,12 @@
+# head 4e33baae36 2026-11-10T23:37:00Z dirty: 0 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentRouting.test.jsx src/agent/agentScreener.test.jsx
+ RUN  v4.0.18 C:/w/pl-widget/app
+stdout | src/agent/agentRouting.test.jsx > routing — offline accuracy over the benchmark messages > routing actually narrows: most cases send far fewer capabilities than the full manifest
+[routing] 43/43 routed; mean 23.7 of 160 capabilities; 0 full
+ ✓ src/agent/agentScreener.test.jsx (13 tests) 195ms
+ ✓ src/agent/agentRouting.test.jsx (23 tests) 278ms
+ Test Files  2 passed (2)
+      Tests  36 passed (36)
+   Start at  18:37:04
+   Duration  9.55s (transform 12.36s, setup 686ms, import 15.95s, tests 473ms, environment 1.48s)

@@ -30,6 +30,28 @@ const REFRESH_MS = 45_000
 const MAX_SEED_AGE_MS = 90_000
 
 let _pack = null          // { d, bars }
+// ⛔ OBSERVABLE, NOT SWALLOWED (2026-11-11). Every failure below used to vanish into
+// `.catch(() => _pack)`, which is exactly how the D/W/M pack sat dead behind a 401 for
+// eleven days. A dead today-pack degrades EVERY daily switch during the session to a
+// network wait — so it is counted, its status kept, readable as `todayPackHealth()` /
+// `window.__uctTodayPack`, and an auth/route failure warns once per page.
+const _health = { ok: 0, fail: 0, lastStatus: null, lastError: null, lastOkAt: 0, lastFailAt: 0 }
+let _warned = false
+function _noteFailure(e) {
+  _health.fail += 1
+  _health.lastStatus = Number.isFinite(e?.status) ? e.status : null
+  _health.lastError = String(e?.message || e || 'error').slice(0, 120)
+  _health.lastFailAt = Date.now()
+  if (!_warned && _health.lastStatus != null && _health.lastStatus >= 400 && _health.lastStatus < 500) {
+    _warned = true
+    try { console.warn(`[today-pack] /api/bars-today-pack answered ${_health.lastStatus}: daily charts cannot seed today's bar and will wait for /api/bars`) } catch { /* ignore */ }
+  }
+}
+/** Load health of the today-pack (counts + last status). Diagnostic; never throws. */
+export function todayPackHealth() { return { ..._health, usable: todayPackUsable(), ageMs: todayPackAgeMs() } }
+if (typeof window !== 'undefined') {
+  try { window.__uctTodayPack = { health: () => todayPackHealth() } } catch { /* locked-down host */ }
+}
 let _ts = 0               // epoch ms of the last successful load
 let _inflight = null      // in-flight promise — many charts mount at once
 
@@ -133,7 +155,7 @@ async function _fetchPack() {
   // fetches exactly this way. The endpoint carries no per-user data, so there is
   // nothing for a cookie to authorize.
   const r = await fetch('/api/bars-today-pack')
-  if (!r.ok) throw new Error(`today-pack ${r.status}`)
+  if (!r.ok) { const e = new Error(`today-pack ${r.status}`); e.status = r.status; throw e }
   const j = await r.json()
   if (!j || typeof j !== 'object' || typeof j.bars !== 'object') throw new Error('today-pack shape')
   _pack = { d: j.d || '', bars: j.bars || {} }
@@ -142,6 +164,9 @@ async function _fetchPack() {
   // gates on `_regular_session_has_opened_today`). Remember when we saw that so the
   // keep-warm loop backs off to a slow probe instead of polling a closed market.
   _emptyAt = _pack.d ? 0 : Date.now()
+  _health.ok += 1
+  _health.lastStatus = r.status
+  _health.lastOkAt = _ts
   return _pack
 }
 
@@ -154,7 +179,7 @@ export function ensureTodayPack() {
   if (_isFresh()) return Promise.resolve(_pack)
   if (_inflight) return _inflight
   _inflight = _fetchPack()
-    .catch(() => _pack)          // keep the last good pack; the seed degrades to whitespace
+    .catch((e) => { _noteFailure(e); return _pack })   // keep the last good pack — counted, not hidden
     .finally(() => { _inflight = null })
   return _inflight
 }
@@ -203,5 +228,7 @@ export function todayPackDate() {
 /** Test seam — module state outlives a test file otherwise. */
 export function __resetForTest() {
   _pack = null; _ts = 0; _inflight = null
+  Object.assign(_health, { ok: 0, fail: 0, lastStatus: null, lastError: null, lastOkAt: 0, lastFailAt: 0 })
+  _warned = false
   __stopKeepWarm()
 }

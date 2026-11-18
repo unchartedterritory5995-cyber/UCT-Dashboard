@@ -1,0 +1,7 @@
+whole tree master_b786 (npx vitest run, no filter), LOCK --who pl-exec, BelowNormal
+node_modules: LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+start (date -u): Wed Nov 11 05:22:24 UTC 2026
+worktree /c/w/pl-exec-m4/app commit b786232486ecad514be73b1f4cd5515a0e53b2bb tree d059478033e970f448c9278521428e78ed2be03c
+tracked-dirty: 0; untracked zzAudit files: 25
+STOPPED at ~05:32Z by pl-exec (Lead: whole-tree pair no longer required, AUDIT 2026-11-11). No totals: the run did not finish; no JSON report was written.
+end (date -u): Wed Nov 11 05:33:00 UTC 2026

@@ -29,6 +29,7 @@ import { computeRuntimeColumns } from '../../engine/runtime/runtimeColumns'
 import { buildRuntimeIr, paramDefaultsOf } from '../../engine/ast/pineRuntimeFrontend'
 import { runtimeClockOpts } from '../../engine/ast/pineRuntimeClock'
 import { registerPineLibrary, clearPineLibraries } from '../../engine/ast/pineLibraryStore'
+import { fixtureLibrary } from '../../engine/ast/__tests__/libraryFixture.js'
 import { lexPine } from '../../engine/ast/pine'
 
 const FLAG = 'VITE_PINE_RUNTIME_PANE_ENABLED'
@@ -134,7 +135,7 @@ export since(series bool cond, series float source = high) =>
         result := source
     result := math.max(nz(source, result), nz(result, source))
 `
-    registerPineLibrary({ path: 'tester/l2lib/1', source: LIB, licence: 'MPL-2.0', attribution: 'l2lib (test fixture)' })
+    registerPineLibrary(fixtureLibrary({ path: 'tester/l2lib/1', source: LIB, licence: 'MPL-2.0', attribution: 'l2lib (test fixture)' }))
     const imported = `${HEAD}import tester/l2lib/1 as lib
 plot(lib.since(bar_index % 7 == 0), "S1")
 plot(lib.since(bar_index % 11 == 0), "S2")

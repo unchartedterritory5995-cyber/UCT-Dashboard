@@ -1,4 +1,4 @@
-import { ET_OFFSET } from '../../components/chart/barTime'
+import { toChartTime as unixToChart } from '../../components/chart/barTime'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent, waitFor, within } from '../../test-utils'
 import PatternReview from './PatternReview'
@@ -232,7 +232,7 @@ describe('StudyReview card', () => {
     const chart = screen.getByTestId('stock-chart')
     expect(chart).toHaveTextContent('highlight:-')
     expect(chart).toHaveTextContent('markers:the open: first 3 hours dotted|||')
-    expect(chart).toHaveTextContent('dots:' + [1793107800, 1793111400, 1793115000].map((t) => t + ET_OFFSET).join('|') + '@#ffffff')
+    expect(chart).toHaveTextContent('dots:' + [1793107800, 1793111400, 1793115000].map((t) => unixToChart(t)).join('|') + '@#ffffff')
     expect(screen.getByTestId('study-closeup')).toHaveTextContent('Open close-up')
   })
 
@@ -474,6 +474,16 @@ describe('StudyReview helpers', () => {
     const fromString = checksOf({ import_flags: JSON.stringify(['voice (question): banned phrase']) })
     expect(fromString.map((c) => [c.id, c.pass])).toEqual([['numbers', true], ['duplicate', true], ['voice', false]])
     expect(checksOf({ import_flags: null }).every((c) => c.pass)).toBe(true)
+  })
+
+  it('provenanceOf lists the cited pages of a course question with their quotes and https links', () => {
+    const p = provenanceOf({ reveal_json: { depth: { sources: [
+      { name: 'SEC, Investor.gov: Bid price', url: 'https://www.investor.gov/x', quote: 'The bid is the highest price.', tier: 1, accessed: '2026-11-08' },
+      { name: 'UCT house rule: sizing', url: 'repo:docs/study/sizing_rule.md#1', quote: 'Under 1% is normal.', tier: 3 },
+    ] } } })
+    expect(p.kind).toBe('support')
+    expect(p.lines[0]).toEqual({ source: 'SEC, Investor.gov: Bid price · tier 1 · read 2026-11-08', text: '"The bid is the highest price."', url: 'https://www.investor.gov/x' })
+    expect(p.lines[1].url).toBeNull()
   })
 
   it('provenanceOf prefers the verbatim quote, then geometry, then the rule', () => {

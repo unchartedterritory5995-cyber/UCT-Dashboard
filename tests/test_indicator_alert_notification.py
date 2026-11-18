@@ -395,7 +395,13 @@ _ADDRESS_PLOT: dict[str, tuple[str, str]] = {
 _NO_CHART_PLOT = {"bb", "price_vs_ma", "close", "ma_cross",
                   "rs_line.crossUp", "rs_line.crossDown", "rs_line.newHighRed",
                   "rs_line.mansfield", "rs_line.mansfieldCrossUp",
-                  "rs_line.mansfieldCrossDown", "rs_line.rating"}
+                  "rs_line.mansfieldCrossDown", "rs_line.rating",
+                  # 2026-11-10 (RS split, S2): the four split EVENT addresses are 0 / 1 columns
+                  # with no plot of their own (the chart shades phases / draws a histogram).
+                  "rs_phases.flipBlue", "rs_phases.flipRed", "rs_vs_ema.crossUp", "rs_vs_ema.crossDown",
+                  # 2026-11-12 (RS Exit Warnings): the three warning addresses are 0 / 1 event columns;
+                  # the chart's dots carry the RS VALUE on a warning bar, not the 0 / 1 the alert reads.
+                  "rs_exit.quickBreak", "rs_exit.quicksand", "rs_exit.deadBreak"}
 
 
 def test_the_address_to_plot_map_covers_every_address_that_exists():

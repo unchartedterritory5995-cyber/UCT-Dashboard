@@ -143,20 +143,23 @@ export function requestNotificationPermission() {
   return Notification.requestPermission()
 }
 
-export function showBrowserNotification(title, body, icon) {
+export function showBrowserNotification(title, body, icon, { onClick, tag } = {}) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
   try {
     const notification = new Notification(title, {
       body,
       icon: icon || '/favicon.svg',
       badge: '/favicon.svg',
-      tag: 'uct-alert',
+      tag: tag || 'uct-alert',
       requireInteraction: false,
     })
     setTimeout(() => notification.close(), 8000)
     notification.onclick = () => {
       window.focus()
       notification.close()
+      if (typeof onClick === 'function') {
+        try { onClick() } catch { /* a bad link must not break the handler */ }
+      }
     }
   } catch {
     // Notification API not available

@@ -38,21 +38,23 @@ def measured_problems(allow, verdicts):
         out.append(f"scoreboard lane is {verdicts.get('lane')!r}, not 'runtime-on'")
     graded = {r.get("id"): r.get("verdict") for r in verdicts.get("results", [])}
 
-    def need(cid, who):
+    def need(cid, who, claimed="MATCH"):
         v = graded.get(cid)
         if v is None:
             out.append(f"{who}: capture {cid} is not in the runtime-on scoreboard")
-        elif v != "MATCH":
-            out.append(f"{who}: capture {cid} is measured {v}, not MATCH")
+        elif v != claimed:
+            out.append(f"{who}: capture {cid} is measured {v}, not {claimed}")
 
     for s in allow.get("scripts", []):
         for c in s.get("captures", []):
-            if c.get("verdict") == "MATCH" and c.get("runtimePane") == "on":
-                need(c.get("id"), f"script {s.get('slug')}")
+            # L7: a MATCH_SUBSTITUTED claim (the substituted admission path) must be MEASURED as exactly that
+            if c.get("verdict") in ("MATCH", "MATCH_SUBSTITUTED") and c.get("runtimePane") == "on":
+                need(c.get("id"), f"script {s.get('slug')}", c.get("verdict"))
     for name, row in allow.get("capabilities", {}).items():
         if row.get("status") == "conformant":
-            for cid in row.get("evidence", []):
-                need(cid, f"capability {name}")
+            for e in row.get("evidence", []):
+                # WS-I Part 2 (2026-11-13): an evidence entry is {capture, script, verdict, runtimePane}
+                need(e.get("capture") if isinstance(e, dict) else e, f"capability {name}")
     return out
 
 

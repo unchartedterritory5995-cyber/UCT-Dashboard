@@ -138,7 +138,9 @@ describe('🔴 THE RATCHET — these ceilings may only ever fall', () => {
       .filter(([pine, s]) => s.table !== pine && Object.hasOwn(TABLE.functions, pine))
       .map(([pine, s]) => [s.table, pine]))
     for (const [target, pine] of redirected) {
-      const src = pine === 'mfi' || pine === 'cci' ? `ta.${pine}(hlc3, 14)` : `ta.${pine}(14)`
+      // ⭐ (2026-11-14, engine 57) `ta.stoch` takes its four Pine arguments (source, high, low, length)
+      const src = pine === 'mfi' || pine === 'cci' ? `ta.${pine}(hlc3, 14)`
+        : pine === 'stoch' ? `ta.${pine}(close, high, low, 14)` : `ta.${pine}(14)`
       const out = translatePine(`//@version=5
 indicator("t")
 plot(${src})
@@ -237,6 +239,11 @@ plot(${n}(volume))
       // `PINE_CALL_SHAPES` lands on it (bar 0's flow on both sides, first value
       // on bar n-1). No Pine script writes `mfiPine(...)`.
       'mfiPine',
+      // ⭐⭐ `stochPine` (2026-11-14, engine 57) — the same shape: reachable ONLY through Pine's
+      // own `ta.stoch` / v4 `stoch`, which the `stoch` entry of `PINE_CALL_SHAPES` lands on it
+      // (the last n finite highs / lows, the last value kept). No Pine script writes
+      // `stochPine(...)`.
+      'stochPine',
       // ⭐⭐ `barsAgo` (2026-09-30, C38) — the same shape again: reachable ONLY
       // through Pine's own history operator with a per-bar index (`close[e]`),
       // on the host lane. No Pine script writes `barsAgo(...)`; the adapter-gap
@@ -248,6 +255,14 @@ plot(${n}(volume))
       // dialect: no platform spells it, exactly as none spells `accum`. Named here
       // rather than excused silently, so a door that ever learns one is a closure.
       'accum2', 'accum3', 'accum4',
+      // ⭐⭐ `boolNaWithheld` (2026-11-14, engine 56 A3) — the same shape as `barsAgo`: written ONLY by
+      // the Pine door itself (`pine.js::boolNaOperator`) around the operand of a v1-v5 operator that meets
+      // a `bool` `na` no capture has witnessed. No Pine script writes `boolNaWithheld(...)`; the literal
+      // probe correctly finds no door, and `engine56Values.test.js` proves the operator lands on it.
+      'boolNaWithheld',
+      // ⭐ `tieNewest` (2026-11-14, engine 56 S1) — written ONLY by the Pine door around a v4 / v5
+      // `ta.highestbars` / `ta.lowestbars` source (TradingView names the newest of a tie there).
+      'tieNewest',
     ]
     // A SUPERSET check, so closing any one is green while a NEW name falling out
     // of every door is a named regression.

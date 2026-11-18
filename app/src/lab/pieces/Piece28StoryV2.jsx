@@ -3,7 +3,7 @@ import WidgetChart from '../WidgetChart'
 import { useSample } from '../Lab'
 import { arrowAt, rayAt, pct } from '../pointers'
 import { byDay, forming, etLabel } from '../intraday'
-import coach from '../../components/intro/assets/compass-mark.png'
+import coach from '../../components/intro/assets/compass-mark.webp'
 import s from '../lab.module.css'
 import d5 from '../duo.module.css'
 

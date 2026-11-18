@@ -101,7 +101,13 @@ class _Server:
         return _Resp(404)
 
 
-DAILY = {"id": "f-daily", "name": "Daily", "parentId": None}
+# Simplify pass 2 (A3): the door makes a root folder named note_daily.DAILY_FOLDER_NAME ("Daily notes" since then)
+# and still uses an existing member's legacy-named root folder ("Daily", note_daily.LEGACY_DAILY_FOLDER_NAMES) first.
+# bench@'s production folder is the legacy one, so the walk matches both (Task 4).
+from api.services.journal_two.note_daily import DAILY_FOLDER_NAME as _DAILY_NAME  # noqa: E402
+from api.services.journal_two.note_daily import LEGACY_DAILY_FOLDER_NAMES as _LEGACY_NAMES  # noqa: E402
+
+DAILY = {"id": "f-daily", "name": _DAILY_NAME, "parentId": None}
 OTHER = {"id": "f-other", "name": "Trading", "parentId": None}
 
 
@@ -160,13 +166,26 @@ def test_CONTROL_with_no_note_dated_today_the_walk_does_append(walk):
     assert rec["made"]["note_ids"] == ["made-by-this-run"], "only what this run made is the walk's"
 
 
-@pytest.mark.parametrize("folders", [[], [OTHER], [{"id": "f-sp", "name": " Daily", "parentId": None}],
-                                     [{"id": "f-sub", "name": "Daily", "parentId": "f-other"}, OTHER]])
+@pytest.mark.parametrize("folders", [[], [OTHER], [{"id": "f-sp", "name": f" {_DAILY_NAME}", "parentId": None}],
+                                     [{"id": "f-sub", "name": _DAILY_NAME, "parentId": "f-other"}, OTHER],
+                                     [{"id": "f-lsp", "name": f" {_LEGACY_NAMES[0]}", "parentId": None}],
+                                     [{"id": "f-lsub", "name": _LEGACY_NAMES[0], "parentId": "f-other"}, OTHER]])
 def test_without_the_doors_own_daily_folder_nothing_is_posted(walk, folders):
     """The door would CREATE a root Daily folder; the walk never creates one."""
     server = _Server([], folders)
     _code, steps, _rec = _run(walk, server)
     assert server.posts == [] and steps[-1]["result"] == "NOT RUN"
+
+
+@pytest.mark.parametrize("name", [*_LEGACY_NAMES, _LEGACY_NAMES[0].upper()])
+def test_a_legacy_named_root_daily_folder_is_the_doors_folder_too(walk, name):
+    """bench@'s production folder is the legacy "Daily": the door uses it (no folder made), so the walk appends.
+    (Mutation: match DAILY_FOLDER_NAME only again -> NOT RUN, nothing posted.)"""
+    server = _Server([{"id": "n-old", "title": "x", "folderId": "f-legacy"}],
+                     [{"id": "f-legacy", "name": name, "parentId": None}, OTHER])
+    code, steps, rec = _run(walk, server)
+    assert server.posts == [APPEND], steps[-1]
+    assert steps[-1]["result"] == "PASS" and code == 0
 
 
 def test_a_library_the_walk_cannot_read_in_full_is_not_written_into(walk):
@@ -183,11 +202,13 @@ def test_a_library_the_walk_cannot_read_in_full_is_not_written_into(walk):
 def test_the_folder_name_and_title_are_note_dailys_not_restated(walk):
     from api.services.journal_two import note_daily
     assert walk.DAILY_FOLDER_NAME is note_daily.DAILY_FOLDER_NAME
+    assert walk.LEGACY_DAILY_FOLDER_NAMES is note_daily.LEGACY_DAILY_FOLDER_NAMES
     assert walk.daily_title is note_daily.daily_title
     tree = ast.parse(WALK.read_text(encoding="utf-8"))
     assigned = {t.id for n in ast.walk(tree) if isinstance(n, (ast.Assign, ast.AnnAssign))
                 for t in (n.targets if isinstance(n, ast.Assign) else [n.target])
                 if isinstance(t, ast.Name)}
     assert "DAILY_FOLDER_NAME" not in assigned, "the folder name is restated in the tool"
+    assert "LEGACY_DAILY_FOLDER_NAMES" not in assigned, "the legacy folder names are restated in the tool"
     assert "strftime('%A')" not in WALK.read_text(encoding="utf-8"), \
         "a locale weekday is back in the tool"

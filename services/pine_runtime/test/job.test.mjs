@@ -37,7 +37,7 @@ test('runArgs builds the def, rows and ctx the browser worker builds, from the v
   assert.deepEqual(def, { id: doc.id, compute: doc.compute, meta: doc.meta })
   assert.deepEqual(rows, [0, 1].map((i) => ({ t: job.bars.t[i], o: job.bars.o[i], h: job.bars.h[i], l: job.bars.l[i], c: job.bars.c[i], v: job.bars.v[i] })))
   assert.deepEqual(ctx, { tf: 'D', newestBarIsForming: false, historyFromListing: true, runtimeInputs: { length: 14 },
-    symbol: { ticker: 'AAPL', exchange: 'NASDAQ' } })
+    symbol: { ticker: 'AAPL', exchange: 'NASDAQ' }, otherSymbolSupply: false })
   assert.notEqual(ctx.runtimeInputs, job.ctx.runtimeInputs, 'the inputs are copied, never shared with the job')
   job.ctx.historyFromListing = false
   job.ctx.newestBarIsForming = true
@@ -200,6 +200,36 @@ test('a wall-clock stop on the REAL bundle is runtime:time-budget, never runtime
   assert.equal(cacheable(ok), true)
 }, { timeout: 120000 })
 
+test('LIMITS r1 (B2-a): the VM OWN WALL_TIME stop, with the budget set, is runtime:time-budget, names 5,000 ms, and is never cacheable', async () => {
+  real = real || await buildRealBundle()
+  const rt = await import(pathToFileURL(real.outfile).href)
+  // 6,000 ms a read: the VM's bar-end account (before the pane's hook) is past 5,000 ms on bar 1
+  let t = 0
+  const stall = { ...rt, computeRuntimeColumns: (d, r, c, o) => rt.computeRuntimeColumns(d, r, c, { ...o, now: () => (t += 6000) }) }
+  const r = runJob(stall, docOf('//@version=5\nindicator("w")\nplot(ta.sma(close, 3))'), parsedJob('A', { n: 50 }))
+  assert.equal(r.status, 'withheld', JSON.stringify(r))
+  assert.equal(r.refusals[0].guard, rt.RUNTIME_TIME_BUDGET_GUARD, JSON.stringify(r.refusals))
+  assert.deepEqual(Object.keys(r.refusals[0]).sort(), MASTER_CLIENT_REFUSAL_KEYS, 'an old client accepts it')
+  assert.match(r.refusals[0].sentence, /took more than 5000 ms/)
+  assert.doesNotMatch(r.refusals[0].sentence, /1000 ms|WALL_TIME/)
+  assert.equal(cacheable(r), false, 'a VM wall-clock stop is never stored')
+}, { timeout: 120000 })
+
+/** The refusal keys the PRE-r1 Python client admits (`pine_runtime_client.py::_REFUSAL_KEYS` on
+ *  master, 46f28be66c): any other key makes that client refuse the whole result as INTEGRITY. */
+const MASTER_CLIENT_REFUSAL_KEYS = ['bar', 'guard', 'key', 'sentence']
+
+test('LIMITS r2 phase 1: a limit stop on the REAL bundle reaches the wire with ONLY the keys an old client admits, still in plain words', async () => {
+  real = real || await buildRealBundle()
+  const rt = await import(pathToFileURL(real.outfile).href)
+  const r = runJob(rt, docOf('//@version=5' + String.fromCharCode(10) + 'indicator("w")' + String.fromCharCode(10)
+    + 'x = 0' + String.fromCharCode(10) + 'while true' + String.fromCharCode(10) + '    x += 1' + String.fromCharCode(10) + 'plot(x)'), parsedJob('A', { n: 20 }))
+  assert.equal(r.status, 'withheld', JSON.stringify(r))
+  assert.equal(r.refusals[0].guard, 'runtime:limit')
+  assert.deepEqual(Object.keys(r.refusals[0]).sort(), MASTER_CLIENT_REFUSAL_KEYS, JSON.stringify(r.refusals[0]))
+  assert.match(r.refusals[0].sentence, /the number of passes one `while` loop may make/)
+}, { timeout: 120000 })
+
 test('W9-T11: runArgs forwards the job ctx window (as the browser does), and only when the job states one', () => {
   const doc = docOf('x')
   const job = parsedJob('A', { n: 2 })
@@ -209,3 +239,15 @@ test('W9-T11: runArgs forwards the job ctx window (as the browser does), and onl
   job.ctx.historyWindowBars = 77
   assert.equal(runArgs(doc, job).ctx.historyWindowBars, 77)
 })
+
+test('RS RATING L5: on the REAL bundle a server run of another symbol is refused by name, never held as loading', async () => {
+  real = real || await buildRealBundle()
+  const rt = await import(pathToFileURL(real.outfile).href)
+  const src = ['//@version=5', 'indicator("r")', "s = request.security('SP:SPX', 'D', close)", 'plot(close / s)'].join(String.fromCharCode(10))
+  const r = runJob(rt, docOf(src), parsedJob('A', { n: 30 }))
+  assert.equal(r.status, 'withheld', JSON.stringify(r))
+  assert.equal(r.refusals[0].guard, 'runtime:request', JSON.stringify(r.refusals))
+  assert.match(r.refusals[0].sentence, /SPX/)
+  assert.match(r.refusals[0].sentence, /not handed another symbol's bars/)
+  assert.doesNotMatch(r.refusals[0].sentence, /still loading/)
+}, { timeout: 120000 })

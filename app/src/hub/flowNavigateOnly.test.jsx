@@ -340,6 +340,6 @@ describe('§3.9 — what actually renders on /options-flow', () => {
     fireEvent.pointerMove(pad, { clientX: dx, clientY: dy, pointerId: 1 })
     fireEvent.pointerUp(pad, { clientX: dx, clientY: dy, pointerId: 1 })
 
-    expect(screen.getByTestId('loc').textContent).toBe('/dashboard')
+    expect(screen.getByTestId('loc').textContent).toBe('/charts')
   })
 })

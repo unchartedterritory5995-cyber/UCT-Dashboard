@@ -58,6 +58,114 @@ master push is a full deploy gate and a deploy, and wasted runs still cost wall-
 - If runs fail with "The job was not started because ... spending limit": that is the budget, not the code.
   Tell the owner; do not re-push to retry.
 
+### The queue is the cost now: 40 jobs at once, for every session (measured 2026-11-16)
+
+The account runs **40 jobs at a time** (GitHub Pro) and every session shares them, first come first served:
+a deploy-gate job waits behind whatever PR jobs were queued before it. On 2026-11-16, 20:06-23:06Z, the 40
+slots were full the whole three hours with 50-130 jobs waiting; the deploy gate (12-13 minutes of work)
+finished 28-68 minutes after its push; a Pine PR took a median 64 minutes from open to merge (a quarter took
+over 4 hours) against 23 minutes for everything else. `pine heavy` alone was 50% of all runner minutes, and
+24% of all runner minutes went to runs a newer push then cancelled. Measure it again with
+`python tools/ci_queue_report.py --hours 3` before believing a number here.
+
+- **One push carries the whole unit: code, tests, evidence docs, runbooks.** A one-file docs commit pushed
+  minutes after the code re-runs every job of every workflow the PR triggers (`pine heavy`: 19 jobs,
+  ~100 runner-minutes; a PR's `paths:` filter reads the WHOLE PR, never the new commit). 6 of 41 `pine heavy`
+  PR runs in that window were docs-only pushes.
+- **One check per commit.** Never dispatch a workflow by hand on a commit whose PR run already ran it. For a
+  mutant proof on a PR branch: `gh workflow run pine-heavy.yml --ref <branch> -f mutants_manifest=<path> -f
+  skip_legs=true` runs the mutant job alone (three such doubled runs in that window, ~100 runner-minutes each).
+- **`docs/pine/vendor-harness/capture-queue.json` is NOT committed** (since 2026-11-16; git ignores it). It
+  was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge that day, and every conflict
+  cost a merge of master, a regenerate commit and a full `pine heavy` re-run. Anything that wants the queue
+  derives it (`evidence_engine.build_queue()`, ~6 s); `python tools/vendor_harness/evidence_engine.py queue`
+  writes a local copy to read. **A branch cut before that change conflicts on it ONCE when it merges master:
+  resolve with `git rm docs/pine/vendor-harness/capture-queue.json`.** Never `git add -f` it back.
+- **Merge master into a PR only when GitHub reports a conflict or the PR needs something master has.** A
+  catch-up merge re-runs everything: 15 of those 41 runs were triggered by one.
+- **Batch small related PRs into a train** (the `train/eNN` precedent): one check and one deploy instead of N.
+
+## ⭐ Heavy tests run on GitHub, not on this PC (2026-11-16, GitHub Pro: 40 concurrent jobs)
+
+The dev PC runs ONE heavy test job at a time (`heavy_lock`, RAM limits) and every session queues behind it.
+Commit, then send the run to GitHub runners instead:
+
+```sh
+python tools/remote_tests.py --pytest tests/test_a.py tests/test_b.py::test_x
+python tools/remote_tests.py --vitest src/pages/charts src/agent/nl --shards 4
+```
+
+It tests the COMMITTED HEAD (uncommitted edits are not included), pushes it to `refs/remote-tests/<id>` (no
+workflow triggers on that ref, nothing deploys; the repo is public, so it is readable like any push), runs the
+`remote tests` workflow from MASTER, prints the failing test ids, and deletes the ref. Exit 0 green / 1 red /
+2 the lane could not run. Paths: pytest under `tests/`, vitest app-relative under `src/`. Keep tiny local checks
+local; send anything heavier than a few files here. Rails: `tests/test_remote_tests_lane.py`.
+⛔ **Never delete a `refs/remote-tests/*` ref you did not create.** Other sessions' runs are using them (one was
+deleted mid-run on 2026-11-16 by a "leftover ref" cleanup that counted every session's refs); the tool deletes
+its own ref when it finishes.
+
+## ⛔⛔ flow-worker DEPLOYS ARE MANUAL (owner decision 2026-11-12) — read before touching options-flow code
+
+Railway **auto deploy is DISABLED for `flow-worker`** (the live options tape, Live Flow, Options Flow,
+gap-fill). Merging or pushing a change to a file it runs no longer restarts it: someone deploys it by
+hand, **outside market hours only** (Railway → flow-worker → Ctrl/Cmd+K → "Deploy latest commit").
+Why: flow-worker deploys corrupted `flow.db` (Railway pulls the volume from the still-running old
+container); on 2026-11-12 an unrelated PR cost 1.5 h of live tape mid-session. Do not re-enable it.
+How to deploy, verify, and recover a damaged flow.db: **`docs/runbooks/flow-worker-deploys-and-flow-db.md`**.
+
+## ⛔⛔ worker DEPLOYS ARE MANUAL TOO (owner decision 2026-11-13)
+
+Railway **auto deploy is DISABLED for `worker`** (bars prewarm + the R2 snapshot uploader every other
+service pulls bars from). A merge to a file it runs no longer restarts it; deploy by hand outside market
+hours (Railway → worker → Ctrl/Cmd+K → "Deploy latest commit"). Why: every merge restarted it and killed
+the 40+ minute delta and multi-hour base, so no snapshot shipped from 2026-11-10 to 2026-11-13. How to
+deploy, and how to read the uploader's state: **`docs/runbooks/worker-deploys.md`**.
+
+## ⭐ Speed and reliability: how every change is made (owner standing rule, 2026-11-10)
+
+The owner's bar: **instant, smooth, reliable, no lag, for every member** (browser and the desktop app), at
+the level of the largest consumer apps. Targets, plan and measurements: the desktop speed plan
+(`C:\Users\Patrick\reports\UCT desktop app FINAL plan - speed and reliability.md`, local). These rules apply
+to every session and every agent, whatever the task.
+
+1. **Measure the real member path, before and after. Trace before you theorize.** On 2026-11-10 two plausible
+   theories (React re-renders; one renderer thread) were both wrong; a Chromium trace found the real cause in
+   minutes (endless CSS animations saturating the GPU process). Proof tools live in the `uct-desktop` repo,
+   `scripts/proofs/`: `charts-load-proofs.mjs` (real Charts widget pop-outs; `--trace`, `--profile=N`,
+   `--animations`, `--kill-anim`), `analyze-trace.py`, `launch-phases.mjs`, `motion-sweep.mjs`. Never measure
+   a surface members do not use (the Terminal pop-out pages are not the Charts path).
+2. **Nothing always on screen animates forever.** An `infinite` CSS animation makes the window draw at the
+   display rate forever (12 chart widgets: 549 presents/s, GPU main thread 90% busy). Rail:
+   `app/src/styles/endlessAnimations.test.js` (stylesheets, inline styles AND SVG SMIL: an endless
+   `<animateTransform>` is invisible to `document.getAnimations()` yet re-laid-out /dashboard 60 times a second).
+   Ambient cues ride an existing once-a-second render (`.clockDot`, `data-beat`) or run a few iterations and rest.
+3. **No unconditional per-frame loop.** A `requestAnimationFrame` that re-arms itself forever costs every chart,
+   every frame. Use `createAdaptiveFrameLoop` (`app/src/components/chart/adaptiveFrameLoop.js`): every frame while
+   something moves, a 250 ms safety pass when still, woken by pointer/resize/range/data events.
+4. **Background work never competes with the first paint.** Heavy background work (pack ingests and the like)
+   starts after the page's first chart (`afterFirstChartPaint`, `lib/barsPackClient.js`) and runs one window at
+   a time (`navigator.locks`). A page left early must not throw away and restart the same work.
+5. **First-open bytes are a budget, paid for, not raised.** After every production build:
+   `python tools/notebook_perf_budgets.py --dist app/dist`. A change that adds to first open moves something else
+   off it (2026-11-10: the drawings store left Notebook first open, -10.4 KB). Raising the line is the owner's call.
+6. **Polls respect visibility.** SWR's `isVisible` is `lib/deskVisibility.isAppVisible`: polls pause when the
+   desktop desk is hidden or a tab is hidden. Live streams and alerts are not polls. Never add a polling loop
+   that bypasses it.
+7. **Every test and guard must be proven able to fail.** Break the code on purpose and watch the test go red,
+   restore from a saved copy (never `git checkout`), then commit. A green suite proves nothing on its own.
+8. **Deploy as a lane, not a crowd.** Batch changes; one master merge at a time; confirm a push landed with
+   `git merge-base --is-ancestor <sha> origin/master` (push output alone has lied); a red master gate blocks
+   every member-facing deploy, so fix it forward at once. **A Screener server change ships its own bookkeeping
+   in the same PR:** re-pin `SCREENER_PIN` (`tests/test_uct_agent_qa_f16.py`), regenerate `screener-fields.json`
+   (`python -m tests.test_uct_agent_qa_scan_corpus --write-baseline`) and the SAT-1 capture
+   (`UPDATE_SAT1_REQUESTS=1`). On 2026-11-10 skipping these left master red for every session for hours.
+9. **The CDN is part of the product.** Check what Cloudflare actually delivers (fetch `/assets/*` through the edge
+   AND from `web-production-05cb6.up.railway.app`), not just what the origin sends. See `ASSETS_NO_TRANSFORM_ENABLED`
+   in `docs/feature_flags.json` for why compressed origin files reached members uncompressed. **Check with an
+   `Origin` header too** (browsers send one on every module script): Cloudflare caches that variant separately, and
+   a purge must name both (`tools/cdn_asset_integrity.py` checks both). Proof windows go on a display nobody covers:
+   a window under a full-screen window draws no frames and every number reads idle.
+
 
 ## Project Overview
 
@@ -259,6 +367,9 @@ infrastructure, declared vite entry points, or partner-owned files awaiting ack.
 The standing rail is `app/src/components/screener/reachable.test.js`, which now
 sweeps **all of `app/src`** and fails by name on the next one — so this table
 should never again be assembled by hand.
+
+## ⭐ UCT Signature style — the house look for menus, settings, pickers and widgets (owner, 2026-11-15)
+When the owner says **"UCT Signature style"** (or "make it look like the new menus"), read **`docs/uct-signature-style.md`** first and build to it: graphite `#111214` panels, `#1a1b1f` cards with hairline rows, `#ededed`/`#a9a59b` text, **a touch of UCT gold (`var(--ut-gold)`) ONLY on what is current or chosen — "the mix", spec section 2b**, sentence case, dropdowns instead of segmented controls, soft-square on/offs left of the label, hover-revealed row actions. It supersedes `docs/brand-design-system.md` for those surfaces.
 
 ## UI Icons — `UIcon` (NO emoji)
 
@@ -545,7 +656,10 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   only, so a second process doubles it, and since connector fidelity Plan F Task 9
   `notebook-import-repair-notice` (60/minute, keyed on the member, `NOTE_IMPORT_REPAIR_NOTICE_RATE`
   in `api/routers/journal_two.py`, shared by `GET /api/j2/notes/import/repair-notice` and its
-  `POST .../dismiss`), in-process only, so a second process doubles it · that door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
+  `POST .../dismiss`), in-process only, so a second process doubles it, and since Import a tweet
+  `notebook-tweet-resolve` (30/minute, keyed on the member, `TWEET_RESOLVE_RATE` in
+  `api/routers/notebook_tweet_capture.py`, `POST /api/j2/research-capture/tweets/resolve`, dark behind
+  `NOTEBOOK_TWEET_IMPORT_ENABLED`), in-process only, so a second process doubles it, and `notebook-tweet-save` (20/minute, keyed on the member, `TWEET_SAVE_RATE` in the same file, `POST /api/j2/research-capture/tweets/save`, dark behind the same flag), in-process only, so a second process doubles it, and since community scan-board layouts (2026-11-17, dark behind `SCREENER_LAYOUT_GALLERY_ENABLED`) three scopes on `api/routers/screener_layout_gallery.py`, keyed on the member: `screener-layout-publish` (10/hour, plus a DURABLE 10/day in `daily_usage_counters`, so a second process doubles only the hourly half), `screener-layout-report` (30/hour) and `screener-layout-use` (60/hour), both in-process only, so a second process doubles both · `notebook_tweet_capture._SAVE_INFLIGHT` under `_SAVE_INFLIGHT_LOCK` (one tweet save running per member, one more answers 429): a second process allows one per process · `tweet_price._FETCH_POOL` (`FETCH_POOL_WORKERS` = 4 bars reads for tweet imports at once; a read past its import's time limit is abandoned, and its thread finishes on its own): a second process doubles it · the `notebook-media-fetch` door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
   (`MEDIA_FETCH_GLOBAL_INFLIGHT` = 8 downloads at once) and `journal_two._media_fetch_inflight`
   (`MEDIA_FETCH_PER_MEMBER_INFLIGHT` = 2 per member, one more answers 429): a second process
   doubles both · since the connector fidelity Plan A final review (I3), the editor upload doors'
@@ -1737,7 +1851,12 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
   `uct.barsPool.disabled`.
 - **Observability:** `GET /api/admin/bars-stream-status` (no-auth) — WS connected + subscribers +
   `bars_emitted_total`/`bars_dropped_total`/`last_emit_age_s`. Flat emitted while subscribers>0
-  during RTH = "push silently dead, everyone fell back to Finnhub". Boot fingerprint:
+  during RTH = "push silently dead, everyone fell back to Finnhub". `websocket.ingest` (2026-11-13,
+  measurement-only) splits live-price lag into LOCAL vs UPSTREAM per wall-clock minute
+  (`this_minute`/`last_minute`): `trade_lag_ms`/`recv_lag_ms` (now / frame-dequeue minus T.t, bucketed
+  p50/p90 = "<=" bounds), `busy_ratio` (near 1 = the consumer never waits = local backlog),
+  `busy_cpu_over_wall` (far below 1 = runnable but waiting for the GIL), `recv_queue_max` +
+  `frames_read_paused` (websockets max_queue backpressure), per-type `events` counts. Boot fingerprint:
   `[startup] bars-push-rail: …`. `tools/market_open_chart_check.py` reads the stream directly
   (the scheduled 9:45 ET agent's push-render proof).
 - **Env (web pod):** `STREAM_BARS_ENABLED=1` (backend push on) · `VITE_REALTIME_BARS=1`. Deliberately
@@ -5413,16 +5532,48 @@ board image. **Live: seven posts a session, mon-fri**, into a ~750-member room.
   contextual`. The collision list must be derived from `#main-chat`'s OWN corpus —
   it was first derived from `#tsdr` and booked 1,059 junk mentions (7.7%), with
   `EVER` ranking 10th on 48 people.
-- ⛔⛔ **ON-DEMAND IS EPHEMERAL AND THROTTLED; THE SCHEDULED POST IS NEITHER.**
-  Owner ruling 2026-09-02. `/buzz` is open to every member with no role gate, so
-  a public reply meant one member could put a second board in front of 750
-  people at will. The interaction reply now carries `flags: 64` and the command
-  spends the same per-member budget as `/chart` (`DISCORD_CHART_USER_RATE`,
-  12/min — both land on the same 4-slot render valve, so one budget is the
-  honest model). ⛔ **The flag goes on the DEFER (`type: 5`), not the follow-up**
-  — Discord fixes a deferred reply's visibility at defer time and silently
-  ignores flags on the later PATCH, so a bare defer ships the board publicly and
-  looks correct in review. ⛔⛔ **The scheduled post must NEVER become
+- ⭐ **ON-DEMAND `/buzz` AND `/lesson` REPLY IN THE CHANNEL, FOR EVERYONE.**
+  Owner ruling 2026-11-13 ("visible to all"). ⚰️ From 2026-09-02 until then
+  `/buzz` was ephemeral (`flags: 64`) so one member could not put a second board
+  in front of the room, and `/lesson` was private from the day it shipped; that
+  cost is now accepted on purpose. What stays private is whatever is not the
+  answer: the throttle message, `/lesson`'s empty-query nudge and the
+  missing-token refusal. The command still spends the same per-member budget as
+  `/chart` (`DISCORD_CHART_USER_RATE` — both land on the same 4-slot render
+  valve), which also bounds one member filling the channel with boards.
+  ⭐ **BOTH ARE HELD TO `#uct-intelligence`** (owner ruling 2026-11-13, "just in
+  UCT Intelligence"): they read the SAME allowlist as `/chart`, `/flow` and
+  `/cot` (`CHART_FLOW_CHANNEL_ID`, `di.cmd_channel_ok`), never a variable of
+  their own, so there is one list of where the bot answers. Elsewhere the
+  member gets a private `_channel_nudge("/buzz")` naming the FIRST id on the
+  list. ⛔ The gate sits on BOTH reply paths (`/buzz` in the router and in
+  `discord_render/commands.py`; `/lesson` has only the router path) and is
+  checked BEFORE the throttle, so a refusal does not spend the member's budget.
+  It does not touch the scheduled posts, which are not interactions and still
+  go to `BUZZ_DIGEST_CHANNEL` (`#main-chat`): a member who runs `/buzz` under a
+  scheduled board there is pointed to `#uct-intelligence`. Same watch-coverage
+  classification as below (INERT STRAND, no flow-worker deploy).
+  ⛔ **Visibility is decided on the DEFER (`type: 5`), not
+  the follow-up** — Discord fixes a deferred reply's visibility at defer time and
+  silently ignores flags on the later PATCH, so to make either private again the
+  flag goes back on the defer (old path in `api/routers/discord_interactions.py`,
+  V2 path in `discord_render/commands.py`, where the job's `ephemeral` record
+  must say the same thing). ⛔⛔ **A PUBLIC REPLY THAT ECHOES THE MEMBER'S WORDS
+  CAN PING** — `/lesson @everyone`, `/buzz ticker:<@&role>` — so
+  `discord_interactions.edit_original` sends `allowed_mentions: {"parse": []}`
+  on every shape it builds (`NO_MENTIONS`; rail
+  `tests/test_discord_public_replies_cannot_ping.py`, which reads the wire).
+  Never remove it, and give any new public reply door the same field.
+  ⭐ **Watch-coverage classification for that change (required by
+  `docs/runbooks/deploy-windows.md`): INERT STRAND, no flow-worker deploy.** The
+  rail names `api/routers/discord_interactions.py`,
+  `api/services/discord_interactions.py`, `api/services/discord_render/commands.py`
+  and `api/services/tsdr_lessons.py`. flow-worker imports them and never runs
+  what changed: Discord POSTs interactions to `web` only
+  (`api/main.py` mounts the router; `api/flow_worker_main.py` does not), and
+  `edit_original` is called only from those reply paths. A flow-worker on the
+  older files behaves exactly as before.
+  ⛔⛔ **The scheduled post must NEVER become
   ephemeral** — it IS what the room is meant to see, and an ephemeral one would
   leave every check green (job ran, `posted` stamped, attachment exists) while
   seven boards a day reached nobody. They cannot collide today: the digest posts

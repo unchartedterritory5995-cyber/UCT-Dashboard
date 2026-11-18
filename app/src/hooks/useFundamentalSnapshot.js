@@ -1,17 +1,14 @@
 import useMobileSWR from './useMobileSWR'
-import { sectionFetcher } from '../components/research/sections/sectionFetch'
-
-// TERM-033: a failed read THROWS (sectionFetcher), so a failed 5-min refresh keeps the card
-// on screen instead of replacing it with `null`. 402 stays absent, as before.
-const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
+import { snapshotKey, snapshotFetcher } from './fundamentalSnapshotKey'
 
 // Consolidated ratings + key fundamentals for the glanceable snapshot card.
 // Only fetches when `enabled` (e.g. the Fundamentals tab is actually open).
-export default function useFundamentalSnapshot(rawSym, enabled = true) {
-  const sym = (rawSym || '').toUpperCase().trim()
-  const key = enabled && sym ? `/api/research/snapshot/${sym}` : null
+export default function useFundamentalSnapshot(rawSym, enabled = true, isPaused) {
+  const key = enabled ? snapshotKey(rawSym) : null
   // 5-min re-poll: the backend serves instantly (stale-while-revalidate), so a
   // stale-served card picks up the background rebuild without a remount.
-  const { data, isLoading } = useMobileSWR(key, fetcher, { refreshInterval: 5 * 60 * 1000 })
+  // `isPaused` (optional): a chart passes its rest gate, so a symbol the member is racing past is not
+  // asked for (components/chart/restedReaders.js). Without it this is an ordinary read.
+  const { data, isLoading } = useMobileSWR(key, snapshotFetcher, { refreshInterval: 5 * 60 * 1000, ...(isPaused && { isPaused }) })
   return { data: data || null, isLoading: isLoading && !data }
 }

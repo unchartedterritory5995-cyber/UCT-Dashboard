@@ -1,0 +1,11 @@
+//@version=6
+// PROVENANCE: written 2026-11-15 (inv-fmt-1115). NEVER COMPILED ON TRADINGVIEW.
+// Does TradingView accept a NON-LITERAL calc_bars_count (an input, as luxy's `adaptiveWarmup`)?
+// If it compiles: capture at the default (100) and once with the input set to 50.
+// CAPTURE: NYSE:RDDT 1D from the listing (666 bars). Also record the compile error text if any.
+N = input.int(100, "bars")
+indicator("UCTPROBE_VW_CBC_INPUT_COUNT", overlay = false, calc_bars_count = N)
+var int n = 0
+n += 1
+plot(bar_index, "A00_bar_index")
+plot(n, "A01_var_count")

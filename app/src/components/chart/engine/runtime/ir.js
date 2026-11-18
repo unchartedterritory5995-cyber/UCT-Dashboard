@@ -388,10 +388,21 @@ export function validateIr(p) {
               + 'history slots. Without it the lowering would have to re-derive which values '
               + 'are history-bearing, and a second answer to that question is a ring nobody fills.')
           }
-          if (e.back > p.history[e.slot].depth) {
-            throw new IrError(
-              `${where}: reads \`${p.history[e.slot].name}\`[${e.back}] but its ring was planned `
-              + `for depth ${p.history[e.slot].depth}`)
+          // ⛔ IN A FUNCTION BODY `slot` IS FRAME-RELATIVE (the HIST_SLOT_DYN case below says so too):
+          // every call site's block holds that function's ring at `historyBase + slot`. ⚰️ This read
+          // `p.history[slot]` — the MAIN table's entry of that index — so two functions with a history
+          // local at the same frame slot and different depths refused with the other one's name
+          // ("`fb` reads `fa.x`[4] but its ring was planned for depth 2"), found by B3.
+          const entries = walkingFn === null
+            ? [p.history[e.slot]]
+            : (p.callSites || []).filter((cs) => cs.fn === walkingFn && Number.isInteger(cs.historyBase))
+              .map((cs) => p.history[cs.historyBase + e.slot])
+          for (const h of entries) {
+            if (!h || e.back > h.depth) {
+              throw new IrError(
+                `${where}: reads \`${h ? h.name : '?'}\`[${e.back}] but its ring was planned `
+                + `for depth ${h ? h.depth : 'none'}`)
+            }
           }
         }
         walkExpr(e.of, `${where}.of`)
@@ -534,7 +545,8 @@ export function validateIr(p) {
       case EXPR.BROKER:
         if (typeof e.fn !== 'string' || !e.fn) throw new IrError(`${where}: a broker op carries a name`)
         if (!Array.isArray(e.args)) throw new IrError(`${where}: a broker op carries an args array`)
-        if (!['void', 'number'].includes(e.returns)) {
+        // W9-T7-F1: 'string', a trade's order id / comment (`broker.js::BROKER_OPS`)
+        if (!['void', 'number', 'string'].includes(e.returns)) {
           throw new IrError(`${where}: \`${e.fn}\` declares what it returns`)
         }
         e.args.forEach((x, i) => { if (x !== null) walkExpr(x, `${where}.${e.fn}[${i}]`) })
@@ -831,9 +843,11 @@ export const arrayCall = (fn, args, typeArg = null) => (
 /** ⭐⭐ RT5 — a drawing operation the run executes (`objectStore.js`): `fn` is
  *  the store's canonical name (or `any.<method>`, dispatched on the receiver's
  *  family at run time), `args` positional with `null` for an argument the
- *  script did not pass, `returns` what it leaves on the stack. */
-export const objectCall = (fn, args, returns) => (
-  { kind: EXPR.OBJECT_OP, fn, args, returns })
+ *  script did not pass, `returns` what it leaves on the stack.
+ *  ⭐⭐ ENGINE 54 — `site`, on a call that makes a drawing: its source call
+ *  (`objectProgram.js::objectSiteKey`), stamped on every object it makes. */
+export const objectCall = (fn, args, returns, site = null) => (
+  site ? { kind: EXPR.OBJECT_OP, fn, args, returns, site } : { kind: EXPR.OBJECT_OP, fn, args, returns })
 /** ⭐⭐ S1 — a broker operation (`runtime/broker.js::BROKER_OPS`): `args` positional
  *  with `null` for a parameter the script did not pass. */
 export const brokerCall = (fn, args, returns) => (

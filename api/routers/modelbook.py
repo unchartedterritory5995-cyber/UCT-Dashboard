@@ -32,6 +32,7 @@ repo's most-repeated defect, and the one above had drifted to nine of the
 thirty-odd routes actually mounted here.
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import re
 from typing import Optional
@@ -676,7 +677,7 @@ def get_stock_bars(stock_id: int, _user: dict = Depends(require_paid)):
 import os as _os
 import time as _time_mod
 _DESC_ENABLED = _os.environ.get("MODELBOOK_DESC_ENABLED", "1") == "1"
-_DESC_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_DESC_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", llm_models.SONNET)
 _DESC_RETRY_AFTER = 3 * 3600  # re-attempt a failed/empty generation after ~3h (self-heals on re-view)
 _gen_lock = _threading.Lock()
 _generating = set()  # stock ids with a description generation in flight
@@ -790,7 +791,7 @@ def _generate_descriptions(symbol, company, year, gain_pct):
             text = None
             try:
                 msg = client.messages.create(
-                    model=_DESC_MODEL, max_tokens=700, temperature=0.7,
+                    model=_DESC_MODEL, max_tokens=700, **llm_models.plain(_DESC_MODEL, temperature=0.7),
                     system=system, messages=[{"role": "user", "content": prompt}],
                 )
                 text = "".join(getattr(b, "text", "") for b in msg.content).strip()
@@ -906,7 +907,7 @@ def debug_desc(sym: str, year: int = Query(default=0), _admin: dict = Depends(re
             system, prompt = _desc_messages(sym.upper(), company, y, None)
             try:
                 msg = client.messages.create(
-                    model=_DESC_MODEL, max_tokens=700, temperature=0.7,
+                    model=_DESC_MODEL, max_tokens=700, **llm_models.plain(_DESC_MODEL, temperature=0.7),
                     system=system, messages=[{"role": "user", "content": prompt}],
                 )
                 text = "".join(getattr(b, "text", "") for b in msg.content)
@@ -1016,7 +1017,7 @@ def warm_all_stats() -> None:
 # ── AI-generated catalysts (the year's most impactful, move-driving events) ───
 
 _CATALYST_ENABLED = _os.environ.get("MODELBOOK_CATALYSTS_ENABLED", "1") == "1"
-_CATALYST_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_CATALYST_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", llm_models.SONNET)
 
 
 def _fetch_year_bars(symbol: str, year: int, stock_id=None) -> list:
@@ -1146,7 +1147,7 @@ def _generate_catalysts_for(stocks, max_workers=2):
 # ── AI year recaps (hover a year tab → a recap of that market year) ───────────
 
 _RECAP_ENABLED = _os.environ.get("MODELBOOK_RECAP_ENABLED", "1") == "1"
-_RECAP_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_RECAP_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", llm_models.SONNET)
 _RECAP_RETRY_AFTER = 86400  # don't re-attempt a failed generation for ~1 day
 _MIN_RECAP_YEAR = 1990
 _gen_recap_lock = _threading.Lock()
@@ -1311,7 +1312,7 @@ def _generate_year_recap(year: int):
             "trading methodology or system."
         )
         msg = client.messages.create(
-            model=_RECAP_MODEL, max_tokens=700, temperature=0.85,
+            model=_RECAP_MODEL, max_tokens=700, **llm_models.plain(_RECAP_MODEL, temperature=0.85),
             system=system, messages=[{"role": "user", "content": prompt}],
         )
         text = "".join(getattr(b, "text", "") for b in msg.content).strip()
@@ -1490,7 +1491,7 @@ def _ai_watermark_meta(symbol, company, year):
         for attempt in range(2):
             try:
                 msg = client.messages.create(
-                    model=_DESC_MODEL, max_tokens=150, temperature=0.2,
+                    model=_DESC_MODEL, max_tokens=150, **llm_models.plain(_DESC_MODEL, temperature=0.2),
                     system=system, messages=[{"role": "user", "content": prompt}],
                 )
                 text = "".join(getattr(b, "text", "") for b in msg.content).strip()

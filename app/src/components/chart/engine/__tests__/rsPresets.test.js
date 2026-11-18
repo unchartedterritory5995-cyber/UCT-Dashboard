@@ -30,7 +30,7 @@ const GLANCE = ['benchmarkName', 'ratingSummary', 'phase', 'mansfield', 'rotatio
 
 /** NVDA against SPY on a daily chart, as the VA1 provider builds it. */
 const PAYLOAD = Object.freeze({
-  benchmark: { requested: 'SPY', resolved: 'SPY', label: 'S&P 500 (SPY)', fallback: null, bars: 852 },
+  benchmark: { requested: 'SPY', resolved: 'SPY', name: 'SPY', label: 'S&P 500 (SPY)', fallback: null, bars: 852 },
   legend: { pctFromMa: 6.84, maSlope: 1, above: true, summary: 'above its 21 EMA by 6.8%', asOf: 20261105, lastValue: 0.4187 },
   lastRsHigh: { index: 850, time: 20261104, beforePrice: true, redDay: true, barsAgo: 1, summary: '1 bar ago · before price · red day' },
   history: { bars: 852, requested: 852, short: false },
@@ -152,7 +152,7 @@ describe('A1 — the glance list and the detail rows', () => {
     // Requested prints the OPTION the member picked, never the stored code
     expect(block('benchmarkName')).toEqual([['Requested', 'S&P 500 (SPY)'], ['Resolved', 'SPY']])
     const auto = rows(PAYLOAD, { benchmark: 'SECTOR' })
-    expect(auto.find((r) => r.key === 'benchmarkRequested')).toMatchObject({ text: 'Sector ETF (auto)' })
+    expect(auto.find((r) => r.key === 'benchmarkRequested')).toMatchObject({ text: 'Sector (auto)' })
     expect(block('ratingSummary')).toEqual([['IBD-style', '94'], ['Fast', '91'], ['Rated as of', '2026-11-05']])
     expect(block('phase')).toEqual([['From average', '+6.8%']])
     expect(block('mansfield')).toEqual([['Value', '+18.7%'], ['Last zero cross', 'up, 57 bars ago'], ['Length', '200 bars']])
@@ -190,7 +190,7 @@ describe('A1 — the glance list and the detail rows', () => {
   })
 
   it('⛔ the chip rows: the pane reads `UCT Relative Strength · XLK · 94` under the default headline (VA2, 2026-11-07)', () => {
-    const sector = { ...PAYLOAD, benchmark: { requested: 'SECTOR', resolved: 'XLK', label: 'Technology sector (XLK)', fallback: null, bars: 852 } }
+    const sector = { ...PAYLOAD, benchmark: { requested: 'SECTOR', resolved: 'XLK', name: 'XLK', label: 'Technology sector (XLK)', fallback: null, bars: 852 } }
     expect(readoutChipRows(RS, rows(sector)).map((r) => [r.key, r.text]))
       .toEqual([['benchmark', 'XLK'], ['rating', '94']])
     const b = { instanceId: 'inst:rsLine:1', defId: 'rsLine', plotKey: 'rsLine', series: { __id: 'rs' }, lastValue: 0.4187 }
@@ -208,7 +208,7 @@ describe('A1 — the glance list and the detail rows', () => {
     const ibd = { ...inst, inputs: { benchmark: 'SECTOR', headlineRating: 'ibd' } }
     expect(legendChips([b], null, engineRegistry, [ibd], { scalarsOf: () => sector })[0].suffix).toBe(' · XLK · 94')
     // a fallback benchmark reads its note in the Benchmark card, never in the suffix
-    const fellBack = { ...sector, benchmark: { ...sector.benchmark, resolved: 'SPY', fallback: 'symbol is an ETF',
+    const fellBack = { ...sector, benchmark: { ...sector.benchmark, resolved: 'SPY', name: 'SPY', fallback: 'symbol is an ETF',
       note: 'Sector ETF not available for an ETF; using SPY' } }
     expect(rows(fellBack).find((r) => r.key === 'benchmarkNote')).toMatchObject({ detailOf: 'benchmarkName' })
     expect(legendChips([b], null, engineRegistry, [ibd], { scalarsOf: () => fellBack })[0].suffix).toBe(' · SPY · 94')
@@ -432,7 +432,14 @@ describe('defSchema — `plots[].activeWhen` (a guide\'s condition)', () => {
 
 describe('⛔ CONTROL — no other definition changes', () => {
   it('no non-RS definition carries detailOf, an axis mode, a restyle opt-out or a guide condition, and every one still validates', () => {
-    const others = listDefinitions().filter((d) => d.id !== 'rsLine')
+    // ⭐ RS split F1 (2026-11-10): the RS FAMILY is four definitions now — the three
+    // split out of rsLine carry its axis mode / guide conditions by design (their
+    // own def tests pin them). Named, so a fifth RS definition is a decision here.
+    // 2026-11-12 (RS Exit Warnings): the decision was taken: the RS family is FIVE, `rsExit` joins it
+    // (an own pane with a hidden axis, and `restyle: false` on its three dots).
+    const RS_FAMILY = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit']
+    expect(RS_FAMILY.map((id) => !!getDefinition(id))).toEqual([true, true, true, true, true])
+    const others = listDefinitions().filter((d) => !RS_FAMILY.includes(d.id))
     expect(others.length).toBeGreaterThan(10)
     for (const d of others) {
       expect(d.placement && d.placement.axis, d.id).toBeUndefined()

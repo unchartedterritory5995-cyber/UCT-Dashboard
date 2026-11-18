@@ -463,6 +463,19 @@ describe('draftDailyReview — appends to the member’s OWN daily note, never a
     expect(created).toBe(false)
   })
 
+  // Final fix I1: a recap can make today's note, so it sends the member's daily template and asks for today's plan
+  // lines -- but only for TODAY: a past day's note is never given today's plan.
+  it('I1: sends the daily template and the seed for today; a past day gets the template and no seed', async () => {
+    const post = () => JSON.parse(global.fetch.mock.calls
+      .filter(([u, o]) => u === '/api/j2/notes/daily' && o?.method === 'POST').at(-1)[1].body)
+    await draftDailyReview({ day: todayDayIso(), templateId: 'tpl-d', seedToday: true })
+    expect(post()).toEqual({ date: todayDayIso(), templateId: 'tpl-d', seedToday: true })
+    await draftDailyReview({ day: '2026-10-02', templateId: 'tpl-d', seedToday: true })
+    expect(post()).toEqual({ date: '2026-10-02', templateId: 'tpl-d' })
+    await draftDailyReview({ day: todayDayIso() })                           // the old callers: neither
+    expect(post()).toEqual({ date: todayDayIso() })
+  })
+
   it('preserves the note’s existing content and APPENDS the recap after it', async () => {
     await draftDailyReview({ day: '2026-10-02' })
     const texts = flattenText(putBody.bodyJson)

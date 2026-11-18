@@ -1,12 +1,6 @@
 import useSWR from 'swr'
 import { useEffect, useMemo, useRef, useState } from 'react'
-
-const postFetcher = ([url, tickers]) =>
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tickers }),
-  }).then(r => (r.ok ? r.json() : {}))
+import { snapshotBatchKey, watchlistMetaFetcher as postFetcher } from './watchlistMetaKey'
 
 // Batch market cap / next earnings / UCT rating / sector / industry for the Watchlist's
 // optional columns. Fundamentals are heavy per ticker, so this is fetched ONLY when at
@@ -42,7 +36,7 @@ const postFetcher = ([url, tickers]) =>
 // live-fundamentals fresh where the snapshot is nightly.
 const CAP = 100
 
-export default function useWatchlistMeta(tickers = []) {
+export default function useWatchlistMeta(tickers = [], isPaused) {
   const sorted = useMemo(() => [...new Set(tickers)].sort(), [tickers])
   const isLarge = sorted.length > CAP
 
@@ -60,11 +54,14 @@ export default function useWatchlistMeta(tickers = []) {
     [isLarge, sorted, bulk],
   )
 
-  const key = perSymbol.length ? ['/api/research/snapshot-batch', perSymbol] : null
+  const key = snapshotBatchKey(perSymbol)
+  // `isPaused` (optional): a chart passes its rest gate, so a symbol the member is racing past is not
+  // asked for (components/chart/restedReaders.js). Without it this is an ordinary read.
   const { data, error } = useSWR(key, postFetcher, {
     refreshInterval: 10 * 60 * 1000,
     dedupingInterval: 60 * 1000,
     revalidateOnFocus: false,
+    ...(isPaused && { isPaused }),
   })
 
   const accRef = useRef({})

@@ -242,6 +242,8 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   useWidgetDoor(() => ({
     capture: () => (captureEnabled() && symbols.length > 0 ? { kind: 'scanner', capture: doorCapture(), label: doorLabel } : null),
     about: () => (SCAN_CRITERIA[scanKey] ? `criteria: ${SCAN_CRITERIA[scanKey].join('; ')}` : null),
+    // the footer's own Refresh (C3-112): done once the scan has re-read
+    act: (key) => (key === 'refresh' ? mutate() : null),
   }))
   // ⛔ The door is absent, not disabled, while the scan holds nothing: an empty
   // `rows` fails the registry's own `reconstructable` predicate, so such a capture

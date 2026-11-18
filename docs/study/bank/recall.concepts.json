@@ -64,7 +64,7 @@
    "grounding": [
     "starter_screen"
    ],
-   "quote": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+   "quote": "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000",
    "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#leaders pulling back",
    "support": [
     "app/src/components/chart/engine/ast/conceptVocabulary.json#leaders pulling back: source \"rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2\", starter_screen \"starter_leaders_pullback\", attribution setup \"Classic Flag/Pullback\""
@@ -102,7 +102,7 @@
    "grounding": [
     "starter_screen"
    ],
-   "quote": "rs_rank >= 80 && tight_consolidation",
+   "quote": "rs_rank >= 70 && dist_52w_high_pct >= -10 && close_cv_pct <= 1.5 && adr_pct_1w < adr_pct && above_50sma && dollar_vol_30d >= 20000000",
    "source": "app/src/components/chart/engine/ast/conceptVocabulary.json#concepts#tight base",
    "support": [
     "app/src/components/chart/engine/ast/conceptVocabulary.json#tight base: source \"rs_rank >= 80 && tight_consolidation\", note \"The firm's shipped `High-RS tight bases` screen\"",

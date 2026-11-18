@@ -102,6 +102,11 @@ def build_record(v: dict, p: dict, jobs: dict, env: dict, detail_dir=None) -> di
     po = ci_outcome.fields(jobs, "pytest", env.get("PYTEST_RESULT"), 20)
 
     vitest_ok = ci_outcome.suite_ok(v, vo)
+    # ⛔ VITEST IS SHARDED: `ci_outcome.fields` finds ONE vitest job (the first shard), so
+    # the aggregator's own `ok` — every shard succeeded, every shard printed totals — must
+    # agree as well. A sharded record whose aggregate is not ok can never be GREEN.
+    if v.get("sharded"):
+        vitest_ok = bool(vitest_ok and v.get("ok") is True)
     # ⛔ the aggregator already folded every shard's runner result into `ok`; re-deriving
     # it from a single job_result here would overwrite N verdicts with one.
     pytest_ok = consume(p, "ok", P, gaps)
@@ -110,6 +115,9 @@ def build_record(v: dict, p: dict, jobs: dict, env: dict, detail_dir=None) -> di
     rec = {
         "run_id": run_id,
         "run_number": env.get("GITHUB_RUN_NUMBER"),
+        # ⛔ NO RETRY LAUNDERING. Attempt 1 is THE record; a manual re-run publishes beside
+        # it (ci_publish.record_dest), never over it. Carried so a reader can tell which.
+        "run_attempt": env.get("GITHUB_RUN_ATTEMPT") or "1",
         "sha": env["GITHUB_SHA"],
         "branch": env.get("GITHUB_REF_NAME"),
         "finished": datetime.datetime.now(datetime.timezone.utc).isoformat(),

@@ -1,5 +1,5 @@
 /**
- * studyRsOverlay — the REAL UCT Relative Strength pane on a Study drill chart
+ * studyRsOverlay — the REAL UCT RS Line (`rsLine`) on a Study drill chart
  * (RS Phase 4, unit 4-09). The bank's RS drills (`docs/study/bank/rs.drills.json`,
  * generator `scripts/study/bank_v2/gen_rs.py`) carry the server's own columns,
  * precomputed by `relative_strength.compute_phase1_columns` over `bars.db`:
@@ -17,8 +17,17 @@
  * RS line can never be fetched from `/api/signature/columns`. Instead each line
  * is PRIMED into the server lane's cache (`serverCompute.primeServerColumns`)
  * under exactly the key the binder will ask for, and an ordinary `rsLine` engine
- * instance with the Classic preset's inputs draws it. Nothing new is rendered:
- * it is the indicator members add on the Charts tab.
+ * instance with the line's own defaults (`RS_CLASSIC_INPUTS`) draws it. Nothing
+ * new is rendered: it is the indicator members add on the Charts tab.
+ *
+ * ⭐ TWO `rsLine` DEFINITIONS, ONE OVERLAY (UCT RS split, U7 / U8, 2026-11-09).
+ * `VITE_RS_SPLIT_ENABLED=1` registers the slim UCT RS Line (no presets, price
+ * pane, `rsMa` drawn only under `showAverage`); off, today's UCT Relative
+ * Strength. This module reads nothing a build flag changes: the inputs come from
+ * the registry's `RS_CLASSIC_INPUTS` export (the one object both definitions
+ * agree on), the rev from the registered definition, and the slot key from a
+ * server input both declare. `studyRsOverlay.test.js` (flag off) and
+ * `studyRsOverlay.flagOn.test.js` (flag on, fresh module graph) pin both.
  *
  * ⛔ THE REV IS READ FROM THE DEFINITION (`getDefinition('rsLine').compute.rev`),
  * never typed: a primed wire whose rev differs from the client definition's is
@@ -26,32 +35,35 @@
  *
  * ⛔ NO INSTANCE WITHOUT A PRIMED ENTRY. An `rsLine` instance whose key is not in
  * the cache makes the binder fetch it — under the item id, from the network. So
- * a line whose wire is malformed, or whose inputs disagree with the Classic
- * preset the instance claims, is dropped whole: no line, and no request.
+ * a line whose wire is malformed, or whose inputs disagree with the defaults the
+ * instance claims, is dropped whole: no line, and no request.
  *
  * ⭐ ONE KEY PER LINE. The cache key is (definition, chart symbol, timeframe, the
  * server inputs). Two lines on one chart (Line A and Line B, or a TAP item's
  * prompt and reveal columns) share the first three, so each line carries a slot
  * number in `mansfieldLength`: a server input that only shapes the Mansfield
- * column, which is blank outside Mansfield view (Classic keeps `showMansfield`
- * off) and absent from every primed wire. Slot 0 is the Classic default (200),
- * so a chart with one line carries the Classic preset exactly.
+ * column, which nothing on a drill draws (the v5 definition keeps `showMansfield`
+ * off; the slim one declares the key `legacy`, rendered by no control, and keeps
+ * it in `meta.serverInputs` for exactly this reader) and which is absent from
+ * every primed wire. Slot 0 is the server default (200), so a chart with one
+ * line carries `RS_CLASSIC_INPUTS` exactly.
  *
- * ⚠️ THE PANE LABEL. The engine prints `UCT Relative Strength · SPY` (meta.name +
- * the benchmark input; no rating, since the primed wire carries no payload): it
- * reads the definition and the benchmark, never the chart's symbol, so it never
- * names the stock. On a leader chart the two lines collide, and the engine's
- * sibling disambiguator (`readout.disambiguateSiblings`, Phase 3 unit 3-09b)
- * suffixes each with its instance `display.name` when every colliding sibling
- * carries a distinct one: `UCT Relative Strength · SPY · Line A` / `· Line B`
- * (chip `UCT RS(SPY) · Line A`). Without the names it would print the one input
- * the lines differ in (`(mansfieldLength 200)`), which is why every leader line
- * carries its label. The drill's own key (`rsPairKey`) says Line A is the upper.
- * `studyRsOverlay.test.js` pins the labels as rendered.
+ * ⚠️ THE PANE LABEL. The engine prints `<meta.name> · SPY` (`UCT RS Line · SPY`
+ * under the split flag, `UCT Relative Strength · SPY` before it; the benchmark
+ * input; no rating, since the primed wire carries no payload): it reads the
+ * definition and the benchmark, never the chart's symbol, so it never names the
+ * stock. On a leader chart the two lines collide, and the engine's sibling
+ * disambiguator (`readout.disambiguateSiblings`, Phase 3 unit 3-09b) suffixes
+ * each with its instance `display.name` when every colliding sibling carries a
+ * distinct one: `… · SPY · Line A` / `· Line B` (chip `UCT RS(SPY) · Line A`).
+ * Without the names it would print the one input the lines differ in
+ * (`(mansfieldLength 200)`), which is why every leader line carries its label.
+ * The drill's own key (`rsPairKey`) says Line A is the upper. The two test files
+ * pin the labels as rendered under each definition.
  *
  * Pure apart from the cache write in `primeRsColumns`. No React, no fetch.
  */
-import { getDefinition, resolveInputs } from '../../components/chart/engine/nativeRegistry'
+import { getDefinition, resolveInputs, RS_CLASSIC_INPUTS } from '../../components/chart/engine/nativeRegistry'
 import { pickServerInputs, primeServerColumns, serverColumnsKey } from '../../components/chart/engine/serverCompute'
 import { toChartTime } from '../../components/chart/patternTime'
 
@@ -64,7 +76,7 @@ export const RS_PAIR_SLOTS = Object.freeze(['A', 'B'])
 export const RS_TF = 'D'
 /** The RS line's own columns a drill wire may carry. Anything else on the wire is ignored. */
 export const RS_WIRE_COLUMNS = Object.freeze(['rsLine', 'rsMa', 'dotNH', 'dotNHbeforePx'])
-/** The Classic default of `mansfieldLength`; slot n keys as SLOT_BASE + n. */
+/** The server default of `mansfieldLength` (both definitions declare it); slot n keys as SLOT_BASE + n. */
 const SLOT_BASE = 200
 /** The red-day mark: a small muted dot under the bar, never the gold of the setup level. */
 export const RS_MARK_COLOR = 'rgba(255, 255, 255, 0.55)'
@@ -81,12 +93,19 @@ export function rsRev() {
   return Number.isFinite(rev) ? rev : null
 }
 
-/** The Classic preset's inputs, as the definition declares them (colours, toggles, average, lookback). */
+/**
+ * The line's own look as input values (colours, toggles, average, lookback).
+ * ⭐ UCT RS split, U7 / U8 (2026-11-09): read from the registry's
+ * `RS_CLASSIC_INPUTS` export, never from `meta.presets` — the slim UCT RS Line
+ * declares no presets, and the v5 definition's Classic preset IS this object.
+ * `showAverage: true` on top: a drill wire carries the 21 EMA column
+ * (`RS_WIRE_COLUMNS`), and the slim definition draws `rsMa` only while that
+ * switch holds; on the v5 definition the key is a declared legacy input (U7a),
+ * stored and read by nothing. The name `classicInputs` stays: three callers and
+ * both test files read it, and "classic" here means the defaults, not a preset.
+ */
 export function classicInputs() {
-  const def = rsDefinition()
-  const presets = def && def.meta && Array.isArray(def.meta.presets) ? def.meta.presets : []
-  const classic = presets.find((p) => p && p.id === 'classic')
-  return classic && classic.inputs ? { ...classic.inputs } : {}
+  return { ...RS_CLASSIC_INPUTS, showAverage: true }
 }
 
 function chartOf(item) {
@@ -133,7 +152,7 @@ export function rsLinesFor(item, { reveal = null, revealed = false } = {}) {
   return []
 }
 
-/** The instance inputs for slot n: the Classic preset, plus the slot key past slot 0. */
+/** The instance inputs for slot n: the line's defaults (`classicInputs`), plus the slot key past slot 0. */
 export function slotInputs(slot) {
   const inputs = classicInputs()
   if (slot > 0) inputs.mansfieldLength = SLOT_BASE + slot

@@ -17,12 +17,13 @@
 import { describe, it, expect } from 'vitest'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { fixtureLibraries } from '../../ast/__tests__/libraryFixture.js'
 
 const N = 40
 const BARS = Array.from({ length: N }, (_, i) => ({
   t: 1700000000 + i * 86400, o: 100 + i * 0.1, h: 102 + i * 0.1, l: 98 + i * 0.1, c: 100.5 + i * 0.1, v: 1000 + i,
 }))
-const LIBS = { 'tester/fx/1': { source: '//@version=5\nlibrary("fx")\nexport mid(float h, float l) => (h + l) / 2\n' } }
+const LIBS = fixtureLibraries({ 'tester/fx/1': { source: '//@version=5\nlibrary("fx")\nexport mid(float h, float l) => (h + l) / 2\n' } })
 
 const STATE = 'var float x = 0.0\nx := close\n'
 const V5 = '//@version=5\nindicator("t")\n'
@@ -99,11 +100,13 @@ describe('B — a library member says it is a library member', () => {
 })
 
 describe('C — a user function the lane held answers with its OWN guard', () => {
-  // `float[] arr` is a parameter this front end cannot read, so the DEFINITION is
-  // held and re-raised at the call. Measured at the census: no step-0 row reached
-  // `undeclared` through a held definition (the 13 that did were peel leftovers —
-  // the peel had removed the definition), so this pins what already holds.
-  const DEF = 'f(float[] arr) =>\n    arr.size() > 0 ? 1.0 : 2.0\nvar float[] a = array.new_float(0)\n' + STATE
+  // `arr = array.new_float(0)` is a parameter this front end cannot read (a default that
+  // is not a literal), so the DEFINITION is held and re-raised at the call. Measured at the
+  // census: no step-0 row reached `undeclared` through a held definition (the 13 that did were
+  // peel leftovers — the peel had removed the definition), so this pins what already holds.
+  // ⚰️ The held header was `f(float[] arr)` until imp (2026-11-16) read `float[]` as
+  // `array<float>` (`foldBracketParamTypes`); the mechanism under test is unchanged.
+  const DEF = 'f(arr = array.new_float(0)) =>\n    arr.size() > 0 ? 1.0 : 2.0\nvar float[] a = array.new_float(0)\n' + STATE
   const SHAPES = [
     ['a plot argument', 'plot(f(a))\n'],
     ['a statement of its own', 'f(a)\nplot(x)\n'],
@@ -117,7 +120,7 @@ describe('C — a user function the lane held answers with its OWN guard', () =>
     it(`${label} → the definition's runtime:function`, () => {
       const r = refusalOf(`${V5}${DEF}${tail}`)
       expect(r.guard).toBe('runtime:function')
-      expect(r.message).toContain('`[`')
+      expect(r.message).toContain('`=`')
     })
   }
 

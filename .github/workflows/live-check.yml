@@ -1,0 +1,124 @@
+# promotion-gate: no — a REPORT on what is live. It must never hold or refuse a deploy; it reads the result.
+#
+# "Is everything we built actually live?" (owner, 2026-11-14). tools/live_check.py answers it from the systems
+# themselves: master vs production, what every Railway service is RUNNING, the commit the site itself reports,
+# the bundle the home page serves, the desktop release and its rollout share, and the work that is built but not
+# on (switched-off features, open PRs, branches with no PR).
+#
+# WHEN IT RUNS
+#   * after every promotion, waiting up to 15 min for the deploys it started, so "promoted" is checked as LIVE
+#   * hourly: a stuck pipeline promotes nothing, so a run tied only to promotions would never see it
+#   * 12:00 UTC daily: the morning summary, posted even when everything is live
+# WHAT IT POSTS (Discord, LIVE_CHECK_DISCORD_WEBHOOK): only a NEW stuck item, the same one again after 6 h, the
+#   recovery, and the morning summary. Its memory is deploy-gate-state:live-check-state.json.
+# THE JOB IS GREEN WHEN THE REPORT IS RED, on purpose: the alert is the Discord post. A red run means the CHECK
+#   broke (it mails the owner), never that a deploy is stuck.
+#
+# ⛔ It never passes --flag-values here: that reads Railway variables, and this repo's Actions logs are public.
+# ⚠️ Needs two repo secrets the owner adds: RAILWAY_TOKEN (a production project token) and
+#   LIVE_CHECK_DISCORD_WEBHOOK. Without RAILWAY_TOKEN the Railway rows read CAN'T CHECK, never LIVE.
+name: live check
+
+on:
+  workflow_run:
+    workflows: ["promote to production"]
+    types: [completed]
+  schedule:
+    - cron: '17 * * * *'
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+    inputs:
+      morning:
+        description: "yes = post the full summary even when everything is live"
+        required: false
+
+# QUEUE, never cancel: a promotion that did nothing (a cancelled gate) still starts a run of this workflow, and
+# with cancel-in-progress that empty run cancelled the real one in flight (first run, 2026-11-15). Runs are short.
+concurrency:
+  group: live-check
+  cancel-in-progress: false
+
+permissions:
+  contents: write       # live-check-state.json on deploy-gate-state (what was last posted)
+  actions: read         # the deploy-gate runs
+  pull-requests: read   # open PRs
+
+jobs:
+  check:
+    # a promotion that was itself skipped (a cancelled gate) deployed nothing; the hourly run covers it
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # every branch (open-work rows) and full history (ancestry), but no file contents except the four it reads
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            tools/live_check.py
+            tools/ci_inventory.py
+            tools/deploy_freeze.py
+            api/services/measurement_window.py
+            docs/feature_flags.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Self-check (every verdict can fire)
+        run: python tools/live_check.py --self-check
+
+      - name: Read what was last posted
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          F="$RUNNER_TEMP/live-check-state.json"
+          if gh api "/repos/$GITHUB_REPOSITORY/contents/live-check-state.json?ref=deploy-gate-state" --jq .content > "$F.b64" 2>/dev/null; then
+            base64 -d "$F.b64" > "$F" || echo '{}' > "$F"
+            echo "blob=$(gh api "/repos/$GITHUB_REPOSITORY/contents/live-check-state.json?ref=deploy-gate-state" --jq .sha)" >> "$GITHUB_OUTPUT"
+          else
+            echo '{}' > "$F"; echo "blob=" >> "$GITHUB_OUTPUT"
+          fi
+          cp "$F" "$F.before"
+
+      - name: Live check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          LIVE_CHECK_DISCORD_WEBHOOK: ${{ secrets.LIVE_CHECK_DISCORD_WEBHOOK }}
+          MORNING: ${{ (github.event.schedule == '0 12 * * *' || inputs.morning == 'yes') && '--morning' || '' }}
+          WAIT: ${{ github.event_name == 'workflow_run' && '900' || '0' }}
+        run: |
+          set -uo pipefail
+          # `|| code=$?`, not a bare `code=$?`: Actions runs bash with -e, so a report exit of 1 or 2 would end the
+          # step before the line that reads it (first dispatched run, 2026-11-15)
+          code=0
+          python tools/live_check.py --no-fetch --post $MORNING --wait "$WAIT" --state "$RUNNER_TEMP/live-check-state.json" || code=$?
+          echo "live check exit: $code (0 all live, 1 something stuck, 2 something could not be checked)"
+          # 1 and 2 are REPORTS (posted to Discord); anything else is the check itself breaking
+          if [ "$code" -gt 2 ]; then exit "$code"; fi
+
+      - name: Remember what was posted
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BLOB: ${{ steps.state.outputs.blob }}
+        run: |
+          set -uo pipefail
+          F="$RUNNER_TEMP/live-check-state.json"
+          [ -f "$F" ] || exit 0
+          if cmp -s "$F" "$F.before"; then echo "state unchanged"; exit 0; fi
+          CONTENT=$(base64 -w0 < "$F")
+          if [ -n "$BLOB" ]; then
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/live-check-state.json" \
+              -f message="live check state" -f branch=deploy-gate-state -f content="$CONTENT" -f sha="$BLOB" >/dev/null
+          else
+            gh api --method PUT "/repos/$GITHUB_REPOSITORY/contents/live-check-state.json" \
+              -f message="live check state" -f branch=deploy-gate-state -f content="$CONTENT" >/dev/null
+          fi
+          echo "state saved"

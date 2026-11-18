@@ -76,6 +76,8 @@ const WHY = {
 
 export const indicatorTemplatesKind = {
   name: 'indicatorTemplates',
+  source: (host) => !!host?.prefs?.merge,             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Indicator templates aren't available on this page — open Charts to use an indicator template.",
   boardScoped: false,                // a member's templates are the same in every layout
   selfDescribing: true,
   list: (host) => (host?.prefs?.merge ? [snap(host)] : []),
@@ -183,7 +185,7 @@ export function registerIndicatorTemplateCapabilities() {
   registerCapability({
     ...libCommon,
     name: 'indicatorTemplate.save',
-    summary: 'Save the indicators on ONE chart as a named INDICATOR template (settings, colours, panes; no alerts). A template with that name is replaced only after the member approves it. Undo puts the list back. A chart\'s whole look is chartSetup.saveTemplate instead.',
+    summary: 'Save the indicators on ONE chart as a named INDICATOR template (settings, colors, panes; no alerts). A template with that name is replaced only after the member approves it. Undo puts the list back. A chart\'s whole look is chartSetup.saveTemplate instead.',
     hints: `target = the ref of the indicatorTemplateLibrary entry; chart = the ref of the chart to save from; name = exactly as the member said it (at most ${TEMPLATE_NAME_MAX} characters). It saves every indicator on that chart.`,
     argRefs: { chart: 'chart' },
     args: { type: 'object', properties: { name: { type: 'string' }, chart: { type: 'string' } }, required: ['name', 'chart'], additionalProperties: false },

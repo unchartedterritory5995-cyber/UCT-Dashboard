@@ -386,3 +386,15 @@
 .choice.choice:hover:not(:disabled) { transform: translateY(-2px); }
 .choiceLabel.choiceLabel { flex: 1 1 auto; min-width: 0; }
 @media (max-width: 640px) { .choice.choice { min-height: 66px; padding: 15px 18px; font-size: 18px; } .choice .choiceKey.choiceKey { width: 36px; height: 36px; } }
+
+/* TWO TO A ROW ON A PHONE, INSIDE THE SCREEN (the screen check, 2026-11-14, 390 px: "$70.40" tiles stood 178 px in a
+   163 px column, so the right column ran into the screen edge while the left kept its 28 px margin). The columns can
+   never grow past their share (minmax(0, 1fr)), a grid tile's padding and gaps are tighter so a six-character answer
+   fits beside its key and check (ChoiceList.PHONE_GRID_MAX_CHARS), a longer one wraps inside its tile rather than
+   leaving it, and a set with a longer answer is one to a row (.choicesGridLong). */
+@media (max-width: 640px) {
+  .choicesGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .choicesGrid > li > button { padding-left: 12px; padding-right: 10px; gap: 8px; }
+  .choicesGrid > li > button > span { overflow-wrap: anywhere; }
+  .choicesGrid.choicesGridLong { grid-template-columns: minmax(0, 1fr); }
+}

@@ -16,7 +16,8 @@ import { renderMarkdown } from '../lib/coachMarkdown'
 import { formatETFull } from '../../../utils/timeAgo'
 import UIcon from '../../../components/ui/UIcon'
 import { reviewDraftsEnabled, draftDailyReview, todayDayIso } from '../lib/reviewDrafts'
-import { DAILY_FOLDER_NOTICE, queueNotebookNotice } from '../lib/dailyNote'
+import { DAILY_FOLDER_NOTICE, DAILY_TEMPLATE_PREF, queueNotebookNotice } from '../lib/dailyNote'
+import usePreferences from '../../../hooks/usePreferences'
 import { compassScope } from '../hooks/compassScope'
 
 export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, accountId }) {
@@ -24,6 +25,10 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
   const navigate = useNavigate()
   const [drafting, setDrafting] = useState(false)
   const [draftError, setDraftError] = useState(null)
+  // Pass 2 final fix (R1): a recap that MAKES the day's note makes it from the member's daily template, with today's
+  // plan lines when the day is today (draftDailyReview applies the seed to today only), like the Notebook's doors.
+  const { prefs } = usePreferences()
+  const templateId = prefs?.[DAILY_TEMPLATE_PREF] || ''
   if (!recap) return null
 
   const day = recap.day || recap.metadata?.day
@@ -32,7 +37,7 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
     setDrafting(true)
     setDraftError(null)
     try {
-      const { note, created } = await draftDailyReview({ accountId: compassScope(accountId), day })
+      const { note, created } = await draftDailyReview({ accountId: compassScope(accountId), day, templateId, seedToday: true })
       // Fix round 1 (finding 7): a draft that MADE the day's note says where it went, in the Notebook.
       if (created) queueNotebookNotice(DAILY_FOLDER_NOTICE, { noteId: note.id })
       navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)

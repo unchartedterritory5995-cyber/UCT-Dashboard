@@ -75,7 +75,9 @@ function defLabel(def, plotKey) {
 
 function formatValue(value, chip, plot, type, format) {
   if (format === 'yesno' && isTruthType(type) && (value === 0 || value === 1)) return value === 1 ? 'Yes' : 'No'
-  if (chip) return chipValueText(chip)
+  // ⭐ F3: a chip whose LEGEND withholds its number (`legend.showValue: false`)
+  // still has one, and a member who put this output in the header asked for it.
+  if (chip && chip.valueHidden !== true) return chipValueText(chip)
   const legend = (plot && plot.legend) || {}
   return chipValueText({ value, decimals: legend.decimals, compact: legend.compact === true })
 }

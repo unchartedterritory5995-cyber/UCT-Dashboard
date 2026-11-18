@@ -23,7 +23,7 @@ import { describe, it, expect } from 'vitest'
 import { translatePine, INPUT_TIMEFRAME_TEXT_WITNESS, inputTimeframeTextWitnessed } from './pine'
 import { evaluateObjects } from '../objectRuntime'
 import { assertObjectProgram } from './objectProgram'
-import { classifyDropKey, LOSS } from './objectLoss'
+import { classifyDropKey, LOSS, withRenderDrops, collectorFamiliesSentence } from './objectLoss'
 
 const LF = String.fromCharCode(10)
 const src = (v, ...lines) => [`//@version=${v}`, 'indicator("t", overlay=true)', ...lines].join(LF)
@@ -72,6 +72,11 @@ function run(t, bars = 12) {
       : x)
   return evaluateObjects(bind(t.objects), { barCount: bars, readNode: (i, bar) => ev(trees[i], bar), readTime: (i) => i })
 }
+/** The member's drawing note for a run, as the binder hands it on (`binder.js` publishDrops). */
+const sayCollector = (r) => withRenderDrops(null, { dropped: 0, held: 0,
+  families: (r.withheldBy || {})['objects:collector'] || [],
+  familiesAll: (r.withheldBy || {})['objects:collector-all'] || [],
+  why: r.withheldWhy || null })
 
 const DRAW_BOX = [
   'draw_box(bool display, float top, string tf_text) =>',
@@ -440,16 +445,99 @@ describe('C33 (8) — a guard with a term nothing reads, gated by an input', () 
     expect(r.stats.withheldUnknown).toBeUndefined()
   })
 
-  it('⛔ every read term true ⇒ UNKNOWN: never drawn, and past the collector\'s trigger the family is withheld whole', () => {
+  it('⛔ every read term true ⇒ UNKNOWN: never drawn, and past the collector\'s trigger only the labels CERTAINLY among TradingView\'s newest 50 are drawn', () => {
     const t = blockUnder('true')
     // few bars: ours + the creates Pine may have made stay under the trigger
     const few = run(t, 20)
     expect(few.live.filter((o) => o.family === 'label').map((l) => l.props.text)).toEqual(Array(20).fill('control'))
     expect(few.stats.withheldUnknown).toBe(20)
-    // many bars: 300 controls + up to 300 creates Pine may have made > 50 + 5
+    // many bars: 300 controls + up to 300 creates Pine may have made > 50 + 5.
+    // ⭐ W-C22-DEL r3 — the control made on bar b has, after it, 299 - b controls and
+    // 299 - b gated labels Pine may have made, so its rank from TradingView's newest is
+    // at most 1 + 2 (299 - b): certainly held for b >= 275 (rank <= 50), the 25 newest.
+    // ⚰️ It was the family WHOLE: none drawn.
     const many = run(t, 300)
-    expect(many.live.filter((o) => o.family === 'label')).toEqual([])
+    const drawn = many.live.filter((o) => o.family === 'label')
+    expect(drawn.map((l) => l.props.text)).toEqual(Array(25).fill('control'))
+    expect(drawn.map((l) => l.createdBar)).toEqual(Array.from({ length: 25 }, (_, k) => 275 + k))
     expect(many.withheld.label).toBeGreaterThan(0)
+    expect(many.withheldBy).toEqual({ 'objects:collector': ['label'] })
+  })
+
+  it('⛔ W-C22-DEL r4 — a VAR-HELD object is skipped by the collector and still takes a slot (objectPool.js C7): the reviewer\'s counterexample, through the engine', () => {
+    // cap 5. `anchor` (a var) is made first and held for good; every bar a gated
+    // line Pine MAY make, then a control line. The control of bar b has, after it,
+    // 19 - b controls and 19 - b maybe-lines, and ONE register can hold an older
+    // line in a slot: bound 1 + 2 (19 - b) + 1. Without the slot (r3) bar 17 read
+    // bound 5 = cap and was drawn, though TradingView keeps the anchor in that slot.
+    const t = host(['//@version=5', 'indicator("t", overlay=true, max_lines_count=5)',
+      'gate = input.bool(true, "G")', 'var line anchor = line.new(0, 7.5, 1, 7.5)',
+      'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',
+      '    line.new(bar_index, low, bar_index + 1, low)',
+      'line.new(bar_index, high, bar_index + 1, high)'].join(LF))
+    expect((t.objects.regs || []).filter((g) => g.family === 'line')).toHaveLength(1)
+    const r = run(t, 20)
+    const drawn = r.live.filter((o) => o.family === 'line')
+    expect(drawn.map((o) => o.createdBar)).toEqual([18, 19])
+    expect(r.withheldBy).toEqual({ 'objects:collector': ['line'] })
+    // ⭐ OZ r3 (N-1) — some lines are drawn, so the member reads C22's PARTIAL sentence
+    expect(sayCollector(r).note).toBe(collectorFamiliesSentence(['line']))
+  })
+
+  it('⛔ OZ r3 (review N-1) — FIVE anchors fill the cap, so NO line is drawn: the member reads the WHOLE sentence, once', () => {
+    // P = 5 registers of the family, cap 5: every slot TradingView spares is an anchor's,
+    // so no other line is certainly kept. ⚰️ The family was published per object, and its
+    // sentence "... The newest ones are drawn." was false, and the member's only note
+    // (the merge's one-note skip suppressed OZ's true sentence).
+    const t = host(['//@version=5', 'indicator("t", overlay=true, max_lines_count=5)',
+      'gate = input.bool(true, "G")',
+      ...[1, 2, 3, 4, 5].map((k) => `var line a${k} = line.new(0, 7.5, 1, 7.5)`),
+      'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',
+      '    line.new(bar_index, low, bar_index + 1, low)',
+      'line.new(bar_index, high, bar_index + 1, high)'].join(LF))
+    const r = run(t, 20)
+    expect(r.live.filter((o) => o.family === 'line')).toEqual([])
+    expect(r.withheld.line).toBeGreaterThan(0)
+    // said under C22's whole wording, and OZ does not name the family a second time
+    expect(r.withheldBy).toEqual({ 'objects:collector-all': ['line'] })
+    expect(r.withheldWhy).toBeUndefined()
+    const whole = collectorFamiliesSentence(['line'], { whole: true })
+    expect(sayCollector(r).note).toBe(whole)
+    expect(sayCollector(r).note).not.toContain('The newest ones are drawn')
+  })
+
+  it('⛔ W-C22-DEL r5 (N-g) — with a LIST of the family in the program, the maybe-creates withhold the family WHOLE (whether a list member is spared is unmeasured)', () => {
+    const body = (list) => ['//@version=5', 'indicator("t", overlay=true, max_lines_count=5)',
+      'gate = input.bool(true, "G")',
+      ...(list ? ['var line[] keep = array.new_line()', 'if close < 0', '    array.push(keep, line.new(0, 7.5, 1, 7.5))'] : []),
+      'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',
+      '    line.new(bar_index, low, bar_index + 1, low)',
+      'line.new(bar_index, high, bar_index + 1, high)'].join(LF)
+    const t = host(body(true))
+    expect((t.objects.colls || []).filter((c) => c.family === 'line')).toHaveLength(1)
+    const r = run(t, 20)
+    expect(r.live.filter((o) => o.family === 'line')).toEqual([])
+    expect(r.withheldBy).toEqual({ 'objects:collector-all': ['line'] })
+    // CONTROL: no list ⇒ the per-object rule, the newest lines drawn
+    const c = run(host(body(false)), 20)
+    expect(c.live.filter((o) => o.family === 'line').length).toBeGreaterThan(0)
+    expect(c.withheldBy).toEqual({ 'objects:collector': ['line'] })
+  })
+
+  it('⛔ W-C22-DEL r7 (N-j) — BOXES are the witnessed exception: a `var array<box>` past the cap beside maybe-boxes is judged PER OBJECT, never withheld whole', () => {
+    // cap 5. Every bar a gated box Pine MAY make, then a control box pushed into a
+    // `var` array (sonarlab's shape, objectPool.js C7: array-held boxes are collected).
+    // Control of bar b: 19 - b later controls + 19 - b maybe-boxes, no box register:
+    // bound 1 + 2 (19 - b) <= 5 ⇒ bars 17, 18, 19 drawn; the rest held back by name.
+    const t = host(['//@version=5', 'indicator("t", overlay=true, max_boxes_count=5)',
+      'gate = input.bool(true, "G")', 'var box[] keep = array.new_box()',
+      'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',
+      '    box.new(bar_index, low, bar_index + 1, low - 1)',
+      'array.push(keep, box.new(bar_index, high + 1, bar_index + 1, high))'].join(LF))
+    expect((t.objects.colls || []).filter((c) => c.family === 'box')).toHaveLength(1)
+    const r = run(t, 20)
+    expect(r.live.filter((o) => o.family === 'box').map((o) => o.createdBar)).toEqual([17, 18, 19])
+    expect(r.withheldBy).toEqual({ 'objects:collector': ['box'] })
   })
 
   it('⛔ a program whose EVERY create stands under such a guard is no program: the door keeps its own sentence', () => {

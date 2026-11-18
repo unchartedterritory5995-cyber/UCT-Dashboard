@@ -14,7 +14,7 @@ import {
   savedVersion, DOOR_NOTHING_TO_DRAW, RUNTIME_UNDRAWN_NOTE,
 } from './editorStatus'
 import { SCRIPT_ENGINE_VERSION } from '../engine/scriptEngineVersion'
-import { parseFormula } from '../engine/ast/parse'
+import { parseFormula, TABLE } from '../engine/ast/parse'
 import { evaluability, LANES } from '../engine/evaluability'
 import { assessObjectLoss, objectLossNote } from '../engine/ast/objectLoss'
 
@@ -59,7 +59,9 @@ plot(foo.bar(close))`,
   // C29: a plot that folded the chart's own period
   period: '//@version=6\nindicator("x")\nplot(close * timeframe.multiplier, "M")\n',
   // a weekly read: the fold note reaches the report's outcome AND the pane's disclosures
-  fold: '//@version=5\nindicator("f")\nw = request.security(syminfo.tickerid, "W", ta.sma(close, 10))\nplot(w, "W")',
+  // ⭐ ENGINE 55 — the weekly look-ahead-off request carries no fold note any more (it is
+  // `tf_merge`, TradingView's merge); the fold note left is a daily request read as the chart's own bars.
+  fold: '//@version=5\nindicator("f")\nw = request.security(syminfo.tickerid, "D", ta.sma(close, 10))\nplot(w, "W")',
   // a paint withheld by the chart door (an `offset` that is `na`)
   paintWithheld: '//@version=5\nindicator("paints", overlay = true)\nplot(close, "c")\nbarcolor(color.red, offset = na)\n',
   // ⭐ the screener lane refuses these at the door (`pine:window-dependent`, a period
@@ -865,5 +867,26 @@ describe('the runtime lane\'s own disclosure of the calls it never draws is a wi
     expect(editorStatus({ report, pane: runtimeOf(host, []) }).items.some((x) => x.kind === 'undrawn')).toBe(false)
     const candles = editorStatus({ report, pane: runtimeOf(host, [said('candles')]) }).items.filter((x) => x.kind === 'undrawn')
     expect(candles.map((x) => [x.name, x.line])).toEqual([['`plotcandle`', null]])
+  })
+})
+
+describe('a fold note is headed by its member label, never its channel key (2026-11-17, live panel finding)', () => {
+  // The owner's own reproduction: a daily request.security folds into the chart's own daily bars, and the
+  // panel printed "Line 6  baseTimeframeFolds" above the sentence. The heading is the label declared beside
+  // the sentence (closedTable `_folds.baseTimeframeFolds.memberLabel`, read by parse.js::noteHeading).
+  const src = '//@version=6\nindicator("Fold heading")\nspy = request.security("SPY", "D", close)\n'
+    + 'wk = request.security(syminfo.tickerid, "W", close)\nplot(spy, "SPY")\nplot(wk, "Weekly")'
+  const CHANNEL = 'baseTimeframe' + 'Folds'
+  it('no item is named by the internal channel, and the fold\'s note carries its declared label', () => {
+    const { status } = statusOf(src)
+    const items = (status.items || []).concat(...Object.values(status).filter(Array.isArray))
+    const names = items.filter((x) => x && typeof x === 'object').map((x) => x.name)
+    expect(names).not.toContain(CHANNEL)
+    const label = TABLE._folds[CHANNEL].memberLabel
+    expect(typeof label).toBe('string')
+    // non-vacuity: the fold note is really in the status (its sentence), under the label
+    const fold = items.find((x) => x && typeof x.reason === 'string' && x.reason === TABLE._folds[CHANNEL].memberNote)
+    expect(fold, 'the fold note itself must be present, or this test proves nothing').toBeTruthy()
+    expect(fold.name).toBe(label)
   })
 })

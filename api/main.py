@@ -3,6 +3,7 @@ import json
 import logging
 import threading
 import time
+_BOOT_T0 = time.monotonic()  # boot timing (`_boot_mark`): before every heavy import below
 from contextlib import asynccontextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -12,6 +13,20 @@ from zoneinfo import ZoneInfo
 # Redact at record creation, by parameter NAME, before any handler sees it.
 from api.services.log_redaction import install as _install_log_redaction
 _install_log_redaction()
+
+# ⛔ The front-door service runs this same image. If its own start command is ever not
+# applied, the default command would boot THIS module there: a second copy of the whole
+# application (INC-1, 2026-09-16, docs/breadth/INC-1-second-app-instance.md). Stop here,
+# before any scheduler or job exists, so that deployment fails instead of succeeding as
+# the wrong program. See api/services/role_guard.py.
+from api.services.role_guard import refuse_full_app_on_front_door as _refuse_full_app_on_front_door
+_refuse_full_app_on_front_door()
+
+# LOCAL_LIGHT_MODE=1 (developer PCs only; production never sets it). A few modules start a
+# warm loop AT IMPORT behind their own kill switch; with the flag set those switches are
+# defaulted off here, before the router imports below reach them. Unset: nothing happens.
+from api.services import local_light_mode as _local_light_mode
+_local_light_mode.apply_import_time_defaults()
 
 # APScheduler trap: a pre-built CronTrigger(...) resolves tzlocal (UTC on
 # Railway), NOT the scheduler's timezone -- every trigger below must carry
@@ -25,6 +40,68 @@ _ET = ZoneInfo("America/New_York")
 # freshly-reset uptime.
 _APP_BOOT_TS = time.time()
 
+# ── Boot timing (2026-11-11) ──────────────────────────────────────────────────────────────────────
+# Railway cannot run two web pods on one volume, so EVERY deploy is a gap: measured 2026-11-12 05:33 UTC,
+# ~40 s of 502 for members (old pod stopped at :00, new process started at :12, first 200 at :40). The
+# part we control is process start -> serving. `_boot_mark` records where it goes (marks placed between
+# top-level lifespan steps and inside the job-registration block); /api/health carries the summary and
+# one `[boot]` line is logged when the pod starts serving. Observability only: nothing gates on it.
+_BOOT_MARKS: list[tuple[str, float]] = []
+
+
+def _boot_mark(name: str) -> None:
+    _BOOT_MARKS.append((name, time.monotonic() - _BOOT_T0))
+
+
+def _previous_shutdown() -> dict | None:
+    """What the previous pod's shutdown took (written by lifespan's last lines to the shared volume)."""
+    try:
+        with open(os.path.join(os.environ.get("DATA_DIR") or "/data", "last_shutdown.json"), encoding="utf-8") as f:
+            d = json.load(f)
+        return {"took_s": d.get("took_s"), "ago_s": int(time.time() - float(d.get("at", 0)))}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+_PREVIOUS_SHUTDOWN = _previous_shutdown()   # read once, at import, before this pod could overwrite it
+
+# ⚡ BOOT QUIET WINDOW (2026-11-12). After a deploy every member's tab reconnects in the first
+# minute or two; boot-probe `hot=` showed process CPU at 150-430% for five minutes with jobs
+# no member waits for among the top burners. These start later. Seconds after lifespan start.
+# Member-facing warmers (scanner, dashboard, nhnl) stay early on purpose. Rail:
+# tests/api/test_boot_quiet_window.py.
+_BOOT_QUIET_S = {
+    "flow_integrity_probe": 600,
+    "bars_continuous_audit": 300,
+    "breadth_self_heal": 240,
+    "theme_index_prewarm": 150,
+    "screener_deal_gate_warm": 120,
+}
+
+
+def _boot_summary() -> dict:
+    marks = list(_BOOT_MARKS)
+    if not marks:
+        return {}
+    by = dict(marks)
+    segs = [(marks[i][0], round(marks[i + 1][1] - marks[i][1], 2)) for i in range(len(marks) - 1)]
+    return {
+        "import_s": round(by.get("lifespan-start", marks[0][1]), 2),
+        "to_serving_s": round(by["ready"], 2) if "ready" in by else None,
+        "slowest": [{"from": n, "s": d} for n, d in sorted(segs, key=lambda x: -x[1])[:5]],
+        "previous_shutdown": _PREVIOUS_SHUTDOWN,
+    }
+
+
+def _boot_log() -> None:
+    try:
+        b = _boot_summary()
+        logging.getLogger("uct.boot").warning(
+            "[boot] serving after %ss (imports %ss); slowest: %s", b.get("to_serving_s"), b.get("import_s"),
+            ", ".join(f"{x['from']} {x['s']}s" for x in b.get("slowest", [])))
+    except Exception:  # noqa: BLE001 - observability never breaks the boot
+        pass
+
 # Configure logging early -- before any service imports -- so that INFO messages
 # from api.services.* loggers (bar_stream, realtime_stream, etc.) reach stdout.
 # Default Python root logger is WARNING, which silently drops INFO and we lose
@@ -35,6 +112,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     force=True,
 )
+_install_log_redaction()   # basicConfig(force=True) replaced the handlers: re-attach the filter
 # Quiet down third-party libs that flood INFO with request-level noise.
 for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
                "websockets.protocol", "asyncio", "uvicorn.access"):
@@ -85,6 +163,9 @@ from api.routers import journal_two as journal_two_router
 # note id. Pinned by tests/test_main_router_order.py.
 from api.routers import notebook_insights as notebook_insights_router
 from api.routers import client_errors as client_errors_router
+from api.routers import desktop_events as desktop_events_router
+from api.routers import perf_beacon as perf_beacon_router
+from api.routers import request_timing as request_timing_router
 from api.routers import notebook_soak as notebook_soak_router
 from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
@@ -146,6 +227,8 @@ from api.routers import notebook_entry_context as notebook_entry_context_router
 # excerpt, and the passed-setups journal (/api/j2/research-capture/*), both always on (their
 # flags were retired 2026-11-04).
 from api.routers import notebook_research_capture as notebook_research_capture_router
+# Import a tweet (/api/j2/research-capture/tweets/*), dark behind NOTEBOOK_TWEET_IMPORT_ENABLED.
+from api.routers import notebook_tweet_capture as notebook_tweet_capture_router
 
 # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows (/api/j2/thesis-chips),
 # always on (its flag was retired 2026-11-04).
@@ -193,6 +276,9 @@ from api.routers import admin_twitter as admin_twitter_router
 from api.routers import admin_purge as admin_purge_router
 from api.routers import desk as desk_router
 from api.routers import admin_api_health as admin_api_health_router
+from api.routers import admin_llm_usage as admin_llm_usage_router  # /admin/ai-spend: every Claude call, by feature
+from api.services import llm_usage as _llm_usage
+_llm_usage.install()  # hook the Anthropic SDK once: every model call lands in the AI-spend ledger
 from api.routers import provider_coverage as provider_coverage_router
 from api.routers import fmp_adapter_status as fmp_adapter_status_router
 from api.routers import massive_adapter_status as massive_adapter_status_router
@@ -244,6 +330,7 @@ from api.routers import note_sync as note_sync_router  # note connectors (Roam/C
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
 from api.routers import tsdr_lessons as tsdr_lessons_router
 from api.routers import media_evidence_bridge as media_evidence_bridge_router
+from api.routers import chart_monitor_heartbeat as chart_monitor_heartbeat_router
 from api.routers import dashboard_signposts as dashboard_signposts_router
 from api.routers import market_calendar as market_calendar_router
 from api.routers import single_stock_etfs as single_stock_etfs_router
@@ -982,6 +1069,7 @@ def _run_priority_audit_now() -> None:
             bars_counts=[5000],
             parallelism=4,
             scope="priority",
+            lane="startup-priority-audit",   # api/services/bg_lane.py
         )
     except Exception:
         logging.getLogger(__name__).exception("[startup] priority audit run failed")
@@ -1005,7 +1093,7 @@ def _run_deploy_smoke_now() -> None:
     """Run a small validation smoke audit ~30s after every deploy."""
     try:
         from api.services import bars_audit
-        bars_audit.audit_universe(_DEPLOY_SMOKE_FIXTURE, scope="deploy-smoke")
+        bars_audit.audit_universe(_DEPLOY_SMOKE_FIXTURE, scope="deploy-smoke", lane="deploy-smoke")
     except Exception:
         logging.getLogger(__name__).exception("[startup] deploy smoke failed")
 
@@ -1189,6 +1277,28 @@ def _buzz_poll() -> None:
         discord_buzz_digest.catch_up()
     except Exception as e:  # noqa: BLE001
         log.warning("[buzz] digest catch-up error: %s", e)
+
+
+def _llm_budget_watch() -> None:
+    """AI-spend watchdog (api/services/llm_budget.py): posts to the ops channel once per
+    (day, budget, level) at 80% / 100% / projected-over. Never raises."""
+    try:
+        from api.services import llm_budget
+        sent = llm_budget.watch()
+        if sent:
+            logging.getLogger(__name__).warning("[llm-budget] alerts sent: %s", [s["door"] for s in sent])
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning("[llm-budget] watch failed", exc_info=True)
+
+
+def _llm_spend_digest() -> None:
+    """Daily AI-spend digest to the ops channel (llm_budget.digest): the whole day's
+    bill by feature and segment vs yesterday and the trailing week. Never raises."""
+    try:
+        from api.services import llm_budget
+        llm_budget.digest()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning("[llm-budget] digest failed", exc_info=True)
 
 
 def _tsdr_lessons_tick() -> None:
@@ -1592,6 +1702,8 @@ def _start_cold_path_boot_preload() -> None:
     if manifest is not None:
         for row in cold_path_manifest.above_threshold_modules(manifest):
             mod_name = row["module"]
+            if not cold_path_manifest.module_present(mod_name):
+                continue    # archived since the scan (onenote_html, 11/04): not preloaded, not an error
 
             def _import_it(_mod=mod_name):
                 import importlib
@@ -1755,7 +1867,16 @@ def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
                 readiness.mark_done("rs_rankings")
             # A success re-warms just under the 1h TTL; a failure retries soon
             # (see _rs_warm_sleep_seconds) instead of leaving the table empty.
-            time.sleep(_rs_warm_sleep_seconds(ok, failures))
+            nap = _rs_warm_sleep_seconds(ok, failures)
+            try:
+                from api.services import rs_ranking as _rsr
+                left = getattr(_rsr, "last_seed_remaining_s", None)
+                if ok and left is not None:
+                    # boot seeded a snapshot instead of computing: re-warm before IT expires
+                    nap = max(30, min(nap, int(left) - 120))
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(nap)
     threading.Thread(target=_delayed, daemon=True, name="rs-rankings-warmer").start()
 
 
@@ -1964,6 +2085,9 @@ def start_screener_snapshot_warm():
     """
     if os.environ.get("SCREENER_SNAPSHOT_WARM_ENABLED", "1") != "1":
         return None
+    from api.services import local_light_mode
+    if local_light_mode.skip("screener-snapshot-warm"):
+        return None
 
     def _num(name, default, cast):
         try:
@@ -2111,7 +2235,13 @@ def _check_nightly_finished() -> None:
         last = snapshot_db.last_build_run()
         why = _nightly_missing(last)
         if not why:
-            return
+            # A receipt that started after 03:00 is not proof the table was
+            # rebuilt: a capped run (the resume job, the boot warm) writes one too.
+            # The rows are the authority, so read them before saying nothing.
+            behind = snapshot_db.count_rows_built_before(_snapshot_cutoff())
+            if not behind or behind < SNAPSHOT_RESUME_MIN_ROWS:
+                return
+            why = f"{behind} rows were last rebuilt before 03:00 ET"
         if snapshot_builder.build_in_flight():
             why += "; a build is still running"
         from api.services import chart_health_alerts
@@ -2126,6 +2256,121 @@ def _check_nightly_finished() -> None:
         )
     except Exception as e:  # noqa: BLE001
         print(f"[scheduler] could not run the screener nightly watchdog: {e}")
+
+
+# -- Resume a nightly that a restart killed ----------------------------------------
+#
+# 2026-11-11: web was redeployed 11 times between 02:52 and 08:50 ET. The 03:00
+# nightly died ~2,000 rows in, the boot warm skipped (it checks only the ROW COUNT,
+# and 11,230 rows were there, just old), and the watchdog could only alert. Members
+# screened on 9,230 rows whose bars ended Nov 6 or Nov 9; MINV3.1 existed on just
+# the 2,000 fresh rows, so Anticipation's 600K-volume rule silently ignored 82% of
+# the market. The last complete build had been Nov 6; every nightly since died the
+# same way.
+#
+# This job finishes the nightly instead. `_stalest` orders never-built and oldest
+# rows first, so a capped run picks up exactly where the killed one stopped, and a
+# run that is itself killed is picked up again on the next tick after the reboot.
+#
+# ⛔ BOUNDED TO THE PRE-OPEN WINDOW AND SIZED TO FINISH INSIDE IT. A build holds
+# `snapshot_builder._BUILD_LOCK`, which the 30 s live sweep shares, so a build
+# still running at 09:30 ET freezes the live screener for its whole length. It
+# never runs in the session and never starts a run it cannot finish in the window.
+#
+# ⛔ BUILT THROUGH THE LAST COMPLETED SESSION (`through_ymd`). bars.db holds today's
+# forming bar for every charted ticker, so without the limit a pre-market build
+# would publish a half-day bar as a finished session.
+#
+#: The window, ET. Ten minutes after 03:00 so the nightly takes the lock first; ten
+#: minutes before the open so the last run is done before the live tier starts.
+SNAPSHOT_RESUME_START_ET = (3, 10)
+SNAPSHOT_RESUME_END_ET = (9, 20)
+#: Fewer rows behind than this is left to the next nightly. A ticker with no bars
+#: is skipped by every build and keeps its old `built_at`, so zero behind never
+#: comes; without a floor the job would rebuild that handful every tick.
+SNAPSHOT_RESUME_MIN_ROWS = 50
+
+
+def _snapshot_resume_rate() -> int:
+    """Rows per minute the resume job plans on. Measured: full builds of 11,230 rows
+    took 36 to 77 minutes (146 to 312 rows a minute, receipts Oct 23 to Nov 6), so
+    120 sits under the slowest and a run sized with it ends inside the window."""
+    try:
+        return max(10, int(os.environ.get("SCREENER_SNAPSHOT_RESUME_ROWS_PER_MIN") or 120))
+    except ValueError:
+        return 120
+
+
+def _snapshot_cutoff(now=None) -> float:
+    """Today's 03:00 ET, when the nightly starts: a row built before it is behind."""
+    now = now or datetime.now(_ET)
+    return now.replace(hour=3, minute=0, second=0, microsecond=0).timestamp()
+
+
+def _snapshot_resume_plan(now, behind, in_flight, rate):
+    """``(rows_to_build, None)`` or ``(None, why_not)``. Pure; the job does the I/O."""
+    if in_flight:
+        return None, "a build is already running"
+    if behind is None:
+        return None, "the rows behind could not be counted"
+    if behind < SNAPSHOT_RESUME_MIN_ROWS:
+        return None, "every row is current"
+    start = now.replace(hour=SNAPSHOT_RESUME_START_ET[0], minute=SNAPSHOT_RESUME_START_ET[1],
+                        second=0, microsecond=0)
+    end = now.replace(hour=SNAPSHOT_RESUME_END_ET[0], minute=SNAPSHOT_RESUME_END_ET[1],
+                      second=0, microsecond=0)
+    if not (start <= now < end):
+        return None, "outside the resume window"
+    room = int((end - now).total_seconds() / 60 * rate)
+    if room < SNAPSHOT_RESUME_MIN_ROWS:
+        return None, "too close to the open to finish a run"
+    return min(behind, room), None
+
+
+def _run_snapshot_resume() -> None:
+    """The resume job. Never raises. Off with SCREENER_SNAPSHOT_RESUME_ENABLED=0."""
+    try:
+        if os.environ.get("SCREENER_SNAPSHOT_RESUME_ENABLED", "1") != "1":
+            return
+        from api.services.screener import snapshot_builder, snapshot_db
+        now = datetime.now(_ET)
+        cutoff = _snapshot_cutoff(now)
+        behind = snapshot_db.count_rows_built_before(cutoff)
+        rows, why = _snapshot_resume_plan(now, behind, snapshot_builder.build_in_flight(),
+                                          _snapshot_resume_rate())
+        if rows is None:
+            if why not in ("every row is current", "outside the resume window"):
+                print(f"[scheduler] screener snapshot resume: not run ({why}; behind={behind})")
+            return
+        session = snapshot_builder.settled_session(now)
+        if session is None:
+            # Without the limit a pre-market build can store a forming bar as settled.
+            print("[scheduler] screener snapshot resume: not run (the exchange calendar "
+                  "does not cover today, so there is no settled session to build through)")
+            return
+        through = int(session.strftime("%Y%m%d"))
+        stats = snapshot_builder.run_build(max_tickers=rows, through_ymd=through)
+        left = snapshot_db.count_rows_built_before(cutoff)
+        print(f"[scheduler] screener snapshot resume: behind={behind} planned={rows} "
+              f"through={through} built={stats.get('built')} skipped={stats.get('skipped')} "
+              f"errors={stats.get('errors')} refused={stats.get('skipped_reason')} left={left}")
+        if (not stats.get("skipped_reason") and left is not None
+                and left < SNAPSHOT_RESUME_MIN_ROWS):
+            # Caught up: the steps the nightly runs after a complete build.
+            try:
+                from api.services.screener import distribution
+                distribution.distributions()
+            except Exception as e:  # noqa: BLE001
+                print(f"[scheduler] screener snapshot resume: distributions error: {e}")
+            try:
+                from api.services.screener import volume_curve
+                vc = volume_curve.nightly_job()
+                print(f"[scheduler] screener volume curve (resume): stored={vc.get('stored')} "
+                      f"samples={vc.get('samples')} reason={vc.get('reason')}")
+            except Exception as e:  # noqa: BLE001
+                print(f"[scheduler] screener snapshot resume: volume curve error: {e}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] screener snapshot resume error: {type(e).__name__}: {e}")
 
 
 # -- UCT Relative Strength: the IBD-style rating history (engineering map --------
@@ -2200,13 +2445,53 @@ def _alert_if_rs_history_short(receipt: dict) -> None:
         print(f"[scheduler] could not raise the rs history alert: {e}")
 
 
+#: ONE rating run per process at a time, whichever door it came through (the 04:15
+#: cron, the boot catch-up, the retry crons). Non-blocking: a second caller skips.
+#: The cross-PROCESS half is `rs_history.begin_attempt` (a row in screener.db).
+_RS_HISTORY_RUN_LOCK = threading.Lock()
+
+
+def _rs_history_guarded(source: str, session=None) -> dict | None:
+    """Run `rs_history.nightly_job` once under both guards and return its receipt,
+    or None when another run holds either guard. Raises what the job raises (the
+    callers own the never-raise rule and the crash alert).
+
+    `session` None calls `nightly_job()` with the module's own defaults (the 04:15
+    path, unchanged); a catch-up passes the session it is catching up to."""
+    if not _RS_HISTORY_RUN_LOCK.acquire(blocking=False):
+        print(f"[scheduler] rs history ({source}): skipped, a run is already going in this process")
+        return None
+    try:
+        from api.services.screener import rs_history
+        claim = rs_history.begin_attempt(source, session)
+        if not claim.get("claimed"):
+            held = claim.get("running") or {}
+            print(f"[scheduler] rs history ({source}): skipped, attempt {held.get('id')} "
+                  f"({held.get('source')}, pid {held.get('pid')}) started at "
+                  f"{held.get('started_at')} and has not finished")
+            return None
+        print(f"[scheduler] rs history ({source}): started attempt={claim.get('id')} "
+              f"session={session or 'settled'}")
+        outcome = "crashed"
+        receipt: dict = {}
+        try:
+            receipt = rs_history.nightly_job() if session is None else rs_history.nightly_job(session)
+            outcome = "ok" if receipt.get("ok") else "not_stored"
+        finally:
+            rs_history.finish_attempt(claim.get("id"), outcome, receipt.get("session"))
+        return receipt
+    finally:
+        _RS_HISTORY_RUN_LOCK.release()
+
+
 def _run_rs_history() -> None:
     """The `rs_history_nightly` job. Never raises.
 
     Off (`RS_HISTORY_ENABLED` unset or not "1"): returns before touching the DB --
     the side tables are created on first WRITE, so a dark pod carries no table.
     On: one `rs_history.nightly_job()` with the module's own defaults (it resolves
-    the settled session, the cap universe, the ETF set and the bars reader itself);
+    the settled session, the cap universe, the ETF set and the bars reader itself),
+    under `_rs_history_guarded` (one run at a time, a 'started' attempt row first);
     the receipt it recorded is then read for the shortfall rule above.
     """
     try:
@@ -2214,17 +2499,152 @@ def _run_rs_history() -> None:
             logging.getLogger(__name__).debug(
                 "[scheduler] rs history: RS_HISTORY_ENABLED is off; nothing touched")
             return
-        from api.services.screener import rs_history
-        receipt = rs_history.nightly_job()
-        print(f"[scheduler] rs history: session={receipt.get('session')} "
-              f"rated={receipt.get('rated')} targets={receipt.get('targets')} "
-              f"rows={receipt.get('rows')} short={receipt.get('short_history')} "
-              f"stale={receipt.get('stale')} no_bars={receipt.get('no_bars')} "
-              f"ms={receipt.get('duration_ms')}")
+        receipt = _rs_history_guarded("nightly")
+        if receipt is None:
+            return
+        _print_rs_history_receipt("rs history", receipt)
         _alert_if_rs_history_short(receipt)
+        if receipt.get("ok"):
+            # The session the 03:00 build could not read is stored now. Chained HERE as
+            # well as at 04:40 because a run that finishes after 04:40 would otherwise
+            # leave the screener on the previous session until the next build.
+            _run_rs_post_pass("rating")
     except Exception as e:  # noqa: BLE001
         print(f"[scheduler] rs history error: {e}")
         _alert_if_rs_history_short({"crashed": f"{type(e).__name__}: {e}"})
+
+
+def _print_rs_history_receipt(label: str, receipt: dict) -> None:
+    print(f"[scheduler] {label}: session={receipt.get('session')} "
+          f"rated={receipt.get('rated')} targets={receipt.get('targets')} "
+          f"rows={receipt.get('rows')} short={receipt.get('short_history')} "
+          f"stale={receipt.get('stale')} no_bars={receipt.get('no_bars')} "
+          f"ms={receipt.get('duration_ms')}")
+
+
+# -- the catch-up: a killed or missed nightly heals itself -------------------------
+#
+# ⚰️ 2026-11-12 (Railway logs): `rs_history_nightly` started 09:15:00 UTC in one web
+# deployment and was killed ~10 minutes later when another deploy swapped the
+# container. No receipt; the new container never re-ran it (`misfire_grace_time` only
+# covers a scheduler that was ALIVE at the fire time), so `rs_rating_history` stayed
+# on 2026-11-10 all day. Since PR #1135 the run reads ~13,600 tickers and overnight
+# master merges land every 20-30 minutes, so this will recur.
+#
+# The catch-up runs the SAME guarded job, only when the store is behind the session
+# the 04:15 run should already have written: a few minutes after boot (a DATE job,
+# never inline, so the boot is not slowed) and hourly 05:15-08:15 ET (pre-market).
+# Current store: one MAX(session) read and nothing else.
+#
+# What does NOT need re-running after a late catch-up (read 2026-11-12):
+#   - the screener's seven rs_rating_* columns are read ONCE per build
+#     (`snapshot_builder._read_rs_history_fields`, the newest stored session); the
+#     03:00 build runs before 04:15 by design, so the caught-up session reaches the
+#     screener at the next build exactly as an on-time run's would. (With
+#     RS_SCREENS_ENABLED on it reaches the screener at once: `_run_rs_lists` below
+#     starts with the RS post-pass, `_run_rs_post_pass`.)
+#   - `rs_discord_post` reads `screener_rows` only; `rs_evidence_pull` reads R2 only.
+#   - `rs_ranking`'s badge overlay memoises the newest session for 5 minutes.
+# What DOES: `rs_lists_nightly` (04:40) refuses while the history is behind the
+# screener session, so a catch-up that stored re-runs it (idempotent, own flag).
+
+#: The 04:15 ET fire time of `rs_history_nightly`. Before it, the store is expected
+#: to hold the session BEFORE the settled one.
+RS_HISTORY_NIGHTLY_ET = (4, 15)
+#: The retry crons: 05:15, 06:15, 07:15 and 08:15 ET, all before the open.
+RS_HISTORY_CATCHUP_HOURS_ET = "5-8"
+RS_HISTORY_CATCHUP_MINUTE_ET = 15
+#: Seconds after registration the boot catch-up fires (after the boot settles).
+RS_HISTORY_BOOT_CATCHUP_DELAY_S = 300
+#: From this hour ET a store still behind is alerted (`_check_rs_history_current`).
+RS_HISTORY_STALE_ALERT_ET = (9, 5)
+
+
+def _rs_history_target_session(now=None) -> str | None:
+    """The session the store should hold at `now`: the settled session as the last
+    04:15 ET fire saw it (`settled_session` of `now` moved back by 04:15). Before
+    04:15 that is the session before the settled one, so a pod booting at 02:00 does
+    not rate a session whose bars the 03:00 build has not caught up yet. None when
+    the calendar does not cover the date."""
+    from datetime import timedelta as _td
+    from api.services.screener import rs_history
+    now = now or datetime.now(_ET)
+    h, mi = RS_HISTORY_NIGHTLY_ET
+    d = rs_history.settled_session(now - _td(hours=h, minutes=mi))
+    return rs_history.session_key(d) if d else None
+
+
+def _rs_history_behind(now=None):
+    """`(target, latest)` when the store is behind the target session, else None."""
+    from api.services.screener import rs_history
+    target = _rs_history_target_session(now)
+    if not target:
+        return None
+    latest = rs_history.latest_session()
+    if latest is not None and str(latest) >= target:
+        return None
+    return target, latest
+
+
+def _run_rs_history_catchup(source: str = "catchup") -> None:
+    """The `rs_history_catchup_boot` and `rs_history_catchup` jobs. Never raises.
+
+    Off: nothing touched. Current store: nothing but one read. Behind: one guarded
+    run for the target session (skipped while another run holds a guard), its
+    shortfall alert, and, when it stored, `rs_lists` re-run (see the block above)."""
+    try:
+        if not rs_history_enabled():
+            return
+        behind = _rs_history_behind()
+        if behind is None:
+            return
+        target, latest = behind
+        print(f"[scheduler] rs history catch-up ({source}): store at {latest}, "
+              f"expected {target}; running")
+        receipt = _rs_history_guarded(source, session=target)
+        if receipt is None:
+            return
+        _print_rs_history_receipt(f"rs history catch-up ({source})", receipt)
+        _alert_if_rs_history_short(receipt)
+        if receipt.get("ok"):
+            _run_rs_lists()
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs history catch-up ({source}) error: {e}")
+        _alert_if_rs_history_short({"crashed": f"{type(e).__name__}: {e}"})
+
+
+def _check_rs_history_current() -> None:
+    """The `rs_history_stale_watchdog` job (09:05 ET). Never raises. Armed only:
+    a store still behind its target session after every catch-up had its chance is
+    ONE warning per session, keyed `rs_history_stale:{target}`, through the same
+    emitter as `rs_history_short`, naming the last attempt (a killed run reads as
+    started with no finish)."""
+    try:
+        if not rs_history_enabled():
+            return
+        behind = _rs_history_behind()
+        if behind is None:
+            return
+        target, latest = behind
+        from api.services import chart_health_alerts
+        from api.services.screener import rs_history
+        attempt = rs_history.last_attempt() or {}
+        going = attempt and attempt.get("finished_at") is None and not attempt.get("stale")
+        chart_health_alerts.emit(
+            f"rs_history_stale:{target}", "warning",
+            f"The UCT RS rating history is still on {latest or 'no session'} at "
+            f"{RS_HISTORY_STALE_ALERT_ET[0]:02d}:{RS_HISTORY_STALE_ALERT_ET[1]:02d} ET; it should "
+            f"hold {target}. "
+            + (f"A run ({attempt.get('source')}) is still going. " if going else
+               "The 04:15 run and the catch-ups did not store it. ")
+            + "The site's RS ratings are a session behind until a run succeeds.",
+            {"target": target, "latest_session": latest,
+             "last_attempt": {k: attempt.get(k) for k in
+                              ("id", "source", "session", "started_at", "finished_at",
+                               "outcome", "stale")}},
+        )
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] could not run the rs history stale check: {e}")
 
 
 def _run_rs_evidence_pull() -> None:
@@ -2253,16 +2673,87 @@ def _run_rs_evidence_pull() -> None:
         print(f"[scheduler] rs evidence pull error: {e}")
 
 
+def _run_rs_post_pass(source: str) -> None:
+    """The RS screens post-pass after a rating run (RS screens unit U1). Never raises.
+
+    Off (`RS_SCREENS_ENABLED` unset, `0` or a value that spells nothing): returns before
+    touching anything, so every caller behaves exactly as it did. On, and at `admin` (the
+    owner's private look: the data runs for everyone): one `rs_post_pass.run()` (every screener
+    row's rating columns onto the settled session, the session stamp, the exact places;
+    its receipt is read back on `snapshot_db.status()` as `rs_post_pass`), and, when the
+    pass MOVED the ratings, screen membership is recorded again: the 03:00 record behind
+    "New today" was taken on the previous session's ratings. `membership.rerecord_all`
+    replaces that record and never creates one the nightly refused to take. A pass that
+    found the session not stored yet changed no rating, so nothing is recorded again.
+
+    The screener panel's measured bands are dropped and measured again first: they are
+    cached per snapshot fingerprint (row count, newest `built_at`, date), the pass moves
+    none of those, and the bands taken after the 03:00 build saw the nine pass-written
+    columns blank. `distribution.invalidate` exists for a rewrite that keeps the fingerprint.
+    """
+    try:
+        from api.services.screener import rs_post_pass
+        if not rs_post_pass.enabled():
+            return
+        r = rs_post_pass.run(source=source)
+        print(f"[scheduler] rs post-pass ({source}): ok={r.get('ok')} session={r.get('session')} "
+              f"rating_session={r.get('rating_session')} rewritten={r.get('rewritten')} "
+              f"reason={r.get('reason')} rows={r.get('rows')} ranked={r.get('ranked')} "
+              f"ms={r.get('duration_ms')}")
+        if r.get("rewritten"):
+            try:
+                from api.services.screener import distribution
+                distribution.invalidate()
+                distribution.distributions()
+            except Exception as e:  # noqa: BLE001 - bands are an aid; never cost the record below
+                print(f"[scheduler] rs post-pass ({source}): bands not refreshed: {e}")
+            from api.services.screener import membership
+            mr = membership.rerecord_all()
+            print(f"[scheduler] rs post-pass ({source}): screener membership re-recorded: {mr}")
+            _run_rs_screen_alerts(source, r)
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs post-pass ({source}) error: {type(e).__name__}: {e}")
+
+
+def _run_rs_screen_alerts(source: str, pass_receipt: dict) -> None:
+    """The RS screens' daily joined-and-left message (RS screens unit U13). Never raises.
+
+    Called by `_run_rs_post_pass` only, straight after membership was recorded again
+    for a pass that MOVED the ratings: the message describes the record that pass just
+    took, for the session it rated. So it has no cron of its own, and it comes through
+    every door that pass does (04:15 rating, 04:40 lists, the rating catch-up); the
+    module's (member, screen, session) row is what makes those say it once.
+
+    Off (`RS_SCREEN_ALERTS_ENABLED` unset or not "1"): returns before touching
+    anything. `recorded_after` is the pass's own finish time: a membership record older
+    than it was taken on the previous ratings (the nightly refused to record, or the
+    re-record failed) and is not described."""
+    try:
+        from api.services.screener import rs_screen_alerts
+        if not rs_screen_alerts.enabled():
+            return
+        ar = rs_screen_alerts.run_nightly(session=pass_receipt.get("rating_session"),
+                                          recorded_after=pass_receipt.get("finished_at"))
+        print(f"[scheduler] rs screen alerts ({source}): {ar}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs screen alerts ({source}) error: {type(e).__name__}: {e}")
+
+
 def _run_rs_lists() -> None:
     """The `rs_lists_nightly` job (Phase 4 unit 4-01, 04:40 ET). Never raises.
 
-    One `rs_lists.nightly_job()`: the module reads `RS_LISTS_ENABLED` per call (off, it
+    FIRST the RS screens post-pass (`_run_rs_post_pass`, its own flag, off by default):
+    this is the door both the 04:40 cron and a catch-up that stored come through, so the
+    screener rows are on the session the lists are about to read.
+
+    Then one `rs_lists.nightly_job()`: the module reads `RS_LISTS_ENABLED` per call (off, it
     returns before reading or writing anything), applies its guards (the rating history
     must have caught up to the screener session; an empty list never replaces a full one
     unless the session is fresh), rebuilds RS Leaders and RS Emerging in place through
     `watchlist_prebuilt.write_rs_list`, and records its receipt (read back on
     `snapshot_db.status()` as `rs_lists`). One log line here.
     """
+    _run_rs_post_pass("lists")
     try:
         from api.services import rs_lists
         r = rs_lists.nightly_job()
@@ -2539,6 +3030,13 @@ def register_screener_jobs(scheduler):
                       trigger=CronTrigger(hour=NIGHTLY_WATCHDOG_HOUR_ET, minute=0, timezone=_ET),
                       id="screener_nightly_watchdog", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
+    # Finishes a nightly a restart killed (see `_run_snapshot_resume`). Every five
+    # minutes, so a run lost to a deploy is picked up minutes after the reboot; the
+    # job itself decides whether there is anything to do and whether there is time.
+    from apscheduler.triggers.interval import IntervalTrigger
+    scheduler.add_job(_run_snapshot_resume, trigger=IntervalTrigger(minutes=5),
+                      id="screener_snapshot_resume", max_instances=1,
+                      replace_existing=True, coalesce=True)
 
     # -- UCT Relative Strength rating history: its OWN cron at 04:15 ET ---------
     #
@@ -2573,6 +3071,32 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_run_rs_history,
                       trigger=CronTrigger(hour=4, minute=15, timezone=_ET),
                       id="rs_history_nightly", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=3600)
+
+    # -- ... and its CATCH-UP (2026-11-12 incident; `_run_rs_history_catchup`) ----
+    #
+    # A DATE job a few minutes after boot (never inline: the boot is not slowed) and
+    # an hourly retry 05:15-08:15 ET, both running the SAME guarded job only when the
+    # store is behind the session the 04:15 run should have written. A killed run is
+    # thereby redone by the next container's boot or the next :15, whichever is
+    # first; the guards (`_rs_history_guarded`) stop two runs at once, and a killed
+    # run's marker stops counting after `rs_history.RUNNING_STALE_S`. 09:05 ET: the
+    # watchdog alerts a store still behind. All three UNCONDITIONAL (depth 0 under
+    # `_add_job_gate_depth`): `RS_HISTORY_ENABLED` is read per call, like the job's.
+    from datetime import timedelta as _td
+    scheduler.add_job(_run_rs_history_catchup, kwargs={"source": "boot"}, trigger="date",
+                      run_date=datetime.now(_ET) + _td(seconds=RS_HISTORY_BOOT_CATCHUP_DELAY_S),
+                      id="rs_history_catchup_boot", max_instances=1,
+                      replace_existing=True, misfire_grace_time=3600)
+    scheduler.add_job(_run_rs_history_catchup, kwargs={"source": "retry"},
+                      trigger=CronTrigger(hour=RS_HISTORY_CATCHUP_HOURS_ET,
+                                          minute=RS_HISTORY_CATCHUP_MINUTE_ET, timezone=_ET),
+                      id="rs_history_catchup", max_instances=1,
+                      replace_existing=True, coalesce=True, misfire_grace_time=1800)
+    scheduler.add_job(_check_rs_history_current,
+                      trigger=CronTrigger(hour=RS_HISTORY_STALE_ALERT_ET[0],
+                                          minute=RS_HISTORY_STALE_ALERT_ET[1], timezone=_ET),
+                      id="rs_history_stale_watchdog", max_instances=1,
                       replace_existing=True, coalesce=True, misfire_grace_time=3600)
 
     # -- UCT Relative Strength evidence: the web pull of the worker's artifact --
@@ -3078,7 +3602,17 @@ def register_company_news_jobs(scheduler):
         ticker outside it -- LITE, for one -- could never receive a filing no
         matter how long the service ran. The offset persists in the store, so
         the sweep resumes where it left off across restarts.
+
+        ⚡ It skips a run that would overlap the opening or closing rush (desktop
+        speed plan 10.5): measured 2026-11-11 at 09:38-09:45 ET, 390 s wall and
+        42.5 s of this pod's CPU while members loaded every page. Coverage is
+        not time-critical; the next 20-minute interval runs after the rush.
         """
+        from api.services import market_rush
+        rush = market_rush.should_wait(datetime.now(_ET), 8)
+        if rush:
+            print(f"[news] per-company sweep skipped: {rush} rush")
+            return
         try:
             from api.services.news import ingest
             syms = ingest._active_universe(SEC_SYMS, rotate="sec_sweep")
@@ -3354,13 +3888,13 @@ def _run_bars_split_repair_sweep() -> dict:
             break
         summary["considered"] += 1
         key = _san._META_KEY.format(ticker)
-        meta = cache.get(key)
+        meta = _san._META_CACHE.get(key)
         if meta is None:
             try:
                 meta = _san._fetch_meta(ticker)
-                cache.set(key, meta, ttl=_san._META_TTL)
+                _san._META_CACHE.set(key, meta, ttl=_san._META_TTL)
             except Exception:                                  # noqa: BLE001
-                cache.set(key, {"ipo": None, "splits": []}, ttl=_san._META_FAIL_TTL)
+                _san._META_CACHE.set(key, {"ipo": None, "splits": []}, ttl=_san._META_FAIL_TTL)
                 summary["meta_failed"] += 1
                 continue
             time.sleep(0.05)          # provider politeness, not a rate limit
@@ -3911,6 +4445,15 @@ def register_transcript_index_jobs(scheduler):
                 _ilog.info("[tindex] pruned %s calls past the retention window", dropped)
         except Exception as exc:
             _ilog.warning("[tindex] sweep failed: %s", exc)
+        # "What CEOs are saying" (the Terminal's CEOS panel) is worked out from this same index,
+        # so its once-a-day build rides this sweep instead of a schedule of its own: it runs after
+        # the index is current, on the one service that holds the index, and never on a request.
+        try:
+            from api.services import call_themes
+            if call_themes.refresh_if_due():
+                _ilog.info("[call-themes] daily build started after the index sweep")
+        except Exception as exc:
+            _ilog.warning("[call-themes] daily build could not start: %s", exc)
 
     for hour, minute in ((6, 45), (20, 45)):
         scheduler.add_job(
@@ -3967,6 +4510,47 @@ def register_transcript_keyword_jobs(scheduler):
         _run_keyword_alert_scan,
         trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=30, timezone=_ET),
         id="transcript_keyword_alerts", replace_existing=True)
+    return True
+
+
+def register_list_alert_jobs(scheduler):
+    """The Terminal list alerts (owner pick 2026-11-17): tell a member when a stock they
+    follow comes onto the New 52-week highs list, the confluence board or the repeat-hit
+    option contracts list (`api/services/list_alerts.py`).
+
+    Registered unconditionally and the SERVICE decides whether to do anything: it is off
+    unless `TERMINAL_LIST_ALERTS_ENABLED` is `1` (or `admin`, the owner's preview), read on
+    every run, and off it returns before it opens a database or reads a list. Registering
+    it dark keeps arming it an env change rather than a deploy.
+
+    Weekdays at `list_alerts.CHECK_TIMES_ET`, both after the close: each list is read ONCE
+    per run for every member. The second pass is the retry for a list that was not ready
+    and a delivery that reached nobody; the per-session record means it can never repeat a
+    message. The service itself refuses a run before the close, so the by-contract read on
+    the flow-worker is never made in market hours.
+
+    Returns True once the jobs are registered."""
+    # Imported inside the function like every other registrar here.
+    from apscheduler.triggers.cron import CronTrigger
+    from api.services import list_alerts
+
+    _lalog = logging.getLogger(__name__)
+
+    def _run_list_alerts():
+        try:
+            if not list_alerts.enabled():
+                return
+            # `run_evening` logs its own receipt (what was read, sent and skipped).
+            list_alerts.run_evening()
+        except Exception as exc:
+            _lalog.warning("[list-alerts] scheduled run failed: %s", exc)
+
+    for hour, minute in list_alerts.CHECK_TIMES_ET:
+        scheduler.add_job(
+            _run_list_alerts,
+            trigger=CronTrigger(day_of_week="mon-fri", hour=hour, minute=minute, timezone=_ET),
+            id=f"list_alerts_{hour:02d}{minute:02d}", max_instances=1, coalesce=True,
+            misfire_grace_time=1800, replace_existing=True)
     return True
 
 
@@ -4089,9 +4673,13 @@ def register_pattern_vision_jobs(scheduler):
                     "ticker": _sym, "tf": "D", "setup": None, "asof_date": None,
                     "path": "truncated",
                     "message": f"beyond PATTERN_VISION_MAX_PER_RUN={cap}"})
+            # Batch lane (half price): judgements queue here and the reaper job
+            # stores each verdict when its batch lands. PATTERN_VISION_BATCH=0 = live.
+            pv_batch = (pv_orch.JudgeBatch()
+                        if pv_orch.batch_enabled() else None)
             for t in active:
                 cur = t
-                r = pv_orch.judge_ticker(t) or {}
+                r = pv_orch.judge_ticker(t, batch=pv_batch) or {}
                 agg["judged"] += r.get("judged", 0)
                 agg["skipped"] += r.get("skipped", 0)
                 agg["capped"] += 1 if r.get("cost_capped") else 0
@@ -4100,6 +4688,8 @@ def register_pattern_vision_jobs(scheduler):
                 problems.extend(r.get("problems") or [])
                 asofs.extend(r.get("asof_dates") or [])
             cur = None
+            if pv_batch is not None and pv_batch.items:
+                print(f"[scheduler] pattern_vision batch {pv_batch.submit()}")
         except Exception as e:
             err = e
             print(f"[scheduler] pattern_vision job error: {e}")
@@ -4151,6 +4741,27 @@ def register_pattern_vision_jobs(scheduler):
     return True
 
 
+def register_pattern_vision_batch_reaper(scheduler) -> None:
+    """The pattern-vision Batch lane's collector: stores each batched verdict when its
+    batch lands. A no-op when nothing is pending; reaping is idempotent. Registered
+    whenever the judge is, so a batch queued before a PATTERN_VISION_BATCH=0 rollback
+    is still collected."""
+    from apscheduler.triggers.cron import CronTrigger
+    from api.services.pattern_vision import orchestrator as pv_orch
+
+    def _reap():
+        try:
+            out = pv_orch.reap_batches()
+            if out.get("batches"):
+                print(f"[scheduler] pattern_vision reaped {out}")
+        except Exception as e:
+            print(f"[scheduler] pattern_vision reaper error: {e}")
+
+    scheduler.add_job(_reap, trigger=CronTrigger(minute="*/10", timezone=_ET),
+                      id="pattern_vision_batch_reap", max_instances=1,
+                      replace_existing=True)
+
+
 def idb_cache_logic_version(src_path: str | None = None) -> int | None:
     """`CACHE_LOGIC_VERSION` as it is DECLARED in `app/src/utils/barsIDB.js`.
 
@@ -4199,6 +4810,11 @@ def idb_cache_logic_version(src_path: str | None = None) -> int | None:
     return found[0] if len(found) == 1 else None
 
 
+def _stream_feed_remote() -> bool:
+    from api.services import feed_client as _fc
+    return _fc.feed_source() == "remote"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ⛔ Keep the Web Share Target's query out of OUR access log. The share
@@ -4208,6 +4824,12 @@ async def lifespan(app: FastAPI):
     # logging config during startup and rebuilds those loggers, silently
     # discarding a filter added earlier (measured). This does NOT reach
     # Railway's edge, which sees the URL before we do — see the module.
+    _boot_mark("lifespan-start")
+    # LOCAL_LIGHT_MODE=1 (developer PCs only; production never sets it). With the flag
+    # unset `_light_skip(name)` is always False, so every guarded start below runs exactly
+    # as before; set, it records `name` and that warm / seed / heal / loop is not started.
+    # See api/services/local_light_mode.py and docs/local-dev.md.
+    from api.services.local_light_mode import skip as _light_skip
     try:
         from api import logging_redaction
         logging_redaction.install()
@@ -4225,9 +4847,50 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] anyio thread-pool tuning failed (non-fatal): {e}")
 
+    # ⚡ The GIL switch interval (2026-11-12). A row-by-row sqlite read is one GIL
+    # hand-off per row, and each waited up to 5 ms behind any busy background thread:
+    # 852 rows took 1.7 ms alone and ~1,600 ms beside one busy thread (measured), which
+    # is what `Server-Timing: rs-bars` showed on every cold RS ask. See the module.
+    try:
+        from api.services import gil_tuning
+        _gil = gil_tuning.apply()
+        print(f"[startup] thread switch interval {_gil['ms']:.2f} ms "
+              f"(was {_gil['was_ms']:.2f} ms; {gil_tuning.ENV}={_gil['raw']!r}; "
+              f"{'applied' if _gil['applied'] else 'REFUSED, left as it was'})")
+    except Exception as e:
+        print(f"[startup] thread switch interval tuning failed (non-fatal): {e}")
+
+    # ⚡ The background lane (2026-11-17). For ~15 min after every restart the site answered ~10x
+    # slower: a dozen member-invisible sweeps (weekly purge, off-grid sweep, audits, breadth heal and
+    # verify, split heal) ran at once and starved every request of the interpreter. Lane users wait
+    # for the settle window, then run one item at a time at a bounded share of the clock. Activated
+    # HERE ONLY: the same sweeps run unpaced in every other process (the worker's purge must not wait).
+    # BG_LANE_ENABLED=0 restores the previous behaviour. See api/services/bg_lane.py.
+    try:
+        from api.services import bg_lane
+        bg_lane.activate(_BOOT_T0)
+        print(f"[startup] background lane: {'ON' if bg_lane.enabled() else 'OFF'} "
+              f"(settle {bg_lane.settle_s():.0f}s, duty {bg_lane.duty():.2f})")
+    except Exception as e:
+        print(f"[startup] background lane failed to activate (non-fatal, sweeps run unpaced): {e}")
+
+    # ⭐ U5 (2026-11-14): the capability detector's own process, off the request GIL
+    # (PINE_CAPABILITY_DETECTOR_WORKER=on). Started 30 s after boot, off the boot path; until it
+    # is READY every detector call answers "still being checked" (fail closed). Off: nothing.
+    try:
+        from api.services import pine_capability_worker
+        if pine_capability_worker.worker_enabled():
+            _cw = threading.Timer(30.0, pine_capability_worker.prestart)
+            _cw.daemon = True
+            _cw.start()
+            print("[startup] capability detector process: starting in 30 s")
+    except Exception as e:
+        print(f"[startup] capability detector process failed to schedule (non-fatal): {e}")
+
     # Self-logging burst capture (2026-06-09/10 thread-exhaustion incident).
     try:
-        _start_thread_burst_watch()
+        if not _light_skip("thread-burst-watch"):
+            _start_thread_burst_watch()
     except Exception as e:
         print(f"[startup] thread-burst watch failed to start (non-fatal): {e}")
 
@@ -4237,7 +4900,7 @@ async def lifespan(app: FastAPI):
     # request block stuck past 10/30/90/180/360 s. Kill switch: BOOT_PROBE_ENABLED=0.
     try:
         if (os.environ.get("BOOT_PROBE_ENABLED", "1").strip().lower()
-                not in ("0", "false", "no", "off")):
+                not in ("0", "false", "no", "off") and not _light_skip("boot-probe")):
             import asyncio as _bp_aio
             from api.services import boot_probe as _boot_probe
             app.state.boot_probe_task = _bp_aio.get_running_loop().create_task(
@@ -4359,7 +5022,8 @@ async def lifespan(app: FastAPI):
         print("[startup] desk.db initialized")
         # Fire an initial Substack poll in the background so Articles isn't empty
         # before the hourly job's first :07 run. Best-effort, never blocks boot.
-        if os.environ.get("SUBSTACK_ENABLED", "1").lower() in ("1", "true", "yes"):
+        if (os.environ.get("SUBSTACK_ENABLED", "1").lower() in ("1", "true", "yes")
+                and not _light_skip("substack-initial-poll")):
             import threading as _desk_threading
             from api.services.substack_poller import poll_all as _substack_poll_once
             _desk_threading.Thread(target=_substack_poll_once, daemon=True,
@@ -4426,8 +5090,9 @@ async def lifespan(app: FastAPI):
         # Background pre-warm of year-gain stats so the gallery loads instantly.
         import threading as _mb_threading
         from api.routers import modelbook as _mb_router
-        _mb_threading.Thread(target=_mb_router.warm_all_stats, daemon=True,
-                             name="modelbook-stats-warm").start()
+        if not _light_skip("modelbook-stats-warm"):
+            _mb_threading.Thread(target=_mb_router.warm_all_stats, daemon=True,
+                                 name="modelbook-stats-warm").start()
     except Exception as e:
         print(f"[startup] modelbook init failed (non-fatal): {e}")
 
@@ -4613,6 +5278,7 @@ async def lifespan(app: FastAPI):
     # editing it would strand flow-worker on stale code for a change it runs --
     # measured with `tools/flow_worker_watch_coverage.py`, not assumed. `main.py`
     # is not in that closure.
+    _boot_mark("L4811")
     try:
         from api.services import rollout as _rollout
         _seeded = _rollout.ensure_s7_dark_seeded()
@@ -4651,6 +5317,34 @@ async def lifespan(app: FastAPI):
                       daemon=True).start()
     except Exception:
         logging.getLogger(__name__).exception("[startup] could not schedule the terminal seed")
+
+    # CREATE INDICATOR, open to every account (owner decision 2026-11-15): every
+    # EXISTING account joins its cohort ONCE per volume; new signups are enrolled at
+    # signup. The same one-shot shape as the terminal seed above: a daemon thread, a
+    # marker written only after the write succeeds, the writer reached through
+    # `rollout_gate`. `CREATE_INDICATOR_COHORT_ENABLED` still decides what is shown.
+    try:
+        import threading as _ci_th
+
+        def _create_indicator_seed():
+            _log = logging.getLogger(__name__)
+            try:
+                from api.services import rollout_gate as _rg
+                _added = _rg.seed_existing_members_into_create_indicator()
+                if _added is None:
+                    _log.info("[startup] create-indicator seed: already ran (marker present)")
+                else:
+                    _log.info("[startup] create-indicator seed: enrolled existing accounts "
+                              "(%d new tag rows)", _added)
+            except Exception:
+                _log.exception("[startup] create-indicator seed failed; no marker written, "
+                               "the next boot retries")
+
+        _ci_th.Thread(target=_create_indicator_seed, name="create-indicator-seed",
+                      daemon=True).start()
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "[startup] could not schedule the create-indicator seed")
 
     # Plan A Task 2 (L-2): internal link MARKS already stored become note links.
     # A flag-file one-shot on a daemon thread with its OWN connection, started HERE --
@@ -4776,9 +5470,10 @@ async def lifespan(app: FastAPI):
                     "[startup] bootstrap scan failed: %s", _e
                 )
 
-        threading.Thread(
-            target=_bootstrap_scan, daemon=True, name="chart-health-bootstrap"
-        ).start()
+        if not _light_skip("chart-health-bootstrap"):
+            threading.Thread(
+                target=_bootstrap_scan, daemon=True, name="chart-health-bootstrap"
+            ).start()
     except Exception as e:
         logging.getLogger(__name__).exception(
             "[startup] chart-health bootstrap failed: %s", e
@@ -4799,10 +5494,26 @@ async def lifespan(app: FastAPI):
         # a deploy. Idempotent and additive (the ALTER is skipped once present),
         # so running it here costs a no-op on every boot after the first.
         _alert_rev.init_schema()
-        indicator_alert_evaluator.start_evaluator(interval_sec=60)
+        if not _light_skip("indicator-alert-evaluator"):
+            indicator_alert_evaluator.start_evaluator(interval_sec=60)
         logging.getLogger(__name__).info("[startup] indicator alert evaluator started")
     except Exception:
         logging.getLogger(__name__).exception("[startup] indicator alert evaluator failed to start")
+
+    # Price alerts: scheduled server-side evaluation, so an alert on a symbol no
+    # client is polling still fires. The thread always starts and sleeps; every
+    # cycle re-reads PRICE_ALERT_EVALUATOR_ENABLED (default off) from os.environ,
+    # which is fixed at process start: a Railway change takes effect only on a
+    # new boot. Stop it with `--set ...=0` (redeploys), or after a `variable
+    # delete` run `railway redeploy --service web --yes` and confirm the fresh
+    # boot from the pod.
+    try:
+        from api.services import price_alert_evaluator
+        if not _light_skip("price-alert-evaluator"):
+            price_alert_evaluator.start_evaluator(interval_sec=60)
+        logging.getLogger(__name__).info("[startup] price alert evaluator thread started (flag-gated)")
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] price alert evaluator failed to start")
 
     # Awareness Engine (M1): durable regime-label ledger. Cheap + idempotent;
     # initialized unconditionally (like indicator_alert_service) so local
@@ -4873,7 +5584,8 @@ async def lifespan(app: FastAPI):
         )
 
     try:
-        _start_priority_audit_background()
+        if not _light_skip("startup-priority-audit"):
+            _start_priority_audit_background()
         logging.getLogger(__name__).info("[startup] priority audit scheduled (~30s after boot)")
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule priority audit: %s", e)
@@ -4887,7 +5599,10 @@ async def lifespan(app: FastAPI):
     # failure can never hold a deploy hostage.
     try:
         readiness.register("hot_tier")
-        _start_hot_tier_warm_background()
+        if _light_skip("hot-tier-warmer"):
+            readiness.mark_done("hot_tier")
+        else:
+            _start_hot_tier_warm_background()
         logging.getLogger(__name__).info("[startup] hot tier warm scheduled (~45s after boot)")
     except Exception:
         readiness.mark_done("hot_tier")
@@ -4928,34 +5643,44 @@ async def lifespan(app: FastAPI):
             except Exception:
                 _log.exception("[startup] breadth reconstructed rebuild_stale failed")
 
-        _th.Thread(target=_breadth_numeric_backfill, name="breadth-numeric-backfill",
-                   daemon=True).start()
+        if not _light_skip("breadth-numeric-backfill"):
+            _th.Thread(target=_breadth_numeric_backfill, name="breadth-numeric-backfill",
+                       daemon=True).start()
     except Exception:
         logging.getLogger(__name__).exception("[startup] could not schedule the breadth backfill")
 
     try:
-        _start_cold_path_boot_preload()
+        if not _light_skip("cold-preload"):
+            _start_cold_path_boot_preload()
     except Exception:
         logging.getLogger(__name__).exception(
             "[startup] cold-start-guard boot preload failed to start")
 
     try:
         readiness.register("dashboard")
-        _start_dashboard_warm_background()
-        _start_breadth_series_warm_background()
-        _start_research_panel_warm_background()
-        _start_chart_renderer_warm_background()
+        if _light_skip("dashboard-warmer"):
+            readiness.mark_done("dashboard")
+        else:
+            _start_dashboard_warm_background()
+        if not _light_skip("breadth-series-warmer"):
+            _start_breadth_series_warm_background()
+        if not _light_skip("research-panel-warmer"):
+            _start_research_panel_warm_background()
+        if not _light_skip("chart-renderer-warmer"):
+            _start_chart_renderer_warm_background()
         # ⛔ The discord-chart hot-warm interval job does NOT register here:
         # `_scheduler` is assigned ~1,300 lines below in this same function, so
         # a use at this line is an unbound LOCAL (UnboundLocalError every boot)
         # — and the raise skipped the calendar warm on the next line too. It
         # registers in the scheduler block instead
         # (tests/test_lifespan_scheduler_binds_before_use.py).
-        _start_calendar_enrichment_warm_background()
+        if not _light_skip("calendar-enrichment-warmer"):
+            _start_calendar_enrichment_warm_background()
         # Perf wave 2: keep the current-week calendar slot inside its serve-stale bound all day,
         # every day (api/routers/calendar.py::WEEKLY_REWARM_INTERVAL_S).
         from api.routers.calendar import start_weekly_rewarm as _start_weekly_rewarm
-        _start_weekly_rewarm()
+        if not _light_skip("calendar-weekly-rewarm"):
+            _start_weekly_rewarm()
         logging.getLogger(__name__).info(
             "[startup] dashboard warm scheduled (~20s after boot); "
             "calendar-enrichment re-warm every 240s (under the 300s TTL); "
@@ -4969,7 +5694,8 @@ async def lifespan(app: FastAPI):
     # cache so a user request is a ~1ms hit instead of a cold 60-holding recompute.
     # Cheap now that theme_index reads the warm shared bars cache. Boot warm (~35s,
     # after wire_data seeds) + a 15-min refresh (under the 30-min cache TTL).
-    if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
+    if (os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0"
+            and not _light_skip("theme-index-prewarm")):
         def _theme_index_prewarm():
             try:
                 from api.services import theme_index as _ti
@@ -4981,35 +5707,61 @@ async def lifespan(app: FastAPI):
             # The 15-min re-warm registers in the scheduler block below —
             # `_scheduler` does not exist yet at this line (see the
             # discord-chart hot-warm note above). Only the boot Timer runs here.
-            _t = threading.Timer(35, _theme_index_prewarm)
+            # ⚡ 35 -> _BOOT_QUIET_S (2026-11-12): six bars reads at a time for ~5 minutes
+            # (boot-probe pool-work: theme_index._holding_daily_bars x6) starting inside the
+            # reconnect burst (boot+46 s: 45/64 anyio tokens, 362 ms loop lag). A cold $IDX
+            # chart in the first 150 s computes its own theme on request, as before.
+            _t = threading.Timer(_BOOT_QUIET_S["theme_index_prewarm"], _theme_index_prewarm)
             _t.daemon = True
             _t.start()
         except Exception:
             logging.getLogger(__name__).exception("[startup] failed to schedule theme_index prewarm")
 
+    # 🔴 The screener's buyout exclude set (query.deal_gate) is built off the request thread, but
+    # only once something asks. Before this the first SCAN after a deploy started it, and until it
+    # landed (~2 min) every scan used the hand lists plus the saved set alone. Start it on boot,
+    # after the reconnect burst (it reads every deal headline and scans daily bars for pins).
+    try:
+        from api.services.screener import query as _scr_query
+        _dg = threading.Timer(_BOOT_QUIET_S["screener_deal_gate_warm"], _scr_query.warm_deal_gate)
+        _dg.daemon = True
+        if not _light_skip("screener-deal-gate-warm"):
+            _dg.start()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] failed to schedule the deal gate warm")
+
     try:
         readiness.register("rs_rankings")
-        _start_rs_rankings_warm_background()
+        if _light_skip("rs-rankings-warmer"):
+            readiness.mark_done("rs_rankings")
+        else:
+            _start_rs_rankings_warm_background()
         logging.getLogger(__name__).info("[startup] rs-rankings warm scheduled (~120s after boot)")
     except Exception:
         readiness.mark_done("rs_rankings")
         logging.getLogger(__name__).exception("[startup] failed to schedule rs-rankings warm")
 
     try:
-        _start_industry_map_background()
+        if not _light_skip("industry-map-warmer"):
+            _start_industry_map_background()
         logging.getLogger(__name__).info("[startup] industry-map prewarm scheduled (~75s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule industry-map prewarm")
 
+    _boot_mark("L5213")
     try:
-        _start_darkpool_prewarm_background()
+        if not _light_skip("darkpool-prewarm-warmer"):
+            _start_darkpool_prewarm_background()
         logging.getLogger(__name__).info("[startup] darkpool prewarm scheduled (~60s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule darkpool prewarm")
 
     try:
         readiness.register("scanner")
-        _start_scanner_warm_background()
+        if _light_skip("scanner-warmer"):
+            readiness.mark_done("scanner")
+        else:
+            _start_scanner_warm_background()
         logging.getLogger(__name__).info(
             "[startup] scanner-preset warm scheduled (~30s after boot); "
             "re-warm every 50s during market hours, 300s off-hours")
@@ -5023,13 +5775,15 @@ async def lifespan(app: FastAPI):
     # gates on a flag file + spawns its own rate-limited daemon thread.
     try:
         from api.services import ticker_meta as _ticker_meta
-        _ticker_meta.heal_nameless_names()
+        if not _light_skip("ticker-meta-name-heal"):
+            _ticker_meta.heal_nameless_names()
         logging.getLogger(__name__).info("[startup] ticker-meta name-heal scheduled (one-shot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule ticker-meta name-heal")
 
     try:
-        _start_deploy_smoke_background()
+        if not _light_skip("deploy-smoke"):
+            _start_deploy_smoke_background()
         logging.getLogger(__name__).info("[startup] deploy smoke audit scheduled")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule deploy smoke")
@@ -5037,8 +5791,18 @@ async def lifespan(app: FastAPI):
     # Start continuous audit thread (5min/1hr/24hr cadences)
     try:
         from api.services import bars_continuous_audit
-        bars_continuous_audit.start()
-        logging.getLogger(__name__).info("[startup] bars_continuous_audit started")
+        # ⚡ BOOT QUIET WINDOW (2026-11-12): the audit is a 5-minute-cadence watchdog and
+        # its first sweep burned ~7 CPU-s inside the window members reconnect in after a
+        # deploy (boot-probe `hot=`). Same watchdog, first sweep 5 minutes later.
+        def _start_bars_continuous_audit():
+            bars_continuous_audit.start()
+        _bca_timer = threading.Timer(_BOOT_QUIET_S["bars_continuous_audit"], _start_bars_continuous_audit)
+        _bca_timer.daemon = True
+        _bca_timer.name = "bars-continuous-audit-delay"
+        if not _light_skip("bars-continuous-audit"):
+            _bca_timer.start()
+        logging.getLogger(__name__).info("[startup] bars_continuous_audit scheduled (+%ss)",
+                                         _BOOT_QUIET_S["bars_continuous_audit"])
     except Exception:
         logging.getLogger(__name__).exception("[startup] bars_continuous_audit start failed")
 
@@ -5063,7 +5827,8 @@ async def lifespan(app: FastAPI):
     # read. Massive is flat-rate, so canonical fetches cost nothing.
     try:
         from api.services import bars_reconciliation
-        bars_reconciliation.start()
+        if not _light_skip("bars-reconciliation"):
+            bars_reconciliation.start()
         logging.getLogger(__name__).info("[startup] bars_reconciliation started")
     except Exception:
         logging.getLogger(__name__).exception("[startup] bars_reconciliation start failed")
@@ -5072,7 +5837,8 @@ async def lifespan(app: FastAPI):
     # bars_reconciliation). No-ops unless FUNDAMENTALS_MONITOR_ENABLED=1.
     try:
         from api.services import fundamentals_monitor
-        fundamentals_monitor.start()
+        if not _light_skip("fundamentals-monitor"):
+            fundamentals_monitor.start()
         logging.getLogger(__name__).info("[startup] fundamentals_monitor started")
     except Exception:
         logging.getLogger(__name__).exception("[startup] fundamentals_monitor start failed")
@@ -5083,7 +5849,8 @@ async def lifespan(app: FastAPI):
     # NHNL_SCANNER_ENABLED=1.
     try:
         from api.services import nhnl_live
-        nhnl_live.start()
+        if not _light_skip("nhnl-live"):
+            nhnl_live.start()
         if nhnl_live.enabled():
             logging.getLogger(__name__).info("[startup] nhnl_live accumulator started")
     except Exception:
@@ -5093,7 +5860,8 @@ async def lifespan(app: FastAPI):
     # nhnl_live (no extra REST). No-ops unless VOLUME_SCANNER_ENABLED=1.
     try:
         from api.services import volume_live
-        volume_live.start()
+        if not _light_skip("volume-live"):
+            volume_live.start()
         if volume_live.enabled():
             logging.getLogger(__name__).info("[startup] volume_live accumulator started")
     except Exception:
@@ -5109,7 +5877,8 @@ async def lifespan(app: FastAPI):
     # PROVIDER_COVERAGE_MONITOR_ENABLED=1.
     try:
         from api.services import provider_coverage_monitor
-        provider_coverage_monitor.start()
+        if not _light_skip("provider-coverage-monitor"):
+            provider_coverage_monitor.start()
         logging.getLogger(__name__).info("[startup] provider_coverage_monitor started")
     except Exception:
         logging.getLogger(__name__).exception("[startup] provider_coverage_monitor start failed")
@@ -5120,7 +5889,7 @@ async def lifespan(app: FastAPI):
     # to disable.
     try:
         from api.services import disk_watchdog
-        if disk_watchdog.start():
+        if not _light_skip("disk-watchdog") and disk_watchdog.start():
             logging.getLogger(__name__).info(
                 "[startup] disk_watchdog started (warn=%s%% crit=%s%% every %ss)",
                 disk_watchdog.WARN_PCT, disk_watchdog.CRIT_PCT,
@@ -5135,6 +5904,10 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] realtime_candle reconciliation_worker scheduled")
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
+
+    # (The Schwab token refresh task that used to start here is gone: Schwab was retired from
+    # the product on 2026-11-17. Its poll was the source of the every-minute
+    # "Token refresh failed" error in the web log.)
 
     # Live options-flow SSE tailer (2026-07-08) — the instant-tape backend.
     # Reads flow.db for new prints and pushes them to connected browsers. Inert
@@ -5290,7 +6063,8 @@ async def lifespan(app: FastAPI):
                     pass
         except Exception as e:
             print(f"[startup] bars.db full integrity_check error (non-fatal): {e}")
-    threading.Thread(target=_integrity_check_bg, daemon=True, name="sqlite-integrity").start()
+    if not _light_skip("sqlite-integrity"):
+        threading.Thread(target=_integrity_check_bg, daemon=True, name="sqlite-integrity").start()
 
     # Web-side Bars Pack ingest — fold the universe D/W/M pack the worker already
     # publishes into THIS pod's bars.db, so a cold long-tail view serves from SQLite
@@ -5347,10 +6121,12 @@ async def lifespan(app: FastAPI):
             _sp.warm_reuse_map()
         except Exception as e:
             print(f"[startup] reuse-map pre-warm error (non-fatal): {e}")
-    threading.Thread(target=_warm_reuse_map_bg, daemon=True, name="reuse-map-warm").start()
+    if not _light_skip("reuse-map-warm"):
+        threading.Thread(target=_warm_reuse_map_bg, daemon=True, name="reuse-map-warm").start()
     try:
         from api.services import bars_bydate_index as _bbi
-        _bbi.start_scheduled_builder()
+        if not _light_skip("bars-bydate-index-builder"):
+            _bbi.start_scheduled_builder()
     except Exception as e:
         print(f"[startup] by-date index scheduler failed to start (non-fatal): {e}")
 
@@ -5369,6 +6145,7 @@ async def lifespan(app: FastAPI):
     # Rail: tests/test_boot_does_not_wait_on_bars_db.py (lifespan reaches `yield`
     # with a writer holding bars.db for the whole boot; the lifespan thread never
     # opens bars.db).
+    _boot_mark("L5620")
     def _bars_boot_bg():
         try:
             from api.services import bars_sqlite as _bars_sqlite
@@ -5418,6 +6195,7 @@ async def lifespan(app: FastAPI):
                     try:
                         from api.services import bars_sqlite as _heal_bs
                         _heal_bs.bump_db_epoch()
+                        _heal_bs.bump_store_floor("bulk delete", deleted_from=cutoff + 1)
                     except Exception:
                         pass
                     # Also clear in-memory + disk JSON cache for intraday so they
@@ -5489,6 +6267,7 @@ async def lifespan(app: FastAPI):
                     try:
                         from api.services import bars_sqlite as _heal_bs_v2
                         _heal_bs_v2.bump_db_epoch()
+                        _heal_bs_v2.bump_store_floor("bulk delete", deleted_from=cutoff_v2)
                     except Exception:
                         pass
                     try:
@@ -5557,6 +6336,7 @@ async def lifespan(app: FastAPI):
                     try:
                         from api.services import bars_sqlite as _heal_bs_v3
                         _heal_bs_v3.bump_db_epoch()
+                        _heal_bs_v3.bump_store_floor("bulk delete", deleted_from=cutoff_v3)
                     except Exception:
                         pass
                     try:
@@ -5621,6 +6401,7 @@ async def lifespan(app: FastAPI):
                     try:
                         from api.services import bars_sqlite as _heal_bs_wk
                         _heal_bs_wk.bump_db_epoch()
+                        _heal_bs_wk.bump_store_floor("bulk delete")
                     except Exception:
                         pass
                     # Clear in-memory + disk JSON caches for weekly so they don't keep
@@ -5671,10 +6452,18 @@ async def lifespan(app: FastAPI):
     # _fmt_sqlite_bars keeps charts clean until the purge lands.
     try:
         from api.services import bars_sqlite as _wk_bs
-        _wk_bs.purge_mis_keyed_weekly_rows_async()
+        if not _light_skip("weekly-key-purge"):
+            _wk_bs.purge_mis_keyed_weekly_rows_async()
         print("[startup] weekly_key_purge: scheduled (background)")
     except Exception as e:
         print(f"[startup] weekly_key_purge error (non-fatal): {e}")
+    # Off-grid intraday rows (intraday_grid): background, paced, idempotent repair.
+    try:
+        from api.services import intraday_grid as _grid
+        if not _light_skip("intraday-offgrid-sweep"):
+            _grid.sweep_async(delay_s=120)
+    except Exception as e:
+        print(f"[startup] offgrid_sweep error (non-fatal): {e}")
 
     # Chart pipeline mode fingerprint -- one line so a grep on Tuesday morning
     # tells the operator EXACTLY which fixes are active in this deploy.
@@ -5686,7 +6475,7 @@ async def lifespan(app: FastAPI):
         "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once "
         "needs_fresh_post_market=on "
         "swr_refresh_interval=30s_intraday "
-        "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
+        "tf60_ws_streaming=on bucket_canonical=bar_rollup.tv_bucket_bounds(via bars_fetch.bucket_60_et_unix_seconds,grid=rth) "
         f"delta_intraday_filter=>= idb_cache_logic_version={_idb_ver if _idb_ver is not None else 'unreadable'} "
         "weekly_dating=friday-close heal_weekly_close=ran-once "
         f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED', '1') != '0' else 'off'}"
@@ -5814,7 +6603,8 @@ async def lifespan(app: FastAPI):
 
             except Exception as _e:
                 print(f"[startup] Memory pre-warm failed (non-fatal): {_e}")
-        threading.Thread(target=_memory_prewarm_background, daemon=True, name="memory-prewarm").start()
+        if not _light_skip("memory-prewarm"):
+            threading.Thread(target=_memory_prewarm_background, daemon=True, name="memory-prewarm").start()
         print("[startup] Memory pre-warm scheduled (background thread)")
 
     # Web-pod memory watch -- the worker has had a [mem] line since the 2026-06-10
@@ -5823,6 +6613,7 @@ async def lifespan(app: FastAPI):
     # working set. Log RSS + thread count every 60s so the 2.4GB observation
     # (2026-06-15) can be confirmed as a plateau (post pass-2 removal) vs. a
     # climb -- the prerequisite for any further memory work.
+    _boot_mark("L6084")
     def _web_memwatch():
         import time as _mw_time
         while True:
@@ -5836,14 +6627,16 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
             _mw_time.sleep(60)
-    threading.Thread(target=_web_memwatch, daemon=True, name="web-memwatch").start()
+    if not _light_skip("web-memwatch"):
+        threading.Thread(target=_web_memwatch, daemon=True, name="web-memwatch").start()
 
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] USE_REMOTE_BARS=1 -- skipping in-process prewarmer/seeder; pulling snapshot from worker via R2")
     else:
         try:
             from api.services.bars_seeder import start_background_seeder
-            start_background_seeder()
+            if not _light_skip("bars-seeder"):
+                start_background_seeder()
         except Exception as e:
             print(f"[startup] Bar seeder start error (non-fatal): {e}")
 
@@ -5851,7 +6644,8 @@ async def lifespan(app: FastAPI):
 
     if os.environ.get("USE_REMOTE_BARS") != "1":
         from api.services.bars_prewarm import run_prewarmer_forever
-        threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
+        if not _light_skip("bars-prewarm"):
+            threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
 
     # Slow background backfill: warm the ticker_meta disk cache for every
     # cap_universe ticker so /api/ticker-search autocomplete shows company
@@ -5859,10 +6653,21 @@ async def lifespan(app: FastAPI):
     # fresh entries on each boot. Daemon thread -- never blocks startup.
     try:
         from api.services.ticker_names_prewarm import start_async as _names_start
-        _names_start()
+        if not _light_skip("ticker-names-prewarm"):
+            _names_start()
         print("[startup] ticker-names prewarm scheduled")
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
+
+    # The Terminal's one-click period rankings (PCHG: this month, this quarter, year to date
+    # ...) are kept built so a member's first click is not a half-minute "computing". The
+    # loop starts itself on the web service only (scan_period.start_preset_warmer).
+    try:
+        from api.services import scan_period as _scan_period
+        if not _light_skip("period-preset-warm"):
+            _scan_period.start_preset_warmer()
+    except Exception as e:
+        print(f"[startup] period preset warm scheduling failed (non-fatal): {e}")
 
     # Company-logo cache prewarm: fill /data/logo_cache for the whole cap_universe
     # so the FIRST view of any watchlist / theme / calendar serves real logos from
@@ -5875,7 +6680,8 @@ async def lifespan(app: FastAPI):
     # Disable via TICKER_LOGOS_PREWARM_DISABLED=1.
     try:
         from api.services.ticker_logos_prewarm import start_async as _logos_start
-        _logos_start()
+        if not _light_skip("ticker-logos-prewarm"):
+            _logos_start()
         print("[startup] ticker-logos prewarm scheduled")
     except Exception as e:
         print(f"[startup] ticker-logos prewarm scheduling failed (non-fatal): {e}")
@@ -5895,7 +6701,8 @@ async def lifespan(app: FastAPI):
     # of a multi-second yfinance fetch. Only 7 symbols → cheap to run web-side.
     try:
         from api import index_bars as _idx
-        _idx.start_index_warm()
+        if not _light_skip("index-bars-warm"):
+            _idx.start_index_warm()
         print("[startup] index-bars warm loop scheduled")
     except Exception as e:
         print(f"[startup] index-bars warm scheduling failed (non-fatal): {e}")
@@ -5906,7 +6713,8 @@ async def lifespan(app: FastAPI):
     # cheap web-side; the periodic pass also picks up the 4:30pm EOD breadth push.
     try:
         from api.services import breadth_symbols as _bsym
-        _bsym.start_breadth_warm()
+        if not _light_skip("breadth-bars-warm"):
+            _bsym.start_breadth_warm()
         print("[startup] breadth-bars warm loop scheduled")
     except Exception as e:
         print(f"[startup] breadth-bars warm scheduling failed (non-fatal): {e}")
@@ -5930,8 +6738,9 @@ async def lifespan(app: FastAPI):
                     print(f"[startup] logo_hires_v1 error (non-fatal): {_e}")
 
             import threading as _threading
-            _threading.Thread(target=_logo_hires_runner, daemon=True,
-                              name="logo-hires-startup").start()
+            if not _light_skip("logo-hires-startup"):
+                _threading.Thread(target=_logo_hires_runner, daemon=True,
+                                  name="logo-hires-startup").start()
             print("[startup] logo_hires_v1: upgrade scheduled (~90s after boot)")
     except Exception as e:
         print(f"[startup] logo_hires_v1 scheduling failed (non-fatal): {e}")
@@ -5948,6 +6757,10 @@ async def lifespan(app: FastAPI):
             def _initial_pull():
                 import time as _t
                 _skip_boot_pull = False
+                try:   # clustered-layout adoption (data_sync.adopt_clustered_if_requested)
+                    data_sync.adopt_clustered_store()
+                except Exception as _e:
+                    print(f"[startup] adopt-clustered check failed (non-fatal): {_e}")
                 try:
                     import sqlite3 as _sqlite_probe
                     _db_probe_path = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
@@ -6107,7 +6920,8 @@ async def lifespan(app: FastAPI):
     # the Monitor's reconstructed pre-2026 rows carry the sentiment block. Cheap,
     # idempotent (row-count-guarded upsert), best-effort, and only fills dates the
     # 4:15 collector never saw. Skippable via BREADTH_DEEP_HISTORY=0.
-    if os.environ.get("BREADTH_DEEP_HISTORY", "1") != "0":
+    if (os.environ.get("BREADTH_DEEP_HISTORY", "1") != "0"
+            and not _light_skip("breadth-sentiment-seed")):
         def _breadth_sentiment_seed():
             try:
                 from api.services import breadth_sentiment_history as _bsh
@@ -6131,7 +6945,8 @@ async def lifespan(app: FastAPI):
     # the Monitor's sentiment block; this feeds the chartable series. They are two stores
     # with two schemas and two accept gates, and collapsing them would make the chart's
     # point-in-time semantics depend on a table that has none.
-    if os.environ.get("MARKET_INDICATORS_SEED", "1") != "0":
+    if (os.environ.get("MARKET_INDICATORS_SEED", "1") != "0"
+            and not _light_skip("naaim-series-seed")):
         def _naaim_series_seed():
             try:
                 from api.services.market_indicators import naaim_store as _ns
@@ -6161,7 +6976,8 @@ async def lifespan(app: FastAPI):
     # the Cboe flag: turning off the refresh must not silently leave the status route
     # reporting `availability_warming` forever. A flag that disables a second, unrelated
     # thing is a trap, and this one would only show up as permanently missing metadata.
-    if os.environ.get("MARKET_INDICATORS_BOOT_JOBS", "1") != "0":
+    if (os.environ.get("MARKET_INDICATORS_BOOT_JOBS", "1") != "0"
+            and not _light_skip("market-indicator-jobs")):
         def _market_indicator_jobs():
             while True:
                 if os.environ.get("MARKET_INDICATORS_CBOE_REFRESH", "1") != "0":
@@ -6186,22 +7002,39 @@ async def lifespan(app: FastAPI):
         threading.Thread(target=_market_indicator_jobs, daemon=True,
                          name="market_indicator_jobs").start()
 
+    # ⭐ PINE SEEDS (`request.seed`), ingested from each seed's PUBLIC mirror
+    # (`api/services/pine_seed_store.py`, docs/pine/RS-RATING-TRANSFER.md L6). Same lesson
+    # as Cboe above: a store nothing running fills serves an empty chart. On the web pod,
+    # because `/api/bars` answers seed symbols from this pod's `/data/pine_seeds.db`. A
+    # few small CSVs from GitHub every 2 h; the first boot replays the file's history
+    # (at most PINE_SEEDS_MAX_PAGES x 100 uploads).
+    if (os.environ.get("PINE_SEEDS_REFRESH", "1") != "0"
+            and not _light_skip("pine-seed-jobs")):
+        def _pine_seed_jobs():
+            from api.services import pine_seed_store as _seeds
+            _seeds.refresh_loop()
+
+        threading.Thread(target=_pine_seed_jobs, daemon=True, name="pine_seed_jobs").start()
+
     # Self-healing breadth: refuse a degraded collector push (guard is in the push
     # route) AND recompute any degraded recent day from OUR bars so the Monitor's
     # current + prior days are always accurate. Boot pass fixes any leftover bad
     # day now; a slow loop keeps watch (cheap — it only recomputes a day that is
     # actually degraded). Web pod (breadth_snapshots is web-local). BREADTH_SELF_HEAL.
-    if os.environ.get("BREADTH_SELF_HEAL", "1") != "0":
+    if (os.environ.get("BREADTH_SELF_HEAL", "1") != "0"
+            and not _light_skip("breadth-self-heal")):
         try:
             from api.services import breadth_self_heal
-            breadth_self_heal.start_background_heal(delay_seconds=45)
+            breadth_self_heal.start_background_heal(delay_seconds=_BOOT_QUIET_S["breadth_self_heal"])
 
             def _breadth_heal_loop():
                 interval = int(os.environ.get("BREADTH_SELF_HEAL_SECS", "1800"))
                 while True:
                     time.sleep(interval)
                     try:
-                        res = breadth_self_heal.heal_recent(10)
+                        from api.services import bg_lane    # a background repair: one lane turn
+                        with bg_lane.turn("breadth-self-heal-loop"):
+                            res = breadth_self_heal.heal_recent(10)
                         healed = res.get("healed") or []
                         if healed:
                             print(f"[breadth-heal] loop healed {len(healed)}: "
@@ -6220,6 +7053,7 @@ async def lifespan(app: FastAPI):
     # default boot is today's process thread for thread. `shadow` grades a bars.db
     # row against the collector's; `server` (with BREADTH_EOD_SERVER_FROM) writes it.
     # Web pod: breadth_snapshots lives on web's volume.
+    _boot_mark("L6485")
     try:
         from api.services import breadth_eod_source as _breadth_eod
         if _breadth_eod.start_job():
@@ -6243,7 +7077,13 @@ async def lifespan(app: FastAPI):
         except Exception:
             logging.getLogger(__name__).exception("brain pack sync failed to start")
 
-    if os.environ.get("STREAM_BARS_ENABLED") == "1":
+    if os.environ.get("STREAM_BARS_ENABLED") == "1" and _stream_feed_remote():
+        # STREAM_FEED_SOURCE=remote: the stream-ingest service holds the Massive socket;
+        # this pod mirrors its feed (no bar_stream thread, no second socket).
+        from api.services import feed_client as _feed_client
+        _feed_client.start_remote()
+        print("[startup] Bar feed: REMOTE (stream-ingest) — no Massive socket in this pod")
+    elif os.environ.get("STREAM_BARS_ENABLED") == "1":
         from api.services import bar_stream, bar_broadcaster, volume_live
         bb = bar_broadcaster.init_broadcaster(
             on_first_subscribe=bar_stream.subscribe_symbols_one,
@@ -6346,13 +7186,15 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[warm] {name} warm failed (non-fatal): {e}")
 
-    threading.Thread(target=_warm_dashboard_caches, daemon=True,
-                     name="dashboard-cache-warm").start()
+    if not _light_skip("dashboard-cache-warm"):
+        threading.Thread(target=_warm_dashboard_caches, daemon=True,
+                         name="dashboard-cache-warm").start()
 
     try:
         from api.services.voice_kb_service import seed_on_startup as _kb_seed
         import threading as _t
-        _t.Thread(target=_kb_seed, daemon=True, name="voice-kb-seed").start()
+        if not _light_skip("voice-kb-seed"):
+            _t.Thread(target=_kb_seed, daemon=True, name="voice-kb-seed").start()
     except Exception as e:
         print(f"[startup] Voice KB seed scheduling failed (non-fatal): {e}")
 
@@ -6362,7 +7204,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] WebSocket stream failed (non-fatal): {e}")
     from api.daily_tracker import start_snapshot_scheduler, stop_snapshot_scheduler
-    start_snapshot_scheduler()
+    if not _light_skip("daily-tracker-snapshot"):
+        start_snapshot_scheduler()
 
     _top_flow_tracker.init()
     _top_flow_tracker.archive_expired()
@@ -6423,7 +7266,8 @@ async def lifespan(app: FastAPI):
                 print(f"[startup] Flow DB pruned {_pruned} expired rows")
         except Exception as e:
             print(f"[startup] Flow DB auto-seed error (non-fatal): {e}")
-    threading.Thread(target=_flow_db_seed_background, daemon=True, name="flow-db-seed").start()
+    if not _light_skip("flow-db-seed"):
+        threading.Thread(target=_flow_db_seed_background, daemon=True, name="flow-db-seed").start()
 
     # -- Darkpool DB: auto-seed from static CSV if available ----------------
     def _darkpool_db_seed_background():
@@ -6484,7 +7328,8 @@ async def lifespan(app: FastAPI):
                 print(f"[startup] Darkpool DB pruned {_pruned} rows beyond 120-day window")
         except Exception as e:
             print(f"[startup] Darkpool DB auto-seed error (non-fatal): {e}")
-    threading.Thread(target=_darkpool_db_seed_background, daemon=True, name="darkpool-db-seed").start()
+    if not _light_skip("darkpool-db-seed"):
+        threading.Thread(target=_darkpool_db_seed_background, daemon=True, name="darkpool-db-seed").start()
 
     # Seed the prebuilt watchlists (Liquid Major ETFs; deletes retired lists like Delisted
     # Legends). Idempotent + self-healing; deferred so the admin user + watchlists table are
@@ -6503,13 +7348,15 @@ async def lifespan(app: FastAPI):
                 _pbr.maybe_startup_catchup()
         except Exception:
             pass
-    threading.Thread(target=_seed_prebuilt_bg, daemon=True, name="prebuilt-watchlists-seed").start()
+    if not _light_skip("prebuilt-watchlists-seed"):
+        threading.Thread(target=_seed_prebuilt_bg, daemon=True, name="prebuilt-watchlists-seed").start()
 
     try:
         _cot_service.init_db()
         if _cot_service.is_empty():
             print("[startup] COT table empty -- seeding from CFTC historical archive (background)...")
-            threading.Thread(target=_cot_seed_background, daemon=True, name="cot-seed").start()
+            if not _light_skip("cot-seed"):
+                threading.Thread(target=_cot_seed_background, daemon=True, name="cot-seed").start()
         else:
             from datetime import date as _date
             now_et = datetime.now(ZoneInfo("America/New_York"))
@@ -6521,7 +7368,8 @@ async def lifespan(app: FastAPI):
                     f"[startup] COT data stale -- latest={latest_iso} expected={expected} "
                     f"({days_old}d old) -- running catch-up refresh..."
                 )
-                threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
+                if not _light_skip("cot-catchup"):
+                    threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
             else:
                 print(f"[startup] COT database ready (latest: {latest_iso}).")
     except Exception as e:
@@ -6591,6 +7439,7 @@ async def lifespan(app: FastAPI):
     from api.services.scheduler_lock import acquire_scheduler_lock
     _scheduler = None
     if acquire_scheduler_lock():
+        _boot_mark("jobs-start")
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger
         from apscheduler.triggers.interval import IntervalTrigger
@@ -6898,6 +7747,7 @@ async def lifespan(app: FastAPI):
         # /data/darkpool.db and is the only service serving /api/darkpool/*.
         # Self-gates on DARKPOOL_MASSIVE_INGEST_ENABLED=1 — a deploy alone will
         # not start pulling. Bounded by ticker cap + page cap + wall clock.
+        _boot_mark("J7169")
         try:
             from api.darkpool_massive_ingest import scheduled_run as _dp_ingest_run
             _scheduler.add_job(
@@ -7219,6 +8069,7 @@ async def lifespan(app: FastAPI):
         # correctly (fixed SPCX/DRAM-class mislabels + auto-picks-up new launches
         # so a hardcoded list never goes stale again). 5:30 AM ET: before the
         # pre-market tape, outside the deploy blackout. Fail-soft + gated.
+        _boot_mark("J7490")
         if os.environ.get("TICKER_TYPES_SYNC_ENABLED", "1") == "1":
             def _ticker_types_sync():
                 try:
@@ -7546,6 +8397,7 @@ async def lifespan(app: FastAPI):
         # /history/backfill-schedule. Coverage-driven + idempotent, so a pod restart just
         # resumes on the next tick (in-memory chains die on restart; this survives). No-ops
         # unless a floor marker is set. Registered always; gated inside backfill_tick.
+        _boot_mark("J7863")
         try:
             def _breadth_history_backfill_tick():
                 try:
@@ -7809,18 +8661,10 @@ async def lifespan(app: FastAPI):
             print("[startup] Similar-matches nightly job registered")
 
         def _cot_daily_catchup():
+            # holiday-aware: the decision lives in cot_service.daily_catchup (tests/test_cot_release_calendar.py pins its
+            # firing days against the old "8+ days old" rule); this is also what fetches a holiday week's Monday release
             try:
-                from datetime import date as _dt
-                from zoneinfo import ZoneInfo as _ZI
-                latest = _cot_service.get_latest_date()
-                if latest:
-                    import datetime as _dtm
-                    days_old = (_dtm.datetime.now(_ZI("America/New_York")).date() - _dt.fromisoformat(latest)).days
-                    if days_old >= 8:
-                        print(f"[scheduler] COT daily catchup: data is {days_old}d stale -- refreshing...")
-                        _cot_service.refresh_from_current()
-                    else:
-                        print(f"[scheduler] COT daily catchup: data is {days_old}d old -- fresh, skipping")
+                _cot_service.daily_catchup()
             except Exception as e:
                 print(f"[scheduler] COT daily catchup error: {e}")
 
@@ -7859,6 +8703,7 @@ async def lifespan(app: FastAPI):
         # ⛔ 2026-10-22: the 6h job was an IntervalTrigger, whose countdown restarts at
         # every boot -- on a redeploy-heavy day it never fired. register_jobs uses fixed
         # UTC cron slots + a delayed, age-checked one-shot catch-up (see the module).
+        _boot_mark("J8176")
         if os.getenv("AUTHDB_BACKUP_ENABLED") == "1":
             try:
                 from api.services import authdb_backup as _authdb_backup
@@ -7903,6 +8748,17 @@ async def lifespan(app: FastAPI):
             register_wire_watchdog_job(_scheduler)
         except Exception as e:
             print(f"[scheduler] screener job registration error: {e}")
+
+        # -- Terminal list alerts (dark unless TERMINAL_LIST_ALERTS_ENABLED) --
+        # In its own try: a failure here skips nothing above or below, and the
+        # other way round.
+        try:
+            if register_list_alert_jobs(_scheduler):
+                logging.getLogger(__name__).info(
+                    "[startup] terminal list alerts: jobs registered (weekday evenings ET; "
+                    "nothing runs unless TERMINAL_LIST_ALERTS_ENABLED is set)")
+        except Exception as e:
+            print(f"[scheduler] list alerts registration error: {e}")
 
         # -- Nightly closed-bar Signature sweep (Phase A) -------------------
         try:
@@ -8063,6 +8919,19 @@ async def lifespan(app: FastAPI):
                 misfire_grace_time=300, max_instances=1, coalesce=True,
             )
             print("[startup] tsdr video lessons scheduled (every 15 min)")
+            _scheduler.add_job(
+                _llm_budget_watch,
+                trigger=CronTrigger(minute="2,17,32,47", timezone=_ET),
+                id="llm_budget_watch", replace_existing=True,
+                misfire_grace_time=300, max_instances=1, coalesce=True,
+            )
+            print("[startup] AI-spend budget watchdog scheduled (every 15 min)")
+            _scheduler.add_job(
+                _llm_spend_digest,
+                trigger=CronTrigger(hour=23, minute=55, timezone=_ET),
+                id="llm_spend_digest", replace_existing=True,
+                misfire_grace_time=3600, max_instances=1, coalesce=True,
+            )
         except Exception as e:
             print(f"[scheduler] tsdr lessons registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
@@ -8079,6 +8948,7 @@ async def lifespan(app: FastAPI):
         # -- Opus-vision pattern judge (spec 2026-06-19) -------------------
         try:
             if register_pattern_vision_jobs(_scheduler):
+                register_pattern_vision_batch_reaper(_scheduler)
                 # ⛔⛔ THE STEP THAT HELD THE BOOT, incident 2026-10-02. The contract
                 # line resolves the active set, which reads bars.db
                 # (`_resolve_active_set_for_patterns` -> `nth_recent_trading_date`, a
@@ -8151,11 +9021,19 @@ async def lifespan(app: FastAPI):
                                id="tweet_poll_slow", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
+            # Saved Notebook posts that left X: two checks at least 10 minutes apart. Each job
+            # returns at once while NOTEBOOK_TWEET_IMPORT_ENABLED is off (read per run).
+            from api.services.journal_two import tweet_capture_sync as _tw_capture_sync
+            _scheduler.add_job(_tw_capture_sync.run_sweep, trigger=CronTrigger(hour=3, minute=10, timezone=_ET),
+                               id="notebook_tweet_capture_sweep", max_instances=1, replace_existing=True)
+            _scheduler.add_job(_tw_capture_sync.run_confirm, trigger=CronTrigger(hour=3, minute=25, timezone=_ET),
+                               id="notebook_tweet_capture_confirm", max_instances=1, replace_existing=True)
             print("[scheduler] tweet poll jobs registered")
 
         # -- The Desk -> Substack articles poller -------------------------------
         # Pulls each configured Substack RSS feed hourly. Free (no API cost), so
         # gated ON by default; set SUBSTACK_ENABLED=0 to disable.
+        _boot_mark("J8494")
         if os.environ.get("SUBSTACK_ENABLED", "1").lower() in ("1", "true", "yes"):
             from api.services.substack_poller import poll_all as _substack_poll
             _scheduler.add_job(_substack_poll, trigger=CronTrigger(minute="7", timezone=_ET),
@@ -8289,11 +9167,13 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_study_jobs.job_gen_detections,
                 trigger=CronTrigger(day_of_week="mon-fri", hour=2, minute=30, timezone=_ET),
                 id="study_gen_detections", max_instances=1, replace_existing=True)
-            threading.Thread(target=_study_jobs.job_weekly_close_catchup, daemon=True,
-                             name="study-weekly-close-catchup").start()
+            if not _light_skip("study-weekly-close-catchup"):
+                threading.Thread(target=_study_jobs.job_weekly_close_catchup, daemon=True,
+                                 name="study-weekly-close-catchup").start()
             # the Hard / Spot the Setup pool sweep, warmed once after boot so no member waits on it (study_jobs)
-            threading.Thread(target=_study_jobs.job_warm_hard_pool, daemon=True,
-                             name="study-hard-pool-warm").start()
+            if not _light_skip("study-hard-pool-warm"):
+                threading.Thread(target=_study_jobs.job_warm_hard_pool, daemon=True,
+                                 name="study-hard-pool-warm").start()
             print("[scheduler] study jobs registered (reminders */15, weekly close Sun 23:59 ET, "
                   "detections 02:30 ET weekdays; weekly-close catch-up on boot)")
         except Exception as e:
@@ -8346,6 +9226,20 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_earn_analysis_warm,
                 trigger=CronTrigger(day_of_week="mon-fri", hour="8,9,11,16,17,20", minute=35, timezone=_ET),
                 id="earnings_analysis_warm", max_instances=1, replace_existing=True)
+            # The preview warm's Batch lane collector (half-price previews). A no-op
+            # while nothing is pending; reaping is idempotent (the ledger row drops
+            # once collected), and every 10 min puts a result close to its finish.
+            def _reap_earnings_preview_batches():
+                try:
+                    from api.services import earnings_preview_warm as _epw
+                    out = _epw.reap_preview_batches()
+                    if out.get("batches"):
+                        print(f"[earn-warm] batch reaper {out}")
+                except Exception as exc:
+                    print(f"[earn-warm] batch reaper failed: {exc}")
+            _scheduler.add_job(_reap_earnings_preview_batches,
+                trigger=CronTrigger(minute="*/10", timezone=_ET),
+                id="earnings_preview_batch_reap", max_instances=1, replace_existing=True)
 
         # -- AI Search member briefings (2026-08-28) ------------------------
         # Standing questions ("brief me on CRM every morning") answered through
@@ -8547,6 +9441,7 @@ async def lifespan(app: FastAPI):
         # -- Morning Catalyst Digest (the brief reaches you) ---------------
         # One consolidated A/B brief pushed to operators at 8 AM ET weekdays
         # via Discord + email + AlertBell. Gated on CATALYST_DIGEST_ENABLED.
+        _boot_mark("J8899")
         if os.environ.get("CATALYST_DIGEST_ENABLED", "0").lower() in ("1", "true", "yes"):
             from api.services.catalyst.digest import send_digest as _cat_digest
             _scheduler.add_job(
@@ -8849,6 +9744,7 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[alert_remind] failed: {type(e).__name__}: {e}")
 
+        _boot_mark("J9201")
         _scheduler.add_job(
             _alert_remind_job,
             trigger=CronTrigger(minute="*/5", timezone=_ET),
@@ -9169,6 +10065,7 @@ async def lifespan(app: FastAPI):
         # so PER PREDICATE rather than letting a non-intersecting predicate
         # score as LEGACY_ONLY, which would read as "the new lane is missing
         # fires" for a question it was never able to be asked.
+        _boot_mark("J9521")
         if os.environ.get("ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED", "0") == "1":
             def _indicator_condition_dark_sweep_job():
                 try:
@@ -9307,9 +10204,9 @@ async def lifespan(app: FastAPI):
                            id="ssetf_nightly_rebuild", max_instances=1, replace_existing=True)
 
         # -- Daily OI snapshot for retroactive flow confirmation ----------
-        # Captures Schwab live OI for every contract with flow in the past
-        # 30 days. Runs at 5:30 AM ET -- well before market open, off-peak
-        # for Schwab API rate limits. Day-over-day OI deltas let us
+        # Captures open interest (from Massive) for every contract with flow in
+        # the past 30 days. Runs at 5:30 AM ET -- well before market open.
+        # Day-over-day OI deltas let us
         # retroactively confirm B-side trades as real positioning once
         # OI growth proves they were institutional opens (vs churn).
         try:
@@ -9325,11 +10222,11 @@ async def lifespan(app: FastAPI):
                 print("[startup] dealer_positioning table initialized")
             except Exception as _e:
                 print(f"[startup] dealer_positioning init failed (non-fatal): {_e}")
-            # Post-P5-cutover: the Schwab consumer + on-demand OI fetch + flow.db
+            # Post-P5-cutover: the OPRA consumer + on-demand OI fetch + flow.db
             # live on the FLOW-WORKER now, so the daily OI snapshot cron runs
             # THERE (see flow_worker_main._start_flow_schedulers). Registering it
-            # on web too would write to web's frozen flow.db AND refresh-race the
-            # shared Schwab token. Gate it to where the consumer runs.
+            # on web too would write to web's frozen flow.db. Gate it to where
+            # the consumer runs.
             if os.getenv("MASSIVE_WS_ENABLED") == "1":
                 # timezone EXPLICIT (2026-07-16): a pre-built CronTrigger defaults
                 # to the SERVER-LOCAL tz (UTC on Railway), NOT the scheduler's ET —
@@ -9473,6 +10370,7 @@ async def lifespan(app: FastAPI):
             max_instances=1,
             replace_existing=True,
         )
+        _boot_mark("J9825")
         _scheduler.add_job(
             _run_patterns_leaders_scan,
             trigger=IntervalTrigger(hours=1),
@@ -9774,6 +10672,7 @@ async def lifespan(app: FastAPI):
         # COV-07 / COV-09 (RM-L19): both jobs are ALWAYS registered and check their own
         # flag on every run (ESTIMATE_HISTORY_ENABLED / FILINGS_FEED_ENABLED), so arming
         # either one takes effect without a scheduler change and unset does nothing at all.
+        _boot_mark("J10126")
         try:
             from apscheduler.triggers.interval import IntervalTrigger as _FeedInterval
 
@@ -9804,6 +10703,7 @@ async def lifespan(app: FastAPI):
         # Research depth (lane gaps-research): each job is ALWAYS registered and checks its
         # own surface flag on every run, so arming takes effect without a scheduler change
         # and unset does nothing at all.
+        _boot_mark("S10203")
         try:
             def _filing_search_reindex_job():
                 from api.services import filing_search as _fs
@@ -9848,6 +10748,7 @@ async def lifespan(app: FastAPI):
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).
+        _boot_mark("S10247")
         try:
             from api.services import indicator_support_loop as _isl
             _scheduler.add_job(
@@ -9858,15 +10759,36 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] indicator support digest job registration failed (non-fatal): {e}")
 
-        _scheduler.start()
+        # Chart-data monitor dead-man (P0a): the worker-side synthetic monitor POSTs a heartbeat
+        # here after every cycle; this job pages ops once when the beats stop (chart_monitor/deadman.py).
+        _boot_mark("S10259")
+        try:
+            from api.services.chart_monitor import deadman as _cm_deadman
+            _cm_deadman.register(_scheduler)
+        except Exception as e:
+            print(f"[startup] chart monitor dead-man registration failed (non-fatal): {e}")
+
+        _boot_mark("S10265")
+        if _light_skip("apscheduler-jobs"):
+            _scheduler.start(paused=True)
+            print(f"[local-light] APScheduler started PAUSED: {len(_scheduler.get_jobs())} "
+                  "registered job(s) will not run")
+        else:
+            _scheduler.start()
+        _boot_mark("S10266")
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
+        _boot_mark("S10267")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")
+        _boot_mark("S10268")
         print("[startup] Churn risk check scheduled -- daily at 9:00 AM ET")
+        _boot_mark("S10269")
         print("[startup] MRR snapshot scheduled -- daily at 11:59 PM ET")
+        _boot_mark("S10270")
         if _compass_automation_on:
             print("[startup] Compass automation ENABLED -- proactive scans, daily focus, EOD recap, weekly digest scheduled")
         else:
             print("[startup] Compass automation PAUSED -- all scheduled Compass/voice jobs skipped; manual surfaces unaffected (set COMPASS_AUTOMATION_ENABLED=1 to resume)")
+        _boot_mark("S10274")
         print("[startup] Pattern engine jobs scheduled -- outcomes (4h interval), stats (06:00 UTC daily), universe scan (1h interval)")
 
         # -- Massive WebSocket consumer (Phase 1: feeds OptionsFlow page) ----
@@ -9876,9 +10798,10 @@ async def lifespan(app: FastAPI):
         # Set MASSIVE_WS_DRY_RUN=1 on first deploy to verify behavior without
         # writing to FlowDB; flip to 0 once /api/massive/status shows healthy
         # counters during market hours.
+        _boot_mark("S10283")
         try:
             from api.massive_ws_worker import start as _start_massive_ws
-            if _start_massive_ws():
+            if not _light_skip("massive-ws-consumer") and _start_massive_ws():
                 print("[startup] Massive WS consumer started")
             else:
                 print("[startup] Massive WS consumer not started (disabled or no MASSIVE_API_KEY)")
@@ -9891,6 +10814,7 @@ async def lifespan(app: FastAPI):
         # force-exits the process if flow.db inserts stop during market hours
         # (consumer loop wedged). Self-gated on MASSIVE_WS_ENABLED=1, so it's
         # a no-op whenever this service doesn't own the consumer.
+        _boot_mark("S10298")
         try:
             from api import flow_watchdog
             if flow_watchdog.start("web"):
@@ -9905,6 +10829,7 @@ async def lifespan(app: FastAPI):
         # if WS is locked out (e.g. max_connections), Flat Files still populates
         # the page each morning, so the manual /options-flow-admin upload can
         # be retired regardless of WS status.
+        _boot_mark("S10312")
         try:
             from api import massive_flatfiles_worker
             if massive_flatfiles_worker.register_jobs(_scheduler):
@@ -9917,15 +10842,23 @@ async def lifespan(app: FastAPI):
         # of live-flow write gaps from Massive's flat file. Ships dark
         # (FLOW_GAP_AUTOFILL_ENABLED=0); startup_check re-bumps the flow CSV
         # cache version after a recent fill (the offset is process-local).
+        _boot_mark("S10324")
         try:
             from api import flow_gap_autofill
-            flow_gap_autofill.startup_check()
+            # ⛔ OFF THE BOOT PATH (2026-11-12): measured 7.45 s of the pod's 19.8 s to serving (/api/health
+            # boot, segment S10324) — its archive prune scans flow_fill_archive (no index on archived_at) and
+            # its connection waits up to 30 s on flow.db's write lock. Every deploy is a gap for members
+            # until the pod serves, and nothing needs this before the first request: it is a once-per-boot
+            # cache-bust (a fill in the last 24 h) and a prune, both safe a few seconds later.
+            if not _light_skip("gap-fill-startup-check"):
+                threading.Thread(target=flow_gap_autofill.startup_check, name="gap-fill-startup-check", daemon=True).start()
             if flow_gap_autofill.register_jobs(_scheduler):
                 print("[startup] Flow gap-autofill cron registered (16:45/21:00/08:00 ET Mon-Fri)")
         except Exception as e:
             print(f"[startup] Flow gap-autofill registration failed (non-fatal): {e}")
         # Tape-spool gap sweeps (only where the spool/consumer runs; the module
         # gates itself on FLOW_TAPE_SPOOL/REPLAY_ENABLED).
+        _boot_mark("S10333")
         try:
             from api import flow_tape_spool
             if flow_tape_spool.register_jobs(_scheduler):
@@ -9935,6 +10868,7 @@ async def lifespan(app: FastAPI):
         # Nightly offsite backup of flow.db to R2 (deploy-survival B4). Ships
         # dark (FLOW_BACKUP_ENABLED=0); 02:30 ET Mon-Sat. flow.db currently has
         # backups only on the same volume = no corruption/loss recovery.
+        _boot_mark("S10342")
         try:
             from api import flow_backup
             if flow_backup.register_jobs(_scheduler):
@@ -9945,6 +10879,7 @@ async def lifespan(app: FastAPI):
         # the P1b screenshots feature). Ships dark (J2_ATTACHMENT_BACKUP_ENABLED=0);
         # 02:45 ET Mon-Sat. Attachments live only on the WEB volume = no recovery
         # path without this — which is why it registers in the web scheduler.
+        _boot_mark("S10352")
         try:
             from api import j2_attachments_backup
             if j2_attachments_backup.register_jobs(_scheduler):
@@ -9953,18 +10888,21 @@ async def lifespan(app: FastAPI):
             print(f"[startup] j2 attachments backup registration failed (non-fatal): {e}")
         # TERM-083 (FB-X1-02): nightly R2 backup of the member-authored stores no rail
         # above covers (community.db, charts_layouts.db, user_definitions.db, ...).
-        # Ships dark (STORE_BACKUP_ENABLED unset); 03:05 ET daily. The evidence is the
+        # Ships dark (STORE_BACKUP_ENABLED unset); 03:05 ET daily, plus a catch-up every
+        # two hours that finishes a run a release killed. The evidence is the
         # restore rehearsal, tools/store_restore.py --rehearse, never this job's exit.
+        _boot_mark("S10362")
         try:
             from api.services import store_backup
             if store_backup.register_jobs(_scheduler):
-                print("[startup] store backup registered (03:05 ET daily)")
+                print("[startup] store backup registered (03:05 ET daily + catch-up :35 odd hours)")
         except Exception as e:
             print(f"[startup] store backup registration failed (non-fatal): {e}")
         # Nightly closed-trade excursion (MFE/MAE/exit-efficiency) backfill
         # (Journal A+ Phase 2). Ships dark (EXCURSION_ENGINE_ENABLED=0);
         # 03:10 ET Mon-Sat. Idempotent (skips already-computed trade_refs);
         # commits per row so its writer locks on auth.db stay short.
+        _boot_mark("S10372")
         try:
             from api.services.journal_two import excursion_jobs
             if excursion_jobs.register_jobs(_scheduler):
@@ -9983,6 +10921,7 @@ async def lifespan(app: FastAPI):
         # (J2_ATTACHMENT_GC_ENABLED=0); 03:40 ET Mon-Sat, deliberately AFTER
         # the 02:45 attachments backup so the last pre-sweep tarball still
         # holds everything the sweep removes.
+        _boot_mark("S10390")
         try:
             from api.services.journal_two import attachment_gc
             if attachment_gc.register_jobs(_scheduler):
@@ -9994,6 +10933,7 @@ async def lifespan(app: FastAPI):
         # own docstring for why this is the one exception to the
         # dark-by-default convention above); 03:20 ET, before the 03:40
         # attachment GC.
+        _boot_mark("S10401")
         try:
             from api.services.journal_two import notes as _j2_notes
             if _j2_notes.register_trash_purge_job(_scheduler):
@@ -10005,6 +10945,7 @@ async def lifespan(app: FastAPI):
         # main purge reaches only once (user_definitions.db; the saved-indicator alert tables in
         # auth.db) and finishes a restore's pending tombstone replay. Cheap (indexed deletes, one
         # scrub pass) -- not a heavy job. ON by default; kill switch TOMBSTONE_SWEEP_ENABLED=0.
+        _boot_mark("S10412")
         try:
             from api.services import tombstone_sweep
             if tombstone_sweep.register_jobs(_scheduler):
@@ -10017,6 +10958,7 @@ async def lifespan(app: FastAPI):
         # pass, and a one-shot boot catch-up); its kill switch
         # NOTEBOOK_TASK_REMINDERS_ENABLED is read at every RUN, never here, so
         # flipping it needs no restart. Never email, never Discord.
+        _boot_mark("S10424")
         try:
             from api.services.journal_two import note_tasks as _j2_note_tasks
             if _j2_note_tasks.register_task_reminder_job(_scheduler):
@@ -10025,6 +10967,7 @@ async def lifespan(app: FastAPI):
             print(f"[startup] notebook task reminders registration failed (non-fatal): {e}")
         # Notebook widgets wave 9 (Task 9.9): optional routine reminders, one bell per routine per
         # ET day. Wave 9's flag is read at every RUN, never here. In-app bell only.
+        _boot_mark("S10432")
         try:
             from api.services.journal_two import routine_reminders as _j2_routine_reminders
             if _j2_routine_reminders.register_routine_reminder_job(_scheduler):
@@ -10034,6 +10977,7 @@ async def lifespan(app: FastAPI):
         # Tier 2 part B (R-T2B-2): Notebook earnings follow-up notices. The registrar wires 16:45 ET and
         # 18:00 ET mon-fri and a one-shot boot catch-up (always on: its flag was retired 2026-11-04).
         # In-app bell only.
+        _boot_mark("S10441")
         try:
             from api.services.journal_two import earnings_followup as _j2_followup
             if _j2_followup.register_followup_jobs(_scheduler):
@@ -10049,6 +10993,7 @@ async def lifespan(app: FastAPI):
         # max_instances=1 because two sweeps would race on the same members.
         # Cadence ruling: every 15 minutes (2,000 embeds per run caps a fully
         # armed pod at ~192k blocks/day). Rail: tests/test_notebook_semantic_sweep_registered.py.
+        _boot_mark("S10456")
         try:
             from api.services.journal_two import note_semantic as _j2_note_semantic
             _scheduler.add_job(_j2_note_semantic.sweep_job, "interval", minutes=15,
@@ -10070,6 +11015,7 @@ async def lifespan(app: FastAPI):
         # digest row. 600 s for the check, 3600 s for the digest, as the siblings do.
         # Rail: tests/test_notebook_slo.py pins both ids AND both graces (a pager
         # nobody schedules reads as coverage — the desk_session_audit lesson).
+        _boot_mark("J10430")
         try:
             from api.services.journal_two import notebook_slo as _j2_notebook_slo
             _scheduler.add_job(_j2_notebook_slo.scheduled_check,
@@ -10083,6 +11029,23 @@ async def lifespan(app: FastAPI):
             print("[startup] notebook SLO check registered (every 15 min) + digest (17:10 ET)")
         except Exception as e:
             print(f"[startup] notebook SLO registration failed (non-fatal): {e}")
+        # Desktop plan 5.1 -- desktop telemetry alerts: each new halt trigger (same crash or
+        # update error on 2+ machines, or a launch-failure loop) posts once to OPS, plus one
+        # digest a day after 07:00 ET. Never raises past the job; claims dedupe across pods.
+        try:
+            from api.services import desktop_events as _desktop_events
+            def _desktop_events_tick():
+                try:
+                    _desktop_events.alert_tick()
+                except Exception as _e:  # noqa: BLE001
+                    print(f"[desktop-event] alert tick failed: {_e}")
+            _scheduler.add_job(_desktop_events_tick,
+                               trigger=CronTrigger(minute=23, timezone=_ET),
+                               id="desktop_events_alerts", max_instances=1, coalesce=True,
+                               misfire_grace_time=1800, replace_existing=True)
+            print("[startup] desktop telemetry alerts registered (hourly at :23)")
+        except Exception as e:
+            print(f"[startup] desktop telemetry alerts registration failed (non-fatal): {e}")
         # Wave 13 lane 13G-1 -- the passed-setups nightly refresh: every member with a row has
         # new saves collected and open rows scored from the stored daily bars (no vendor call).
         # Never raises. 17:40 ET weekdays,
@@ -10102,9 +11065,14 @@ async def lifespan(app: FastAPI):
     # flow.db boot integrity probe (deploy-survival B4) — runs on EVERY web pod
     # in a daemon thread so a multi-second PRAGMA scan on the ~800MB DB never
     # delays healthcheck readiness. Alerts Discord on corruption.
+    _boot_mark("L10473")
     try:
         import threading as _thr
         def _flow_integrity_probe():
+            # ⚡ BOOT QUIET WINDOW (2026-11-12): a full PRAGMA scan held one core at 100%
+            # in the first 20 s of every boot, while members reconnect after the deploy
+            # gap. Corruption is still caught and alerted, 10 minutes later.
+            time.sleep(_BOOT_QUIET_S["flow_integrity_probe"])
             try:
                 from api import flow_backup
                 _fb = flow_backup.startup_integrity_check()
@@ -10112,8 +11080,9 @@ async def lifespan(app: FastAPI):
                     print(f"[startup] FLOW DB INTEGRITY FAILED: {_fb.get('detail')}")
             except Exception as _e:
                 print(f"[startup] flow.db integrity check failed (non-fatal): {_e}")
-        _thr.Thread(target=_flow_integrity_probe, name="flow-integrity-probe",
-                    daemon=True).start()
+        if not _light_skip("flow-integrity-probe"):
+            _thr.Thread(target=_flow_integrity_probe, name="flow-integrity-probe",
+                        daemon=True).start()
     except Exception as _e:
         print(f"[startup] flow.db integrity probe thread failed to start: {_e}")
 
@@ -10167,7 +11136,26 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         print(f"[startup] discord-render V2 runtime failed to start (non-fatal): {_e}")
 
+    try:
+        from api.services import local_light_mode as _light_mode
+        _light_mode.log_summary()   # one "[local-light] ON ..." line; silent when the flag is unset
+    except Exception as _e:
+        print(f"[startup] local-light summary failed (non-fatal): {_e}")
+    _boot_mark("ready"); _boot_log()
     yield
+    _shutdown_t0 = time.monotonic()  # the deploy gap includes this pod's shutdown (2026-11-12)
+    # stream-ingest remote mode: close the feed connection cleanly (a no-op in local mode).
+    try:
+        from api.services import feed_client as _feed_client_stop
+        await _feed_client_stop.stop_remote()
+    except Exception as e:
+        print(f"[shutdown] feed client stop failed (non-fatal): {type(e).__name__}")
+    # U5 (review L4): stop the capability detector process (a no-op when it never started)
+    try:
+        from api.services import pine_capability_worker as _pcw_stop
+        _pcw_stop.shutdown()
+    except Exception as e:
+        print(f"[shutdown] capability detector stop failed (non-fatal): {type(e).__name__}")
     try:
         trade_exchange_news_router.stop_background()
     except Exception as e:
@@ -10249,6 +11237,13 @@ async def lifespan(app: FastAPI):
             _vol_stop()
     except Exception:
         pass
+    _shutdown_s = round(time.monotonic() - _shutdown_t0, 1)
+    print(f"[shutdown] lifespan shutdown took {_shutdown_s}s (Railway starts the new pod only after this pod exits)")
+    try:  # the NEXT pod reports it in /api/health `boot.previous_shutdown_s` (this pod's own log is gone with it)
+        with open(os.path.join(os.environ.get("DATA_DIR") or "/data", "last_shutdown.json"), "w", encoding="utf-8") as _sf:
+            json.dump({"took_s": _shutdown_s, "at": time.time()}, _sf)
+    except Exception:  # noqa: BLE001 - observability never blocks a shutdown
+        pass
 
 # ⭐ OPEN_READS_GATE (api/open_reads_gate.py) — the staged gate over TERM-026's
 # anonymous reads. FastAPI's built-in /openapi.json, /docs, /docs/oauth2-redirect
@@ -10325,6 +11320,7 @@ def _is_gzip_exempt(path: str) -> bool:
         or path == "/api/trade-exchange-news/stream"     # Trade Exchange News SSE
         or path == "/api/ai-search/stream"               # AI Search token stream
         or path == "/api/agent/turn/stream"              # UCT Agent turn (answer streaming)
+        or path == "/api/agent/turn/resume"              # UCT Agent turn resumed after an approval card (same SSE)
         or path == "/api/j2/ask/stream"                  # unified Ask token stream
         or (path.startswith("/api/j2/notes/") and path.endswith("/ask/stream"))  # legacy Ask Current Note URL
         or (path.startswith("/api/j2/notes/") and path.endswith("/writing-help/stream"))  # wave 7 editor writing help (SSE)
@@ -10362,6 +11358,11 @@ app.add_middleware(_GZipSkipSSE, minimum_size=1000, compresslevel=5)
 # the single path `/api/breadth-monitor` — see the module docstring.
 from api.services.breadth_timing import BreadthTimingMiddleware as _BreadthTiming  # noqa: E402
 app.add_middleware(_BreadthTiming)
+# OUTERMOST OF ALL (added last): time to first byte for every request, by route class, plus a
+# once-a-second reading of the thread limiter. Pure ASGI and it passes every message through
+# untouched, so a stream is never buffered. Kill switch REQUEST_TIMING_ENABLED=0. See the module.
+from api.services.request_timing import RequestTimingMiddleware as _RequestTiming  # noqa: E402
+app.add_middleware(_RequestTiming)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -10387,6 +11388,86 @@ def _process_rss_mb():
     return None
 
 
+_BUILD_ID_CACHE = None  # None = not read yet; "" = read, nothing usable
+
+
+def _bundle_build_id() -> str:
+    """The SPA entry bundle path (e.g. ``assets/index-abc123.js``), read once.
+
+    Source: the ``isEntry`` row for ``index.html`` in ``<DIST>/.vite/manifest.json``
+    (``DIST`` is the same ``app/dist`` the SPA catch-all serves index.html from).
+    Normalised to no leading slash so it equals ``getClientBuildId`` on the page.
+    Railway's healthcheck calls this: it caches the first answer, and returns ""
+    on ANY failure -- it must never raise.
+    """
+    global _BUILD_ID_CACHE
+    cached = _BUILD_ID_CACHE
+    if cached is not None:
+        return cached
+    result = ""
+    try:
+        # The manifest has ONE reader (api/services/build_manifest.py), shared with any
+        # process that serves the built frontend without running this API.
+        from api.services import build_manifest as _build_manifest
+
+        result = _build_manifest.entry_build_id(DIST)
+    except Exception:
+        result = ""
+    _BUILD_ID_CACHE = result
+    return result
+
+
+_EARLY_HINTS_CACHE = None  # None = not read yet; "" = read, nothing usable
+
+
+def early_hint_link_header() -> str:
+    """The `Link` header for index.html (desktop speed plan 10.3), read once from the build manifest.
+
+    Cloudflare has Early Hints ON (zone setting `early_hints`): it remembers the Link
+    preloads on a page's response and sends them as a 103 before the next request's page
+    arrives, so the browser starts the entry script, its two vendor chunks and the CSS while
+    the HTML is still on its way (about one round trip sooner on a first visit; repeat visits
+    already have these immutable files cached). Every hint carries `crossorigin` because
+    index.html loads each of them with `crossorigin`: a hint whose mode differs is fetched
+    TWICE. Returns "" on any failure; the page is served the same either way.
+    """
+    global _EARLY_HINTS_CACHE
+    cached = _EARLY_HINTS_CACHE
+    if cached is not None:
+        return cached
+    result = ""
+    try:
+        from api.services import build_manifest as _build_manifest
+
+        result = _build_manifest.early_hint_link(DIST)
+    except Exception:
+        result = ""
+    _EARLY_HINTS_CACHE = result
+    return result
+
+
+def _deployed_commit() -> str:
+    """The commit this process was deployed from (Railway sets it), or ""."""
+    return os.environ.get("RAILWAY_GIT_COMMIT_SHA") or ""
+
+
+@app.get("/build.json", include_in_schema=False)
+def build_json():
+    """The FRONTEND's identity: `{"build_id": "assets/index-<hash>.js", "commit": "<sha>"}`.
+
+    The page's update watcher asks this, not `/api/health`, which build is current
+    (`fetchBuildSafe`, app/src/lib/buildVersion.js). Today both answers name the same
+    build, because this process serves the frontend it was built with. They are separate
+    questions so that they can have separate answers: whichever process serves the built
+    frontend answers this one. `no-store` because a cached answer is a wrong answer, and
+    registered here, ahead of the SPA catch-all, which would otherwise hand back index.html.
+    """
+    return JSONResponse(
+        {"build_id": _bundle_build_id(), "commit": _deployed_commit()},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.get("/api/health")
 def health():
     from api.services.cache import cache
@@ -10396,10 +11477,27 @@ def health():
         "status": "ok",
         "wire_date": wire_date,
         "uptime_seconds": int(time.time() - _APP_BOOT_TS),
+        "boot": _boot_summary(),
         # Pod resource observability (2026-06-09 thread-exhaustion incident).
         "thread_count": threading.active_count(),
         "rss_mb": _process_rss_mb(),
+        # The frontend this process was built with. The update watcher reads /build.json
+        # first and falls back to this.
+        "build_id": _bundle_build_id(),
+        # The commit this process runs, so a frontend release can wait for its backend.
+        "commit": _deployed_commit(),
+        # The background lane (api/services/bg_lane.py): knobs in force and, per sweep, items run,
+        # busy/paused seconds and when its first and latest item ran. Counters only.
+        "bg_lane": _bg_lane_stats(),
     }
+
+
+def _bg_lane_stats() -> dict:
+    try:
+        from api.services import bg_lane
+        return bg_lane.stats()
+    except Exception as e:  # noqa: BLE001 - observability never fails the health check
+        return {"error": type(e).__name__}
 
 
 @app.get("/api/ready")
@@ -10543,12 +11641,21 @@ def health_cache(_admin: dict = Depends(require_admin)):
     comment above `/api/health/threads`."""
     from api.services.data_sync import get_local_sync_state
     state = get_local_sync_state()
-    return {
+    out = {
         "use_remote_bars": os.environ.get("USE_REMOTE_BARS") == "1",
         "snapshot_ts": state["snapshot_ts"],
         "synced_at": state["synced_at"],
         "seconds_since_sync": state["seconds_since_sync"],
     }
+    # 2026-11-13: the RS envelope store's counters since boot (hits, misses, writes,
+    # dropped, skipped, evicted, and the volume's free bytes at its last sweep). In-memory
+    # counters only: this read opens no file.
+    try:
+        from api.services.signature import rs_store
+        out["rs_envelope_store"] = rs_store.stats()
+    except Exception:                                  # noqa: BLE001 — a health read never fails on a counter
+        pass
+    return out
 
 from api import debug_dump_router as _debug_dump_router
 app.include_router(_debug_dump_router.router)
@@ -10652,6 +11759,10 @@ if os.environ.get("SCREEN_BACKTEST_ENABLED", "0") == "1":
 # unset = off = nobody), before the plan gate and before any read. No flag of its own.
 from api.routers import pine_strategy_backtest as pine_strategy_backtest_router
 app.include_router(pine_strategy_backtest_router.router)
+# W9-T11-F1 -- the chart lane's strategy window (design 3.4 "The chart", section 9 item 6): a
+# signed-in read of `bars_window.HISTORY_WINDOW_BARS`. Asked only by a build with the broker gate on.
+from api.routers import pine_history_window as pine_history_window_router
+app.include_router(pine_history_window_router.router)
 # RETIRED 2026-08-09 -- the /api/trades personal trade log was deprecated
 # 2026-06-02 when Model Book was rebuilt as a curated library of top stocks
 # (api/routers/modelbook.py). It was kept unmounted as a rollback backup on a
@@ -10736,6 +11847,11 @@ app.include_router(alerts_router.router)
 # (lane F's report; rail tests/test_main_router_order.py).
 app.include_router(notebook_insights_router.router)
 app.include_router(client_errors_router.router)
+# Desktop plan 5.1: the desktop shell's enum-only telemetry door (session optional) + admin read.
+app.include_router(desktop_events_router.router)
+app.include_router(perf_beacon_router.router)
+# Speed and reliability plan item 1: admin read of the per-request and thread-pool timing record.
+app.include_router(request_timing_router.router)
 # Wave 9 lane 9C (controller wiring): GET /api/admin/notebook-soak -- the soak's
 # one admin read (ruling D-9C2). Must precede the SPA catch-all like every /api route.
 app.include_router(notebook_soak_router.router)
@@ -10792,6 +11908,7 @@ app.include_router(notebook_entry_context_router.router)
 # so mount order against journal_two does not matter.
 app.include_router(notebook_research_capture_router.transcripts_router)
 app.include_router(notebook_research_capture_router.passed_router)
+app.include_router(notebook_tweet_capture_router.tweets_router)
 
 # Wave 13 lane 13G-2: thesis chips. Outside
 # /api/j2/notes/..., so mount order against journal_two does not matter.
@@ -10899,6 +12016,8 @@ app.include_router(admin_twitter_router.router)
 app.include_router(admin_purge_router.router)
 app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
+app.include_router(admin_llm_usage_router.router)
+app.include_router(admin_llm_usage_router.internal_router)  # PUSH_SECRET ingest from other services / sibling repos
 app.include_router(provider_coverage_router.router, dependencies=_OPEN_READS)  # /api/admin/provider-coverage — Task 22/23
 app.include_router(fmp_adapter_status_router.router, dependencies=_OPEN_READS)  # /api/admin/fmp-adapter-status — D1 §7.3
 app.include_router(massive_adapter_status_router.router, dependencies=_OPEN_READS)  # /api/admin/massive-adapter-status — D1 §7.3
@@ -10996,10 +12115,14 @@ from api.routers import alert_outbound as alert_outbound_router  # noqa: E402  (
 app.include_router(alert_outbound_router.router)
 from api.routers import screen_promote as screen_promote_router  # noqa: E402  (FT-027, dark)
 app.include_router(screen_promote_router.router)
+from api.routers import list_alerts as list_alerts_router  # noqa: E402  (Terminal list alerts, dark)
+app.include_router(list_alerts_router.router)
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
 app.include_router(screener_nl_router.router)
+from api.routers import screener_layout_gallery as screener_layout_gallery_router  # noqa: E402  (community scan-board layouts, dark)
+app.include_router(screener_layout_gallery_router.router)
 from api.routers import uct_agent as uct_agent_router  # noqa: E402  (UCT Agent, admin-dark)
 app.include_router(uct_agent_router.router)
 app.include_router(expected_move_router.router)
@@ -11010,6 +12133,7 @@ app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/con
 app.include_router(desk_zoom_webhook_router.router)
 app.include_router(tsdr_lessons_router.router)
 app.include_router(media_evidence_bridge_router.router)  # Phase 4D-4C /api/internal/media-evidence/* -- PUSH_SECRET bearer, uct-clips consumer
+app.include_router(chart_monitor_heartbeat_router.router)  # P0a /api/internal/chart-monitor/* -- PUSH_SECRET bearer, worker chart monitor heartbeat
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
 app.include_router(what_else_open_router.router)  # TERM-093 /api/instruments/what-else-open/* + admin read -- admin-only, DARK (WHAT_ELSE_OPEN_CAPTURE_ENABLED)
 # UCT Wisdom Loop routers (docs/wisdom/CONTRACTS.md §2.2): /api/admin/wisdom/<pkg>/* (require_admin on
@@ -13191,14 +14315,7 @@ def serve_indexes_csv():
     return _csv_response(os.path.join(PUBLIC, "Indexes-data.csv"), "Indexes-data.csv")
 
 # --- Serve React build (JS/CSS assets + SPA fallback) ------------------------
-class _ImmutableStaticFiles(StaticFiles):
-    async def get_response(self, path, scope):
-        response = await super().get_response(path, scope)
-        if response.status_code == 200:
-            response.headers["Cache-Control"] = (
-                "public, max-age=31536000, immutable, no-transform"
-            )
-        return response
+from api.services.static_assets import ImmutableStaticFiles as _ImmutableStaticFiles  # noqa: E402
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 
@@ -13247,6 +14364,9 @@ def spa_index_response(full_path: str):
     it from a temp DIST; `spa_fallback` below is exactly `return spa_index_response(...)`
     (tests/test_public_note_headers.py pins that by AST)."""
     headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    hints = early_hint_link_header()
+    if hints:
+        headers["Link"] = hints
     if is_public_note_path(full_path):
         headers.update(PUBLIC_NOTE_HEADERS)
     return FileResponse(os.path.join(DIST, "index.html"), headers=headers)

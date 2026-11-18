@@ -38,7 +38,7 @@ export class CaptureRequestError extends Error {
   }
 }
 
-async function call(url, { method = 'GET', body } = {}) {
+export async function call(url, { method = 'GET', body } = {}) {
   const res = await fetch(url, {
     method,
     credentials: 'include',

@@ -1,0 +1,4074 @@
+{
+ "unit": "V.13",
+ "track": "V",
+ "title": "Process words",
+ "teaches": "The words for running your trading as a process: trading plan, watchlist, entry and exit rules, routine, journal, review, playbook and report card; process versus outcome and resulting; and the numbers a journal gives you: win rate, average win, payoff ratio, profit factor, expectancy, sample size, backtests and paper trading.",
+ "skills": [
+  {
+   "id": "vocab.process_terms",
+   "title": "Process words"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Trading plan (Fidelity Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "5 Elements of a Smart Trade Plan",
+   "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Skills for successful retail traders",
+   "url": "https://www.schwab.com/learn/story/3-smart-skills-informed-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "How Active Traders Approach and Track the Market",
+   "url": "https://www.schwab.com/learn/story/how-active-traders-approach-and-track-market",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Research Help: Using Watch Lists",
+   "url": "https://www.fidelity.com/webcontent/ap010098-etf-content/19.07.0/help/research/learn_er_watch_lists.shtml",
+   "accessed": "2026-11-09",
+   "why_reliable": "Fidelity's own help page for its watch list tool (an archived help-centre version, still served by fidelity.com)."
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "About Strategy Testing (backtesting glossary)",
+   "url": "https://www.fidelity.com/research/backtesting/glossary.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "SystemTrader: Key Performance Metrics, Quantifying the Golden Cross for the S&P 500 (Arthur Hill, 2016)",
+   "url": "https://articles.stockcharts.com/article/articles-arthurhill-2016-06-trading-strategy---crossing-to-the-dark-side---quantifying-the-golden-cross-for-the-sp-500/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A StockCharts.com article by Arthur Hill, CMT, long-time StockCharts technical analyst (author bio on the page); tests run with Cesar Alvarez, former Director of Research at Connors Research."
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "Resources for Developing Your Trading Playbook (2018-01)",
+   "url": "https://traderfeed.blogspot.com/2018/01/resources-for-developing-your-trading.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "Common Mistakes I See Traders Making (2019-08)",
+   "url": "https://traderfeed.blogspot.com/2019/08/common-mistakes-i-see-traders-making.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "Becoming an Evidence-Based Trader (2017-06)",
+   "url": "https://traderfeed.blogspot.com/2017/06/becoming-evidence-based-trader.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "How To Be Your Own Trading Coach (2016-01)",
+   "url": "https://traderfeed.blogspot.com/2016/01/how-to-be-your-own-trading-coach.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "Three Common Mistakes Traders Make With Their Trading Reviews (2020-07)",
+   "url": "https://traderfeed.blogspot.com/2020/07/three-common-mistakes-traders-make-with.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "Using Trading Journals to Improve Trading Performance (2008-03)",
+   "url": "https://traderfeed.blogspot.com/2008/03/using-trading-journals-to-improve.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "Goal Setting for Traders: What Works (2007-09)",
+   "url": "https://traderfeed.blogspot.com/2007/09/goal-setting-for-traders-what-works.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "Trading With A Plan: The Importance of Intentionality (2008-12)",
+   "url": "https://traderfeed.blogspot.com/2008/12/trading-with-plan-importance-of.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "Best Practices in Trading: Scenario-Based Preparation (2015-02)",
+   "url": "https://traderfeed.blogspot.com/2015/02/best-practices-in-trading-scenario.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "Learning How To Lose (2021-02)",
+   "url": "https://traderfeed.blogspot.com/2021/02/learning-how-to-lose.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "How Do You Know You Have A Trading Edge? (2007-10)",
+   "url": "https://traderfeed.blogspot.com/2007/10/how-do-you-know-you-have-trading-edge.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "A Technique to Supercharge Your Trading Business (2017-06)",
+   "url": "https://traderfeed.blogspot.com/2017/06/a-technique-to-supercharge-your-trading.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "The Key to Breaking Trading Slumps (2008-01)",
+   "url": "https://traderfeed.blogspot.com/2008/01/key-to-breaking-trading-slumps.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "How You Make a Change is as Important as the Change You Make (2018-01)",
+   "url": "https://traderfeed.blogspot.com/2018/01/how-you-make-change-is-as-important-as.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "Peak Performance Principles (2026-10)",
+   "url": "https://traderfeed.blogspot.com/2026/10/peak-performance-principles.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Brett N. Steenbarger, TraderFeed",
+   "title": "Five Principles of Growth and Development for Traders (2007-08)",
+   "url": "https://traderfeed.blogspot.com/2007/08/five-principles-of-growth-and.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, PhD, is a trading psychologist and performance coach to hedge funds and prop firms, author of The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach and Trading Psychology 2.0 (Wiley), all named in the contract's Tier 2 list. TraderFeed is his own signed blog (author bio on every page)."
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "SMB Capital (Mike Bellafiore)",
+   "title": "The education of a trader: The PlayBook (2015-04-26)",
+   "url": "https://www.smbtraining.com/blog/the-education-of-a-trader-the-playbook",
+   "accessed": "2026-11-09",
+   "why_reliable": "Mike Bellafiore co-founded the proprietary trading firm SMB Capital and wrote The PlayBook (FT Press). Signed posts on SMB's own training blog, author 'Bella' (his byline there); Steenbarger's TraderFeed cites the same posts as Bellafiore's."
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "SMB Capital (Mike Bellafiore)",
+   "title": "I trade well when..... (2016-11-02)",
+   "url": "https://www.smbtraining.com/blog/i-trade-well-when",
+   "accessed": "2026-11-09",
+   "why_reliable": "Mike Bellafiore co-founded the proprietary trading firm SMB Capital and wrote The PlayBook (FT Press). Signed posts on SMB's own training blog, author 'Bella' (his byline there); Steenbarger's TraderFeed cites the same posts as Bellafiore's."
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "SMB Capital (Mike Bellafiore)",
+   "title": "Post your Daily Report Card and not just your PnL (2017-12-29)",
+   "url": "https://www.smbtraining.com/blog/the-biggest-spark-for-our-trading-improvement-in-2017",
+   "accessed": "2026-11-09",
+   "why_reliable": "Mike Bellafiore co-founded the proprietary trading firm SMB Capital and wrote The PlayBook (FT Press). Signed posts on SMB's own training blog, author 'Bella' (his byline there); Steenbarger's TraderFeed cites the same posts as Bellafiore's."
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "SMB Capital (Mike Bellafiore)",
+   "title": "Do Not Sell This Position (2013-09-06; Bellafiore's answer to a reader)",
+   "url": "https://www.smbtraining.com/blog/do-not-sell-this-position",
+   "accessed": "2026-11-09",
+   "why_reliable": "Mike Bellafiore co-founded the proprietary trading firm SMB Capital and wrote The PlayBook (FT Press). Signed posts on SMB's own training blog, author 'Bella' (his byline there); Steenbarger's TraderFeed cites the same posts as Bellafiore's."
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "SMB Capital (Mike Bellafiore)",
+   "title": "Your Monthly Trading Review (An Example) (2011-05-02)",
+   "url": "https://www.smbtraining.com/blog/your-monthly-trading-review-an-example",
+   "accessed": "2026-11-09",
+   "why_reliable": "Mike Bellafiore co-founded the proprietary trading firm SMB Capital and wrote The PlayBook (FT Press). Signed posts on SMB's own training blog, author 'Bella' (his byline there); Steenbarger's TraderFeed cites the same posts as Bellafiore's."
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "Nautilus",
+   "title": "The Resulting Fallacy Is Ruining Your Decisions (Annie Duke interviewed by Stuart Firestein, 2017-11-30)",
+   "url": "https://nautil.us/the-resulting-fallacy-is-ruining-your-decisions-236901/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Nautilus is an established science magazine; the interviewer is a Columbia University neuroscience professor. Annie Duke is a former professional poker champion with a cognitive psychology background and author of Thinking in Bets (Penguin, 2018); the quotes are her own words."
+  },
+  {
+   "id": "s30",
+   "tier": 2,
+   "publisher": "The Philadelphia Inquirer",
+   "title": "Annie Duke, former World Poker champ, says it's ok to say 'I don't know' (Erin Arvedlund, 2018-05-29; reprinted on annieduke.com)",
+   "url": "https://www.annieduke.com/annie-duke-former-world-poker-champ-says-its-ok-to-say-i-dont-know/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A Philadelphia Inquirer article (byline Erin Arvedlund, dated 2018-05-29 on the page), reprinted on the author's own site; the quoted lines are Duke's words or the reporter's summary of her book."
+  },
+  {
+   "id": "s31",
+   "tier": 2,
+   "publisher": "Annie Duke (annieduke.com), reposting The Learner Lab",
+   "title": "Overcoming Outcome Bias: How to Improve Learning & Decision Making (The Learner Lab episode page, host Trevor Ragan, 2023-06-06)",
+   "url": "https://www.annieduke.com/overcoming-outcome-bias-how-to-improve-learning-decision-making-ft-annie-duke-ovul-sezer/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Annie Duke's own site, reposting The Learner Lab's episode page (host Trevor Ragan) that features Duke and Övül Sezer (Cornell). The quoted line is the show's description, not Duke's own words, and is cited only as a supporting definition beside the Baron and Hershey paper (s40)."
+  },
+  {
+   "id": "s32",
+   "tier": 2,
+   "publisher": "Harvard Business Review",
+   "title": "Performing a Project Premortem (Gary Klein, September 2007)",
+   "url": "https://hbr.org/2007/09/performing-a-project-premortem",
+   "accessed": "2026-11-09",
+   "why_reliable": "Harvard Business Review; Gary Klein is the research psychologist who devised the premortem (Klein Associates). Only the summary line on the page is quoted."
+  },
+  {
+   "id": "s33",
+   "tier": 2,
+   "publisher": "Technical Analysis of Stocks & Commodities",
+   "title": "Developing Discipline With Daily Debriefing (Van K. Tharp, PhD, January 2007; excerpt)",
+   "url": "https://traders.com/Documentation/FEEDbk_docs/2007/01/Abstracts_new/Tharp/tharp.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "The magazine's own excerpt of a signed article by Van K. Tharp, PhD, the trading coach who popularised R-multiples and expectancy (Trade Your Way to Financial Freedom). Only his definitions are cited, not his return claims."
+  },
+  {
+   "id": "s34",
+   "tier": 2,
+   "publisher": "Interactive Brokers (IBKR Campus)",
+   "title": "Paper Trading vs Live Trading: What's the Difference?",
+   "url": "https://www.interactivebrokers.com/campus/trading-lessons/paper-trading-vs-live-trading-whats-the-difference/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A broker education page about the broker's own paper trading account."
+  },
+  {
+   "id": "s35",
+   "tier": 1,
+   "publisher": "SEC rule text, eCFR (17 CFR 275.206(4)-1(e)(8))",
+   "title": "Investment adviser marketing: definition of hypothetical performance",
+   "url": "https://www.ecfr.gov/current/title-17/chapter-II/part-275/section-275.206(4)-1",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s36",
+   "tier": 1,
+   "publisher": "CFTC rule text, eCFR (17 CFR 4.41(b))",
+   "title": "Advertising by CPOs and CTAs: the required statement on simulated or hypothetical results",
+   "url": "https://www.ecfr.gov/current/title-17/chapter-I/part-4/subpart-C/section-4.41",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s37",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s38",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Study: the trade plan for every setup, The levels",
+   "url": "repo:docs/study/TRADE_PLANS.md#the-levels",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s39",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Owner principles, B. Teaching, rule 8 (owner quoted)",
+   "url": "repo:docs/study/OWNER_PRINCIPLES.md#b-teaching",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s40",
+   "tier": 2,
+   "publisher": "Journal of Personality and Social Psychology (Jonathan Baron and John C. Hershey)",
+   "title": "Outcome Bias in Decision Evaluation (1988, Vol. 54, No. 4, 569-579)",
+   "url": "https://www.sas.upenn.edu/~baron/papers/outcomebias.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed paper in an American Psychological Association journal by two University of Pennsylvania decision scientists; the PDF is the first author's own copy on his university site."
+  },
+  {
+   "id": "s41",
+   "tier": 2,
+   "publisher": "TradingView",
+   "title": "Average profit / average loss (Help Center, Strategy report metrics)",
+   "url": "https://www.tradingview.com/support/solutions/43000681719-average-profit-average-loss/",
+   "accessed": "2026-11-09",
+   "why_reliable": "TradingView's own Help Center page defining a metric in its Strategy Tester report: the charting platform documenting its own calculation, as Fidelity's glossary (s6) does for its backtester."
+  },
+  {
+   "id": "s42",
+   "tier": 2,
+   "publisher": "Frontiers for Young Minds (Paul J. McCarthy and Sumit Gupta)",
+   "title": "Set Goals to Get Goals: Sowing Seeds for Success in Sports (2022-03-30)",
+   "url": "https://kids.frontiersin.org/articles/10.3389/frym.2022.684422",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed Frontiers journal article by sport and exercise psychologists at Glasgow Caledonian University (McCarthy directs its taught doctorate in sport and exercise psychology)."
+  },
+  {
+   "id": "s43",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: R Multiple",
+   "url": "https://vantharpinstitute.com/glossary/r-multiple",
+   "accessed": "2026-11-09",
+   "why_reliable": "The institute founded by Van K. Tharp, PhD, who popularised R-multiples; its own glossary definition (also cited in F9.03 and V.06)."
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "A trading plan is your strategy for tactically buying and selling assets like stocks, bonds, exchange-traded funds (ETFs), and other investments.",
+   "claim": "A trading plan is your strategy for buying and selling."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "In short, trading plans help remove some of the emotion and guesswork from your trading decision-making.",
+   "claim": "A trading plan takes some of the emotion and guesswork out of trading decisions."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "Once you've finalized what investments you want to buy, you have to decide when to buy and sell. In trading terms, these are known as your entry and exit strategies.",
+   "claim": "Deciding when to buy and sell is called your entry and exit strategy."
+  },
+  {
+   "id": "f04",
+   "source": "s1",
+   "quote": "It's important to determine this process before you start investing so you aren't making spur-of-the-moment choices based on temporary market peaks or valleys.",
+   "claim": "Set the process before you trade, so you aren't making spur-of-the-moment choices."
+  },
+  {
+   "id": "f04b",
+   "source": "s1",
+   "quote": "You'll also want to determine what percentage of your investable funds will be devoted to each asset type.",
+   "claim": "A trading plan also settles how much of your money goes into each kind of asset."
+  },
+  {
+   "id": "f05",
+   "source": "s1",
+   "quote": "You shouldn't alter a trading plan as a knee-jerk reaction to temporary market events, like when stock prices take a dive.",
+   "claim": "Don't change a trading plan as a knee-jerk reaction to a market drop."
+  },
+  {
+   "id": "f06",
+   "source": "s1",
+   "quote": "You may wish to change your trading plan over time. Market conditions, your financial situation, and your financial goals change, and you may want to amend your trading plan to reflect that.",
+   "claim": "Plans can be amended over time as market conditions and your goals change."
+  },
+  {
+   "id": "f06b",
+   "source": "s1",
+   "quote": "And even if you decide to alter your original plan, make sure you devise a replacement to guide your trading.",
+   "claim": "If you change your plan, write a replacement to guide your trading."
+  },
+  {
+   "id": "f07",
+   "source": "s2",
+   "quote": "Professional traders live by maxims, and one of the big ones is \"Plan your trade and trade your plan.\"",
+   "claim": "A traders' maxim: plan your trade and trade your plan."
+  },
+  {
+   "id": "f08",
+   "source": "s2",
+   "quote": "A trade boils down to a series of decisions about what to trade, how much to trade, when to enter, and when to exit.",
+   "claim": "Every trade comes down to four decisions: what, how much, when to enter, when to exit."
+  },
+  {
+   "id": "f09",
+   "source": "s2",
+   "quote": "A watchlist is a list of securities you're interested in trading because they meet certain criteria.",
+   "claim": "A watchlist is a list of securities you want to trade because they meet your criteria."
+  },
+  {
+   "id": "f09b",
+   "source": "s2",
+   "quote": "For example, criteria for a bullish stock trade could include: Stocks in an uptrend on a daily stock chart.",
+   "claim": "One example of a watchlist criterion: stocks in an uptrend on the daily chart."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "Determining your entry rules before you buy reduces the guesswork when deciding when to enter a trade.",
+   "claim": "Setting entry rules before you buy takes the guesswork out of when to enter."
+  },
+  {
+   "id": "f10b",
+   "source": "s2",
+   "quote": "after it shows certain entry signals, such as: A bounce off support or a breakout from resistance. A breakout of a basing pattern on a daily chart. A price that closes above a 200-day simple moving average.",
+   "claim": "Examples of entry signals include a breakout from a base and a close above the 200-day moving average."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "Before placing a trade, you also want to specify when and how you'll close it out.",
+   "claim": "Decide when and how you'll close the trade before you place it."
+  },
+  {
+   "id": "f12",
+   "source": "s2",
+   "quote": "creating a trade plan can give you a tool for keeping a cool head as you build and reshape positions when markets are on the move.",
+   "claim": "A trade plan helps you keep a cool head when markets move."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "Closing out the trade isn't the final step; instead, you need to evaluate your results.",
+   "claim": "After you close a trade, evaluate the result."
+  },
+  {
+   "id": "f14",
+   "source": "s2",
+   "quote": "Record your trades in a trading journal. Review your activities at the end of the month or quarter, and ask yourself the following questions: Were my entries, stops, and exits performed effectively?",
+   "claim": "Record trades in a journal and review them, asking whether entries, stops and exits were done well."
+  },
+  {
+   "id": "f15",
+   "source": "s2",
+   "quote": "Also, track your trading history to calculate your theoretical trade expectancy, meaning your average gain (or loss) per trade.",
+   "claim": "Expectancy is your average gain or loss per trade, calculated from your trade history."
+  },
+  {
+   "id": "f16",
+   "source": "s2",
+   "quote": "You can calculate a win/loss ratio by determining the percentage of your trades that have been profitable versus those that haven't.",
+   "claim": "Schwab uses 'win/loss ratio' for the percentage of your trades that were profitable."
+  },
+  {
+   "id": "f17",
+   "source": "s2",
+   "quote": "How did your trade perform relative to your trade plan, portfolio size, and a market benchmark like the S&P 500® index (SPX)?",
+   "claim": "Judge a closed trade against your plan, your portfolio and a benchmark."
+  },
+  {
+   "id": "f18",
+   "source": "s2",
+   "quote": "Paying attention to your performance and tracking it over time can show you what you're doing that works and help you get better results over time.",
+   "claim": "Tracking your performance over time shows what works for you."
+  },
+  {
+   "id": "f19",
+   "source": "s3",
+   "quote": "Disciplined traders take risk management seriously. They plan every trade, keeping notes in a spreadsheet or trading journal",
+   "claim": "Disciplined traders plan every trade and keep notes in a spreadsheet or trading journal."
+  },
+  {
+   "id": "f20",
+   "source": "s3",
+   "quote": "Working with a trading plan helps retail and professional traders consider every aspect of a trade before they place it.",
+   "claim": "A trading plan makes you think through every part of a trade before you place it."
+  },
+  {
+   "id": "f21",
+   "source": "s3",
+   "quote": "allows users to engage in simulated trading with hypothetical funds using live market data.",
+   "claim": "Schwab's paper trading tool is simulated trading with hypothetical money and live data."
+  },
+  {
+   "id": "f22",
+   "source": "s3",
+   "quote": "Simulated performance does not ensure success in a live environment.",
+   "claim": "Simulated results don't ensure success with real money."
+  },
+  {
+   "id": "f23",
+   "source": "s4",
+   "quote": "Having a routine doesn't make you immune from losing money, but it can help prevent mistakes like chasing parts of the market you're not familiar with or trying to do too much at once.",
+   "claim": "A routine won't stop all losses, but it helps prevent mistakes like chasing unfamiliar stocks."
+  },
+  {
+   "id": "f24",
+   "source": "s4",
+   "quote": "Then check any economic data out before the open and see how it moves the futures market.",
+   "claim": "A pre-open step: check economic data released before the open."
+  },
+  {
+   "id": "f25",
+   "source": "s4",
+   "quote": "When you arrive at your desk, have a sense of the previous day's activity. Review the charts of major indexes to know what sort of market you're in.",
+   "claim": "A pre-open step: review the major index charts to know what kind of market you're in."
+  },
+  {
+   "id": "f26",
+   "source": "s4",
+   "quote": "Peterson recommended spending time paper trading and monitoring how you deal with losses before trying it for real.",
+   "claim": "Paper trade first and watch how you handle losses before trading real money."
+  },
+  {
+   "id": "f28",
+   "source": "s5",
+   "quote": "A watch list is a list of securities you want to track.",
+   "claim": "A watch list is a list of securities you want to track."
+  },
+  {
+   "id": "f29",
+   "source": "s6",
+   "quote": "Profit Factor is the system's Gross Profit divided by Gross Loss.",
+   "claim": "Profit factor is gross profit divided by gross loss."
+  },
+  {
+   "id": "f30",
+   "source": "s6",
+   "quote": "Payoff Ratio is the system's average percentage profit per trade divided by the average percentage loss per trade.",
+   "claim": "Payoff ratio is the average percentage profit per trade divided by the average percentage loss per trade."
+  },
+  {
+   "id": "f31",
+   "source": "s6",
+   "quote": "Win Rate The percentage of simulated strategy trades that generated a profit, as opposed to a breakeven result or a loss.",
+   "claim": "Win rate is the percentage of trades that made a profit."
+  },
+  {
+   "id": "f34",
+   "source": "s6",
+   "quote": "The maximum number of consecutive winning and losing trades generated by the strategy, based on the time period selected.",
+   "claim": "Strategy reports track the longest run of consecutive winning and losing trades."
+  },
+  {
+   "id": "f37",
+   "source": "s7",
+   "quote": "This is the number of winners divided by the number of winners plus the number of losers. It is easy to say we want more than 50%, but the winning percentage will depend on the strategy.",
+   "claim": "Win percentage is winners divided by all winners and losers; the right level depends on the strategy."
+  },
+  {
+   "id": "f38",
+   "source": "s7",
+   "quote": "Some traders like high winning percentages and small profits, while others prefer larger profits and lower winning percentages.",
+   "claim": "Some traders prefer a high win rate with small profits, others a lower win rate with larger profits."
+  },
+  {
+   "id": "f39",
+   "source": "s7",
+   "quote": "The total profit ($) from the winners divided by the total losses ($) from the losers.",
+   "claim": "Profit factor is total profit from winners divided by total loss from losers."
+  },
+  {
+   "id": "f39b",
+   "source": "s7",
+   "quote": "This is like an after the fact reward-to-risk ratio. It tells us how much we made relative to each loss.",
+   "claim": "Profit factor works like an after-the-fact reward-to-risk ratio."
+  },
+  {
+   "id": "f40",
+   "source": "s7",
+   "quote": "Anything over 1 shows a profitable trading strategy. A Profit Factor of 2.5 means we made a $2.5 profit for every $1 of loss.",
+   "claim": "A profit factor over 1 means the strategy made money overall."
+  },
+  {
+   "id": "f41",
+   "source": "s7",
+   "quote": "We need to know how often the strategy wins and losses, as well as the average win percent relative to the average loss percent.",
+   "claim": "You need both how often a strategy wins and its average win against its average loss."
+  },
+  {
+   "id": "f42",
+   "source": "s7",
+   "quote": "Typically, we would like to see more winners than losers and the average gain outpace the average loss.",
+   "claim": "You want the average gain to outpace the average loss."
+  },
+  {
+   "id": "f44",
+   "source": "s7",
+   "quote": "This is the number of consecutive losing trades. It is important because it gives us an idea of how much pain we may have to endure.",
+   "claim": "The longest losing streak shows how much pain a strategy can bring."
+  },
+  {
+   "id": "f45",
+   "source": "s7",
+   "quote": "There will be losing trades and it is important that we use proper position sizing to insure that we can absorb a string of losses.",
+   "claim": "Losing trades will come; size so you can absorb a string of them."
+  },
+  {
+   "id": "f46",
+   "source": "s7",
+   "quote": "The golden cross test from 1991 to 2015 produced just 11 signals, which is not a very big sample size.",
+   "claim": "11 signals is not a very big sample."
+  },
+  {
+   "id": "f47",
+   "source": "s7",
+   "quote": "Past performance does not guarantee future performance.",
+   "claim": "Past performance doesn't guarantee future performance."
+  },
+  {
+   "id": "f48",
+   "source": "s8",
+   "quote": "It's common among active traders to think of playbook trades as \"setups\", as in chart patterns, but this is shortsighted.",
+   "claim": "Treating a playbook trade as just a chart setup is shortsighted."
+  },
+  {
+   "id": "f49",
+   "source": "s8",
+   "quote": "When the trader merely views the playbook trade as a set of entry criteria, they leave themselves no guidance for sizing the trade and managing the risk/reward of the position.",
+   "claim": "A playbook trade also needs rules for sizing and for managing risk and reward."
+  },
+  {
+   "id": "f52",
+   "source": "s9",
+   "quote": "Just as a quarterback and football team works with a playbook to prepare for games, traders have playbooks of the trading patterns that they have tested and successfully employed.",
+   "claim": "A trader's playbook holds the patterns they have tested and used successfully."
+  },
+  {
+   "id": "f53",
+   "source": "s9",
+   "quote": "traders forget to update their playbooks when market conditions change",
+   "claim": "Traders often forget to update their playbooks when market conditions change."
+  },
+  {
+   "id": "f54",
+   "source": "s10",
+   "quote": "Only setups that empirically demonstrate profitability become an enduring part of one's playbook. The professional trader is one who sticks to their playbook and tests out new plays before adding them to the playbook.",
+   "claim": "Only setups that show profit on the evidence stay in the playbook; new plays get tested first."
+  },
+  {
+   "id": "f55",
+   "source": "s10",
+   "quote": "Cherry-picked examples supporting our inference does not constitute an evidence-basis. Rather, we look back over a meaningful sample and count the times when the pattern has and has not led to expected returns.",
+   "claim": "Cherry-picked examples aren't evidence; count every time the pattern did and didn't work."
+  },
+  {
+   "id": "f55b",
+   "source": "s10",
+   "quote": "Those subjective hunches are the sources of hypotheses, however, not conclusions",
+   "claim": "Hunches are where ideas start, not proof."
+  },
+  {
+   "id": "f56",
+   "source": "s11",
+   "quote": "At the end of the day or week (depending on your frequency of trading), identify your best trade and your worst trade. Then dissect each one",
+   "claim": "At the end of the day or week, take your best and worst trade and dissect each one."
+  },
+  {
+   "id": "f57",
+   "source": "s11",
+   "quote": "Your best trades are your role models. By reviewing your best trades, you ground yourself in your best practices.",
+   "claim": "Reviewing your best trades grounds you in your best practices."
+  },
+  {
+   "id": "f59",
+   "source": "s12",
+   "quote": "A review should finish with a highly concrete game plan for the next day, week, etc. A review without a plan is merely a look in the rear view mirror.",
+   "claim": "A review should end with a concrete plan for next time; without one it only looks back."
+  },
+  {
+   "id": "f60",
+   "source": "s12",
+   "quote": "A good review is an efficient review, targeting our greatest successes and shortcomings on the day or week and then making those the focus on our efforts at improvement.",
+   "claim": "A good review targets the biggest successes and shortcomings and makes them the focus."
+  },
+  {
+   "id": "f62",
+   "source": "s13",
+   "quote": "For frequent traders (i.e., those who trade intraday and/or every day), a single grade at the end of the day (A, B, C, D, F) indicates the degree to which the goal was met that day.",
+   "claim": "A report card gives each goal a single grade, A to F, at the end of the day."
+  },
+  {
+   "id": "f63",
+   "source": "s13",
+   "quote": "Ideally, these comments should include what was happening in markets (and trading) at the time; what was going on in terms of the trader's thoughts and feelings; and what the trading outcomes were.",
+   "claim": "Journal notes should cover what the market was doing, your thoughts and feelings, and the outcome."
+  },
+  {
+   "id": "f64",
+   "source": "s14",
+   "quote": "A process goal for a trader might be to limit losses to a certain number of ticks per trade; an outcome goal might be to make a certain dollar amount per week or month.",
+   "claim": "A process goal is about how you trade; an outcome goal is a dollar target."
+  },
+  {
+   "id": "f65",
+   "source": "s14",
+   "quote": "The latter is highly dependent upon market conditions and not entirely within the trader's control. Process goals, alternatively, focus on what the trader can control directly and thus reinforce self-efficacy.",
+   "claim": "Outcome goals depend on the market; process goals are in your control."
+  },
+  {
+   "id": "f66",
+   "source": "s14",
+   "quote": "Finally, there is evidence that process goals can be more effective than all-or-none outcome goals.",
+   "claim": "Process goals can work better than all-or-none outcome goals."
+  },
+  {
+   "id": "f67",
+   "source": "s15",
+   "quote": "A planned trade is one that is guided consciously, filtered according to a variety of criteria that are designed to provide a positive expectancy. The opposite of a planned trade is an impulsive one",
+   "claim": "A planned trade is filtered by criteria; the opposite is an impulsive trade."
+  },
+  {
+   "id": "f68",
+   "source": "s15",
+   "quote": "A good trade is not necessarily a profitable one: even the best planning is fallible.",
+   "claim": "A good trade is not always a profitable one."
+  },
+  {
+   "id": "f69",
+   "source": "s16",
+   "quote": "By anticipating a variety of possible market scenarios and how he'd respond to each, Paul helps ensure that he will not be surprised by market developments.",
+   "claim": "Preparing for several possible scenarios means fewer surprises."
+  },
+  {
+   "id": "f70",
+   "source": "s16",
+   "quote": "It is very difficult to emotionally overreact to situations that we have anticipated and prepared for.",
+   "claim": "It's hard to overreact to situations you have anticipated and prepared for."
+  },
+  {
+   "id": "f71",
+   "source": "s17",
+   "quote": "If we run a 60% win rate with our trades over time--which would be quite good--the reality is that we will lose several times in a row many times during the year",
+   "claim": "Even a good win rate brings several losses in a row many times a year."
+  },
+  {
+   "id": "f72",
+   "source": "s17",
+   "quote": "Learning how to lose means losing in a planned manner. It means knowing when our trade has been proven wrong and exiting at a point that we have rehearsed and accepted.",
+   "claim": "Losing well means exiting at a point you planned and accepted in advance."
+  },
+  {
+   "id": "f72b",
+   "source": "s17",
+   "quote": "When we can accept--truly accept--that trading is a probabilistic game, that losing is part of those probabilities, and that we can trade well and lose, our egos no longer become attached to our P/L.",
+   "claim": "Trading is probabilistic: losing is part of the odds, and you can trade well and still lose."
+  },
+  {
+   "id": "f73",
+   "source": "s18",
+   "quote": "True, the future may not mirror the past, and care must be taken to not curve-fit historical tests.",
+   "claim": "The future may not mirror the past; don't curve-fit historical tests."
+  },
+  {
+   "id": "f74",
+   "source": "s19",
+   "quote": "The review includes a daily P/L summary and performance metrics, such as average win size, average loss size, win rate per trade and per day, breakdown of P/L by strategies and trade types, etc.",
+   "claim": "A monthly review covers average win and loss size, win rate, and P&L by strategy."
+  },
+  {
+   "id": "f76",
+   "source": "s20",
+   "quote": "Your goals should focus on how you trade, not how much money you'll make. You cannot control the profitability of any single trade",
+   "claim": "Set goals about how you trade, not how much you make; no one controls a single trade's result."
+  },
+  {
+   "id": "f77",
+   "source": "s21",
+   "quote": "The report card has been a daily routine that has anchored review of performance, goal setting, and efforts at improvement.",
+   "claim": "The daily report card anchors review, goal setting and improvement."
+  },
+  {
+   "id": "f78",
+   "source": "s24",
+   "quote": "I advocate archiving a favorite setup from each trading session. After each close, choose a best setup from the session that fits your trading style. Reverse engineer the variables of that trade.",
+   "claim": "Bellafiore archives a best setup after each session and reverse engineers its variables."
+  },
+  {
+   "id": "f79",
+   "source": "s24",
+   "quote": "We log losing setups if they are trades that make the most sense to us and still excellent risk/reward setups.",
+   "claim": "SMB logs losing setups too when they were good trades with good risk and reward."
+  },
+  {
+   "id": "f80",
+   "source": "s25",
+   "quote": "my thesis was for traders to study their best trades and build from them, trading these setups more often and bigger.",
+   "claim": "Study your best trades and build from them, trading those setups more often and bigger."
+  },
+  {
+   "id": "f81",
+   "source": "s26",
+   "quote": "What if at the end of each trading session, you posted a trading Report Card, and not just your trading PnL?",
+   "claim": "Bellafiore challenged traders to post a daily report card, not just their P&L."
+  },
+  {
+   "id": "f82",
+   "source": "s27",
+   "quote": "Your job as a trader is to control risk. It is not to make money.",
+   "claim": "Your job as a trader is to control risk, not to make money."
+  },
+  {
+   "id": "f83",
+   "source": "s28",
+   "quote": "I tasked for an email sent to me outlining their goals for the next month after a review of April.",
+   "claim": "SMB traders set goals for the next month after reviewing the last one."
+  },
+  {
+   "id": "f84",
+   "source": "s29",
+   "quote": "There’s this word that we use in poker: “resulting.” It’s a really important word. You can think about it as creating too tight a relationship between the quality of the outcome and the quality of the decision.",
+   "claim": "Resulting means tying the quality of a decision too tightly to the quality of its outcome."
+  },
+  {
+   "id": "f85",
+   "source": "s29",
+   "quote": "You can’t use outcome quality as a perfect signal of decision quality, not with a small sample size anyway.",
+   "claim": "With a small sample, an outcome is not a reliable signal of decision quality."
+  },
+  {
+   "id": "f86",
+   "source": "s29",
+   "quote": "Know that the way things turn out has a lot of luck involved so don’t be so hard on yourself when things go badly and don’t be so proud of yourself when they go well. Focus on process instead.",
+   "claim": "Outcomes involve a lot of luck, so focus on process."
+  },
+  {
+   "id": "f87",
+   "source": "s30",
+   "quote": "judging the quality of a decision by relying on the quality of its outcome, despite the significant intervening element of luck in the way any decision turns out.",
+   "claim": "A common decision trap is judging a decision by its outcome, ignoring luck."
+  },
+  {
+   "id": "f88",
+   "source": "s30",
+   "quote": "People make good decisions and experience bad outcomes. And good outcomes can result from very bad decisions.",
+   "claim": "Good decisions can have bad outcomes, and bad decisions can have good outcomes."
+  },
+  {
+   "id": "f89",
+   "source": "s30",
+   "quote": "A premortem imagines the opposite — you imagine failing to reach your goal — and ask “how did that happen?",
+   "claim": "A premortem imagines failing to reach your goal and asks how that happened."
+  },
+  {
+   "id": "f90",
+   "source": "s30",
+   "quote": "When trying to learn from outcomes, what she dubs “resulting” can make us believe that “some good decisions should never be repeated and some bad decisions should be reinforced.",
+   "claim": "Resulting can make us repeat bad decisions and drop good ones."
+  },
+  {
+   "id": "f91",
+   "source": "s31",
+   "quote": "Outcome Bias is a common trap we all fall into, when we judge a decision based on the results, instead of looking at the process itself.",
+   "claim": "The Learner Lab's show with Annie Duke: outcome bias is judging a decision by its results instead of its process."
+  },
+  {
+   "id": "f92",
+   "source": "s32",
+   "quote": "In a premortem, team members assume that the project they are planning has just failed",
+   "claim": "In a premortem, you assume the plan has already failed."
+  },
+  {
+   "id": "f93",
+   "source": "s33",
+   "quote": "First, let's start thinking about your trading results in terms of multiples of your initial risk (R-multiples for short).",
+   "claim": "Measure trade results in multiples of your initial risk: R-multiples."
+  },
+  {
+   "id": "f93b",
+   "source": "s33",
+   "quote": "Suppose you decide to buy a stock at $25 and that you'll sell it if it drops 10% to $22.50. Your risk is $2.50 per share in this case.",
+   "claim": "Your risk per share is the distance from your entry to your planned exit."
+  },
+  {
+   "id": "f93c",
+   "source": "s43",
+   "quote": "All profits and losses can be expressed as a multiple of the initial risk (R) taken. For example, a 10R multiple is a profit that is 10 times the initial risk.",
+   "claim": "Every profit or loss can be stated as a multiple of your initial risk, R."
+  },
+  {
+   "id": "f94",
+   "source": "s33",
+   "quote": "The average R-multiple produced by the system is what I call the expectancy of the system.",
+   "claim": "Expectancy is the average R-multiple of your trades."
+  },
+  {
+   "id": "f95",
+   "source": "s33",
+   "quote": "If your sample is large enough (and in our case 10 samples isn't), then your expectancy will tell you what you can expect per trade on the average over many trades.",
+   "claim": "Expectancy describes the average over many trades, and needs a large enough sample."
+  },
+  {
+   "id": "f96",
+   "source": "s33",
+   "quote": "A key of trading success is that you must have a predetermined exit before you enter into a trade that represents your worst-case risk.",
+   "claim": "Set your exit, your worst-case risk, before you enter."
+  },
+  {
+   "id": "f97",
+   "source": "s34",
+   "quote": "Paper trading is realistic, flexible, and financially risk-free, but it’s not exactly the same as live trading.",
+   "claim": "Paper trading is risk-free but not the same as live trading."
+  },
+  {
+   "id": "f98",
+   "source": "s34",
+   "quote": "in a safe, simulated trading environment; this means trades won’t actually execute on any exchange or settle at a clearing house.",
+   "claim": "Paper trades don't execute on an exchange."
+  },
+  {
+   "id": "f98b",
+   "source": "s34",
+   "quote": "Fills are simulated from the top of the book; no deep book access.",
+   "claim": "Paper fills are simulated from the top of the book."
+  },
+  {
+   "id": "f99",
+   "source": "s35",
+   "quote": "Hypothetical performance means performance results that were not actually achieved by any portfolio of the investment adviser.",
+   "claim": "Hypothetical performance means results that were not actually achieved."
+  },
+  {
+   "id": "f100",
+   "source": "s35",
+   "quote": "Performance that is backtested by the application of a strategy to data from prior time periods when the strategy was not actually used during those time periods",
+   "claim": "Backtested performance applies a strategy to past data from a time it wasn't actually used."
+  },
+  {
+   "id": "f101",
+   "source": "s36",
+   "quote": "Unlike the results shown in an actual performance record, these results do not represent actual trading.",
+   "claim": "Simulated results do not represent actual trading."
+  },
+  {
+   "id": "f102",
+   "source": "s36",
+   "quote": "Simulated or hypothetical trading programs in general are also subject to the fact that they are designed with the benefit of hindsight.",
+   "claim": "Simulated trading programs are designed with the benefit of hindsight."
+  },
+  {
+   "id": "f103",
+   "source": "s36",
+   "quote": "because these trades have not actually been executed, these results may have under-or over-compensated for the impact, if any, of certain market factors, such as lack of liquidity.",
+   "claim": "Simulated results may misjudge real-market factors such as lack of liquidity."
+  },
+  {
+   "id": "f104",
+   "source": "s36",
+   "quote": "No representation is being made that any account will or is likely to achieve profits or losses similar to these being shown.",
+   "claim": "No account is promised results like the simulated ones."
+  },
+  {
+   "id": "f105",
+   "source": "s22",
+   "quote": "Many of the Wizards claim to have a win rate not significantly different from 50% in their trades. They are hugely successful by keeping losses small",
+   "claim": "Many Market Wizards win about half their trades and succeed by keeping losses small."
+  },
+  {
+   "id": "f105b",
+   "source": "s22",
+   "quote": "They are hugely successful by keeping losses small, recognizing when the market is going their way, and sizing up trades that are working.",
+   "claim": "Many Market Wizards keep losses small and size up the trades that are working."
+  },
+  {
+   "id": "f106",
+   "source": "s23",
+   "quote": "Work on doing things well and the outcomes take care of themselves. Focus on outcomes and you interfere with doing things well. Process goals spur improvement; outcome goals create pressure.",
+   "claim": "Do things well and the outcomes take care of themselves; process goals spur improvement."
+  },
+  {
+   "id": "f107",
+   "source": "s40",
+   "quote": "At issue here is whether there is an outcome bias, in which people take outcomes into account in a way that is irrelevant to the true quality of the decision.",
+   "claim": "Outcome bias is letting an outcome sway how you judge a decision, beyond what it says about the decision's quality."
+  },
+  {
+   "id": "f108",
+   "source": "s41",
+   "quote": "The relationship between the size of an average winning trade and an average losing trade. This metric measures the strategy's \"payoff\" efficiency",
+   "claim": "Average win size against average loss size measures a strategy's payoff."
+  },
+  {
+   "id": "f109",
+   "source": "s42",
+   "quote": "It is important to remember that you are only partly in control of outcome goals because another person or team might simply perform better on the day of the competition.",
+   "claim": "You only partly control an outcome goal; someone else can simply perform better that day."
+  },
+  {
+   "id": "f110",
+   "source": "s42",
+   "quote": "Out of these three types of goals, we should remember that only process goals are 100% in our control.",
+   "claim": "Of outcome, performance and process goals, only process goals are fully in your control."
+  },
+  {
+   "id": "h1",
+   "source": "s37",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+  },
+  {
+   "id": "h2",
+   "source": "s38",
+   "quote": "Each lesson's levels are the plan's: the entry, the stop, and the marks at 3R and 5R",
+   "claim": "Our plan's levels are the entry, the stop, and the marks at 3R and 5R."
+  },
+  {
+   "id": "h4",
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
+  },
+  {
+   "id": "h3",
+   "source": "s39",
+   "quote": "I would rather have Entry, Stop, Trim, Trail, Advance",
+   "claim": "The owner teaches a trade as entry, stop, trim, trail and advance."
+  },
+  {
+   "id": "h5",
+   "source": "s37",
+   "quote": "Journal every trade the same day and review the week every weekend, ideally.",
+   "claim": "UCT's rule (B27): journal each trade the same day and review the week each weekend, ideally."
+  },
+  {
+   "id": "h6",
+   "source": "s37",
+   "quote": "Each month, review the numbers: win rate, average win and loss in R, expectancy, and other statistics.",
+   "claim": "UCT's rule (E59): each month, review win rate, average win and loss in R, expectancy and other statistics."
+  },
+  {
+   "id": "h7",
+   "source": "s37",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "UCT's rule (D39): each planned buy's entry, stop and size are written down before the open."
+  },
+  {
+   "id": "h8",
+   "source": "s37",
+   "quote": "Never take a trade from an alert, a post or a video without your own entry, stop and size by these rules.",
+   "claim": "UCT's rule (F66): never take a trade from an alert, post or video without your own entry, stop and size."
+  },
+  {
+   "id": "h9",
+   "source": "s37",
+   "quote": "Plan every trade as Entry, Stop, Trim, Trail, Advance.",
+   "claim": "UCT's rule (A12): every trade is planned as Entry, Stop, Trim, Trail, Advance."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Before the trade",
+   "steps": [
+    "Write your rules for buying and selling before any money's on the line. That's your trading plan.",
+    "Your watchlist: the stocks that fit what you're looking for. Entry and exit rules say when you get in and out.",
+    "Then your routine, the same prep every morning. The data out before the open, the index charts, your list.",
+    "It won't stop every loss. What it cuts down is the impulsive trade, the one you make up on the fly."
+   ],
+   "facts": [
+    "f01",
+    "f09",
+    "f10",
+    "f11",
+    "f24",
+    "f25",
+    "f23",
+    "f67"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "After the trade",
+   "steps": [
+    "Log every trade in your journal. Entry, stop, exit, and what you were thinking and feeling at the time.",
+    "Then review it against the plan. Finish with something concrete for next time, or you're just looking in the rear view mirror.",
+    "Your best setups, the ones you've tested and written down, become your playbook.",
+    "Grade how you traded, not what you made. A good trade can still lose money."
+   ],
+   "facts": [
+    "f14",
+    "f63",
+    "f59",
+    "f52",
+    "f78",
+    "f62",
+    "f68"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The numbers",
+   "steps": [
+    "Win rate is how often you win. By itself it tells you very little.",
+    "Put it next to your average win and average loss. Expectancy puts them together: what you make per trade, on average.",
+    "Profit factor is gross profit over gross loss. Over 1, the winners paid for the losers.",
+    "Don't judge any of it on a handful of trades. A small sample can fool you."
+   ],
+   "facts": [
+    "f31",
+    "f37",
+    "f38",
+    "f41",
+    "f15",
+    "f94",
+    "f29",
+    "f40",
+    "f46",
+    "f85"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "vocab.process_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Trading plan",
+   "q": "A friend who just started trading asks what you mean when you say \"my trading plan.\" What do you tell him?",
+   "choices": [
+    "Rules for when I buy and sell",
+    "The stocks I'm thinking of buying",
+    "My record of trades I've made",
+    "Where I think the market goes"
+   ],
+   "answer": "Rules for when I buy and sell",
+   "why": "Rules for when you buy and sell, set before any money is on the line. Every trade comes down to the same calls: what, how much, when you get in and when you get out. Make those calls while you're calm. That takes a lot of the emotion and guesswork out of it. Not all of it. The plan won't make you right. It keeps you from making it up as you go while a stock is moving.",
+   "lesson_line": "Write the rules while you're calm. Follow them when you're not.",
+   "facts": [
+    "f01",
+    "f02",
+    "f03",
+    "f08",
+    "f20"
+   ],
+   "wrong": {
+    "The stocks I'm thinking of buying": "That's your watchlist. The plan says what you'll do with those names.",
+    "My record of trades I've made": "That's your journal. The plan comes before the trade, the journal after.",
+    "Where I think the market goes": "That's a guess. A plan doesn't need you to call the market. It tells you what you'll do either way."
+   },
+   "simple": "A trading plan is your rules for when you buy and sell, made ahead so emotion plays a smaller part.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Fidelity calls a trading plan your strategy for buying and selling, and says it helps remove some of the emotion and guesswork. Schwab says a trade boils down to four decisions: what, how much, when to enter and when to exit."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Trading plan",
+   "q": "The market drops hard on Monday and two of your stocks hit their stops. That night is the time to rewrite your trading plan.",
+   "answer": "False",
+   "why": "False. That's a knee-jerk change, and a down day is the worst time to make one. You built the plan for days like this. Take the stops as written, then sleep on it. Plans do change, because markets change and so do your goals. But you change it calmly, over time. And you write the new plan before you trade on it. Plan your trade, then trade your plan.",
+   "lesson_line": "The plan is built for the bad days. Don't scrap it on one.",
+   "facts": [
+    "f05",
+    "f06",
+    "f06b",
+    "f07"
+   ],
+   "simple": "False. Change the plan calmly later, never in a panic, and write the new one first.",
+   "deeper": {
+    "example": "Fidelity says not to alter a plan as a knee-jerk reaction to temporary events, like when prices take a dive. It also says you may amend it over time as conditions and goals change. If you do, devise a replacement to guide your trading. Schwab's maxim: plan your trade and trade your plan."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q03",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "scenario",
+   "term": "Trading plan",
+   "story": "Sunday night you write down which stocks you'll trade and how much you'll risk on each. You also note where you'll get in and where you'll get out.",
+   "q": "What did you just put together?",
+   "choices": [
+    "Trading plan",
+    "Trading journal",
+    "Watchlist",
+    "Post-trade review"
+   ],
+   "answer": "Trading plan",
+   "why": "Your trading plan. You made every call a trade needs: what, how much, where you get in and where you get out. And you made them on a Sunday night, with the market closed and nothing moving. Nothing's pushing you. A journal looks back at trades you've already made. A watchlist is just the names. A review grades a trade that's closed. This one looks forward.",
+   "lesson_line": "What, how much, in and out. Decide all of it before the bell.",
+   "facts": [
+    "f08",
+    "f01",
+    "f20"
+   ],
+   "wrong": {
+    "Trading journal": "A journal records trades after you make them. Nothing here has happened yet.",
+    "Watchlist": "A watchlist is just the names. You also wrote down your size, your entries and your exits.",
+    "Post-trade review": "A review looks back at a closed trade. You haven't bought anything yet."
+   },
+   "simple": "A trading plan. You decided what, how much, and where you get in and out, all ahead of time.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q04",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Entry rule",
+   "q": "Your plan for a stock says: buy the day it closes back over the 200-day moving average. What kind of rule is that?",
+   "choices": [
+    "An entry rule",
+    "An exit rule",
+    "A sizing rule",
+    "A watchlist rule"
+   ],
+   "answer": "An entry rule",
+   "why": "An entry rule. It tells you the day you buy. Writing it down before you buy takes the guessing out of when to get in. You're not staring at the screen wondering if now's the time. The close over the 200-day happens or it doesn't. An exit rule tells you when you sell. A sizing rule tells you how much. You want all three before the trade.",
+   "lesson_line": "Entry rules say when you get in. Exit rules say when you get out.",
+   "facts": [
+    "f10",
+    "f10b",
+    "f03"
+   ],
+   "wrong": {
+    "An exit rule": "Exit rules say when you sell. This one says when you buy.",
+    "A watchlist rule": "A watchlist rule picks the names you follow. This one picks the day you buy one.",
+    "A sizing rule": "Sizing rules say how much. This one says when."
+   },
+   "simple": "An entry rule, because it tells you the day you buy.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Schwab lists a close above the 200-day simple moving average as one example of an entry signal. Others are a bounce off support and a breakout from a base. It says entry rules set before you buy reduce the guesswork."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "tf",
+   "term": "Exit rule",
+   "q": "Your exit rules should be set before you enter the trade.",
+   "answer": "True",
+   "why": "True. Schwab says to specify when and how you'll close a trade before you place it. Van Tharp calls a predetermined exit, your worst-case risk, a key to trading success.",
+   "lesson_line": "Know where you're wrong before you get in.",
+   "facts": [
+    "f11",
+    "f96",
+    "f04"
+   ]
+  },
+  {
+   "key": "q06",
+   "skill": "vocab.process_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Exit rule",
+   "story": "Your plan says sell if the stock closes under $40. It closes at $39.60. You decide to give it one more day.",
+   "q": "Be honest. What did you just do?",
+   "choices": [
+    "You broke your exit rule",
+    "You adjusted your plan wisely",
+    "You followed your plan",
+    "You avoided a false breakdown"
+   ],
+   "answer": "You broke your exit rule",
+   "why": "You broke your exit rule. $39.60 is a close under $40. Your plan said sell, and you held. I get it, 40 cents feels too close to count. But the rule never said well under $40. You set that exit while you were calm. That way you don't have to decide it now, with a loss in front of you. One more day is how a small loss turns into a big one. Take the exit. If it sets up again, you can buy it back.",
+   "lesson_line": "You set the exit when you were calm. Take it when you're not.",
+   "facts": [
+    "f72",
+    "f11",
+    "f05",
+    "f04"
+   ],
+   "wrong": {
+    "You adjusted your plan wisely": "A change made mid-trade to dodge a loss isn't a plan change. It's a reaction.",
+    "You followed your plan": "The plan said sell on a close under $40. You held.",
+    "You avoided a false breakdown": "You don't know that yet. You're hoping. The rule said sell on a close under $40, and $39.60 is under it."
+   },
+   "simple": "You broke your exit rule. The plan said sell on a close under $40, and you held.",
+   "deeper": {
+    "trap": "The trap is the small miss. A close at $39.60 feels too close to count, so one more day seems harmless. Steenbarger calls losing well exiting at a point you rehearsed and accepted. Schwab says to decide when and how you'll close a trade before you place it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "house sentence removed: A4 had no house fact (h5 is B27 journaling)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q07",
+   "skill": "vocab.process_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Watchlist",
+   "q": "A trader in our chat says NVDA is on his watchlist. What does he mean?",
+   "choices": [
+    "He's tracking it to maybe buy",
+    "He already owns it",
+    "It's one of today's top gainers",
+    "It meets his rules to buy now"
+   ],
+   "answer": "He's tracking it to maybe buy",
+   "why": "He's tracking it, waiting for a spot to buy. A watchlist is the names that meet your standards, the ones you want to trade if they set up. It's not what you own. Those are your positions. It's not today's movers list either. A good list comes from your own work, not from whatever's ripping this morning. In the UCT app, add a Watchlist widget on Charts and keep your names there.",
+   "lesson_line": "Your list comes from your work, not from whatever's moving today.",
+   "facts": [
+    "f09",
+    "f28"
+   ],
+   "wrong": {
+    "He already owns it": "Names you own are your positions. A watchlist is names you're waiting on.",
+    "It's one of today's top gainers": "That's a movers list. A watchlist is built from your own standards.",
+    "It meets his rules to buy now": "Being on the list doesn't make it a buy today. His entry rules decide when."
+   },
+   "simple": "He's tracking it to maybe trade. A watchlist is names you're waiting on, not names you own.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Schwab defines a watchlist as a list of securities you're interested in trading because they meet certain criteria. Fidelity keeps it simpler: a list of securities you want to track."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "scenario",
+   "term": "Watchlist",
+   "story": "Each weekend you screen for stocks in an uptrend on the daily chart. The ones that pass go on a short list you check every morning for an entry.",
+   "q": "What do we call that short list?",
+   "choices": [
+    "Watchlist",
+    "Playbook",
+    "Trading journal",
+    "Report card"
+   ],
+   "answer": "Watchlist",
+   "why": "Your watchlist. These are the names that passed your screen, and you're waiting on an entry. An uptrend on the daily chart is a fine place to start the screen. Keep it short. A short list you really watch every morning beats a long one you skim. A playbook holds your setups and how you trade them. A journal holds trades you already made. A report card grades how you traded.",
+   "lesson_line": "Screen on the weekend. Watch for entries during the week.",
+   "facts": [
+    "f09",
+    "f09b",
+    "f28",
+    "f10"
+   ],
+   "wrong": {
+    "Playbook": "A playbook holds your setups, the trades you know how to run. This list holds the stocks.",
+    "Trading journal": "A journal records trades you've made. These are trades you haven't made yet.",
+    "Report card": "A report card grades how you traded. It isn't a list of stocks."
+   },
+   "simple": "A watchlist. It holds the stocks that passed your screen while you wait for an entry.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q09",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Pre-market routine",
+   "q": "Same steps every morning before the bell: the economic data, the index charts, then your list. What's that called?",
+   "choices": [
+    "A pre-market routine",
+    "Pre-market trading",
+    "A post-trade review",
+    "Your trading journal"
+   ],
+   "answer": "A pre-market routine",
+   "why": "Your pre-market routine. Same prep, same order, every morning. Check any economic data out before the open and see how futures take it. Look at the index charts so you know what kind of market you're in. Then your list. It won't stop every loss. What it does is keep you out of the unforced ones, like chasing a name you've never looked at. It's prep. Nothing gets bought yet.",
+   "lesson_line": "Same steps, same order, every morning. Then you're ready when the bell rings.",
+   "facts": [
+    "f24",
+    "f25",
+    "f69",
+    "f23"
+   ],
+   "wrong": {
+    "Pre-market trading": "That's trading before the open. The routine is prep. You aren't buying anything yet.",
+    "A post-trade review": "That comes after a trade closes. The routine comes before the open.",
+    "Your trading journal": "The journal records trades you've made. The routine gets you ready for today."
+   },
+   "simple": "A pre-market routine: the same prep every morning before the open, so you know the market and your list.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q10",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Routine",
+   "q": "A solid morning routine will keep you from losing money.",
+   "answer": "False",
+   "why": "Not true. A routine doesn't make you immune to losses. You can do every step and still get stopped out. That's trading. What the routine cuts is the unforced errors. Chasing a corner of the market you don't know. Trying to do too much at once. Losses still come. The routine just makes sure they come from your plan, not from an impulse.",
+   "lesson_line": "A routine cuts the unforced errors. The market still decides the rest.",
+   "facts": [
+    "f23",
+    "f68"
+   ],
+   "simple": "False. A routine cuts mistakes, but it can't stop the market from handing you losses.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q11",
+   "skill": "vocab.process_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Pre-market routine",
+   "story": "The bell rings and you open a list of today's top gainers. A stock you've never followed is up big, and you buy it.",
+   "q": "What would have kept you out of this trade?",
+   "choices": [
+    "A pre-market routine",
+    "A wider stop loss",
+    "A longer watchlist",
+    "A rule to skip the open"
+   ],
+   "answer": "A pre-market routine",
+   "why": "A pre-market routine. You sat down with no prep, opened a movers list and bought something you'd never followed. That's an impulse trade, the opposite of a planned one. Do your prep first and you sit down already knowing your list and your levels. A name that wasn't on it doesn't get bought. A wider stop only limits the damage once you're in. A longer list doesn't help if you skip the prep that keeps you on it.",
+   "lesson_line": "A stock you never prepped is a trade you never planned.",
+   "facts": [
+    "f23",
+    "f67"
+   ],
+   "wrong": {
+    "A longer watchlist": "More names don't help if you open a movers list instead. The routine is what keeps you on your list.",
+    "A wider stop loss": "A stop limits the damage after you're in. It does nothing about the urge to buy.",
+    "A rule to skip the open": "That just moves the impulse later in the day. You'd still buy a stock you never prepped."
+   },
+   "simple": "A pre-market routine. Do your prep first and you stay on stocks you know, not sudden impulse buys.",
+   "deeper": {
+    "counter": "A routine isn't a shield against losses. Schwab says it doesn't make you immune from losing money. You can do every step, buy a stock from your own list, and still get stopped out. What the routine removes is this kind of trade: an unplanned buy in a name you never studied."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q12",
+   "skill": "vocab.process_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Scenario-based preparation",
+   "story": "Before the open you write three cases for your stock: gap up and hold, gap up and fade, gap down. For each one you note what you'll do.",
+   "q": "What does that prep buy you?",
+   "choices": [
+    "Fewer surprises, calmer decisions",
+    "Better odds the stock goes up",
+    "No need for a stop on the trade",
+    "Knowing which case will happen"
+   ],
+   "answer": "Fewer surprises, calmer decisions",
+   "why": "Fewer surprises and calmer decisions. You already know what you'll do if it gaps up and holds, gaps up and fades, or gaps down. So when one of them happens, you're executing, not reacting. It's very hard to overreact to something you planned for. The prep doesn't change what the stock does. Nobody knows which case shows up. That's exactly why you write all three.",
+   "lesson_line": "Decide your moves while it's quiet. Then you're only executing when it's loud.",
+   "facts": [
+    "f69",
+    "f70",
+    "f12",
+    "f68"
+   ],
+   "wrong": {
+    "Better odds the stock goes up": "Prep changes how you act, not what the stock does.",
+    "No need for a stop on the trade": "Every case still needs its exit. The gap down case is exactly why you have one.",
+    "Knowing which case will happen": "Nobody knows that. You write several cases because you can't know which one comes."
+   },
+   "simple": "Fewer surprises and calmer choices, because you already decided what to do in each case.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Steenbarger describes a trader, Paul, who maps out several possible market scenarios and how he'd respond to each. That way he isn't surprised. His line: it's very difficult to overreact to situations we have anticipated and prepared for."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "vocab.process_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Trading journal",
+   "q": "You just sold a trade and opened your trading journal. What goes in it?",
+   "choices": [
+    "The trade, your reasons, how you felt",
+    "Just the fill prices from your broker",
+    "The stocks you plan to buy next",
+    "Your written rules for entries"
+   ],
+   "answer": "The trade, your reasons, how you felt",
+   "why": "The trade, your reasons and how you felt. Write down what the market was doing, what you were thinking and feeling, and how it came out. Your broker already has the fills. It doesn't know why you took it, whether you followed the plan, or whether you were scared or greedy. That's the stuff you learn from. In the UCT app, it all goes in the Journal.",
+   "lesson_line": "If it isn't written down, you can't review it.",
+   "facts": [
+    "f19",
+    "f14",
+    "f63"
+   ],
+   "wrong": {
+    "Just the fill prices from your broker": "The broker has those already. It doesn't know your reasons or how you felt.",
+    "The stocks you plan to buy next": "That's your watchlist.",
+    "Your written rules for entries": "Those belong in your trading plan. The journal records what you actually did."
+   },
+   "simple": "Your own record of each trade: what you did, why you did it, and how you felt.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (variety rewrite 2026-11-10)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Schwab says disciplined traders plan every trade and keep notes in a spreadsheet or trading journal. Steenbarger says the notes should cover what was happening in the market, the trader's thoughts and feelings, and the outcome."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Trading journal",
+   "q": "Logging the profit or loss on each trade is enough for a journal.",
+   "answer": "False",
+   "why": "False. The P&L is one line. It can't tell you if your entry was good or if your stop sat in the right spot. It can't tell you if you sold too early. Write down what the market was doing, what you were thinking and feeling, and how it came out. A month later you can actually see why you won and why you lost. A number alone won't show you that.",
+   "lesson_line": "The P&L is one line. The why, the how and the feeling are the rest.",
+   "facts": [
+    "f63",
+    "f14"
+   ],
+   "simple": "False. Write what the market did and what you thought and felt, not just the money.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q15",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "journal",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "After each trade, log your entry, stop, exit and how you felt in your trading ___.",
+   "bank": [
+    "journal",
+    "playbook",
+    "watchlist",
+    "premortem",
+    "backtest"
+   ],
+   "answer": "journal",
+   "why": "Journal. Schwab says to record your trades in a trading journal and review them. Steenbarger has the notes cover what the market was doing, your thoughts and feelings, and the outcome. A playbook holds your setups, a watchlist holds stocks you might trade, and a backtest runs rules over past data.",
+   "lesson_line": "Log every trade. A review is only as good as the record behind it.",
+   "facts": [
+    "f14",
+    "f19",
+    "f63"
+   ],
+   "simple": "Journal, because the journal is where you write down each trade and how you felt, to review later.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q16",
+   "skill": "vocab.process_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Playbook",
+   "q": "A trader tells you he only takes trades from his playbook. What's in it?",
+   "choices": [
+    "His tested setups, written down",
+    "Today's list of stocks to watch",
+    "A log of every trade he made",
+    "His broker's order types"
+   ],
+   "answer": "His tested setups, written down",
+   "why": "His tested setups, written down. Think of a football team's playbook. A trader's holds the patterns he's tested and made money with, and how he runs each one. A setup earns its spot only after it shows a profit over a real record. New plays get tested before they go in. Sticking to it keeps you out of random trades. A watchlist holds names. A journal logs every trade, good and bad.",
+   "lesson_line": "Your playbook holds the trades you've tested and know how to run.",
+   "facts": [
+    "f52",
+    "f78",
+    "f54"
+   ],
+   "wrong": {
+    "Today's list of stocks to watch": "That's a watchlist. The playbook holds the setups and how you run them.",
+    "A log of every trade he made": "That's a journal. The playbook keeps only the plays worth repeating.",
+    "His broker's order types": "Order types are how you send a trade. The playbook is what you trade and why."
+   },
+   "simple": "A playbook is the setups you've tested and know how to trade, written down.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (watchlist wrong note)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Steenbarger compares it to a quarterback's playbook: traders have playbooks of the patterns they have tested and successfully used. Bellafiore archives a best setup after each session and reverse engineers its variables."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "vocab.process_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Playbook trade",
+   "q": "A playbook trade needs a size and a risk plan, not just an entry.",
+   "answer": "True",
+   "why": "True. A chart pattern with an entry is half a play. Without the rest you get to the trigger and have no idea how much to buy or where you're wrong. We plan every trade the same way: entry, stop, trim, trail, advance. The entry gets you in. The stop and the size decide what it costs if it fails. The trim and the trail decide what you keep if it works.",
+   "lesson_line": "A setup with no size, stop or exit isn't a play yet. It's half of one.",
+   "facts": [
+    "f48",
+    "f49",
+    "f78",
+    "h9"
+   ],
+   "simple": "True. An entry alone doesn't tell you how much to buy or how to handle the risk.",
+   "deeper": {
+    "trap": "Many traders save a chart pattern and call it a play. Steenbarger calls that view shortsighted. Entry criteria alone leave you no guidance for sizing the trade or managing its risk and reward."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (softened Bellafiore wording)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "vocab.process_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Playbook",
+   "q": "A new setup belongs in your playbook once you've seen it work a couple of times.",
+   "answer": "False",
+   "why": "False. Two wins could be luck. Your memory is the problem here. The two times it worked stick, and the times it set up and failed slip away. Go back and count every time it set up, wins and losses. Even 10 trades isn't a big enough sample. A couple of wins is a hunch. A hunch is where an idea starts, not proof that it works.",
+   "lesson_line": "Two good memories aren't a test. Count every time it set up, wins and losses.",
+   "facts": [
+    "f54",
+    "f55",
+    "f55b",
+    "f95"
+   ],
+   "simple": "False. Two wins could be luck, so a setup earns its spot only after you test it over many trades.",
+   "deeper": {
+    "trap": "The trap is memory. The two times it worked stick, and the times it set up and failed slip away. Steenbarger's fix is to look back over a meaningful sample and count the times the pattern did and did not lead to the expected move. Only a setup that holds up on that count goes in the book."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "vocab.process_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Playbook",
+   "story": "A setup in your playbook worked all year in a steady uptrend. The market turns choppy and the setup fails five times in two weeks.",
+   "q": "What do you do with that setup?",
+   "choices": [
+    "Review if it fits this market",
+    "Delete the setup for good",
+    "Trade it bigger to make it back",
+    "Keep trading it the same way"
+   ],
+   "answer": "Review if it fits this market",
+   "why": "Review whether it fits this market. A year of wins in a steady uptrend doesn't vanish in two weeks. But a setup that loves a trend can struggle when the market chops. So step back and figure out if it's the market or how you're running it. Sitting it out while it's choppy is fine. Throwing it out is too much. Sizing up to win it back is how a bad two weeks becomes a bad year.",
+   "lesson_line": "A play that fits one market can sit out the next. Review it, don't force it.",
+   "facts": [
+    "f53",
+    "f06",
+    "f45",
+    "f71"
+   ],
+   "wrong": {
+    "Delete the setup for good": "A year of evidence doesn't vanish in two weeks. It may just not fit this market.",
+    "Trade it bigger to make it back": "Size so you can absorb a string of losses. Pressing size into one does the opposite.",
+    "Keep trading it the same way": "That ignores the change in the market. Traders forget to update their playbooks when conditions change."
+   },
+   "simple": "Review whether the setup fits this choppy market. A playbook needs updating when the market changes.",
+   "deeper": {
+    "trap": "Two opposite mistakes pull at you here. One is to throw out a setup after a short losing run. Yet even a 60% win rate, which Steenbarger calls quite good, brings several losses in a row many times a year. The other is to keep firing it into a market it was never built for. Steenbarger's answer is review: update the playbook when market conditions change."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (wrong note credited a line not on the page)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Post-trade review",
+   "q": "Your trade closed on Friday. Over the weekend you do a post-trade review. What are you doing?",
+   "choices": [
+    "Grading the trade against your plan",
+    "Checking the news on the stock",
+    "Pulling the fill prices from your broker",
+    "Picking a stop for the next trade"
+   ],
+   "answer": "Grading the trade against your plan",
+   "why": "Grading the trade against your plan. Selling isn't the last step. Check whether you entered where you planned and whether the stop sat where the chart said. Then check if you sold by your rules or on a feeling. Look hardest at the biggest thing you did right and the biggest thing you did wrong. Those two are what you carry into next week.",
+   "lesson_line": "The trade isn't over when you sell. It's over when you've reviewed it.",
+   "facts": [
+    "f13",
+    "f17",
+    "f60"
+   ],
+   "wrong": {
+    "Checking the news on the stock": "News is prep before a trade. The review grades what you did.",
+    "Pulling the fill prices from your broker": "Those are just records. The review is you grading your own decisions.",
+    "Picking a stop for the next trade": "That's planning the next trade. The review looks back at this one."
+   },
+   "simple": "A post-trade review grades a closed trade against your plan, so you learn from it.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (variety rewrite 2026-11-10)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q21",
+   "skill": "vocab.process_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Trade review",
+   "q": "A review isn't finished until it ends with a plan for next time.",
+   "answer": "True",
+   "why": "True. A review with no plan at the end is just a look in the rear view mirror. Listing what went wrong is the middle, not the end. Finish with something concrete for tomorrow or next week. Something like: no buys off a movers list, or the stop goes in the moment the order fills. Then you check yourself on it at the next review.",
+   "lesson_line": "End every review with what you'll do differently next time.",
+   "facts": [
+    "f59",
+    "f83"
+   ],
+   "simple": "True. A review ends with a clear plan for next time, or it only looks back.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Steenbarger: a review should finish with a highly concrete game plan for the next day or week. Without one it's merely a look in the rear view mirror. Bellafiore had his traders email their goals for the next month after reviewing the last one."
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "vocab.process_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Best-trade review",
+   "story": "Friday afternoon you pull up your best trade of the week. You go through how you prepared, entered, sized and exited it.",
+   "q": "Why bother picking apart a winner?",
+   "choices": [
+    "It shows what to do more of",
+    "It proves the setup has an edge",
+    "It's the easiest one to remember",
+    "Profit proves you traded it well"
+   ],
+   "answer": "It shows what to do more of",
+   "why": "It shows you what to do more of. Your best trades are your role models. Break it down: how you found it, where you got in, how you sized it, how you sold. That's the version of you that works, so do more of that. Careful though. One trade doesn't prove the setup has an edge, and a profit doesn't prove you traded it well. Good outcomes can come from bad decisions. Study the steps, not the P&L.",
+   "lesson_line": "Find what you do best, then do more of it.",
+   "facts": [
+    "f57",
+    "f56",
+    "f80",
+    "f78",
+    "f88",
+    "f55"
+   ],
+   "wrong": {
+    "It's the easiest one to remember": "Memory isn't the reason. You break it down step by step so you can repeat it.",
+    "It proves the setup has an edge": "One trade can't show that. You need to count every time it set up, over a real sample.",
+    "Profit proves you traded it well": "That's judging by the result. Good outcomes can come from bad decisions. Study how you got in, sized it and sold."
+   },
+   "simple": "Your best trade shows what you do well, so you can do more of it.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Steenbarger: your best trades are your role models, and reviewing them grounds you in your best practices. Bellafiore's thesis was for traders to study their best trades and build from them. Annie Duke's warning applies too: good outcomes can result from very bad decisions."
+   }
+  },
+  {
+   "key": "q23",
+   "skill": "vocab.process_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Monthly review",
+   "story": "Your journal tags every trade by setup. Over three months, one setup lost money on average across its 40 trades. Your other two setups made money.",
+   "q": "What do you do about it?",
+   "choices": [
+    "Fix or drop the losing setup",
+    "Trade the losing setup more often",
+    "Nothing, results by setup are noise",
+    "Cut size on all three setups"
+   ],
+   "answer": "Fix or drop the losing setup",
+   "why": "Fix or drop the losing setup. Forty trades over three months is real evidence. It says this one costs you money while the other two pay. So act on it. Find what's wrong and fix it, or stop trading it. If you change it, test the change before you trade it again. Every month we review the numbers, like win rate and expectancy. In our Journal, Insights shows each setup's win rate, profit factor and expectancy, so this jumps right out.",
+   "lesson_line": "Your journal tells you which setups pay for the others. Act on it.",
+   "facts": [
+    "f74",
+    "f54",
+    "f18",
+    "f55",
+    "h6"
+   ],
+   "wrong": {
+    "Trade the losing setup more often": "More of a losing setup is more losses. Build from the setups that work.",
+    "Nothing, results by setup are noise": "Forty trades is real evidence. Breaking results down by setup is what the monthly review is for.",
+    "Cut size on all three setups": "Two of them make money, so leave them alone. Act on the one that loses."
+   },
+   "simple": "Fix or drop the setup that loses. Your review shows it costs money while the other two pay.",
+   "deeper": {
+    "trap": "The trap runs both ways. Cutting a setup after a handful of losses can throw away a real edge. Keeping a losing setup because it once worked keeps costing you. Steenbarger's test: look back over a meaningful sample and count the times the pattern has and has not worked, setup by setup."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (trade count added to the story)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q24",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Report card",
+   "q": "At the close you give yourself a grade, A to F, on each of today's goals. What's that called?",
+   "choices": [
+    "Report card",
+    "Profit factor",
+    "Win rate",
+    "Watchlist"
+   ],
+   "answer": "Report card",
+   "why": "A report card. One grade per goal, A to F, at the end of the day. It grades how you traded, not what you made. Only plan trades, the right size, every stop taken. That's what gets graded. Over time it anchors your reviews and your goals. Profit factor and win rate come from your results. They can't tell you if you followed the plan.",
+   "lesson_line": "Grade how you traded, every day. The P&L grades itself.",
+   "facts": [
+    "f62",
+    "f81",
+    "f77"
+   ],
+   "wrong": {
+    "Profit factor": "That's gross profit over gross loss, a number from your results.",
+    "Win rate": "That's how often your trades make money, a result.",
+    "Watchlist": "That's your list of names to trade."
+   },
+   "simple": "A report card. You give each of your goals one grade, from A to F.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (Bellafiore wording)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "For frequent traders, Steenbarger's daily report card gives each goal a single grade, A to F, at the end of the day. He says it anchored review, goal setting and efforts at improvement. Bellafiore challenged traders to post a report card, not just their P&L."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "vocab.process_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Report card",
+   "story": "Today you lost money. You took only setups from your plan, sized each one right and sold at every stop.",
+   "q": "How do you grade your execution today?",
+   "choices": [
+    "A high grade, you ran the plan",
+    "An F, because the day lost money",
+    "Wait for a green day to grade it",
+    "A C, good process but a loss"
+   ],
+   "answer": "A high grade, you ran the plan",
+   "why": "A high grade. You ran the plan: only planned setups, every size right, every stop taken. That's a great day of trading, even in the red. A good trade isn't always a profitable one. The money gets its own line. The grade is for the part you control, and that's the part you can repeat tomorrow. Give yourself an F for a red day and you teach yourself to hate the stops that protected you.",
+   "lesson_line": "Clean execution on a red day still earns a good grade.",
+   "facts": [
+    "f62",
+    "f81",
+    "f68"
+   ],
+   "wrong": {
+    "An F, because the day lost money": "That grades the outcome. Your goals were about how you traded, and you hit every one.",
+    "Wait for a green day to grade it": "You grade every day at the close. A red day gets graded the same way.",
+    "A C, good process but a loss": "That blends the P&L back in. You met every goal, so the grade is high."
+   },
+   "simple": "A high grade. The report card grades how well you followed your plan, and you followed it all the way.",
+   "deeper": {
+    "trap": "The pull is to blend the two: clean trades but a red day, so a C. That mixes the outcome back into a grade built to keep it out. Grade the execution on its own. The P&L gets its own line, and good execution is the part you can repeat tomorrow."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q26",
+   "skill": "vocab.process_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Process goal",
+   "q": "A friend says his goal for next month is a process goal. What kind of goal is he talking about?",
+   "choices": [
+    "A goal for how he trades",
+    "A dollar target for the month",
+    "A price target for one stock",
+    "A goal for his win rate"
+   ],
+   "answer": "A goal for how he trades",
+   "why": "A goal for how he trades. Keep every loss to a set size, take every stop, only buy from the plan. All of that's in your hands. A dollar target isn't. It depends on what the market gives you. Same with a win rate. That's a result. I like process goals because you can hit them every day, even on a red day. Do things well and the outcomes take care of themselves.",
+   "lesson_line": "Set goals you control. Do things well and the outcomes take care of themselves.",
+   "facts": [
+    "f64",
+    "f65",
+    "f109",
+    "f110",
+    "f86",
+    "f106"
+   ],
+   "wrong": {
+    "A dollar target for the month": "That's an outcome goal. It depends on market conditions he doesn't control.",
+    "A price target for one stock": "That's a trade target. It's about the stock, not about how he trades.",
+    "A goal for his win rate": "Win rate is a result. A process goal is the action that leads to results."
+   },
+   "simple": "A process goal is about how you trade, like keeping each loss small, which you control.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (second publisher added)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Steenbarger's example of a process goal: limit losses to a certain number of ticks per trade. His outcome goal example: a dollar amount per week or month. Sport psychologists McCarthy and Gupta say only process goals are fully in your control."
+   }
+  },
+  {
+   "key": "q27",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "scenario",
+   "term": "Outcome goal",
+   "story": "Your goals this month: 1) Win a trading contest you entered. 2) Never move a stop lower after you enter.",
+   "q": "Which of the two is an outcome goal?",
+   "choices": [
+    "Win the trading contest",
+    "Never move a stop lower",
+    "Both, each one is a target",
+    "Neither is an outcome goal"
+   ],
+   "answer": "Win the trading contest",
+   "why": "Winning the contest. That's a result. It depends on the market and on how everyone else trades, and someone can just have a better month than you. Never moving a stop lower is a process goal. You do it on every trade, and it's fully in your hands. You can want both. Just put your effort into the one you control.",
+   "lesson_line": "Outcome goals say what you want. Process goals say what you'll do.",
+   "facts": [
+    "f64",
+    "f65",
+    "f109",
+    "f110",
+    "f76",
+    "f86",
+    "f82"
+   ],
+   "wrong": {
+    "Never move a stop lower": "That's a process goal. It's about how you trade, and it's fully in your hands.",
+    "Both, each one is a target": "Only the contest win is a result. The stop rule is a behavior.",
+    "Neither is an outcome goal": "Winning depends on the market and on other traders, which you only partly control. That makes it an outcome goal."
+   },
+   "simple": "Winning the contest. It's a result that depends on the market and on other traders.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (second publisher added)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q28",
+   "skill": "vocab.process_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Process goal",
+   "q": "Your goals should focus on how you trade, not how much money you'll make.",
+   "answer": "True",
+   "why": "True. You can't control what any one trade pays. You can control how you take it: the entry, the stop, the size, the exit. Dollar goals depend on what the market hands you. Chase a dollar number and you start forcing trades. And there's evidence process goals work better than all-or-none money goals. Do things well and the outcomes take care of themselves.",
+   "lesson_line": "You can't control the next trade's result. You can control how you take it.",
+   "facts": [
+    "f76",
+    "f65",
+    "f66",
+    "f86"
+   ],
+   "simple": "True. You control how you trade, but not what any single trade pays you.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (hedge matched to the source)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Steenbarger: your goals should focus on how you trade, not how much money you'll make. You can't control the profitability of any single trade. Annie Duke says the same thing: focus on process instead."
+   }
+  },
+  {
+   "key": "q29",
+   "skill": "vocab.process_terms",
+   "rung": 6,
+   "format": "tf",
+   "term": "Process vs outcome",
+   "q": "Your stock hit its stop for a loss. That means buying it was a bad decision.",
+   "answer": "False",
+   "why": "False. A good trade isn't always a profitable one. You can get everything right, the setup, the entry, the stop, the size, and still lose. That's the odds, and losing is part of them. So judge the decision by whether it followed the plan. A planned trade that stopped out for a small loss is a good trade. I'll take that one every day.",
+   "lesson_line": "A clean trade can still lose. Losing is part of the odds.",
+   "facts": [
+    "f68",
+    "f88",
+    "f79",
+    "f72b"
+   ],
+   "simple": "False. A good decision can still lose money, because losses are part of the odds.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q30",
+   "skill": "vocab.process_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Process vs outcome",
+   "story": "Two trades this week. Trade A followed your plan and stopped out for 1R. Trade B was a tip you bought with no stop, and it made three times what A lost.",
+   "q": "Which one do you want to repeat?",
+   "choices": [
+    "Trade A",
+    "Trade B",
+    "Both",
+    "Neither"
+   ],
+   "answer": "Trade A",
+   "why": "Trade A, easy. It followed the plan and lost 1R. Good trade, bad result. Trade B was a tip with no stop that happened to pay three times as much. Bad trade, good result. Keep repeating B and one day it doesn't work. With no stop, nothing limits what that costs. We never take a trade from an alert or a post without our own entry, stop and size. Repeat the process, not the payout.",
+   "lesson_line": "Repeat the decisions you'd make again, whatever they paid this week.",
+   "facts": [
+    "f67",
+    "f88",
+    "f87",
+    "f68",
+    "f84",
+    "f72b",
+    "f90",
+    "f96",
+    "h8"
+   ],
+   "wrong": {
+    "Trade B": "That's judging by the result. No plan and no stop isn't a habit you want.",
+    "Both": "Trade B had no plan and no stop. Good outcomes can come from bad decisions.",
+    "Neither": "Trade A followed your plan. A good trade isn't always a profitable one."
+   },
+   "simple": "Trade A, because it followed your plan. A good decision can lose, and a bad one can win.",
+   "deeper": {
+    "trap": "Trade B feels better because it paid more. That's the pull Annie Duke warns about: resulting can make you repeat bad decisions and drop good ones. A trade with no stop also had no planned worst case. Tharp says your exit, your worst-case risk, is set before you enter. The big loss Trade B risked just didn't show up this time."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (story: a trade with no stop has no R)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q31",
+   "skill": "vocab.process_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Resulting",
+   "story": "You risked twice the amount your plan allows on one trade. It ran, and you sold for a big gain. You decide bigger bets pay.",
+   "q": "What's the name for that mistake?",
+   "choices": [
+    "Resulting",
+    "Curve fitting",
+    "Revenge trading",
+    "Confirmation bias"
+   ],
+   "answer": "Resulting",
+   "why": "Resulting. You judged the decision by how it turned out. Annie Duke brought the word over from poker: tying the quality of a decision too tightly to the quality of its outcome. Doubling your risk broke your plan. It was a bad decision that happened to win. Flip it. If that trade had lost twice your normal risk, you'd call it a mistake. Same decision. The win just makes it feel smart, and that's how a bad habit gets locked in.",
+   "lesson_line": "A win doesn't make the decision good. Grade the decision, then the result.",
+   "facts": [
+    "f84",
+    "f90",
+    "f87",
+    "f88",
+    "f07",
+    "f73"
+   ],
+   "wrong": {
+    "Curve fitting": "That's tuning a backtest until it fits old data. There was no test here, just one live trade judged by its result.",
+    "Revenge trading": "Nothing here follows a loss. A win shaped your belief, and judging a decision by its result is resulting.",
+    "Confirmation bias": "The belief came from the win itself. Judging a decision by how it turned out is what Duke calls resulting."
+   },
+   "simple": "Resulting. You called a bad decision good just because it made money this time.",
+   "deeper": {
+    "counter": "Flip the story. If the same oversized bet had handed you a big loss, you'd call it a mistake. Same decision, different luck. When your verdict flips with the result, you are grading the luck, not the decision. Duke's point is that a good decision can lose and a bad one can win."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q32",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Resulting",
+   "q": "After a lucky winner, a friend says \"I was resulting again.\" What's he admitting to?",
+   "choices": [
+    "Judging a call by its outcome",
+    "Reviewing his results each month",
+    "Taking profit at his target",
+    "Logging his trades too late"
+   ],
+   "answer": "Judging a call by its outcome",
+   "why": "Judging a call by how it turned out. It's Annie Duke's word, from poker. A good decision can lose and a bad one can win, so one result can't grade the decision. When you catch yourself doing it, ask yourself if you'd make the same call again with what you knew then. Reviewing your results every month is a good habit, not resulting. It looks at many trades, not one.",
+   "lesson_line": "Good decisions can lose. Bad ones can win. One result doesn't grade the decision.",
+   "facts": [
+    "f84",
+    "f87",
+    "f88"
+   ],
+   "wrong": {
+    "Reviewing his results each month": "That's a monthly review, a good habit. Resulting is a mistake.",
+    "Taking profit at his target": "That's an exit. Resulting is about how you judge a decision afterward.",
+    "Logging his trades too late": "That's a journaling habit to fix. Resulting is about how he judges a decision."
+   },
+   "simple": "Resulting means judging a decision only by how it turned out, which mixes up luck and skill.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q33",
+   "skill": "vocab.process_terms",
+   "rung": 3,
+   "format": "fill",
+   "term": "Outcome bias",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Judging a decision's quality by how it turned out is called outcome ___.",
+   "bank": [
+    "bias",
+    "goal",
+    "review",
+    "factor",
+    "rate"
+   ],
+   "answer": "bias",
+   "why": "Bias. Psychologists call it outcome bias: letting the outcome sway how you judge the decision's quality. Annie Duke's poker word for the same trap is resulting.",
+   "lesson_line": "Outcome bias grades the result and calls it the decision.",
+   "facts": [
+    "f107",
+    "f91",
+    "f84",
+    "f87"
+   ]
+  },
+  {
+   "key": "q34",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Sample size",
+   "q": "One losing trade is enough to show your setup doesn't work.",
+   "answer": "False",
+   "why": "False. One trade is a sample of one. It tells you almost nothing about a setup. Even a sound setup loses plenty, because trading is a game of odds and you can trade well and lose. With a small sample, the outcome just isn't a reliable signal of the decision. Judge a setup over many trades. In our Journal, Insights breaks your numbers down by setup.",
+   "lesson_line": "One trade is a story. Many trades are evidence.",
+   "facts": [
+    "f85",
+    "f72b"
+   ],
+   "simple": "False. One loss is far too few trades to judge a setup, and a good setup still loses sometimes.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q35",
+   "skill": "vocab.process_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Sample size",
+   "story": "You backtest a setup and find 11 trades, 9 of them winners. You plan to double your size on it tomorrow.",
+   "q": "What's wrong with that plan?",
+   "choices": [
+    "The sample is too small to trust",
+    "Nothing, most of the trades won",
+    "Nothing, if the stop is tight",
+    "It needs a higher win rate first"
+   ],
+   "answer": "The sample is too small to trust",
+   "why": "The sample's too small to trust. Nine winners in 11 looks amazing, but that's exactly the kind of run luck can hand you. Even 10 trades isn't enough to tell you what to expect over many trades. And doubling your size tomorrow puts the most money on the thing you know least about. Keep testing it. Let the record grow before the size does.",
+   "lesson_line": "Trust a long record, not a short lucky run.",
+   "facts": [
+    "f46",
+    "f95",
+    "f55",
+    "f47",
+    "f86"
+   ],
+   "wrong": {
+    "Nothing, most of the trades won": "A high win rate on a few trades can be luck. The count is too small to trust.",
+    "Nothing, if the stop is tight": "A tight stop limits each loss. It doesn't turn 11 trades into a proven record.",
+    "It needs a higher win rate first": "Nine wins in 11 is already high. The problem is the count, not the rate."
+   },
+   "simple": "The sample is too small to trust, so 9 wins in 11 trades could just be luck.",
+   "deeper": {
+    "trap": "Nine wins out of 11 looks like proof. StockCharts' Arthur Hill calls a test with 11 signals not a very big sample. Van Tharp says even 10 trades isn't enough. Steenbarger wants a meaningful sample, counting every time the pattern did and did not work."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q36",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Premortem",
+   "q": "Before buying, a friend says he's running a premortem on the trade. What's he doing?",
+   "choices": [
+    "Imagining it failed and asking why",
+    "Reviewing a trade after it closes",
+    "Checking the charts before the open",
+    "Testing the setup on past data"
+   ],
+   "answer": "Imagining it failed and asking why",
+   "why": "He's imagining the trade already failed and asking why. Say it's a month from now and this one lost, and you ask how that happened. Maybe the market rolled over. Maybe earnings hit it. Maybe the base was never as tight as you thought. You write those down while there's still time to change the plan, or skip the trade. A review happens after the trade. A premortem happens before you buy.",
+   "lesson_line": "Before you buy, ask how this one loses. Then plan for it.",
+   "facts": [
+    "f92",
+    "f89"
+   ],
+   "wrong": {
+    "Reviewing a trade after it closes": "That's a post-trade review, after the fact. A premortem comes before.",
+    "Checking the charts before the open": "That's your morning routine.",
+    "Testing the setup on past data": "That's a backtest. A premortem imagines a failure ahead."
+   },
+   "simple": "A premortem means picturing your trade already failed, then asking why, before you buy.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "The premortem comes from Gary Klein in Harvard Business Review: team members assume the project they're planning has just failed. Annie Duke applies it to any goal: imagine failing to reach it, then ask how that happened."
+   }
+  },
+  {
+   "key": "q37",
+   "skill": "vocab.process_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Premortem",
+   "story": "Before you buy, you imagine it's a month later and this trade was a loss. You write down three ways it could have failed.",
+   "q": "What's that exercise called?",
+   "choices": [
+    "Premortem",
+    "Post-trade review",
+    "Backtest",
+    "Report card"
+   ],
+   "answer": "Premortem",
+   "why": "A premortem. You assumed the trade already lost and worked out how, before a dollar went in. That's when it's useful. Say one of your three ways to fail is earnings next week. You can still plan around it, or pass. A review looks back at a closed trade. A backtest runs rules over past data. A report card grades trading you already did.",
+   "lesson_line": "Imagine the loss before the entry, while you can still change the plan.",
+   "facts": [
+    "f92",
+    "f89"
+   ],
+   "wrong": {
+    "Post-trade review": "A review looks back at a closed trade. You haven't bought yet.",
+    "Backtest": "A backtest runs rules over past data. You imagined a future failure.",
+    "Report card": "A report card grades how you traded. Nothing has been traded yet."
+   },
+   "simple": "A premortem. You pictured the trade already lost and worked out why, before buying.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q38",
+   "skill": "vocab.process_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Win rate",
+   "q": "Your Journal shows a Win Rate for the year. What's it measuring?",
+   "choices": [
+    "Share of trades that made money",
+    "Average gain on your winning trades",
+    "Gross profit over gross loss",
+    "Number of wins divided by losses"
+   ],
+   "answer": "Share of trades that made money",
+   "why": "The share of your trades that made money. Winners divided by all your trades, winners plus losers. A breakeven trade isn't a win. It tells you how often you win. It says nothing about how much. A high win rate with big losses can still lose money. So read it next to your average win and average loss. On the Journal's Trades tab they sit right beside it.",
+   "lesson_line": "Win rate says how often. It says nothing about how much.",
+   "facts": [
+    "f37",
+    "f31",
+    "f16"
+   ],
+   "wrong": {
+    "Average gain on your winning trades": "That's your average win, a size, not a count.",
+    "Gross profit over gross loss": "That's profit factor.",
+    "Number of wins divided by losses": "That compares winners to losers. Win rate puts every trade, winners and losers, in the bottom number."
+   },
+   "simple": "Win rate is the share of your trades that made money. It tells you how often you win.",
+   "deeper": {
+    "trap": "Watch the name win/loss ratio. Schwab uses it for the percentage of your trades that were profitable versus those that weren't. Wins divided by losses is a different number from win rate. Check how a page defines a ratio before you compare numbers. Win rate, as StockCharts defines it, puts winners and losers alike in the bottom number."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q39",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Win rate",
+   "q": "Your Journal shows 25 closed trades this quarter: 10 winners and 15 losers. What's your win rate?",
+   "answer": "40%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "wins / (wins + losses) * 100",
+     "wins": 10,
+     "losses": 15
+    }
+   },
+   "suffix": "%",
+   "why": "40%. Win rate is winners over all your trades. 10 winners plus 15 losers is 25 trades. 10 out of 25 is 40%. The easy mistake is 10 over 15. That leaves the losers out of the bottom number and gives you 66.7%, which flatters you. And 40% is fine, by the way, as long as your winners are a lot bigger than your losers.",
+   "lesson_line": "Count every trade in the bottom number, losers included.",
+   "facts": [
+    "f37",
+    "f31"
+   ],
+   "simple": "Your win rate is 40%, because 10 of your 25 trades were winners.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "66.7%",
+    "28.6%",
+    "60%",
+    "40%"
+   ],
+   "wrong": {
+    "66.7%": "Divided winners by losers, so the losers were left out of the bottom number.",
+    "28.6%": "Counted the winners twice in the bottom number.",
+    "60%": "Used the losers, not the winners, on top."
+   },
+   "visual": {
+    "kind": "share",
+    "title": "Your record",
+    "whole": {
+     "label": "All trades",
+     "value": 25,
+     "fmt": "count"
+    },
+    "part": {
+     "label": "Winners",
+     "value": 10,
+     "fmt": "count"
+    },
+    "find": {
+     "label": "Win rate",
+     "as": "pct"
+    }
+   }
+  },
+  {
+   "key": "q40",
+   "skill": "vocab.process_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Win rate",
+   "q": "Some of the best traders win only about half of their trades.",
+   "answer": "True",
+   "why": "True. Many of the Market Wizards say their win rate isn't much different from 50%. They still do great, because they keep their losses small. You don't need to be right most of the time. You need your average win to beat your average loss. That's the whole game for us: small losses, and let the winners pay for them.",
+   "lesson_line": "You don't need to be right most of the time. Keep the losers small.",
+   "facts": [
+    "f105",
+    "f38",
+    "f37",
+    "f42"
+   ],
+   "simple": "True. Many top traders win about half their trades and do well by keeping losses small.",
+   "deeper": {
+    "trap": "A 50% win rate sounds like a coin flip, so it's tempting to hunt for setups that win most of the time. The catch is size. The Wizards in Steenbarger's note win about half the time and still do well, because their losses stay small. A high win rate with big losses can still lose money."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (f37 added)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q41",
+   "skill": "vocab.process_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Win rate",
+   "story": "Trader A wins 70% of her trades. Trader B wins 35% of his. That's all you know.",
+   "q": "What else do you need before you can say who's doing better per trade?",
+   "choices": [
+    "Average win and average loss",
+    "Nothing more, A wins more often",
+    "How long each one holds a trade",
+    "Their longest winning streak"
+   ],
+   "answer": "Average win and average loss",
+   "why": "Their average win and average loss. Win rate tells you how often. It doesn't tell you how much. If her losses are much bigger than her wins, 70% can still lose money. If his wins are much bigger than his losses, 35% can make plenty. Put the two together and you get the result per trade. On our Journal's Trades tab, Avg Win and Avg Loss sit right next to Win Rate. Read them together.",
+   "lesson_line": "Win rate without the size of wins and losses is half a number.",
+   "facts": [
+    "f41",
+    "f38",
+    "f15",
+    "f30",
+    "f34",
+    "f44"
+   ],
+   "wrong": {
+    "How long each one holds a trade": "Holding time doesn't change the result per trade. You need how often they win and how big the wins and losses are.",
+    "Their longest winning streak": "A streak shows how wins bunch up, not how big each win or loss is.",
+    "Nothing more, A wins more often": "If her losses are much bigger than her wins, she can still lose money. Win rate alone ranks nothing."
+   },
+   "simple": "You need their average win and average loss, because win rate alone says nothing about size.",
+   "deeper": {
+    "example": "Picture A winning small and losing big: a few large losses can wipe out many small wins. Picture B winning big and losing small: a few large wins can pay for many small losses. Same win rates, opposite results. That's why StockCharts pairs win rate with average win against average loss."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q42",
+   "skill": "vocab.process_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Average win",
+   "q": "You had three winners this month: $300, $500 and $400. What's your average win?",
+   "answer": "$400",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a + b + c) / 3",
+     "a": 300,
+     "b": 500,
+     "c": 400
+    }
+   },
+   "prefix": "$",
+   "why": "$400. Add them up: $300 plus $500 plus $400 is $1,200. Divide by the 3 trades and you get $400. Plenty of people stop at the $1,200. That's what you made in total, not the average. The average win matters because you hold it up against your average loss. You want the average gain to outpace the average loss.",
+   "lesson_line": "Average win and average loss are the sizes that give win rate its meaning.",
+   "facts": [
+    "f42",
+    "f74"
+   ],
+   "simple": "Your average win is $400, because you add the three wins and divide by three.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$1,200",
+    "$500",
+    "$600",
+    "$400"
+   ],
+   "wrong": {
+    "$1,200": "Added the three wins and forgot to divide.",
+    "$600": "Divided the total by two instead of three.",
+    "$500": "Picked the biggest win instead of averaging."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Your winners",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "First win",
+      "value": 300,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Second win",
+      "value": 500,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Third win",
+      "value": 400,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Average win",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q43",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Payoff ratio",
+   "q": "A stats page shows your payoff ratio. How is that number worked out?",
+   "choices": [
+    "Average win divided by average loss",
+    "Winning trades divided by losing ones",
+    "Gross profit divided by gross loss",
+    "Profit divided by account size"
+   ],
+   "answer": "Average win divided by average loss",
+   "why": "Average win divided by average loss. It tells you how big your wins are next to your losses. The bigger it is, the more each win pays for your losers. Your Journal's Trades tab shows Avg Win and Avg Loss, so you can work it out by hand in seconds. It says nothing about how often you win. Gross profit over gross loss uses totals. That's profit factor, a different number, and people mix the two up all the time.",
+   "lesson_line": "Payoff ratio says how big your wins are next to your losses.",
+   "facts": [
+    "f30",
+    "f108",
+    "f41",
+    "f29"
+   ],
+   "wrong": {
+    "Winning trades divided by losing ones": "That counts trades. It ignores how much each one made or lost.",
+    "Gross profit divided by gross loss": "That's profit factor. It uses totals, not averages.",
+    "Profit divided by account size": "That's your return on the account."
+   },
+   "simple": "Average win divided by average loss. It shows how big your wins are next to your losses.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (second publisher added)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q44",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Payoff ratio",
+   "q": "Your Journal says your average win is 6% and your average loss is 2%. What's your payoff ratio?",
+   "answer": "3.00",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "win / loss",
+     "win": 6,
+     "loss": 2
+    }
+   },
+   "why": "3. Average win over average loss: 6 divided by 2 is 3. Your average win is three times your average loss. That's a strong ratio, but don't stop there. It still doesn't say you make money. You need your win rate next to it, because win too small a share of trades and even a 3 can lose.",
+   "lesson_line": "Know both sizes. A win rate only means something next to this number.",
+   "facts": [
+    "f30",
+    "f108",
+    "f41"
+   ],
+   "simple": "Your payoff ratio is 3, because your average win of 6% is three times your average loss of 2%.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (definition sources)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "0.33",
+    "0.75",
+    "2.00",
+    "3.00"
+   ],
+   "wrong": {
+    "0.33": "Flipped it: loss divided by win.",
+    "0.75": "Divided the win by the win plus the loss.",
+    "2.00": "Divided the gap between win and loss by the loss."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Your record",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Average win",
+      "value": 6,
+      "fmt": "%"
+     },
+     {
+      "key": "r2",
+      "label": "Average loss",
+      "value": 2,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Payoff ratio",
+     "as": "num",
+     "unit": "ratio"
+    }
+   }
+  },
+  {
+   "key": "q45",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Profit factor",
+   "q": "You add up every dollar your winners made and divide by every dollar your losers lost. What number did you just get?",
+   "choices": [
+    "Profit factor",
+    "Payoff ratio",
+    "Win rate",
+    "Expectancy"
+   ],
+   "answer": "Profit factor",
+   "why": "Profit factor. Gross profit over gross loss, the totals. Think of it as an after-the-fact reward-to-risk ratio. It tells you how much you made for each dollar you lost. Over 1, the winners paid for the losers and then some. Payoff ratio uses averages, not totals. Win rate counts winners. Expectancy is your average result per trade. You'll find Profit Factor on the Journal's Trades tab.",
+   "lesson_line": "Profit factor uses totals. Payoff ratio uses averages.",
+   "facts": [
+    "f29",
+    "f39",
+    "f39b",
+    "f40"
+   ],
+   "wrong": {
+    "Payoff ratio": "That's average win over average loss, not the totals.",
+    "Win rate": "That's the share of trades that made money.",
+    "Expectancy": "That's the average result per trade."
+   },
+   "simple": "Profit factor. It's the total your winners made divided by the total your losers lost.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q46",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Profit factor",
+   "q": "This year your winners made $9,000 in total and your losers lost $6,000. What's your profit factor?",
+   "answer": "1.50",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "gross_profit / gross_loss",
+     "gross_profit": 9000,
+     "gross_loss": 6000
+    }
+   },
+   "why": "1.5. Gross profit over gross loss: 9,000 divided by 6,000 is 1.5. You made 1.5 dollars for every dollar you lost. Anything over 1 means you made money overall. Notice what it can't tell you: how often you won. It's totals only, so read it next to your win rate.",
+   "lesson_line": "Over 1, the winners paid for the losers. Under 1, they didn't.",
+   "facts": [
+    "f29",
+    "f39",
+    "f40"
+   ],
+   "simple": "Your profit factor is 1.5, because your winners made $9,000 and your losers lost $6,000.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "2.50",
+    "0.67",
+    "1.50",
+    "0.60"
+   ],
+   "wrong": {
+    "0.67": "Flipped it: gross loss divided by gross profit.",
+    "2.50": "Divided the gross total of both sides by the loss.",
+    "0.60": "Divided profit by the combined total of wins and losses."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Your record",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Winners made, total",
+      "value": 9000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Losers lost, total",
+      "value": 6000,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Profit factor",
+     "as": "num",
+     "unit": "ratio"
+    }
+   }
+  },
+  {
+   "key": "q47",
+   "skill": "vocab.process_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Profit factor",
+   "q": "A profit factor below 1 means the strategy lost money overall.",
+   "answer": "True",
+   "why": "True. Profit factor is gross profit over gross loss. Under 1, your losers lost more in total than your winners made. You're down. At exactly 1, the winners only paid for the losers and you're flat. Over 1, you made money. If your Journal shows a profit factor under 1, don't trade bigger to fix it. Look at your losses first.",
+   "lesson_line": "Under 1, the losers outran the winners.",
+   "facts": [
+    "f29",
+    "f40"
+   ],
+   "simple": "True. Under 1, your losers lost more in total than your winners made.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q48",
+   "skill": "vocab.process_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Expectancy",
+   "q": "What does expectancy mean?",
+   "choices": [
+    "Your average result per trade",
+    "What you'll make on the next trade",
+    "How often your trades win",
+    "Your largest win so far"
+   ],
+   "answer": "Your average result per trade",
+   "why": "Your average result per trade. Schwab: your average gain or loss per trade. Van Tharp measures it as the average R-multiple of your trades.",
+   "lesson_line": "Expectancy is what a trade is worth on average, over many trades.",
+   "facts": [
+    "f15",
+    "f94",
+    "f95"
+   ],
+   "wrong": {
+    "What you'll make on the next trade": "No single trade is predictable. Expectancy only shows up over many trades.",
+    "How often your trades win": "That's win rate. Expectancy also counts how big the wins and losses are.",
+    "Your largest win so far": "One big win says little. Expectancy averages all of them."
+   }
+  },
+  {
+   "key": "q49",
+   "skill": "vocab.process_terms",
+   "rung": 5,
+   "format": "numeric",
+   "term": "Expectancy",
+   "q": "Your win rate is 40%. Your average win is 3R and your average loss is 1R. What's your expectancy per trade, in R?",
+   "answer": 0.6,
+   "calc": {
+    "fn": "expectancy_r",
+    "args": {
+     "win_rate_pct": 40,
+     "avg_win_r": 3,
+     "avg_loss_r": 1
+    }
+   },
+   "suffix": "R",
+   "why": "0.6R. Take 40% of 3R, subtract the losing share of trades times 1R, and you average 0.6R a trade.",
+   "lesson_line": "Positive expectancy with a 40% win rate. The size of the wins does the work.",
+   "facts": [
+    "f15",
+    "f94"
+   ]
+  },
+  {
+   "key": "q50",
+   "skill": "vocab.process_terms",
+   "rung": 7,
+   "format": "mcq",
+   "term": "Negative expectancy",
+   "q": "Your stats: a 70% win rate, a $100 average win and a $400 average loss. What's your expectancy per trade?",
+   "answer": "-50 dollars",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "p / 100 * win - (100 - p) / 100 * loss",
+     "p": 70,
+     "win": 100,
+     "loss": 400
+    }
+   },
+   "prefix": "$",
+   "why": "You lose $50 a trade. Winners: 70% of $100 is $70. You lose the other 30% of the time, and 30% of $400 is $120. $70 minus $120 is -$50. That's the trap with a high win rate. You're right most of the time and still bleeding, because one average loss wipes out four average wins. The fix is the size of the losses, not the win rate. Set your exit, your worst case, before you enter.",
+   "lesson_line": "A high win rate can still lose money. Check the size of the losses.",
+   "facts": [
+    "f15",
+    "f38",
+    "f94",
+    "f96"
+   ],
+   "simple": "You lose $50 a trade on average. Your losses are so big that winning 70% of the time can't cover them.",
+   "deeper": {
+    "trap": "A high win rate can feel safe. Here it's 70%, yet one average loss wipes out several average wins. Tharp: you must have a predetermined exit, your worst-case risk, before you enter. On our Journal's Trades tab, Avg P&L / Trade shows this number for your own trades."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (reveal wording)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "-300 dollars",
+    "+70 dollars",
+    "-50 dollars",
+    "-250 dollars"
+   ],
+   "wrong": {
+    "-300 dollars": "Took average win minus average loss and ignored the win rate.",
+    "+70 dollars": "Counted only the winners and left out the losing side.",
+    "-250 dollars": "Swapped the win rate and loss rate in the formula."
+   }
+  },
+  {
+   "key": "q51",
+   "skill": "vocab.process_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Expectancy",
+   "story": "Setup X wins 30% of the time, with an average win of 4R and loss of 1R. Setup Y wins 60%, with an average win of 0.5R and loss of 1R.",
+   "q": "Which setup has the better expectancy?",
+   "choices": [
+    "Setup X, at 0.5R a trade",
+    "Setup Y, it wins twice as often",
+    "They come out the same"
+   ],
+   "answer": "Setup X, at 0.5R a trade",
+   "calc": {
+    "fn": "expectancy_r",
+    "args": {
+     "win_rate_pct": 30,
+     "avg_win_r": 4,
+     "avg_loss_r": 1
+    }
+   },
+   "why": "Setup X, at 0.5R a trade. It loses more often, but its wins are big. Setup Y wins often, but its wins are small next to its losses, so it loses money on average.",
+   "lesson_line": "Judge a setup by its expectancy, not its win rate.",
+   "facts": [
+    "f15",
+    "f94",
+    "f38"
+   ],
+   "wrong": {
+    "Setup Y, it wins twice as often": "Its average win is half its average loss. Winning more often doesn't cover that.",
+    "They come out the same": "Work both out. X comes out positive and Y negative."
+   }
+  },
+  {
+   "key": "q52",
+   "skill": "vocab.process_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Positive expectancy",
+   "q": "A setup with positive expectancy will make money on the next trade.",
+   "answer": "False",
+   "why": "False. Van Tharp: expectancy tells you what to expect per trade on average over many trades. Steenbarger: even a 60% win rate brings several losses in a row many times a year.",
+   "lesson_line": "An edge plays out over many trades. Any one of them can lose.",
+   "facts": [
+    "f95",
+    "f71"
+   ]
+  },
+  {
+   "key": "q53",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "numeric",
+   "term": "R-multiple",
+   "q": "You buy at $50 with a stop at $48. You sell at $56. How many R did you make?",
+   "answer": 3,
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 50,
+     "stop": 48,
+     "exit": 56
+    }
+   },
+   "suffix": "R",
+   "why": "3R. Your risk per share was $50 minus $48, the distance to your stop. Your gain was $56 minus $50, three times as much.",
+   "lesson_line": "Measure every trade in R: the result as a multiple of the risk you took.",
+   "facts": [
+    "f93",
+    "f93b",
+    "f93c"
+   ]
+  },
+  {
+   "key": "q54",
+   "skill": "vocab.process_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Losing streak",
+   "story": "Your setup has a solid record over 200 trades. Now it has lost four in a row, each one at your planned stop.",
+   "q": "What's that streak telling you?",
+   "choices": [
+    "Losing runs happen to any edge",
+    "The setup has stopped working",
+    "The next trade is due to win",
+    "Your stops are set too tight"
+   ],
+   "answer": "Losing runs happen to any edge",
+   "why": "Losing runs happen to any edge. Win 60% of the time, which is quite good, and you'll still lose several in a row many times a year. Four planned stop-outs after 200 trades of record don't prove the setup broke. Every one hit your planned stop, so the losses stayed small. That's the plan working. Check whether the market changed. Size so you can sit through a string of losses. In our Journal, Max Consec. Losses shows your worst streak so far.",
+   "lesson_line": "Expect losing streaks. Size so you can sit through them.",
+   "facts": [
+    "f71",
+    "f44",
+    "f45",
+    "f34",
+    "f53",
+    "f72b"
+   ],
+   "wrong": {
+    "The setup has stopped working": "Four losses can come by chance in a sound setup. Check whether conditions changed before you decide.",
+    "The next trade is due to win": "A streak doesn't make a win due. Trading is a game of odds, and a 60% win rate still brings several losses in a row.",
+    "Your stops are set too tight": "The streak alone can't show that. Each loss hit your planned stop, and even a 60% win rate brings several losses in a row."
+   },
+   "simple": "Losing runs happen to any edge. Even a good setup with a solid record loses several in a row.",
+   "deeper": {
+    "trap": "The trap is recency. Four fresh losses feel louder than 200 trades of record, so the setup seems broken. Steenbarger notes a 60% win rate still brings several losses in a row many times a year. The streak is a cue to check your execution and the market, not a verdict on the setup."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q55",
+   "skill": "vocab.process_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Backtest",
+   "q": "A friend shows you a backtest of his setup. What did he actually do?",
+   "choices": [
+    "Ran his rules on past data",
+    "Traded fake money in a live market",
+    "Reviewed his own closed trades",
+    "Pictured a trade failing ahead"
+   ],
+   "answer": "Ran his rules on past data",
+   "why": "He ran his rules over past data. It shows what the rules would have done on old charts, during a stretch when nobody was really trading them. So those are hypothetical results. Nobody made that money. A backtest is a fine way to check an idea before you risk anything on it. Paper trading uses today's live market. A review looks at real trades. A premortem imagines a failure ahead.",
+   "lesson_line": "A backtest shows what the rules would have done. Nobody traded it.",
+   "facts": [
+    "f100",
+    "f99"
+   ],
+   "wrong": {
+    "Traded fake money in a live market": "That's paper trading.",
+    "Reviewed his own closed trades": "That's a post-trade review of real trades.",
+    "Pictured a trade failing ahead": "That's a premortem."
+   },
+   "simple": "A backtest means running your trading rules over past prices to see what they would have done.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "The SEC's marketing rule describes backtested performance as a strategy applied to past periods when it wasn't actually used. It calls those results hypothetical, not actually achieved by any portfolio."
+   }
+  },
+  {
+   "key": "q56",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "fill",
+   "term": "Hypothetical performance",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Under the SEC's adviser marketing rule, backtested results count as ___ performance.",
+   "bank": [
+    "hypothetical",
+    "actual",
+    "audited",
+    "realized",
+    "verified"
+   ],
+   "answer": "hypothetical",
+   "why": "Hypothetical. Under the SEC's marketing rule for investment advisers, hypothetical performance means results not actually achieved by any portfolio of the adviser. Backtested performance is one kind: a strategy applied to past data from a time it was not actually used. The CFTC requires commodity advisers who show simulated results to say they do not represent actual trading.",
+   "lesson_line": "Backtested results are hypothetical. No account actually earned them.",
+   "facts": [
+    "f99",
+    "f100",
+    "f101"
+   ],
+   "simple": "A backtest counts as hypothetical, because its results were never made in a real account.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a regulatory rule that can change",
+     "fixed before (sentence names the adviser rule)"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q57",
+   "skill": "vocab.process_terms",
+   "rung": 7,
+   "format": "tf",
+   "term": "Backtest",
+   "q": "A strong backtest means the strategy will keep working.",
+   "answer": "False",
+   "why": "False. The future may not look like the past. The test ran on old data, and none of its trades were real. It can miss what thin volume would have done to the fills. Nobody can promise you'll get those results live. A strong backtest is a good reason to keep testing. Paper trade it, then trade it small. It's a start, not a promise.",
+   "lesson_line": "The past is a guide, not a promise.",
+   "facts": [
+    "f73",
+    "f104",
+    "f47",
+    "f103"
+   ],
+   "simple": "False, a backtest shows what worked in the past, and the future may not act the same way.",
+   "deeper": {
+    "trap": "A smooth backtest feels like proof. But none of its trades were executed. The CFTC warns such results may misjudge market factors, such as lack of liquidity."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q58",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "Hindsight",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The CFTC's required warning says simulated trading programs are designed with the benefit of ___.",
+   "bank": [
+    "hindsight",
+    "liquidity",
+    "insight",
+    "discipline",
+    "research"
+   ],
+   "answer": "hindsight",
+   "why": "Hindsight. The CFTC's advertising rule for commodity pool operators and trading advisors requires a warning about simulated or hypothetical results. It says such programs are designed with the benefit of hindsight. Whoever built the test already knew what prices did, so it is easy to pick rules that fit. That is why the warning also says these results do not represent actual trading.",
+   "lesson_line": "Every backtest knows the ending. The live market doesn't.",
+   "facts": [
+    "f102",
+    "f101"
+   ],
+   "simple": "The word is hindsight, because whoever built the test already knew how the past played out.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "single publisher (CFTC rule text)",
+     "a regulatory rule that can change",
+     "fixed before (sentence reworded)"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q59",
+   "skill": "vocab.process_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Curve fitting",
+   "story": "You keep tweaking a strategy's settings until its backtest shows almost no losing years.",
+   "q": "What's the catch with that backtest?",
+   "choices": [
+    "Its rules are bent to fit old data",
+    "It covers too many years of data",
+    "It didn't test enough settings",
+    "It needs tighter stops to be safe"
+   ],
+   "answer": "Its rules are bent to fit old data",
+   "why": "The rules got bent to fit old data. Every tweak you kept made the past look better. So almost no losing years is exactly what you tuned for. It doesn't mean the setup works. It means you found the settings that fit that one stretch of history. The future won't repeat it trade for trade. The better a test looks after a pile of tweaks, the less I trust it.",
+   "lesson_line": "Tune a test until it's perfect and you've tuned it to old data.",
+   "facts": [
+    "f73",
+    "f47"
+   ],
+   "wrong": {
+    "It covers too many years of data": "More years give the test more trades to judge. The trouble is the tuning, not the amount of data.",
+    "It didn't test enough settings": "More settings means more tweaking. Steenbarger warns against curve-fitting historical tests.",
+    "It needs tighter stops to be safe": "A tighter stop is one more tweak. The problem is that the rules were tuned to old data."
+   },
+   "simple": "The problem is that the rules fit old data, not the future, because you tuned them to that data.",
+   "deeper": {
+    "trap": "The better a backtest looks after many tweaks, the less it may mean. Each tweak bends the rules toward what the chart already did."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (reveal reworded to the rule's words)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q60",
+   "skill": "vocab.process_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Paper trading",
+   "q": "Before going live, you practice in your broker's simulator with fake money and real quotes. What's that called?",
+   "choices": [
+    "Paper trading",
+    "Backtesting",
+    "Swing trading",
+    "Day trading"
+   ],
+   "answer": "Paper trading",
+   "why": "Paper trading. Fake money, live market data, and the orders never reach a real exchange. It's a good way to learn your platform and your routine without risking a dollar. Just know it proves less than real trades do. A backtest runs rules over past data instead. Swing trading and day trading are styles, about how long you hold.",
+   "lesson_line": "Paper trading is practice. It costs nothing, and it proves less than real trades.",
+   "facts": [
+    "f21",
+    "f98",
+    "f97"
+   ],
+   "wrong": {
+    "Backtesting": "A backtest runs rules over past data. Paper trading happens in today's market.",
+    "Swing trading": "That's a style, about how long you hold a trade. It says nothing about practice money.",
+    "Day trading": "That's a style too: in and out the same day. Paper trading is about practice money."
+   },
+   "simple": "Paper trading, because you make practice trades with fake money while the real market moves.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q61",
+   "skill": "vocab.process_terms",
+   "rung": 5,
+   "format": "tf",
+   "term": "Paper trading",
+   "q": "Good paper trading results show how you'll do with real money.",
+   "answer": "False",
+   "why": "False. Paper's a rehearsal, not the test. The fills come easy, and a paper loss doesn't sting. Once it's your money you feel every stop, and that's when the mistakes show up. A good paper month tells you that you know the platform and the routine. It doesn't tell you how you'll trade with real money on the line. Start small and watch how you handle the losses.",
+   "lesson_line": "Paper results are a rehearsal. Real money is the real test.",
+   "facts": [
+    "f22",
+    "f97",
+    "f101"
+   ],
+   "simple": "False. Paper is practice, and a good paper record doesn't mean you'll win with real money.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q62",
+   "skill": "vocab.process_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Paper trading",
+   "story": "A month of paper trading went well. Every order filled at the price you wanted, and losses never bothered you.",
+   "q": "You're going live Monday. What should you expect?",
+   "choices": [
+    "Real fills and real losses differ",
+    "The same results as on paper",
+    "Live fills usually beat paper fills",
+    "Your stock picks get worse live"
+   ],
+   "answer": "Real fills and real losses differ",
+   "why": "Expect the fills and the losses to be different. Paper fills are simulated off the top of the book, so you got your price every time. Live, a fast open or a thin book can fill you worse. And a paper loss costs nothing. A real one costs real money, and it hits different. Go live small and see how you handle losses before you trade real size.",
+   "lesson_line": "Paper is risk-free practice. Live, the fills and the losses are real.",
+   "facts": [
+    "f98b",
+    "f103",
+    "f97",
+    "f26"
+   ],
+   "wrong": {
+    "The same results as on paper": "Paper isn't live. Every fill was handed to you, and no loss cost a dollar.",
+    "Live fills usually beat paper fills": "It's the other way. Paper fills come off the top of the book. Live, you can get filled worse.",
+    "Your stock picks get worse live": "Your picks don't change when you go live. The fills and the feel of a real loss do."
+   },
+   "simple": "Live fills can be worse than paper ones, and real losses cost real money, unlike paper ones.",
+   "deeper": {
+    "example": "Our rule for new traders: start small on risk per trade until enough journaled trades followed the rules, then size up."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "deeper removed: C37 had no house fact (h6 is E59)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q63",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "mcq",
+   "house": true,
+   "term": "Trim",
+   "q": "In our trade plans, what does trim mean?",
+   "choices": [
+    "Take some off at a target",
+    "Move the stop up to breakeven",
+    "Sell the whole position at once",
+    "Add shares as it works"
+   ],
+   "answer": "Take some off at a target",
+   "why": "Take some off at a target. In our plan, trim is where to take some off: a third at 3R, another third at 5R.",
+   "lesson_line": "Trim into strength at the targets. The rest of the position keeps working.",
+   "facts": [
+    "h1",
+    "h4",
+    "h2",
+    "h3"
+   ],
+   "wrong": {
+    "Move the stop up to breakeven": "That's managing the stop. A trim sells shares.",
+    "Sell the whole position at once": "That's a full exit. A trim takes only some off.",
+    "Add shares as it works": "That's adding to a winner, the opposite of a trim."
+   }
+  },
+  {
+   "key": "q64",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "tf",
+   "house": true,
+   "term": "Trims",
+   "q": "In our setup plans, the trims sit at 3R and 5R.",
+   "answer": "True",
+   "why": "True. Our plan sells a third at 3R and another third at 5R. R is your initial risk, entry to stop, so 3R is a gain of three times what you risked.",
+   "lesson_line": "Trims at 3R and 5R: a third off at three times and five times what you risked.",
+   "facts": [
+    "h1",
+    "h2",
+    "h4",
+    "f93",
+    "f93c"
+   ]
+  },
+  {
+   "key": "q65",
+   "skill": "vocab.process_terms",
+   "rung": 2,
+   "format": "tf",
+   "term": "Trading plan",
+   "q": "A trading plan settles what to trade, how much, when to get in and when to get out.",
+   "answer": "True",
+   "why": "True. Schwab says a trade boils down to a series of decisions: what to trade, how much, when to enter and when to exit. Fidelity calls when to buy and sell your entry and exit strategies. It says a plan also settles how much of your money goes into each kind of asset. A plan answers all of them before you trade.",
+   "lesson_line": "A plan decides what, how much, when in and when out, before you trade.",
+   "facts": [
+    "f08",
+    "f03",
+    "f04b",
+    "f20"
+   ],
+   "simple": "True, because a plan answers what to trade, how much, and when to get in and out.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (Fidelity facts added)"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q66",
+   "skill": "vocab.process_terms",
+   "rung": 3,
+   "format": "tf",
+   "term": "Paper trading",
+   "q": "Your paper trades in the broker's simulator never actually reach a real exchange.",
+   "answer": "True",
+   "why": "True. A paper trade lives in a simulator. It never goes to an exchange and never settles at a clearing house. The fill is simulated from the top of the book, the best bid and ask showing. There's no look deeper into the order book. That's why paper fills can look better than what you'd really get. A real order has to find a real seller.",
+   "lesson_line": "Paper fills are simulated, so real fills can differ.",
+   "facts": [
+    "f98",
+    "f98b",
+    "f97",
+    "f21"
+   ],
+   "simple": "True. A paper trade stays in the simulator, so it never hits a real exchange.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (absolute wording removed)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q67",
+   "skill": "vocab.process_terms",
+   "rung": 4,
+   "format": "tf",
+   "term": "Profit factor",
+   "q": "Your Journal shows a profit factor of 2.5. That means your winners made 2.5 times what your losers lost.",
+   "answer": "True",
+   "why": "True. Profit factor is total won over total lost. At 2.5, you made 2.5 dollars for every dollar you lost. Anything over 1 means you're making money overall. It's a totals number though. It can't tell you how often you won. A 2.5 can come from a few huge winners or from a lot of small ones.",
+   "lesson_line": "Profit factor compares money won to money lost. Over 1 means ahead.",
+   "facts": [
+    "f40",
+    "f39",
+    "f39b",
+    "f29"
+   ],
+   "simple": "True. Your winners made 2.5 dollars for every dollar your losers lost.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (gross vs net wording)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q68",
+   "skill": "vocab.process_terms",
+   "rung": 6,
+   "format": "tf",
+   "term": "Outcome bias",
+   "q": "A sloppy trade made money, so you decide it was a smart trade. That's outcome bias.",
+   "answer": "True",
+   "why": "True. You let the result grade the decision, and that's outcome bias. A good result makes a sloppy trade look smart, and a stop-out makes a clean one look dumb. Luck sits in between. Results do matter over many trades. One result doesn't. So in your review, grade the decision first, whether it followed the plan. Then look at the result.",
+   "lesson_line": "Judge the decision, not the result. Luck sits in between.",
+   "facts": [
+    "f107",
+    "f91",
+    "f87",
+    "f85"
+   ],
+   "simple": "True. Outcome bias is letting how a trade turned out decide whether you call the decision good.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Baron and Hershey define outcome bias as weighing outcomes in a way that's irrelevant to the true quality of the decision. Annie Duke describes the same trap as judging a decision by its outcome despite the luck in how any decision turns out."
+   }
+  },
+  {
+   "key": "q69",
+   "skill": "vocab.process_terms",
+   "rung": 5,
+   "format": "scenario",
+   "house": true,
+   "term": "Trading journal",
+   "story": "You close a trade on Tuesday afternoon. You plan to write it up in your journal at the end of the month.",
+   "q": "When should that trade go in your journal?",
+   "choices": [
+    "Write it up the same day",
+    "Wait for the monthly review",
+    "Write up only the losers",
+    "Skip it, the broker logs it"
+   ],
+   "answer": "Write it up the same day",
+   "why": "The same day. We journal every trade the same day and review the week every weekend, ideally. By month end you won't remember what you were thinking on Tuesday. Or how it felt when it moved against you. Those notes are the whole point. The broker logs the fills. Only you can log why you took it. Then each month we review the numbers, like win rate and expectancy.",
+   "simple": "Write it up the same day, while you still remember why you took it and how it felt.",
+   "lesson_line": "Ideally, journal each trade the same day and review the week each weekend.",
+   "facts": [
+    "h5",
+    "h6",
+    "f14",
+    "f63",
+    "f57"
+   ],
+   "wrong": {
+    "Wait for the monthly review": "The monthly review reads the journal. We journal each trade the same day, then review the week every weekend.",
+    "Write up only the losers": "Every trade goes in. Your best trades are your role models, so they belong in there too.",
+    "Skip it, the broker logs it": "The broker's record has no notes. It can't tell you what you were thinking or feeling."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a rule from the owner's rulebook (B27)",
+     "new in wave8"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q70",
+   "skill": "vocab.process_terms",
+   "rung": 3,
+   "format": "tf",
+   "house": true,
+   "term": "Trading plan",
+   "q": "At UCT, each planned buy has its entry, stop and size written down before the open.",
+   "answer": "True",
+   "why": "True. Every planned buy gets its entry, stop and size written down before the market opens. Once the bell rings, things move fast and it's easy to talk yourself into a wider stop or a bigger size. Write it the night before or that morning and the hard calls are already made. Then you just execute.",
+   "simple": "True. We write each buy's entry, stop and size down before the market opens.",
+   "lesson_line": "Entry, stop and size go on paper before the market opens.",
+   "facts": [
+    "h7",
+    "f08",
+    "f20"
+   ],
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a rule from the owner's rulebook (D39)",
+     "new in wave8"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "Win/loss ratio means different things in different places. Investopedia ('Understanding Trading Win/Loss Ratio', https://www.investopedia.com/terms/w/win-loss-ratio.asp, read 2026-11-09 before the site began refusing the plain client with 402/403) defines it as the number of winning trades divided by the number of losing trades; Schwab's trade-plan page (f16) uses 'win/loss ratio' for the percentage of trades that were profitable (a win rate); many platforms use the phrase for average win divided by average loss. Investopedia's own worked example also mis-states its result (12/18 = 0.67 described as 'losing 67% of the time'; the loss share is 60%). The file never keys 'win/loss ratio': it teaches win rate (Fidelity, StockCharts) and payoff ratio (Fidelity), whose definitions agree, and q38's wrong note only says the name is used more than one way.",
+  "Reviewing worst trades: Steenbarger (s11) has traders dissect their best AND worst trade each day or week; Bellafiore (SMB, 2015-04-26, same post as s24) writes 'We do not spend time reviewing our poor trades, ones that were just mistakes or poor risk/reward trades. We discard them.' No question keys whether to review losing or mistaken trades; q22 keys only why the best trade is worth studying, where both agree.",
+  "Breakeven trades in win rate: Fidelity's backtesting glossary (f31) counts a breakeven trade as not a win; StockCharts' Win% (winners divided by winners plus losers, f37) does not say how breakevens count. No question includes a breakeven trade.",
+  "Process goal support: the trading definitions of process and outcome goals come from Steenbarger's TraderFeed (f64, f65, f76). The checker added a second publisher that defines them directly: McCarthy and Gupta's peer-reviewed sport psychology article (s42: outcome goals only partly in your control, process goals fully). Annie Duke (f86) and Bellafiore (f82) state the same principle in other words.",
+  "Premortem: Gary Klein (HBR, s32) describes a team exercise run on a project before it starts; Annie Duke (s30) applies it to any personal goal. The file applies the same definition (assume it already failed, then ask how) to a single trade; no question claims the method's measured effect.",
+  "Van Tharp's S&C excerpt (s33) goes on to say a 1.2R system risking 1% 'could easily make 100% per year'. The file cites only his definitions of R-multiples, expectancy and sample size, never that return claim.",
+  "Unit row vs plan: docs/study/UNITS-foundations.md lists 'R-ledger, the three axes, the seven fields' and a six-step process cycle for V.13. Those come from the model-drafted dossier (docs/curriculum, never a source), and the cycle's name is a model invention the owner never used; units_plan.json (which overrides the row) lists the words built here. No question uses those dossier terms.",
+  "House words: 'trim' (q63, q64) is UCT's own word from docs/study/TRADE_PLANS.md and the owner's quote in OWNER_PRINCIPLES rule 8; TRADE_PLANS says the detectors do not say how much to sell at each target, so no question keys a fraction to trim.",
+  "Outcome bias (q33): s31's definition line is The Learner Lab's episode description (host Trevor Ragan) reposted on annieduke.com, not Duke's own words, and the page never uses 'resulting'. No reliable page found states that 'resulting' and 'outcome bias' are one term, so the checker re-keyed q33 to the definition of outcome bias from Baron and Hershey's 1988 paper (s40) and only says, in the reveal, that Duke's resulting (f84, f87) describes the same trap, which both definitions show.",
+  "Payoff ratio (q43, q44): only Fidelity's backtesting glossary (s6) uses the name 'payoff ratio' among the sources found; TradingView's Strategy Tester help (s41) defines the same average win over average loss ratio as the strategy's 'payoff' measure. Some trading sites call this ratio the win/loss ratio or even the profit factor; the file keys only the Fidelity and TradingView meaning and teaches profit factor separately.",
+  "Trims (q63, q64, both cut as duplicates): until 2026-11-09 TRADE_PLANS.md put the detectors' targets at 2R and 3R (entry + 2 x risk, entry + 3 x risk, R from the stop); the owner's account rulebook (sizing_rule.md section 9, B19, E51) replaces it with a third at 3R and a third at 5R, and the house facts here now quote it."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Steps match f01, f09, f10, f11, f23 to f25, f67 in context. Changed 'It stops the impulsive ones' (a guarantee) to 'It cuts down the impulsive ones'; Schwab says a routine 'can help prevent' mistakes.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Each step read against f14, f63, f59, f52, f78, f62, f68 in context; no claim beyond the quotes.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Win rate, expectancy, profit factor and sample-size steps match f31, f37, f41, f15, f94, f29, f40, f46, f85 in context.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q05": {
+   "status": "cut",
+   "notes": "duplicate of V.06#q29. Track audit 2026-11-09: both are true/false items on the same rule, set your exit before you enter, on the same sources (Tharp and Schwab). V.06 q29 is the harder version (keyed False on 'it's fine to pick your stop after'). This unit keeps the exit rule in q06.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "TRUTH: the why said the app has a Watchlists page. It doesn't: /watchlists is a LegacyRedirect into /charts (App.jsx), and lists live in the Watchlist widget on Charts (widgets/registry.js). Pointed the member there."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q15": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Opened 'No.' on a true/false keyed False; now 'False.' so the verdict matches the button. 10 is grounded in f95."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q28": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q29": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q30": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q31": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q32": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q33": {
+   "status": "cut",
+   "notes": "duplicate of V.12#q54. Track audit 2026-11-09: both teach that outcome bias means judging a decision by how it turned out, on Baron and Hershey. V.12 owns the bias. This unit keeps Annie Duke's word for it, resulting, in q31 and q32.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q34": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q35": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q36": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q37": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q38": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q39": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q40": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q41": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q42": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q43": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: correct but a definition. Added the how (Avg Win and Avg Loss sit on the Journal's Trades tab, StatsGrid.jsx) and a plainer simple."
+  },
+  "q44": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q45": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Old 'Profit factor, because it divides...' simple made plain. Why is good; Profit Factor is on the Trades tab (StatsGrid.jsx)."
+  },
+  "q46": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q47": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Simple read 'True, below 1 means...'; tightened. Why is good and says what to do about it."
+  },
+  "q48": {
+   "status": "cut",
+   "notes": "duplicate of V.06#q11. Track audit 2026-11-09: the same question ('What does expectancy mean?') with the same answer, 'Your average result per trade', on the same sources (Schwab, Tharp), so Word Match would show two tiles for one word. V.06 owns expectancy.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q49": {
+   "status": "cut",
+   "notes": "duplicate of V.06#q12. Track audit 2026-11-09: the same calculation with the same numbers (40% winners at 3R, losers at 1R, 0.6R). V.06 keeps it. This unit keeps the dollar version with a high win rate and a negative expectancy (q50).",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q50": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q51": {
+   "status": "cut",
+   "notes": "duplicate of V.06#q16. Track audit 2026-11-09: the same comparison: a 30% plan with 4R winners against a high-win-rate plan with small wins, keyed on the 30% plan at +0.5R a trade. V.06 keeps it.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "duplicate of V.06#q13. Track audit 2026-11-09: the same true/false statement (a positive expectancy does not mean the next trade makes money), keyed False. V.06 keeps it. This unit keeps the losing-streak lesson in q54.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q53": {
+   "status": "cut",
+   "notes": "duplicate of V.06#q07. Track audit 2026-11-09: the same R-multiple calculation (entry, stop, exit, answer 3R) with different prices. V.06 owns R-multiples (q06 to q09).",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q54": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q55": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q56": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q57": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "One stiff line ('Nobody promises an account will get results like that') said plainly."
+  },
+  "q58": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q59": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q60": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q61": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: 'Simulated results don't ensure success with real money' was the source's sentence, and the simple read 'does not mean you will'. Rewritten; same idea (f22, f26, f97)."
+  },
+  "q62": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Wrong notes read like a research summary ('IBKR itself says...'). Rewritten as plain reasons; facts kept (f97, f98b). Deeper's new-trader note matches sizing rule C37."
+  },
+  "q63": {
+   "status": "cut",
+   "notes": "Still cut (duplicate). Text updated 2026-11-09 so the dead item no longer carries the old 2R / 3R targets (account rulebook B19, E51). duplicate of V.05#q13. Track audit 2026-11-09: the same question ('In our trade plans, what does trim mean?') on the same house source (TRADE_PLANS.md), keyed 'take some off'. V.05, the setup-plan unit, owns trim.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q64": {
+   "status": "cut",
+   "notes": "Still cut (duplicate). Text updated 2026-11-09 so the dead item no longer carries the old 2R / 3R targets (account rulebook B19, E51). duplicate of V.06#q10. Track audit 2026-11-09: both key the same house fact, our trade plans put the targets at 2R and 3R (TRADE_PLANS.md, make_levels). V.06 asks it as a choice whose wrong answers teach. V.05 also uses the 2R and 3R targets in q30, q43, q46 and q56.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q65": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave8: see the resolver's notes"
+  },
+  "q66": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: textbook stem ('does not actually execute') and a 'True, because...' simple. Same claim, keyed True (f98)."
+  },
+  "q67": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: definition stem made a screen moment (Profit Factor is on the Trades tab); simple made plain. Still True (f40)."
+  },
+  "q68": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: a definition stem. Now a real moment the member judges, same claim, still True (f87, f91, f107)."
+  },
+  "q69": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  },
+  "q70": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice reads like a mentor talking; verdict first, you/we, numbers and reasons hold against the facts. Answer and wrong choices unchanged."
+  }
+ }
+}

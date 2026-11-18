@@ -141,6 +141,81 @@ def aggregate(shards: dict) -> dict:
     return out
 
 
+def aggregate_vitest(shards: dict) -> dict:
+    """The vitest suite record from its `--shard=i/n` jobs. Same contract as `aggregate`.
+
+    `shards` maps shard_id -> {job_result, summary, log_unreadable?, never_started?,
+    elapsed_s?} or None when the shard's artifact is MISSING.
+
+    ⛔⛔ **A SINGLE SHARD'S TOTALS LINE MUST NEVER PASS FOR THE WHOLE SUITE.** Each shard
+    prints its own `Tests  … (N)` line, and every one of them looks exactly like the
+    unsharded suite's line. So the suite numbers here are SUMS over every expected shard,
+    `totals_line_found` is True only when EVERY expected shard printed one, and each
+    shard's own line is kept, verbatim and addressable, in `shard_totals`.
+
+    ⛔ The bucket logic is `aggregate`'s, unchanged — `shards_missing`,
+    `shards_without_totals`, `shards_unreadable`, `shards_cancelled` mean for vitest
+    exactly what they mean for pytest, and `ci_inventory.diff` reads them the same way.
+    ⭐ `shards_unreadable` additionally names a shard whose LOG exists but could not be
+    read: its counts are unknown, which is not zero.
+    """
+    out = aggregate({sid: (dict(rec, timeouts=0) if rec else None)
+                     for sid, rec in shards.items()})
+    unreadable = set(out["shards_unreadable"])
+    not_run, totals = [], {}
+    skipped = files_c = files_f = files_p = files_s = 0
+    walls = []
+    failed_files = set()
+    for sid in sorted(shards):
+        rec = shards[sid]
+        if not rec:
+            continue
+        if rec.get("log_unreadable"):
+            unreadable.add(sid)
+        if rec.get("never_started"):
+            not_run.append(sid)
+        s = rec.get("summary") or {}
+        skipped += int(s.get("skipped") or 0)
+        files_c += int(s.get("files_collected") or 0)
+        files_f += int(s.get("files_failed") or 0)
+        files_p += int(s.get("files_passed") or 0)
+        files_s += int(s.get("files_skipped") or 0)
+        if s.get("wall_s") is not None:
+            walls.append(float(s["wall_s"]))
+        failed_files.update(s.get("failed_files") or [])
+        totals[sid] = {k: s.get(k) for k in (
+            "totals_line_found", "collected", "passed", "failed", "skipped",
+            "files_collected", "files_failed", "wall_s", "tests_line", "runner_line")}
+        totals[sid]["job_result"] = rec.get("job_result")
+        # ⭐ The RUNNER's wall time for this shard (jobs API) — the number the first three
+        # nightly runs report. None when the payload did not give both ends.
+        totals[sid]["elapsed_s"] = rec.get("elapsed_s")
+    complete = (bool(shards) and not out["shards_missing"]
+                and not out["shards_without_totals"] and not unreadable)
+    out.update({
+        "suite": "vitest",
+        "sharded": True,
+        "shards_unreadable": sorted(unreadable),
+        # ⛔ Cancelled before a runner picked it up: NOT RUN, never a result or a timeout.
+        # It still has no totals line, so the record is still INVALID.
+        "shards_not_run": not_run,
+        "totals_line_found": complete,
+        "skipped": skipped,
+        "files_collected": files_c,
+        "files_failed": files_f,
+        "files_passed": files_p,
+        "files_skipped": files_s,
+        # parallel shards: the suite's wall time is its SLOWEST shard, not the sum
+        "wall_s": max(walls) if walls else None,
+        "failed_files": sorted(failed_files),
+        "shard_totals": totals,
+    })
+    out["ok"] = bool(out["ok"] and complete)
+    if unreadable:
+        out["ok_basis"] += " · shards_unreadable=%s" % sorted(unreadable)
+    return out
+
+
 def _self_check() -> int:
     ok = True
 
@@ -215,6 +290,35 @@ def _self_check() -> int:
     show("CONTROL: a real failure still counts as failed", fr["shards_failed"], 1)
     show("...and is NOT called unreadable", fr["shards_unreadable"], [])
 
+    # 7 ⛔ VITEST SHARDS — a single shard's totals line must never pass for the suite.
+    def vshard(collected, failed=0, skipped=0, files=10, totals=True, res="success"):
+        s = {"collected": collected, "failed": failed, "passed": collected - failed - skipped,
+             "skipped": skipped, "files_collected": files, "files_failed": 1 if failed else 0,
+             "totals_line_found": totals, "wall_s": 60.0,
+             "runner_line": "Test Files  %d passed (%d)" % (files, files)}
+        return {"job_result": res, "summary": s}
+    va = aggregate_vitest({"1": vshard(100, 2, 3), "2": vshard(200), "3": vshard(300, 1),
+                           "4": vshard(400, 0, 4)})
+    show("vitest 4/4: collected is the SUM", va["collected"], 1000)
+    show("...failed and skipped are sums", (va["failed"], va["skipped"]), (3, 7))
+    show("...files are summed", va["files_collected"], 40)
+    show("...every shard's own line is kept", sorted(va["shard_totals"]), ["1", "2", "3", "4"])
+    show("...complete, so totals_line_found", va["totals_line_found"], True)
+    vb = aggregate_vitest({"1": vshard(100), "2": vshard(200), "3": vshard(300), "4": None})
+    show("vitest 3/4: the absent shard is NAMED", vb["shards_missing"], ["4"])
+    show("...and totals_line_found is False", vb["totals_line_found"], False)
+    show("...and ok is False", vb["ok"], False)
+    vc = aggregate_vitest({"1": vshard(100), "2": vshard(0, totals=False, res="cancelled"),
+                           "3": vshard(300), "4": vshard(400)})
+    show("vitest killed shard: named as lacking totals", vc["shards_without_totals"], ["2"])
+    show("...and the suite is not complete", vc["totals_line_found"], False)
+    vd = aggregate_vitest({"1": vshard(100), "2": dict(vshard(0, totals=False),
+                                                      log_unreadable=True),
+                           "3": vshard(300), "4": vshard(400)})
+    show("vitest unreadable log: named in shards_unreadable", vd["shards_unreadable"], ["2"])
+    ve = aggregate_vitest({s: vshard(100) for s in "1234"})
+    show("CONTROL: a clean 4/4 IS ok (the refusals above are not vacuous)", ve["ok"], True)
+
     # ⛔ NON-VACUITY: the four shapes must not all produce one verdict
     show("the four shapes do not collapse to one ok value",
          len({a["ok"], b["ok"], c["ok"], d["ok"]}) >= 2, True)
@@ -229,6 +333,10 @@ def main(argv=None) -> int:
     ap.add_argument("--expect")          # JSON array of shard ids that SHOULD have reported
     ap.add_argument("--jobs")            # the run's jobs API payload (runner-sourced)
     ap.add_argument("--dir-prefix", default="")  # artifact-name prefix on each shard dir
+    # ⛔ `--suite vitest` reads each shard's vitest.log (summarised HERE, by ci_summarize)
+    # and its runner verdict from jobs.json; the expected shard ids default to
+    # tools/vitest_shards.py's own list, NEVER to whatever directories happen to exist.
+    ap.add_argument("--suite", choices=["pytest", "vitest"], default="pytest")
     ap.add_argument("--out")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args(argv)
@@ -239,6 +347,8 @@ def main(argv=None) -> int:
         return FAIL
 
     base = pathlib.Path(a.shards_dir)
+    if a.suite == "vitest":
+        return _main_vitest(a, base)
     expected = json.loads(a.expect) if a.expect else [p.name for p in base.glob("*") if p.is_dir()]
 
     # ⛔ THE SHARD'S RESULT COMES FROM THE RUNNER (E CP5's rule), not from a file the shard
@@ -283,6 +393,68 @@ def main(argv=None) -> int:
         shards[sid] = rec
 
     out = aggregate(shards)
+    blob = json.dumps(out, indent=2)
+    if a.out:
+        pathlib.Path(a.out).write_text(blob + "\n", encoding="utf-8")
+    print(blob)
+    return OK
+
+
+def _main_vitest(a, base: pathlib.Path) -> int:
+    import sys
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    import ci_outcome
+    import ci_summarize
+    import vitest_shards
+
+    # ⛔ An empty `--expect` (the plan job failed, so its output is '') falls back to the
+    # tool's own shard list: every shard then reads MISSING, never "zero shards, all fine".
+    try:
+        expected = [str(x) for x in json.loads(a.expect)] if a.expect else []
+    except ValueError:
+        expected = []
+    expected = expected or vitest_shards.shard_ids()
+    jobs_payload = {}
+    if a.jobs and pathlib.Path(a.jobs).is_file():
+        try:
+            jobs_payload = json.loads(pathlib.Path(a.jobs).read_text(encoding="utf-8"))
+        except ValueError:
+            jobs_payload = {}
+
+    def job_for(sid):
+        # ⛔ `shard-<id>` as a WHOLE token: shard 1 must not match `shard-10`, and the
+        # shard COUNT is deliberately not in the job name, so `4` cannot match every job.
+        pat = re.compile(r"\bshard-%s\b" % re.escape(sid))
+        for j in (jobs_payload or {}).get("jobs", []) or []:
+            name = j.get("name") or ""
+            if "vitest" in name.lower() and pat.search(name):
+                return j
+        return None
+
+    shards = {}
+    for sid in expected:
+        d = base / ((a.dir_prefix or "") + sid)
+        if not d.is_dir() and (base / sid).is_dir():
+            d = base / sid
+        log = d / "vitest.log"
+        job = job_for(sid)
+        if not log.is_file():
+            # The artifact never arrived: MISSING. A job that never started says so too.
+            shards[sid] = None
+            if job is not None and ci_outcome.job_never_started(job):
+                shards[sid] = {"job_result": job.get("conclusion") or UNREADABLE,
+                               "summary": {}, "never_started": True}
+            continue
+        rec = {"job_result": (job or {}).get("conclusion") or UNREADABLE,
+               "elapsed_s": ci_outcome.elapsed_seconds(job) if job else None}
+        try:
+            rec["summary"] = ci_summarize.summarize(
+                "vitest", log.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            rec["summary"], rec["log_unreadable"] = {}, True
+        shards[sid] = rec
+
+    out = aggregate_vitest(shards)
     blob = json.dumps(out, indent=2)
     if a.out:
         pathlib.Path(a.out).write_text(blob + "\n", encoding="utf-8")

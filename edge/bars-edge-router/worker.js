@@ -21,7 +21,10 @@
  *   /api/bars/US:*  → WEB_ORIGIN   (and every other namespaced breadth identity)
  *   /api/bars/<sym> → BARS_ORIGIN  (the bars-api tier)
  *   anything else   → pass through to the zone's default origin (web)
- *   BARS_ORIGIN >=500 or timeout → fall back to WEB_ORIGIN
+ *   BARS_ORIGIN network error / timeout / 502 / 504 / any NON-deliberate 5xx
+ *                   → fall back to WEB_ORIGIN
+ *   BARS_ORIGIN DELIBERATE 503 (warming / warm-shed + Retry-After) → straight to
+ *                   the browser, X-Bars-Edge: tier (see `isDeliberateTierShed`)
  *
  * ⛔ NOTE WHAT THE FALLBACK DOES **NOT** COVER: 401/403 pass straight through to
  * the member. That single line is why the 2026-09-13 tier gate was a visible
@@ -29,9 +32,67 @@
  * tier is ungated today, and changing fallback semantics is a routing change.
  */
 
+import { HIST_PREFIX, handleHistory } from "./history.js";
+import { STREAM_BARS_PATH, handleStream } from "./stream.js";
+
 const BARS_ORIGIN = "https://bars-api-production-1052.up.railway.app";
 const WEB_ORIGIN  = "https://web-production-05cb6.up.railway.app";
 const BARS_TIMEOUT_MS = 8000;
+
+// ⭐⭐ A HEDGED FALLBACK, NOT AN 8-SECOND WAIT (2026-11-15, measured on production).
+// While bars-api restarts (every master merge that touches its files), a request it
+// accepted and never answered waited out BARS_TIMEOUT_MS before web was asked: six
+// parallel chart reads at 15:36:47 UTC all answered at 15:36:55, 8.2 s each, though
+// web's own stage timing was ~150 ms. Now a GET/HEAD that the tier has not answered
+// within BARS_HEDGE_MS is ALSO asked of web, and whichever answers first is served
+// (the other is aborted). The tier's own p99 under parallel cold load was ~370 ms
+// that day, so the hedge fires for well under 1% of requests and caps a stall at
+// about BARS_HEDGE_MS + web's answer. A tier FAILURE (network error, non-deliberate
+// 5xx) still goes to web at once, and a deliberate 503 shed still reaches the
+// browser as the tier's answer (see `isDeliberateTierShed`). Other methods never
+// hedge: a request with effects must not run twice.
+export const BARS_HEDGE_MS = 1200;
+export const HEDGE_METHODS = new Set(["GET", "HEAD"]);
+
+/**
+ * Ask the tier, hedge to web after `hedgeMs`, serve the first good answer.
+ * `fetchImpl` is the platform fetch (a parameter so the rails can drive it).
+ * Returns a Response stamped `X-Bars-Edge: tier | web-hedge | web-fallback`.
+ */
+export async function routeToTier(fetchImpl, tierUrl, webUrl, opts,
+                                  { timeoutMs = BARS_TIMEOUT_MS, hedgeMs = BARS_HEDGE_MS } = {}) {
+  const tierAc = new AbortController();
+  const webAc = new AbortController();
+  const tierTimer = setTimeout(() => tierAc.abort(), timeoutMs);
+  let why = "web-fallback";
+  let openWeb;
+  const webGate = new Promise((res) => { openWeb = res; });
+  const hedge = HEDGE_METHODS.has(String(opts.method || "GET").toUpperCase());
+  const hedgeTimer = hedge ? setTimeout(() => { why = "web-hedge"; openWeb(); }, hedgeMs) : null;
+
+  const tierP = (async () => {
+    const r = await fetchImpl(tierUrl, { ...opts, signal: tierAc.signal });
+    if (r.status >= 500 && !(await isDeliberateTierShed(r))) throw new Error("bars-api " + r.status);
+    return { src: "tier", r };
+  })();
+  tierP.catch(() => { why = "web-fallback"; openWeb(); });   // a tier failure asks web now
+  const webP = webGate.then(() => fetchImpl(webUrl, { ...opts, signal: webAc.signal }))
+    .then((r) => ({ src: "web", r }));
+
+  let won;
+  try {
+    won = await Promise.any([tierP, webP]);
+  } catch (e) {
+    clearTimeout(tierTimer); if (hedgeTimer) clearTimeout(hedgeTimer);
+    // Both failed: surface web's error, exactly as the sequential fallback did.
+    throw (e && e.errors && e.errors[e.errors.length - 1]) || e;
+  }
+  clearTimeout(tierTimer); if (hedgeTimer) clearTimeout(hedgeTimer);
+  if (won.src === "tier") webAc.abort(); else tierAc.abort();
+  const out = new Response(won.r.body, won.r);
+  out.headers.set("X-Bars-Edge", won.src === "tier" ? "tier" : why);
+  return out;
+}
 
 // ⛔⛔ MARKET INDICATORS THAT CARRY NO COLON — the second half of the same lesson the
 // colon rule above records. Those series are served from WEB-POD stores
@@ -53,6 +114,33 @@ const BARS_TIMEOUT_MS = 8000;
 const MARKET_INDICATOR_SYMBOLS = new Set([
   "VIX9D", "VIX3M", "VIX6M", "VVIX", "VXN", "RVX", "SKEW", "NAAIM",
 ]);
+
+// ── tier 5xx classification (2026-11-10) ────────────────────────────────────
+// ⛔⛔ A DELIBERATE 503 IS AN ANSWER, NOT A FAILURE. bars-api answers 503 +
+// Retry-After on purpose when it has STARTED a bounded cold fetch (`warming`) or
+// shed a best-effort `warm=1` prefetch under load (`warm-shed`): "re-poll in ~3s,
+// the rows are landing HERE". Re-asking WEB_ORIGIN for it was strictly worse: a
+// different bars.db and a different per-process verified_through, so the member
+// got a second cold fetch (or an older tail) instead of the tier's rows on the
+// re-poll, and the tier's shed protection was defeated by doubling the load.
+// ⭐ Only a real tier failure falls back: network error / timeout / 502 / 504, or
+// a 5xx that does NOT identify itself as a deliberate shed (crash, fault 503s).
+export const TIER_SHED_HEADER = "X-Bars-Shed";
+const DELIBERATE_SHED_REASONS = new Set(["warming", "warm-shed"]);
+
+export async function isDeliberateTierShed(r) {
+  if (!r || r.status !== 503) return false;
+  if (!r.headers.get("Retry-After")) return false;
+  const tag = (r.headers.get(TIER_SHED_HEADER) || "").trim().toLowerCase();
+  if (tag) return DELIBERATE_SHED_REASONS.has(tag);
+  // A tier that predates the header: recognise the warming body by name (tiny JSON).
+  try {
+    const body = await r.clone().json();
+    return !!body && (body.warming === true || body.error === "warming");
+  } catch (_e) {
+    return false;
+  }
+}
 
 // ── chart edge entitlement (shadow) ─────────────────────────────────────────
 // Mirrors api/chart_edge_token.py. The two are proven equal by
@@ -214,8 +302,18 @@ export async function classifyRequest(request, secret, nowSeconds) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    // Deep intraday history from R2 (history.js). A separate surface from /api/bars: entitlement
+    // IS enforced there, and nothing below this line changes for any other path.
+    if (url.pathname.startsWith(HIST_PREFIX)) {
+      return handleHistory(request, env, async (req) => {
+        const cls = await classifyRequest(req, env && env.CHART_EDGE_SECRET);
+        return cls === VALID || cls === SERVICE_VALID;
+      }, ctx);
+    }
+    // The live chart stream (stream.js): to stream-edge for the canary, otherwise untouched to web.
+    if (url.pathname === STREAM_BARS_PATH) return handleStream(request, env);
     const m = url.pathname.match(/^\/api\/bars(?:-history)?\/([^\/?#]+)/);
     if (!m) return fetch(request);
 
@@ -275,16 +373,6 @@ export default {
 
     if (isBreadth) return fetch(target(WEB_ORIGIN), opts);
 
-    try {
-      const ac = new AbortController();
-      const t = setTimeout(() => ac.abort(), BARS_TIMEOUT_MS);
-      const r = await fetch(target(BARS_ORIGIN), { ...opts, signal: ac.signal });
-      clearTimeout(t);
-      if (r.status >= 500) throw new Error("bars-api " + r.status);
-      const out = new Response(r.body, r); out.headers.set("X-Bars-Edge", "tier"); return out;
-    } catch (_e) {
-      const r = await fetch(target(WEB_ORIGIN), opts);
-      const out = new Response(r.body, r); out.headers.set("X-Bars-Edge", "web-fallback"); return out;
-    }
+    return routeToTier((u, o) => fetch(u, o), target(BARS_ORIGIN), target(WEB_ORIGIN), opts);
   },
 };

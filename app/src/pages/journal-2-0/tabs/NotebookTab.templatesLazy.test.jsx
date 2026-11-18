@@ -22,7 +22,6 @@ vi.mock('../components/notebook/FolderSidebar', () => ({ default: () => <div dat
 vi.mock('../components/notebook/NoteEditorPage', () => ({ default: () => <div data-testid="note-editor" /> }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 // The import spy: the factory runs the first time anything imports the catalog module, so its count says whether
 // the catalog rode in with the page or arrived with the picker.

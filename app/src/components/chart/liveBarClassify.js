@@ -30,14 +30,15 @@ const DWM = new Set(['D', 'W', 'M'])
  *   - 'skip'   a new D/W/M day but the session isn't confirmed yet — leave the
  *              last bar untouched (NEVER fuse today's price onto a prior bar)
  */
-export function classifyLiveBar({ tf, last, live, tickSec, nowSec }) {
+export function classifyLiveBar({ tf, last, live, tickSec, nowSec, session }) {
   if (!last || last.time == null) return { kind: 'skip' }
   const isDWM = DWM.has(tf)
 
   // ── Intraday: timestamp-driven ──────────────────────────────────────────
   if (!isDWM) {
     if (tickSec) {
-      const barTime = computeBarTime(tf, tickSec)
+      // 60m buckets on the grid of the series this view fetched ('eth' = clock hours).
+      const barTime = computeBarTime(tf, tickSec, { session })
       if (barTime !== last.time && barTime > last.time) {
         // Contiguity guard (mirror of the REST-floor branch below). Only plant a
         // NEW bar for the IMMEDIATE next bucket. If barTime is MORE than one
@@ -65,7 +66,7 @@ export function classifyLiveBar({ tf, last, live, tickSec, nowSec }) {
     // feed fills the gap with real bars. (We don't CREATE a bar from nowSec —
     // an off-hours straggler could land on a non-trading bucket.)
     if (typeof nowSec === 'number') {
-      const curBar = computeBarTime(tf, nowSec)
+      const curBar = computeBarTime(tf, nowSec, { session })
       if (curBar != null && curBar > last.time) return { kind: 'skip' }
     }
     return { kind: 'update' }

@@ -297,6 +297,39 @@ def test_the_rsi_items_quote_the_research_and_name_unit_4_02_as_their_future_sou
         assert len(it["prompt_json"]["choices"]) == 4
 
 
+# ── the indicator is named as it ships (UCT RS split, U8) ────────────────────
+
+def test_the_bank_names_the_indicator_as_the_generator_does(items):
+    """RS split U8 (2026-11-09): the chart indicator ships as "UCT RS Line" (the slim definition's meta.name); the
+    Classic preset and the other views are gone. The committed bank's reveal `system` strings and the one recall
+    item that names the indicator must be the generator's own words, read from its source, so the bank and the
+    generator cannot drift apart again (the bank was renamed through gen_rs.write, not regenerated: the sandbox
+    bars.db reproduces 38 of the 40 drafts and would swap two, and no draft may be dropped)."""
+    src = pathlib.Path(gen_rs.__file__).read_text(encoding="utf-8")
+    systems = set(re.findall(r'"system": "([^"]+)"', src))
+    assert len(systems) == 3 and all(s.startswith("UCT RS Line") for s in systems)
+    seen = set()
+    for it in items:
+        system = it["reveal_json"].get("system")
+        if _family(it) == "rsi":
+            assert system is None, it["id"]
+            continue
+        assert system in systems, (it["id"], system)
+        seen.add(system)
+    assert seen == systems
+    search = next(r for r in gen_rs.RSI_ITEMS if r[0] == "rs-vs-rsi search")
+    it = next(i for i in items if i["prompt_json"].get("subject") == "rs-vs-rsi search")
+    assert search[2] == "UCT RS Line" and it["answer_json"]["answer"] == search[2]
+    assert search[2] in it["prompt_json"]["choices"] and it["lesson_text"] == search[6]
+    # nothing a member reads names a view the indicator no longer offers, or the old name as a control
+    gone = re.compile(r"Mansfield|Rotation|Clenow|Volatility.adjusted|Agreement|Regime|UCT fast|Classic|preset", re.I)
+    for it in items:
+        for text in _strings(it["prompt_json"]):
+            assert not gone.search(text), (it["id"], text)
+        assert not gone.search(it["lesson_text"] or ""), it["id"]
+        assert "UCT Relative Strength" not in json.dumps(it["reveal_json"]) + it["lesson_text"], it["id"]
+
+
 # ── the import route and the hub, offline ────────────────────────────────────
 
 @pytest.fixture()

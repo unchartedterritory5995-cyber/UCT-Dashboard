@@ -1,0 +1,38 @@
+<!doctype html>
+<!--
+  UCT RS split, U2 — THE PRICE-PANE HOSTS, IN A REAL BROWSER.
+
+  Mounts the REAL StockChart against the REAL lightweight-charts renderer with the
+  RS line moved "Display in → On price", so the two things this unit adds can be
+  looked at where they live: the line-end tag (`RS 96`) riding the own-scale RS
+  line, and the ranks strip on the price pane beside the price legend.
+
+  OFFLINE BY CONSTRUCTION. Synthetic AAPL-shaped bars (`barsOverride`) and an RS
+  envelope PRIMED into the client cache (`serverCompute.primeServerColumns`), so
+  no backend, no pod and no member data are involved. Dev-server only: `vite build`
+  takes `index.html` as its single input, so this entry never ships (the
+  `pane-harness.html` arrangement). Preference writes are refused (same lock 3).
+
+  Run:  npx vite            (from app/, the ordinary dev server)
+  Then: http://localhost:5173/rs-price-harness.html            desktop
+        http://localhost:5173/rs-price-harness.html?w=390&h=844   phone-sized card
+        ?place=pane   the "Display in → Own pane" write
+        ?avg=1 ?red=1 (U7, the slim UCT RS Line under VITE_RS_SPLIT_ENABLED=1):
+                      Show average on; Red-day highs on. The envelope carries
+                      synthetic new-high, before-price and red-day dots.
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>U2 — RS price-pane hosts harness</title>
+    <style>
+      html, body { margin: 0; background: #101216; color: #e6e8ec; font: 12.5px/1.45 ui-monospace, Consolas, monospace; }
+      #root { padding: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root">booting…</div>
+    <script type="module" src="/src/testing/rsPriceHost/rsPriceHarness.jsx"></script>
+  </body>
+</html>

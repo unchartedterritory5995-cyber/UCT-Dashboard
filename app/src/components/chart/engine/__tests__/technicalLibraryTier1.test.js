@@ -163,8 +163,8 @@ describe('3 — seven Technical categories, every row in exactly one, in a fixed
     })
   })
   it('orderCategories puts the Technical headings first, in order, whatever order they arrive', () => {
-    expect(orderCategories(['Volume & Money Flow', 'My formulas', 'Trend & Moving Averages', 'Symbols']))
-      .toEqual(['Trend & Moving Averages', 'Volume & Money Flow', 'My formulas', 'Symbols'])
+    expect(orderCategories(['Volume & Money Flow', 'My indicators', 'Trend & Moving Averages', 'Symbols']))
+      .toEqual(['Trend & Moving Averages', 'Volume & Money Flow', 'My indicators', 'Symbols'])
   })
   it('no row is listed twice and no display name repeats', () => {
     const rows = technicalRows()
@@ -189,8 +189,13 @@ describe('4 — the search aliases resolve to the right row', () => {
 
 describe('5 — the right-click quick menu', () => {
   it('every Tier 1 study declares quickMenu:false; no pre-existing definition does', () => {
+    // ⭐ UCT RS split, U6 (2026-11-09): the three gated server definitions (`meta.requiresServer`)
+    // declare it too, for the same reason: browsed and added in the library once the live
+    // server lists them, never a right-click quick toggle. Spelled by name, like Tier 1.
+    // 2026-11-12 (RS Exit Warnings): the fourth gated definition, `rsExit`, declares it for the same reason.
+    const LIBRARY_ONLY = [...TIER1_IDS, 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit']
     for (const d of registry.listDefinitions()) {
-      expect(d.meta.quickMenu === false, d.id).toBe(TIER1_IDS.includes(d.id))
+      expect(d.meta.quickMenu === false, d.id).toBe(LIBRARY_ONLY.includes(d.id))
     }
   })
 })

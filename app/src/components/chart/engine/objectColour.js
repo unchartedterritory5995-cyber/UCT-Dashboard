@@ -22,6 +22,8 @@
 // writes only a `isCssColour` value to CSS. `tests/fixtures/ast/object_colour_cases.json`
 // holds all of them to the same answers.
 
+import { isThemeColour, resolveThemeColour } from './objectTheme.js'
+
 /** A colour literal a stored object program may carry. */
 export const OBJECT_COLOUR_LITERAL = /^(?:#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+|1\.0+)\s*)?\)|chart\.(?:fg|bg)_color(?:@\d{1,3})?)$/i
 
@@ -43,6 +45,11 @@ export const cssColourOrNone = (s) => (isCssColour(s) ? s : undefined)
 // table gap above, wider grammar, because these fields have more writers: everything
 // UCT writes and every format measured in the repo (hex 3/4/6/8, numeric rgb/rgba,
 // a few hsl, plain colour words in older code, `token:<role>[@step]` references).
+// ⭐⭐ ENGINE 58 — and the chart-theme REFERENCE (`chart.fg_color`, `chart.bg_color@85`,
+// `objectTheme.js`): a Pine plot coloured by the chart's own colours carries it, and a
+// whole-withheld colour draws in it (the chart's neutral ink). ⚰️ It was not in the
+// grammar, so the server refused such a document at save (422) and an upgraded saved
+// script kept offering "Updated accuracy available" forever.
 //
 // ⛔ Nothing here admits `(` except numeric rgb/hsl, nor `:` except the `token:` prefix,
 // nor `;` — so `url()`, `var()`, `expression()` and declaration smuggling cannot pass.
@@ -58,14 +65,39 @@ const ALPHA = String.raw`(?:,\s*(?:0|1|0?\.\d+|1\.0+)\s*)?`
 /** A colour a stored definition's presentation may carry. */
 export const PRESENTATION_COLOUR = new RegExp(String.raw`^(?:#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})` +
   String.raw`|rgba?\(${NUM_CHANNELS}${ALPHA}\)|hsla?\(${HSL_CHANNELS}${ALPHA}\)` +
-  String.raw`|[a-z]{3,20}|token:[a-z][a-z0-9_.-]{0,40}(?:@[a-z0-9_.-]{1,20})?)$`, 'i')
+  String.raw`|[a-z]{3,20}|token:[a-z][a-z0-9_.-]{0,40}(?:@[a-z0-9_.-]{1,20})?|chart\.(?:fg|bg)_color(?:@\d{1,3})?)$`, 'i')
 
 /** A colour a renderer may write into CSS: the presentation grammar minus `token:`
- *  (a reference is resolved, never written raw). */
+ *  and the theme reference (a reference is resolved, never written raw). */
 export const SAFE_CSS_COLOUR = new RegExp(String.raw`^(?:#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})` +
   String.raw`|rgba?\(${NUM_CHANNELS}${ALPHA}\)|hsla?\(${HSL_CHANNELS}${ALPHA}\)|[a-z]{3,20})$`, 'i')
 
 export const isPresentationColour = (s) => typeof s === 'string' && s.length <= 64 && PRESENTATION_COLOUR.test(s)
 
-/** `s` when a renderer may write it into CSS, else `undefined` (the caller's default applies). */
-export const safeCssColour = (s) => (typeof s === 'string' && s.length <= 64 && SAFE_CSS_COLOUR.test(s.trim()) ? s.trim() : undefined)
+const safeLiteral = (s) => (typeof s === 'string' && s.length <= 64 && SAFE_CSS_COLOUR.test(s.trim()) ? s.trim() : undefined)
+
+/** `s` when a renderer may write it into CSS, else `undefined` (the caller's default applies).
+ *  ⭐ ENGINE 58 — a theme reference (`chart.fg_color@85`) is RESOLVED against `theme`
+ *  (`objectTheme.chartThemeOf` of the chart it is drawn on) and the hex it resolves to is
+ *  returned; with no theme, or one that cannot answer it (a gradient background), it is
+ *  `undefined` — the caller's default — never the raw reference and never a guess. */
+export const safeCssColour = (s, theme = null) => {
+  if (isThemeColour(typeof s === 'string' ? s.trim() : s)) {
+    return theme ? safeLiteral(resolveThemeColour(s.trim(), theme)) : undefined
+  }
+  return safeLiteral(s)
+}
+
+const ZERO_ALPHA = /^(?:transparent|#[0-9a-f]{3}0|#[0-9a-f]{6}00|(?:rgb|hsl)a\([^,)]*,[^,)]*,[^,)]*,\s*(?:0|0?\.0+)\s*\))$/i
+
+/** ⭐⭐ ENGINE 58 — the colour a LEGEND chip / row writes as its TEXT ink: a safe colour
+ *  (`safeCssColour`, a theme reference resolved), and `undefined` — the legend's own
+ *  neutral, readable ink (`legendInk.js`) — for a colour that draws NOTHING (fully
+ *  transparent: `#00000000`, a withheld rule row's series colour, `color = na`).
+ *  ⚰️ The chip wrote `color: #00000000` and its name and value were invisible (661
+ *  rule-coloured rows and 48 withheld ones in the engine 58 census). Only the legend's
+ *  text uses this; a swatch keeps `safeCssColour`, where transparent is the honest answer. */
+export const inkCssColour = (s, theme = null) => {
+  const c = safeCssColour(s, theme)
+  return c === undefined || ZERO_ALPHA.test(c) ? undefined : c
+}

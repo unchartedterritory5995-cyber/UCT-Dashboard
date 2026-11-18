@@ -31,6 +31,8 @@ from typing import Any, Callable, Optional, Sequence
 import requests
 
 from api.services.cache import cache
+from api.services import fmp_response_cache as _response_cache
+from api.services.log_redaction import safe_exc as _safe_exc
 from api.services import provider_errors as _pe
 from api.services import provider_licensing_class as _plc
 
@@ -138,6 +140,12 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
     if forbidden_since is not None:
         return _CachedForbidden(since=forbidden_since)
 
+    # 2026-11-13: the same answer is never downloaded twice inside its TTL (fmp_response_cache's
+    # docstring: 150 GB in 30 days, the account cut off). A hit spends no token and no bandwidth.
+    stored = _response_cache.get(path, params)
+    if stored is not None:
+        return stored
+
     if not _take_token():
         raise _ERR.rate_limited(f"local FMP budget exhausted for {path}")
 
@@ -155,7 +163,7 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
     except requests.exceptions.Timeout as exc:
         raise _ERR.transient(f"FMP {path} timed out") from exc
     except requests.exceptions.RequestException as exc:
-        raise _ERR.transient(f"FMP {path} network error: {exc}") from exc
+        raise _ERR.transient(f"FMP {path} network error: {_safe_exc(exc)}") from exc
 
     if resp.status_code == 429:
         raise _ERR.rate_limited(f"FMP {path} rate-limited", status=429)
@@ -170,9 +178,11 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
     except requests.exceptions.HTTPError as exc:
         raise _ERR.transient(f"FMP {path} unexpected status {resp.status_code}") from exc
     try:
-        return resp.json()
+        body = resp.json()
     except ValueError as exc:
         raise _ERR.transient(f"FMP {path} returned non-JSON body") from exc
+    _response_cache.put(path, params, body)
+    return body
 
 
 _CLASS_DOT_RE = re.compile(r"^[A-Z]{1,5}\.[A-Z]$")
@@ -389,6 +399,20 @@ def get_historical_price_eod_light(ticker: str, from_date: str, to_date: str, *,
                    {"symbol": ticker.upper(), "from": from_date, "to": to_date},
                    source_activity="fmp_client.get_historical_price_eod_light", data_class="prices",
                    not_found_if=_empty_list, freshness="historical", timeout=timeout)
+
+
+def get_index_history_eod_full(index_symbol: str, from_date: str, to_date: str, *,
+                               timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Daily OHLCV for a cash index (`[{date, open, high, low, close, volume}, ...]`,
+    newest first) in a date window. `index_symbol` is FMP's caret form (`^GSPC`).
+
+    ⭐ The PRIMARY source for daily index bars (`api/index_bars.py`), by owner ruling
+    2026-11-14: "We have the highest plan for FMP, I am fine using Yahoo, and only want to
+    upgrade to massive if it is needed" (docs/pine/RS-RATING-TRANSFER.md)."""
+    return _fetch("/stable/historical-price-eod/full",
+                   {"symbol": _fmp_index_symbol(index_symbol), "from": from_date, "to": to_date},
+                   source_activity="fmp_client.get_index_history_eod_full", data_class="indices",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
 def get_earnings(ticker: str, *, limit: int = 20, timeout: Optional[int] = None) -> _pe.ProviderResult:
@@ -994,7 +1018,7 @@ def body_or_none(fn: Callable[..., _pe.ProviderResult], *args: Any,
         return []
     except Exception as exc:  # noqa: BLE001 -- the legacy contract, see above
         _logger.warning("FMP %s failed for %s: %s",
-                        getattr(fn, "__name__", fn), args[0] if args else "?", exc)
+                        getattr(fn, "__name__", fn), args[0] if args else "?", _safe_exc(exc))
         return None
     if result.degraded is not None:
         return None

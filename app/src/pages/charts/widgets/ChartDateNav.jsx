@@ -92,7 +92,13 @@ function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYears, on
     return cells
   }, [viewY, viewM])
 
-  const W = 300
+  // "Go to a date" (owner 11-15): type any date at the top of the calendar and jump there —
+  // the same masked M/D/YYYY entry as the header field, so the calendar works on its own.
+  const [typed, setTyped] = useState('')
+  const typedMs = parseDate(typed)
+  const goTyped = () => { if (typedMs != null) onPickDate(typedMs) }
+
+  const W = 312
   const left = anchor ? Math.max(8, Math.min(anchor.left, window.innerWidth - W - 8)) : 40
   const top = anchor ? anchor.bottom + 4 : 60
 
@@ -102,12 +108,29 @@ function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYears, on
 
   return createPortal(
     <div ref={ref} className={styles.pop} style={{ left, top, width: W, ...(themeVars || {}) }} role="dialog" aria-label="Go to date">
+      <form className={styles.goRow} onSubmit={(e) => { e.preventDefault(); goTyped() }}>
+        <input
+          className={styles.goField}
+          value={typed}
+          placeholder="Go to a date  ·  M/D/YYYY"
+          aria-label="Go to a date"
+          spellCheck={false}
+          inputMode="numeric"
+          autoFocus
+          onChange={(e) => setTyped(maskMDY(e.target.value))}
+        />
+        <button type="submit" className={styles.goBtn} disabled={typedMs == null}>Go</button>
+      </form>
       <div className={styles.popBody}>
         <div className={styles.cal}>
           <div className={styles.calHead}>
-            <button type="button" className={styles.calNav} onClick={() => stepMonth(-1)} aria-label="Previous month">‹</button>
+            <button type="button" className={styles.calNav} onClick={() => stepMonth(-1)} aria-label="Previous month">
+              <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 4 6 8l4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
             <span className={styles.calTitle}>{MONTHS[viewM]} {viewY}</span>
-            <button type="button" className={styles.calNav} onClick={() => stepMonth(1)} aria-label="Next month">›</button>
+            <button type="button" className={styles.calNav} onClick={() => stepMonth(1)} aria-label="Next month">
+              <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
           </div>
           <div className={styles.calDow}>{DOW.map((d, i) => <span key={i}>{d}</span>)}</div>
           <div className={styles.calGrid}>
@@ -122,6 +145,7 @@ function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYears, on
                   type="button"
                   className={`${styles.calDay} ${isSel ? styles.calDaySel : ''}`}
                   disabled={!ok}
+                  aria-current={isSel ? 'date' : undefined}
                   onClick={() => onPickDate(ms)}
                 >{day}</button>
               )
@@ -137,6 +161,7 @@ function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYears, on
                 key={y}
                 type="button"
                 className={`${styles.yearBtn} ${y === selY ? styles.yearBtnSel : ''}`}
+                aria-current={y === selY || undefined}
                 onClick={() => onPickYear(y)}
               >{y}</button>
             ))}

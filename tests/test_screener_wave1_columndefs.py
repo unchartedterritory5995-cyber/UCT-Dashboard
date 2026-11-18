@@ -40,6 +40,10 @@ def test_every_filterable_and_viewed_column_has_a_def():
 # in a view. Anything else must be named here WITH ITS REASON: we compute it,
 # store it nightly, and deliberately never show it.
 _PROVENANCE_ONLY = {
+    "live_base_close_1w": "a live-tier base: the session-shifted level live_tier restates a member column from; the member reads that column, never this",
+    "live_base_close_1m": "a live-tier base: the session-shifted level live_tier restates a member column from; the member reads that column, never this",
+    "live_base_close_1y": "a live-tier base: the session-shifted level live_tier restates a member column from; the member reads that column, never this",
+    "live_base_min_volume_3d": "a live-tier base: the session-shifted level live_tier restates a member column from; the member reads that column, never this",
     "snapshot_date": "the row's as-of date — surfaced as the toolbar's date chip "
                      "and /api/screener/snapshot-status, never as a grid column",
     "bars_asof":     "provenance for the bar-fed columns; the Seal popover reads it",
@@ -153,7 +157,7 @@ def test_every_rs_column_def_carries_a_desc_that_names_daily_bars():
     chart reader on an intraday timeframe would otherwise assume wrong."""
     from api.services.screener import rs_columns, snapshot_builder
     cols = [*rs_columns.COLUMNS, *snapshot_builder._RS_HISTORY_COLUMNS]
-    assert len(cols) == 17, cols
+    assert len(cols) == 18, cols   # 18 since rs_rating_9m (2026-11-10)
     bodies = _column_def_bodies()
     for col in cols:
         assert col in bodies, f"{col} has no column def"

@@ -77,7 +77,13 @@ const syms = (board, h) => chartsOf(board).map(w => h.charts.read(w.id).symbol)
 const rsiOn = (board) => chartsOf(board).filter(w => (w.opts?.settings?.indicatorInstances || []).some(i => i.defId === 'rsi' && !i.deleted)).map(w => w.id)
 const emaOn = (board, len) => chartsOf(board).filter(w => (w.opts?.settings?.indicatorInstances || []).some(i => i.defId === 'movingAverage' && Number(i.inputs?.period) === len && i.inputs?.maType === 'ema' && !i.deleted)).map(w => w.id)
 
-describe('GRID-REUSE #1 · a count of charts with tickers is THE grid — the board\'s charts reused, never an extra one', () => {
+// ⛔ hotfix 2026-11-13 (owner + AUDIT: "adding charts must never silently replace existing charts"): an ADD with a count or a grid
+// shape on a board that has charts is now ASKED — "Add 4 more charts" or "Replace my N charts with these 4" (shown first, as every
+// replace). The GRID-REUSE ruling (the count IS the grid, never an extra chart) is kept on the member's pick: Replace reuses the
+// board's charts top-left first, exactly as before; nothing is ever re-symbolled without that pick.
+const pick = async (label) => { await waitFor(() => expect(screen.getAllByRole('button', { name: label }).length).toBeGreaterThan(0)); fireEvent.click(screen.getAllByRole('button', { name: label }).at(-1)); await waitFor(() => expect(screen.queryByTestId('agent-typing')).toBeNull(), { timeout: 10000 }) }
+const applyCard = () => pick('Apply')
+describe('GRID-REUSE #1 · a count of charts with tickers is THE grid — asked first (hotfix 11-13); on Replace the board\'s charts are reused, never an extra one', () => {
   const ADD_GRID = ['add a 2x2 of SPY QQQ IWM DIA', 'add a 2x2 grid of SPY, QQQ, IWM and DIA', 'add SPY, QQQ, IWM and DIA on four charts', 'add four charts for SPY QQQ IWM DIA']
   for (const [name, board0, kept] of [['one chart', ONE, ['c1']], ['two charts', TWO, ['c1', 'c2']]]) {
     for (const t of ADD_GRID) {
@@ -85,6 +91,11 @@ describe('GRID-REUSE #1 · a count of charts with tickers is THE grid — the bo
         const { board, h, say } = mount(...board0())
         const raw0 = raw(board)
         await say(t)
+        // asked, nothing changed, no model call
+        expect(raw(board)).toBe(raw0)
+        expect(transcript()).toMatch(new RegExp(`You have ${kept.length} charts? here\\. Add these 4 \\(SPY, QQQ, IWM, DIA\\) beside them, or replace`))
+        await pick(`Replace my ${kept.length} chart${kept.length === 1 ? '' : 's'} with these 4`)
+        await applyCard()
         await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
         expect(syms(board, h)).toEqual(['SPY', 'QQQ', 'IWM', 'DIA'])
         expect(chartsOf(board).slice(0, kept.length).map(w => w.id)).toEqual(kept)
@@ -103,6 +114,9 @@ describe('GRID-REUSE #1 · a count of charts with tickers is THE grid — the bo
     const others = () => JSON.stringify(board.state.widgets.filter(w => w.type !== 'chart'))
     const others0 = others()
     await say('add a 2x2 of SPY QQQ IWM DIA')
+    expect(raw(board)).toBe(raw0)
+    await pick('Replace my 1 chart with these 4')
+    await applyCard()
     await waitFor(() => expect(chartsOf(board)).toHaveLength(4), { timeout: 8000 })
     expect(chartsOf(board)[0].id).toBe('uctd-chart')
     expect(syms(board, h)).toEqual(['SPY', 'QQQ', 'IWM', 'DIA'])
@@ -110,14 +124,12 @@ describe('GRID-REUSE #1 · a count of charts with tickers is THE grid — the bo
     await say('undo')
     await waitFor(() => expect(raw(board)).toBe(raw0), { timeout: 8000 })
   }, 30000)
-  it('held-out P08: "add a 2x2 of SPY QQQ IWM DIA and put the 21 ema on all of them" → 4 charts, each with the EMA 21; one Undo takes it all back', async () => {
+  it('held-out P08 (hotfix 11-13): "add a 2x2 of SPY QQQ IWM DIA and put the 21 ema on all of them" on a board with a chart — the add is never run as a silent re-symbol: nothing changes before the member picks', async () => {
     const { board, say } = mount(...ONE())
     const raw0 = raw(board)
     await say('add a 2x2 of SPY QQQ IWM DIA and put the 21 ema on all of them')
-    await waitFor(() => expect(emaOn(board, 21)).toHaveLength(4), { timeout: 10000 })
-    expect(chartsOf(board)).toHaveLength(4)
-    await say('undo')
-    await waitFor(() => expect(raw(board)).toBe(raw0), { timeout: 8000 })
+    expect(raw(board)).toBe(raw0)
+    expect(emaOn(board, 21)).toHaveLength(0)
   }, 40000)
   for (const t of ['add two new charts for SPY and QQQ', 'add charts for SPY and QQQ']) {
     it(`words that SAY more still add: "${t}" → the AMD chart kept, two charts added; Undo is exact`, async () => {

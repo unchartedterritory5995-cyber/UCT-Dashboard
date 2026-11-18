@@ -1,6 +1,7 @@
 // @vitest-environment node
 // Audit 2026-11-05, S16: the first run's sheet and its inline ask are ONE lazy chunk (FirstRunSheet.jsx). The gate
-// (NotebookTab) and the inline slot (Research Home) are on the Notebook's first open; the sheet must never be.
+// (NotebookTab) and the inline slot (the Daily brief, TodayHome.jsx; it was Research Home's until go-live wave 1) are on
+// the Notebook's open; the sheet must never be.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -34,13 +35,13 @@ describe('the first run loads on demand', () => {
     expect(dynamics).toEqual(['./FirstRunSheet', './FirstRunSheet'])
     expect(read('FirstRunGate.jsx')).toMatch(/lazyLeaf\(\(\) => import\('\.\/FirstRunSheet'\)\)/)
   })
-  it('NotebookTab and Research Home import the gate, never the sheet', () => {
+  it('NotebookTab and the Daily brief import the gate, never the sheet', () => {
     const tab = imports(read('../../tabs/NotebookTab.jsx'))
     expect(tab.statics).toContain('../components/notebook/FirstRunGate')
     expect(tab.statics.some((s) => s.endsWith('FirstRunSheet'))).toBe(false)
-    const home = imports(read('ResearchHome.jsx'))
-    expect(home.statics).toContain('./FirstRunGate')
-    expect(home.statics.some((s) => s.endsWith('FirstRunSheet'))).toBe(false)
+    const brief = imports(read('TodayHome.jsx'))
+    expect(brief.statics).toContain('./FirstRunGate')
+    expect(brief.statics.some((s) => s.endsWith('FirstRunSheet'))).toBe(false)
   })
   it('the tour waits for it: NotebookTourGate reads whether the first run is showing', () => {
     const src = read('onboarding/NotebookTourGate.jsx')

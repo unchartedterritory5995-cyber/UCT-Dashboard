@@ -177,6 +177,7 @@ export const alertLibraryKind = {
 
 export const alertKind = {
   name: 'alert',
+  empty: "You have no price alerts yet.",
   boardScoped: false,
   selfDescribing: true,
   list: () => rows().map(a => ({ ...a, ref: a.id, label: alertPhrase(a) })),

@@ -20,6 +20,9 @@
  */
 
 import { lazy } from 'react'
+import UpdateRequiredNotice from '../components/UpdateRequiredNotice'
+import { shouldDeferReload, announceUpdateRequired } from '../lib/reloadGuard'
+import { isStaleChunkError } from './staleChunk'
 
 const RELOAD_FLAG = 'uct.chunk-reload-attempted'
 
@@ -40,6 +43,14 @@ export default function lazyWithRetry(importer) {
       let alreadyTried = false
       try { alreadyTried = !!sessionStorage.getItem(RELOAD_FLAG) } catch {}
 
+      // A reload would close the member's pop-out windows (or this IS one): resolve a stub so the
+      // desk stays mounted, and let the toast ask. No flag is set, so the member's own reload works.
+      // Deferred branch only: also the CSS-preload and MIME forms of a stale chunk (staleChunk.js).
+      if ((isChunkLoadError(err) || isStaleChunkError(err)) && shouldDeferReload()) {
+        announceUpdateRequired()
+        return { default: UpdateRequiredNotice }
+      }
+
       if (isChunkLoadError(err) && !alreadyTried) {
         try { sessionStorage.setItem(RELOAD_FLAG, String(Date.now())) } catch {}
         // Hard-reload to pick up new HTML with current asset hashes.
@@ -49,6 +60,25 @@ export default function lazyWithRetry(importer) {
         return new Promise(() => {})
       }
 
+      throw err
+    }
+  })
+}
+
+/**
+ * Plain lazy() for sites that do not auto-reload: resolves the UpdateRequiredNotice stub ONLY when a
+ * reload would close pop-out windows and the failure is a stale chunk. Anything else rethrows, so
+ * with no pop-out open the boundary behaves exactly as with plain lazy().
+ */
+export function lazyDeferrable(importer) {
+  return lazy(async () => {
+    try {
+      return await importer()
+    } catch (err) {
+      if (isStaleChunkError(err) && shouldDeferReload()) {
+        announceUpdateRequired()
+        return { default: UpdateRequiredNotice }
+      }
       throw err
     }
   })

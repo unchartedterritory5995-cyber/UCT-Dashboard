@@ -15,6 +15,11 @@
 // ⛔ A rule with `capture: null` has no probe queued yet: it is refused until one is written.
 
 export const UNPINNED_GUARD = 'runtime:strategy-unpinned'
+/** A broker refusal for a behaviour no source settles (`broker.js` re-exports it under the same name).
+ *  Declared HERE, beside UNPINNED_GUARD, so the strategy report (`brokerReport.js`) can name it without
+ *  importing the broker itself: that import split `broker.js` into its own shared chunk and pushed
+ *  bytes.notebook_first_open over budget (engine 40). One authority, two doors. */
+export const BROKER_UNSETTLED_GUARD = 'runtime:strategy-unsettled'
 
 export const BROKER_RULES = Object.freeze({
   // the run's execution model
@@ -27,13 +32,15 @@ export const BROKER_RULES = Object.freeze({
   'B-PYR': Object.freeze({ capture: 'Q-S1-core', what: 'pyramiding limits same-direction entries' }),
   'B-REVERSE': Object.freeze({ capture: 'Q-S1-core', what: 'an entry against the position closes it and opens the new size on one fill' }),
   'B-MODIFY': Object.freeze({ capture: 'Q-S1-core', what: 'an unfilled order with the same id is modified' }),
-  'B-CANCEL': Object.freeze({ capture: null, what: 'strategy.cancel / cancel_all remove unfilled orders (no probe queued)' }),
+  // capture row W9-X5 (`w9-x5-cancel.pine`) is queued by origin/fix/pine-capture-queue-hygiene d1a6cb9fb3, which
+  // this branch does not carry: the id is set here, the row lands with that branch (W9-T5 r1)
+  'B-CANCEL': Object.freeze({ capture: 'W9-X5', what: 'strategy.cancel / cancel_all remove unfilled orders' }),
   'B-CLOSE': Object.freeze({ capture: 'Q-S1-core', what: 'strategy.close / close_all' }),
   'B-EXIT-BIND': Object.freeze({ capture: 'Q-S1-core', what: 'strategy.exit binds a bracket to the trades of from_entry' }),
   'B-EXIT-LIFE': Object.freeze({ capture: 'Q-S1-core', what: 'how long an exit lives' }),
   'B-EXIT-NA': Object.freeze({ capture: 'Q-S1-core', what: 'an exit with every level na places nothing' }),
   'B-FIFO': Object.freeze({ capture: 'Q-S1-core', what: 'exits close the oldest trades first' }),
-  'B-MARGIN': Object.freeze({ capture: 'Q-S1i', what: 'the margin check (a margin call is never modelled)' }),
+  'B-MARGIN': Object.freeze({ capture: 'Q-S1i', what: 'the margin check (a margin call is served only on the shape B-MARGIN-CALL names; any other refuses)' }),
   // the order arguments and the declaration
   'B-SIG': Object.freeze({ capture: 'Q-S1-core', what: 'positional order arguments follow the Pine version\'s signature' }),
   'B-WHEN': Object.freeze({ capture: 'Q-S1p', what: 'the `when` argument (v4, and v5)' }),
@@ -63,24 +70,98 @@ export const BROKER_RULES = Object.freeze({
   'B-IMMEDIATELY': Object.freeze({ capture: 'W9-X4', what: 'strategy.close / close_all immediately = true: the close fills on the tick it is placed, the bar close' }),
   'B-STOP-LIMIT': Object.freeze({ capture: 'Q-S1j', what: 'an entry / order with both stop and limit: the stop level, once reached, places a limit order at the limit level' }),
   'B-EXIT-LEVELS': Object.freeze({ capture: 'Q-S1k', what: 'strategy.exit with both profit and limit (or loss and stop): v5 keeps the price level, v6 the level expected to fill first' }),
+  // ── W9-T5: costs (`broker.js` `feeOf` / `slipped`; design section 4 T5, capture rows W9-K1..K4, W9-P1) ──
+  // One rule per capture row: pinning W9-K1 (percent) must never also serve a per-order fee. Asked only
+  // when a run REACHES a non-zero cost; a zero commission keeps resting on COMMISSION_RULE (B-DEFAULTS).
+  'B-COMM-PCT': Object.freeze({ capture: 'W9-K1', what: 'commission_type = strategy.commission.percent: each fill pays commission_value percent of its cash volume (size x fill price x pointvalue); a trade profit is net of its entry and exit fees' }),
+  'B-COMM-CONTRACT': Object.freeze({ capture: 'W9-K2', what: 'commission_type = strategy.commission.cash_per_contract: each fill pays commission_value per contract filled; a trade profit is net of its entry and exit fees' }),
+  'B-COMM-ORDER': Object.freeze({ capture: 'W9-K3', what: 'commission_type = strategy.commission.cash_per_order: each filled order pays commission_value; a trade profit is net of its entry and exit fees' }),
+  'B-SLIPPAGE': Object.freeze({ capture: 'W9-K4', what: 'slippage (ticks): a market order fills that many ticks less favorably than its price (higher for a buy, lower for a sell)' }),
+  'B-POC-COST': Object.freeze({ capture: 'W9-P1', what: 'process_orders_on_close with costs: a fill at the bar close pays its commission and takes its slippage there, from the close price' }),
+  // ── W9-T8: strategy.risk.* (`broker.js` `riskAllow` / `riskTick` / `riskFill`; design section 4 T8, capture rows
+  // W9-R1 and W9-R1i). One rule per probe that witnesses it: `w9-r1-risk-allow.pine` (allow_entry_in),
+  // `w9-r1-risk-ddown.pine` (max_drawdown), `w9-r1-risk-intraday.pine` (max_intraday_filled_orders). A HALT (the limit
+  // reached: cancel, close, stop trading) is NOT a rule: no queued capture is known to reach one, so a run that may
+  // reach a limit stops by name (`runtime:strategy-unsettled`). max_intraday_loss, max_cons_loss_days and
+  // max_position_size have no probe that calls them: they are refused at build (`ast/strategyBroker.js`), not named here.
+  'B-RISK-ALLOW': Object.freeze({ capture: 'W9-R1', what: 'strategy.risk.allow_entry_in: a strategy.entry market order in the other direction closes the open position at its fill (and opens nothing); with no position it fills nothing; an entry in the allowed direction is unchanged' }),
+  'B-RISK-DDOWN': Object.freeze({ capture: 'W9-R1', what: 'strategy.risk.max_drawdown below its limit: the run is exactly the run without the call (the limit reached is a refusal, not this rule)' }),
+  'B-RISK-INTRADAY-ORDERS': Object.freeze({ capture: 'W9-R1i', what: 'strategy.risk.max_intraday_filled_orders below its limit on every trading day: the run is exactly the run without the call (the limit reached is a refusal, not this rule)' }),
+  // ── value read-backs (2026-11-15): what the 33 committed strategy captures WITNESS and no text states ──
+  // (`broker.js` `roundedOpenFill` / `markPx`, `strategyRecord.js` `witnessedExitIdOf`). Each is a rule of its
+  // own so that each is pinned by its own witnesses: the evidence table, capture by capture, is
+  // `docs/pine/evidence/2026-11-15-strategy-readbacks/EVIDENCE.md`, re-derived from the captures alone by
+  // `__tests__/vendorHarness/strategyReadbackWitness.test.js`. Asked only when a run REACHES the case.
+  'B-ROUND': Object.freeze({ capture: 'Q-S1l', what: 'a market order (an entry, strategy.order, strategy.close, strategy.close_all) or a stop order the open reached that fills on a bar open off the tick grid fills at that open rounded to the nearest tick, a tie up' }),
+  'B-ROUND-MARK': Object.freeze({ capture: 'W9-R1i', what: 'strategy.openprofit (and so strategy.equity) marks open trades at the bar close rounded to the nearest tick, a tie up, when that close is off the tick grid' }),
+  'B-TXT-CLOSE-ID': Object.freeze({ capture: 'Q-S1p', what: 'strategy.closedtrades.exit_id of a trade strategy.close(id) closed reads "Close entry(s) order <id>"' }),
+  'B-TXT-CLOSE-ALL-ID': Object.freeze({ capture: 'Q-S1-core', what: 'strategy.closedtrades.exit_id of a trade strategy.close_all() closed reads "Close position order"' }),
+  'B-TXT-ENTRY-CLOSE-ID': Object.freeze({ capture: 'Q-S1b', what: 'strategy.closedtrades.exit_id of a trade a strategy.entry fill closed (a reversal, an allow_entry_in close) reads the id of that entry' }),
+  'B-TXT-NO-COMMENT': Object.freeze({ capture: 'Q-S1k', what: 'strategy.closedtrades.exit_comment of a trade whose closing order carries no comment reads the exit id of the trade' }),
+  // ── 2026-11-16, the strategy coverage unit: Q-S1g, witnessed by VALUES (vw-s1-q-s1g-blocked-stop-entry, the
+  // report not requested), so pinned only by a re-take with the Strategy Tester report. APPENDED, never inserted:
+  // rails read S1's 22 rules as the first 22 of this table.
+  'B-PYR-PRICE': Object.freeze({ capture: 'Q-S1g', what: 'a price (stop / limit) entry whose level is reached while the position is at the pyramiding limit does not execute, then or later: it is not kept waiting' }),
+  // ── 2026-11-16, Q-S1i answered by a committed report capture (w9-q-s1a-size-v6). APPENDED, never inserted.
+  'B-FUNDS': Object.freeze({ capture: 'Q-S1i', what: 'with no position open, a long market strategy.entry sized by the percent-of-equity default at 100, at a long margin of 100%, that would need more than the equity at its fill price is rejected: no trade, no smaller size, not kept waiting' }),
+  // ── 2026-11-17, Q-S1i's SHORT answered by a committed report capture (w9-q-s1i-short-v6). APPENDED, never inserted.
+  'B-FUNDS-SHORT': Object.freeze({ capture: 'Q-S1i', what: 'with no position open, a short market strategy.entry sized by the percent-of-equity default at 100, at a short margin of 100%, that would need more than the equity at its fill price is rejected: no trade, no smaller size, not kept waiting' }),
+  'B-MARGIN-CALL': Object.freeze({ capture: 'Q-S1i', what: 'one open short trade at a short margin of 100% whose Available Funds fall below zero on a tick of the bar (its open after the open\'s fills, then each path vertex) is margin-called there: the User Manual\'s size (TRUNCATE(Available Funds / Margin Ratio / price) x 4) is bought back at that tick rounded to the nearest tick, closing part of the trade; its exit id reads "Close position order" and its exit comment "Margin call"' }),
+  // ── 2026-11-17, the reversal at the v6 default answered by a committed report capture (w9-q-s1b-defaults-v6). APPENDED.
+  'B-QTY-REVERSE': Object.freeze({ capture: 'Q-S1a', what: 'a market strategy.entry against every open trade (a reversal) at the percent-of-equity default 100, margins 100: the new size is floor(strategy.equity at the signal close, the open trades\' profit included, / that close); the order fills the open size plus it' }),
+  'B-FUNDS-REVERSE': Object.freeze({ capture: 'Q-S1i', what: 'such a reversal whose new size x fill price exceeds the equity it was sized from (the signal close\'s) is rejected whole: nothing closes, nothing opens, not kept waiting' }),
+  'B-MARGIN-CALL-ALL': Object.freeze({ capture: 'Q-S1i', what: 'a margin call whose manual size exceeds the trade closes the whole trade' }),
+  'B-ENTRY-ORDER': Object.freeze({ capture: 'Q-S1d', what: 'several market strategy.entry orders (and nothing else) on one opening tick are taken in the order the script placed them, each against the position the one before left; served while every one before the last fills nothing' }),
+  // ── 2026-11-17, Pine v2 / v3 strategies from the two committed v2 / v3 report captures (w9-q-s1a-size-v2,
+  // w9-g1-v3-properties). APPENDED, never inserted.
+  'B-V3': Object.freeze({ capture: 'W9-G1', what: 'a Pine v2 / v3 strategy: strategy.entry(id, direction) and strategy.close(id), by position, with a named `when`, and the Properties read back for those versions (fixed size 1, initial capital 100,000, pyramiding 1, no commission or slippage, no margin input: a position worth more than the equity refuses)' }),
+  // ── 2026-11-17, ruling D12b: the v4 margin default, for the declaration shape both committed v4 report captures have.
+  'B-V4-MARGIN0': Object.freeze({ capture: 'Q-S1b', what: 'a Pine v4 strategy whose strategy() states exactly a title and overlay (no margin, size, capital, pyramiding or cost argument) runs at margin_long = margin_short = 0, the value TradingView read back on w9-q-s1a-size-v4 and w9-q-s1b-defaults-v4 (the v4 reference reads 100: the capture overrules it for that shape only)' }),
 })
 
 export const BROKER_RULE_IDS = Object.freeze(Object.keys(BROKER_RULES))
 
 /** ⭐ W9-T13a r3 — ONE AUTHORITY over "this figure is net of commission". A trade's profit is net of
- *  its commission, and the commission is 0 only because the broker refuses any other declared
- *  `commission_value` at build and an undeclared one is the version's default (B-DEFAULTS, "M
- *  Commission: If not specified, the strategy applies no commission"). Neither the declaration the
- *  broker holds nor the record says which, so every figure that reads a profit (its sign included)
- *  rests on COMMISSION_RULE. `broker.js` (the strategy.* values) and `brokerReport.js` (the report)
- *  both ask it from here. */
+ *  its commission (R6 `strategy.closedtrades.profit`: "reduced by the trade's commissions"). A ZERO
+ *  commission is the version's default (B-DEFAULTS, "M Commission: If not specified, the strategy
+ *  applies no commission") or a declared 0, which the declaration the broker holds does not tell
+ *  apart, so every figure that reads a profit (its sign included) rests on COMMISSION_RULE.
+ *  ⭐⭐ W9-T5 — a NON-ZERO `commission_value` rests instead on its type's rule (COMMISSION_TYPE_RULES),
+ *  and on B-DEFAULTS too when the type is not declared (R6 `commission_type`: "The default is
+ *  strategy.commission.percent"). `commissionRulesOf` is the ONE place that decides which; `broker.js`
+ *  (the strategy.* values, the margin check, equity) and `brokerReport.js` (the report) both ask it. */
 export const COMMISSION_RULE = 'B-DEFAULTS'
-/** The broker's values that read a profit net of commission. */
+/** W9-T5: the rule each `commission_type` rests on (R6 constants `strategy.commission.*`). */
+export const COMMISSION_TYPE_RULES = Object.freeze({
+  percent: 'B-COMM-PCT',
+  cash_per_contract: 'B-COMM-CONTRACT',
+  cash_per_order: 'B-COMM-ORDER',
+})
+/** The rules a figure that reads a commission rests on, for the run's declared-or-defaulted commission
+ *  `{ type, value, typeDefaulted }` (`ast/strategyBroker.js`; the record's `settings.commission`).
+ *  A missing or zero commission: exactly `[COMMISSION_RULE]`, as before W9-T5. */
+export function commissionRulesOf(commission) {
+  const c = commission || {}
+  if (!(typeof c.value === 'number' && c.value > 0)) return [COMMISSION_RULE]
+  const r = COMMISSION_TYPE_RULES[c.type]
+  if (!r) throw new Error(`commission type \`${c.type}\` is not one brokerRules.js names`)
+  return c.typeDefaulted === false ? [r] : [r, COMMISSION_RULE]
+}
+/** The broker's values that read a commission: a profit net of it, or (W9-T5) the fee itself. */
 export const COMMISSION_NET_VALUES = Object.freeze([
   'strategy.wintrades', 'strategy.losstrades', 'strategy.eventrades',
   'strategy.netprofit', 'strategy.netprofit_percent', 'strategy.grossprofit', 'strategy.grossloss',
   'strategy.openprofit', 'strategy.equity', 'strategy.closedtrades.profit',
+  'strategy.closedtrades.commission', 'strategy.opentrades.commission',
 ])
+
+/** ⭐ W9-T8: the rule and capture row of each `strategy.risk.*` command the broker reads (the declaration's
+ *  `risk` keys, `ast/strategyBroker.js` readRiskCall). ONE TABLE: the broker's refusals name these rows. */
+export const RISK_RULES = Object.freeze({
+  allow: 'B-RISK-ALLOW',
+  maxDrawdown: 'B-RISK-DDOWN',
+  intradayOrders: 'B-RISK-INTRADAY-ORDERS',
+})
 
 /** The capture row that pins `ruleId`; throws for a rule this table does not name. */
 export function ruleCapture(ruleId) {
@@ -88,4 +169,22 @@ export function ruleCapture(ruleId) {
     throw new Error(`broker rule \`${ruleId}\` is not named in brokerRules.js`)
   }
   return BROKER_RULES[ruleId].capture
+}
+
+// ─── W9-T12: PRESENTATION RULES (not emulator rules) ─────────────────────────────
+//
+// A rule about how a backtest is SHOWN, not how it fills. It is pinned by the same ledger
+// (`brokerPins.resolved.json`, `pinned(ruleId)`) and lands the same way (a ledger entry plus a
+// `SCRIPT_ENGINE_VERSION` bump, design rule 7), but it is never an emulator rule: `ruleCapture`
+// and every broker rail keep reading `BROKER_RULES` alone.
+export const MARKER_RULE = 'MK-LOOK'
+export const PRESENTATION_RULES = Object.freeze({
+  [MARKER_RULE]: Object.freeze({ capture: 'W9-MK1', what: 'how TradingView draws a strategy\'s trade markers (shape, colour, text, placement)' }),
+})
+export const PRESENTATION_RULE_IDS = Object.freeze(Object.keys(PRESENTATION_RULES))
+
+/** ⭐ The ledger's vocabulary: an emulator rule or a presentation rule, nothing else. */
+export function isLedgerRuleId(id) {
+  return typeof id === 'string' && (Object.prototype.hasOwnProperty.call(BROKER_RULES, id)
+    || Object.prototype.hasOwnProperty.call(PRESENTATION_RULES, id))
 }

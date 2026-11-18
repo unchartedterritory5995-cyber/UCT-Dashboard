@@ -66,6 +66,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+from api.services.log_redaction import safe_exc as _safe_exc
 import logging
 import os
 import re
@@ -256,6 +257,30 @@ def get_implied_for_date(report_date: str) -> dict[str, float]:
             (str(report_date),),
         ).fetchall()
     return {r["sym"]: r["pct"] for r in rows}
+
+
+def get_implied_rows_for_date(report_date: str) -> list[dict]:
+    """Every capture stored for `report_date`, as rows: the same read as
+    `get_implied_for_date` with the fields a list needs beside the percent
+    (`dollar`, when it was captured, the expiry it priced, the price at capture
+    and which chain it came from). One indexed read; `sym` is the store's own
+    canonical form (`_canon`). For the Terminal's earnings season screen, which
+    lists a whole day and must not read one stock at a time."""
+    if not report_date:
+        return []
+    _ensure_init()
+    with closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT sym, report_date, captured_at, pct, dollar, expiry, spot, source "
+            "FROM implied_snapshots WHERE report_date = ? AND pct IS NOT NULL",
+            (str(report_date),),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def canonical_symbol(sym: str) -> str:
+    """The form this store keys a symbol by (BRK.B and BRK-B are one row)."""
+    return _canon(sym)
 
 
 def all_symbols() -> list[str]:
@@ -511,7 +536,7 @@ def _fmp_reporters_for_day(day: dt.date, key: str) -> list[dict] | None:
             return None
         data = resp.json()
     except Exception as e:  # noqa: BLE001 — one day-chunk's failure must never kill the batch
-        _log.warning("upcoming_reporters: FMP fetch failed for %s: %s", day.isoformat(), e)
+        _log.warning("upcoming_reporters: FMP fetch failed for %s: %s", day.isoformat(), _safe_exc(e))
         return None
     if not isinstance(data, list):
         return None
@@ -860,7 +885,7 @@ def _fmp_fiscal_repair(sym: str) -> list[dict] | None:
             return None
         data = resp.json()
     except Exception as e:  # noqa: BLE001 — one symbol's failure must never crash the batch
-        _log.warning("fiscal repair: FMP transcript-dates fetch failed for %s: %s", sym, e)
+        _log.warning("fiscal repair: FMP transcript-dates fetch failed for %s: %s", sym, _safe_exc(e))
         return None
     return data if isinstance(data, list) else None
 

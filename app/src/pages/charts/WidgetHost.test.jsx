@@ -4,7 +4,16 @@ import { WorkspaceContext } from './WorkspaceContext'
 import WidgetHost from './WidgetHost'
 import { onChartFault } from './chartFaults'
 
-vi.mock('./widgets/ChartWidget', () => ({ default: () => <div data-testid="body-chart">CHART</div> }))
+vi.mock('./widgets/ChartWidget', async () => {
+  const { useContext } = await import('react')
+  const { PanelSlotContext } = await import('./panelSlot')
+  return {
+    default: () => {
+      const ready = useContext(PanelSlotContext)
+      return <div data-testid="body-chart">CHART{ready && <button onClick={ready}>panel-ready</button>}</div>
+    },
+  }
+})
 vi.mock('./widgets/WatchlistWidget', () => ({ default: () => <div data-testid="body-watchlist">WATCHLIST</div> }))
 vi.mock('./widgets/ThemesWidget', () => ({ default: () => <div data-testid="body-themes">THEMES</div> }))
 vi.mock('./widgets/ScannerWidget', () => ({ default: () => <div data-testid="body-scanner">SCANNER</div> }))
@@ -37,6 +46,23 @@ function wrap(widget, handlers = {}) {
     </WorkspaceContext.Provider>,
   )
 }
+
+test('a chart in the slot reports to the mount queue with its widget id', () => {
+  const onPanelReady = vi.fn()
+  render(
+    <WorkspaceContext.Provider value={wsValue}>
+      <WidgetHost widget={{ id: 'w-7', type: 'chart', color: 'A', opts: {} }} onRemove={() => {}} onColorChange={() => {}} onPanelReady={onPanelReady} />
+    </WorkspaceContext.Provider>,
+  )
+  screen.getByText('panel-ready').click()
+  expect(onPanelReady).toHaveBeenCalledTimes(1)
+  expect(onPanelReady).toHaveBeenCalledWith('w-7')
+})
+
+test('CONTROL: a host with no mount queue gives its widget nothing to report to', () => {
+  wrap({ id: 'w-8', type: 'chart', color: 'A', opts: {} })
+  expect(screen.queryByText('panel-ready')).toBeNull()
+})
 
 test('dispatches to ChartWidget for type=chart', () => {
   wrap({ id: '1', type: 'chart', color: 'A', opts: {} })

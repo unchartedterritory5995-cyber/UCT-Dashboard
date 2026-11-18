@@ -145,8 +145,8 @@ def test_the_defaults_are_bars_sanitizes_own_fetcher_cache_and_lifetime(monkeypa
     is_open, fail, ok = ds._default_gate()
     assert is_open is san._warm_gate_open and fail is san._warm_note_failure and ok is san._warm_note_success
     stored = {}
-    monkeypatch.setattr(san.cache, "set", lambda k, v, ttl: stored.__setitem__(k, (v, ttl)))
-    monkeypatch.setattr(san.cache, "get", lambda k: stored.get(k, (None,))[0])
+    monkeypatch.setattr(san._META_CACHE, "set", lambda k, v, ttl: stored.__setitem__(k, (v, ttl)))
+    monkeypatch.setattr(san._META_CACHE, "get", lambda k: stored.get(k, (None,))[0])
     ds._default_cache_set("ZZ", {"splits": []})
     assert stored[san._META_KEY.format("ZZ")][1] == san._META_TTL
     assert ds._default_cache_get("ZZ") == {"splits": []}

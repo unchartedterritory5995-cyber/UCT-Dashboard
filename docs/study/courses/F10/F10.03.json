@@ -1,0 +1,1901 @@
+{
+ "unit": "F10.03",
+ "track": "F10",
+ "title": "Brackets and OCO",
+ "teaches": "A bracket is your entry with a profit target and a stop attached: the exits go live when the entry fills, they cancel each other (one-cancels-other), and they hold you to the plan you made before the trade, though the stop leg still can't beat a gap.",
+ "skills": [
+  {
+   "id": "orders.brackets",
+   "title": "Brackets and OCO"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Types of Orders",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Understanding Order Types: Investor Bulletin (July 12, 2017, updated August 18, 2026)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Order Types",
+   "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stock Purchases and Sales: Long and Short",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/stock-purchases-and-sales-long-and",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Advanced trading types: conditional orders (Fidelity Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/conditional-order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Conditional Trading (Active Trader Pro help)",
+   "url": "https://www.fidelity.com/trading/help/active-trader-pro/conditional-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Conditional Orders and Trailing Stop Orders (risk disclosure PDF linked from the Active Trader Pro help)",
+   "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/Conditional_Orders.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "How to Place a Conditional Order",
+   "url": "https://www.schwab.com/content/how-to-place-conditional-order",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Order Types (thinkorswim Learning Center, thinkManual)",
+   "url": "https://toslc.thinkorswim.com/center/howToTos/thinkManual/Trade/Order-Entry-Tools/Order-Types.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "3 Order Types: Market, Limit, and Stop Orders (June 11, 2024)",
+   "url": "https://www.schwab.com/learn/story/3-order-types-market-limit-and-stop-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "5 Elements of a Smart Trade Plan (October 23, 2024)",
+   "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Interactive Brokers",
+   "title": "Order Types and Algos (Bracket; One Cancels All)",
+   "url": "https://www.interactivebrokers.com/en/trading/ordertypes.php",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Bracketed Buy Orders (James Chen, CMT; updated February 24, 2026)",
+   "url": "https://www.investopedia.com/terms/b/bracketedbuyorder.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master the One-Cancels-the-Other (OCO) Trading Strategy (James Chen, CMT; updated May 13, 2026)",
+   "url": "https://www.investopedia.com/terms/o/oco.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Take-Profit Order (TP): How to Maximize Profits in Trading (James Chen, CMT; updated July 23, 2026)",
+   "url": "https://www.investopedia.com/terms/t/take-profitorder.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 6: Management (owner quoted, 2026-06-14)",
+   "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Study: the trade plan for every setup, Trail column (Kicker row: the owner's rulings 2026-11-02; Oops Reversal, Slingshot and Launchpad rows say the same higher-low trail)",
+   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  },
+  {
+   "id": "hs2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Stop first, our sizing rule section 2 (2026-10-17)",
+   "url": "repo:docs/study/sizing_rule.md#2-stop-first",
+   "accessed": "2026-11-17"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "A buy limit order can only be executed at the limit price or lower, and a sell limit order can only be executed at the limit price or higher.",
+   "claim": "A sell limit fills only at its price or higher; a buy limit only at its price or lower."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "When the stop price is reached, a stop order becomes a market order.",
+   "claim": "Once its stop price is reached, a stop order turns into a market order."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "A sell stop order is entered at a stop price below the current market price. Investors generally use a sell stop order to limit a loss or protect a profit on a stock they own.",
+   "claim": "A sell stop sits below the market and limits the loss on shares you own."
+  },
+  {
+   "id": "f04",
+   "source": "s1",
+   "quote": "A buy stop order is entered at a stop price above the current market price. Investors generally use a buy stop order to limit a loss or protect a profit on a stock that they have sold short.",
+   "claim": "A buy stop sits above the market; on a short, it limits the loss."
+  },
+  {
+   "id": "f05",
+   "source": "s2",
+   "quote": "Day orders, if not executed, generally cancel at the end of regular trading hours of the trading day that they are entered and will not carry over to the extended hours session or the next trading day.",
+   "claim": "An unfilled day order generally cancels at the end of the regular session and does not carry over to after hours or the next day."
+  },
+  {
+   "id": "f06",
+   "source": "s2",
+   "quote": "Unless an investor specifies a time frame for the expiration of an order, orders to buy and sell a stock are “Day” orders, meaning they are good only during the trading day that the order is entered.",
+   "claim": "Unless you choose otherwise, an order is a day order, good only for the day you enter it."
+  },
+  {
+   "id": "f07",
+   "source": "s2",
+   "quote": "A GTC order is an order to buy or sell a stock that lasts until it is executed in full or it is canceled.",
+   "claim": "A good-'til-canceled (GTC) order lasts until it fills in full or is canceled."
+  },
+  {
+   "id": "f08",
+   "source": "s2",
+   "quote": "Similarly, the time limit that an investor can leave a GTC order open may vary based on the brokerage firm.",
+   "claim": "How long a GTC order can stay open depends on the broker."
+  },
+  {
+   "id": "f09",
+   "source": "s2",
+   "quote": "The stop price is not the guaranteed execution price for a stop order. The stop price is a trigger that causes the stop order to become a market order.",
+   "claim": "A stop price is a trigger for a market order, not a guaranteed fill price."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "Please note, order types and trading instructions available to you may differ based on the brokerage firm.",
+   "claim": "Which order types you get, and how they work, depends on your broker."
+  },
+  {
+   "id": "f12",
+   "source": "s2",
+   "quote": "Also, some brokerage firms may offer order types with similar names with important differences.",
+   "claim": "Brokers can use similar names for orders that work in importantly different ways."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "An IOC order is an order to buy or sell a stock that must be executed immediately. Any portion of the order that cannot be filled immediately will be canceled.",
+   "claim": "An immediate-or-cancel (IOC) order fills what it can right away and cancels the rest."
+  },
+  {
+   "id": "f14",
+   "source": "s3",
+   "quote": "day orders, which expire at the end of the trading day if they aren’t executed; good ‘til canceled orders, which remain in effect until they’re executed by the brokerage firm or canceled by the customer",
+   "claim": "Day orders expire at the end of the trading day; GTC orders stay in effect until they fill or you cancel them."
+  },
+  {
+   "id": "f15",
+   "source": "s3",
+   "quote": "Some investors like stop orders because they don't have to continually monitor price movements to sell (or buy) at a specific price target.",
+   "claim": "A resting stop order means you don't have to watch the price all day."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "Because not all orders are handled the same way, ask about your firm’s procedures for handling the execution of securities transactions and different order types, particularly during volatile market conditions.",
+   "claim": "Brokers handle orders differently, so ask yours how it treats each order type, especially in fast markets."
+  },
+  {
+   "id": "f17",
+   "source": "s4",
+   "quote": "A \"short\" position is generally the sale of a stock you do not own.",
+   "claim": "Selling shares you don't own is a short position."
+  },
+  {
+   "id": "f18",
+   "source": "s5",
+   "quote": "With a one-cancels-the-other order (OCO), 2 orders are live so that if either executes, the other is automatically triggered to cancel.",
+   "claim": "In an OCO, two orders are live, and when either fills the other is canceled automatically."
+  },
+  {
+   "id": "f19",
+   "source": "s5",
+   "quote": "OCO orders are perfect for creating an exit plan when you own a security. They give you the ability to place both a protective stop loss order to minimize your losses and a limit order to maximize your gains.",
+   "claim": "On shares you already own, an OCO puts a stop-loss and a profit-taking limit on together."
+  },
+  {
+   "id": "f20",
+   "source": "s5",
+   "quote": "In a one-triggers-a-one-cancels-the-other order, you place a primary order which, if executed, triggers 2 secondary orders. If either of these secondary orders executes, the other is automatically canceled.",
+   "claim": "In an OTOCO (a bracket), the entry triggers two exits once it fills, and those two cancel each other."
+  },
+  {
+   "id": "f21",
+   "source": "s5",
+   "quote": "You place an OCO with a sell order of $27 and... 4. ...a sell stop at $24. 5. JKL stock hits $27, so your sell order executes and... 6. ...your sell stop order is canceled.",
+   "claim": "Fidelity's example: an OCO with a $27 sell limit and a $24 sell stop; the stock hits $27, the limit sells, and the stop is canceled."
+  },
+  {
+   "id": "f23",
+   "source": "s5",
+   "quote": "Your buy order executes. 5. Simultaneously, your 2 sell orders are triggered.",
+   "claim": "The moment the entry executes, both exit orders are sent."
+  },
+  {
+   "id": "f24",
+   "source": "s5",
+   "quote": "For OTO orders that are good ’til canceled (GTC), the whole order is good for 180 days",
+   "claim": "At Fidelity, a GTC triggered order is good for 180 days in all."
+  },
+  {
+   "id": "f25",
+   "source": "s6",
+   "quote": "OCO orders are commonly used to place orders on both sides of the market for the same security and are also known as bracket orders.",
+   "claim": "Fidelity's help also calls the two-sided OCO a bracket order."
+  },
+  {
+   "id": "f26",
+   "source": "s6",
+   "quote": "Cancelation of the linked order is done on a \"best efforts\" basis. Note: Partial execution of one of the orders will also trigger an attempt to cancel the other order.",
+   "claim": "At Fidelity, the OCO cancel is best effort, and even a partial fill on one leg triggers an attempt to cancel the other."
+  },
+  {
+   "id": "f27",
+   "source": "s6",
+   "quote": "Note: The primary order needs to execute in full for the secondary OCO orders to be sent to the marketplace.",
+   "claim": "At Fidelity, a bracket's exits go out only after the entry fills in full."
+  },
+  {
+   "id": "f28",
+   "source": "s6",
+   "quote": "if you would like to buy shares of XYZ and know your profit and loss targets prior to entry, you could utilize an OTOCO order by placing a Buy, Sell Limit, and Sell Stop.",
+   "claim": "When you know your profit target and stop before entry, one bracket ticket holds the buy, the sell limit and the sell stop."
+  },
+  {
+   "id": "f29",
+   "source": "s6",
+   "quote": "However, canceling either one of your secondary orders will not have an impact on the other two open orders.",
+   "claim": "At Fidelity, cancel one exit of a bracket and the other orders stay open."
+  },
+  {
+   "id": "f30",
+   "source": "s7",
+   "quote": "It is possible that during volatile market conditions that both orders could receive executions. It is also possible that one order receives a delayed execution, resulting in the execution of both orders.",
+   "claim": "In a volatile market, or with a delayed fill, both legs of an OCO can execute."
+  },
+  {
+   "id": "f31",
+   "source": "s8",
+   "quote": "One Cancels Other, which submits two orders at once. If either is filled, then the other is cancelled.",
+   "claim": "Schwab's OCO sends two orders at once; when either fills, the other is canceled."
+  },
+  {
+   "id": "f32",
+   "source": "s8",
+   "quote": "Order 1 Triggers OCO, which submits one initial order. If that order is filled, then 2 additional orders will be submitted. If either is filled, then the other is cancelled.",
+   "claim": "Schwab's bracket (Order 1 Triggers OCO) sends the exits only after the first order fills, and the exits cancel each other."
+  },
+  {
+   "id": "f33",
+   "source": "s9",
+   "quote": "For example, first buy 100 shares of stock. When the order is filled, it triggers an OCO for your profit stop and stop-loss.",
+   "claim": "On thinkorswim, the buy fills first, then it triggers an OCO of profit exit and stop-loss."
+  },
+  {
+   "id": "f34",
+   "source": "s9",
+   "quote": "For example, first buy 200 shares of stock. Then trigger a “bracket” order to sell your shares in two 100-share OCO orders.",
+   "claim": "You can split the exits: buy 200 shares, then sell them in two 100-share OCO pairs."
+  },
+  {
+   "id": "f35",
+   "source": "s9",
+   "quote": "OCO (one cancels other) Two orders are placed simultaneously; if one order is executed, the other is canceled.",
+   "claim": "OCO: two orders placed together; when one executes, the other is canceled."
+  },
+  {
+   "id": "f37",
+   "source": "s10",
+   "quote": "Good till canceled (GTC). Order is active between the hours of 9:30 a.m. and 4 p.m. ET and active for up to 180 calendar days (unless filled or canceled).",
+   "claim": "At Schwab, a GTC order works in the regular session for up to 180 calendar days."
+  },
+  {
+   "id": "f38",
+   "source": "s10",
+   "quote": "First, only limit orders are accepted in extended orders; market and stop orders are not.",
+   "claim": "At Schwab, extended-hours orders must be limit orders; stop orders are not accepted there."
+  },
+  {
+   "id": "f39",
+   "source": "s10",
+   "quote": "When you want to buy a stock should it break above a certain level because you think that could signal the start of a continued rise.",
+   "claim": "A buy stop is the order for buying a break above a level."
+  },
+  {
+   "id": "f40",
+   "source": "s10",
+   "quote": "In the next example, a limit order to sell is placed at a limit price of $105. The stock's prior closing price was $104.",
+   "claim": "Schwab's example: a sell limit at $105 on a stock that closed at $104."
+  },
+  {
+   "id": "f41",
+   "source": "s10",
+   "quote": "If the stock opened at $110 due to positive news released after the prior market's close, the trade would be executed at the market's open at that price",
+   "claim": "If good news gaps it open at $110, the $105 sell limit fills at the open, at that higher price."
+  },
+  {
+   "id": "f42",
+   "source": "s10",
+   "quote": "The chart below shows a stock that \"gapped down\" from more than $34 to around $32 between a previous closing price and the next opening price.",
+   "claim": "Schwab's example: a stock gaps down from above $34 to around $32 overnight."
+  },
+  {
+   "id": "f44",
+   "source": "s11",
+   "quote": "Before placing a trade, you also want to specify when and how you'll close it out.",
+   "claim": "Decide your exits before you place the trade."
+  },
+  {
+   "id": "f45",
+   "source": "s11",
+   "quote": "Start with the difference between the entry price, $67, and the exit price, $57, or $10",
+   "claim": "Your risk per share is the distance from the entry to the stop."
+  },
+  {
+   "id": "f46",
+   "source": "s12",
+   "quote": "Bracket orders are designed to help limit your loss and lock in a profit by \"bracketing\" an order with two opposite-side orders.",
+   "claim": "A bracket surrounds an order with two opposite-side orders: one to limit the loss, one to take the profit."
+  },
+  {
+   "id": "f47",
+   "source": "s12",
+   "quote": "A BUY order is bracketed by a high-side sell limit order and a low-side sell stop order. A SELL order is bracketed by a high-side buy stop order and a low side buy limit order.",
+   "claim": "A long bracket has a sell limit above and a sell stop below; a short bracket has a buy stop above and a buy limit below."
+  },
+  {
+   "id": "f48",
+   "source": "s12",
+   "quote": "The order quantity for the high and low side bracket orders matches the original order quantity.",
+   "claim": "Each exit in a bracket is for the full quantity of the entry."
+  },
+  {
+   "id": "f49",
+   "source": "s12",
+   "quote": "By attaching a bracket order, you do not have to return to reevaluate and manage the risk of a position if the Limit order to buy at 25.00 per share is executed.",
+   "claim": "With the bracket attached, you don't have to come back and re-decide the risk once the entry fills."
+  },
+  {
+   "id": "f50",
+   "source": "s12",
+   "quote": "we wish to buy 1,000 shares in ticker TSLA at a price of no more than $219.50.",
+   "claim": "Interactive Brokers' sample bracket buys at no more than $219.50."
+  },
+  {
+   "id": "f51",
+   "source": "s12",
+   "quote": "we want to determine a Stop Loss order to sell the shares should the price drop to $218.00.",
+   "claim": "Its stop-loss sells at $218.00."
+  },
+  {
+   "id": "f52",
+   "source": "s12",
+   "quote": "We also wish to place a Profit Taking order in the event that TSLA rises to $221.00 during the session.",
+   "claim": "Its profit-taking order sells at $221.00."
+  },
+  {
+   "id": "f53",
+   "source": "s12",
+   "quote": "Please note that because the OCA procedure is an automated process, there is no guarantee that requested cancellations and modifications will reach the specific exchange before an order has been executed.",
+   "claim": "An automatic cancel can arrive too late, after the other order has already executed."
+  },
+  {
+   "id": "f54",
+   "source": "s12",
+   "quote": "If one of the orders partially executes, the quantity of each of the other orders is reduced proportionately.",
+   "claim": "At Interactive Brokers, a partial fill on one linked order shrinks the others to match."
+  },
+  {
+   "id": "f55",
+   "source": "s13",
+   "quote": "A bracketed buy order includes a buy order with a sell limit order above and a sell stop order below it.",
+   "claim": "A bracketed buy is a buy order with a sell limit above it and a sell stop below it."
+  },
+  {
+   "id": "f56",
+   "source": "s13",
+   "quote": "This setup helps traders manage risk, plan, and avoid making emotional decisions once the trade is placed.",
+   "claim": "A bracket helps you plan and avoid emotional decisions once the trade is on."
+  },
+  {
+   "id": "f59",
+   "source": "s13",
+   "quote": "If the stock gaps to $40, for example, the stop loss would be triggered, and the investor’s shares would sell for around $40.",
+   "claim": "If the stock gaps below the stop, the stop still triggers but sells around the gap price."
+  },
+  {
+   "id": "f60",
+   "source": "s13",
+   "quote": "the stock opened at $65 the following day, the investor would receive a fill close to that price, even though their sell limit order was $55.",
+   "claim": "If the stock gaps above the sell limit, you get filled near the higher opening price."
+  },
+  {
+   "id": "f61",
+   "source": "s13",
+   "quote": "Investors may find it easier to stick to their trading plans if they use bracketed buy orders.",
+   "claim": "A bracket makes it easier to stick to your plan."
+  },
+  {
+   "id": "f62",
+   "source": "s13",
+   "quote": "a short seller places a sell order that is bracketed between conditional buy orders: a buy stop order above the sale price, and a buy limit order at some distance below the sale price.",
+   "claim": "A short is bracketed by a buy stop above and a buy limit below."
+  },
+  {
+   "id": "f63",
+   "source": "s13",
+   "quote": "If the primary order has been partially filled, the accompanying bracket orders will remain active until they are canceled, or until the end of the trading session.",
+   "claim": "Investopedia: after a partial entry fill, the exits stay active only until canceled or the session ends."
+  },
+  {
+   "id": "f64",
+   "source": "s13",
+   "quote": "Different brokers may have different rules, so this is worth confirming before setting a bracket order.",
+   "claim": "Brokers have different bracket rules; confirm yours before you use one."
+  },
+  {
+   "id": "f65",
+   "source": "s13",
+   "quote": "A bracketed buy order is usually entered at the time of the initial trade but it can be set after a trade is executed.",
+   "claim": "You usually set a bracket with the entry, but you can add the exits after you're in."
+  },
+  {
+   "id": "f66",
+   "source": "s13",
+   "quote": "it is an ideal order type for an investor who has analyzed a stock and determined in advance where to place the stop loss and sell limit orders before executing the trade.",
+   "claim": "A bracket fits when you decided the stop and target before the trade."
+  },
+  {
+   "id": "f67",
+   "source": "s14",
+   "quote": "A one-cancels-the-other (OCO) order is a pair of conditional orders stipulating that if one order executes, then the other order is automatically canceled.",
+   "claim": "An OCO is two linked orders: when one executes, the other is canceled automatically."
+  },
+  {
+   "id": "f68",
+   "source": "s14",
+   "quote": "The investor could, therefore, place an OCO order, which would consist of a stop-loss order to sell 1,000 shares at $8, and a simultaneous limit order to sell 1,000 shares at $13, whichever occurs first.",
+   "claim": "Investopedia's example: 1,000 shares with an OCO of a $8 stop and a $13 limit, each for all 1,000 shares."
+  },
+  {
+   "id": "f69",
+   "source": "s14",
+   "quote": "If the investor places these orders independently, there is a risk that they might forget to cancel the stop-loss order, which could result in an unwanted short position of 1,000 shares if the stock subsequently trades down to $8.",
+   "claim": "Place the two exits as separate orders and a forgotten stop can later sell shares you no longer own, leaving you short."
+  },
+  {
+   "id": "f71",
+   "source": "s14",
+   "quote": "These orders could either be day orders or good-'til-canceled orders.",
+   "claim": "An OCO's legs can be day orders or good-'til-canceled."
+  },
+  {
+   "id": "f72",
+   "source": "s15",
+   "quote": "A take-profit order (TP) is a limit order used to automatically close a position when a specified profit price is reached.",
+   "claim": "A take-profit order is a limit order that closes the position at your profit price."
+  },
+  {
+   "id": "f73",
+   "source": "s15",
+   "quote": "The difference between the market price and these points defines the trade’s risk-to-reward ratio.",
+   "claim": "The distances from your price to the stop and to the target set the trade's risk-to-reward."
+  },
+  {
+   "id": "f74",
+   "source": "s15",
+   "quote": "A stock might start to break out higher, but a TP order could execute early, leading to high opportunity costs.",
+   "claim": "A take-profit can sell you out early just as a stock starts to run."
+  },
+  {
+   "id": "f75",
+   "source": "s15",
+   "quote": "Take-profit orders eliminate the need for traders to manually execute trades or second-guess decisions.",
+   "claim": "A resting target means no second-guessing the exit in the moment."
+  },
+  {
+   "id": "f76",
+   "source": "s10",
+   "quote": "which would trigger at the market's open because the stock's price fell below the stop price and, as a market order, executes at $32",
+   "claim": "In Schwab's gap example, the $34 sell stop triggers at the open and fills at $32."
+  },
+  {
+   "id": "f77",
+   "source": "s5",
+   "quote": "You place an order to buy JKL at $25. 2. At the same time, you place 2 sell orders, one at stop loss for $23 and one at a limit of $27.",
+   "claim": "Fidelity's bracket example: buy at $25, with a $23 stop-loss and a $27 limit sell placed at the same time."
+  },
+  {
+   "id": "f78",
+   "source": "s5",
+   "quote": "JKL drops to $23. 7. Your stop loss order executes and your limit order is automatically canceled.",
+   "claim": "When the stock drops to the $23 stop, the stop sells and the $27 limit is canceled."
+  },
+  {
+   "id": "f80",
+   "source": "s2",
+   "quote": "As the price of the security moves in a favorable direction the trailing stop price adjusts or “trails” the market price of the security by the specified amount.",
+   "claim": "A trailing stop moves up with the price as the trade goes your way."
+  },
+  {
+   "id": "f81",
+   "source": "s2",
+   "quote": "However, if the security’s price moves in an unfavorable direction the trailing stop price remains fixed",
+   "claim": "When the price moves against you, a trailing stop stays where it is; it never moves back."
+  },
+  {
+   "id": "f83",
+   "source": "s2",
+   "quote": "Once the stop price is reached, a stop-limit order becomes a limit order that will be executed at a specified price (or better).",
+   "claim": "Once its stop price is reached, a stop-limit order becomes a limit order, filled only at its set price or better."
+  },
+  {
+   "id": "f82",
+   "source": "s11",
+   "quote": "Monitor open positions : Look for new support levels and opportunities to adjust your stops.",
+   "claim": "Review open positions for new support levels and chances to adjust your stops."
+  },
+  {
+   "id": "h1",
+   "source": "s16",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+  },
+  {
+   "id": "h2",
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
+  },
+  {
+   "id": "h3",
+   "source": "s17",
+   "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "claim": "In our words: hold winners by selling partials into strength and trailing the rising moving averages."
+  },
+  {
+   "id": "h4",
+   "source": "s18",
+   "quote": "under each higher low, or under the 9 EMA",
+   "claim": "Our Kicker plan trails the stop under each higher low, or under the 9 EMA; the Oops Reversal, Slingshot and Launchpad plans also trail under each higher low."
+  },
+  {
+   "id": "h5",
+   "source": "s16",
+   "quote": "The stop is the exit. It only moves up, never down or wider.",
+   "claim": "Our rule: the stop is the exit, and it only moves up, never down or wider."
+  },
+  {
+   "id": "h6",
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "hx1",
+   "source": "s16",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "Every position we hold has a real stop order with the broker, not a stop kept in our head."
+  },
+  {
+   "id": "hx2",
+   "source": "s16",
+   "quote": "Entries are market orders.",
+   "claim": "We market order our entries."
+  },
+  {
+   "id": "hx3",
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "We trail what's left under the 9 EMA on a fast mover and the 20 EMA on a steadier one, and sell it on a close below."
+  },
+  {
+   "id": "hx4",
+   "source": "hw",
+   "quote": "Shorting is recommended only for traders who have already made $1 million trading.",
+   "claim": "We only recommend shorting to traders who have already made $1 million trading."
+  },
+  {
+   "id": "hx5",
+   "source": "hs2",
+   "quote": "A stop cannot catch an overnight gap: a tight stop never licenses a monster position.",
+   "claim": "A stop can't catch an overnight gap, so a tight stop never justifies a huge position."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Three orders, one plan",
+   "steps": [
+    "A bracket is three orders on one ticket: your buy, a sell limit above for the target, a sell stop below.",
+    "Nothing on the exit side works until the buy fills. The moment it fills, both exits go live.",
+    "A broker's sample ticket: buy $25, stop $23, target $27. It fills, drops to $23, the stop sells and the target cancels."
+   ],
+   "facts": [
+    "f55",
+    "f47",
+    "f20",
+    "f32",
+    "f77",
+    "f23",
+    "f78"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "One cancels the other",
+   "steps": [
+    "The two exits are linked: one-cancels-other, OCO. Whichever fills first, the broker pulls the other one for you.",
+    "Target $27, stop $24. It runs to $27, the target sells, and the stop goes away.",
+    "The cancel is best effort, not a promise. In a fast market both can fill. Check your orders after every fill."
+   ],
+   "facts": [
+    "f18",
+    "f35",
+    "f21",
+    "f26",
+    "f30",
+    "f53"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Why it keeps you honest",
+   "steps": [
+    "You pick the stop and the target before you're in. Calm, before the stock starts moving on you.",
+    "Once it's on, you don't re-argue the exits every tick. The stop only moves up, as you trail it.",
+    "It can't catch a gap though. A $34 stop on a stock that opens at $32 sells you around $32.",
+    "The stop leg's the one we never skip. Every position we hold has a real stop with the broker."
+   ],
+   "facts": [
+    "f66",
+    "f56",
+    "f61",
+    "f49",
+    "f15",
+    "f44",
+    "h4",
+    "f81",
+    "f42",
+    "f76",
+    "f09",
+    "hx1"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "orders.brackets",
+   "rung": 1,
+   "format": "mcq",
+   "term": "bracket order",
+   "q": "Your broker offers a bracket right on the buy ticket. What does it send in for you?",
+   "choices": [
+    "The buy, plus a target and a stop",
+    "A buy anywhere in a price range",
+    "A stop that trails the price up",
+    "A stop that turns into a limit"
+   ],
+   "answer": "The buy, plus a target and a stop",
+   "why": "The buy, with both exits riding along. On a long, the target is a sell limit above your entry. The stop is a sell stop below it. You plan all three before you're in, then send them as one ticket. That's the whole point. The thinking gets done while you're calm, not while the stock is moving on you. Don't mix it up with a trailing stop or a stop-limit. Those are single orders.",
+   "lesson_line": "One ticket: the way in, the way out with a profit, the way out with a loss.",
+   "facts": [
+    "f55",
+    "f47",
+    "f46",
+    "f28",
+    "f83",
+    "f80",
+    "f44",
+    "f56"
+   ],
+   "wrong": {
+    "A stop that trails the price up": "That's a trailing stop, one order on its own. A bracket carries the buy and a target too.",
+    "A buy anywhere in a price range": "The name sounds like a range, but it isn't one. The bracket is the two exits around your entry.",
+    "A stop that turns into a limit": "That's a stop-limit, one order that becomes a limit at its stop price. Not a bracket."
+   },
+   "simple": "A bracket sends your buy with two exits attached, a target above and a stop below.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; Investopedia and Interactive Brokers agree (f55, f47, f46)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "orders.brackets",
+   "rung": 1,
+   "format": "mcq",
+   "term": "OCO",
+   "q": "You've got a sell limit and a sell stop on the same 500 shares, linked as an OCO. What does the link do?",
+   "choices": [
+    "One fills, the other cancels",
+    "Both have to fill together",
+    "One fills, then the other goes live",
+    "It cancels both at the close"
+   ],
+   "answer": "One fills, the other cancels",
+   "why": "One fills, the other cancels. OCO is short for one-cancels-other. Both orders sit live at the same time. Whichever gets hit first, the broker pulls the other one for you. So either the target sells your 500 and the stop goes away, or the stop sells them and the target goes away. Without the link, cleaning up the leftover is on you. Forget it, and that order can still sell shares you don't own anymore.",
+   "lesson_line": "Two orders, one outcome. Whichever fills first kills the other.",
+   "facts": [
+    "f18",
+    "f35",
+    "f67",
+    "f31",
+    "f20",
+    "f71",
+    "f69",
+    "f17"
+   ],
+   "wrong": {
+    "One fills, then the other goes live": "That's one-triggers-other. It's how a bracket's entry turns on its exits, not how the two exits are linked.",
+    "It cancels both at the close": "That's a day order expiring. An OCO's legs can be day orders or good-'til-canceled.",
+    "Both have to fill together": "Opposite. Two orders are live and only one is meant to fill."
+   },
+   "simple": "Two orders wait at once, and when one fills the broker cancels the other for you.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition; Fidelity, Schwab and Investopedia agree"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q03",
+   "skill": "orders.brackets",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You send a bracket to buy at $25, with a $23 stop and a $27 target. When do the stop and target start working?",
+   "choices": [
+    "Once the buy order fills",
+    "The moment you send it",
+    "When the price nears either one",
+    "At the next day's open"
+   ],
+   "answer": "Once the buy order fills",
+   "why": "Once the buy fills. Until then, only the buy is out there. You don't own anything yet, so there's nothing for a stop to sell. The moment the buy executes at $25, the broker sends both exits, the $23 stop and the $27 target. From there they cancel each other. They don't wait for price to come near them. One catch: at Fidelity the exits go out only after the whole entry fills. A partial fill can leave you holding shares with no stop, so check it.",
+   "lesson_line": "No shares, no exits. The bracket arms itself once you're in.",
+   "facts": [
+    "f20",
+    "f32",
+    "f33",
+    "f23",
+    "f27",
+    "f77"
+   ],
+   "wrong": {
+    "The moment you send it": "Only the buy goes out at first. Until you own the shares, there's nothing for the exits to sell.",
+    "When the price nears either one": "They don't wait for price to come close. They go live when the buy fills, then sit until one is hit.",
+    "At the next day's open": "No waiting a day. When the buy executes, both exits are sent right then."
+   },
+   "simple": "The exits go live once your buy fills, because before that you own no shares to protect.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "the full-fill detail differs by broker (f27 vs f63); the key holds at all of them"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q04",
+   "skill": "orders.brackets",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the order type that fits the blank.",
+   "sentence": "On a long bracket, the profit target is a sell ___ order above your entry.",
+   "bank": [
+    "limit",
+    "stop",
+    "market",
+    "trailing",
+    "stop-limit"
+   ],
+   "answer": "limit",
+   "why": "Limit. A sell limit fills only at its price or higher, so it rests above the market as your profit target. A take-profit order is a limit order. The sell stop is the other exit, and it sits below the market to limit the loss.",
+   "lesson_line": "Target above: sell limit. Stop below: sell stop.",
+   "facts": [
+    "f01",
+    "f47",
+    "f72",
+    "f03",
+    "f83"
+   ],
+   "simple": "The target is a sell limit, because a sell limit only fills at your price or higher.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "SEC Tier 1 rule (f01, f03)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q05",
+   "skill": "orders.brackets",
+   "rung": 3,
+   "format": "tf",
+   "q": "Your bracket's stop leg sits at $34. The stock gaps down overnight and opens near $32. Your stop sells you at $34.",
+   "answer": "False",
+   "why": "False. You're getting out near $32, not $34. The stop price is a trigger, not a promise. At the open the stock trades under $34, the stop fires and turns into a market order. That market order fills wherever the stock is, around $32. Putting the stop inside a bracket doesn't change any of that. And that's why we never size up just because the stop is tight. A stop can't catch a gap.",
+   "lesson_line": "A bracket doesn't change how a stop fills. The stop price is a trigger, not a promise.",
+   "facts": [
+    "f09",
+    "f02",
+    "f59",
+    "f83",
+    "f42",
+    "f76",
+    "hx5"
+   ],
+   "simple": "False, because a stop only sets off a market order, so after a gap you sell near the open, lower.",
+   "deeper": {
+    "counter": "A stop-limit leg sets a lowest price instead. Once its stop price is reached it becomes a limit order, filled only at its set price or better. The cost: if the price drops straight past that limit, the order can sit unfilled while you still hold the falling shares."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "SEC Tier 1 rule (f09, f02)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "orders.brackets",
+   "rung": 3,
+   "format": "mcq",
+   "q": "You buy a breakout and plan to hold it for weeks. You're setting the bracket's exits. Which time in force do they need?",
+   "choices": [
+    "Good-'til-canceled (GTC)",
+    "Day, the usual default",
+    "Immediate-or-cancel (IOC)",
+    "Extended-hours session"
+   ],
+   "answer": "Good-'til-canceled (GTC)",
+   "why": "GTC. You're holding for weeks, so the stop has to be there every one of those days. A day order that hasn't filled cancels at the close. Set your exits as day orders and tomorrow morning you're holding a position with no stop. That's the trap, because day is what you get unless you change it. GTC lasts until it fills or you cancel it, up to your broker's limit. Every position we hold has a real stop sitting with the broker.",
+   "lesson_line": "Holding for weeks means GTC exits. A day stop is gone at the close.",
+   "facts": [
+    "f07",
+    "f08",
+    "f05",
+    "f14",
+    "f06",
+    "f13",
+    "f38",
+    "hx1"
+   ],
+   "wrong": {
+    "Day, the usual default": "Day is what you get unless you pick something else. Unfilled, it cancels at the close, and your stop is gone overnight.",
+    "Immediate-or-cancel (IOC)": "IOC fills what it can right away and cancels the rest. An exit has to sit and wait for its price.",
+    "Extended-hours session": "That covers the hours around one session, not weeks. Schwab won't even take a stop order there."
+   },
+   "simple": "Use GTC, because a day order is gone at the close and you'd be holding with no stop.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "time-in-force rules vary a little by broker; SEC and FINRA agree on the key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q07",
+   "skill": "orders.brackets",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Your market order just filled for 200 shares. Now you want a target and a stop on them. What do you put in?",
+   "choices": [
+    "An OCO of limit and stop",
+    "A new bracket buy order",
+    "Two separate sell orders",
+    "A trailing stop on its own"
+   ],
+   "answer": "An OCO of limit and stop",
+   "why": "An OCO, a sell limit above and a sell stop below. You already own the 200 shares, so there's no buy left to send. All you need is the two exits, linked. Whichever fills first, the broker cancels the other. We market order our entries, so for us the stop goes in with the broker right after the fill. If you want a resting target too, the OCO puts both on one ticket.",
+   "lesson_line": "Already in, an OCO puts the target and the stop on in one step.",
+   "facts": [
+    "f19",
+    "f25",
+    "f68",
+    "f65",
+    "f18",
+    "f69",
+    "hx1",
+    "hx2"
+   ],
+   "wrong": {
+    "A new bracket buy order": "A bracket starts with a buy. You'd add 200 more shares you never planned to own.",
+    "Two separate sell orders": "Nothing links them. When one fills, the other stays live and can sell shares you no longer have.",
+    "A trailing stop on its own": "That's a stop with no target. It covers one side of your plan."
+   },
+   "simple": "Put on an OCO, because you already own the shares and the link cancels one exit when the other fills.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "key text shortened in wave6 to remove a longest-answer tell"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q08",
+   "skill": "orders.brackets",
+   "rung": 4,
+   "format": "scenario",
+   "story": "Your plan: buy the breakout over $50.20, stop $48.90, target $52.80. The stock sits at $49.80, and you'll be away from the screen all day.",
+   "q": "You want it all on one ticket. What goes in, entry first, then target, then stop?",
+   "choices": [
+    "Buy stop, sell limit, sell stop",
+    "Buy limit, sell limit, sell stop",
+    "Buy stop, sell stop, sell limit",
+    "Market buy, sell limit, sell stop"
+   ],
+   "answer": "Buy stop, sell limit, sell stop",
+   "why": "Buy stop, sell limit, sell stop. The stock's at $49.80, under your $50.20 level. A buy stop sits above the price and only fires if it trades up to $50.20. So it buys the break for you while you're gone. Once you're in, the sell limit waits at $52.80 and the sell stop at $48.90. Know what you get at $50.20, though. The buy stop turns into a market order, so a fast break can fill you a little higher. I'm fine with that. Our entries are market orders through the trigger anyway.",
+   "lesson_line": "Breakout entry: buy stop. Target: sell limit. Stop: sell stop.",
+   "facts": [
+    "f39",
+    "f04",
+    "f47",
+    "f55",
+    "f01",
+    "f09",
+    "f15",
+    "hx2"
+   ],
+   "wrong": {
+    "Buy limit, sell limit, sell stop": "A buy limit at $50.20 with the stock at $49.80 fills right away, under your level. You'd own it before the breakout.",
+    "Buy stop, sell stop, sell limit": "The exits are swapped. The sell limit is the target above, and the sell stop sits below.",
+    "Market buy, sell limit, sell stop": "A market buy sent now fills near $49.80, before the break. And you won't be there at $50.20 to send it."
+   },
+   "simple": "A buy stop gets you in only on the break, a sell limit above takes profit and a sell stop below protects you.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the owner's rulebook E57 says our entries are market orders (owner flag)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q09",
+   "skill": "orders.brackets",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Interactive Brokers' sample bracket buys at $219.50, stops at $218.00 and targets $221.00. What's the reward to risk?",
+   "answer": "1 to 1",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(target - entry) / (entry - stop)",
+     "target": 221.0,
+     "entry": 219.5,
+     "stop": 218.0
+    }
+   },
+   "suffix": "to 1",
+   "why": "1 to 1. $221.00 minus $219.50 is $1.50 of reward. $219.50 minus $218.00 is $1.50 of risk. $1.50 over $1.50 is 1. Run that check before you send any bracket. Here you risk a dollar to make a dollar, and a stop is only a trigger, so a bad fill makes it worse. We often sell at about 5 to 10R. A plan capped at 1R isn't one I'd send.",
+   "lesson_line": "Measure every bracket before you send it: distance to the target over distance to the stop.",
+   "facts": [
+    "f50",
+    "f51",
+    "f52",
+    "f73",
+    "f45",
+    "f09",
+    "r03"
+   ],
+   "simple": "It's 1 to 1, because the target sits as far above the entry as the stop sits below it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "2 to 1",
+    "0.5 to 1",
+    "1.5 to 1",
+    "1 to 1"
+   ],
+   "wrong": {
+    "2 to 1": "You measured the target from the stop, so the risk got counted as reward too.",
+    "1.5 to 1": "You took the dollar reward as the ratio and never divided by the risk.",
+    "0.5 to 1": "You divided the reward by the whole stop-to-target range, not by the risk."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "orders.brackets",
+   "rung": 4,
+   "format": "tf",
+   "q": "Your bracket buys 300 shares with one target and one stop. Each exit is an order for all 300 shares.",
+   "answer": "True",
+   "why": "True. Either exit could be the one that closes the trade, so each one has to cover all 300. If the stop fires, you want every share out, not half of them. The OCO link is what stops both from selling. If you want to scale out, split the exits into smaller OCO pairs. Then each pair only covers its own piece.",
+   "lesson_line": "Both exits cover the full position. The OCO link makes sure only one of them sells.",
+   "facts": [
+    "f48",
+    "f68",
+    "f18",
+    "f34"
+   ],
+   "simple": "True, because either exit might close the whole trade, so each one covers all 300 shares.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "reworded before so it fits split exits (fixed before)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q11",
+   "skill": "orders.brackets",
+   "rung": 5,
+   "format": "mcq",
+   "house": true,
+   "q": "You buy at $40 and your stop sits at $38. Where's 3R on the chart?",
+   "answer": "$46.00",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "entry + r * (entry - stop)",
+     "entry": 40,
+     "stop": 38,
+     "r": 3
+    }
+   },
+   "prefix": "$",
+   "why": "$46. Your risk is $40 minus $38, $2 a share. That's 1R. Three of those is $6, and $40 plus $6 is $46. That's a mark on the ruler, not a sell order. We very rarely sell on day 1. Most of the time we wait until day 3 at the earliest. When the first sell comes, it's a judgment, often into a 3, 5 or 7 day push.",
+   "lesson_line": "Stop first. R is the stop distance, and 3R is three times it above the entry.",
+   "facts": [
+    "f45",
+    "f73",
+    "r01",
+    "r02",
+    "r03"
+   ],
+   "simple": "$46, because 3R is three times your risk per share added on top of the entry.",
+   "deeper": {
+    "trap": "3R is a mark on the ruler, not a sell order. Our first sell is a judgment, often into a 3, 5 or 7 day push. Either way, each level is a multiple of the risk the stop sets."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (B19, E51)",
+     "computed key",
+     "rewritten before to the 2026-11-09 rulebook"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$46.00",
+    "$48.00",
+    "$52.00",
+    "$120.00"
+   ],
+   "wrong": {
+    "$48.00": "Counted four times the risk instead of three.",
+    "$52.00": "Counted the risk per share twice before multiplying by three.",
+    "$120.00": "Multiplied the $40 entry by three instead of the risk."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     }
+    ],
+    "find": {
+     "label": "3R",
+     "as": "price"
+    },
+    "r": {
+     "entry": 40.0,
+     "stop": 38.0
+    }
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "orders.brackets",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You short a stock at $50 as it trades through the trigger. Where do the bracket's two exits go?",
+   "choices": [
+    "Buy stop above, buy limit below",
+    "Sell limit above, sell stop below",
+    "Buy limit above, buy stop below",
+    "Buy stop above, nothing below"
+   ],
+   "answer": "Buy stop above, buy limit below",
+   "why": "Buy stop above, buy limit below. You close a short by buying the shares back, so both exits are buys. The buy stop sits above $50 and caps the loss if it rips higher. The buy limit sits below $50 and takes your profit on the way down. Flip a long bracket upside down and you've got it. One thing, though. We only recommend shorting once you've already made $1 million trading.",
+   "lesson_line": "Short bracket: buy stop above for the loss, buy limit below for the profit.",
+   "facts": [
+    "f47",
+    "f04",
+    "f62",
+    "hx4"
+   ],
+   "wrong": {
+    "Sell limit above, sell stop below": "That's a long bracket. On a short you get out by buying back, so both exits are buys.",
+    "Buy limit above, buy stop below": "Swapped. Each order sits on the wrong side of the price.",
+    "Buy stop above, nothing below": "That's a stop with no target. A bracket carries both exits."
+   },
+   "simple": "Both exits are buys, a buy stop above to cap the loss and a buy limit below to take profit.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "SEC, Interactive Brokers and Investopedia agree"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q13",
+   "skill": "orders.brackets",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You buy a swing trade at 10:30 a.m. with a bracket. You leave both exits as day orders. The stock closes up and you hold it overnight.",
+   "q": "What is protecting you at tomorrow's open?",
+   "choices": [
+    "Nothing, the exits expired at the close",
+    "The stop, which carries over",
+    "Both exits, until one fills",
+    "The stop, in after-hours trading"
+   ],
+   "answer": "Nothing, the exits expired at the close",
+   "why": "Nothing. Day orders generally cancel at the end of the regular session and don't carry to the next day. Put the exits back on, as GTC.",
+   "lesson_line": "Before you hold overnight, check that your stop is GTC, not a day order.",
+   "facts": [
+    "f05",
+    "f14",
+    "f07",
+    "f38"
+   ],
+   "wrong": {
+    "The stop, which carries over": "A day stop doesn't carry over. It's gone at the close, just like the target.",
+    "Both exits, until one fills": "That's how GTC exits behave. Day exits end with the session.",
+    "The stop, in after-hours trading": "Day orders don't carry into the after-hours session either. Schwab, for one, takes only limit orders there."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "orders.brackets",
+   "rung": 6,
+   "format": "tf",
+   "q": "You set a GTC stop on a winner you plan to hold for a long time. It stays open as long as you hold, however long that is.",
+   "answer": "False",
+   "why": "False. GTC lasts until it fills or you cancel it, but your broker puts a clock on it. At Schwab a GTC order works for up to 180 calendar days. At Fidelity a GTC triggered order is good for 180 days in all. Hold a winner past that and your stop can quietly expire. Put a reminder on it and renew it before it runs out.",
+   "lesson_line": "GTC can expire. Know your broker's limit and renew a long-held stop.",
+   "facts": [
+    "f08",
+    "f37",
+    "f24"
+   ],
+   "simple": "False, because brokers put a time limit on GTC orders, so a stop on a long hold can expire.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "broker limits are numbers that can change",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q15",
+   "skill": "orders.brackets",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You buy 200 shares at $40 with a $38 stop. You split the exits into two OCO pairs of 100 shares: targets $44 and $46, both stops $38. It tags $44, then falls back to $38.",
+   "q": "Every order fills at its price. Where does the trade end up?",
+   "choices": [
+    "A $200 gain",
+    "A $400 gain",
+    "A $200 loss",
+    "Break even"
+   ],
+   "answer": "A $200 gain",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(t1 - entry) * n1 + (stop - entry) * n2",
+     "t1": 44,
+     "entry": 40,
+     "stop": 38,
+     "n1": 100,
+     "n2": 100
+    }
+   },
+   "why": "Up $200. The first pair sold 100 shares at $44. That's $4 a share, $400 made, and its stop canceled. The second pair never saw $46. Its stop sold the other 100 at $38, $200 lost. $400 minus $200 is a $200 gain. That's the reason we take some off into strength. The first sale paid for the stop-out on the rest.",
+   "lesson_line": "Split exits let the first sale pay for a stop-out on the rest.",
+   "facts": [
+    "f34",
+    "f18",
+    "f48",
+    "h3"
+   ],
+   "wrong": {
+    "A $400 gain": "That counts only the 100 sold at $44. The other 100 got stopped at $38.",
+    "A $200 loss": "That's only the half that got stopped. The half sold at $44 more than covers it.",
+    "Break even": "The halves don't cancel out. The gain at $44 is bigger than the loss at $38."
+   },
+   "simple": "You made $200, because the 100 sold at $44 gained more than the 100 stopped at $38 lost.",
+   "deeper": {
+    "trap": "Each 100-share pair is its own OCO. When the $44 target fills, only its own stop is canceled. The second pair keeps its stop for its 100 shares, and that stop is what protected the rest here."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop (both pairs)",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     },
+     {
+      "key": "t1",
+      "label": "First target",
+      "price": 44.0
+     },
+     {
+      "key": "t2",
+      "label": "Second target",
+      "price": 46.0
+     }
+    ],
+    "find": {
+     "label": "Net result",
+     "as": "dollars"
+    },
+    "shares": 200
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "orders.brackets",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You own shares with a GTC OCO: sell limit at $62, sell stop at $55. The stock closes at $60. Strong earnings come out after the close, and it opens at $68.",
+   "q": "What happens at the open?",
+   "choices": [
+    "Target sells near $68, stop cancels",
+    "Target sells at exactly $62",
+    "Nothing; price skipped over $62",
+    "Stop and target both sell"
+   ],
+   "answer": "Target sells near $68, stop cancels",
+   "why": "The target sells near $68 and the stop is canceled. A sell limit fills at its price or higher, so a gap up through it fills at the better price.",
+   "lesson_line": "A gap through your target is the good kind. A sell limit takes the better price.",
+   "facts": [
+    "f01",
+    "f40",
+    "f41",
+    "f60",
+    "f18"
+   ],
+   "wrong": {
+    "Target sells at exactly $62": "$62 is your minimum, not your price. With the stock opening at $68, the sell limit takes the better price.",
+    "Nothing; price skipped over $62": "Skipping over works for you here. A sell limit fills at $62 or higher, and $68 is higher.",
+    "Stop and target both sell": "The stop at $55 is nowhere near the price. Once the target fills, the OCO cancels it."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "orders.brackets",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your bracket buys 500 shares on a $40.00 limit, with a stop and a target attached. Only 300 fill, then the stock runs to $41. The close is coming.",
+   "q": "What do you check before the bell?",
+   "choices": [
+    "That your 300 shares have a stop",
+    "Nothing, the bracket covers it",
+    "Whether to chase the last 200 at $41",
+    "That your gain to $41 is locked in"
+   ],
+   "answer": "That your 300 shares have a stop",
+   "why": "Your stop. Make sure the 300 shares you actually own have one, sized for 300. Brokers handle a part-filled bracket differently. At Fidelity the exits only go out once the whole entry fills, so your 300 can be sitting there with no stop at all. At some brokers the exits only last until the session ends. Open your orders and look. Every position we hold has a real stop with the broker, not one in your head.",
+   "lesson_line": "After a partial fill, find the stop on the shares you actually own.",
+   "facts": [
+    "f27",
+    "f63",
+    "f64",
+    "f11",
+    "f16",
+    "f09",
+    "hx1"
+   ],
+   "wrong": {
+    "Nothing, the bracket covers it": "Not at every broker. Some send the exits only after the whole entry fills, and some let them end with the session.",
+    "Whether to chase the last 200 at $41": "That's a new buy at a new price, $41 not $40. First make sure the 300 you own are protected.",
+    "That your gain to $41 is locked in": "Nothing locks in a price. A stop is only a trigger, and at some brokers your exits aren't even live yet."
+   },
+   "simple": "Check that a stop covers the 300 shares you own, because a part-filled bracket may not have sent one.",
+   "deeper": {
+    "trap": "A bracket can look armed on your screen while the shares you own have no working stop. At Fidelity the exits wait for a full fill, so an entry for 500 that fills only 300 sends no exits at all. Open your orders and match the stop to the shares you hold."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "broker rules differ and can change",
+     "key text shortened in wave6 to remove a longest-answer tell"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "orders.brackets",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "Your bracket bought at $50 with the stop leg at $46. Two weeks later the stock is at $60. Its last pullback held a higher low at $55.",
+   "q": "Where do you move the stop leg now?",
+   "choices": [
+    "Up to just under $55",
+    "Down, to give it room",
+    "Cancel it, the trade is working",
+    "Up to $61 to lock the gain"
+   ],
+   "answer": "Up to just under $55",
+   "why": "Just under $55. From $50 to $60 you're up more than twice what you risked down at $46. That's inside the 2R to 5R window where our stop can come up to breakeven or better. And the stop only ever moves up, never down or wider. The higher low at $55 is the natural spot. If $55 gives way, the uptrend's broken anyway. $61 can't work. A sell stop has to sit under the price, and at $60 it would fire right away.",
+   "lesson_line": "A bracket's stop isn't frozen, but it moves one way only: up.",
+   "facts": [
+    "h5",
+    "h6",
+    "h4",
+    "f03",
+    "f02",
+    "f09"
+   ],
+   "wrong": {
+    "Cancel it, the trade is working": "The stop is your exit. Cancel it and nothing protects the gain if it turns.",
+    "Down, to give it room": "That's widening the stop. Ours only moves up, never down or wider.",
+    "Up to $61 to lock the gain": "A sell stop has to sit under the price. At $61, above the $60 price, it fires right away."
+   },
+   "simple": "Move it up to just under $55, because our stop only moves up and that higher low is where the trend breaks.",
+   "deeper": {
+    "trap": "Raising the stop to just under $55 does not lock in $55. A stop price is a trigger for a market order, so a gap down through it fills at the open, below the stop. The trail cuts what a reversal can take back. It cannot promise a price."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "the trail rests on one house fact (h4)",
+     "rests on the owner's rulebook and setup plans (A4, B19, E52: owner flag)",
+     "fixed before (numbers changed by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "orders.brackets",
+   "rung": 8,
+   "format": "tf",
+   "q": "Your stock is moving fast. Both legs of your OCO can fill before the cancel gets there.",
+   "answer": "True",
+   "why": "True. The cancel is best effort, not a guarantee. When the market's moving fast, or one fill comes in late, the second leg can execute before the cancel lands. Fidelity and Interactive Brokers both warn about it. If both sell, you've sold the same shares twice, and now you're short. So after any exit fills, open your orders and make sure the other side is gone.",
+   "lesson_line": "After any exit fills, check that the other side is really gone.",
+   "facts": [
+    "f30",
+    "f53",
+    "f26",
+    "f17"
+   ],
+   "simple": "True, because the cancel is only a best effort, so in a fast market both exits can fill.",
+   "deeper": {
+    "trap": "If both legs of a long OCO fill, you sell the same shares twice: once at one exit and again at the other. The second sale is of shares you no longer own, and selling shares you don't own is a short position."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "f30 is from Fidelity's older risk PDF, though the current help page and IBKR agree"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "orders.brackets",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You own 1,000 shares bought at $10. You set two separate orders, not an OCO: a sell limit at $13 and a sell stop at $8. The $13 order fills. You forget about the stop.",
+   "q": "What did that forgotten stop leave you open to?",
+   "choices": [
+    "A short of 1,000 shares at $8",
+    "Nothing, the shares are sold",
+    "Only missing gains above $13",
+    "A loss on 1,000 shares below $8"
+   ],
+   "answer": "A short of 1,000 shares at $8",
+   "why": "A short you never meant to have. The two orders aren't linked, so the $13 fill didn't touch the stop. It's still sitting at $8. If the stock trades down there, it sells 1,000 shares you don't own anymore. Selling shares you don't own is a short. Cancel a loose stop the moment the target fills. Better yet, link your exits in an OCO from the start.",
+   "lesson_line": "Exits that protect the same shares belong in one OCO, never in two loose orders.",
+   "facts": [
+    "f69",
+    "f68",
+    "f17"
+   ],
+   "wrong": {
+    "Only missing gains above $13": "That's a cost, sure. The real risk is the loose stop selling shares you don't own.",
+    "A loss on 1,000 shares below $8": "You sold those at $13. A fill at $8 now opens a short, not a loss on shares you hold.",
+    "Nothing, the shares are sold": "That's the trap. The stop doesn't know your shares are gone, so it can still sell 1,000 you don't have."
+   },
+   "simple": "The loose stop can still sell 1,000 shares you no longer own, and that leaves you short.",
+   "deeper": {
+    "trap": "Nothing links two separate exits, so a fill on one leaves the other working. Investopedia's example is this exact case: a forgotten $8 stop on 1,000 shares can leave an unwanted short of 1,000 shares."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "key text changed before and again in wave6 (longest-answer tell)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q21",
+   "skill": "orders.brackets",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You hold 600 shares with an OCO: target $60, stop $54. The target sells 200 shares, then the stock turns and heads lower.",
+   "q": "What's the first thing you check?",
+   "choices": [
+    "That the stop matches your last 400",
+    "Nothing, the OCO handles the rest",
+    "That the target is still live at $60",
+    "Whether to sell the last 400 now"
+   ],
+   "answer": "That the stop matches your last 400",
+   "why": "The stop, and that it covers your last 400. 600 minus the 200 sold leaves 400. A partial fill on one leg changes the other leg, and brokers don't agree on how. At Fidelity it sets off an attempt to cancel the other leg, so your 400 could end up with no stop. At Interactive Brokers the other order shrinks to match. Same OCO, different outcome. Open your orders and count.",
+   "lesson_line": "After a partial exit, count your shares and match the stop to them.",
+   "facts": [
+    "f26",
+    "f54",
+    "f11",
+    "f16",
+    "f56",
+    "f66"
+   ],
+   "wrong": {
+    "Nothing, the OCO handles the rest": "At Fidelity, a partial fill on one leg sets off an attempt to cancel the other. Your last 400 could be left with no stop.",
+    "That the target is still live at $60": "The stock is falling. The order that matters now is the stop, not the target.",
+    "Whether to sell the last 400 now": "The plan already set the exit at $54. Selling on a turn is a call made in the moment. First make sure the 400 shares are still protected."
+   },
+   "simple": "Check that a stop still covers your last 400 shares, because a partial fill can cancel or shrink the other order.",
+   "deeper": {
+    "trap": "Fidelity and Interactive Brokers do opposite things after a partial fill. One tries to cancel the other leg, and the other shrinks it. The same OCO can leave you covered at one broker and bare at another, so learn your broker's rule before you need it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "broker rules disagree and can change (f26 vs f54)",
+     "key text shortened in wave6 to remove a longest-answer tell"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q22",
+   "skill": "orders.brackets",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Your bracket's stop sits at $47.50 and the target at $56. The stock slides to $48. You feel sure it's going to bounce.",
+   "q": "What do you do with the stop leg?",
+   "choices": [
+    "Leave it right where it is",
+    "Cancel it, watch the bounce",
+    "Move it down to $46 for room",
+    "Make it a stop-limit order"
+   ],
+   "answer": "Leave it right where it is",
+   "why": "Leave it. You picked $47.50 before the trade, when you were calm and could think. That's why the stop rides in the bracket. Now it's sitting just under the price and you feel sure. That feeling is exactly what the bracket is there to ignore. Our stop only moves up, never down or wider. Cancel it or drop it to $46 and a small planned loss can turn into a big one. If it bounces, great. If it doesn't, you're out where you said you'd be.",
+   "lesson_line": "The bracket made the call when you were calm. Let it keep it.",
+   "facts": [
+    "f66",
+    "f56",
+    "f61",
+    "f75",
+    "f49",
+    "f44",
+    "h5",
+    "f29",
+    "f83"
+   ],
+   "wrong": {
+    "Cancel it, watch the bounce": "Cancel the stop and the target stays open, but nothing protects you if the bounce never comes.",
+    "Move it down to $46 for room": "That's widening the stop because you feel sure. Your loss grows past what you planned.",
+    "Make it a stop-limit order": "A stop-limit fills only at its price or better. In a fast slide it can sit unfilled while you keep the falling shares."
+   },
+   "simple": "Leave the stop alone, because you set it calmly before the trade and a hunch is no reason to risk more.",
+   "deeper": {
+    "trap": "The trap is the hunch itself. A bracket is there to help you avoid emotional decisions once the trade is placed. Feeling sure it will bounce, with the price near your stop, is one of those."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Investopedia, Interactive Brokers and Schwab back setting exits before the trade; the owner's rulebook (A4, h5) says the stop never moves down or wider"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q23",
+   "skill": "orders.brackets",
+   "rung": 9,
+   "format": "scenario",
+   "house": true,
+   "story": "Your bracket sold all 300 shares at the 3R level. The stock kept climbing for weeks, way past that price.",
+   "q": "How do you set up the exits next time?",
+   "choices": [
+    "Sell some, trail the rest",
+    "One bigger target for all shares",
+    "No targets, hold every share",
+    "Tighten the stop on all shares"
+   ],
+   "answer": "Sell some, trail the rest",
+   "why": "Sell some, trail the rest. One target for every share caps your best trades. You were right on the stock and got paid 3R on a move that went much further. We hold winners by selling partials into strength and trailing the rising moving averages. The first sell is a judgment, often into a 3, 5 or 7 day push. What's left rides the 9 EMA on a fast mover, or the 20 EMA on a steadier one. On the ticket, that's an OCO on part of the shares and a stop on the rest that you raise as it runs.",
+   "lesson_line": "One target for every share caps your best winners. Trim into strength and trail the rest.",
+   "facts": [
+    "h3",
+    "f74",
+    "f34",
+    "r01",
+    "r02",
+    "r03",
+    "hx3"
+   ],
+   "wrong": {
+    "One bigger target for all shares": "Then nothing gets banked if it stalls short of that price. We take some off along the way.",
+    "No targets, hold every share": "That banks nothing into strength. We sell some into a push and let the rest run.",
+    "Tighten the stop on all shares": "That still exits everything at once. We trim into strength and trail the rest under the rising averages."
+   },
+   "simple": "Sell part into strength and trail a stop on the rest, so you bank gains and still ride a long run.",
+   "deeper": {
+    "trap": "After missing a run, a bigger single target feels like the fix. It still sells everything at one price, and it banks nothing if the stock stalls short of it. Selling part into strength and trailing the rest handles both cases."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B19, E51) and his quoted words",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "What 'bracket' names: Interactive Brokers and Investopedia use it for an entry with two opposite-side exits (three parts), and so does the unit plan. Fidelity's Active Trader Pro help says OCO orders 'are also known as bracket orders' (two exits on shares you hold), and Schwab's thinkorswim manual calls the exit OCO pair a 'bracket' once a first order triggers it. The SEC bulletin warns that similar order names can work differently by broker (f12). The file defines a bracket as entry + target + stop, teaches the OCO pair separately (q07), and never quizzes which name a platform uses. Checker, 2026-11-09: because of Fidelity's wording, q01 no longer offers an OCO as a wrong choice; its fourth choice is the stop-limit (SEC, f83).",
+  "A part-filled entry: Fidelity sends a bracket's exits only after the entry fills in full (f27); Investopedia says the exits stay active after a partial fill until canceled or the session ends (f63) and that brokers differ (f64). The file keys only the habit that holds either way: check that a stop is live on the shares you own (q17).",
+  "A part-filled exit: Fidelity says a partial fill on one OCO leg triggers an attempt to cancel the other (f26); Interactive Brokers says a partial fill reduces the other orders proportionately (f54). Keyed only as 'check the stop still covers the rest' (q21).",
+  "GTC limits: the SEC defines GTC as lasting until executed or canceled, and says the time limit may vary by firm (f07, f08). Schwab's GTC is up to 180 calendar days (f37); Fidelity's GTC triggered orders are good for 180 days (f24); thinkorswim's GTC_EXTO is a maximum of 6 months. q14 names only Schwab and Fidelity's 180 days, as of 2026-11-09.",
+  "Stops outside regular hours: Schwab accepts only limit orders in extended hours (f38), and Fidelity's risk PDF says conditional and trailing stop orders are monitored 9:30 AM to 4:00 PM Eastern. I did not read Interactive Brokers' outside-regular-hours settings, so no question keys when a stop leg can act after hours; q13's after-hours note cites Schwab only ('for one').",
+  "Fidelity's risk PDF (s7) carries a 2012 copyright line, but it is the document the current Active Trader Pro help page links for these orders' risks. Its both-legs-can-fill warning (f30) agrees with Interactive Brokers' current page (f53) and with the 'best efforts' line on Fidelity's current help page (f26).",
+  "Reward vs risk wording: Investopedia's take-profit page writes 'risk-to-reward' and a '5:15' ratio; Schwab's trade-plan page defines its 'risk-to-reward ratio' as dollars gained per dollar 'you commit to the position', which mixes position size with risk. The file never uses either phrase as a term; q09 asks for reward per dollar of risk and is computed by its calc.",
+  "Interactive Brokers says brackets 'lock in a profit', and both sample brackets on its page are 1 to 1 (q09). The SEC says a stop price is a trigger, not a guaranteed price (f09), so the file never says a bracket locks in a price. Our first trim is a third at 3R (h1, q11; the account rulebook B19, 2026-11-09); q09 states the 1 to 1 as a measurement and does not call it wrong.",
+  "Investopedia's bracketed buy page says bracketed SELL orders 'can only be made on margin'. Not used: shorting mechanics belong to F10b, and q12 asks only where a short bracket's exits sit (IBKR f47, SEC f04, Investopedia f62 agree).",
+  "The trail (q18, w3, q22): TRADE_PLANS.md's Trail column says 'under each higher low' for the Kicker (the owner's rulings, which also allow 'under the 10-day average'), the Oops Reversal, the Slingshot and the Launchpad (the last two also name the 10-day or the rising 21-day average). The High Volume Edge trail is 'not named by the detector' and Gap Support names 'a tighter stop just under the gap top'. q18's long setup is generic, so it keys the higher-low trail the four plans share and never names a moving-average trail.",
+  "Schwab's thinkorswim example splits 200 shares into two 100-share OCO pairs (f34). That split is Schwab's example, not a UCT rule. Until 2026-11-09 TRADE_PLANS.md said our detectors named the 2R and 3R trims but not how much to sell; the account rulebook (sizing_rule.md section 9, B19, E51) now names thirds at 3R and 5R, and q11 and q23 teach that. q15 still uses Schwab's split as the member's own choice.",
+  "f53 and f54 sit in Interactive Brokers' One-Cancels-All (OCA) section, written for OCA groups. Two linked exits at IBKR are an OCA group of two, so the file applies them to an OCO pair and always names IBKR (q19, q21, w2).",
+  "q18's numbers were changed by the checker: with entry $50 and stop $47, our 2R target ($56) is under the old $58 price, so the target leg would already have sold. Now stop $46 (2R = $58), price $57, higher low $53. Under the 2026-11-09 rulebook the first trim is 3R, $62 on the $50 / $46 plan, still above the $57 price, so the story holds unchanged."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f55 (Investopedia, updated 2026-02-24), f47 (IBKR), f20/f23/f77/f78 (Fidelity Learning Center) and f32 (Schwab) confirmed live, read in context. Fidelity's example checks: buy $25, stop $23, limit $27; the drop to $23 sells the stop and cancels the limit.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f18, f21 (Fidelity) and f35 (thinkorswim) confirmed live; f26 'best efforts' is on Fidelity's current Active Trader Pro help; f30 is in the risk PDF that page links; f53 is IBKR's no-guarantee warning for linked cancels (see conflicts). $27 and $24 match f21.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f66, f56, f61 (Investopedia), f49 (IBKR), f44 (Schwab) confirmed live; f15 (FINRA) confirmed by WebFetch (the plain client got 429). Schwab's gap case: $34 stop fills at $32 at the open (f42, f76); f09 (SEC) says the stop price is only a trigger. 'Only moves up' rests on h4 and f81. Track audit 2026-11-09: h4's claim reworded to match TRADE_PLANS.md exactly (see q18); the steps are unchanged.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Ticket on the screen, verdict first, the reason (decide while calm). Truth: entry + sell limit above + sell stop below (f55/f47); look-alikes are single orders (f80/f83)."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Real 500-share position; the why says what the link saves you from (loose order sells shares you don't own, f69/f17). Wrong notes accurate (OTO is f20; day/GTC f71)."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Fidelity's $25/$23/$27 (f77) on the stem; exits sent on the fill (f20/f23/f32); the partial-fill catch matches f27."
+  },
+  "q04": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Schwab's $34 stop, $32 open (f42/f76); trigger not a promise (f09); 'tight stop never licenses a monster position' is sizing_rule s2 (hx5, quote verified line 25)."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Day default and close-cancel (f05/f06), GTC (f07/f08), IOC (f13), Schwab takes no stops in extended hours (f38). hx1 verified (sizing_rule D41)."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: 'We market order our entries, so putting the exits on right after the fill is normal for us' says a resting TARGET is our routine. It is not: our first sell is judgment (r01-r03); only the stop with the broker is ours (hx1). 'then walk away' also contradicts managing the trade. Rewrote the why; answer and choices unchanged."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Buy stop above the price buys the break (f39/f04), turns into a market order (f02/f09); exits per f47. Buy-limit wrong note correct (fills at or below limit, f01). Choices now parallel, key not longest."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Math right: (221-219.5)/(219.5-218)=1.5/1.5=1; wrong keys check out (3/1.5=2, 1.5 raw, 1.5/3=0.5). '1.5 dollars of reward' reads like a calculator, not a trader; restated in dollars with the steps. r03 judgment kept."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Each exit is full quantity (f48/f68); scale out with smaller OCO pairs (f34). Plain and correct."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "40-38=2, x3=6, 40+6=46; wrong keys check (48=4R, 52=2x2x3+40, 120=3x40). First sell kept as judgment (r01-r03), no 3R third. Only smoothed the clumsy 'and we wait until day 3 at the earliest most times'."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Short bracket = buy stop above, buy limit below (f47/f62); entry through the trigger matches the short ruling; the $1 million line is required on every short lesson (hx4, DECISIONS)."
+  },
+  "q13": {
+   "status": "cut",
+   "notes": "duplicate of F10.02#q13. Track audit 2026-11-09: Both are scenarios where a stop left as a day order is gone by the next session (the SEC's same 'generally cancel at the end of regular trading hours' line, f05 here, f21 there) and the key is that nothing protects you. F10.02#q13, in the stop-order unit, is kept; this unit still asks the time-in-force choice for a bracket's exits in q06, so nothing is lost. Earlier checker note, kept for the record: f05 (SEC): day orders generally cancel at the end of regular hours and carry neither to extended hours nor the next day; f14 FINRA (WebFetch); f38 Schwab takes only limit orders in extended hours. Changed the lesson line, which nearly repeated q06's, to a check before the close.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "GTC limits by broker (f08), Schwab 180 calendar days (f37), Fidelity 180 days on a GTC triggered order (f24). Ends on the practical habit."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "(44-40)x100=400, (38-40)x100=-200, net +200; each wrong note names the slip. Ties to h3 (partials into strength). Reads like a trade review."
+  },
+  "q16": {
+   "status": "cut",
+   "notes": "duplicate of F10.01#q13. Track audit 2026-11-09: Both use Schwab's same $105 limit / $110 open example (f40, f41 here = f36, f37 there) and the SEC's sell-limit rule to key 'fills at the better opening price', with the same two wrong choices (exactly at the limit; no fill). The OCO cancel this one adds is already asked in q02, q07, q19 and q21. F10.01#q13, in the limit-order unit, is kept. Earlier checker note, kept for the record: f01 (SEC), f40/f41 (Schwab: a $105 sell limit fills at a $110 open) and f60 (Investopedia) confirm the gap-up fill near the open. Added 'GTC' to the story: the key needs the OCO alive at the open, and q13 teaches that day orders expire.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Part-filled entry: Fidelity sends exits only after a full fill (f27); Investopedia's exits end with the session (f63); brokers differ (f64). Ends on our habit, a real stop with the broker (hx1)."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Risk $4 (50 to 46), gain $10, so past 2R: inside the 2R-5R breakeven window (h6), stop only moves up (h5), higher-low trail (h4). $61 above a $60 price fires at once. Formula stem 'fits our rules' gone."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Best-effort cancel (f26), both legs can fill in fast markets (f30/f53); double sale leaves you short (f17)."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Investopedia's $8/$13 on 1,000 shares (f68/f69); loose stop can sell shares you no longer own, a short (f17). Right answer shortened, no longer stands out. Note: a $10 stock is at the floor of what we trade; numbers are tied to the cited example, so left as is."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "600-200=400; Fidelity cancels on a partial (f26), IBKR shrinks the other leg (f54). Verdict first, ends on the habit."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Strongest in the lesson: the hunch named and refused, stop only moves up (h5), stop-limit wrong note matches f83. Answer shortened, no longer stands out."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Uses his own sentence (h3) as ours; first sell judgment, 3/5/7 day push (r01-r03); trail 9 EMA fast / 20 EMA steadier (hx3, DECISIONS ruling, not the old 10/21-day E52). Practical ticket build (f34)."
+  }
+ }
+}

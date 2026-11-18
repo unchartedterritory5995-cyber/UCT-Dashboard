@@ -73,12 +73,24 @@ describe('anchorsForDrawing', () => {
   })
 
   it('a point placed PAST the last candle resolves through the bar spacing', () => {
-    const bars = [{ t: 1_700_000_000 }]
+    const bars = [{ t: 1_700_000_000 }]   // the raw series bar the (raw unix) point sits on
     const g = anchorsForDrawing({
       type: 'trendline',
       points: [{ time: 1_700_000_000, price: 100 }, { futureBars: 5, price: 120 }],
     }, { bars, tf: '30', etOffset: ET })
     expect(g.anchor_t2 - g.anchor_t1).toBe(5 * barSeconds('30'))
+  })
+
+  it('production shapes: point times and bar t are both RAW unix — anchors stay true UTC', async () => {
+    const { fromChartTime } = await import('./barTime')
+    const u = Date.UTC(2026, 9, 30, 14, 30) / 1000             // 10:30 EDT, the last candle
+    const bars = [{ t: u - 1800 }, { t: u }]                    // raw series (drawBarsRef)
+    const g = anchorsForDrawing({
+      type: 'trendline',
+      points: [{ time: u - 1800, price: 100 }, { futureBars: 2, price: 120 }],
+    }, { bars, tf: '30', etOffset: fromChartTime })
+    expect(g.anchor_t1).toBe(u - 1800)
+    expect(g.anchor_t2).toBe(u + 2 * 1800)                      // was u + 4h + 1h: the offset twice
   })
 
   it('returns null rather than a half-built alert when a price is missing', () => {

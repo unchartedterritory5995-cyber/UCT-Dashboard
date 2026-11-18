@@ -1376,6 +1376,53 @@
       ]
     },
     {
+      "id": "compare.group.aiChips",
+      "source": "C1-035/037/040 (pl-exec): the Compare panel's group controls",
+      "capabilities": [
+        "chartSetup.compareGroup"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartSetup.compareGroup"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.compareGroup",
+            "target": "$charts[0]",
+            "args": {
+              "action": "add",
+              "group": "AI Chips",
+              "groupType": "any",
+              "scale": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "settingSome": {
+          "key": "comparisonSymbols",
+          "match": {
+            "sym": "AMD",
+            "group": "AI Chips"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "compare this chart against the AI Chips theme",
+        "overlay the AI Chips group on this chart",
+        "compare NVDA with the AI Chips theme"
+      ]
+    },
+    {
       "id": "widget.news",
       "capabilities": [
         "widget.add"
@@ -4819,6 +4866,39 @@
       ]
     },
     {
+      "id": "watchlist.showList",
+      "source": "pl-exec watchlist group A (C3-065): one Watchlist widget shows the Flagged list exactly as its picker picks it; Undo puts back what it showed",
+      "capabilities": [
+        "watchlist.showList"
+      ],
+      "board": "WLW",
+      "needs": [
+        "watchlist.showList"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "watchlist.showList",
+            "target": "$board",
+            "args": {
+              "widget": null,
+              "source": "flagged",
+              "name": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "put the Flagged list in my watchlist widget",
+        "switch my watchlist over to the flagged one",
+        "show Flagged in the watchlist"
+      ]
+    },
+    {
       "id": "layout.rename",
       "source": "Batch E3 (11-04): saved layouts (rename, delete, copy, create, list) on the Layout Dock fixture (approval; a protected layout is refused: GW-07)",
       "capabilities": [
@@ -4917,6 +4997,160 @@
           "active": "Swing"
         }
       }
+    },
+    {
+      "id": "layout.pinToBar",
+      "source": "C3-037/038/039 (pl-exec3): the Layout Dock bar",
+      "capabilities": [
+        "layout.pinToBar"
+      ],
+      "board": "LAYOUT_BAR",
+      "needs": [
+        "layout.pinToBar"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "layout.pinToBar",
+            "target": "layoutDock",
+            "args": {
+              "layout": "2"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "charts_layout_dock": "{\"pins\":[1,3,2],\"known\":[1,2,3],\"hidden\":false}"
+        },
+        "layout": {
+          "active": "Main Trading",
+          "names": [
+            "Main Trading",
+            "Breadth",
+            "Day Trading"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "charts_layout_dock": "{\"pins\":[1,3],\"known\":[1,2,3],\"hidden\":false}"
+          },
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "pin my Breadth layout to the bar",
+        "pin the Breadth layout to the dock",
+        "put my Breadth layout on the layout bar"
+      ]
+    },
+    {
+      "id": "layout.moveOnBar",
+      "source": "C3-037/038/039 (pl-exec3): the Layout Dock bar",
+      "capabilities": [
+        "layout.moveOnBar"
+      ],
+      "board": "LAYOUT_BAR_FULL",
+      "needs": [
+        "layout.moveOnBar"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "layout.moveOnBar",
+            "target": "layoutDock",
+            "args": {
+              "layout": "2",
+              "to": "first"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "charts_layout_dock": "{\"pins\":[2,1,3],\"known\":[1,2,3],\"hidden\":false}"
+        },
+        "layout": {
+          "active": "Main Trading",
+          "names": [
+            "Main Trading",
+            "Breadth",
+            "Day Trading"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "charts_layout_dock": "{\"pins\":[1,3,2],\"known\":[1,2,3],\"hidden\":false}"
+          },
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "move Breadth to the front of the bar",
+        "put my Breadth layout first on the layouts bar",
+        "move the Breadth layout to spot 1 on the bar"
+      ]
+    },
+    {
+      "id": "layout.unpinFromBar",
+      "source": "C3-037/038/039 (pl-exec3): the Layout Dock bar",
+      "capabilities": [
+        "layout.unpinFromBar"
+      ],
+      "board": "LAYOUT_BAR_FULL",
+      "needs": [
+        "layout.unpinFromBar"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "layout.unpinFromBar",
+            "target": "layoutDock",
+            "args": {
+              "layout": "1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "prefs": {
+          "charts_layout_dock": "{\"pins\":[3,2],\"known\":[1,2,3],\"hidden\":false}"
+        },
+        "layout": {
+          "active": "Main Trading",
+          "names": [
+            "Main Trading",
+            "Breadth",
+            "Day Trading"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "prefs": {
+            "charts_layout_dock": "{\"pins\":[1,3,2],\"known\":[1,2,3],\"hidden\":false}"
+          },
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "take Main Trading off the bar",
+        "unpin my Main Trading layout",
+        "remove Main Trading from the layout bar"
+      ]
     },
     {
       "id": "layout.duplicate",
@@ -5997,6 +6231,250 @@
         "replay the chart from march 2 2026",
         "go back to march 2 2026 and hide what came after",
         "start replay mode on 2026-03-02"
+      ]
+    },
+    {
+      "id": "periodSort.run",
+      "source": "C3-205/C3-206 (pl-exec6): Tools → Custom-Period Sort, the popover's own Sort (runPeriodSort)",
+      "capabilities": [
+        "periodSort.run"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "periodSort.run"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "periodSort.run",
+            "target": "$periodSort",
+            "args": {
+              "start": "2026-10-01",
+              "end": "2026-10-30",
+              "group": "sector",
+              "replay": true,
+              "markStart": "line"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "periodSortPanel": {
+          "start": 20261001,
+          "end": 20261030,
+          "group": "sector"
+        },
+        "replay": "2026-10-30",
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "periodSortPanel": null,
+          "replay": null
+        }
+      },
+      "phrasings": [
+        "run a custom period sort of sectors from oct 1 to oct 30 with replay on and the start marked",
+        "rank the sectors from Oct 1 to Oct 30 and replay the charts to the end date, mark the start with a line",
+        "period sort by sector between 2026-10-01 and 2026-10-30, replay mode on, gold line at the start",
+        "custom-period sort: sectors, Oct 1 to Oct 30, hide bars after the end and mark the start"
+      ]
+    },
+    {
+      "id": "periodSort.dock",
+      "source": "C3-207 (pl-exec6): the Custom-Period Sort panel's own Dock (handleDockPeriodSort)",
+      "capabilities": [
+        "periodSort.dock"
+      ],
+      "board": "TIMED",
+      "before": [
+        {
+          "say": "rank stocks from oct 1 to oct 30",
+          "model": {
+            "ops": [
+              {
+                "action": "periodSort.run",
+                "target": "$periodSort",
+                "args": {
+                  "start": "2026-10-01",
+                  "end": "2026-10-30",
+                  "group": "stocks",
+                  "replay": false,
+                  "markStart": "off"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "periodSortPanel": {
+              "start": 20261001,
+              "end": 20261030,
+              "group": null
+            }
+          }
+        }
+      ],
+      "recentActions": [
+        "periodSort.run"
+      ],
+      "needs": [
+        "periodSort.dock"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "periodSort.dock",
+            "target": "$periodSort",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "periodSortPanel": null,
+        "periodSortWidgets": [
+          {
+            "start": 20261001,
+            "end": 20261030,
+            "group": null
+          }
+        ],
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "periodSortPanel": {
+            "start": 20261001,
+            "end": 20261030,
+            "group": null
+          },
+          "periodSortWidgets": []
+        }
+      },
+      "phrasings": [
+        "dock that period sort onto the board",
+        "dock the ranking as a widget",
+        "keep that period sort on my board",
+        "pin the custom period sort results to the board"
+      ]
+    },
+    {
+      "id": "compare.openView",
+      "source": "Charts family 11-12: Tools → Compare Symbols opened on its Rotation tab with a stock's group — the uct:compare-open detail a chart's \"Open the rotation map\" link sends",
+      "capabilities": [
+        "compare.openView"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "compare.openView"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "compare.openView",
+            "target": "$comparePanel",
+            "args": {
+              "tab": "rotation",
+              "symbol": "NVDA",
+              "groupType": "sector",
+              "group": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "comparePanel": {
+          "open": true,
+          "tab": "rotation"
+        },
+        "comparePick": {
+          "sym": "NVDA",
+          "group": "sector"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "comparePanel": {
+            "open": false,
+            "tab": null
+          }
+        }
+      },
+      "phrasings": [
+        "open the rotation map for nvda's sector",
+        "show me nvda's sector on the rrg view",
+        "open the compare panel on the rotation tab with nvda's sector",
+        "pull up the relative rotation graph for the nvda sector"
+      ]
+    },
+    {
+      "id": "compare.openView.overlay",
+      "source": "Charts family 11-12: the open Compare panel switched from Rotation to its Overlay tab (no Undo: the rotation map starts over when left)",
+      "capabilities": [
+        "compare.openView"
+      ],
+      "board": "TIMED",
+      "before": [
+        {
+          "say": "open the rotation map",
+          "model": {
+            "ops": [
+              {
+                "action": "compare.openView",
+                "target": "$comparePanel",
+                "args": {
+                  "tab": "rotation",
+                  "symbol": null,
+                  "groupType": null,
+                  "group": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "comparePanel": {
+              "open": true,
+              "tab": "rotation"
+            }
+          }
+        }
+      ],
+      "needs": [
+        "compare.openView"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "compare.openView",
+            "target": "$comparePanel",
+            "args": {
+              "tab": "overlay",
+              "symbol": null,
+              "groupType": null,
+              "group": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "comparePanel": {
+          "open": true,
+          "tab": "overlay"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "go to the overlay tab",
+        "switch the compare panel to its overlay tab",
+        "back to the overlay tab of the compare symbols panel",
+        "show the overlay tab in the compare window"
       ]
     },
     {
@@ -7301,6 +7779,275 @@
         "chart the top 3",
         "open charts for the top three",
         "put the first 3 on new charts"
+      ]
+    },
+    {
+      "id": "cot.positioning",
+      "source": "Phase 2 COT research (11-13): CFTC Commitments of Traders positioning, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "cot.positioning"
+      ],
+      "board": "ONE",
+      "needs": [
+        "cot.positioning"
+      ],
+      "ownWords": [
+        "cot"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "cot.positioning",
+            "target": "$stockData",
+            "args": {
+              "markets": [
+                "gold"
+              ],
+              "group": "large_specs",
+              "change_weeks": null,
+              "lookback_years": 3
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*cot\\.positioning.*\"symbols\":\\[\"gold\"\\],\"weeks\":163"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "where are large speculators positioned in gold",
+        "what does the COT report say about gold",
+        "are specs net long gold at a 3-year extreme",
+        "show me the commitments of traders for gold"
+      ]
+    },
+    {
+      "id": "history.monthlyReturns",
+      "source": "Phase 2 history (11-13): weekly / monthly bars, relative performance, one-day-move studies, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.dailyBars"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.dailyBars"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.dailyBars",
+            "args": {
+              "symbol": "NVDA",
+              "measure": "periods",
+              "timeframe": "M",
+              "from": "2024-01-01",
+              "date": "2024-12-31"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.dailyBars",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "measure": "periods",
+              "sessions": null,
+              "date": "2024-12-31",
+              "from": "2024-01-01",
+              "timeframe": "M",
+              "symbols": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*bars\\.daily.*\"symbol\":\"NVDA\",\"tf\":\"M\",\"from\":\"2024-01-01\",\"to\":\"2024-12-31\""
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "monthly returns for NVDA in 2024",
+          "det": "required",
+          "gaps": {
+            "a": {
+              "id": "GAP-HISTORY-PERIODS-ROUTE",
+              "router": "v1+v2",
+              "owner": "hist-builder",
+              "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+              "mode": "\"monthly returns for NVDA in 2024\" → stock.dailyBars"
+            }
+          }
+        },
+        {
+          "text": "NVDA's monthly performance in 2024",
+          "det": "required",
+          "gaps": {
+            "a": {
+              "id": "GAP-HISTORY-PERIODS-ROUTE",
+              "router": "v1+v2",
+              "owner": "hist-builder",
+              "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+              "mode": "\"NVDA's monthly performance in 2024\" → stock.dailyBars"
+            }
+          }
+        },
+        {
+          "text": "show me the monthly closes for NVDA in 2024",
+          "det": "required",
+          "gaps": {
+            "a": {
+              "id": "GAP-HISTORY-PERIODS-ROUTE",
+              "router": "v1+v2",
+              "owner": "hist-builder",
+              "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+              "mode": "\"show me the monthly closes for NVDA in 2024\" → stock.dailyBars"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "history.weeklyCompare",
+      "source": "Phase 2 history (11-13): weekly / monthly bars, relative performance, one-day-move studies, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.dailyBars"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.dailyBars"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.dailyBars",
+            "args": {
+              "symbol": "AAPL",
+              "measure": "compare",
+              "timeframe": "W",
+              "sessions": 52,
+              "symbols": [
+                "MSFT"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.dailyBars",
+            "target": "$stockData",
+            "args": {
+              "symbol": "AAPL",
+              "measure": "compare",
+              "sessions": 52,
+              "date": null,
+              "from": null,
+              "timeframe": "W",
+              "symbols": [
+                "MSFT"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*bars\\.daily.*\"symbol\":\"AAPL\",\"tf\":\"W\",\"bars\":53",
+          "^POST /api/agent/data .*bars\\.daily.*\"symbol\":\"MSFT\",\"tf\":\"W\",\"bars\":53"
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "compare AAPL and MSFT weekly over the last year",
+          "det": "required"
+        },
+        {
+          "text": "AAPL vs MSFT weekly performance over the past year",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "history.dayMove",
+      "source": "Phase 2 history (11-13): weekly / monthly bars, relative performance, one-day-move studies, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "history.afterEvent"
+      ],
+      "board": "ONE",
+      "needs": [
+        "history.afterEvent"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "history.afterEvent",
+            "args": {
+              "symbol": "SPY",
+              "indicator": "day_pct",
+              "op": "below",
+              "threshold": -3,
+              "last": 5
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "history.afterEvent",
+            "target": "$stockData",
+            "args": {
+              "symbol": "SPY",
+              "indicator": "day_pct",
+              "period": null,
+              "op": "below",
+              "threshold": -3,
+              "horizons": [
+                1,
+                5,
+                21
+              ],
+              "since": null,
+              "last": 5
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*history\\.eventStudy.*\"indicator\":\"day_pct\",\"period\":null,\"op\":\"below\",\"threshold\":-3.*\"last\":5"
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "what happened to SPY after the last 5 times it fell 3% in a day",
+          "det": "required"
+        },
+        {
+          "text": "what happened to SPY after the last 5 times it dropped 3% in one day",
+          "det": "required"
+        }
       ]
     },
     {
@@ -8682,6 +9429,64 @@
       ]
     },
     {
+      "id": "indicatorStyle.calcTimeframe-weekly",
+      "source": "calc-TF family (pl-ctf, 11-12): the Inspector's Timeframe — an indicator calculated on a higher timeframe's bars, the chart's own timeframe unchanged",
+      "capabilities": [
+        "indicatorStyle.setCalcTimeframe"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "needs": [
+        "indicatorStyle.setCalcTimeframe"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "indicatorStyle.setCalcTimeframe",
+            "args": {
+              "timeframe": "weekly"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "indicatorStyle.setCalcTimeframe",
+            "target": "$indicatorEdits[0]",
+            "args": {
+              "instance": "ovl:2",
+              "timeframe": "W"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "instance": {
+          "find": {
+            "inputs.period": 50,
+            "inputs.maType": "sma"
+          },
+          "has": {
+            "calculationTimeframe": "W"
+          }
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "calculate the 50 sma on weekly",
+        "compute the 50 sma on the weekly bars",
+        "make the 50 sma use the weekly"
+      ]
+    },
+    {
       "id": "indicatorCopy.duplicate",
       "source": "PACKAGE 3 (11-04): indicator creation and configuration end to end — the owner's example (\"marks days where close is above the 21 EMA and volume is 1.5x the 50-day average\") through the REAL authoring interface, a scripted builder model (seed.builder), human names, follow-ups — configure an existing indicator",
       "capabilities": [
@@ -8722,7 +9527,7 @@
     },
     {
       "id": "grid.add-count.reuses-one",
-      "source": "GRID-REUSE (11-04, v1 with NLM-1 off): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — one chart on the board",
+      "source": "GRID-REUSE (11-04, v1 with NLM-1 off; phrasings re-worded 11-13: an ADD now never re-symbols — it asks, agentAddNeverReplaces): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — one chart on the board",
       "capabilities": [
         "chartGrid.set"
       ],
@@ -8793,26 +9598,26 @@
       },
       "phrasings": [
         {
-          "text": "add a 2x2 of SPY QQQ IWM DIA",
+          "text": "make a 2x2 of SPY QQQ IWM DIA",
           "det": "required"
         },
         {
-          "text": "add a 2x2 grid of SPY, QQQ, IWM and DIA",
+          "text": "set up a 2x2 grid of SPY, QQQ, IWM and DIA",
           "det": "required"
         },
         {
-          "text": "add SPY, QQQ, IWM and DIA on four charts",
+          "text": "show SPY, QQQ, IWM and DIA on four charts",
           "det": "required"
         },
         {
-          "text": "add four charts for SPY QQQ IWM DIA",
+          "text": "four charts for SPY QQQ IWM DIA",
           "det": "required"
         }
       ]
     },
     {
       "id": "grid.add-count.reuses-two",
-      "source": "GRID-REUSE (11-04, v1 with NLM-1 off): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — two charts on the board",
+      "source": "GRID-REUSE (11-04, v1 with NLM-1 off; phrasings re-worded 11-13: an ADD now never re-symbols — it asks, agentAddNeverReplaces): a COUNT of charts with tickers is THE grid — the board's charts reused, never an extra one (held-out P08: \"add a 2x2 of SPY QQQ IWM DIA\" made 5 charts) — two charts on the board",
       "capabilities": [
         "chartGrid.set"
       ],
@@ -8884,19 +9689,19 @@
       },
       "phrasings": [
         {
-          "text": "add a 2x2 of SPY QQQ IWM DIA",
+          "text": "make a 2x2 of SPY QQQ IWM DIA",
           "det": "required"
         },
         {
-          "text": "add a 2x2 grid of SPY, QQQ, IWM and DIA",
+          "text": "set up a 2x2 grid of SPY, QQQ, IWM and DIA",
           "det": "required"
         },
         {
-          "text": "add SPY, QQQ, IWM and DIA on four charts",
+          "text": "show SPY, QQQ, IWM and DIA on four charts",
           "det": "required"
         },
         {
-          "text": "add four charts for SPY QQQ IWM DIA",
+          "text": "four charts for SPY QQQ IWM DIA",
           "det": "required"
         }
       ]
@@ -10128,6 +10933,156 @@
       ]
     },
     {
+      "id": "drawing.duplicate",
+      "source": "C1-157 (pl-exec5): the drawing menu's Duplicate",
+      "board": "TIMED",
+      "needs": [
+        "drawing.duplicate"
+      ],
+      "capabilities": [
+        "drawing.duplicate"
+      ],
+      "before": [
+        {
+          "say": "draw a trendline from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addTrendline",
+                "target": "$drawings[0]",
+                "args": {
+                  "from": {
+                    "date": "2026-09-02",
+                    "price": 100
+                  },
+                  "to": {
+                    "date": "2026-10-28",
+                    "price": 180
+                  },
+                  "color": null,
+                  "style": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "trendline"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.duplicate",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "drawings": {
+          "count": 2,
+          "has": {
+            "type": "trendline"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "drawings": {
+            "count": 1,
+            "has": {
+              "type": "trendline"
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "duplicate this trendline",
+        "duplicate that drawing",
+        "make a duplicate of the trendline"
+      ]
+    },
+    {
+      "id": "drawing.setPositionAlerts",
+      "source": "C1-118 (pl-exec5): a position drawing's Alerts row (stop and target)",
+      "board": "DRAW",
+      "seed": {
+        "drawings": {
+          "NVDA": [
+            {
+              "type": "position",
+              "points": [
+                {
+                  "time": "2026-10-01",
+                  "price": 100
+                },
+                {
+                  "time": "2026-10-01",
+                  "price": 90
+                },
+                {
+                  "time": "2026-10-20",
+                  "price": 120
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "needs": [
+        "drawing.setPositionAlerts"
+      ],
+      "capabilities": [
+        "drawing.setPositionAlerts"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "drawing.setPositionAlerts",
+            "target": "$drawings[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id",
+              "levels": [
+                "stop",
+                "target"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "noCalls": [
+          "^POST /api/watchlist-alerts"
+        ]
+      },
+      "approve": true,
+      "afterApprove": {
+        "writes": [
+          "^POST /api/watchlist-alerts .*\"direction\":\"below\"",
+          "^POST /api/watchlist-alerts .*\"direction\":\"above\""
+        ],
+        "receipt": true
+      },
+      "phrasings": [
+        "set the stop and target alerts on my position",
+        "alert me on my position's stop and target",
+        "turn on the stop and target alerts for that position"
+      ]
+    },
+    {
       "id": "chartSetup.setRange",
       "source": "PR #825 (11-05): the chart's own view controls and Ctrl+M",
       "capabilities": [
@@ -10201,6 +11156,770 @@
         "reset the chart view",
         "reset the zoom on this chart",
         "put this chart back to its default view"
+      ]
+    },
+    {
+      "id": "chartSetup.openSettings",
+      "source": "C1-127 (11-11): open the chart's own Chart Settings dialog (gear / right-click / Alt+,)",
+      "capabilities": [
+        "chartSetup.openSettings"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.openSettings"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.openSettings",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "settingsOpen": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "open chart settings",
+        "open the settings for this chart",
+        "show me the chart settings panel",
+        "bring up this chart's settings"
+      ]
+    },
+    {
+      "id": "volumeProfile.set",
+      "source": "Charts family 11-12: Chart Settings → Indicators → Volume Profile row toggle (applyRowPatch on the carved-out row; the library toggledRow shape)",
+      "capabilities": [
+        "volumeProfile.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "volumeProfile.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "volumeProfile.set",
+            "target": "$charts[0]",
+            "args": {
+              "enabled": true,
+              "bins": null,
+              "color": null,
+              "pocColor": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "volumeProfile": {
+          "enabled": true,
+          "bins": 24
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn on volume profile",
+        "add the volume profile to this chart",
+        "show vpvr"
+      ]
+    },
+    {
+      "id": "volumeProfile.set.bins",
+      "source": "Charts family 11-12: the Volume Profile row's Bins field (8-50) with the toggle, one write",
+      "capabilities": [
+        "volumeProfile.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "volumeProfile.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "volumeProfile.set",
+            "target": "$charts[0]",
+            "args": {
+              "enabled": true,
+              "bins": 40,
+              "color": null,
+              "pocColor": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "volumeProfile": {
+          "enabled": true,
+          "bins": 40
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn on volume profile with 40 bins",
+        "add a volume profile with 40 rows",
+        "show the volume profile using 40 bins please"
+      ]
+    },
+    {
+      "id": "newsLibrary.save",
+      "source": "Charts family 11-15: the News row bookmark (lib/tradeExchangeNewsLibrary.save); a headline named by its tickers field",
+      "capabilities": [
+        "newsLibrary.save"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.save"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "newsLibrary.save",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "headline": "NVDA",
+              "saved": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "newsLibrary": {
+          "saved": [
+            "h3"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "save the NVDA headline",
+        "bookmark the NVDA headline",
+        "save the NVDA story to my library"
+      ]
+    },
+    {
+      "id": "newsLibrary.setNote",
+      "source": "Charts family 11-15: the ⋯ menu note (setNote) — appended, never replaced unless asked",
+      "capabilities": [
+        "newsLibrary.setNote"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.setNote"
+      ],
+      "seed": {
+        "newsLibrary": {
+          "saved": [
+            "h3"
+          ],
+          "notes": {
+            "h3": "old"
+          }
+        }
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "newsLibrary.setNote",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "headline": "NVDA",
+              "note": "watch guidance",
+              "mode": "append"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "newsLibrary": {
+          "notes": {
+            "h3": "old\nwatch guidance"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "add a note to the NVDA headline: watch guidance",
+        "put a note on the NVDA headline: watch guidance",
+        "write a note on the NVDA headline: watch guidance"
+      ]
+    },
+    {
+      "id": "newsLibrary.collection",
+      "source": "Charts family 11-15: Manage collections — create (createCollection)",
+      "capabilities": [
+        "newsLibrary.collection"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.collection"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "newsLibrary.collection",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "op": "create",
+              "collection": null,
+              "name": "Fed"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "newsLibrary": {
+          "collections": [
+            "Fed"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "create a collection called Fed",
+        "make a news collection named Fed",
+        "start a new collection called Fed"
+      ]
+    },
+    {
+      "id": "newsLibrary.deleteCollection",
+      "source": "Charts family 11-15: Manage collections — delete (its headlines stay saved); always a card, no Undo",
+      "capabilities": [
+        "newsLibrary.deleteCollection"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.deleteCollection"
+      ],
+      "seed": {
+        "newsLibrary": {
+          "saved": [
+            "h3"
+          ],
+          "collections": [
+            "Earnings"
+          ],
+          "member": {
+            "h3": [
+              "Earnings"
+            ]
+          }
+        }
+      },
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "newsLibrary.deleteCollection",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "collection": "Earnings"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "newsLibrary": {
+          "collections": [],
+          "saved": [
+            "h3"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "delete my Earnings collection",
+        "remove the Earnings collection",
+        "delete the Earnings collection"
+      ]
+    },
+    {
+      "id": "newsLibrary.place",
+      "source": "Charts family 11-15: the ⋯ menu Collection picker (setMembershipSaving)",
+      "capabilities": [
+        "newsLibrary.place"
+      ],
+      "board": "NEWS_LIB",
+      "needs": [
+        "newsLibrary.place"
+      ],
+      "seed": {
+        "newsLibrary": {
+          "saved": [
+            "h3"
+          ],
+          "collections": [
+            "Earnings"
+          ]
+        }
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "newsLibrary.place",
+            "target": "$newsLibrary[0]",
+            "args": {
+              "headline": "NVDA",
+              "collection": "Earnings",
+              "member": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "newsLibrary": {
+          "member": {
+            "h3": [
+              "Earnings"
+            ]
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "put the NVDA headline in my Earnings collection",
+        "add the NVDA headline to my Earnings collection",
+        "move the NVDA headline into the Earnings collection"
+      ]
+    },
+    {
+      "id": "chartMenu.resetWatermark",
+      "source": "C1-061 (family C, 11-11): Chart Settings → Watermark → Reset to center (opts.watermarkPos = null)",
+      "capabilities": [
+        "chartMenu.resetWatermark"
+      ],
+      "board": "WATERMARK",
+      "needs": [
+        "chartMenu.resetWatermark"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartMenu.resetWatermark",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "watermarkPos": null,
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "reset the watermark on this chart",
+        "put the watermark back in the center",
+        "recenter the watermark"
+      ]
+    },
+    {
+      "id": "chartMenu.askAi",
+      "source": "C1-178 (family C, 11-11): the chart right-click Ask AI about {sym} (/research/:sym?section=ai)",
+      "capabilities": [
+        "chartMenu.askAi"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartMenu.askAi"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartMenu.askAi",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "askAiOpened": [
+          "/research/NVDA?section=ai"
+        ],
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "ask ai about this chart",
+        "ask the ai about the stock on this chart",
+        "open the ai on this chart"
+      ]
+    },
+    {
+      "id": "chartFeatures.companyPanel",
+      "source": "Charts family 11-12: Indicators → Add to Chart adds Company Info (addFeature: added, expanded, default width); its tab strip (setTab)",
+      "capabilities": [
+        "chartFeatures.companyPanel"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartFeatures.companyPanel"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartFeatures.companyPanel",
+            "target": "$charts[0]",
+            "args": {
+              "op": "open",
+              "tab": "news"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "dock": {
+          "company": true,
+          "open": true,
+          "tab": "news",
+          "bottom": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "add the company panel and open news",
+        "show the company info panel on the news tab",
+        "open the profile panel on news"
+      ]
+    },
+    {
+      "id": "chartFeatures.companyPanel.remove",
+      "source": "Charts family 11-12: Add to Chart's remove (removeFeature); Undo restores the member's own width (not DEFAULT_RIGHT_W)",
+      "capabilities": [
+        "chartFeatures.companyPanel"
+      ],
+      "board": "DOCKED",
+      "needs": [
+        "chartFeatures.companyPanel"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartFeatures.companyPanel",
+            "target": "$charts[0]",
+            "args": {
+              "op": "remove",
+              "tab": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "dock": {
+          "company": false,
+          "open": false,
+          "rightW": 520
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "remove the company panel from this chart",
+        "take the company info off the chart",
+        "get rid of the company panel"
+      ]
+    },
+    {
+      "id": "chartFeatures.earningsStrip",
+      "source": "Charts family 11-12: Add to Chart adds the Earnings Strip (addFeature EARNINGS_STRIP: dock.strip; never DOCK_PANELS' unrendered dock.bottom)",
+      "capabilities": [
+        "chartFeatures.earningsStrip"
+      ],
+      "board": "ONE",
+      "needs": [
+        "chartFeatures.earningsStrip"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartFeatures.earningsStrip",
+            "target": "$charts[0]",
+            "args": {
+              "op": "open"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "dock": {
+          "strip": true,
+          "bottom": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "show the earnings strip on this chart",
+        "add the fundamentals strip",
+        "put the earnings strip under the chart"
+      ]
+    },
+    {
+      "id": "chartSetup.stepBars",
+      "source": "C1-032 (pl-exec4): the Time Navigator's one-bar step buttons",
+      "capabilities": [
+        "chartSetup.stepBars"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.stepBars"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.stepBars",
+            "target": "$charts[0]",
+            "args": {
+              "direction": "back",
+              "bars": 5
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "frame": {
+            "fromRight": 125,
+            "toRight": -3,
+            "activeRange": null,
+            "locked": false,
+            "lock": null
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "frame": {
+              "fromRight": 120,
+              "toRight": -8,
+              "activeRange": null,
+              "locked": false,
+              "lock": null
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "step this chart back 5 bars",
+        "go back five bars on the chart",
+        "scroll the chart back 5 bars",
+        "move the chart back 5 bars"
+      ]
+    },
+    {
+      "id": "chartSetup.autoScale",
+      "source": "C1-025 (pl-exec4): the price axis menu's Auto-scale",
+      "capabilities": [
+        "chartSetup.autoScale"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.autoScale"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.autoScale",
+            "target": "$charts[0]",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "priceAuto": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "auto scale this chart",
+        "auto-scale the price axis",
+        "fit the price scale to the bars again",
+        "put the price axis back on auto"
+      ]
+    },
+    {
+      "id": "chartSetup.zoom",
+      "source": "C1-028 (pl-zoom): the chart's + / - time-axis zoom keys",
+      "capabilities": [
+        "chartSetup.zoom"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartSetup.zoom"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartSetup.zoom",
+            "target": "$charts[0]",
+            "args": {
+              "direction": "out",
+              "steps": 1
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "frame": {
+            "fromRight": 136,
+            "toRight": -24,
+            "activeRange": null,
+            "locked": false,
+            "lock": null
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "frame": {
+              "fromRight": 120,
+              "toRight": -8,
+              "activeRange": null,
+              "locked": false,
+              "lock": null
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "zoom this chart out",
+        "zoom out on the chart",
+        "zoom the chart out one step",
+        "give me a wider view of the chart"
+      ]
+    },
+    {
+      "id": "chartReplay.playback",
+      "source": "Charts family (pl-rp): the chart toolbar's Replay / Time Machine bar (start, play, pause, step, jump, speed, exit)",
+      "capabilities": [
+        "chartReplay.playback"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartReplay.playback"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartReplay.playback",
+            "target": "$charts[0]",
+            "args": {
+              "op": "enter",
+              "bars": null,
+              "date": null,
+              "speed": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "barReplay": {
+          "mode": true,
+          "playing": false,
+          "speed": 1
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "barReplay": {
+            "mode": false,
+            "playing": false,
+            "index": null
+          }
+        }
+      },
+      "phrasings": [
+        "start the bar replay",
+        "turn on the bar replay on this chart",
+        "open the replay bar",
+        "start the time machine on this chart"
       ]
     },
     {
@@ -10286,6 +12005,242 @@
       ]
     },
     {
+      "id": "uctIntelligence.add",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — the Indicators library row's add (addUctIntelligence: Auto patterns + labels on)",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "add",
+              "layer": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": true,
+          "autoPatterns": true,
+          "labels": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "add uct intelligence to this chart",
+        "put the UCT Intelligence indicator on this chart",
+        "turn on uct intelligence"
+      ]
+    },
+    {
+      "id": "uctIntelligence.layer",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — a released layer's panel switch (setUctIntelligenceLayer setups)",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "on",
+              "layer": "setups"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": true,
+          "setups": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn on the setups layer",
+        "enable the uct intelligence setups",
+        "switch on setups in uct intelligence"
+      ]
+    },
+    {
+      "id": "uctIntelligence.autoPatterns",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — Auto patterns off (showPatterns, the toolbar Patterns button's key); the indicator stays added",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "off",
+              "layer": "autoPatterns"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": true,
+          "autoPatterns": false
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn off auto patterns",
+        "hide the chart patterns"
+      ]
+    },
+    {
+      "id": "uctIntelligence.remove",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — the row's remove / the panel's x (removeUctIntelligence): every layer off, sub-choices kept",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "remove",
+              "layer": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "uctIntelligence": {
+          "added": false,
+          "autoPatterns": false,
+          "supportResistance": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "remove uct intelligence from this chart",
+        "take the UCT Intelligence indicator off"
+      ]
+    },
+    {
+      "id": "uctIntelligence.gated",
+      "source": "Charts family (2026-11-12): the UCT Intelligence chart indicator — a layer not released to this viewer (no candle_marks): refused, nothing written",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "on",
+              "layer": "candles"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "refusal": true
+      },
+      "phrasings": [
+        "turn on candlestick patterns",
+        "show the candlestick pattern markers"
+      ]
+    },
+    {
+      "id": "uctIntelligence.patterns.which",
+      "source": "AUDIT #1172 ruling 1: a bare \"patterns\" is two features on a chart with UCT Intelligence — Chart IQ (showChartIq, ChartIqToolbarButton) and Auto patterns (showPatterns, PatternToolbarButton). chart.setSetting's fast path reads it as Chart IQ; on this board (UCT Intelligence added) uctIntelligence.set's whole-sentence phrase ASKS which, so nothing is written and no model is called. On a chart without UCT Intelligence the Chart IQ fast path is master's (agentUctIntelligence.test.jsx U9).",
+      "capabilities": [
+        "uctIntelligence.set"
+      ],
+      "board": "UCTI_ADDED",
+      "needs": [
+        "uctIntelligence.set"
+      ],
+      "deterministic": {
+        "say": "^Which patterns do you mean"
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "uctIntelligence.set",
+            "target": "$charts[0]",
+            "args": {
+              "op": "off",
+              "layer": "autoPatterns"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "unchanged": true,
+        "says": [
+          "Which patterns do you mean"
+        ],
+        "modelTurns": 0,
+        "receipt": false
+      },
+      "phrasings": [
+        "turn the patterns off on this chart"
+      ]
+    },
+    {
       "id": "widget.readOptions",
       "source": "Workspace widget controls: a chart has no controls and the fixture board mounts no widget door; agentWidgetControls.test.jsx and the browser run prove the mounted paths",
       "capabilities": [
@@ -10321,7 +12276,18 @@
         "refusal": false
       },
       "phrasings": [
-        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "reason": "boardEdit has no words of its own and phrase rules are frozen: a message reaches this action through the model's need_groups reroute (the group title names it) until description-driven discovery lands", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
+        {
+          "text": "how is that one set right now",
+          "gaps": {
+            "a": {
+              "id": "GAP-WIDGET-READ-ROUTE",
+              "router": "v1",
+              "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)",
+              "owner": "agent-lead",
+              "mode": "\"how is that one set right now\" → widget.readOptions"
+            }
+          }
+        }
       ]
     },
     {
@@ -10364,9 +12330,1428 @@
       "phrasings": [
         "keep a copy of that one"
       ]
+    },
+    {
+      "id": "multiChart.grid.layout",
+      "source": "C3-042..061 (#1030, pl-grid): the Multi Chart grid's own menu, through host.gridControl (GRID board: testing/gridStub.js)",
+      "capabilities": [
+        "multiChart.set"
+      ],
+      "board": "GRID",
+      "needs": [
+        "multiChart.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.set",
+            "target": "$multiChart",
+            "args": {
+              "op": "layout",
+              "rows": 2,
+              "cols": 3,
+              "on": null,
+              "name": null,
+              "direction": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "grid": {
+          "mode": "grid",
+          "layout": "2x3",
+          "cellCount": 6
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "grid": {
+            "mode": "workspace",
+            "layout": "2x2",
+            "cellCount": 4
+          }
+        }
+      },
+      "phrasings": [
+        "can you split my screen into a two by three grid of charts",
+        "open Multi Chart with two rows and three columns"
+      ]
+    },
+    {
+      "id": "multiChart.grid.syncCrosshair",
+      "source": "C3-042..061 (#1030, pl-grid): the Multi Chart grid's own menu, through host.gridControl (GRID board: testing/gridStub.js)",
+      "capabilities": [
+        "multiChart.set"
+      ],
+      "board": "GRID",
+      "needs": [
+        "multiChart.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "multiChart.set",
+            "target": "$multiChart",
+            "args": {
+              "op": "syncCrosshair",
+              "rows": null,
+              "cols": null,
+              "on": true,
+              "name": null,
+              "direction": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "grid": {
+          "syncCrosshair": true,
+          "mode": "workspace"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "grid": {
+            "syncCrosshair": false
+          }
+        }
+      },
+      "phrasings": [
+        "link the crosshairs across the multi chart grid",
+        "turn on crosshair sync for the grid"
+      ]
+    },
+    {
+      "id": "drawing.setActiveBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.setActiveBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Earnings"
+          ],
+          "active": 1
+        }
+      },
+      "needs": [
+        "drawing.setActiveBoard"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.setActiveBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "board": "Swing"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Earnings"
+          ],
+          "active": "Swing"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "boards": {
+            "active": "Earnings"
+          }
+        }
+      },
+      "phrasings": [
+        "switch to my Swing board",
+        "switch to the Swing drawing board",
+        "draw on my Swing board"
+      ]
+    },
+    {
+      "id": "drawing.createBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.createBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing"
+          ],
+          "active": 0
+        }
+      },
+      "needs": [
+        "drawing.createBoard"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.createBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "name": "Earnings"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Earnings"
+          ],
+          "active": "Earnings"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "boards": {
+            "names": [
+              "Swing"
+            ],
+            "active": "Swing"
+          }
+        }
+      },
+      "phrasings": [
+        "create a new drawing board called Earnings",
+        "make a new drawing board named Earnings",
+        "add a drawing board called Earnings"
+      ]
+    },
+    {
+      "id": "drawing.renameBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.renameBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing",
+            ""
+          ],
+          "active": 0
+        }
+      },
+      "needs": [
+        "drawing.renameBoard"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.renameBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "board": "Board 2",
+              "to": "Breakouts"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Breakouts"
+          ],
+          "active": "Swing"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "boards": {
+            "names": [
+              "Swing",
+              "Board 2"
+            ]
+          }
+        }
+      },
+      "phrasings": [
+        "rename Board 2 to Breakouts",
+        "rename my Board 2 drawing board to Breakouts",
+        "call drawing Board 2 Breakouts"
+      ]
+    },
+    {
+      "id": "drawing.deleteBoard",
+      "source": "C1-167..170 (pl-exec1): Drawing Boards, in the real drawings store through the panel's writers",
+      "capabilities": [
+        "drawing.deleteBoard"
+      ],
+      "board": "ONE",
+      "seed": {
+        "boards": {
+          "names": [
+            "Swing",
+            "Breakouts"
+          ],
+          "active": 0,
+          "drawings": {
+            "1": 2
+          }
+        }
+      },
+      "needs": [
+        "drawing.deleteBoard"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "drawing.deleteBoard",
+            "target": "$drawingBoards[0]",
+            "args": {
+              "board": "Breakouts"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "receipt": false,
+        "proposalSays": [
+          "Delete the drawing board “Breakouts”",
+          "2 drawings",
+          "can.t be undone"
+        ],
+        "boards": {
+          "names": [
+            "Swing",
+            "Breakouts"
+          ],
+          "active": "Swing"
+        }
+      },
+      "approve": true,
+      "afterApprove": {
+        "boards": {
+          "names": [
+            "Swing"
+          ],
+          "active": "Swing"
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "delete the Breakouts board",
+        "delete my Breakouts drawing board",
+        "remove the Breakouts drawing board"
+      ]
+    },
+    {
+      "id": "drawing.positionCalculator",
+      "source": "C1-144 (drawing extras): the toolbar's Position tool — the Position Calculator with entry, stop and target",
+      "board": "TIMED",
+      "needs": [
+        "drawing.positionCalculator"
+      ],
+      "capabilities": [
+        "drawing.positionCalculator"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.positionCalculator",
+            "target": "$charts[0]",
+            "args": {
+              "entry": 50,
+              "stop": 48,
+              "target": 56,
+              "side": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "view": {
+          "positionCalc": {
+            "can": true,
+            "open": true,
+            "entry": "50",
+            "stop": "48",
+            "target": "56",
+            "direction": "long"
+          }
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "view": {
+            "positionCalc": {
+              "can": true,
+              "open": false,
+              "entry": "",
+              "stop": "",
+              "target": "",
+              "direction": "long"
+            }
+          }
+        }
+      },
+      "phrasings": [
+        "open the position calculator with entry 50 stop 48 target 56",
+        "size this trade: entry 50, stop 48, target 56",
+        "put a position calculator on the chart, entry 50, stop 48 and target 56"
+      ]
+    },
+    {
+      "id": "drawing.saveDefaults",
+      "source": "C1-160 (drawing extras): a drawing menu's Save as default, onto the chart's drawing defaults",
+      "board": "TIMED",
+      "needs": [
+        "drawing.saveDefaults"
+      ],
+      "capabilities": [
+        "drawing.saveDefaults"
+      ],
+      "before": [
+        {
+          "say": "draw a dashed trendline from 2026-09-02 at 100 to 2026-10-28 at 180",
+          "model": {
+            "ops": [
+              {
+                "action": "drawing.addTrendline",
+                "target": "$drawings[0]",
+                "args": {
+                  "from": {
+                    "date": "2026-09-02",
+                    "price": 100
+                  },
+                  "to": {
+                    "date": "2026-10-28",
+                    "price": 180
+                  },
+                  "color": null,
+                  "style": "dashed"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "drawings": {
+              "count": 1,
+              "has": {
+                "type": "trendline"
+              }
+            }
+          }
+        }
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.saveDefaults",
+            "target": "$charts[0]",
+            "args": {
+              "drawing": "$ctx:drawings.0.drawings.0.id"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "setting": {
+          "key": "drawingDefaults.style",
+          "value": "dashed"
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "setting": {
+            "key": "drawingDefaults.style",
+            "value": "solid"
+          }
+        }
+      },
+      "phrasings": [
+        "make this trendline my default style",
+        "save this trendline's style as the default for new drawings",
+        "use that line's look as my default drawing style"
+      ]
+    },
+    {
+      "id": "drawing.favoriteTool",
+      "source": "C1-165 (drawing extras): the ★ in the drawing toolbar's tools menu",
+      "board": "DRAW",
+      "needs": [
+        "drawing.favoriteTool"
+      ],
+      "capabilities": [
+        "drawing.favoriteTool"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "drawing.favoriteTool",
+            "target": "$charts[0]",
+            "args": {
+              "tool": "fib",
+              "favorite": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "favoriteTools": [
+          "fib"
+        ],
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "favoriteTools": []
+        }
+      },
+      "phrasings": [
+        "add the fib tool to my favourites",
+        "star the fibonacci retracement tool",
+        "put the fib tool on my favorites toolbar"
+      ]
+    },
+    {
+      "id": "rs.compare",
+      "source": "Phase 2 market intelligence (11-13): relative strength + sector / industry leadership, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "rs.compare"
+      ],
+      "board": "ONE",
+      "needs": [
+        "rs.compare"
+      ],
+      "ownWords": [
+        "rs"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "rs.compare",
+            "target": "$stockData",
+            "args": {
+              "scope": "sectors",
+              "symbols": null,
+              "industry": null,
+              "period": "1M"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*rs\\.leadership.*\"scope\":\"sectors\",\"period\":\"1M\""
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which sectors are leading this month",
+        "what are the strongest sectors over the last month",
+        "which sectors are lagging this month",
+        "show me sector leadership for the past month"
+      ]
+    },
+    {
+      "id": "news.movers",
+      "source": "Phase 2 market-moving news + catalysts (11-14): UCT's catalyst board, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "news.movers"
+      ],
+      "board": "ONE",
+      "needs": [
+        "news.movers"
+      ],
+      "ownWords": [
+        "catalysts"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "news.movers",
+            "target": "$stockData",
+            "args": {
+              "symbols": null,
+              "watchlist": null,
+              "sector": null,
+              "date": null,
+              "days": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*catalysts\\.board.*\"params\":\\{\\}"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what's moving the market today",
+        "what is driving stocks this morning",
+        "show me the catalyst board",
+        "what are today's catalysts"
+      ]
+    },
+    {
+      "id": "stock.analystActions",
+      "source": "Terminal data wave 1 (11-17): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels (#1584), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.analystActions"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.analystActions"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.analystActions",
+            "target": "$stockData",
+            "args": {
+              "side": "upgrades"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*analyst\\.actions.*\"params\":\\{\"side\":\"upgrades\"\\}"
+        ],
+        "says": [
+          "Analyst actions from the morning wire of",
+          "served unchanged until the next morning wire"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what got upgraded today",
+        "any analyst upgrades this morning",
+        "which stocks did analysts upgrade",
+        "show me the analyst upgrades from the morning wire"
+      ]
+    },
+    {
+      "id": "stock.sessionHighsLows",
+      "source": "Terminal data wave 1 (11-17): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels (#1584), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.sessionHighsLows"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.sessionHighsLows"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.sessionHighsLows",
+            "target": "$stockData",
+            "args": {
+              "side": "highs",
+              "limit": null,
+              "min_price": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*highsLows\\.session.*\"params\":\\{\"limit\":15\\}"
+        ],
+        "says": [
+          "New highs and new lows of the day",
+          "not 52-week highs and lows"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "new highs today",
+        "what is making new highs today",
+        "which stocks are hitting new highs of the day",
+        "stocks at session highs this morning"
+      ]
+    },
+    {
+      "id": "stock.sectorPerformance",
+      "source": "Terminal data wave 1 (11-17): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels (#1584), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.sectorPerformance"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.sectorPerformance"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.sectorPerformance",
+            "target": "$stockData",
+            "args": {
+              "period": "1M"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*sectors\\.performance.*\"params\":\\{\"period\":\"1M\"\\}"
+        ],
+        "says": [
+          "Sector funds ranked by",
+          "carries no data time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "sector performance this month",
+        "how have the sector funds performed over the last month",
+        "show me sector fund returns for the past month",
+        "sector fund performance over 1 month"
+      ]
+    },
+    {
+      "id": "stock.longRunLeaders",
+      "source": "Terminal data wave 1 (11-17): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels (#1584), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.longRunLeaders"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.longRunLeaders"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.longRunLeaders",
+            "target": "$stockData",
+            "args": {
+              "list": "60D",
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*leaders\\.longRun.*\"params\":\\{\"list\":\"60D\",\"limit\":20\\}"
+        ],
+        "says": [
+          "60-day gainers",
+          "Worked out by UCT at",
+          "Descriptive only"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "top gainers over 60 days",
+        "biggest gainers over the last 60 sessions",
+        "best performers over 60 days",
+        "top gainers in the past 60 trading days"
+      ]
+    },
+    {
+      "id": "stock.darkPoolLevels",
+      "source": "Terminal data wave 1 (11-17): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels (#1584), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.darkPoolLevels"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.darkPoolLevels"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.darkPoolLevels",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*levels\\.darkpool.*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA dark pool levels from confirmed prints",
+          "confirmed overnight"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "dark pool levels on NVDA",
+        "NVDA dark pool levels",
+        "show me the dark pool levels for NVDA",
+        "big dark pool prints in NVDA"
+      ]
+    },
+    {
+      "id": "stock.yearlyHighsLows",
+      "source": "Terminal data wave 2 (11-17): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.yearlyHighsLows"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.yearlyHighsLows"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.yearlyHighsLows",
+            "target": "$stockData",
+            "args": {
+              "side": "highs",
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*highsLows\\.yearly.*\"params\":\\{\"side\":\"highs\",\"limit\":25\\}"
+        ],
+        "says": [
+          "New 52-week highs and lows in the session of",
+          "not highs and lows of the day"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which stocks made new 52-week highs",
+        "which stocks are at new 52-week highs",
+        "what is making new 52 week highs",
+        "what stocks hit a new 52-week high"
+      ]
+    },
+    {
+      "id": "stock.themeRotation",
+      "source": "Terminal data wave 2 (11-17): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.themeRotation"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.themeRotation"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.themeRotation",
+            "target": "$stockData",
+            "args": {
+              "side": "in",
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*themes\\.rotation.*\"params\":\\{\"side\":\"in\",\"limit\":20\\}"
+        ],
+        "says": [
+          "UCT theme rotation",
+          "Worked out by UCT at",
+          "Descriptive only"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which themes are rotating in",
+        "show me the themes rotating in",
+        "what themes is money rotating into",
+        "list the themes that are rotating in"
+      ]
+    },
+    {
+      "id": "stock.confluenceBoard",
+      "source": "Terminal data wave 2 (11-17): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.confluenceBoard"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.confluenceBoard"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.confluenceBoard",
+            "target": "$stockData",
+            "args": {
+              "direction": "bullish",
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*confluence\\.board.*\"params\":\\{\"direction\":\"bull\",\"limit\":20\\}"
+        ],
+        "says": [
+          "UCT confluence board, dark pool window",
+          "not a recommendation"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what is bullish on the confluence board",
+        "show me the bullish confluence names",
+        "bullish names on the confluence board",
+        "which stocks are bullish on the confluence radar"
+      ]
+    },
+    {
+      "id": "stock.expectedMove",
+      "source": "Terminal data wave 2 (11-17): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.expectedMove"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.expectedMove"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.expectedMove",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "report_date": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.expectedMove.*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA expected move:",
+          "not a forecast"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "expected move for NVDA earnings",
+        "what is the implied move on NVDA",
+        "NVDA expected move",
+        "how much is NVDA expected to move on earnings"
+      ]
+    },
+    {
+      "id": "stock.callSearch",
+      "source": "Terminal data wave 2 (11-17): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.callSearch"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.callSearch"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.callSearch",
+            "target": "$stockData",
+            "args": {
+              "q": "tariffs",
+              "symbol": null,
+              "since": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.callSearch.*\"params\":\\{\"q\":\"tariffs\",\"limit\":10\\}"
+        ],
+        "says": [
+          "Earnings calls mentioning \"tariffs\"",
+          "third-party transcript text"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which companies mentioned tariffs on their earnings call",
+        "search earnings calls for tariffs",
+        "who talked about tariffs on their earnings call",
+        "find mentions of tariffs in earnings call transcripts"
+      ]
+    },
+    {
+      "id": "stock.gammaLevels",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.gammaLevels"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.gammaLevels"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.gammaLevels",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*levels\\.gamma.*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA gamma levels from options expiring within a week",
+          "not a quote of the moment"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "gamma levels for NVDA",
+        "where is the call wall on NVDA",
+        "NVDA gamma walls",
+        "what is the zero gamma level for NVDA"
+      ]
+    },
+    {
+      "id": "stock.topFlowPicks",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.topFlowPicks"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.topFlowPicks"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.topFlowPicks",
+            "target": "$stockData",
+            "args": {
+              "status": null,
+              "direction": null,
+              "sort": null,
+              "limit": null,
+              "symbol": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*flow\\.topPicks.*\"params\":\\{\"status\":\"all\",\"direction\":\"any\",\"sort\":\"gain\",\"limit\":20\\}"
+        ],
+        "says": [
+          "UCT Top Flow picks:",
+          "not the stock's move",
+          "too new to score",
+          "It is not a recommendation"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "show me the top flow picks",
+        "how are the top flow picks doing",
+        "what are the top flow picks",
+        "top flow picks"
+      ]
+    },
+    {
+      "id": "stock.flowRecord",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.flowRecord"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.flowRecord"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.flowRecord",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*flow\\.record.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "UCT Flow Record:",
+          "Losers are in every rate",
+          "Past results, not a forecast"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what is the flow record's win rate",
+        "how has the flow record done",
+        "flow record results",
+        "what is the win rate of the flow picks"
+      ]
+    },
+    {
+      "id": "stock.earningsReactions",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.earningsReactions"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.earningsReactions"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.earningsReactions",
+            "target": "$stockData",
+            "args": {
+              "date": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.reactions.*\"params\":\\{\"limit\":25\\}"
+        ],
+        "says": [
+          "Earnings reactions for",
+          "close-to-close change around the report"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "show me the latest earnings reactions",
+        "how did the latest earnings reporters move",
+        "earnings reactions",
+        "how did the stocks that just reported earnings react"
+      ]
+    },
+    {
+      "id": "stock.earningsSeason",
+      "source": "Terminal data wave 4 (11-18): the Agent half of the ERNS, CEOS and GRP terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.earningsSeason"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.earningsSeason"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.earningsSeason",
+            "target": "$stockData",
+            "args": {
+              "date": null,
+              "session": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.season.*\"params\":\\{\"session\":\"all\",\"limit\":25\\}"
+        ],
+        "says": [
+          "Earnings season for",
+          "options priced a move of",
+          "which is not the same as 0%",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "earnings season",
+        "show me the earnings season",
+        "how does earnings season look",
+        "give me the earnings season"
+      ]
+    },
+    {
+      "id": "stock.callThemes",
+      "source": "Terminal data wave 4 (11-18): the Agent half of the ERNS, CEOS and GRP terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.callThemes"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.callThemes"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.callThemes",
+            "target": "$stockData",
+            "args": {
+              "month": null,
+              "list": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.callThemes.*\"params\":\\{\"list\":\"both\",\"limit\":10\\}"
+        ],
+        "says": [
+          "What was said on earnings calls in Nov 2026",
+          "A call counts once",
+          "No transcript text is shown"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what are CEOs saying",
+        "call themes",
+        "rising phrases on earnings calls",
+        "what are executives talking about"
+      ]
+    },
+    {
+      "id": "stock.groupDrill",
+      "source": "Terminal data wave 4 (11-18): the Agent half of the ERNS, CEOS and GRP terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.groupDrill"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.groupDrill"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.groupDrill",
+            "target": "$stockData",
+            "args": {
+              "group": "technology",
+              "kind": "sector",
+              "range": null,
+              "sort": null,
+              "dir": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*group\\.drill.*\"params\":\\{\"range\":\"ytd\",\"kind\":\"sector\"\\}",
+          "^POST /api/agent/data .*group\\.drill.*\"params\":\\{\"range\":\"ytd\",\"kind\":\"sector\",\"group\":\"Technology\",\"sort\":\"pct\",\"dir\":\"desc\",\"limit\":25\\}"
+        ],
+        "says": [
+          "Technology \\(sector\\), this year",
+          "RS rank",
+          "on the confluence board",
+          "It is not a recommendation"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "stocks in the technology sector",
+        "what is in the technology sector",
+        "members of the technology sector",
+        "drill into the technology sector"
+      ]
     }
   ],
   "refusals": [
+    {
+      "id": "refuse.calcTimeframe.unclear-put-on-weekly",
+      "source": "calc-TF family (pl-ctf, 11-12): \"put the 50 sma on weekly\" could mean its calculation, where it shows, or the chart — it ASKS in fixed words, changes nothing, no model turn; the clear follow-up calculates it, and Undo takes it back",
+      "capabilities": [
+        "indicatorStyle.setCalcTimeframe"
+      ],
+      "board": "ONE_TSLA_DEFAULT",
+      "steps": [
+        {
+          "say": "put the 50 sma on weekly",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "calculate the 50 sma on weekly",
+          "expect": {
+            "receipt": true,
+            "modelTurns": 0,
+            "instance": {
+              "find": {
+                "inputs.period": 50,
+                "inputs.maType": "sma"
+              },
+              "has": {
+                "calculationTimeframe": "W"
+              }
+            }
+          }
+        },
+        {
+          "say": "undo",
+          "expect": {
+            "restored": true
+          }
+        }
+      ]
+    },
     {
       "id": "refuse.undo-nothing",
       "capabilities": [
@@ -12071,6 +15456,103 @@
             }
           }
         }
+      ]
+    },
+    {
+      "id": "refuse.exportList-no-menu",
+      "source": "pl-widget (watchlist group D, carried from pl-exec): a Watchlist widget with no list menu mounted (no door) has nothing to copy or export; nothing is downloaded, no receipt (agentWatchlistOut.test.jsx has the door)",
+      "capabilities": [
+        "watchlist.exportList"
+      ],
+      "board": "WLW",
+      "steps": [
+        {
+          "say": "export my watchlist as a csv",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.exportList",
+                "target": "$board",
+                "args": {
+                  "widget": "wl1",
+                  "format": "csv"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.arrangeColumns-standin",
+      "source": "pl-widget (C3-085 / C3-086): a list widget that publishes no column-drag results (the stand-in view) is refused, never written; listControl.outcome.test.jsx moves and resizes on the real widget",
+      "capabilities": [
+        "watchlist.arrangeColumns"
+      ],
+      "board": "LISTVIEW",
+      "steps": [
+        {
+          "say": "move % change before price",
+          "model": {
+            "ops": [
+              {
+                "action": "watchlist.arrangeColumns",
+                "target": "$listViews[0]",
+                "args": {
+                  "column": "% change",
+                  "before": "price",
+                  "after": null,
+                  "width": null
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.multiChart.cell-grid-closed",
+      "source": "C3-042..061 (#1030, pl-grid): the Multi Chart grid's own menu, through host.gridControl (GRID board: testing/gridStub.js): a cell button with Multi Chart closed: no grid cell is a target, nothing changes",
+      "capabilities": [
+        "multiChart.cell"
+      ],
+      "board": "GRID",
+      "steps": [
+        {
+          "say": "maximize the top-left chart in the multi chart grid",
+          "model": {
+            "ops": [
+              {
+                "action": "multiChart.cell",
+                "target": "$charts[0]",
+                "args": {
+                  "op": "maximize"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "refusedAction": "multiChart.cell",
+            "grid": {
+              "maxId": null,
+              "mode": "workspace"
+            }
+          }
+        }
+      ],
+      "refuses": [
+        "multiChart.cell"
       ]
     }
   ]

@@ -73,10 +73,10 @@ def test_companion_60m_drops_overlapping_hour_only(bars_db):
 
 
 def test_companion_60m_dedupes_buckets(bars_db):
-    """Two 30m bars in the same hour map to ONE 60m bucket delete."""
-    h = 11
-    a = _et_unix(2026, 6, 8, h, 0)
-    b = _et_unix(2026, 6, 8, h, 30)
+    """Two 30m bars in the same hour map to ONE 60m bucket delete (the
+    TradingView session grid: 11:30 and 12:00 both sit in the 11:30 hour)."""
+    a = _et_unix(2026, 6, 8, 11, 30)
+    b = _et_unix(2026, 6, 8, 12, 0)
     bucket = bucket_60_et_unix_seconds(a)
     assert bucket_60_et_unix_seconds(b) == bucket
 

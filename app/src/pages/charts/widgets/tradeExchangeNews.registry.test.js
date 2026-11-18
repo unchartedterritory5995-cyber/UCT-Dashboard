@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, WORKSPACE_MENU_TYPES_ALL, WORKSPACE_PICKER_TYPES, TAB_PICKER_TYPES, TAB_MENU_TYPES,
-  MOBILE_MENU_TYPES, JOURNAL_MENU_TYPES, PICKER_ONLY_WIDGETS, labelMap, catalogMeta, WIDGET_CATEGORIES, menuGroups,
+  MOBILE_MENU_TYPES, JOURNAL_MENU_TYPES, PICKER_ONLY_WIDGETS, HIDDEN_WIDGETS, labelMap, catalogMeta, WIDGET_CATEGORIES, menuGroups,
 } from '../../../widgets/registry'
 import { UNRELEASED_CAPTURE_WIDGETS, releasedTypes } from '../../../widgets/captureRelease'
 import { WORKSPACE_WIDGETS } from '../WidgetHost'
@@ -28,7 +28,8 @@ describe('tradeExchangeNews registration', () => {
     expect(TAB_PICKER_TYPES).toContain('tradeExchangeNews')
     expect(TAB_MENU_TYPES).not.toContain('tradeExchangeNews')            // UCT Agent's widget.addTab list
     const research = menuGroups('workspace').find((g) => g.key === 'research')
-    expect(research.items).toEqual(expect.arrayContaining(['news', 'tradeExchangeNews']))
+    expect(research.items).toContain('tradeExchangeNews')
+    expect(research.items, 'News & Catalysts is hidden (owner 2026-11-13)').not.toContain('news')
     // Still no phone sheet and no Notebook capture.
     expect(MOBILE_MENU_TYPES).not.toContain('tradeExchangeNews')
     expect(JOURNAL_MENU_TYPES).not.toContain('tradeExchangeNews')
@@ -43,14 +44,16 @@ describe('tradeExchangeNews registration', () => {
     const baseline = WORKSPACE_MENU_TYPES_ALL.filter((id) => !['indexes', 'marketcontext', 'tradeExchangeNews', 'researchLibrary'].includes(id))
     expect(WORKSPACE_MENU_TYPES).toEqual(baseline)                       // default browser, as in production
     expect(WORKSPACE_MENU_TYPES).not.toContain('tradeExchangeNews')
-    expect(WORKSPACE_PICKER_TYPES.filter((id) => !PICKER_ONLY_WIDGETS.includes(id))).toEqual(WORKSPACE_MENU_TYPES)
+    // Member menus additionally drop the owner's hidden widgets (2026-11-13); the Agent keeps them.
+    expect(WORKSPACE_PICKER_TYPES.filter((id) => !PICKER_ONLY_WIDGETS.includes(id))).toEqual(WORKSPACE_MENU_TYPES.filter((id) => !HIDDEN_WIDGETS.includes(id)))
   })
 
-  it('leaves News & Catalysts registered, offered and bound exactly as before', () => {
+  it('leaves News & Catalysts registered and bound, but hidden from every member add menu (owner 2026-11-13)', () => {
     expect(WIDGET_REGISTRY.news.labels).toEqual({ header: 'News', menu: 'News & Catalysts', tab: 'News' })
     expect(WIDGET_REGISTRY.news.menus).toMatchObject({ workspace: true, tab: true, mobile: false, journal: false })
-    expect(WORKSPACE_MENU_TYPES).toContain('news')
-    expect(WORKSPACE_PICKER_TYPES).toContain('news')
+    expect(HIDDEN_WIDGETS).toContain('news')
+    expect(WORKSPACE_MENU_TYPES).toContain('news')                        // admin-only Agent keeps it
+    expect(WORKSPACE_PICKER_TYPES).not.toContain('news')
     expect(WORKSPACE_WIDGETS.news.component.name).toBe('NewsWidget')
     expect(labelMap('menu').news).toBe('News & Catalysts')
   })

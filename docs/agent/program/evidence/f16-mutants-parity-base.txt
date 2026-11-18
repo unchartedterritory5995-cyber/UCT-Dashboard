@@ -1,0 +1,9 @@
+# head 673a92b65e tag=base 2026-11-10T22:29:50Z
+LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# diff: 
+ RUN  v4.0.18 C:/w/pl-widget-f16/app
+ ✓ src/agent/agentFlowChipsParity.test.js (3 tests) 5ms
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  17:29:53
+   Duration  1.24s (transform 211ms, setup 374ms, import 52ms, tests 5ms, environment 627ms)

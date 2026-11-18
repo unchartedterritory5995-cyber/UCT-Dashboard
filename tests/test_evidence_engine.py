@@ -38,6 +38,7 @@ GAMMA = "// This source code is subject to the terms of the Mozilla Public Licen
         'indicator("Gamma")\nplot(high)\n'
 DUP_A = '// SPDX-License-Identifier: MIT\nindicator("Dup A")\nplot(close)\n'
 DUP_B = '// SPDX-License-Identifier: MIT\nindicator("Dup B")\nplot(open)\n'
+MYSTERY = 'indicator("M")\nplot(low)\n'      # no licence line: licence-held, LEDGER_ONLY
 
 DOC = """# Capture queue - 2026-11-02 test
 
@@ -111,6 +112,7 @@ def _fixture(path: pathlib.Path, cid: str, text: str, symbol="NYSE:RDDT", tf="D"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"schema": "uct.vendor-capture/v1", "id": cid,
                                 "symbol": {"name": symbol.split(":")[-1], "pro_name": symbol},
+                                "receipt": {"fnv1a": _sha(cid)[:8]},
                                 "timeframe": tf, "source": {"text": text, "sha256": _sha(text)}}), encoding="utf-8")
 
 
@@ -600,6 +602,9 @@ def _run_dir(tmp_path, world, items, verdict_for=None, asked_stem=None):
             verdicts.append({"id": cid, "verdict": "MATCH", "reason": "ok", "plots": []})
     (rd / "manifest.json").write_text(json.dumps({"scripts": scripts}), encoding="utf-8")
     (rd / "verdicts.json").write_text(json.dumps({"results": verdicts}), encoding="utf-8")
+    # what `grade` writes beside its verdicts: the engine and grader they were graded at
+    (rd / ee.GRADE_STAMP).write_text(json.dumps({"scriptEngineVersion": 41, "graderVersion": "testgrader01",
+                                                 "gradedAtUTC": "2026-11-13T00:00:00Z"}), encoding="utf-8")
     return rd
 
 
@@ -724,7 +729,15 @@ def test_promote_needs_the_packet_sha_and_files_every_verdict(tmp_path, world):
     rows = [json.loads(x) for x in ledger.read_text(encoding="utf-8").splitlines()]
     assert {r["captureId"]: r["promoted"] for r in rows} == {"alpha-rddt-1d-2026-11-02": True,
                                                               "mystery-rddt-1d-2026-11-02": False}
-    assert all(r["provenance"]["account"] == "abc123def456" and r["packetSha256"] == sha for r in rows)
+    # ⛔ LEDGER_ONLY: the row is the verdict and what re-checks it -- never the source, never the account
+    assert all(r["packetSha256"] == sha and r["schema"] == ee.el.SCHEMA for r in rows)
+    assert all("provenance" not in r and "abc123def456" not in json.dumps(r) for r in rows)
+    assert all(r["scriptEngineVersion"] == 41 and r["graderVersion"] == "testgrader01" for r in rows)
+    assert all(r["verdicts"] == {"production": {"verdict": "MATCH", "reason": "ok"}, "runtime-on": None} for r in rows)
+    assert 'indicator("M")' not in ledger.read_text(encoding="utf-8") and "plot(close)" not in ledger.read_text(encoding="utf-8")
+    held = next(r for r in rows if r["captureId"] == "mystery-rddt-1d-2026-11-02")
+    assert held["licence"] == "held" and held["promoted"] is False and held["fixture"] is None
+    assert held["sourceSha256"] == _sha(MYSTERY)
     assert all(r["chartDefaulted"] is False for r in rows)
     # the same packet cannot promote twice: the run now differs from what was read
     with pytest.raises(ee.PromoteRefused, match="changed since the packet"):
@@ -757,12 +770,34 @@ def test_promote_never_overwrites_a_fixture_that_appeared_after_the_check(tmp_pa
     assert (fx / "alpha-rddt-1d-2026-11-02.json").read_text(encoding="utf-8") == "someone else's capture"
 
 
+def _ledger_row(cid, engine=41):
+    cap = {"id": cid, "receipt": {"fnv1a": _sha(cid)[:8]}, "symbol": {"pro_name": "NYSE:RDDT"}, "timeframe": "D",
+           "source": {"text": ALPHA, "sha256": _sha(ALPHA)}}
+    return ee.el.make_row(capture=cap, capture_bytes=json.dumps(cap).encode("utf-8"),
+                          verdicts={"production": {"verdict": "MATCH", "reason": "ok"}}, filed_by="promote",
+                          licence="probe", engine=engine, grader="testgrader01", stamp="2026-11-13T00:00:00Z")
+
+
 def test_the_ledger_files_each_capture_once(tmp_path):
     ledger = tmp_path / "l.jsonl"
-    rows = [{"captureId": "a-rddt-1d-2026-11-02", "receipt": 1}, {"captureId": "b-rddt-1d-2026-11-02", "receipt": 2}]
+    rows = [_ledger_row("a-rddt-1d-2026-11-02"), _ledger_row("b-rddt-1d-2026-11-02")]
     assert ee.append_ledger(ledger, rows) == 2
     assert ee.append_ledger(ledger, rows) == 0
     assert len(ledger.read_text(encoding="utf-8").splitlines()) == 2
+    # ...and a regrade of the same capture at a NEW engine is new evidence, filed beside it
+    assert ee.append_ledger(ledger, [_ledger_row("a-rddt-1d-2026-11-02", engine=42)]) == 1
+
+
+def test_promote_refuses_a_run_with_no_grade_stamp(tmp_path, world):
+    """A verdict whose engine is unknown can never be judged fresh: nothing is filed."""
+    fx = tmp_path / "fixtures"
+    rd = _run_dir(tmp_path, world, [("mystery-rddt-1d-2026-11-02", MYSTERY)])
+    (rd / ee.GRADE_STAMP).unlink()
+    sha = ee.write_packet(rd, ee.build_packet(rd, world, OkVerifier(), fx))
+    with pytest.raises(ee.PromoteRefused, match="grade-stamp"):
+        ee.promote(rd, sha[:12], world=world, verifier=OkVerifier(), fixtures_dir=fx,
+                   ledger=tmp_path / "l.jsonl", log=lambda *a: None)
+    assert not (tmp_path / "l.jsonl").exists()
 
 
 def test_a_run_that_changed_after_the_packet_refuses(tmp_path, world):
@@ -831,3 +866,65 @@ def test_every_committed_queue_doc_parses_and_every_target_resolves_to_its_file(
         assert not (t["needsLive"] and t["status"] == "QUEUED"), t["id"]
         assert not (t["chartDefaulted"] and t["status"] != "NEEDS_CHART"), t["id"]
         assert ee.STEM_RX.fullmatch(t["captureStem"]), t["id"]
+
+
+# ── the ONE live marker (2026-11-08): an explicit `live` column, else a pattern that names a SESSION ─────────
+@pytest.mark.parametrize("text", [
+    "`w9-q-s1e-live-past.pine` | NYSE:RDDT 1D | an exit already past its level",     # `live` in a probe name
+    "`w9-p3-every-tick-history.pine` | NYSE:RDDT 1D | calc on every tick over history",
+    "`w9-q-s1d-same-tick.pine` | NYSE:RDDT 1D | ids by label",
+    "`str.tostring(x, format.mintick)` per pass | AMEX:SPY 1D",                       # Q-W3-6's mintick
+    "exit levels given as ticks (profit/loss)",
+    "AMEX:SPY **1W** and **1M**",                                                     # 1M is MONTHLY
+    "3 passes and `y = 23, 24` left => over the live list",                           # live = not a snapshot
+    "`varip` counter over history",
+    "No market hours needed: every row is read off historical bars",
+])
+def test_a_word_that_also_names_history_is_not_a_live_session(text):
+    assert ee.row_needs_live(["row", "probe", "chart"], ["Z", text, ""], text, "t") is False
+
+
+@pytest.mark.parametrize("text", [
+    "AMEX:SPY 5 during regular hours, newest bar forming",
+    "needs market hours", "realtime ticks", "real-time updates", "Q-S1-core during RTH on SPY 5",
+    "two readings minutes apart",
+])
+def test_a_row_that_names_a_session_is_live(text):
+    assert ee.row_needs_live(["row", "probe"], ["Z", text], text, "t") is True
+
+
+def test_the_live_column_is_the_authority_for_its_table_both_ways():
+    head = ["row", "probe", "chart", "live"]
+    assert ee.row_needs_live(head, ["Q", "`p.pine`", "AMEX:SPY 5", "yes"], "x", "t") is True
+    # the column says no: a session word in the row does not overrule it
+    assert ee.row_needs_live(head, ["Q", "`p.pine`", "realtime forming", "no"], "realtime forming", "t") is False
+    assert ee.row_needs_live(["row", "needs market hours"], ["Q", "**true**"], "", "t") is True
+    with pytest.raises(ee.LiveMarkerError, match="must be one of"):
+        ee.row_needs_live(head, ["Q", "`p.pine`", "AMEX:SPY 5", "maybe"], "", "t")
+
+
+#: The six rows the 2026-11-08 capture plan named: four history captures the old word pattern marked live, and
+#: the only two W9 rows that truly need a session.
+LIVE_ROWS = {
+    ("capture-queue-2026-11-05-w9", "W9-P3"): False, ("capture-queue-2026-11-05-w9", "Q-S1d"): False,
+    ("capture-queue-2026-11-05-w9", "Q-S1e"): False, ("capture-queue-2026-11-02-w3", "Q-W3-6"): False,
+    ("capture-queue-2026-11-05-w9", "Q-S1o"): True, ("capture-queue-2026-11-05-w9", "Q-S1p-live"): True,
+}
+
+
+def test_the_committed_live_rows_are_exactly_the_session_rows():
+    world = ee.World()
+    got = {}
+    for stem, rid in LIVE_ROWS:
+        rows = ee.parse_doc(world, REPO / "docs" / "pine" / f"{stem}.md")["rows"]
+        got[(stem, rid)] = next(r["needsLive"] for r in rows if r["key"] == f"{stem}#{rid}")
+    assert got == LIVE_ROWS
+    q = ee.build_queue()          # derived; the snapshot is a local view since 2026-11-16, never committed
+    by = {t["id"]: t["status"] for t in q["targets"]}
+    # a row that needs no live session is capturable on a closed market: QUEUED until its capture is
+    # committed, CAPTURED after (the two U14 strategy captures of 2026-11-15, #1370), never NEEDS_LIVE
+    for tid in ("w9-q-s1d-same-tick@NYSE:RDDT@D", "vw-w3-loop-ternary-text@AMEX:SPY@D"):
+        assert by[tid] == "QUEUED", tid
+    for tid in ("w9-p3-every-tick-history@NYSE:RDDT@D", "w9-q-s1e-live-past@NYSE:RDDT@D"):
+        assert by[tid] == "CAPTURED", tid
+    assert by["w9-q-s1o-every-tick@AMEX:SPY@5"] == by["s1-broker-core@AMEX:SPY@5"] == "NEEDS_LIVE"

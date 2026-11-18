@@ -16,10 +16,21 @@
 // the committed file, so editing anything here without re-exporting goes red.
 //
 // ⛔ THE READOUT CARDS ARE NOT RETYPED. `CARD_KEYS` and `CARDS` are read from the
-// registered `rsLine` definition's `readout` (every row that carries a `card`), so
-// the definition stays the one authority for the card copy and a rewrite of the
-// cards (v4: Rotation, Quality, VARS) flows here on the next export. Nothing in
-// this file names a card.
+// `rsLine` definition's `readout` (every row that carries a `card`), so the
+// definition stays the one authority for the card copy and a rewrite of the cards
+// flows here on the next export. Nothing in this file names a card.
+//
+// ⭐ U9 (RS split, 2026-11-09): THE SLIM UCT RS LINE'S READOUT, UNDER BOTH BUILD
+// FLAGS. `nativeRegistry.js` registers one of two `rsLine` definitions by
+// `VITE_RS_SPLIT_ENABLED` (map §(a) U7); the export must not depend on which one a
+// build registered, or the committed JSON goes stale on the flag flip and Python
+// (Compass, `rs_read_tools.explain_term`) would teach a Reading the chart no
+// longer draws. So the cards are read from `RS_LINE_SLIM_RAW`, the definition that
+// survives U10: the benchmark, the rating, the line against its average, the RS
+// high, the gold dot, the red-day dot and the four checks. V5's extra cards
+// (Mansfield, Rotation, Quality, VARS, Agreement, Regime, the fast rating and the
+// rating Reading) describe readings that leave the chart with the split and are not
+// member teaching copy any more; the terms live on in the glossary.
 //
 // Voice (plan v4 §3): declarative, present tense, no exclamation marks, no emoji,
 // no "buy" or "sell", no "guarantee", none of the banned phrases. RS is the stock
@@ -30,7 +41,7 @@
 // "3 to 5 points of MarketSurge" figure (v4 §18) and the clockwise-rotation claim,
 // and "RS new high before price" carries IBD's own words, not a hit rate.
 
-import { getDefinition } from '../../components/chart/engine/nativeRegistry.js'
+import { RS_LINE_SLIM_RAW } from '../../components/chart/engine/nativeRegistry.js'
 // The words (tagline, glossary, misconceptions, tour) are authored in
 // `teachingData.js`, which imports nothing, so the public glossary page can read
 // them without the chart engine. Re-exported below unchanged.
@@ -71,13 +82,15 @@ export function cardsFromReadout(readout) {
   return out
 }
 
-function rsReadout() {
-  const def = getDefinition(RS_DEF_ID)
-  if (!def || !Array.isArray(def.readout)) {
+/** The slim UCT RS Line's readout (U9: the same rows whichever `rsLine` the build registered). */
+export function rsTeachingReadout() {
+  const def = RS_LINE_SLIM_RAW
+  if (!def || def.id !== RS_DEF_ID || !Array.isArray(def.readout)) {
     throw new Error(`teaching: definition "${RS_DEF_ID}" has no readout`)
   }
   return def.readout
 }
+const rsReadout = rsTeachingReadout
 
 export const CARDS = Object.freeze(cardsFromReadout(rsReadout()))
 export const CARD_KEYS = Object.freeze(Object.keys(CARDS))

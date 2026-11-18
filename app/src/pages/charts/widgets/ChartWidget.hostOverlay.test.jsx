@@ -96,14 +96,28 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers() })
 
-test('/charts (no host): no extra price lines, and the 90 ms scan pause still holds', async () => {
+test('/charts (no host): no extra price lines, and a change after a quiet stretch switches at once', async () => {
   render(<Wrap />)
   expect(seen.lines).toBeNull()
   act(() => { setGroup('BBB') })
-  await tick(50)
-  expect(shown()).toBe('AAA')
-  await tick(100)
+  await tick(0)
   expect(shown()).toBe('BBB')
+})
+
+test('/charts (no host): a key-through keeps only the leading and the last symbol', async () => {
+  render(<Wrap />)
+  act(() => { setGroup('BBB') })
+  await tick(0)
+  act(() => { setGroup('CCC') })
+  await tick(100)
+  act(() => { setGroup('DDD') })
+  await tick(100)
+  act(() => { setGroup('EEE') })
+  await tick(50)
+  expect(shown()).toBe('BBB')
+  memState.set('EEE_5', CURRENT())     // arrives after the deferred decision
+  await tick(130)
+  expect(shown()).toBe('EEE')
 })
 
 test("a host's price lines reach the chart for the symbol on show only", async () => {

@@ -149,8 +149,22 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
     // READ — a `setreg` to null — and it sits behind the same unreadable guard as
     // the delete beside it, so it is one more attempted step and one more counted
     // drop. It used to vanish without a count.
-    expect(Object.keys(byName).sort()).toEqual(['Drawings', 'alertcondition', 'baseTimeframeFolds'])
-    expect(byName.Drawings).toMatch(/^9 of 18 drawing elements in this script aren't supported yet/)
+    // ⭐ ENGINE 58 — `Volume`: its colour (`vcolornew`, reassigned in an `if`) is one this
+    // door cannot read, so it is withheld by name and drawn in the chart's neutral ink
+    // ("colour not reproduced"), never the gold.
+    expect(Object.keys(byName).sort()).toEqual(['Drawings', 'Volume', 'alertcondition', 'baseTimeframeFolds'])
+    // ⛔ 10 of 18 since engine 51: the Volume table's create is withheld by name
+    // (`enum:unreadable`). Its position is `f_getTablePos(hasRecentHV ? 'Top Center' :
+    // volTablePosition)` on the last bar; both arms are fixed strings and are read,
+    // but `hasRecentHV` reads `lastHVBarIdx`, latched on `isHVEvent`, which reads
+    // `ta.highest` inside a block that does not run on every bar — refused on this
+    // lane (C31). With no reading of the condition the corner is not drawn at a
+    // default. Evidence: docs/pine/evidence/2026-11-12-engine51-cell-order.
+    // ⛔ 11 of 18 since engine 52 (STOP item, reported): the Range table's ATRx cell is withheld
+    // by name too (`pine:prop-unreadable`, its `text_color` is a reassigned colour no reader follows).
+    // The Volume table stays withheld (C31: its position's condition reads `ta.highest` in a
+    // conditionally-run block; see the engine-52 EVIDENCE for why the gate path is not enabled).
+    expect(byName.Drawings).toMatch(/^11 of 18 drawing elements in this script aren't supported yet/)
 
     // Ruling D1: the condition is not drawn, and the member is told where it went.
     expect(byName.alertcondition).toContain("'HVE Trigger'")
@@ -194,7 +208,9 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
       source: '//@version=6\nindicator("ov", overlay = true)\nplot(sma(close, 20))\n',
     })
     expect(r.ok).toBe(true)
-    expect(r.definition.placement).toEqual({ target: 'price' })
+    // PRICE-SCALE JOIN (2026-11-16): and its plots take part in the price pane's autoscale, as
+    // TradingView's do by default (`joinsPriceScale`, `__tests__/priceScaleJoin.test.js`).
+    expect(r.definition.placement).toEqual({ target: 'price', joinPriceScale: true })
   })
 })
 

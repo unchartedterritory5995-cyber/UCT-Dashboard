@@ -27,7 +27,9 @@ named call. `SECOND_DATABASES` lists them; a store's tables are listed only when
 source actually makes that call (an AST read of the call, not of a comment), so the manifest
 can never claim a database the purge does not reach. A store may also name a literal JOIN tuple
 of `(table, key column, parent member table)` for its rows that carry no member id (the alert
-stores: `alert_erasure.py`, one call reaching five databases).
+stores: `alert_erasure.py`, one call reaching five databases), and a literal ANONYMISED tuple of
+`(table, column)` whose rows stay with the member's id cleared (`member_store_erasure.py`: the
+Agent's shared limits, the Study bank's reviewer columns -- owner ruling 2026-11-17).
 
 Pure text in, text out: this touches no database and no path outside the repo.
 """
@@ -48,17 +50,26 @@ END = "<!-- END GENERATED -->"
 
 #: (database file, its erasure module, the module's literal member-table tuple,
 #:  the `<module>.<function>` call account_purge.py makes to reach it,
-#:  the module's literal JOIN tuple of `(table, key column, parent member table)`, or None)
+#:  the module's literal JOIN tuple of `(table, key column, parent member table)`, or None,
+#:  the module's literal ANONYMISED tuple of `(table, column)`, or None)
 _ALERTS = REPO / "api" / "services" / "alert_erasure.py"
+_MEMBER_STORES = REPO / "api" / "services" / "member_store_erasure.py"
 SECOND_DATABASES = (
     ("user_definitions.db", REPO / "api" / "services" / "user_definitions_erasure.py",
-     "MEMBER_TABLES", ("user_definitions", "purge_user"), None),
+     "MEMBER_TABLES", ("user_definitions", "purge_user"), None, None),
     ("alert_taxonomy.db", _ALERTS, "ALERT_TAXONOMY_TABLES", ("alert_erasure", "purge_user"),
-     "ALERT_TAXONOMY_JOINS"),
-    ("screener.db", _ALERTS, "SCREENER_TABLES", ("alert_erasure", "purge_user"), "SCREENER_JOINS"),
-    ("calendar_alerts.db", _ALERTS, "CALENDAR_ALERTS_TABLES", ("alert_erasure", "purge_user"), None),
-    ("transcript_alerts.db", _ALERTS, "TRANSCRIPT_ALERTS_TABLES", ("alert_erasure", "purge_user"), None),
-    ("catalysts.db", _ALERTS, "CATALYSTS_TABLES", ("alert_erasure", "purge_user"), None),
+     "ALERT_TAXONOMY_JOINS", None),
+    ("screener.db", _ALERTS, "SCREENER_TABLES", ("alert_erasure", "purge_user"), "SCREENER_JOINS", None),
+    ("calendar_alerts.db", _ALERTS, "CALENDAR_ALERTS_TABLES", ("alert_erasure", "purge_user"), None, None),
+    ("transcript_alerts.db", _ALERTS, "TRANSCRIPT_ALERTS_TABLES", ("alert_erasure", "purge_user"), None, None),
+    ("catalysts.db", _ALERTS, "CATALYSTS_TABLES", ("alert_erasure", "purge_user"), None, None),
+    # The member stores the 2026-11-17 census found: one call reaching three databases. The rest of
+    # uct_agent.db and study.db joined them on the owner's ruling of the same day.
+    ("chart_iq_feedback.db", _MEMBER_STORES, "CHART_IQ_FEEDBACK_TABLES", ("member_store_erasure", "purge_user"),
+     None, None),
+    ("uct_agent.db", _MEMBER_STORES, "UCT_AGENT_TABLES", ("member_store_erasure", "purge_user"),
+     "UCT_AGENT_JOINS", "UCT_AGENT_ANONYMISED"),
+    ("study.db", _MEMBER_STORES, "STUDY_TABLES", ("member_store_erasure", "purge_user"), None, "STUDY_ANONYMISED"),
 )
 
 _JOIN = re.compile(
@@ -131,6 +142,23 @@ def _literal_joins(path: Path, name: str) -> list[tuple[str, str, str]]:
     raise DerivationError(f"{path.name}: no {name} assignment found")
 
 
+def _literal_pairs(path: Path, name: str) -> list[tuple[str, str]]:
+    """The literal tuple of `(table, column)` string pairs assigned to `name` at module level in `path`."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == name for t in node.targets):
+            if not isinstance(node.value, (ast.Tuple, ast.List)) or not node.value.elts:
+                raise DerivationError(f"{path.name}: {name} is not a non-empty literal tuple")
+            out = []
+            for elt in node.value.elts:
+                if not (isinstance(elt, ast.Tuple) and len(elt.elts) == 2 and all(
+                        isinstance(x, ast.Constant) and isinstance(x.value, str) for x in elt.elts)):
+                    raise DerivationError(f"{path.name}: {name} holds a non-literal pair at line {elt.lineno}")
+                out.append(tuple(x.value for x in elt.elts))
+            return out
+    raise DerivationError(f"{path.name}: no {name} assignment found")
+
+
 def _calls(tree: ast.AST, module: str, function: str) -> bool:
     """Does the purge's source call `<module>.<function>(...)`?"""
     for node in ast.walk(tree):
@@ -187,10 +215,11 @@ def derive(source: str | None = None) -> dict:
     if dupes:
         raise DerivationError(f"listed twice in _DIRECT_USER_TABLES: {dupes}")
     databases = {}
-    for db, module_path, tuple_name, (mod, fn), joins_name in SECOND_DATABASES:
+    for db, module_path, tuple_name, (mod, fn), joins_name, anon_name in SECOND_DATABASES:
         if _calls(tree, mod, fn):
             databases[db] = {"tables": _literal_tuple(module_path, tuple_name),
                              "joins": _literal_joins(module_path, joins_name) if joins_name else [],
+                             "anonymised": _literal_pairs(module_path, anon_name) if anon_name else [],
                              "module": module_path.relative_to(REPO).as_posix(),
                              "call": f"{mod}.{fn}"}
     return {"direct": direct, "indirect": indirect, "keyed": keyed, "hashed": hashed,
@@ -221,7 +250,15 @@ def _anonymised(tree: ast.AST) -> list[tuple[str, list[str]]]:
 
 
 def anonymised_tables(source: str | None = None) -> set[str]:
-    return {t for t, _cols in derive(source)["anonymised"]}
+    """auth.db's `_ANONYMISED` tables and every second database's ANONYMISED tables."""
+    d = derive(source)
+    return ({t for t, _cols in d["anonymised"]}
+            | {t for info in d["databases"].values() for t, _col in info["anonymised"]})
+
+
+def second_database_anonymised(source: str | None = None) -> set[tuple[str, str]]:
+    """`(table, column)` for every second database's ANONYMISED pair."""
+    return {(t, c) for info in derive(source)["databases"].values() for t, c in info["anonymised"]}
 
 
 def with_account_row_tables(source: str | None = None) -> set[str]:
@@ -229,6 +266,8 @@ def with_account_row_tables(source: str | None = None) -> set[str]:
 
 
 def purged_tables(source: str | None = None) -> set[str]:
+    """Every table the purge issues a DELETE against (a second database's ANONYMISED tables only
+    when they are also deleted by a member key of their own)."""
     d = derive(source)
     return (set(d["direct"]) | {t for t, _fk, _p in d["indirect"]} | {t for t, _c in d["keyed"]}
             | {t for t, _c, _f in d["hashed"]}
@@ -261,11 +300,14 @@ def render(source: str | None = None) -> str:
         rows.append(f"| `{table}` | `{col}` (`{via}(user_id)`, a keyed hash of the member's id) | Direct | "
                     f"`DELETE FROM {table} WHERE {col} = ?` with `{via}(user_id)` |")
     for db, info in d["databases"].items():
+        reached = len(info["tables"]) + len({t for t, _fk, _p in info["joins"]} - set(info["tables"]))
+        cleared = (f" **{len(info['anonymised'])} columns** keep their rows and lose the member's id "
+                   "(NULL, or '' where the column is NOT NULL)." if info["anonymised"] else "")
         rows += [
             "",
             f"**{db}** -- a second database, which no statement on auth.db reaches: "
-            f"**{len(info['tables']) + len(info['joins'])} tables**, deleted by `{info['module']}` through "
-            f"`{info['call']}`.",
+            f"**{reached} tables**, deleted by `{info['module']}` through "
+            f"`{info['call']}`.{cleared}",
             "",
             "| Table | Owner key | Ownership | How the purge deletes it |",
             "|---|---|---|---|",
@@ -275,6 +317,10 @@ def render(source: str | None = None) -> str:
                         f"join delete through `{parent}`, run before the direct deletes |")
         for table in info["tables"]:
             rows.append(f"| `{table}` | `user_id` | Direct ({db}) | `DELETE FROM {table} WHERE user_id = ?` |")
+        for table, col in info["anonymised"]:
+            rows.append(f"| `{table}` | `{col}` | **Anonymised** ({db}) | "
+                        f"`UPDATE {table} SET {col} = NULL WHERE {col} = ?` ('' where NOT NULL); "
+                        f"the rest of each row is kept |")
     if d["with_account_row"]:
         rows += [
             "",

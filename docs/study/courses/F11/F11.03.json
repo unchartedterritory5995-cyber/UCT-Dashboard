@@ -1,0 +1,1942 @@
+{
+ "unit": "F11.03",
+ "track": "F11",
+ "title": "Our method in each style",
+ "teaches": "The same steps run every trade, day, swing or position: find the setup, set the stop, size from it, manage it, review it, under our 2% ceiling. What changes with the clock is the chart you read, where the stop sits and so the size, and whether you carry gaps overnight.",
+ "skills": [
+  {
+   "id": "styles.method_by_style",
+   "title": "Our method in each style"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s01",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Stop Orders: Factors to Consider During Volatile Markets",
+   "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s02",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Form 10-Q (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/form-10-q",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s03",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What Is Swing Trading and How Does It Work? (2026-08-11)",
+   "url": "https://www.schwab.com/learn/story/swing-trading-strategies",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s04",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What Is Day Trading? How It Works and Key Risks (Joe Mazzola, 2026-10-29)",
+   "url": "https://www.schwab.com/learn/story/introduction-to-pattern-day-trader-rules",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s05",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "5 Elements of a Smart Trade Plan (2024-10-23)",
+   "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s06",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trading Near the Bells (Kevin Horner, 2024-11-26)",
+   "url": "https://www.schwab.com/learn/story/trading-near-bells",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s07",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "How to Trade Simple Moving Averages (Kevin Horner, 2025-08-01)",
+   "url": "https://www.schwab.com/learn/story/how-to-trade-simple-moving-averages",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s08",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Stop Orders: Mastering Order Types (Kevin Horner, 2023-01-30)",
+   "url": "https://www.schwab.com/learn/story/stop-orders-mastering-order-types",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s09",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "The Ins and Outs of a Swing Trade (Joe Mazzola, 2025-03-07)",
+   "url": "https://www.schwab.com/learn/story/ins-and-outs-swing-trade",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Managing positions: When to cut and run, when to take profits (Jeffrey A. Hirsch, adapted from the Stock Trader's Almanac)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/managing-positions",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What Is Swing Trading? (excerpt credited to Wiley Global Finance)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/swing-trading-setups",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Stock trading (2026-06-05)",
+   "url": "https://www.fidelity.com/learning-center/smart-money/what-is-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Trading basics part 4: Managing risk and creating an exit strategy (webinar transcript, Nicholas Delisse and Peter Jannsen)",
+   "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/trading-basics-4-transcript.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Intraday trading (2026-06-05)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/intraday-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Moving Averages - Simple and Exponential",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/moving-averages-simple-and-exponential",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+   "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A StockCharts.com editorial article (StockCharts Insider), not ChartSchool; the author is named and dated on the page, and F9.02 already cites the same page after checking it. Only its general sizing-order lines are used here."
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "CME Group",
+   "title": "Building a Trade Plan: course overview (CME Group education)",
+   "url": "https://www.cmegroup.com/education/courses/building-a-trade-plan.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The trade plan for every setup: the app's own detector levels and the setup table (owner rulings 2026-11-02 and 2026-11-08)",
+   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The trade plan for every setup: The Go Signal",
+   "url": "repo:docs/study/TRADE_PLANS.md#the-go-signal",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 1: Risk per trade (the owner's workshop answer, 2026-10-17)",
+   "url": "repo:docs/study/sizing_rule.md#1-risk-per-trade",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 2: Stop first (owner's answer)",
+   "url": "repo:docs/study/sizing_rule.md#2-stop-first",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 3: Size from the stop (owner quoted)",
+   "url": "repo:docs/study/sizing_rule.md#3-size-from-the-stop",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 6: Management (owner quoted, Sunday Scans 2026-06-14)",
+   "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Tharp Think Trading Concepts",
+   "url": "https://vantharp.com/tharp-think-trading-concepts/",
+   "accessed": "2026-11-12",
+   "why_reliable": "Van Tharp's own institute, the source of the R-multiple idea; the same page and quote F9.03 already cites; re-fetched by the checker 2026-11-12, the 1R sentence is on the page."
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s01",
+   "quote": "If the market’s moving fast, you could receive less—and potentially significantly less—than $50 per share by the time your order is executed.",
+   "claim": "In a fast market, a triggered sell stop can fill well below the stop price."
+  },
+  {
+   "id": "f02",
+   "source": "s01",
+   "quote": "Rapid price movement during a short period of time could trigger a stop order. Due to market volatility, the stock might later rebound and resume trading at its prior price level.",
+   "claim": "A quick drop can trigger a stop, and the stock can then bounce right back."
+  },
+  {
+   "id": "f03",
+   "source": "s02",
+   "quote": "The stop price is not the guaranteed execution price for a stop order. The stop price is a trigger that causes the stop order to become a market order.",
+   "claim": "A stop price is a trigger for a market order, not a guaranteed fill price."
+  },
+  {
+   "id": "f04",
+   "source": "s02",
+   "quote": "A stop order may be triggered by a short-term, intraday price move that results in an execution price for the stop order that is substantially worse than the stock’s closing price for the day.",
+   "claim": "A short intraday move can trigger a stop and fill it far below where the stock closes."
+  },
+  {
+   "id": "i01",
+   "source": "s18",
+   "quote": "domestic issuers must submit annual reports on Form 10-K, quarterly reports on Form 10-Q, and current reports on",
+   "claim": "US public companies file an annual report (10-K) and quarterly reports (10-Q)."
+  },
+  {
+   "id": "i02",
+   "source": "s18",
+   "quote": "The report must be filed for each of the first three fiscal quarters of the company's fiscal year.",
+   "claim": "A 10-Q is filed for each of the first three quarters; the 10-K covers the year, so a report comes every quarter."
+  },
+  {
+   "id": "f05",
+   "source": "s03",
+   "quote": "Unlike day traders, swing traders hold positions overnight but target shorter-term opportunities than position traders or long-term investors.",
+   "claim": "Swing traders hold overnight; day traders don't, and position traders hold longer."
+  },
+  {
+   "id": "f08",
+   "source": "s03",
+   "quote": "Swing traders, on the other hand, hold their positions for days or weeks. This exposes them to the risk of potential gaps at the market open due to news that occurred during non-trading hours.",
+   "claim": "Holding for days or weeks exposes a swing trade to gaps at the open from news after hours."
+  },
+  {
+   "id": "f09",
+   "source": "s03",
+   "quote": "Many swing traders also track market fundamentals, longer-term trends, and economic cycles to ensure they aren't trading against the broader market.",
+   "claim": "Swing traders watch the broader market so they aren't trading against it."
+  },
+  {
+   "id": "f10",
+   "source": "s03",
+   "quote": "A position trader would likely weather these shifts as long as the trend remains intact, while a swing trader might target multiple trading opportunities within the longer move.",
+   "claim": "A position trader sits through the pullbacks while the trend holds; a swing trader trades the smaller swings inside it."
+  },
+  {
+   "id": "f11",
+   "source": "s04",
+   "quote": "In addition to a solid trading plan—including when to enter and exit trades, how much capital to risk on each position, and which securities to trade—day traders rely on a variety of tools",
+   "claim": "A day trader's plan still sets when to enter and exit, how much to risk and what to trade."
+  },
+  {
+   "id": "f12",
+   "source": "s04",
+   "quote": "The key is that every position is opened and closed on the same day.",
+   "claim": "A day trade is opened and closed on the same day."
+  },
+  {
+   "id": "f13",
+   "source": "s04",
+   "quote": "But this can also lead to bigger losses. A small price move in the wrong direction can wipe out a significant portion of your account.",
+   "claim": "With borrowed money, a small move against you can wipe out a big part of the account."
+  },
+  {
+   "id": "f15",
+   "source": "s05",
+   "quote": "A trade boils down to a series of decisions about what to trade, how much to trade, when to enter, and when to exit.",
+   "claim": "Every trade is the same set of decisions: what, how much, when in, when out."
+  },
+  {
+   "id": "f16",
+   "source": "s05",
+   "quote": "Closing out the trade isn't the final step; instead, you need to evaluate your results.",
+   "claim": "After you close a trade, you still review how it went."
+  },
+  {
+   "id": "f17",
+   "source": "s05",
+   "quote": "Record your trades in a trading journal.",
+   "claim": "Keep a journal of your trades."
+  },
+  {
+   "id": "f18",
+   "source": "s05",
+   "quote": "For a general rule, some traders may risk up to 1%–2% of their account on a single trade and allocate up to 5%–10% of their portfolio in any single position.",
+   "claim": "Risk per trade and position size are two separate limits."
+  },
+  {
+   "id": "f19",
+   "source": "s05",
+   "quote": "Start with the difference between the entry price, $67, and the exit price, $57, or $10, then divide the amount the trader is willing to lose, $750, by that difference to determine the number of shares",
+   "claim": "Shares are the dollars you'll risk divided by the distance from entry to stop."
+  },
+  {
+   "id": "f20",
+   "source": "s06",
+   "quote": "Some traders consider placing a stop under the lowest price reached in the first 10 minutes.",
+   "claim": "A stop some traders use on a trade near the open: under the low of the first 10 minutes."
+  },
+  {
+   "id": "f21",
+   "source": "s06",
+   "quote": "Conversely, a longer-term trader may choose to evaluate exit strategies over a longer timeframe, rather than worrying about intraday or short-term levels of potential support. As always, traders must know their timeframe for every trade.",
+   "claim": "A longer-term trader judges exits on a longer timeframe, not intraday levels; know your timeframe for every trade."
+  },
+  {
+   "id": "f23",
+   "source": "s06",
+   "quote": "You never know what news might hit after the close, and there's always the potential for the stock to gap lower the next trading day.",
+   "claim": "News after the close can gap a stock lower the next day."
+  },
+  {
+   "id": "f24",
+   "source": "s07",
+   "quote": "Deciding which SMA time frame to use often comes down to the trading time horizon.",
+   "claim": "The moving average you use should fit how long you hold."
+  },
+  {
+   "id": "f25",
+   "source": "s07",
+   "quote": "If a trader rarely holds a stock for more than 10 trading days, for example, the 20- or even 10-day SMA may provide good insights into how a stock's price has been moving recently.",
+   "claim": "For holds of about 10 trading days or less, the 10 or 20-day average fits."
+  },
+  {
+   "id": "f26",
+   "source": "s07",
+   "quote": "If someone is more of a \"position\" trader—that is, they're willing to hold a stock for up to a year—the 200-day SMA is going to give a better sense of a stock's long-term price pattern.",
+   "claim": "For a position trader holding up to a year, the 200-day average fits better."
+  },
+  {
+   "id": "f27",
+   "source": "s08",
+   "quote": "Stop orders are vulnerable to pricing gaps, which can sometimes occur between trading sessions or during pauses in trading, such as trading halts.",
+   "claim": "A gap between sessions can carry the price past a stop."
+  },
+  {
+   "id": "f28",
+   "source": "s09",
+   "quote": "If the stock gaps up or down on market open, the trade is likely to execute above or below the intended price, which can result in greater losses than expected.",
+   "claim": "A gap at the open can fill a stop away from its price and cost more than planned."
+  },
+  {
+   "id": "f29",
+   "source": "s10",
+   "quote": "When the investor's economic and market outlook is strongly bearish (or turns negative), a more defensive posture could be instituted by limiting new buys, selling losers faster, tightening up stops and/or implementing some downside protection.",
+   "claim": "When the market outlook turns negative, buy less, sell losers faster and tighten stops."
+  },
+  {
+   "id": "f30",
+   "source": "s10",
+   "quote": "A big factor in increasing the returns of your stock portfolio and preserving your capital may be going against your natural instincts by cutting your losses fast and letting your winners ride.",
+   "claim": "Cut losses fast and let winners ride."
+  },
+  {
+   "id": "f31",
+   "source": "s10",
+   "quote": "instead of admitting we were wrong, cutting bait and moving on to our next idea. In fact, this can be one of the fastest ways to lose money in the stock market.",
+   "claim": "Buying more of a falling stock instead of admitting you were wrong is one of the fastest ways to lose money."
+  },
+  {
+   "id": "f32",
+   "source": "s10",
+   "quote": "In my opinion, no one position should maintain such a large percentage that it determines the future of the portfolio.",
+   "claim": "No single position should be big enough to decide the whole account."
+  },
+  {
+   "id": "f51",
+   "source": "s10",
+   "quote": "The 2% Rule. Not allowing a position to lose more than 2% of the overall portfolio.",
+   "claim": "Hirsch never lets one position lose more than 2% of the portfolio."
+  },
+  {
+   "id": "f33",
+   "source": "s10",
+   "quote": "Use no more than a 20% stop loss on each position.",
+   "claim": "Hirsch, holding for the longer term, still caps each stop at 20%."
+  },
+  {
+   "id": "f35",
+   "source": "s11",
+   "quote": "The important point is to develop a method that works for you; implement it consistently; adhere to explicit money management rules; and keep good records so you can track your progress as a trader.",
+   "claim": "Whatever the method: follow it, keep money rules, and keep records to track your progress."
+  },
+  {
+   "id": "f36",
+   "source": "s12",
+   "quote": "Position traders may hold their position for many months or years.",
+   "claim": "A position trade can run for many months or years."
+  },
+  {
+   "id": "f37",
+   "source": "s12",
+   "quote": "they hope that prices will rise through the periodic downturns that may frustrate traders with shorter investment time horizons.",
+   "claim": "Position traders hold through pullbacks that frustrate shorter-term traders."
+  },
+  {
+   "id": "f38",
+   "source": "s13",
+   "quote": "what happens if the stock moves significantly over night? It was trading at 96 dollars the night before and",
+   "claim": "Fidelity's example: the stock was trading at 96 the night before."
+  },
+  {
+   "id": "f39",
+   "source": "s13",
+   "quote": "You then sell at the next available price -- is closer to 90 bucks a share.",
+   "claim": "After an overnight earnings gap, the stop sold near 90."
+  },
+  {
+   "id": "f40",
+   "source": "s13",
+   "quote": "In this particular example I mentioned this is called gapping risk where it could gap down and you're not guaranteed to get out at the 95",
+   "claim": "Gap risk: the stop was at 95, and a gap down meant no fill at 95."
+  },
+  {
+   "id": "f41",
+   "source": "s13",
+   "quote": "This is a great order type for maybe a longer term trader. That they're trading a trend they see in the security. And maybe they want to trail by 10 percent",
+   "claim": "A longer-term trader riding a trend might trail a stop 10% below the high."
+  },
+  {
+   "id": "f42",
+   "source": "s14",
+   "quote": "Success can require dedication, discipline, and strict money management controls.",
+   "claim": "Intraday trading needs strict money management, like any style."
+  },
+  {
+   "id": "f43",
+   "source": "s15",
+   "quote": "The length of the moving average depends on the trader's time horizon and analytical objectives. Shorter moving averages (5-20 periods) are suitable for short-term trends and trading. Medium-term trends can be analyzed using longer moving averages (20-60 periods).",
+   "claim": "The average's length should match the time horizon: 5 to 20 periods short term, 20 to 60 medium term."
+  },
+  {
+   "id": "f44",
+   "source": "s15",
+   "quote": "Long-term investors often use moving averages with 100 or more periods.",
+   "claim": "Long-term holders use averages of 100 periods or more."
+  },
+  {
+   "id": "f45",
+   "source": "s15",
+   "quote": "A 10-day moving average will hug prices quite closely and turn shortly after prices turn.",
+   "claim": "A 10-day average hugs price and turns quickly."
+  },
+  {
+   "id": "f46",
+   "source": "s16",
+   "quote": "Identify the setup Determine where your trade thesis fails (this is where you place your stop-loss) Measure the distance to invalidation Size your position LAST",
+   "claim": "The order: find the setup, put the stop where the idea fails, measure the distance, size last."
+  },
+  {
+   "id": "f47",
+   "source": "s16",
+   "quote": "The biggest mistake is to decide on your position size first without calculating the space between entry and stop.",
+   "claim": "Picking a size before measuring entry to stop is the biggest sizing mistake."
+  },
+  {
+   "id": "f48",
+   "source": "s16",
+   "quote": "In either case, place your stops where you think they’ll work. Just adjust your position.",
+   "claim": "Put the stop where it belongs and change the size instead."
+  },
+  {
+   "id": "f49",
+   "source": "s17",
+   "quote": "Every trader—no matter your experience—needs a plan.",
+   "claim": "Every trader needs a written plan."
+  },
+  {
+   "id": "f50",
+   "source": "s17",
+   "quote": "and you will thank yourself later. Objective Methodology Risk Management Trading Strategies Trader Log",
+   "claim": "CME lists a trader log among the five parts of a solid trading plan."
+  },
+  {
+   "id": "h01",
+   "source": "s20",
+   "quote": "returns its own trigger (the entry) and stop for the candle it fires on.",
+   "claim": "Each of our setups comes with its own entry and stop."
+  },
+  {
+   "id": "h02",
+   "source": "s26",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+  },
+  {
+   "id": "h14",
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
+  },
+  {
+   "id": "h03",
+   "source": "s20",
+   "quote": "under the Kicker's low, or 3.5% under the entry if that is closer",
+   "claim": "Our Kicker stop: under the Kicker's low, or 3.5% under entry if that is closer."
+  },
+  {
+   "id": "h04",
+   "source": "s20",
+   "quote": "under each higher low, or under the 9 EMA",
+   "claim": "Our Kicker trail: under each higher low, or under the 9 EMA."
+  },
+  {
+   "id": "h05",
+   "source": "s20",
+   "quote": "under the rising 20 EMA, or under each higher low",
+   "claim": "Our Launchpad trail: under the rising 20 EMA, or under each higher low."
+  },
+  {
+   "id": "h06",
+   "source": "s21",
+   "quote": "It is an intraday entry in a stock that has already shown it can move.",
+   "claim": "The Go Signal is an intraday entry."
+  },
+  {
+   "id": "h07",
+   "source": "s21",
+   "quote": "On the daily chart it fires when all of these hold:",
+   "claim": "The Go Signal is found on the daily chart."
+  },
+  {
+   "id": "h08",
+   "source": "s21",
+   "quote": "Entry: the prior close when it traded that session (red to green), else the close. Stop: the session's low.",
+   "claim": "Go Signal plan: buy the prior close when it trades that session (else the close); stop at the session's low."
+  },
+  {
+   "id": "h09",
+   "source": "s21",
+   "quote": "The real trigger is on the 30 or 65-minute chart, which the daily bar cannot see.",
+   "claim": "The Go Signal's real trigger is on the 30 or 65-minute chart."
+  },
+  {
+   "id": "h10",
+   "source": "s22",
+   "quote": "0.25% to 2% of the account, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling.",
+   "claim": "Our risk per trade is 0.25% to 2% of the account, chosen by the setup, your results, the market and your edge; never above 2%."
+  },
+  {
+   "id": "h11",
+   "source": "s23",
+   "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.)",
+   "claim": "Our default stop is the low of the day or the prior day's low."
+  },
+  {
+   "id": "h12",
+   "source": "s24",
+   "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk.",
+   "claim": "In our words: position size times stop distance is the risk."
+  },
+  {
+   "id": "h13",
+   "source": "s25",
+   "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "claim": "Our rule: sell partials into strength and trail the rising moving averages."
+  },
+  {
+   "id": "h15",
+   "source": "s26",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "Our stop sits a few cents under the day's low, not exactly on it."
+  },
+  {
+   "id": "h16",
+   "source": "s26",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "Our rule: no new buys in the 3 days before earnings, and hold through a report only when up 5R."
+  },
+  {
+   "id": "h17",
+   "source": "s26",
+   "quote": "The stop is the exit. It only moves up, never down or wider.",
+   "claim": "Our stop only moves up, never down or wider."
+  },
+  {
+   "id": "h18",
+   "source": "s26",
+   "quote": "the stop usually sits within about 3% of the buy (a loss on the position, not the account)",
+   "claim": "Our stop usually sits within about 3% of the buy price."
+  },
+  {
+   "id": "h19",
+   "source": "s26",
+   "quote": "A tight stop never justifies a bigger position than that: a gap can jump the stop.",
+   "claim": "A tight stop never justifies a position over our cap, because a gap can jump the stop."
+  },
+  {
+   "id": "h20",
+   "source": "s26",
+   "quote": "Max position 40% of the account",
+   "claim": "Our max position is 40% of the account."
+  },
+  {
+   "id": "h21",
+   "source": "s26",
+   "quote": "the size is the SMALLER of the risk-based size and the position cap",
+   "claim": "Our size is the smaller of the risk-based size and the position cap."
+  },
+  {
+   "id": "h22",
+   "source": "s26",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "Our rule: every position has a real stop order with the broker."
+  },
+  {
+   "id": "h23",
+   "source": "s26",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long",
+   "claim": "Our rule: no longs below the 200-day simple moving average, unless it is a parabolic long."
+  },
+  {
+   "id": "f52",
+   "source": "s27",
+   "quote": "You buy a stock at $50 and decide to sell it if it drops to $40. What’s your initial risk? Your initial risk is $10 per share, so in this case, 1R is equal to $10.",
+   "claim": "R is your risk per share: the entry minus the stop."
+  },
+  {
+   "id": "h24",
+   "source": "s26",
+   "quote": "Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "Our market guide: as the market weakens, fewer and smaller trades, then only the best, then mostly cash."
+  },
+  {
+   "id": "h25",
+   "source": "s26",
+   "quote": "A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red).",
+   "claim": "Our rule: a market filter decides when the account trades."
+  },
+  {
+   "id": "h26",
+   "source": "s26",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "Our rule: one buy at one price with one stop, and no adding."
+  },
+  {
+   "id": "h27",
+   "source": "s26",
+   "quote": "We swing trade: days to a few weeks; a winner can be held longer while it keeps working.",
+   "claim": "Our style: we swing trade, days to a few weeks; a winner can be held longer while it keeps working."
+  },
+  {
+   "id": "h28",
+   "source": "s26",
+   "quote": "It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "Our stop only moves up; the one exception is a gap against the stop."
+  },
+  {
+   "id": "h29",
+   "source": "s26",
+   "quote": "Journal every trade the same day and review the week every weekend, ideally.",
+   "claim": "Our rule: journal every trade the same day and review the week every weekend, ideally."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "rd21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Same steps, any clock",
+   "steps": [
+    "Same steps on any clock: find the setup, set the stop, size from it, manage it, review it.",
+    "That holds whether you're out by the close or holding for months.",
+    "What changes is the chart you read, where the stop sits, and so the size.",
+    "With a winner, we sell partials into strength and trail the rest under the rising averages."
+   ],
+   "facts": [
+    "f46",
+    "f16",
+    "f12",
+    "f36",
+    "f21",
+    "h13"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "What our rules set",
+   "steps": [
+    "Some things never change with the clock. We risk 0.25% to 2% of the account a trade. 2% is the ceiling.",
+    "The stop goes a few cents under the low of the day, or the prior day's low.",
+    "The first sell is a judgment. We very rarely sell on day 1, and usually wait until day 3 at the earliest."
+   ],
+   "facts": [
+    "h10",
+    "h11",
+    "h15",
+    "h01",
+    "r02",
+    "h14"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "What changes with the clock",
+   "steps": [
+    "A short-term trader buying near the open might put the stop under the low of the first 10 minutes.",
+    "A longer-term trader judges exits on a longer chart, so the stop sits farther away.",
+    "Put the stop where it belongs and change the size. Wider stop, fewer shares, same risk."
+   ],
+   "facts": [
+    "f20",
+    "f21",
+    "h12",
+    "f48",
+    "f41"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "styles.method_by_style",
+   "rung": 1,
+   "format": "mcq",
+   "q": "You've only swing traded and want to try a few day trades. What can you leave out of the plan?",
+   "choices": [
+    "Nothing, it all stays in",
+    "The stop, you'll be watching",
+    "The size, it's only a few hours",
+    "The exit, you're out by the close"
+   ],
+   "answer": "Nothing, it all stays in",
+   "why": "Nothing. A day trade is the same trade on a shorter clock. You still write down the entry, the stop, the size and the exit before you click buy. Watching the screen isn't a stop. Every position gets a real stop order with the broker, because a fast market can blow through your price before you react. And being out by the close is a deadline, not an exit. You still need the price that tells you you're wrong. We swing trade, so day trades are rare for us. When you take one, the plan doesn't get thinner.",
+   "lesson_line": "A shorter hold is no excuse for a thinner plan.",
+   "facts": [
+    "f11",
+    "f15",
+    "f42",
+    "f49",
+    "f01",
+    "f02",
+    "f19",
+    "h22"
+   ],
+   "wrong": {
+    "The stop, you'll be watching": "Watching isn't a stop. Put a real stop order in with the broker. In a fast market the price is gone before you click.",
+    "The size, it's only a few hours": "The size is what caps the loss. It comes from the dollars you'll risk over the distance to your stop, whatever the clock.",
+    "The exit, you're out by the close": "The close is a deadline, not an exit. You still need the price that says you're wrong."
+   },
+   "simple": "Nothing, because a day trade still needs a stop, a size and an exit. Only the clock gets shorter.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (key reworded by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "styles.method_by_style",
+   "rung": 1,
+   "format": "tf",
+   "house": true,
+   "q": "You'll be out of a day trade by the close, so it can risk more than 2% of the account.",
+   "answer": "False",
+   "why": "False. 2% of the account is the most we risk on any trade, day trade or swing. Our risk runs 0.25% to 2%, picked by the setup, your recent results, the market and your edge. How long you plan to hold isn't on that list. And being out by the close doesn't cap the loss. A stop is only a trigger, and a fast market can fill it well below your price. So the day trade gets the same ceiling, and most of the time a lot less.",
+   "lesson_line": "2% is the ceiling in every style. The clock doesn't raise it.",
+   "facts": [
+    "h10",
+    "f01",
+    "f03"
+   ],
+   "simple": "False, because 2% is the most we ever risk on one trade, and a short hold doesn't change what can go wrong.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A1, 2% ceiling)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q03",
+   "skill": "styles.method_by_style",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You spot a setup you like. What order do you work the trade in?",
+   "choices": [
+    "Setup, stop, size, manage, review",
+    "Setup, size, stop, manage, review",
+    "Size, setup, stop, manage, review",
+    "Stop, setup, size, manage, review"
+   ],
+   "answer": "Setup, stop, size, manage, review",
+   "why": "Setup, stop, size, manage, review. The setup comes first, because the stop goes where that setup breaks. Then you measure from your entry to the stop, and only then do you size. The size comes from the stop, never the other way around. Pick a size first and you end up squeezing the stop to fit it, right into the normal noise. Then you manage the trade. And after you're out, you review it. The trade isn't done when you sell.",
+   "lesson_line": "Stop first, then size. The order never changes, only the clock does.",
+   "facts": [
+    "f46",
+    "f47",
+    "f16",
+    "f19"
+   ],
+   "wrong": {
+    "Setup, size, stop, manage, review": "Size before stop is the classic mistake. You can't size until you know how far away the stop is.",
+    "Size, setup, stop, manage, review": "That picks a size before there's even a setup. The stop ends up bent around the size.",
+    "Stop, setup, size, manage, review": "The stop goes where the setup fails, so you need the setup first. A stop picked before the chart isn't tied to anything."
+   },
+   "simple": "Setup, stop, size, manage, review, because the size comes from how far away the stop is.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (f19 added by the checker)",
+     "new fourth answer"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q04",
+   "skill": "styles.method_by_style",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits.",
+   "sentence": "Same stock, same risk, wider stop: the position gets ___.",
+   "bank": [
+    "smaller",
+    "bigger",
+    "unchanged",
+    "doubled"
+   ],
+   "answer": "smaller",
+   "why": "Smaller. Shares are the dollars you'll risk divided by the distance to the stop. Move the stop farther away and the same risk buys fewer shares.",
+   "lesson_line": "The chart sets the stop. The stop sets the size.",
+   "facts": [
+    "f19",
+    "f48",
+    "h12"
+   ]
+  },
+  {
+   "key": "q05",
+   "skill": "styles.method_by_style",
+   "rung": 2,
+   "format": "tf",
+   "house": true,
+   "q": "You and a friend buy at the same price, same stop. He'll hold for months, you for days. Your 3R price is the same as his.",
+   "answer": "True",
+   "why": "True. R is your risk per share, the entry minus the stop. 3R is three of those added to the entry. So it's a price on the chart, not a date. Same entry, same stop, same 3R, however long either of you holds. What really moves 3R is the stop. A longer hold often runs a wider stop, and that pushes 3R farther out. And 3R is a mark, not a sell order. We very rarely sell on day 1, and the first sell is a judgment call.",
+   "lesson_line": "R is measured from the stop, not from the calendar.",
+   "facts": [
+    "r01",
+    "r02",
+    "h01",
+    "f52",
+    "f21",
+    "f41"
+   ],
+   "simple": "True, because the 3R price comes from the entry and the stop. How long you hold doesn't move it.",
+   "deeper": {
+    "trap": "The catch is the stop, not the clock. Longer holds often use wider stops, and a wider stop pushes 3R farther from the entry. This question fixes the entry and the stop, so the 3R price matches. Change the stop and the price moves with it."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B19, E51)",
+     "fixed before (rewritten from 2R to 3R)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "styles.method_by_style",
+   "rung": 3,
+   "format": "mcq",
+   "house": true,
+   "q": "A Go Signal: the stock opened weak and trades back up through yesterday's close. You buy on the 30-minute chart. Where's your stop?",
+   "choices": [
+    "Just under the low of the day",
+    "Under the last 30-minute bar",
+    "A flat 10% under your buy",
+    "Just under yesterday's close"
+   ],
+   "answer": "Just under the low of the day",
+   "why": "A few cents under the low of the day, the LOD. That's where the Go Signal stop lives. The stock dipped to that low, buyers stepped in, and it turned back up through yesterday's close. If it takes out the LOD, the turn failed and you're wrong. Timing the buy on the 30-minute chart gets you a cleaner entry. It doesn't move the stop onto that clock. Put it a few cents under, not right on the low, so a tick to the exact low doesn't take you out.",
+   "lesson_line": "Time the buy on the 30-minute if you like. The stop stays under the low of the day.",
+   "facts": [
+    "h08",
+    "h09",
+    "h06",
+    "h07",
+    "h11",
+    "h15"
+   ],
+   "wrong": {
+    "Under the last 30-minute bar": "That puts the stop on your entry's clock. One normal wiggle inside the day takes you out before the idea is wrong.",
+    "A flat 10% under your buy": "A flat percent isn't tied to anything on the chart. The chart already shows where you're wrong, the LOD.",
+    "Just under yesterday's close": "That's your entry level, so there's no room at all. The stock was trading under it this morning."
+   },
+   "simple": "Just under the low of the day, because that's where the turn fails, whatever chart you time the buy on.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on house plans (TRADE_PLANS.md Go Signal) and the rulebook (F62)",
+     "key reworded for length balance and F62"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q07",
+   "skill": "styles.method_by_style",
+   "rung": 3,
+   "format": "tf",
+   "q": "You're a day trader, so you never hold through a gap. That means your stop always fills right at your stop price.",
+   "answer": "False",
+   "why": "False. A stop price is a trigger, not a promise. When it's hit, it turns into a market order and you get the next price there is. In a fast market that can be well under your stop, in the middle of the day, no gap needed. Skipping overnight holds takes away one risk. It doesn't take away this one. So plan like the fill can be worse than the stop. That's one more reason a tight stop never earns you a giant position.",
+   "lesson_line": "A stop is a trigger, not a guaranteed price. In every style.",
+   "facts": [
+    "f03",
+    "f01",
+    "f04"
+   ],
+   "simple": "False, because a stop only triggers a market order, and in a fast market that order can fill well below your stop.",
+   "deeper": {
+    "trap": "A short intraday drop can trigger a stop and fill it far below where the stock closes that day. So a day trader can lose more than planned with no gap at all. The SEC calls the stop price a trigger, not the execution price."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q08",
+   "skill": "styles.method_by_style",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You swing trade most of the time and take a day trade now and then. Which of these changes between the two?",
+   "choices": [
+    "Where your stop sits",
+    "Our 2% risk ceiling",
+    "Having a written plan",
+    "Reviewing your trades"
+   ],
+   "answer": "Where your stop sits",
+   "why": "Where your stop sits. Know your timeframe on every trade, because it decides where you're wrong. Someone buying near the open might put the stop under the low of the first 10 minutes. On our swing trades it's a few cents under the low of the day or the prior day's low. A longer-term trader judges exits on a longer chart still. Move the stop and the size moves with it, for the same risk. The 2% ceiling, the written plan and the review never change.",
+   "lesson_line": "Know your timeframe on every trade. It tells you where the stop goes.",
+   "facts": [
+    "f20",
+    "f21",
+    "f41",
+    "h10",
+    "h11",
+    "h15",
+    "f11",
+    "f16",
+    "f19",
+    "f48"
+   ],
+   "wrong": {
+    "Our 2% risk ceiling": "That one never moves. 2% is the most we risk on any trade, day trade or swing.",
+    "Having a written plan": "Every style needs one. A day trader still plans the entry, the exit and the risk.",
+    "Reviewing your trades": "Every trade gets reviewed, whatever the clock. You don't learn from trades you never look at."
+   },
+   "simple": "Where your stop sits, because each clock has its own spot where you're wrong. The ceiling, the plan and the review don't change.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q09",
+   "skill": "styles.method_by_style",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Day trade, $50,000 account. You buy at $18.60 with the stop at $18.35, under the first 10-minute low. You'll risk $200. How many shares?",
+   "answer": "800 shares",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "risk / (entry - stop)",
+     "risk": 200,
+     "entry": 18.6,
+     "stop": 18.35
+    }
+   },
+   "suffix": "shares",
+   "why": "800 shares. Same math as your swing trades. $18.60 minus $18.35 is 0.25, so you risk 25 cents a share. $200 divided by 0.25 is 800. Then check the cap. 800 shares at $18.60 stays well under 40% of the $50,000 account, so the size stands. The tight stop is why the share count looks big. That's fine, because your loss at the stop is still the $200 you planned.",
+   "lesson_line": "Day trade or swing, shares are the dollars you risk over the risk per share.",
+   "facts": [
+    "f20",
+    "f19",
+    "f46",
+    "h20",
+    "h21"
+   ],
+   "simple": "800 shares, because you divide the $200 you risk by the distance from your entry to your stop.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (stem reworded by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "800 shares",
+    "1,075 shares",
+    "2,688 shares",
+    "8,000 shares"
+   ],
+   "wrong": {
+    "1,075 shares": "That fills the 40% cap instead of sizing from the $200 risk. The cap is a ceiling, not a target.",
+    "2,688 shares": "That's the whole $50,000 spent at $18.60. Your size comes from the risk, not from what the account can buy.",
+    "8,000 shares": "A decimal slip, ten times too many. $200 over 0.25 is 800."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The day trade's size",
+    "rows": [
+     {
+      "key": "account",
+      "label": "Account",
+      "value": 50000,
+      "fmt": "$"
+     },
+     {
+      "key": "dollars_to_risk",
+      "label": "Dollars to risk",
+      "value": 200,
+      "fmt": "$"
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "value": 18.6,
+      "fmt": "$"
+     },
+     {
+      "key": "stop",
+      "label": "Stop",
+      "value": 18.35,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Shares",
+     "as": "shares"
+    }
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "styles.method_by_style",
+   "rung": 5,
+   "format": "mcq",
+   "q": "A friend wants to hold a stock for up to a year. Which of these gives him the best read on the trend?",
+   "choices": [
+    "The 200-day average",
+    "The 9 EMA",
+    "The 20 EMA",
+    "The 100-hour average"
+   ],
+   "answer": "The 200-day average",
+   "why": "The 200-day. Match the average to how long you hold. A 9 EMA hugs price and turns the moment price turns. That's what we want on a swing trade that lasts days to weeks. On a hold of up to a year it would shake him out of every normal pullback. For a hold that long, the 200-day gives the better read. We watch it too, as a line, not as our trail. We don't buy stocks under the 200-day. That's a hard line. Our swing trades still trail under the 9 or 20 EMA.",
+   "lesson_line": "Match the average to the clock. Short hold, short line. Long hold, long line.",
+   "facts": [
+    "f26",
+    "f24",
+    "f44",
+    "f25",
+    "f43",
+    "f45",
+    "h04",
+    "h05",
+    "h13",
+    "f21",
+    "h23",
+    "rd21"
+   ],
+   "wrong": {
+    "The 100-hour average": "That's 100 bars, but hourly ones. A year-long hold needs a daily line, not intraday levels.",
+    "The 9 EMA": "That's a swing trader's line. It hugs price and turns fast, so a long hold gets shaken out on a normal dip.",
+    "The 20 EMA": "Better than the 9, still too short. We trail under it for days to weeks, not a year."
+   },
+   "simple": "The 200-day, because a long hold needs a long average. A short one would shake you out of every pullback.",
+   "deeper": {
+    "counter": "Not every long-term trader uses the 200-day. ChartSchool only says long-term investors often use 100 or more periods. The point is the match: a short average for a short hold, a long one for a long hold."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (stem reworded twice)",
+     "touches the rulebook's E52 trail (owner flag)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q11",
+   "skill": "styles.method_by_style",
+   "rung": 5,
+   "format": "mcq",
+   "house": true,
+   "q": "You buy a Go Signal as it trades back through yesterday's $40.00 close. Stop at $39.20. Where's your 3R mark?",
+   "answer": "$42.40",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "entry + 3 * (entry - stop)",
+     "entry": 40,
+     "stop": 39.2
+    }
+   },
+   "prefix": "$",
+   "why": "$42.40. $40.00 minus $39.20 is 0.80, so you risk 80 cents a share. That's 1R. Three times 0.80 is 2.40. Add it to $40.00 and you get $42.40. Mark it on the chart, but it's a mark, not a sell order. The first sell is a judgment. We very rarely sell on day 1, and we mostly wait until day 3 at the earliest.",
+   "lesson_line": "3R is a mark on the chart, not a sell order.",
+   "facts": [
+    "r01",
+    "r02",
+    "h08",
+    "f52"
+   ],
+   "simple": "$42.40, because your risk is the entry minus the stop, and 3R adds three of those to the entry.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (B19, E51)",
+     "computed key",
+     "fixed before (2R target moved to 3R trim)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$42.40",
+    "$41.60",
+    "$43.00",
+    "$44.00"
+   ],
+   "wrong": {
+    "$43.00": "That's a flat $3.00 on top, not three times your risk.",
+    "$41.60": "That's 2R. You added two times the 0.80, not three.",
+    "$44.00": "That's five times your risk on top, not three."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "styles.method_by_style",
+   "rung": 5,
+   "format": "scenario",
+   "story": "You plan a position trade in a US stock and expect to hold it about six months. The entry, stop and size are written down.",
+   "q": "What does this plan still need that a day trade plan can skip?",
+   "choices": [
+    "What you'll do at each report",
+    "The low of the first 10 minutes",
+    "Which hourly bar you'll buy on",
+    "Nothing, the stop covers it"
+   ],
+   "answer": "What you'll do at each report",
+   "why": "What you'll do at each report. US companies report every quarter, so six months means sitting through earnings. News outside trading hours can gap the stock right past your stop. In Fidelity's example a stop at 95 sold near 90 after an overnight gap. So decide before you buy. Our rule: hold through a report only if you're up 5R. And no new buys in the 3 days before a report, in any style. A day trade is flat by the close, so it never has to make that call.",
+   "lesson_line": "A long hold sits through earnings. Decide what you'll do before you buy.",
+   "facts": [
+    "i01",
+    "i02",
+    "f08",
+    "f27",
+    "f28",
+    "f38",
+    "f39",
+    "f40",
+    "f12",
+    "f21",
+    "f20",
+    "h16",
+    "h19",
+    "f15"
+   ],
+   "wrong": {
+    "Nothing, the stop covers it": "A gap can jump the stop. In Fidelity's example a stop at 95 sold near 90.",
+    "The low of the first 10 minutes": "That's a stop for a quick trade near the open. A six-month hold judges exits on a much longer chart.",
+    "Which hourly bar you'll buy on": "Every trade picks its entry. Your entry bar does nothing when a report gaps the stock."
+   },
+   "simple": "What you'll do at each report, because a six-month hold sits through earnings, and a gap can jump your stop.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (story gave the key away)",
+     "now teaches the rulebook's B22"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q13",
+   "skill": "styles.method_by_style",
+   "rung": 6,
+   "format": "tf",
+   "q": "You only make a few position trades a year. With so few, there's no real need to journal and review them.",
+   "answer": "False",
+   "why": "False. Fewer trades is more reason to review, not less. Each one carries more weight, and you get fewer chances to learn. Closing the trade isn't the last step. Log it in your journal the same day, and go over the week every weekend, ideally. Keep good records so you can actually see whether you're getting better. Without them you're just guessing.",
+   "lesson_line": "Every style ends the same way. Log it, then review it.",
+   "facts": [
+    "f16",
+    "f17",
+    "f35",
+    "f50",
+    "h29"
+   ],
+   "simple": "False, because every trade gets journaled and reviewed, and with only a few a year, each one teaches you more.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (source wording)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q14",
+   "skill": "styles.method_by_style",
+   "rung": 6,
+   "format": "scenario",
+   "house": true,
+   "story": "You hold two swing trades and have a few new buys lined up for this week. Then the general market turns weak and most stocks start falling.",
+   "q": "What's the play from here?",
+   "choices": [
+    "Take fewer new trades for now",
+    "Ignore it, the stock is what counts",
+    "Widen your stops to ride it out",
+    "Buy more, prices are lower now"
+   ],
+   "answer": "Take fewer new trades for now",
+   "why": "Take fewer new trades. When the market turns, good setups fail more often because the market isn't backing them. Our market filter, the app's Green, Yellow, Orange and Red reading, sets how much we trade. As it weakens it's fewer and smaller trades, then only the best, and in Red mostly cash. Your two open trades keep their stops. A stop only moves up, never down or wider. Let the market earn your exposure back.",
+   "lesson_line": "When the market turns weak, trade less. Let it earn your exposure back.",
+   "facts": [
+    "h10",
+    "h24",
+    "h25",
+    "f29",
+    "f09",
+    "f31",
+    "h17",
+    "rw_add"
+   ],
+   "wrong": {
+    "Ignore it, the stock is what counts": "Most stocks go with the market. Trade against it and good setups fail through no fault of their own.",
+    "Widen your stops to ride it out": "That's more risk right as the market turns on you. A stop only moves up, never wider.",
+    "Buy more, prices are lower now": "That's adding to a loser. We buy the full size once, at one price, and never add to a loser, least of all into a falling market."
+   },
+   "simple": "Take fewer new trades, because a weak market makes good setups fail more often. Your open trades keep their stops.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A1 market conditions, A4 stop only moves up)",
+     "fixed before (hedges)"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q15",
+   "skill": "styles.method_by_style",
+   "rung": 7,
+   "format": "mcq",
+   "q": "Jeffrey Hirsch holds longer term with stops as wide as 20%, but never lets one position cost over 2% of the portfolio. Max position?",
+   "answer": "10% of the portfolio",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "risk / stop * 100",
+     "risk": 2,
+     "stop": 20
+    }
+   },
+   "suffix": "% of the portfolio",
+   "why": "10% of the portfolio. 2 divided by 20 is 0.1, so 10%. Check it. A 10% position that drops 20% costs you 2% of the portfolio, right at his cap. That's how a wide stop works on a long hold. The stop goes where the trend breaks, and the size shrinks to fit. Our stops sit much tighter, mostly within about 3% of the buy. So for the same risk, our positions can be bigger.",
+   "lesson_line": "A wide stop is fine on a long hold. The size shrinks so the risk doesn't grow.",
+   "facts": [
+    "f51",
+    "f33",
+    "h12",
+    "f48",
+    "h18"
+   ],
+   "simple": "10% of the portfolio, because a 10% position that falls 20% loses 2%, right at his cap.",
+   "deeper": {
+    "trap": "The trap is reading the 20% as a stop to copy. It is Hirsch's outer limit for a longer-term portfolio, paired with a small position. A 20% stop on a big position breaks the 2% cap fast. Our own stops usually sit within about 3% of the buy."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (stem and why reworded)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "20% of the portfolio",
+    "10% of the portfolio",
+    "2% of the portfolio",
+    "40% of the portfolio"
+   ],
+   "wrong": {
+    "20% of the portfolio": "That's the stop width, not the size. A position that big with a 20% stop costs double his cap.",
+    "2% of the portfolio": "That's the loss cap, not the position. You'd be sizing way smaller than you need to.",
+    "40% of the portfolio": "That multiplies the 2% cap by the 20% stop. Divide them instead."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The biggest position",
+    "rows": [
+     {
+      "key": "stop_distance",
+      "label": "Stop distance",
+      "value": 20,
+      "fmt": "%"
+     },
+     {
+      "key": "most_to_lose,_of_por",
+      "label": "Most to lose, of portfolio",
+      "value": 2,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Position, % of portfolio",
+     "as": "pct"
+    }
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "styles.method_by_style",
+   "rung": 7,
+   "format": "scenario",
+   "house": true,
+   "story": "Your day trade is up 2R at 3:45 p.m. and closing strong. You sized it for a tight intraday stop. No earnings are due, and you'd like to hold it a few days.",
+   "q": "If you hold it overnight, what has to change?",
+   "choices": [
+    "New plan: daily stop, new size",
+    "Nothing, it's already working",
+    "Keep the size, stop to breakeven",
+    "Keep the intraday stop and size"
+   ],
+   "answer": "New plan: daily stop, new size",
+   "why": "New plan: daily stop, new size. The trade was built for one day, with a stop for intraday moves. For a hold of days, I'd use our default stop. That is a few cents under the day's low or the prior day's low. A wider stop means a smaller size for the same risk. So sell part of it into strength until the size fits. A tight stop never justifies a big position, because a gap can jump the stop.",
+   "lesson_line": "Change the clock and you re-run the steps: new stop, new size.",
+   "facts": [
+    "f21",
+    "h11",
+    "f19",
+    "f48",
+    "f05",
+    "f23",
+    "f30",
+    "h13",
+    "f04",
+    "h15",
+    "h19"
+   ],
+   "wrong": {
+    "Nothing, it's already working": "The plan was built for one day. News after the close can gap it, and the stop was set for intraday moves.",
+    "Keep the size, stop to breakeven": "A breakeven stop can't catch an overnight gap, and the size was built for a tight intraday stop. A gap down at that size costs far more than planned.",
+    "Keep the intraday stop and size": "A tight intraday stop sits inside a normal day's swings, so a hold of days can get stopped out early. It can't catch an overnight gap either."
+   },
+   "simple": "Make a new plan with our default daily stop, because a wider stop means a smaller size for the same risk.",
+   "deeper": {
+    "trap": "The trap is that a winner feels safe. Being up 2R at 3:45 p.m. says nothing about tonight's news. The size came from a tight intraday stop. An overnight gap at that size can cost far more than the plan allowed. Re-run the steps as if it were a new trade: stop first, then size."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (default stop, F62, A7)",
+     "fixed before (house marking, wrong notes)",
+     "key reworded for length balance",
+     "B19 breakeven tension (owner flag)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q17",
+   "skill": "styles.method_by_style",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You and a friend own the same stock. It pulls back to the 50-day, and the long uptrend is intact. Your swing stop gets hit. His position-trade stop sits lower and holds.",
+   "q": "Which of you broke your plan?",
+   "choices": [
+    "Neither of you",
+    "Him, for holding on",
+    "You, for selling",
+    "Both, the stops should match"
+   ],
+   "answer": "Neither of you",
+   "why": "Neither of you. You each had a stop built for your own clock. Your swing stop sat close, so this pullback took you out, and selling was the plan. His sat lower, for a hold of months. It wasn't touched, so holding was his plan. If the stock turns back up, you'll feel like you sold too early. If it keeps falling, he'll feel like he held too long. Neither feeling means a plan broke. You break a plan when you skip your own stop.",
+   "lesson_line": "Judge each trade by its own plan, not by how someone else's turned out.",
+   "facts": [
+    "f10",
+    "f37",
+    "f21"
+   ],
+   "wrong": {
+    "Both, the stops should match": "Different holds need different stops. Match them and one of you is on the wrong clock.",
+    "Him, for holding on": "His stop sits on a longer clock, and this pullback didn't reach it. Holding was his plan.",
+    "You, for selling": "Taking your stop was the plan. Holding past it would have been the mistake."
+   },
+   "simple": "Neither, because each of you followed a stop set for your own clock, and a pullback can hit one without the other.",
+   "deeper": {
+    "trap": "The trap is judging one plan by the other's result. If the stock turns back up, the swing trader may feel wrong for selling. If it keeps falling, the position trader may feel wrong for holding. Neither feeling means a plan was broken. A plan is broken when you skip your own stop or rule."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (story detail added)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "styles.method_by_style",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "You buy a Kicker at $50.00 as it trades through the red day's high. The Kicker day's low is $47.00.",
+   "q": "Where's your stop?",
+   "choices": [
+    "$48.25, 3.5% under entry",
+    "Just under the $47.00 low",
+    "$45.00, 10% under entry",
+    "$48.50, 3% under entry"
+   ],
+   "answer": "$48.25, 3.5% under entry",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "entry * (1 - pct / 100)",
+     "entry": 50,
+     "pct": 3.5
+    }
+   },
+   "why": "$48.25. On a Kicker the stop goes a few cents under the Kicker day's low, or 3.5% under your entry if that's closer. Work both. 3.5% under $50.00 is $48.25. The $47.00 low is farther down, so the closer one wins. A Kicker is meant to go right away. If it gives back more than 3.5%, it isn't acting like one. A stop way down at $47.00 just costs you more per share for the same idea.",
+   "lesson_line": "Kicker stop: the candle's low or 3.5%, whichever is closer.",
+   "facts": [
+    "h03"
+   ],
+   "wrong": {
+    "$45.00, 10% under entry": "A flat 10% isn't the Kicker plan. It's the low or 3.5%, whichever is closer.",
+    "Just under the $47.00 low": "That's the other half of the rule, and here it's farther away. The closer one wins.",
+    "$48.50, 3% under entry": "Close, but the Kicker stop is 3.5%, not 3%. 3.5% under $50.00 is $48.25."
+   },
+   "simple": "$48.25, because the Kicker stop takes whichever is closer to your buy, and 3.5% under $50.00 beats the $47.00 low.",
+   "deeper": {
+    "trap": "The trap is picking the candle's low because it looks like the natural stop. On a big Kicker candle the low can sit far below the entry. The rule takes the closer of the two, so the 3.5% half caps how far below the entry the stop can sit."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 7,
+    "reasons": [
+     "one cited fact only (h03)",
+     "computed key",
+     "rests on house plans (TRADE_PLANS.md Kicker row)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "styles.method_by_style",
+   "rung": 9,
+   "format": "scenario",
+   "house": true,
+   "story": "Your day trades put 25% of the account in, with stops 2% under entry. You switch to position trades, keep 25% positions, and set stops 10% under.",
+   "q": "What just happened to your risk?",
+   "choices": [
+    "Risk is now 2.5%, over our ceiling",
+    "Nothing, the size didn't change",
+    "Risk fell, the stop is farther away",
+    "Risk is now 10%, same as the stop"
+   ],
+   "answer": "Risk is now 2.5%, over our ceiling",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "position * stop / 100",
+     "position": 25,
+     "stop": 10
+    }
+   },
+   "why": "It's now 2.5% of the account, over our 2% ceiling. Risk is size times stop distance. Before, 25% times 2% was 0.5% of the account. Now it's 25% times 10%, which is 2.5%. Same size, five times the stop, five times the risk. To get back under 2%, you shrink the size to fit the wider stop. Change the stop and you re-run the size, every time.",
+   "lesson_line": "New clock, new stop, new size. Never carry the old size over.",
+   "facts": [
+    "h12",
+    "h10",
+    "f19",
+    "f47",
+    "h18"
+   ],
+   "wrong": {
+    "Risk fell, the stop is farther away": "A farther stop means a bigger loss per share. Same size, more risk.",
+    "Risk is now 10%, same as the stop": "10% is what the position loses, not the account. 25% times 10% is 2.5%.",
+    "Nothing, the size didn't change": "The unchanged size is the problem. The stop got five times wider, so the risk did too."
+   },
+   "simple": "Risk is now 2.5%, because a 25% position with a 10% stop risks 2.5% of the account, over our ceiling.",
+   "deeper": {
+    "trap": "The trap is thinking the position size alone is the risk. The 25% position fit the ceiling with a 2% stop. With a 10% stop it breaks it. Change the stop and you must re-run the size."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (A1 ceiling, size times stop)",
+     "computed key",
+     "fixed before (unsourced multiple removed)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "visual": {
+    "kind": "size",
+    "title": "Bigger stops, same size",
+    "rows": [
+     {
+      "key": "position,_of_the_acc",
+      "label": "Position, of the account",
+      "value": 25,
+      "fmt": "%"
+     },
+     {
+      "key": "new_stop_under_entry",
+      "label": "New stop under entry",
+      "value": 10,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Risk on the account",
+     "as": "pct"
+    }
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "styles.method_by_style",
+   "rung": 9,
+   "format": "scenario",
+   "story": "A day trade. Your stop is 0.25% under entry, at the low of the first few minutes. You risk 1% of the account, as on your swing trades.",
+   "q": "How big do you go?",
+   "choices": [
+    "Cap it at 40%, not 400%",
+    "Buy the full 400%, on margin",
+    "Widen the stop to shrink the size",
+    "Tighten the stop even further"
+   ],
+   "answer": "Cap it at 40%, not 400%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "risk / stop * 100",
+     "risk": 1,
+     "stop": 0.25
+    }
+   },
+   "why": "Cap it at 40%, our max. 1 divided by 0.25 is 4, so the formula says 400% of the account. That's four times everything you have, on one day trade. Risk per trade and position size are two separate limits, and you always take the smaller one. Here that's the 40%. A tight stop never earns a giant position. A stop is only a trigger, and a fast market can fill it well below your price. At 400%, a small slip past the stop costs many times the 1% you planned.",
+   "lesson_line": "A tight stop doesn't license a giant position.",
+   "facts": [
+    "f18",
+    "f32",
+    "f13",
+    "f01",
+    "f48",
+    "h19",
+    "h20",
+    "h21",
+    "f02"
+   ],
+   "wrong": {
+    "Buy the full 400%, on margin": "A small move the wrong way wipes out a big part of the account. A stop can't save you in a fast market.",
+    "Widen the stop to shrink the size": "The stop goes where the trade is wrong. Moving it to fix the size gets it backwards. Change the size instead.",
+    "Tighten the stop even further": "A tighter stop makes the formula's size even bigger, and normal noise hits it sooner."
+   },
+   "simple": "Cap it at 40%, because 1% over a 0.25% stop works out to 400% of the account, way past our max.",
+   "deeper": {
+    "trap": "The trap is trusting the formula past its limits. A tight stop makes the formula's size huge, but a stop is only a trigger. A gap or a fast market can fill it well below. At 400% of the account, that loss is many times the 1% you planned."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (A5, A7 40% cap)",
+     "computed key",
+     "fixed before (stem and choices reworded)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "visual": {
+    "kind": "size",
+    "title": "A tight day-trade stop",
+    "rows": [
+     {
+      "key": "stop_under_entry",
+      "label": "Stop under entry",
+      "value": 0.25,
+      "fmt": "%"
+     },
+     {
+      "key": "risk,_of_the_account",
+      "label": "Risk, of the account",
+      "value": 1,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Full size that risks 1%",
+     "as": "pct"
+    }
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "styles.method_by_style",
+   "rung": 2,
+   "format": "mcq",
+   "house": true,
+   "q": "Day, swing or position trading. Which one do we do most of the time?",
+   "choices": [
+    "Swing, days to a few weeks",
+    "Day trades, flat by the close",
+    "Position trades, up to a year",
+    "A new style for each trade"
+   ],
+   "answer": "Swing, days to a few weeks",
+   "simple": "Swing trades, because we hold for days to a few weeks, and longer only while a winner keeps working.",
+   "why": "Swing. We hold for days to a few weeks, and a winner can stay on longer as long as it keeps working. That clock is where we catch the real legs without sitting through months of chop. I'd rather ride a few big swings than chase small intraday moves all day. Day trades and position trades still run the same steps you've seen in this lesson. Swing is just our home.",
+   "lesson_line": "We swing trade. Days to a few weeks, longer only while it works.",
+   "facts": [
+    "h27",
+    "f12",
+    "f46"
+   ],
+   "wrong": {
+    "A new style for each trade": "We have one home, swing trades, and our plans are built for that clock.",
+    "Day trades, flat by the close": "A day trade opens and closes the same day. We hold for days to a few weeks.",
+    "Position trades, up to a year": "We don't plan for months. A winner can run longer, but only while it keeps working."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C35)",
+     "new question"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q22",
+   "skill": "styles.method_by_style",
+   "rung": 6,
+   "format": "tf",
+   "house": true,
+   "q": "Your winner is working, so you decide to hold it longer than you planned. That's no reason to move the stop lower.",
+   "answer": "True",
+   "simple": "True, because the stop only ever moves up. You hold a winner longer by trailing it, not by lowering the stop.",
+   "why": "True. The stop only moves up, never down or wider. Lower it to give a winner room and you just put back risk you already took off the table. You hold a winner longer by trailing it. Sell some into strength and trail the rest under the rising 9 or 20 EMA. As long as it keeps working, the trail climbs right with it. The only time a stop ever goes lower is a gap down through it, and that's a different spot.",
+   "lesson_line": "Hold a winner longer with the trail, never by lowering the stop.",
+   "facts": [
+    "h17",
+    "h28",
+    "h13",
+    "rd21"
+   ],
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A4, B20 exception)",
+     "new question"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "Unit row (docs/study/UNITS-foundations.md F11.03): its title and columns use three words the owner has banned (calling us a firm, the model-invented name for the operating cycle, and the market-state shorthand) and cover dossier M1, which lives in docs/curriculum and is never a source. This file follows units_plan.json instead: house facts only from TRADE_PLANS.md and sizing_rule.md owner lines; the steps (setup, stop, size, manage, review) taught from StockCharts, Schwab, Fidelity and CME; the market check taught only as 'market conditions are one of the things our risk is chosen by' (sizing_rule.md section 1) plus Schwab and Hirsch on not trading against the broader market, never as a house 'step one' rule; the row's mid-hold market change is asked in plain words, 'the general market turns weak' (q14).",
+  "Cross-unit (F11.01 and F11.02 were drafted in parallel, 2026-11-09): this unit's drafts that repeated theirs (the daily-setup / hourly-entry split, the Go Signal's trigger chart, overnight gap risk on a swing trade into earnings, a position trader holding through a pullback, a short-term signal on a months-long hold, a losing day trade relabelled at the bell) were replaced so the track does not ask them twice. Track audit 2026-11-09: as the files stand, F11.01 asks the daily / hourly split (q12), earnings gap risk (q11), the pullback hold (q17) and the 5-minute signal on a long hold (q20); no F11 unit asks the Go Signal's trigger chart (it is a given in q06 here) or the relabelled losing day trade. q16 (a WINNING day trade the member wants to hold) keys 're-plan it: daily stop, size to fit', which agrees with F11.02 q19's note that holding a day trade overnight leaves 'a stop built for minutes', and with F11.02 q17 (a daily plan with an intraday entry holds on its daily trail): a winner may be held only on a new plan (Hirsch: let winners ride; our rule: sell partials into strength). q17 (two traders, neither broke their plan) uses the same Schwab / Fidelity pullback facts as F11.01 q17 but asks a different thing: judge each trade by its own plan.",
+  "Flat-risk sizing (sizing_rule.md section 1: the same percent on every trade is 'a valid alternative, not a mistake'; F9.01 teaches it). So no question here keys 'keep the same risk' as wrong. q14 (the general market turns weak mid-hold) keys Hirsch's defensive posture, 'limiting new buys ... tightening up stops', which a flat-risk trader can follow too; its wrong choices are ignoring the market, widening stops and buying more of a falling stock. q02 keys only that the 2% ceiling does not stretch for a day trade.",
+  "Holding periods differ by publisher: CME's trade-plan course labels a swing trader '1-3 days' and an intermediate trader '10-30 days'; Schwab says swing trades run days or weeks and position trades weeks or months (up to a year on its moving-average page); Fidelity says position traders may hold many months or years. No question keys a number of days for any style (that is F11.01's ground) and CME's ranges are not cited.",
+  "Pattern day trader rule: Schwab (2026-10-29) and Fidelity (2026-06-05) both say FINRA's $25,000 pattern-day-trader minimum was eliminated (Fidelity: new intraday margin rules effective June 4, 2026). This unit asks nothing about account rules; whoever writes about them must read FINRA's current page (finra.org's day-trading page answered this session's plain client with HTTP 429, so it was not read).",
+  "The house sources describe trades on our daily-chart setups, some with entries timed intraday (the Go Signal's 30 or 65-minute trigger, the Kicker's day-1 30-minute range break). They say nothing about a day trader's stop or a position trader's trail. So q08 and q12 (where a stop sits by style) rest on Schwab and Fidelity, and q10 keys the 200-day from Schwab and ChartSchool as what fits a year-long hold, never as our rule; its question names our 10-day and 21-day trails (TRADE_PLANS.md Kicker and Launchpad rows; the Slingshot also uses the 10-day, the Oops Reversal only higher lows) as context, so it says 'several of our setup plans'. Our default stop (sizing_rule.md section 2) is used as our default, never keyed per style.",
+  "q10 (which average fits a hold of up to a year): Schwab names the 200-day for a position trader and ChartSchool says long-term investors use 100 or more periods. Other position-style authors use the 50-day or a 10-week or 30-week line; none of those is offered as a choice, so the key is the only long average on the list and is never called our trail.",
+  "q20 (day trade with a 0.25% stop): sizing_rule.md section 3's worked line ('0.5% risk, 1% stop -> 50% position, which the ceiling (section 4) then caps') and section 4's position-cap table (the app's houseSizing.json) are not marked as the owner's, so no house cap number is keyed. The key is only 'cap the size', from Schwab (risk per trade and position size are separate limits, 5%-10% per position for 'some traders'), Fidelity/Hirsch (no position so big it decides the portfolio) and FINRA (fast-market fills). The 400% is the calc, shown in the choices. Checker, 2026-11-09: sizing_rule.md section 4 now quotes the owner on the normal max position ('20-25% is max yeah', 2026-11-09). It was given about Size It's swing sizing and names no day trade, so it is still not keyed here; the key stays 'cap the size'.",
+  "q19 (same 25% size carried from 2% stops to 10% stops): keyed with the calc (25 x 10 / 100 = 2.5) against our 2% hard ceiling (sizing_rule.md section 1) and the owner's own size-times-stop line (section 3). The 25% day-trade size is a given in the story, not a recommended size.",
+  "q11 (Go Signal first trim): until 2026-11-09 TRADE_PLANS.md put every detector's targets at 2R and 3R and q11 asked the 2R price; the account rulebook (sizing_rule.md section 9, B19) makes the first trim a third at 3R, so q11 now asks the 3R price. The Go Signal's entry (prior close, red to green) and stop (the session's low) are unchanged (TRADE_PLANS.md). q06 keys the Go Signal's stop from the same page.",
+  "q18 (Kicker stop): keys only the stop rule as TRADE_PLANS.md states it ('under the Kicker's low, or 3.5% under the entry if that is closer'; the owner's words 'Under the kicker candle low or entry with a 3.5% stop'). The story gives only the entry and the candle's low, so the key does not depend on how a Kicker is defined; F8.02 owns the Kicker's entries.",
+  "q12 (a six-month hold meets reports): Investor.gov says US issuers file an annual 10-K and a 10-Q for each of the first three fiscal quarters, so a report comes every quarter. The earnings release that moves the stock usually comes around those filings. Checker, 2026-11-09: the story used to say the company 'must file a report every quarter', which gave the key away, so that fact now sits only in the why; the question asks what this plan covers that a day trade plan 'can skip' (not 'never'), because a day trade can still be taken on a report day. Nothing keys an exact count of reports in the hold (filing dates vary). What to do at a report (hold, trim, step aside) is F5.06's ground.",
+  "Stop orders after hours: Schwab's order page says its stop orders trigger only in the 9:30 to 4 ET session; that is one broker's policy, so it is not cited. The general facts used are that gaps between sessions can carry price past a stop (Schwab, two pages) and Fidelity's overnight-earnings example (a 95 stop that sold near 90). Schwab's day-trading page also notes a 'trading day' for day-trade counting starts at 8 p.m. ET, so no question claims a day trade can never meet an overnight gap; q07 keys only that intraday stops can fill below the stop (FINRA, SEC).",
+  "Fidelity's swing page (s11) is an excerpt credited to Wiley Global Finance with no author shown (it reads as Alexander Elder's channel method); only its 'keep good records' line is cited. Hirsch's article (s10) is copyright 2012 and written for managing a stock portfolio, not swing trading; it is cited for the defensive-posture, cut-losses, 2%-rule, no-oversized-position and 20%-stop lines only, as a longer-term manager's practice (q15 says 'Hirsch' by name).",
+  "Not used: Investopedia (its robots.txt disallows Claude-User); the Go Signal detector's own narrative line 'Do not convert a failed Go Signal into a longer-term hold' (code text, not a house page); the owner's drawdown ladder and his 'I almost never take a loss greater than 3%' (both still open in sizing_rule.md section 8); 'Trade SHARES' as a rule for every style (the owner's line names no style; F6.11 asks it for a swing trade); a daily loss limit for day traders (F9.04 q17 asks it).",
+  "Checker, 2026-11-09: q05 was rewritten from a False statement ('how long you hold sets the 2R target') to a True one (same entry and stop, same 2R target however long you hold). The old one was arguable, since this unit teaches that longer holds use wider stops, which pushes 2R out; it also left all four true/false items keyed False. w2 was titled 'What never changes for us' while listing the default stop, which q08 keys as the thing that changes by style; retitled 'What our rules set'.",
+  "Track audit 2026-11-09 (all five F11 units read together): q04 is cut as a duplicate of F9.02 q16 (same stock, same risk, wider stop: a smaller position). q10 now asks which of its three choices gives the best read, because F11.02 teaches Weinstein's 30-week line for months-long holds; the 200-day is keyed only as the best of the three. Times now read 'p.m.' as in the rest of the track."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f46, f47 (StockCharts Insider, 2026-05-29), f16 (Schwab trade plan, 2024-10-23), f12 (Schwab day trading, 2026-10-29), f36 (Fidelity, 2026-06-05) and f21 (Schwab, Trading Near the Bells) read in context on the live pages. Added h13 (owner: sell partials into strength, trail the rising averages) as the source for the 'manage it' step, which no cited fact covered.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: h02 (B19) and h14 (E51) verbatim in section 9; h10 and h11 still in sections 1 and 2. Step 3's 'a third at 3R and at 5R' follows. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Step 3's '2R and 3R targets' now the thirds at 3R and 5R"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f20 read in wide context (Schwab, Trading Near the Bells, Kevin Horner, 2024-11-26): it is a stop 'some traders consider' on a trade made near the open, not a day trader's rule; step 1 now says 'a short-term trader buying near the open'. Added f41 (Fidelity transcript: a longer-term trader trails by 10% or 20%) to back 'the stop sits farther away'. h12 (owner quoted) and f48 (StockCharts) confirmed.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Watching the screen isn't a stop is his register. Key right (f11, f15, h22); wrong notes name real mistakes."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Ceiling and range match A1 (0.25% to 2%, 2% hard). Stop-as-trigger line backed by f01/f03."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Order matches f46/f47; size from the stop. Ends on a mentor line."
+  },
+  "q04": {
+   "status": "cut",
+   "notes": "duplicate of F9.02#q16. Track audit 2026-11-09: the same fill-in with the same key: same stock, same dollar risk, wider stop, so the position is 'smaller' (F9.02: 'For the same dollar risk, a wider stop on the same stock means a ___ position'). F9.02 is the sizing unit, so it keeps it. This unit still teaches the point in w3 and applies it in q15, q16 and q19. This item was right as written. The checker's earlier note: Math from f19 (Schwab) and h12 (owner). Added 'Same stock' to the sentence: across two stocks at different prices a wider dollar stop can come with a bigger position, so the key held only for one stock.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True is right: same entry and stop give the same 3R price. First sell stated as judgment, day 1 rarely (r01, r02). No fixed 3R trim taught."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "LOD stop matches go.stop (settled, a few cents under the session low, F62). Entry wording avoids the pending go.entry options as a rule."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Stop as trigger, intraday slippage without a gap (f03, f01, f04). Clean."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Stop placement by clock (f20 framed as 'someone buying near the open', f21); default stop LOD or prior day low (h11)."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: 18.60-18.35=0.25; 200/0.25=800. 1,075=20,000/18.60 (40% cap), 2,688=50,000/18.60, 8,000 decimal slip. Steps shown."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "200-day stated as a hard line for stocks, no parabolic exception (fact h23's wording is not echoed). Trails 9/20 EMA (rd21)."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: 40.00-39.20=0.80; x3=2.40; 42.40. 41.60=2R, 44.00=5R, 43.00 flat. 3R called a mark, not a fixed trim."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "B22 stated right (no new buys 3 days before, hold through only if up 5R). Fidelity 95 to 90 gap cited (f38-f40)."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Journal same day, weekly review 'ideally' (h29). Plain and direct."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "the add is into a falling market on open trades, so averaging down; note now says never add to a loser, full size once. Answer clear, voice 4."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "About Hirsch's own principle, so the name in the why is fair (rule 13). Recomputed 2/20=0.1=10%; 20% doubles the cap, 40% multiplies."
+  },
+  "q16": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave9: see the resolver's notes"
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Narrates both trades and gives the judgment plainly. No truth issues."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Kicker stop (kk.stop and kk.stop_cap, both settled 3.5%) recomputed: 50x0.965=48.25, closer than the 47.00 low. 48.50 = 3%, 45.00 = 10%."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed 25x10/100=2.5 (over 2%); 25x2%=0.5% before; stop 5x wider, risk 5x. Shows the steps."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth right (1/0.25=4, so 400%; size is the smaller of the risk size and the 40% max, A5/A7). Voice fix: the key 'Cap the size, far under 400%' read like a hedge and never named the number you actually cap at. Now 'Cap it at 40%, not 400%', and the why says which limit wins and why."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "C35 right (days to a few weeks, longer while it works). One first-person judgment line, consistent with C35."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth right (A4 stop only moves up; B20 gap exception; trail 9/20 EMA, h13). Voice fix: 'The one exception to only up' was clumsy and the trail line was generic; reworded the close."
+  }
+ }
+}

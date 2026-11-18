@@ -329,3 +329,59 @@ describe('through the real panel (scripted model)', () => {
     await waitFor(() => expect(srv.rows).toEqual([]))
   })
 })
+
+// Round 3 (pl-exec): a level the indicator can never reach is refused from the indicator's OWN declared range (its definition's
+// fixed pane scale), never a per-indicator list. An unbounded indicator (MACD) takes any level. Held-out levels from
+// agentExecHeldOut3 (RANGE_HELD_OUT) are among the cases; the rest are this file's own.
+import { RANGE_HELD_OUT } from './agentExecHeldOut3.test.js'
+describe('an alert level inside the indicator\'s own range', () => {
+  const rsi = { instanceId: 'r', defId: 'rsi', inputs: { period: 14 } }
+  // (condition above unless said: at the ends a level that must be passed is exclusive — above 100 / below 0 can never fire)
+  it.each([...RANGE_HELD_OUT.map(c => [c.threshold, c.ok, 'above']), [100, false, 'above'], [100, false, 'cross_above'], [0, false, 'below'], [0, false, 'cross_below'], [0, true, 'above'], [100, true, 'below'], [99.5, true, 'cross_above'], [100.5, false, 'below']])('RSI %s (%s, %s)', async (threshold, ok, condition) => {
+    const { refused } = await create(chartWith([rsi]), createArgs('r', { threshold, condition }))
+    if (ok) {
+      expect(refused).toBeUndefined()
+      expect(srv.rows).toMatchObject([{ indicator: 'rsi', threshold }])
+    } else {
+      expect(refused).toMatch(/RSI moves between 0 and 100, so .* can never be reached — nothing was created/)
+      expect(srv.posts).toEqual([])
+    }
+  })
+  it('the range comes from the definition, so an unbounded indicator (MACD) takes any level', async () => {
+    const { refused } = await create(chartWith([{ instanceId: 'm', defId: 'macd', inputs: { fast: 12, slow: 26, signal: 9 } }]), createArgs('m', { threshold: 150 }))
+    expect(refused).toBeUndefined()
+  })
+})
+
+// Round 5 (pl-exec, C2-092): an alert on the member's own YES/NO signal with its trigger policy, through the REAL panel: one card,
+// Apply arms the popover's payload (policy + its compiled rule) on the server, Undo deletes it. Held-out phrasings from
+// agentExecHeldOut5 (SIGNAL_HELD_OUT); the model is scripted.
+import { SIGNAL_HELD_OUT } from './agentExecHeldOut5.test.js'
+import { cleanup as rtlCleanup, screen as rtlScreen } from '@testing-library/react'
+describe('C2-092 through the REAL panel: a yes/no signal alert with its trigger', () => {
+  const doc = JSON.parse(fs.readFileSync(path.resolve(globalThis.process.cwd(), '..', 'tests/fixtures/authoring/batch2_definitions.json'), 'utf8')).styled_markers
+  const stored = (id, name, src) => { const { ast } = parseFormula(src); return { ...doc, id, meta: { ...doc.meta, name }, plots: [{ ...doc.plots[0], key: 'value' }], compute: { ...doc.compute, fn: astHash(ast), ast, source: src } } }
+  let p
+  beforeEach(() => {
+    installUserDefinitions([stored(SIG, 'Bullish Trend', 'close > sma(close, 20)')])
+    p = setupPanel()
+    const base = globalThis.fetch
+    globalThis.fetch = vi.fn((url, init) => (String(url).startsWith(ROUTE) ? srv.handle(url, init) : base(url, init)))
+  })
+  afterEach(() => { rtlCleanup() })
+  const COMPILED = { becomes_true: 'cross_above', becomes_false: 'cross_below', is_true: 'above' }
+  it.each(SIGNAL_HELD_OUT.map(c => [c.text, c.trigger]))('"%s" → a card; Apply arms %s on the server; Undo removes it', async (text, trigger) => {
+    const [widgets, syms] = ONE('NVDA')
+    const { say, click, h } = p.mount([{ ...widgets[0], opts: { settings: { indicatorInstances: [{ instanceId: 'inst:s', defId: SIG, inputs: {} }] } } }], syms)
+    h.indicatorAlerts = buildIndicatorAlertSource()
+    p.st.envelopes.push(p.env('propose', [{ action: 'indicatorAlert.create', target: 'indicatorAlerts', args: { instance: 'inst:s', plot: null, condition: null, threshold: null, crossWith: null, chart: null, trigger, timeframe: null } }]))
+    await say(text)
+    expect(rtlScreen.getAllByTestId('agent-proposal').length).toBe(1)
+    expect(srv.posts).toEqual([])
+    await click('Apply')
+    await waitFor(() => expect(srv.rows).toHaveLength(1))
+    expect(srv.posts).toMatchObject([{ indicator: `${SIG}.value`, trigger_policy: trigger, condition: COMPILED[trigger], threshold: 0.5, tf: 'D' }])
+    await say('undo')
+    await waitFor(() => expect(srv.rows).toEqual([]))
+  }, 40000)
+})

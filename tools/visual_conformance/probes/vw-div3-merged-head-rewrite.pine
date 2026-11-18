@@ -1,0 +1,46 @@
+// DIV-3 r1 (2026-11-09) - probe Q-DIV3-1 for the capture lane. Queue: docs/pine/capture-queue-2026-11-09-div3-merged-head.md
+// Chart: AMEX:SPY 1D, inputs at defaults, AFTER THE CLOSE. Read every table back from the chart model
+// (each cell's col, row, text, colspan, rowspan and bgcolor), not from pixels.
+// Not compiled on TradingView yet: a compile or runtime error is itself the reading; record its text and
+// the line it names, comment that table out, and capture the rest.
+//
+// One table per corner, all written on the LAST bar only (one write each), so no merge is repeated:
+//   M01 top_right     cell(0,0,"head", bg) -> merge (0,0)-(1,0) -> cell(0,0,"again"):      span after? bg after?
+//   M02 middle_right  merge (0,0)-(1,0) FIRST -> cell(0,0,"after"):                        span after?
+//   M03 bottom_right  cell(0,0,"head") -> merge (0,0)-(1,0) -> cell(1,0,"covered"):        the covered cell's text, span
+//   M04 top_left      cell(0,0,"head") -> merge (0,0)-(1,0) -> cell_set_text(0,0,"set"):  the CONTROL (a patch keeps it)
+//   M05 middle_left   cell(0,0,"head") -> merge (0,0)-(0,1) -> cell(0,0,"again"):          a ROW span, same question as M01
+// Every row is drawn with no other write, so the record of each corner is that row's answer.
+//@version=6
+indicator("vw-div3-merged-head-rewrite", overlay = true)
+var t1 = table.new(position.top_right, 3, 2, border_width = 1)
+var t2 = table.new(position.middle_right, 3, 2, border_width = 1)
+var t3 = table.new(position.bottom_right, 3, 2, border_width = 1)
+var t4 = table.new(position.top_left, 3, 2, border_width = 1)
+var t5 = table.new(position.middle_left, 3, 3, border_width = 1)
+if barstate.islast
+    // M01
+    table.cell(t1, 0, 0, "head", bgcolor = color.blue)
+    table.merge_cells(t1, 0, 0, 1, 0)
+    table.cell(t1, 0, 0, "again")
+    table.cell(t1, 2, 0, "M01")
+    // M02
+    table.merge_cells(t2, 0, 0, 1, 0)
+    table.cell(t2, 0, 0, "after")
+    table.cell(t2, 2, 0, "M02")
+    // M03
+    table.cell(t3, 0, 0, "head")
+    table.merge_cells(t3, 0, 0, 1, 0)
+    table.cell(t3, 1, 0, "covered")
+    table.cell(t3, 2, 0, "M03")
+    // M04 (control)
+    table.cell(t4, 0, 0, "head", bgcolor = color.blue)
+    table.merge_cells(t4, 0, 0, 1, 0)
+    table.cell_set_text(t4, 0, 0, "set")
+    table.cell(t4, 2, 0, "M04")
+    // M05
+    table.cell(t5, 0, 0, "head", bgcolor = color.blue)
+    table.merge_cells(t5, 0, 0, 0, 1)
+    table.cell(t5, 0, 0, "again")
+    table.cell(t5, 1, 0, "M05")
+plot(close, "P01_close_CONTROL")

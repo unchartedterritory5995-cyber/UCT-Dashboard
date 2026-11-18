@@ -40,6 +40,7 @@
 // HANDED, never about pixels. Whether four series actually paint, whether Scale
 // Padding is invisible and scale-setting, and whether the sub-pane is a quarter
 // high are SCREENSHOT questions and are owed against the real chart.
+import { withoutGuardIds } from '../../engine/ast/guardIdText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import ChartPane from '../../pane/ChartPane'
 import * as engineRegistry from '../../engine/nativeRegistry'
@@ -47,10 +48,14 @@ import { addInstance } from '../../engine/instanceControls'
 import { mergeChartSettings } from '../../chartDefaults'
 import { memberPaneEnabled } from '../../engine/memberPaneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
-import { setRuntimeKillList, setRuntimeAllowList, RUNTIME_KILL_PATH } from '../../engine/runtimeKill'
+import {
+  latchRuntimeLists, runtimeCapabilityAdmissionOn,
+  runtimeAdmissionOf, watchRuntimeAdmission, RUNTIME_KILL_PATH,
+} from '../../engine/runtimeKill'
 import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
 import { usePineLibraries } from '../usePineLibraries'
+import { logRefusalCodes } from '../../supportLoop/supportApi'
 import styles from './MemberPane.module.css'
 // ⭐ P0 gate (pineack) — the repaint acknowledgement reuses the Formula tab's own
 // `.ack` row, so the two doors' checkboxes look and behave alike.
@@ -63,6 +68,11 @@ const noop = () => {}
  *  `PreviewPane` uses, and for the same reason. */
 const MEMBER_CHART_PROPS = Object.freeze({ liveUpdates: false, backgroundWarm: false })
 
+/** WS-I Part 2 — how long a source must sit still before its capability verdict is asked. */
+const ADMISSION_ASK_DEBOUNCE_MS = 250
+/** ⭐ U4 — how long a refused source must stay still before its codes are logged. */
+const REFUSAL_LOG_SETTLE_MS = 1500
+
 /**
  * @param {object} props
  * @param {string|null} props.sym    the symbol to draw on
@@ -73,6 +83,9 @@ const MEMBER_CHART_PROPS = Object.freeze({ liveUpdates: false, backgroundWarm: f
  * @param {((definition: object) => Promise<{ok: boolean, error?: string}>)|null}
  *        [props.onAttach] omit for a preview-only pane; supply it and the pane
  *        offers to SAVE the document and put it on the member's real chart.
+ * @param {((definition: object|null) => void)|null} [props.onDocument] told the document
+ *        this pane installed (the one "Add this script to my chart" adds), or null when
+ *        there is none, so a host can describe IT rather than its own state.
  */
 export default function MemberPane({
   sym = null, tf = null, source = null, defId = MEMBER_PANE_DEF_PREFIX, settings = null,
@@ -84,6 +97,7 @@ export default function MemberPane({
   doneLabel = 'Saved, and added to this chart.',
   onAttachCopy = null,
   copyLabel = null,
+  onDocument = null,
 }) {
   // ⛔ FIRST, AND BEFORE ANY BUILD. Reading the flag after `memberPaneDefinition`
   // would translate a member's script on a build that may not show it — work
@@ -113,6 +127,9 @@ export default function MemberPane({
   // as it was: the store's own door refuses a listed script's SAVE regardless.
   const runtimeOn = live && runtimePaneEnabled()
   const [killVersion, setKillVersion] = useState(0)
+  // ⭐ WS-I Part 2 — whether the server admits by capability (the kill read's
+  // `capability_admission`, absent while it is off): only then is a verdict asked.
+  const [admissionOn, setAdmissionOn] = useState(false)
   useEffect(() => {
     if (!runtimeOn) return undefined
     let alive = true
@@ -120,15 +137,31 @@ export default function MemberPane({
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!alive || !d) return
-        setRuntimeKillList(d.kill)
         // ⭐ GT (D6) — the starter allowlist rides the same read. Until it lands
         // the lane declines every script (nothing graded), never the reverse.
-        setRuntimeAllowList(d.allow)
+        // ⭐ RS RATING L8 — so does the run half's object evidence: ONE latch for every
+        // key of this read (`runtimeKill.js::latchRuntimeLists`, also the recheck's).
+        latchRuntimeLists(d)
+        setAdmissionOn(runtimeCapabilityAdmissionOn())
         setKillVersion((n) => n + 1)
       })
       .catch(() => { /* the list stays as it was; the save door still checks */ })
     return () => { alive = false }
   }, [runtimeOn])
+
+  // ⭐⭐ WS-I Part 2 — THE PER-SCRIPT CAPABILITY VERDICT, beside the kill read. While
+  // capability admission is on, this script's verdict is asked once its source has
+  // been still for `ADMISSION_ASK_DEBOUNCE_MS` (not per keystroke), and the build
+  // re-runs when it lands (`killVersion`). Until then the lane declines it: fail
+  // closed, with the "still being checked" sentence (`engine/runtimeKill.js`).
+  // ⭐ re-review F2 — and it KEEPS asking while the answer is "still being checked" (the server's
+  // detector was busy), on the lists' recheck interval, so the preview recovers by itself.
+  useEffect(() => {
+    if (!runtimeOn || !admissionOn || !source) return undefined
+    if (runtimeAdmissionOf({ source })) return undefined
+    return watchRuntimeAdmission(source, () => setKillVersion((n) => n + 1),
+      { delayMs: ADMISSION_ASK_DEBOUNCE_MS })
+  }, [runtimeOn, admissionOn, source])
 
   // ⭐ THE BUILD IS MEMOISED ON THE SOURCE, not run per render: `translatePine`
   // on a real script is milliseconds, and milliseconds on every keystroke is a
@@ -142,6 +175,20 @@ export default function MemberPane({
     [live, source, defId, libRevision, killVersion],
   )
   const [installed, setInstalled] = useState(null)
+
+  // ⭐ U4 — A REFUSAL THE MEMBER HITS IS A RANKED WORK ITEM (the support loop's gap
+  // table, kind `refusal-guard`): the pane's guard code and its runtime decline code,
+  // once the source has been still for `REFUSAL_LOG_SETTLE_MS` (a keystroke's
+  // half-written script is not a refusal anyone hit), once per distinct set per page.
+  // ⛔ CODES ONLY: never the reason sentence (it can quote the script), never the source.
+  useEffect(() => {
+    if (!built || built.ok) return undefined
+    const codes = [built.guard, built.runtimeDeclined && built.runtimeDeclined.code]
+      .filter((c) => typeof c === 'string' && c)
+    if (!codes.length) return undefined
+    const t = setTimeout(() => { logRefusalCodes(codes) }, REFUSAL_LOG_SETTLE_MS)
+    return () => clearTimeout(t)
+  }, [built])
 
   useEffect(() => {
     if (!built || !built.ok) {
@@ -166,6 +213,13 @@ export default function MemberPane({
     setInstalled(null)
     return undefined
   }, [built, defId])
+
+  // ⭐ THE HOST IS TOLD WHAT THIS PANE WOULD ADD (the installed document, or null), so
+  // the sheet's own counts can describe the script and not its empty formula.
+  useEffect(() => {
+    if (typeof onDocument === 'function') onDocument(installed)
+  }, [installed, onDocument])
+  useEffect(() => () => { if (typeof onDocument === 'function') onDocument(null) }, [onDocument])
 
   // ⛔ A SEPARATE, EMPTY-DEP EFFECT for the teardown. Putting it in the cleanup
   // above would fire on every source change — uninstall-then-reinstall bumps the
@@ -259,7 +313,7 @@ export default function MemberPane({
   // this renders it verbatim rather than inventing a second wording.
   if (built && !built.ok) {
     return (
-      <div data-testid="pine-member-pane-refusal" role="status">{built.reason}</div>
+      <div data-testid="pine-member-pane-refusal" role="status">{withoutGuardIds(built.reason)}</div>
     )
   }
   if (!stored) return null
@@ -288,7 +342,7 @@ export default function MemberPane({
           in `closedTable.json::_alertconditions`. */}
       {disclosures.length > 0 && (
         <ul data-testid="pine-member-pane-notes" className={styles.notes}>
-          {disclosures.map((n) => <li key={n.name}>{n.note}</li>)}
+          {disclosures.map((n) => <li key={n.name}>{withoutGuardIds(n.note)}</li>)}
         </ul>
       )}
       {/* ⭐⭐ T5b — THE ONE CONTROL THAT LEAVES THE HARNESS. Present only when a

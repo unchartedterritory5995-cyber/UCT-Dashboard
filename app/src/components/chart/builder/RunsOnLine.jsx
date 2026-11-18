@@ -9,6 +9,7 @@
 //   - a lane `{guard, sentence}` -> the server's sentence, verbatim, never listed;
 //   - anything else (not an object, a lane that is neither `true` nor a refusal
 //     with a sentence) -> FAILS CLOSED: that lane is never claimed to run.
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import styles from './BuilderSheet.module.css'
 
 export const SERVER_LANES = ['alerts', 'screener', 'scans']
@@ -32,7 +33,7 @@ export default function RunsOnLine({ serverLanes }) {
         <p data-testid="runs-on-lanes">{`Runs on: ${['chart', ...running].join(', ')}`}</p>
       )}
       {refused.map(([lane, s]) => (
-        <p key={lane} data-testid={`runs-on-refused-${lane}`}>{`${lane}: ${s.sentence}`}</p>
+        <p key={lane} data-testid={`runs-on-refused-${lane}`}>{`${lane}: ${withoutGuardIds(s.sentence)}`}</p>
       ))}
       {unknown.length > 0 && (
         <p data-testid="runs-on-unconfirmed">{`Not confirmed for: ${unknown.join(', ')}`}</p>

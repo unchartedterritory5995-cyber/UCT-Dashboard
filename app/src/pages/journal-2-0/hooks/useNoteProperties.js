@@ -4,12 +4,14 @@
  * useJ2Note().update({properties: {...}}) -- this hook just reads the
  * resolved result back after that save invalidates it. */
 import useSWR from 'swr'
+import { withNoteTypeNames } from '../lib/noteKinds'
 
+// Simplify pass 2 (A4): `builtin:note_kind`'s row reads "Note type".
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
     if (!r.ok) throw new Error(`${r.status}`)
     return r.json()
-  })
+  }).then((b) => withNoteTypeNames(b, 'properties'))
 
 export default function useNoteProperties(noteId) {
   const url = noteId ? `/api/j2/notes/${noteId}/properties` : null

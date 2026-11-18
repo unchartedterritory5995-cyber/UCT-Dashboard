@@ -32,6 +32,13 @@ the member door (memberPaneDefinition -> installUserDefinitions, production flag
 state) attaches it with zero refusals, nothing dropped or withheld from its object
 program, and no paint withheld. It is a door verdict, NOT a numeric-parity verdict:
 parity is graded only where a vendor capture exists, reported separately.
+
+THE PAINT RULE (instrument correction, 2026-11-16; `tools/pine_coverage/paint_predicate.mjs`): a paint
+(`bgcolor` / `barcolor`) counts as withheld only when the DOCUMENT the member gets does not draw it. A
+row's `withheldPaints` is that count; `withheldPaintsTranslated` is the count before the correction (every
+paint the translation marked withheld, including one the door then draws from the per-bar run), and
+`cleanTranslatedPaints` is `clean` under that earlier rule, so one census states the headline both ways.
+A row written before the correction has only `withheldPaints`, under the earlier rule.
 """
 import argparse
 import collections
@@ -42,6 +49,9 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(ROOT, "tools", "vendor_harness"))
+import evidence_ledger as el  # noqa: E402 -- LEDGER_ONLY evidence and its freshness rule: one authority
+import licence_held  # noqa: E402 -- a licence-held capture is read from the local store (LICENSING.md 2d)
 
 # ── what each door guard is, as a CAPABILITY. Derived from pine.js REFUSALS sentences.
 GUARD_BUCKET = {
@@ -52,6 +62,7 @@ GUARD_BUCKET = {
     "pine:collection": "collections",
     "pine:tuple": "tuples",
     "pine:module": "imports-libraries", "pine:declaration-library": "imports-libraries",
+    "pine:library-version": "imports-libraries",
     "pine:declaration-strategy": "strategy", "pine:strategy-call": "strategy",
     "pine:request": "request-security",
     "pine:text-value": "text-colour-values", "pine:colour-value": "text-colour-values",
@@ -64,6 +75,8 @@ GUARD_BUCKET = {
     "pine:arity": "call-mapping", "pine:named-argument": "call-mapping", "pine:role-order": "call-mapping",
     "pine:input-kind": "call-mapping", "pine:operator": "call-mapping",
     "pine:drawing": "drawing-objects",
+    # DRAW-1: a drawing step's condition the object reader could not read, named (`pine.js`, OBJECT_CONDITION_WHY)
+    "pine:object-condition": "drawing-objects",
     # objects-only in the STRICT lane = an object-only script whose object program is not clean
     "pine:no-output": "output-contract", "pine:objects-only": "drawing-objects",
     "pine:presentation-only": "output-contract", "pine:constant-only": "output-contract",
@@ -71,8 +84,17 @@ GUARD_BUCKET = {
     "pine:timeout": "translator-robustness", "pine:roundtrip": "translator-robustness",
     "pine:budget": "translator-robustness", "pine:character": "translator-robustness",
     "pine:empty": "translator-robustness", "threw": "translator-robustness", "killed": "translator-robustness",
+    # DOOR-ROBUSTNESS (2026-11-16): a refusal the DOOR makes over a clean translation, named on the step
+    # (`guard`) with no refusal row: a plot past a host-lane compute budget, or a document its own check refuses
+    "budget:lookback": "compute-budget", "budget:series": "compute-budget", "budget:nodes": "compute-budget",
+    "pine:install": "translator-robustness",
+    # 2026-11-17 (owner decision): the host lane's known-divergence list, refused by name at every host door
+    "pine:known-divergence": "known-divergence",
 }
+# the guards the member door itself refuses by, over a clean translation (no refusal row carries them)
+DOOR_GUARDS = frozenset({"budget:lookback", "budget:series", "budget:nodes", "pine:install", "pine:known-divergence"})
 BUCKET_LABEL = {
+    "known-divergence": "A committed TradingView capture of the script grades DIVERGE on the host lane: refused by name until the engine fix re-grades it",
     "imperative": "Imperative execution: if/for/while blocks, := reassignment, var state carried across bars",
     "user-functions": "User-defined functions with multi-line bodies",
     "udt-methods": "User-defined types (type), fields and methods",
@@ -93,6 +115,7 @@ BUCKET_LABEL = {
     "paint-withheld": "A per-bar paint the door withheld (colour typing), with the object program clean",
     "output-contract": "Script offers nothing the pane carries (no plot, hidden-only, constant-only)",
     "translator-robustness": "Translator timeout / crash / round-trip failure",
+    "compute-budget": "A plot past a host-lane compute budget (bars of history, distinct series, formula size)",
 }
 ITEM_GUARDS = {"pine:function", "pine:builtin", "pine:arity", "pine:named-argument", "pine:role-order",
                "pine:input-kind", "pine:request", "pine:strategy-call", "pine:drawing", "pine:text-value",
@@ -157,94 +180,16 @@ LEGACY = {  # v1-v4 bare name -> v6 name (only applied when the script's version
 LEGACY_COLOURS = {"aqua", "black", "blue", "fuchsia", "gray", "green", "lime", "maroon", "navy", "olive",
                   "orange", "purple", "red", "silver", "teal", "white", "yellow"}
 
-# ⭐⭐ WS-C (2026-10-31) — `conditional-ta`: a `ta.*` CALL WRITTEN INSIDE a block
-# that does not run on every bar (an `if` / `else` / `switch` arm, a `for` /
-# `while` body) or inside a user function's body. Pine keeps such a call's
-# history PER CALL SITE (C48, `vw-call-site-history`), which the runtime lane
-# serves for `ta.sma` / `ta.ema` in a root-level block and refuses by name
-# (`runtime:conditional-history`, R4) everywhere else.
-#
-# ⛔ BLOCK-AWARE, NOT "the script has an `if` and a `ta.`". The header line's own
-# condition (`if ta.crossover(a, b)`) runs every bar and does NOT count; only a
-# DEEPER-indented line in the header's contiguous block does (blank lines may sit
-# inside it). Each alternative is deterministic (`[ \t]+\S` cannot split two
-# ways), so the scan is linear per header, never exponential.
-# ⛔ v1-v4 spell the same calls bare (`sma(`, `rsi(`), so the bare names Pine had
-# before namespaces are matched too; a v5+ user function that reuses one of
-# those names is over-reported, which is the safe direction for a grading gate.
-_COND_TA_BARE = ("sma|ema|rma|wma|vwma|swma|hma|alma|linreg|rsi|atr|tr|stdev|dev|variance|"
-                 "highest|lowest|highestbars|lowestbars|change|mom|roc|cum|sum|crossover|crossunder|"
-                 "cross|valuewhen|barssince|pivothigh|pivotlow|rising|falling|correlation|percentrank|"
-                 "percentile_linear_interpolation|percentile_nearest_rank|median|mode|range|stoch|cci|"
-                 "mfi|cmo|tsi|bb|bbw|kc|kcw|macd|dmi|sar|supertrend|vwap|wpr|cog")
-_COND_TA_CALL = r"(?<![\w.])(?:ta\.\w+|(?:%s))\s*\(" % _COND_TA_BARE
-_COND_TA_HEADER = (r"(?:(?:[\w\[\], ]+=\s*)?(?:if|for|while|switch)\b|else\b"
-                   r"|(?:export\s+)?(?:method\s+)?\w+\s*\([^()\n]*\)\s*=>[ \t]*$)")
-COND_TA_RX = (r"^(?P<ci>[ \t]*)%s[^\n]*\n(?:[ \t]*\n|(?P=ci)[ \t]+\S[^\n]*\n)*?(?P=ci)[ \t]+(?=\S)[^\n]*?%s"
-              r"|^[ \t]*(?:export\s+)?(?:method\s+)?\w+\s*\([^()\n]*\)\s*=>[^\n]*?%s"
-              % (_COND_TA_HEADER, _COND_TA_CALL, _COND_TA_CALL))
-
-FEATURES = [  # (id, label, regex over comment/string-stripped code, flags)
-    ("var", "var declarations (state that persists across bars)", r"^\s*var\s+", re.M),
-    ("varip", "varip (intrabar-persistent state, realtime only)", r"\bvarip\b", 0),
-    ("if-block", "if statements / blocks", r"^\s*(?:[\w\[\], ]+=\s*)?if\b", re.M),
-    ("for", "for loops", r"^\s*(?:[\w\[\], ]+=\s*)?for\s+\w+\s*=", re.M),
-    ("for-in", "for...in loops", r"^\s*(?:[\w\[\], ]+=\s*)?for\s+(?:\[[^\]]*\]|\w+)\s+in\b", re.M),
-    ("while", "while loops", r"^\s*(?:[\w\[\], ]+=\s*)?while\b", re.M),
-    ("switch", "switch", r"\bswitch\b", 0),
-    ("reassign", ":= reassignment", r":=", 0),
-    ("compound-assign", "+= -= *= /= %=", r"[+\-*/%]=(?!=)", 0),
-    ("tuple-destructure", "[a, b] = tuple destructuring", r"^\s*\[[\w\s,]+\]\s*=", re.M),
-    ("fn-single", "user function, single-line body", r"^\s*(?:export\s+)?\w+\s*\([^()]*\)\s*=>\s*\S", re.M),
-    ("fn-multi", "user function, multi-line body", r"^\s*(?:export\s+)?\w+\s*\([^()]*\)\s*=>\s*$", re.M),
-    ("udt", "type (user-defined types)", r"^\s*(?:export\s+)?type\s+\w+", re.M),
-    ("method-def", "method definitions", r"^\s*(?:export\s+)?method\s+\w+", re.M),
-    ("enum", "enum", r"^\s*(?:export\s+)?enum\s+\w+", re.M),
-    ("import", "import of a library", r"^\s*import\s+\S+", re.M),
-    ("library-decl", "library() declaration", r"^\s*library\s*\(", re.M),
-    ("strategy-decl", "strategy() declaration", r"^\s*strategy\s*\(", re.M),
-    ("generics", "array<T> / matrix<T> / map<K,V> generics", r"\b(?:array|matrix|map)\s*<", 0),
-    ("typed-array", "float[] style array types", r"\b(?:float|int|bool|string|color|line|label|box)\s*\[\s*\]", 0),
-    ("history-expr", "history reference on an expression  (expr)[n]", r"\)\s*\[", 0),
-    # decided in usage_of(): `x.f(` where x is NOT a built-in namespace (this regex never matches)
-    ("method-call", "method-call syntax  x.f(...) on a value", r"(?!)", 0),
-    ("max_bars_back", "max_bars_back", r"\bmax_bars_back\b", 0),
-    ("ternary", "?: ternary", r"\?[^?:\n]+:", 0),
-    ("conditional-ta", "ta.* called inside an if / loop / switch arm or a function body (per-call-site history)",
-     COND_TA_RX, re.M),
-]
-
-
-def strip_code(src):
-    """Remove // comments and string CONTENTS (quotes kept). Returns (code, strings)."""
-    out, strings, i, n = [], [], 0, len(src)
-    while i < n:
-        c = src[i]
-        if c == "/" and src.startswith("//", i):
-            while i < n and src[i] != "\n":
-                i += 1
-            continue
-        if c in "\"'":
-            q, j, buf = c, i + 1, []
-            while j < n and src[j] != q and src[j] != "\n":
-                if src[j] == "\\" and j + 1 < n:
-                    buf.append(src[j:j + 2])
-                    j += 2
-                    continue
-                buf.append(src[j])
-                j += 1
-            strings.append("".join(buf))
-            out.append(q + q)
-            i = j + 1
-            continue
-        out.append(c)
-        i += 1
-    return "".join(out), strings
-
-
-def version_of(src):
-    m = re.search(r"//\s*@version\s*=\s*(\d+)", src)
-    return int(m.group(1)) if m else 1
+# ⭐⭐ WS-I Part 2 (2026-11-13): THE DETECTOR LIVES IN api/services/pine_capabilities.py, the ONE
+# authority the runtime lane's capability admission asks. The census re-imports it, never a copy:
+# strip_code, version_of, FEATURES + features_of (conditional-ta is a line scan), usage_of, KEYWORD_FEATURE,
+# the engine's order set (PINE_JS, engine_order_calls, order_calls_in).
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+from api.services.pine_capabilities import (  # noqa: E402
+    FEATURES, KEYWORD_FEATURE, METHOD_CALL_RX, PINE_JS, conditional_ta_in, engine_order_calls, features_of,
+    join_continuations, order_calls_in, strip_code, usage_of, version_of,
+)
 
 
 class Inventory:
@@ -290,65 +235,6 @@ class Inventory:
         return None
 
 
-def usage_of(src, inv):
-    """Which inventory items, legacy names, features and method calls one script uses."""
-    version = version_of(src)
-    code, strings = strip_code(src)
-    used = set()
-    for m in re.finditer(r"(?<![\w.])([A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*)*)", code):
-        raw = re.sub(r"\s+", "", m.group(1))
-        nm = inv.normalise(raw, version)
-        if nm:
-            # a bare word that is ALSO a keyword/type (`float`, `color`) is only that when it IS the item
-            used.add(nm)
-            continue
-        parts = raw.split(".")
-        # `color.new` inside `ns.fn` chains, and method calls `x.push(`
-        if len(parts) >= 2:
-            tail_call = code[m.end():m.end() + 3].lstrip().startswith("(")
-            head = parts[0]
-            last = parts[-1]
-            if head not in inv.namespaces and tail_call and last in inv.methods:
-                cands = inv.methods[last]
-                typed = {ns for ns in cands if re.search(r"\b%s\s*(?:\.|<)" % re.escape(ns), code)
-                         or (ns == "array" and re.search(r"\w\s*\[\s*\]", code))}
-                for ns in (typed or cands):
-                    used.add(ns + "." + last)
-    for op in ("+", "-", "*", "/", "==", "!=", ">", "<", ">=", "<=", "="):
-        if op in code:
-            used.add(op)
-    for op in ("?:", ":=", "+=", "-=", "*=", "/=", "%=", "=>", "[]", "%"):
-        if op == "?:":
-            if re.search(r"\?[^?:\n]+:", code):
-                used.add("?:")
-        elif op == "[]":
-            if re.search(r"[\w\)]\s*\[", code):
-                used.add("[]")
-        elif op in code:
-            used.add(op)
-    feats = {fid for fid, _l, rx, fl in FEATURES if re.search(rx, code, fl)}
-    for m in re.finditer(r"(?:(?<![\w.])([A-Za-z_]\w*)|[\)\]])\s*\.\s*[a-z_]\w*\s*\(", code):
-        if m.group(1) is None or m.group(1) not in inv.namespaces:
-            feats.add("method-call")
-            break
-    if re.search(r"\b(?:float|int|bool|string|color)\s*\[\s*\]", code):
-        used.add("array")
-    # request.security symbol literals, for the cross-symbol census
-    syms = []
-    for m in re.finditer(r"(?:request\.security|security)\s*\(\s*\"([^\"]*)\"", src):
-        syms.append(m.group(1))
-    for m in re.finditer(r"input\.symbol\s*\(\s*\"([^\"]*)\"", src):
-        syms.append(m.group(1))
-    # ⛔ A KEYWORD SPELLED AS A WORD IS NOT THE KEYWORD: `type = input.integer` (a v4 named
-    # argument) is not a UDT, `in` / `as` appear in prose-like identifiers. These keywords
-    # count only when the statement that USES them is present.
-    for kw, feat in KEYWORD_FEATURE.items():
-        used.discard(kw)
-        if feat in feats:
-            used.add(kw)
-    return {"version": version, "items": used, "features": feats, "symbols": syms, "orders": order_calls_in(code)}
-
-
 def data_limited(name):
     for pre, why in DATA_LIMITED:
         if name == pre or (pre.endswith(".") and name.startswith(pre)) or (name.startswith(pre) and not pre.endswith(".") and name[len(pre):len(pre) + 1] in ("", "_", ".")):
@@ -356,42 +242,39 @@ def data_limited(name):
     return None
 
 
-KEYWORD_FEATURE = {"type": "udt", "in": "for-in", "as": "import", "import": "import", "method": "method-def",
-                   "enum": "enum", "while": "while", "for": "for", "switch": "switch", "varip": "varip"}
-# ⭐ W9 T0 - ONE authority for "which calls place or manage orders": the engine's own
-# STRATEGY_ORDER_CALLS (pine.js), read from the source, never restated here (the old copy named 5 of the
-# engine's 13). Detection is from the SCRIPT'S TEXT, never from the reference inventory: a reference
-# extract that lacks a name (the 11-03 map's lacks strategy.entry / exit / order / position_size) makes
-# an inventory lookup say "no orders" and a strategy placing orders counted as transferring.
-PINE_JS = os.path.join(ROOT, "app", "src", "components", "chart", "engine", "ast", "pine.js")
-
-
-def engine_order_calls(path=PINE_JS):
-    """The names in pine.js's `export const STRATEGY_ORDER_CALLS = Object.freeze(new Set([...]))`."""
-    src = open(path, encoding="utf-8").read()
-    m = re.search(r"STRATEGY_ORDER_CALLS\s*=\s*Object\.freeze\(\s*new Set\(\s*\[(.*?)\]", src, re.S)
-    if not m:
-        raise SystemExit("coverage_map: STRATEGY_ORDER_CALLS not found in %s" % path)
-    names = re.findall(r"'([\w.]+)'", m.group(1))
-    if not names:
-        raise SystemExit("coverage_map: STRATEGY_ORDER_CALLS in %s is empty" % path)
-    return frozenset(names)
-
-
 STRATEGY_ORDERS = engine_order_calls()
-
-
-def order_calls_in(code, orders=None):
-    """The order-set names a script CALLS, read from its comment- and string-stripped code
-    (`strategy.entry(`, with whitespace around the dots allowed). Version-independent."""
-    names = sorted(orders if orders is not None else STRATEGY_ORDERS, key=len, reverse=True)
-    rx = r"(?<![\w.])(" + "|".join(r"\s*\.\s*".join(re.escape(p) for p in n.split(".")) for n in names) + r")\s*\("
-    return {re.sub(r"\s+", "", m.group(1)) for m in re.finditer(rx, code)}
 
 
 def places_orders(u):
     """Whether a usage_of() result is a strategy that places or manages orders."""
     return declaration_of(u) == "strategy" and bool(u["orders"])
+
+
+ARMED_SCHEMA = "uct.strategy-armed/v1"
+
+
+def would_transfer_if_armed(census_row, u):
+    """⭐⭐ W9 ARMED (coordinator ruling 2026-11-16) - A SEPARATE COLUMN, NEVER THE HEADLINE.
+
+    The census's broker counterfactual (`coverageMapDoorCensus.measure.test.js`, step 0, a strategy only;
+    `runtime/__tests__/strategyArmed.js`): the member door with the objects-only pane, the runtime pane and the
+    DARK strategy broker switched on attaches the script clean, its document runs the broker, that run finishes
+    on the reference bars with every broker rule it exercised pinned by the committed ledger, and its trades are
+    drawn or disclosed by name. Arming is the owner's act (W9 ruling D6); nothing here arms anything.
+    `True` / `False` for an order-placing strategy whose row carries the verdict; `None` for any other script,
+    or a census row written before the counterfactual existed (an old cache is never read as "no")."""
+    if not places_orders(u):
+        return None
+    v = (census_row or {}).get("strategyArmed")
+    if not isinstance(v, dict) or v.get("schema") != ARMED_SCHEMA:
+        return None
+    return v.get("transfers") is True
+
+
+def armed_wall(census_row):
+    """The first thing that stops an armed strategy (`strategyArmed.wall`), or None."""
+    v = (census_row or {}).get("strategyArmed")
+    return v.get("wall") if isinstance(v, dict) and v.get("schema") == ARMED_SCHEMA else None
 
 
 def strategy_on_block(scripts):
@@ -407,6 +290,12 @@ def strategy_on_block(scripts):
         "byCall": dict(sorted(by_call.items())),
         "doorCleanPlacingOrders": sum(1 for s in placing if s["doorClean"]),
         "transferringPlacingOrders": sum(1 for s in placing if s["clean"]),
+        # ⭐⭐ W9 ARMED - what arming the broker would serve (a separate column; `transfers_fully` unchanged).
+        # `armedMeasured` counts the rows that carry the counterfactual: 0 means an older census, not "none".
+        "armedMeasured": sum(1 for s in placing if s.get("wouldTransferIfArmed") is not None),
+        "wouldTransferIfArmed": sum(1 for s in placing if s.get("wouldTransferIfArmed") is True),
+        "armedWalls": dict(collections.Counter(s["armedWall"] for s in placing
+                                               if s.get("wouldTransferIfArmed") is False and s.get("armedWall")).most_common()),
         "wave": "W9",
     }
 
@@ -420,12 +309,98 @@ def declaration_of(u):
     return "strategy" if "strategy-decl" in u["features"] else "library" if "library-decl" in u["features"] else "indicator"
 
 
-def transfers_fully(census_row, u):
+def transfers_fully(census_row, u, src=None):
     """⭐ THE HEADLINE PREDICATE, in one place: the census's door verdict (`isClean`)
     AND not a strategy that places orders. Read by main() below and by
-    tools/support_loop/remeasure.py, so the daily number and the map cannot disagree."""
+    tools/support_loop/remeasure.py, so the daily number and the map cannot disagree.
+    ⭐ 2026-11-17 (owner decision): AND not on the HOST known-divergence list (`src`, the script's text:
+    `is_host_listed`). Every host door refuses a listed script by name, so a clean host row is not a
+    transfer a member gets. The census measures the engine with the list off (`src/test-setup.js`), so
+    the predicate applies it; a caller that passes no `src` (a unit rail's synthetic row) is not asked."""
+    if src is not None and is_host_listed(src):
+        return False
     return bool((census_row or {}).get("clean")) and not (
         places_orders(u))
+
+
+RUNTIME_KILLLIST = os.path.join(ROOT, "api", "data", "pine_runtime_killlist.json")
+#: ⭐ 2026-11-17 — the HOST lane's known-divergence list (one authority: the browser imports it, the server
+#: reads it: `engine/hostKnownDivergence.js`, `api/services/host_known_divergence.py`).
+HOST_KNOWN_DIVERGENCE = os.path.join(ROOT, "app", "src", "components", "chart", "engine", "hostKnownDivergence.json")
+_HOST_LISTED = {}
+
+
+def host_listed_hashes(path=HOST_KNOWN_DIVERGENCE):
+    """The full sha256 of every script on the host known-divergence list. ⛔ Fails LOUD when unreadable (a
+    census that read "nothing is listed" would count every listed script as served). Read once per path."""
+    if path not in _HOST_LISTED:
+        with open(path, encoding="utf-8") as f:
+            _HOST_LISTED[path] = frozenset(e["sha256"] for e in json.load(f)["scripts"])
+    return _HOST_LISTED[path]
+
+
+def is_host_listed(src, listed=None):
+    """Is this source on the host known-divergence list? sha256 of the text as the door receives it; a
+    checkout can hold it with CRLF, so the LF form is tried too (`is_runtime_killed`'s rule)."""
+    listed = host_listed_hashes() if listed is None else listed
+    return is_runtime_killed(src, listed)
+
+
+def runtime_killed_hashes(path=RUNTIME_KILLLIST):
+    """The COMMITTED half of the runtime lane's kill list (`runtime_definitions.kill_list()` serves its
+    union with the operator's PINE_RUNTIME_KILL_LIST): the full sha256 of each listed script's source.
+    ⛔ Fails LOUD when unreadable: a census that silently read "nothing is killed" would count every
+    killed script as served, which is the defect this exists to stop."""
+    with open(path, encoding="utf-8") as f:
+        return {e["sha256"] for e in json.load(f)["scripts"]}
+
+
+def is_runtime_killed(src, killed):
+    """Is this source on the kill list? `runtime_definitions.source_hash` is sha256 of the text as the
+    door receives it; a checkout can hold it with CRLF, so the LF form is tried too."""
+    if not src or not killed:
+        return False
+    return (hashlib.sha256(src.encode("utf-8")).hexdigest() in killed
+            or hashlib.sha256(src.replace("\r\n", "\n").encode("utf-8")).hexdigest() in killed)
+
+
+def runtime_on_transfers(census_row, orders, killed=False, host_listed=False):
+    """⭐ THE RUNTIME-ON LANE'S PREDICATE, in one place: a runtime-on census row transfers when it
+    transfers fully on the host lane OR attaches on the runtime lane OR (⭐⭐ PARITY UNIT 1) is a host
+    document whose lost drawings its run half draws (`cleanByRunHalf`), and it is not a strategy that
+    places orders (`orders`: `places_orders` of its usage). Read by `runtime_on_section` below and by
+    tools/pine_coverage/coverage_ratchet.py, so the map and the ratchet cannot disagree.
+    ⭐ 2026-11-17: `killed` (`is_runtime_killed`). A script on the runtime kill list falls back OFF the
+    runtime lane at every door, refused by name, so its runtime ATTACH is not a transfer a member gets.
+    The census runs the door without that list, so the predicate applies it. A killed script that is
+    clean on the HOST lane still transfers: the kill list never touches the host lane."""
+    r = census_row or {}
+    st0 = (r.get("steps") or [{}])[0]
+    # ⭐ 2026-11-17: `host_listed` (`is_host_listed`) - the HOST lane refuses a listed script by name, so a
+    # clean HOST row is not a transfer; its runtime attach is still judged by the runtime lane's own list.
+    # ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18): `cleanByRunHalf` - the HOST document, clean but for the
+    # drawings its object program lost, whose RUN HALF the census bound served on the reference bars (the
+    # plots the host's, every drawing the run's: `runHalfObjectRail.js`, the lost-drawings rule). A run half
+    # answers to the runtime lane's own gates, so the kill list stops it as it stops a runtime attach, and
+    # the host known-divergence list (which refuses the host document by name) stops it as it stops a clean
+    # host row.
+    return not orders and ((bool(r.get("clean")) and not host_listed) or (
+        bool(r.get("attached")) and st0.get("lane") == "runtime" and not killed) or (
+        bool(r.get("cleanByRunHalf")) and not killed and not host_listed))
+
+
+def order_usage_of(src):
+    """The two fields `places_orders` reads (`features`, `orders`), from a script's text alone: the same
+    `strip_code` / `features_of` / `order_calls_in` calls `usage_of` makes, with no inventory (neither field
+    reads one). For a caller that has no TradingView reference extract (the coverage ratchet)."""
+    code, _strings = strip_code(src)
+    return {"features": features_of(code), "orders": order_calls_in(code)}
+
+
+def script_sha(src):
+    """A script's id in the map's `scripts[].sha256` (and the coverage ratchet's snapshot): sha256 of its
+    text, read with universal newlines, first 16 hex."""
+    return hashlib.sha256(src.encode("utf-8")).hexdigest()[:16]
 
 
 # ⭐ W3W4-T0 - THE OBJECT PROGRAM'S OWN VERDICT, READ ON REFUSED STEPS TOO.
@@ -552,6 +527,9 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
     detail = []
     steps = row.get("steps") or []
     step0_guards = {r.get("guard") for r in ((steps[0] if steps else {}).get("refusals") or [])}
+    # DRAW-1: an output-contract refusal on an ATTACHED step (`pine:constant-only` beside a drawn object
+    # program) is about the plots, not an object program that was lost (the relabel at the end).
+    contract_attached = False
     for si, st in enumerate(steps):
         if st.get("threw"):
             keys.add(("bucket", "translator-robustness"))
@@ -566,9 +544,20 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
                             for g in step0_guards if g)):
             own_program = refused_program_walls(st, inv, items)
             keys |= own_program
+        # ⭐⭐ DRAW-1 (2026-11-16, instrument correction) - AN ATTACHED STEP'S `pine:objects-only` IS
+        # THE CONSEQUENCE OF ITS DROPPED OPS, NOT A WALL OF ITS OWN. The host lane refuses a DIRTY
+        # objects-only program by that name (a clean one is `ok`), and the door still attaches it,
+        # so the step's walls are the ops its object program names (`object_program_walls`). Counted
+        # as a wall it was the bucket `drawing-objects`, which the wall analysis read as "a loss with
+        # nothing named" for 29 sample scripts, 27 of which name every drop. Only when the program
+        # names nothing does the refusal stay the step's (drawing-objects) wall.
+        attached_named = bool(st.get("attached")) and object_program_walls(st, inv)[1]
         for r in st.get("refusals") or []:
             g = r.get("guard") or "unnamed"
             if own_program and g in OBJECT_PROGRAM_GUARDS:
+                detail.append((g, None))
+                continue
+            if attached_named and g in OBJECT_PROGRAM_GUARDS:
                 detail.append((g, None))
                 continue
             # ⛔ PEEL ARTIFACTS ARE NOT WALLS. After step 0 the program has been edited:
@@ -594,7 +583,13 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
                 keys.add(("bucket", "user-functions"))
             else:
                 keys.add(("bucket", GUARD_BUCKET.get(g, "translator-robustness")))
+                if st.get("attached") and GUARD_BUCKET.get(g) == "output-contract":
+                    contract_attached = True
             detail.append((g, tok))
+        if si == 0 and not st.get("attached") and not (st.get("refusals") or []) and st.get("guard") in DOOR_GUARDS:
+            # DOOR-ROBUSTNESS - the door refused a script whose translation is clean: the step names the guard
+            keys.add(("bucket", GUARD_BUCKET[st["guard"]]))
+            detail.append((st["guard"], None))
         if st.get("attached"):
             if st.get("installed") is False:
                 keys.add(("bucket", "translator-robustness"))
@@ -616,7 +611,7 @@ def walls_of(row, inv, version, items=frozenset(), decl="indicator"):
         if decl == "strategy":
             keys.discard(("bucket", "output-contract"))
             keys.add(("bucket", "strategy"))
-        elif items & DRAWING_CTORS:
+        elif items & DRAWING_CTORS and not contract_attached:
             keys.discard(("bucket", "output-contract"))
             keys.add(("bucket", "drawing-objects"))
     return keys, detail
@@ -669,11 +664,103 @@ def norm_src(text):
     return hashlib.sha1(re.sub(r"\s+", "", text).encode("utf-8")).hexdigest()
 
 
+def sample_slug(key):
+    """A sample key's script key, as a capture id spells it (`evidence_engine.house_slug`: the corpus
+    hash after `__` dropped, lowercased, each run outside [a-z0-9.] one `-`)."""
+    stem = key.split(":", 1)[-1]
+    return re.sub(r"[^a-z0-9.]+", "-", stem.split("__", 1)[0].lower()).strip("-")
+
+
+def ledger_evidence(path, scripts, source_of, lane, engine, skip_captures=()):
+    """⭐ LEDGER_ONLY EVIDENCE (docs/pine/vendor-harness/evidence-ledger.jsonl): the verdicts of
+    licence-held captures, which stay out of git. Joined to the sample by SOURCE SHA256
+    (`evidence_ledger.classify`): a row counts only when it is FRESH (graded at today's
+    SCRIPT_ENGINE_VERSION, or superseded by a newer regrade that is) and its source sha is the
+    sample's. A stale row is "unproven (stale)", a sha mismatch is never counted, a DIVERGE is a
+    DIVERGE. Captures already graded from a committed fixture are skipped (never counted twice)."""
+    rows = el.read_rows(path) if path and os.path.exists(path) else []
+    samples = {s["key"]: el.source_shas(source_of(s["key"])) for s in scripts}
+    return el.classify(rows, samples, engine=engine, lane=lane, skip_captures=frozenset(skip_captures),
+                       slug_of={s["key"]: sample_slug(s["key"]) for s in scripts})
+
+
+#: A script whose only vendor evidence is a ledger row graded at an older engine: not proven.
+LEDGER_STALE = "unproven (stale)"
+
+
+def credit_capture(verdict, items, verified_items, diverge_items, substituted_items=None):
+    """Credit one graded capture's names to its bucket: a MATCH to `verified_items`, a
+    MATCH_SUBSTITUTED (L7) to `substituted_items` ("verified with substituted inputs"), anything
+    else to `diverge_items`. ⛔ A MATCH_SUBSTITUTED is never a verified name and never a DIVERGE:
+    with no `substituted_items` counter it credits nothing. The harness grades plots, paints and
+    drawing objects; it never grades orders, alerts or logs, so a capture says nothing about those."""
+    if el.is_match(verdict):
+        tgt = verified_items
+    elif el.is_match_substituted(verdict):
+        tgt = substituted_items
+    else:
+        tgt = diverge_items
+    if tgt is None:
+        return
+    for it in items:
+        if not it.startswith(UNGRADED_PREFIXES):
+            tgt[it] += 1
+
+
+def fold_ledger(scripts, led, cap_rows, verified_items, diverge_items, substituted_items=None):
+    """Fold `ledger_evidence` into the sample: each FRESH ledger verdict is a capture of that script
+    (a MATCH proves the names it uses, like a committed MATCH capture; a DIVERGE is a DIVERGE; a
+    MATCH_SUBSTITUTED is its own bucket, `credit_capture`); a script whose only ledger rows are
+    stale is marked so (`vendor_verdict_of` -> LEDGER_STALE)."""
+    for s in scripts:
+        e = led["byKey"].get(s["key"])
+        if not e:
+            continue
+        for v in e["verdicts"]:
+            s.setdefault("_captures", set()).add(v)
+            cap_rows.append({"id": "ledger:" + s["key"], "verdict": v})
+            credit_capture(v, s["_items"], verified_items, diverge_items, substituted_items)
+        if e["stale"] and not e["verdicts"]:
+            s["_ledgerStale"] = True
+
+
+def vendor_verdict_of(s):
+    """A script's vendor verdict; a script proven only by STALE ledger rows is LEDGER_STALE, never proven."""
+    v = script_verdict(s.pop("_captures", ()))
+    stale = s.pop("_ledgerStale", False)
+    return LEDGER_STALE if v is None and stale else v
+
+
 def script_verdict(verdicts):
-    """One script's vendor verdict over its captures' verdicts: MATCH if any capture MATCHes,
-    else DIVERGE if any DIVERGEs, else INCONCLUSIVE; None for a script without a capture."""
+    """One script's vendor verdict over its captures' verdicts: MATCH if any capture MATCHes, else
+    MATCH_SUBSTITUTED if any capture is verified with substituted inputs (L7: its own bucket, never
+    MATCH and never DIVERGE), else DIVERGE if any DIVERGEs, else INCONCLUSIVE; None for a script
+    without a capture."""
     v = set(verdicts)
-    return None if not v else ("MATCH" if "MATCH" in v else "DIVERGE" if "DIVERGE" in v else "INCONCLUSIVE")
+    if not v:
+        return None
+    if el.MATCH in v:
+        return el.MATCH
+    if el.MATCH_SUBSTITUTED in v:
+        return el.MATCH_SUBSTITUTED
+    return "DIVERGE" if "DIVERGE" in v else "INCONCLUSIVE"
+
+
+def parity_counts(scripts, n):
+    """The headline parity numbers. `verifiedTransfer` counts a transferring script whose vendor verdict
+    is MATCH and nothing else; a script verified only with substituted inputs (L7, MATCH_SUBSTITUTED)
+    is counted apart, as `verifiedWithSubstitutedInputs`, and only when there is one (so a map with
+    none is byte-identical to the map before L7)."""
+    verified = sum(1 for s in scripts if s["clean"] and el.is_match(s["vendorVerdict"]))
+    out = {"verifiedTransfer": verified, "verifiedTransferPct": round(100.0 * verified / n, 1)}
+    substituted = sum(1 for s in scripts if s["clean"] and el.is_match_substituted(s["vendorVerdict"]))
+    if substituted:
+        out["verifiedWithSubstitutedInputs"] = substituted
+        out["verifiedWithSubstitutedInputsPct"] = round(100.0 * substituted / n, 1)
+        out["verifiedWithSubstitutedInputsNote"] = (
+            "verified with substituted inputs: graded with the vendor's own value fed for each input the "
+            "member door answers from UCT data; never counted in verifiedTransfer")
+    return out
 
 
 # ⭐ W4 T0 — the wall's DETAIL, for the one decision a label cannot carry: which wave owns it.
@@ -825,10 +912,11 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
         sys.exit("--runtime-cache has no row for %d sample scripts (first %s) - re-run run_census.py --runtime-on"
                  % (len(missing), missing[0]))
 
+    killed = runtime_killed_hashes()
+
     def transfers(key):
-        r = rows[key]
-        st0 = (r.get("steps") or [{}])[0]
-        return not orders_of(key) and (bool(r.get("clean")) or (bool(r.get("attached")) and st0.get("lane") == "runtime"))
+        src = open(inputs[key]["path"], encoding="utf-8", newline="").read() if key in inputs else ""
+        return runtime_on_transfers(rows[key], orders_of(key), is_runtime_killed(src, killed), is_host_listed(src))
 
     by_key = {s["key"]: s for s in scripts}
     on = {s["key"] for s in scripts if transfers(s["key"])}
@@ -944,6 +1032,8 @@ def main():
     ap.add_argument("--cache", required=True)
     ap.add_argument("--ref", required=True)
     ap.add_argument("--verdicts", required=True)
+    ap.add_argument("--ledger", default=str(el.LEDGER),
+                    help="LEDGER_ONLY evidence (licence-held captures graded out of git); fresh rows count")
     ap.add_argument("--engine-door")
     ap.add_argument("--out", required=True)
     ap.add_argument("--tables")
@@ -978,23 +1068,32 @@ def main():
         walls, detail = walls_of(c, inv, u["version"], frozenset(u["items"]), decl)
         if places_orders(u):
             walls.add(("bucket", "strategy"))   # orders are never simulated (see "clean" below)
+        if is_host_listed(src):
+            walls.add(("bucket", "known-divergence"))   # refused by name at every host door (2026-11-17)
         scripts.append({
             "key": key, "population": key.split(":")[0], "title": m.get("title"), "author": m.get("author"),
             "agreeCount": m.get("agreeCount"), "version": u["version"], "declaration": decl,
-            "sha256": hashlib.sha256(src.encode("utf-8")).hexdigest()[:16],
+            "sha256": script_sha(src),
             "attached": bool(c.get("attached")),
             # ⛔ A STRATEGY THAT PLACES ORDERS DOES NOT TRANSFER FULLY even when the door
             # draws its plots: its trades, markers and tester report are its output, and
             # nothing here simulates the broker. The door's own ruling (C50) draws the
             # plots; the coverage map does not count that as the whole script.
-            "clean": transfers_fully(c, u),
+            "clean": transfers_fully(c, u, src),
             "doorClean": bool(c.get("clean")),
+            # ⭐ ENGINE 55 — THE BOUND PREDICATE beside the static one: the census bound the
+            # attached definition once on the RDDT 1D reference bars (`boundBlockers` in
+            # coverageMapDoorCensus.measure.test.js). `None` on a row from an older census.
+            "cleanBound": (transfers_fully(c, u, src) and c.get("cleanBound") is True) if "cleanBound" in c else None,
             "runtimeAttached": bool((c.get("runtime") or {}).get("attached")),
             # ⚠️ COUNTERFACTUAL, AN UPPER BOUND: with the dark runtime pane on, the door
             # handed the script to the per-bar RUNTIME lane and attached it. The host
             # translation's refusals stay on that result by design, so `isClean` cannot
             # judge it; nothing here proves the runtime lane drew every output.
             "placesOrders": places_orders(u),
+            # ⭐⭐ W9 ARMED - the broker counterfactual, a SEPARATE column (see `would_transfer_if_armed`)
+            "wouldTransferIfArmed": would_transfer_if_armed(c, u),
+            "armedWall": armed_wall(c) if places_orders(u) else None,
             "runtimeClean": not places_orders(u) and (
                 bool((c.get("runtime") or {}).get("clean")) or (
                     bool((c.get("runtime") or {}).get("attached")) and (c.get("runtime") or {}).get("lane") == "runtime")),
@@ -1016,9 +1115,11 @@ def main():
     by_norm = {norm_src(open(inputs[s["key"]]["path"], encoding="utf-8").read()): s for s in scripts}
     vd = read_verdicts(a.verdicts, LANE_PRODUCTION, "--verdicts")
     verified_items, diverge_items = collections.Counter(), collections.Counter()
+    # ⭐ L7 — names graded only with substituted inputs: their own bucket (`credit_capture`)
+    substituted_items = collections.Counter()
     cap_rows = []
     for r in vd.get("results", []):
-        p = os.path.join(ROOT, r["file"]) if not os.path.isabs(r["file"]) else r["file"]
+        p = licence_held.resolve(r["file"])
         try:
             cap = json.load(open(p, encoding="utf-8"))
             src = (cap.get("source") or {}).get("text") or ""
@@ -1029,16 +1130,16 @@ def main():
         hit = by_norm.get(norm_src(src)) if src else None
         if hit is not None:
             hit.setdefault("_captures", set()).add(r.get("verdict"))
-        tgt = verified_items if r.get("verdict") == "MATCH" else diverge_items
-        for it in u["items"]:
-            # the harness grades plots, paints and drawing objects; it never grades
-            # orders, alerts or logs, so a MATCH says nothing about those names
-            if it.startswith(UNGRADED_PREFIXES):
-                continue
-            tgt[it] += 1
+        credit_capture(r.get("verdict"), u["items"], verified_items, diverge_items, substituted_items)
+    # ── LEDGER_ONLY evidence: licence-held captures graded out of git (see `ledger_evidence`)
+    led = ledger_evidence(a.ledger, scripts,
+                          lambda k: open(inputs[k]["path"], encoding="utf-8", newline="").read(),
+                          LANE_PRODUCTION, el.engine_version(),
+                          skip_captures={r.get("id") for r in vd.get("results", [])})
+    fold_ledger(scripts, led, cap_rows, verified_items, diverge_items, substituted_items)
     vcount = collections.Counter(r["verdict"] for r in cap_rows)
     for s in scripts:
-        s["vendorVerdict"] = script_verdict(s.pop("_captures", ()))
+        s["vendorVerdict"] = vendor_verdict_of(s)
     sample_parity = collections.Counter(
         ("transfers" if s["clean"] else "does-not-transfer") + ":" + s["vendorVerdict"]
         for s in scripts if s["vendorVerdict"])
@@ -1116,6 +1217,8 @@ def main():
             "scriptsUsing": len(use.get(nm, ())), "scriptsUsingThatTransfer": len(use_clean.get(nm, ())),
             "examplesClean": len(ex_clean.get(nm, ())), "examplesBlocked": len(ex_blocked.get(nm, ())),
             "vendorMatchCaptures": verified_items.get(nm, 0), "vendorOtherCaptures": diverge_items.get(nm, 0),
+            # ⭐ L7 — only where a name has one (a map with none is byte-identical to the one before)
+            **({"vendorSubstitutedMatchCaptures": substituted_items[nm]} if substituted_items.get(nm) else {}),
             "refusedAs": dict(sorted(blocked.get(nm, {}).items())),
         })
 
@@ -1220,6 +1323,11 @@ def main():
                            "attaches it with zero refusals, with nothing dropped or withheld from its object program "
                            "and no per-bar paint withheld. Door acceptance, not numeric parity."),
             "sample": N, "transfer": len(clean), "transferPct": pct(len(clean), N),
+            # ⭐ ENGINE 55 — both numbers: `transfer` (static, comparable with every earlier map)
+            # and `transferBound` (the same scripts, ALSO clean on one bind). Null when the census
+            # predates the bound check.
+            "transferBound": (sum(1 for s in scripts if s["cleanBound"])
+                              if any(s["cleanBound"] is not None for s in scripts) else None),
             "attachedAnyForm": sum(1 for s in scripts if s["attached"]),
             "attachedPct": pct(sum(1 for s in scripts if s["attached"]), N),
             "runtimeCounterfactualTransfer": sum(1 for s in scripts if s["clean"] or s["runtimeClean"]),
@@ -1230,11 +1338,13 @@ def main():
         },
         "parity": {
             "captures": len(cap_rows), "verdicts": dict(sorted(vcount.items())),
-            "sampleScriptsWithACapture": sum(1 for s in scripts if s["vendorVerdict"]),
+            "sampleScriptsWithACapture": sum(1 for s in scripts if s["vendorVerdict"] not in (None, LEDGER_STALE)),
             "sampleByTransferAndVerdict": dict(sorted(sample_parity.items())),
-            "verifiedTransfer": sum(1 for s in scripts if s["clean"] and s["vendorVerdict"] == "MATCH"),
-            "verifiedTransferPct": round(100.0 * sum(1 for s in scripts if s["clean"] and s["vendorVerdict"] == "MATCH") / N, 1),
+            **parity_counts(scripts, N),
             "note": "vendor-harness verdicts over tests/fixtures/vendor/harness (RDDT/SPY daily captures of corpus scripts and probes)",
+            # LEDGER_ONLY evidence, only when the ledger holds rows (an absent ledger leaves the map byte-identical)
+            **({"ledger": {**led["counts"], "staleScripts": sum(1 for s in scripts if s["vendorVerdict"] == LEDGER_STALE),
+                           "shaMismatch": led["shaMismatch"]}} if any(led["counts"].values()) else {}),
         },
         "examples": {"total": examples_total, "transfer": examples_clean},
         "inventory": {

@@ -43,9 +43,127 @@ def _example_pngs(setup: str) -> list:
         return []
 
 
-def _cost(model, in_tok, out_tok) -> float:
+def _cost(model, in_tok, out_tok, cache_read=0, cache_write=0) -> float:
+    """Dollars for one judgement. Cache-aware: the reference charts are a cached
+    prefix, billed at 0.1x on a read and 1.25x on the write, and are reported in
+    their own usage fields rather than in input_tokens."""
     pin, pout = _PRICE.get(model, (5.0, 25.0))
-    return (in_tok / 1e6) * pin + (out_tok / 1e6) * pout
+    return ((in_tok / 1e6) * pin + (cache_read / 1e6) * pin * 0.1
+            + (cache_write / 1e6) * pin * 1.25 + (out_tok / 1e6) * pout)
+
+
+def _usage_cost(model, u: dict, multiplier: float = 1.0) -> float:
+    return _cost(model, u.get("input_tokens", 0), u.get("output_tokens", 0),
+                 u.get("cache_read_input_tokens", 0), u.get("cache_creation_input_tokens", 0)) * multiplier
+
+
+def _store_verdict(ticker, tf, setup, asof_date, raw_confidence, key_level, sig, v, day,
+                   cost_multiplier: float = 1.0) -> bool:
+    """Bill one judgement and store its verdict -- shared by the live call and the
+    Batch lane's reaper so both write the same row. Returns `confirmed`."""
+    u = v.get("usage", {})
+    model = v.get("model", "claude-opus-4-8")
+    cost = _usage_cost(model, u, cost_multiplier)
+    store.log_cost(day, ticker, model, u.get("input_tokens", 0), u.get("output_tokens", 0), cost)
+    # Calibration knob: require the model's confirm AND confidence >= floor.
+    min_conf = float(os.environ.get("PATTERN_VISION_MIN_CONFIDENCE", "60"))
+    confirmed = bool(v["confirmed"]) and float(v["confidence"]) >= min_conf
+    store.put_verdict({
+        "ticker": ticker.upper(), "tf": tf, "setup": setup, "asof_date": asof_date,
+        "confirmed": 1 if confirmed else 0, "vision_confidence": float(v["confidence"]),
+        "rationale": v["reason"], "key_level": v.get("key_level") if v.get("key_level") is not None else key_level,
+        "raw_confidence": raw_confidence, "model": model,
+        "signals_hash": sig, "judged_at": int(time.time()),
+        "checks": json.dumps(v.get("checks") or []),
+    })
+    return confirmed
+
+
+# -- The Batch lane (2026-11-10 AI-spend audit) --------------------------------------
+# Nobody waits on a judgement in the request path: the slot runs on a cron and the
+# review feed reads whatever is stored. So the slot can queue its judgements as one
+# Message Batch (half price) and a reaper stores each verdict when it lands, through
+# the same `_store_verdict`. The request body is identical (`vision_judge.build_request`).
+# Rollback, no code change: PATTERN_VISION_BATCH=0 (or LLM_BATCH_ENABLED=0).
+_BATCH_SURFACE = "pattern_vision"
+_BATCH_CHUNK = 40          # images ride in the request bodies; keep each submit modest
+
+
+def batch_enabled() -> bool:
+    from api.services import llm_batch
+    return (llm_batch.enabled()
+            and os.environ.get("PATTERN_VISION_BATCH", "1").strip().lower() not in ("0", "false", "no"))
+
+
+class JudgeBatch:
+    """One slot's queued judgements. Knows what earlier slots already queued (so a
+    candidate whose batch is still running is not paid for twice) and holds the
+    daily hard cap at SUBMIT time: a batch's cost lands at reap, so the cap counts
+    the worst case of everything queued and not yet collected."""
+
+    def __init__(self, day: str | None = None):
+        from api.services import llm_batch
+        # The same calendar day judge_ticker keys its cost rows (and may_judge) on.
+        self.day = day or datetime.date.today().isoformat()
+        self.items: list = []
+        self.taken: set = set()
+        self.pending: set = set()
+        self.reserved = 0.0
+        for row in llm_batch.pending(_BATCH_SURFACE):
+            for m in (row.get("meta") or {}).values():
+                self.pending.add(self.key(m.get("ticker"), m.get("tf"), m.get("setup"),
+                                          m.get("asof_date"), m.get("signals_hash")))
+                self.reserved += float(m.get("reserved_usd") or 0)
+
+    @staticmethod
+    def key(ticker, tf, setup, asof, sig):
+        return (str(ticker or "").upper(), tf, setup, asof, sig)
+
+    def affordable(self, worst_usd: float) -> bool:
+        hard = float(os.environ.get("PATTERN_VISION_COST_HARD_CAP", "10.0"))
+        return store.cost_today(self.day) + self.reserved + worst_usd <= hard
+
+    def add(self, request: dict, meta: dict, worst_usd: float) -> None:
+        from api.services import llm_batch
+        cid = llm_batch.custom_id(meta["ticker"], meta["setup"], taken=self.taken)
+        self.items.append((cid, request, {**meta, "reserved_usd": round(worst_usd, 4)}))
+        self.pending.add(self.key(meta["ticker"], meta["tf"], meta["setup"],
+                                  meta["asof_date"], meta["signals_hash"]))
+        self.reserved += worst_usd
+
+    def submit(self) -> dict:
+        """Send everything queued, in chunks. A chunk that fails to submit is simply
+        dropped: nothing was stored, so the next slot re-queues those candidates."""
+        from api.services import llm_batch
+        out = {"queued": len(self.items), "batches": 0, "submit_failed": 0}
+        for i in range(0, len(self.items), _BATCH_CHUNK):
+            chunk = self.items[i:i + _BATCH_CHUNK]
+            ok = llm_batch.submit(_BATCH_SURFACE,
+                                  [{"custom_id": cid, "params": req} for cid, req, _ in chunk],
+                                  {cid: m for cid, _, m in chunk})
+            if ok:
+                out["batches"] += 1
+            else:
+                out["submit_failed"] += len(chunk)
+        self.items = []
+        return out
+
+
+def reap_batches() -> dict:
+    """Store every finished batched judgement (scheduler thread, never a request)."""
+    from api.services import llm_batch
+    store.init_db()
+
+    def handle(_cid, message, meta):
+        if message is None:
+            return                      # errored/expired: not billed; the next slot re-queues it
+        v = vision_judge.verdict_from_message(message, meta.get("model") or "claude-opus-4-8")
+        _store_verdict(meta["ticker"], meta["tf"], meta["setup"], meta["asof_date"],
+                       meta.get("raw_confidence"), meta.get("key_level"), meta["signals_hash"],
+                       v, datetime.date.today().isoformat(),
+                       cost_multiplier=llm_batch.BATCH_DISCOUNT)
+
+    return llm_batch.reap(_BATCH_SURFACE, handle, door="api/services/pattern_vision/orchestrator.py")
 
 
 def _charge_failed_call(exc, day, ticker, setup, key_level, examples) -> None:
@@ -227,9 +345,9 @@ def candidates_for(ticker, tf="D") -> list[dict]:
     return list(best.values())
 
 
-def judge_ticker(ticker, tf="D", *, client=None, force=False) -> dict:
+def judge_ticker(ticker, tf="D", *, client=None, force=False, batch=None) -> dict:
     store.init_db()
-    if client is None:
+    if client is None and batch is None:
         from api.services.engine import _get_anthropic_client
         client = _get_anthropic_client()
     day = datetime.date.today().isoformat()
@@ -240,6 +358,8 @@ def judge_ticker(ticker, tf="D", *, client=None, force=False) -> dict:
     # is per ticker -- bars-ingestion lag can be partial within one slot.
     out = {"judged": 0, "confirmed": 0, "skipped": 0, "cost_capped": False,
            "render_failed": 0, "errored": 0, "problems": [], "asof_dates": []}
+    if batch is not None:
+        out["queued"] = 0
     bars = _read_bars(ticker, tf)
     for cand in candidates_for(ticker, tf):
         setup = cand["setup"]
@@ -249,6 +369,9 @@ def judge_ticker(ticker, tf="D", *, client=None, force=False) -> dict:
             prev = store.get_verdict(ticker, tf, setup, cand["asof_date"])
             if prev and prev.get("signals_hash") == sig:
                 out["skipped"] += 1
+                continue
+            if batch is not None and JudgeBatch.key(ticker, tf, setup, cand["asof_date"], sig) in batch.pending:
+                out["skipped"] += 1         # already queued in a batch that has not landed yet
                 continue
         if not store.may_judge(day):
             out["cost_capped"] = True
@@ -263,6 +386,23 @@ def judge_ticker(ticker, tf="D", *, client=None, force=False) -> dict:
                                     "message": "chart_render returned no png"})
             continue
         examples = []
+        if batch is not None:
+            examples = _example_pngs(setup)
+            model = vision_judge.JUDGE_MODEL
+            tin, tout = vision_judge.worst_case_tokens(setup, key_level=key_level, example_pngs=examples)
+            from api.services import llm_batch
+            worst = _cost(model, tin, tout) * llm_batch.BATCH_DISCOUNT
+            if not batch.affordable(worst):
+                out["cost_capped"] = True
+                break
+            batch.add(vision_judge.build_request(setup, png, model=model, key_level=key_level,
+                                                 example_pngs=examples),
+                      {"ticker": ticker.upper(), "tf": tf, "setup": setup,
+                       "asof_date": cand["asof_date"], "raw_confidence": cand["raw_confidence"],
+                       "key_level": key_level, "signals_hash": sig, "model": model},
+                      worst)
+            out["queued"] += 1
+            continue
         try:
             examples = _example_pngs(setup)
             v = vision_judge.judge(setup, png, client=client,
@@ -275,21 +415,8 @@ def judge_ticker(ticker, tf="D", *, client=None, force=False) -> dict:
                                     "asof_date": cand["asof_date"], "path": "errored",
                                     "message": repr(e)})
             continue
-        u = v.get("usage", {})
-        model = v.get("model", "claude-opus-4-8")
-        cost = _cost(model, u.get("input_tokens", 0), u.get("output_tokens", 0))
-        store.log_cost(day, ticker, model, u.get("input_tokens", 0), u.get("output_tokens", 0), cost)
-        # Calibration knob: require the model's confirm AND confidence >= floor.
-        min_conf = float(os.environ.get("PATTERN_VISION_MIN_CONFIDENCE", "60"))
-        confirmed = bool(v["confirmed"]) and float(v["confidence"]) >= min_conf
-        store.put_verdict({
-            "ticker": ticker.upper(), "tf": tf, "setup": setup, "asof_date": cand["asof_date"],
-            "confirmed": 1 if confirmed else 0, "vision_confidence": float(v["confidence"]),
-            "rationale": v["reason"], "key_level": v.get("key_level") if v.get("key_level") is not None else key_level,
-            "raw_confidence": cand["raw_confidence"], "model": model,
-            "signals_hash": sig, "judged_at": int(time.time()),
-            "checks": json.dumps(v.get("checks") or []),
-        })
+        confirmed = _store_verdict(ticker, tf, setup, cand["asof_date"], cand["raw_confidence"],
+                                   key_level, sig, v, day)
         out["judged"] += 1
         if confirmed:
             out["confirmed"] += 1

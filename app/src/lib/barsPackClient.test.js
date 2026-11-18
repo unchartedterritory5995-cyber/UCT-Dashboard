@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Mock the IDB import so the hot-pack ingest can be asserted without a real
 // IndexedDB. vi.hoisted lets the mock factory (hoisted to top) reference the spies.
@@ -7,7 +7,9 @@ const { idbImportPack, idbApplyDelta, idbCountKeys } = vi.hoisted(() => ({
 }))
 vi.mock('../utils/barsIDB', () => ({ idbImportPack, idbApplyDelta, idbCountKeys }))
 
-import { decodeShardPayload, _shardIdx, _ingestHotPack, _ingestFull, _packDataPresent } from './barsPackClient'
+import { decodeShardPayload, _shardIdx, _ingestHotPack, _ingestFull, _packDataPresent, _oneWindowAtATime, _run, packLock, afterFirstChartPaint, markFirstChartPaint, __resetFirstChartPaint, FIRST_CHART_PAINT_EVENT, DELTA_PROGRESS_KEY } from './barsPackClient'
+import fs from 'node:fs'
+import path from 'node:path'
 
 const HOT_CFG = { base: '/api/barspack', hotVersionKey: 'barspack.hotVersion', ingestBatchSize: 60, ingestYield: true }
 
@@ -102,6 +104,13 @@ describe('_ingestHotPack (server hot shard)', () => {
     expect(localStorage.getItem('barspack.hotVersion')).toBeNull()
   })
 
+  it('does NOT stamp when the hot shard download fails (404 / offline), so it retries next load', async () => {
+    globalThis.fetch = vi.fn(async (url) => (url.endsWith('/manifest') ? { ok: true, json: async () => manifest } : { ok: false, json: async () => ({}) }))
+    await _ingestHotPack(HOT_CFG)
+    expect(idbImportPack).not.toHaveBeenCalled()
+    expect(localStorage.getItem('barspack.hotVersion')).toBeNull()
+  })
+
   it('does NOT stamp when the ingest aborts (quota) so it retries next load', async () => {
     idbImportPack.mockResolvedValue({ aborted: true })
     globalThis.fetch = stubFetch({ manifest, hotShard })
@@ -138,6 +147,20 @@ describe('_ingestFull — never reports false success (the dead-stamp bug)', () 
     const ok = await _ingestFull(FULL_CFG, '2026-09-02', [{ idx: 0 }])
     expect(ok).toBe(true)
     expect(idbImportPack).toHaveBeenCalled()
+  })
+
+  it('returns FALSE when one shard 404s even though another imported rows', async () => {
+    idbImportPack.mockResolvedValue({ written: 300, skipped: 0, aborted: false })
+    globalThis.fetch = vi.fn(async (url) => (url.endsWith('/1') ? { ok: false, json: async () => ({}) } : { ok: true, json: async () => okShard }))
+    const ok = await _ingestFull(FULL_CFG, '2026-09-02', [{ idx: 0 }, { idx: 1 }])
+    expect(ok).toBe(false)
+  })
+
+  it('returns FALSE when one shard\'s import throws even though another imported rows', async () => {
+    idbImportPack.mockResolvedValueOnce({ written: 300, skipped: 0, aborted: false }).mockRejectedValueOnce(new Error('tx'))
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => okShard }))
+    const ok = await _ingestFull(FULL_CFG, '2026-09-02', [{ idx: 0 }, { idx: 1 }])
+    expect(ok).toBe(false)
   })
 
   it('returns FALSE on a quota abort even though data downloaded', async () => {
@@ -188,6 +211,102 @@ describe('the pack fetches SEND the session cookie (the routes have been gated s
   })
 })
 
+describe('a delta left halfway resumes where it stopped (2026-11-14)', () => {
+  // The delta now writes in small yielding batches (~300 series/s); the version stamp lands only
+  // when it completes, so a short visit used to re-apply the whole delta on every load.
+  const D_CFG = { ...FULL_CFG, versionKey: 'barspack.dtest.version', seedKey: 'barspack.dtest.seed' }
+  const manifest = { version: '2026-11-14', shards: [{ idx: 0 }], delta: true }
+  const tick = (i) => `T${String(i).padStart(3, '0')}`
+  const deltaPayload = { format: 1, tickers: Object.fromEntries(Array.from({ length: 40 }, (_, i) =>
+    [tick(i), { D: columnar([{ t: '2026-11-14', o: 1, h: 2, l: 1, c: 1.5, v: 10 }]) }])) }
+  const firstSym = (call) => call[0][0].sym
+  let applyCalls
+
+  beforeEach(() => {
+    localStorage.setItem(D_CFG.versionKey, '2026-11-13')
+    localStorage.removeItem(D_CFG.seedKey)
+    localStorage.removeItem(DELTA_PROGRESS_KEY)
+    idbApplyDelta.mockReset()
+    idbImportPack.mockReset()
+    applyCalls = []
+    globalThis.fetch = vi.fn(async (url) => (String(url).endsWith('/manifest')
+      ? { ok: true, json: async () => manifest }
+      : String(url).endsWith('/delta') ? { ok: true, json: async () => deltaPayload } : { ok: false, json: async () => ({}) }))
+  })
+  afterEach(() => { localStorage.removeItem(DELTA_PROGRESS_KEY); localStorage.removeItem(D_CFG.versionKey) })
+
+  /** idbApplyDelta that commits `commit` entries in batches of 10, then aborts (or finishes). */
+  const applying = (commit) => idbApplyDelta.mockImplementation(async (entries, opts) => {
+    applyCalls.push([entries, opts])
+    for (let n = 10; n <= Math.min(commit, entries.length); n += 10) opts.onBatch(n)
+    return { updated: Math.min(commit, entries.length), skipped: 0, aborted: commit < entries.length }
+  })
+
+  it('a page left mid-delta keeps how far it got, and does not stamp the version', async () => {
+    applying(20)
+    await _run(D_CFG)
+    expect(idbImportPack).not.toHaveBeenCalled()                         // it was a delta, not a full ingest
+    expect(applyCalls).toHaveLength(1)
+    expect(localStorage.getItem(D_CFG.versionKey)).toBe('2026-11-13')
+    const all = JSON.parse(localStorage.getItem(DELTA_PROGRESS_KEY))
+    expect(all[D_CFG.versionKey]).toEqual({ v: '2026-11-14', len: applyCalls[0][0].length, n: 20 })
+  })
+
+  it('the next run of the same delta starts after the entries already done, then stamps and forgets', async () => {
+    applying(20)
+    await _run(D_CFG)
+    const full = applyCalls[0][0]
+    applying(1000)
+    await _run(D_CFG)
+    expect(applyCalls).toHaveLength(2)
+    expect(applyCalls[1][0]).toHaveLength(full.length - 20)
+    expect(firstSym(applyCalls[1])).toBe(full[20].sym)
+    expect(localStorage.getItem(D_CFG.versionKey)).toBe('2026-11-14')
+    expect(localStorage.getItem(DELTA_PROGRESS_KEY)).toBeNull()
+  })
+
+  it('progress kept across two interruptions adds up', async () => {
+    applying(20); await _run(D_CFG)
+    applying(10); await _run(D_CFG)
+    expect(JSON.parse(localStorage.getItem(DELTA_PROGRESS_KEY))[D_CFG.versionKey].n).toBe(30)
+    applying(1000); await _run(D_CFG)
+    expect(firstSym(applyCalls[2])).toBe(applyCalls[0][0][30].sym)
+  })
+
+  it.each([
+    ['another version', (p) => ({ ...p, v: '2026-11-13' })],
+    ['another length', (p) => ({ ...p, len: p.len + 1 })],
+    ['a count past the end', (p) => ({ ...p, n: p.len })],
+    ['a count that is not a whole number', (p) => ({ ...p, n: 12.5 })],
+  ])('progress for %s is ignored: the delta starts at the first entry', async (_label, bend) => {
+    applying(20)
+    await _run(D_CFG)
+    const all = JSON.parse(localStorage.getItem(DELTA_PROGRESS_KEY))
+    all[D_CFG.versionKey] = bend(all[D_CFG.versionKey])
+    localStorage.setItem(DELTA_PROGRESS_KEY, JSON.stringify(all))
+    applying(1000)
+    await _run(D_CFG)
+    expect(applyCalls[1][0]).toHaveLength(applyCalls[0][0].length)
+  })
+
+  it("unreadable progress is ignored, and another pack's progress is kept", async () => {
+    localStorage.setItem(DELTA_PROGRESS_KEY, '{not json')
+    applying(1000)
+    await _run(D_CFG)
+    expect(applyCalls[0][0]).toHaveLength(40)
+    localStorage.setItem(D_CFG.versionKey, '2026-11-13')
+    localStorage.setItem(DELTA_PROGRESS_KEY, JSON.stringify({ 'other.version': { v: 'x', len: 5, n: 2 } }))
+    applying(20)
+    await _run(D_CFG)
+    const all = JSON.parse(localStorage.getItem(DELTA_PROGRESS_KEY))
+    expect(all['other.version']).toEqual({ v: 'x', len: 5, n: 2 })
+    expect(all[D_CFG.versionKey].n).toBe(20)
+    applying(1000)
+    await _run(D_CFG)
+    expect(JSON.parse(localStorage.getItem(DELTA_PROGRESS_KEY))).toEqual({ 'other.version': { v: 'x', len: 5, n: 2 } })
+  })
+})
+
 describe('_packDataPresent — verify the pre-seed before trusting the stamp', () => {
   beforeEach(() => { idbCountKeys.mockReset() })
 
@@ -205,5 +324,157 @@ describe('_packDataPresent — verify the pre-seed before trusting the stamp', (
     idbCountKeys.mockResolvedValue(0)
     expect(await _packDataPresent({ presenceSuffix: '_D' }, {})).toBe(true)
     expect(idbCountKeys).not.toHaveBeenCalled()  // short-circuits before the probe
+  })
+})
+
+describe('one window at a time per pack (2026-11-10)', () => {
+  // Measured: 12 Terminal pop-outs that started together each wrote the whole universe pack into the
+  // SAME IndexedDB store at once (~33,000 store reads in 6 s), because the version stamp lands only
+  // when an ingest completes. Under a Web Lock the second window waits, re-reads the stamp, and skips.
+  const RUN_CFG = { ...FULL_CFG, versionKey: 'barspack.test.version', seedKey: 'barspack.test.seed' }
+  const manifest = { version: '2026-11-10', shards: [{ idx: 0 }] } // no ticker_count: presence is trusted
+  let hadLocks, savedLocks
+
+  function serialLocks() {
+    let chain = Promise.resolve()
+    return {
+      request: vi.fn((name, cb) => {
+        const run = chain.then(() => cb())
+        chain = run.catch(() => {})
+        return run
+      }),
+    }
+  }
+  function setLocks(value) {
+    Object.defineProperty(globalThis.navigator, 'locks', { value, configurable: true, writable: true })
+  }
+
+  beforeEach(() => {
+    hadLocks = 'locks' in globalThis.navigator
+    savedLocks = globalThis.navigator.locks
+    localStorage.removeItem(RUN_CFG.versionKey)
+    localStorage.removeItem(RUN_CFG.seedKey)
+    idbImportPack.mockReset()
+    idbImportPack.mockResolvedValue({ written: 300, skipped: 0, aborted: false })
+    globalThis.fetch = vi.fn(async (url) => (String(url).endsWith('/manifest')
+      ? { ok: true, json: async () => manifest }
+      : { ok: true, json: async () => okShard }))
+  })
+  afterEach(() => {
+    if (hadLocks) setLocks(savedLocks)
+    else delete globalThis.navigator.locks
+  })
+
+  it('takes the named Web Lock when the browser has one', async () => {
+    const locks = serialLocks()
+    setLocks(locks)
+    const fn = vi.fn(async () => 'ran')
+    expect(await _oneWindowAtATime('uct-barspack:x', fn)).toBe('ran')
+    expect(locks.request).toHaveBeenCalledWith('uct-barspack:x', expect.any(Function))
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs directly where Web Locks are missing', async () => {
+    setLocks(undefined)
+    const fn = vi.fn(async () => 'ran')
+    expect(await _oneWindowAtATime('uct-barspack:x', fn)).toBe('ran')
+  })
+
+  it('a second window that waited on the lock skips the ingest the first one finished', async () => {
+    setLocks(serialLocks())
+    const window = () => _oneWindowAtATime(packLock(RUN_CFG), () => _run(RUN_CFG)) // initBarsPack's shape
+    await Promise.all([window(), window()])
+    expect(idbImportPack).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem(RUN_CFG.versionKey)).toBe('2026-11-10')
+  })
+
+  it('CONTROL: without the lock, two windows that start together both ingest', async () => {
+    setLocks(undefined)
+    const window = () => _oneWindowAtATime(packLock(RUN_CFG), () => _run(RUN_CFG))
+    await Promise.all([window(), window()])
+    expect(idbImportPack).toHaveBeenCalledTimes(2)
+  })
+
+  it('every pack run in initBarsPack goes through its lock', () => {
+    const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/lib/barsPackClient.js'), 'utf8')
+    const body = src.slice(src.indexOf('export function initBarsPack'), src.indexOf('export async function _ingestHotPack'))
+    const runs = body.match(/_run\(PACK_[A-Z_]+\)/g) || []
+    expect(runs.length).toBeGreaterThanOrEqual(3)
+    for (const r of runs) {
+      const pack = r.slice(5, -1)
+      expect(body, `${r} must be wrapped in _oneWindowAtATime(packLock(${pack}), ...)`).toContain(`_oneWindowAtATime(packLock(${pack}), () => ${r})`)
+    }
+    expect(body).toContain("_oneWindowAtATime('uct-barspack:hot', () => _ingestHotPack(PACK_DAILY))")
+  })
+})
+
+describe('the full pack ingests wait for the first chart (2026-11-10)', () => {
+  // Measured: in 20 timed /charts loads, the 5 that ingested pack shards drew first candles in
+  // 1.6-3.0 s and the 15 that did not in 0.43-0.9 s. The ingest now starts after the page's first
+  // chart, or after a time limit for pages without one.
+  beforeEach(() => { __resetFirstChartPaint(); vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers(); __resetFirstChartPaint() })
+
+  it('holds until the first chart paints', () => {
+    const fn = vi.fn()
+    afterFirstChartPaint(fn, { maxWaitMs: 15000 })
+    vi.advanceTimersByTime(5000)
+    expect(fn).not.toHaveBeenCalled()
+    markFirstChartPaint()
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts at the time limit on a page with no chart', () => {
+    const fn = vi.fn()
+    afterFirstChartPaint(fn, { maxWaitMs: 15000 })
+    vi.advanceTimersByTime(14999)
+    expect(fn).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves one buffered performance mark for time-to-first-candles readers, once per page', () => {
+    const mark = vi.spyOn(performance, 'mark').mockImplementation(() => undefined)
+    markFirstChartPaint()
+    markFirstChartPaint()
+    expect(mark.mock.calls).toEqual([[FIRST_CHART_PAINT_EVENT]])
+    mark.mockRestore()
+  })
+
+  it('runs once even when both the paint and the time limit happen', () => {
+    const fn = vi.fn()
+    afterFirstChartPaint(fn, { maxWaitMs: 1000 })
+    markFirstChartPaint()
+    vi.advanceTimersByTime(5000)
+    window.dispatchEvent(new Event(FIRST_CHART_PAINT_EVENT))
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs at once when a chart has already painted on this page', () => {
+    markFirstChartPaint()
+    const fn = vi.fn()
+    afterFirstChartPaint(fn)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks the first paint only once per page', () => {
+    const seen = vi.fn()
+    window.addEventListener(FIRST_CHART_PAINT_EVENT, seen)
+    markFirstChartPaint()
+    markFirstChartPaint()
+    window.removeEventListener(FIRST_CHART_PAINT_EVENT, seen)
+    expect(seen).toHaveBeenCalledTimes(1)
+  })
+
+  it('every full pack ingest in initBarsPack waits for the first chart, and StockChart reports it', () => {
+    vi.useRealTimers()
+    const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/lib/barsPackClient.js'), 'utf8')
+    const body = src.slice(src.indexOf('export function initBarsPack'), src.indexOf('export async function _ingestHotPack'))
+    for (const pack of ['PACK_DAILY', 'PACK_BREADTH', 'PACK_INTRADAY']) {
+      expect(body).toContain(`afterFirstChartPaint(() => _whenIdle(() => { Promise.resolve(_oneWindowAtATime(packLock(${pack}), () => _run(${pack})))`)
+    }
+    const chart = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
+    // setChartReady(true), then (after any comment lines) markFirstChartPaint().
+    expect(chart).toMatch(/setChartReady\(true\)\s*(\/\/[^\n]*\s*)*markFirstChartPaint\(\)/)
   })
 })

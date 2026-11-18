@@ -83,7 +83,7 @@ export function chartFromPhrase(phrase, charts, host, { other = null } = {}) {
 
 // ⛔ Two charts in ONE link colour group always show the same symbol (a symbol change goes through the group,
 // exactly as a search pick does): different symbols on them can never both land. Said, never attempted.
-const LINKED = 'Those charts are linked to the same colour group, so they always show the same symbol. Unlink one of them first (set its link colour to not linked), then ask again — nothing has changed.'
+const LINKED = 'Those charts are linked to the same color group, so they always show the same symbol. Unlink one of them first (set its link color to not linked), then ask again — nothing has changed.'
 function linkedTogether(refs, charts) {
   const groups = refs.map(r => charts.find(c => c.ref === r)?.group).filter(g => typeof g === 'string' && g && !g.startsWith('N'))
   return groups.length !== new Set(groups).size
@@ -157,8 +157,26 @@ function gridRequest(raw0, lower0, charts, host) {
   // charts ADDED four — 10 charts): more charts on the board than tickers, and the member's words neither ask for new
   // ones nor build a whole workspace — never guessed, never a silent removal: ONE question, replace the charts (the ones
   // showing a named ticker kept; the removal approval-gated) or add these beside them
+  // ⛔ ADD NEVER REPLACES (hotfix 2026-11-13, AUDIT: "add AAPL and MSFT" / "add two charts for …" on a SPY + NVDA board re-symbolled
+  // both charts): an ADD (add / include, no replace word) never reuses or re-symbols a chart already there — the tickers go on NEW
+  // charts. A grid SHAPE or a COUNT said with it ("add a 2x2 of …", "add four charts for …") on a board that has charts could mean
+  // the whole grid (GRID-REUSE, 11-04) or more charts:
+  // ASKED (replace them — shown first — or add beside them); more than the board holds: asked (replace, or nothing).
+  if (!lead && ADD_VERB.test(raw) && !REPLACE_INTENT.test(raw)) {
+    // (D18 item 3: a ticker a chart already shows is reused — by the plan-level screen in useAgent.execute and planChartGrid)
+    const onBoard = gridChartCount(host, charts.length)
+    const layout = layoutHit ? layoutHit[1] : null
+    if (onBoard > 0) {
+      const q = addQuestion(syms, tf, layout, rail, onBoard, { shape: (GRID_SHAPE_WORDS.test(raw) || !!count) && !ASKS_NEW.test(raw), full: !roomFor(host, syms.length + (rail ? 1 : 0)), shown: shownOf(host, syms, tf) })
+      if (q) return q
+    }
+    if (!layout && !rail && !EQUAL_SIZE_WORDS.test(raw) && fitsEmpty(host, syms.length)) {
+      return { kind: 'ops', ops: [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: syms, timeframe: tf || null, chart_type: null, exact: null } }], mode: 'apply' }
+    }
+    return { kind: 'ops', ops: [chartGrid(syms, tf, layout, onBoard > 0, rail)], mode: 'apply' }
+  }
   if (!lead && !explicitGridIntent(raw)) {
-    const q = gridQuestion(syms, tf, layoutHit ? layoutHit[1] : null, rail, gridChartCount(host, charts.length))
+    const q = gridQuestion(syms, tf, layoutHit ? layoutHit[1] : null, rail, gridChartCount(host, charts.length), shownOf(host, syms, tf))
     if (q) return q
   }
   const fresh = wantsNew(raw, syms.length, charts.length)
@@ -197,14 +215,25 @@ export function gridChartCount(host, fallback = 0) {
 }
 /** LIVE TRAIN 4: more charts on the grid than tickers, nothing said about new / replace → ONE question (never a guess,
  *  never a silent removal): replace the charts (approval-gated; those showing a named ticker kept) or add these beside them. */
-export function gridQuestion(syms, tf, layout, rail, onBoard) {
+// ⛔ D18 (AUDIT condition on "Add N more charts" = an explicit copy): the add choice SAYS the duplicates before the member picks —
+// every requested ticker a chart on the board already shows (on the timeframe asked, or none asked) is named: "Add 4 new charts
+// (a second NVDA and TSLA)". No duplicate → the plain label.
+export function shownOf(host, syms, tf = null) {
+  let charts = []
+  try { charts = host?.charts?.list?.() || [] } catch { charts = [] }
+  const on = new Set(charts.filter(c => !tf || String(c.tf || '') === String(tf)).map(c => String(c.symbol || '').toUpperCase()).filter(Boolean))
+  return (syms || []).map(x => String(x || '').toUpperCase()).filter(x => on.has(x))
+}
+const andWords = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+export const addLabel = (k, shown = []) => (shown.length ? `Add ${k} new chart${k === 1 ? '' : 's'} (a second ${andWords(shown)})` : `Add ${k} more chart${k === 1 ? '' : 's'}`)
+export function gridQuestion(syms, tf, layout, rail, onBoard, shown = []) {
   const k = (syms || []).length
   if (k < 2 || !(k < onBoard)) return null
   const grid = (fresh) => chartGrid(syms, tf, layout, fresh, rail)
   return {
     kind: 'ask',
     text: `You have ${onBoard} charts here. Replace them with these ${k} (${syms.join(', ')}), or add ${k} more beside them?`,
-    choices: [{ ref: 'grid:replace', label: `Replace my ${onBoard} charts with these ${k}` }, { ref: 'grid:add', label: `Add ${k} more charts` }],
+    choices: [{ ref: 'grid:replace', label: `Replace my ${onBoard} charts with these ${k}` }, { ref: 'grid:add', label: addLabel(k, shown) }],
     options: { replace: [{ ...grid(false), args: { ...grid(false).args, replace: 'charts' } }], add: [grid(true)] },
   }
 }
@@ -215,9 +244,37 @@ export function gridChoiceFor(ops, text, host) {
   const a = ops[0].args || {}
   if (a.replace === true || a.replace === 'charts') return null
   if (explicitGridIntent(text) || isWorkspaceRequest(text)) return null
-  return gridQuestion((a.symbols || []).map(s => String(s || '').toUpperCase()), a.timeframe || null, a.layout || null, a.watchlist === true, gridChartCount(host, 0))
+  const syms0 = (a.symbols || []).map(s => String(s || '').toUpperCase())
+  return gridQuestion(syms0, a.timeframe || null, a.layout || null, a.watchlist === true, gridChartCount(host, 0), shownOf(host, syms0, a.timeframe || null))
 }
 const wantsNew = (text, n, onBoard) => asksNew(text) || n < onBoard
+// ⛔ ADD NEVER REPLACES (hotfix 2026-11-13): the verbs that ask for MORE charts, and a grid shape said in words
+export const ADD_VERB = /\b(?:add|adds|added|adding|include|includes|included|including)\b/i
+const GRID_SHAPE_WORDS = /\b[1-4]\s*(?:x|by|-by-)\s*[1-4]\b|\bquad\b/i
+// the board's room for n more widgets (unknown → assumed, the grid's own check still refuses past the cap)
+function roomFor(host, n) {
+  let s = null
+  try { s = host?.widgets?.snapshot?.() || null } catch { s = null }
+  return !s || typeof s.max !== 'number' || s.count + n <= s.max
+}
+/** ADD on a board with charts: a grid SHAPE asked with it → replace (shown first) or add beside; no room → replace or nothing. */
+export function addQuestion(syms, tf, layout, rail, onBoard, { shape = false, full = false, shown = [] } = {}) {
+  const k = (syms || []).length
+  if (k < 1 || (!shape && !full)) return null
+  const grid = (fresh) => chartGrid(syms, tf, layout, fresh, rail)
+  const replace = [{ ...grid(false), args: { ...grid(false).args, replace: 'charts' } }]
+  const mine = `${onBoard} chart${onBoard === 1 ? '' : 's'}`
+  if (full) {
+    return { kind: 'ask', text: `There isn't room for ${k} more chart${k === 1 ? '' : 's'} beside your ${mine}. Replace your ${mine} with these ${k} (${syms.join(', ')})? Nothing has changed yet.`,
+      choices: [{ ref: 'grid:replace', label: `Replace my ${mine} with these ${k}` }], options: { replace } }
+  }
+  return {
+    kind: 'ask',
+    text: `You have ${mine} here. Add these ${k} (${syms.join(', ')}) beside them, or replace your ${mine} with these ${k}? Nothing has changed yet.`,
+    choices: [{ ref: 'grid:add', label: addLabel(k, shown) }, { ref: 'grid:replace', label: `Replace my ${mine} with these ${k}` }],
+    options: { replace, add: [grid(true)] },
+  }
+}
 // n new charts land in EMPTY space as the product places them (nothing resized or moved)
 function fitsEmpty(host, n) {
   let s = null

@@ -179,20 +179,29 @@ def supertrend_trees(factor_node: Any, period_node: Any,
 
     up, dn = band("+"), band("-")
     w = _num(warmup)
-    upper = _call("accum", [up, _op("?:", [
-        _op("||", [_op("<", [up, self_]), _op(">", [prev_close, self_])]), up, self_]), w])
-    lower = _call("accum", [dn, _op("?:", [
-        _op("||", [_op(">", [dn, self_]), _op("<", [prev_close, self_])]), dn, self_]), w])
+    zero = _num(0)
+    # Pine's ``nz(upperBand[1])`` / ``nz(lowerBand[1])`` (engine 57): the previous band,
+    # 0 where it is ``na`` -- without it a band seeded ``na`` latched ``na`` from the listing.
+    prev = _call("nz", [self_, zero])
+    upper = _call("accum", [_call("nz", [up, zero]), _op("?:", [
+        _op("||", [_op("<", [up, prev]), _op(">", [prev_close, prev])]), up, prev]), w])
+    lower = _call("accum", [_call("nz", [dn, zero]), _op("?:", [
+        _op("||", [_op(">", [dn, prev]), _op("<", [prev_close, prev])]), dn, prev]), w])
     one, minus_one = _num(1), _num(-1)
+    # Pine's ``if na(atr[1]) direction := 1``, then the flip
     direction = _call("accum", [one, _op("?:", [
-        _op("==", [self_, one]),
-        _op("?:", [_op(">", [close, upper]), minus_one, one]),
-        _op("?:", [_op("<", [close, lower]), one, minus_one]),
+        _call("na", [{"type": "offset", "value": 1, "args": [atr]}]),
+        one,
+        _op("?:", [
+            _op("==", [self_, one]),
+            _op("?:", [_op(">", [close, upper]), minus_one, one]),
+            _op("?:", [_op("<", [close, lower]), one, minus_one]),
+        ]),
     ]), w])
-    unknown = _op("||", [
-        _call("na", [{"type": "offset", "value": warmup, "args": [upper]}]),
-        _call("na", [{"type": "offset", "value": warmup, "args": [lower]}]),
-    ])
+    # ENGINE 57 -- the guard is a bounded window's own curtain ``2W + n - 1`` deep (the base's
+    # bars: its raw seeds were ``na`` through the ATR warm-up): ``na`` on
+    # bars ``t < 2W`` off the listing, known on every bar from it (``callExpansions.js``).
+    unknown = _call("na", [_call("accum", [_num(0), _num(0), _num(2 * warmup + n - 1)])])
     na = _op("/", [_num(0), _num(0)])
     return {
         "value": _op("?:", [unknown, na, _op("?:", [_op("==", [direction, minus_one]), lower, upper])]),
@@ -210,7 +219,12 @@ def _supertrend_part(part: str) -> Callable[[List[Any]], Optional[Dict[str, Any]
 #: ``callExpansions.js::SAR_WARMUP`` / ``SAR_MIN_STEP`` / ``SAR_MIN_MAX_STEP`` -- the
 #: window Parabolic SAR re-seeds over and the MEASURED domain it is exact on. Same
 #: numbers in both lanes (the parity test pins the trees).
-SAR_WARMUP = 200
+#: (2026-11-16) 200 -> 400: the 200-bar window put 43 bars of a captured RDDT 15m series
+#: off the full-history SAR. 400 measured 0 wrong of 1,039,563 bars over 342 series
+#: (``docs/pine/evidence/2026-11-16-sar-window/EVIDENCE.md``; the reasoning is at
+#: ``callExpansions.js::SAR_WARMUP``). A tree saved at 200 still evaluates as stored: the
+#: tree carries its own window.
+SAR_WARMUP = 400
 SAR_MIN_STEP = 0.02
 SAR_MIN_MAX_STEP = 0.2
 
@@ -334,7 +348,7 @@ def expansion_problem(name: str, n_args: int) -> str:
         return (f"{name} needs a step of at least {SAR_MIN_STEP} and a maximum of at least "
                 f"{SAR_MIN_MAX_STEP} (and no more than 1), both written as numbers, the maximum "
                 f"at least the step -- {sig}. Slower settings are not offered because a value "
-                f"computed from the last {SAR_WARMUP} bars was measured to drift from the "
+                f"computed from a bounded window of recent bars was measured to drift from the "
                 f"full-history SAR there; the chart's Parabolic SAR indicator runs from the "
                 f"first bar and takes any setting")
     tail = " of at least 2" if name in ("linreg", "correlation") else ""

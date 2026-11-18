@@ -278,6 +278,83 @@ def _exvol_key(tk: str) -> str:
     return f"live_exvol_{tk}"
 
 
+# ── Extended session, on its own (owner 11-14: the Watchlist's EXT mode shows ONLY the
+# pre-market session 4:00-9:30 ET or the after-hours session 16:00-20:00 ET, fresh each
+# session). ADDITIVE fields only — `ext_price`, `price`, `volume` and the rest are untouched,
+# so every existing consumer (the chart's Pre/Post chip, legends, headers) is unchanged. ──
+# Session-only volume per ticker from the same aggregate fetch: (yyyymmdd, pre_v, post_v).
+_EXSESS_LAST: dict[str, tuple[int, int, int]] = {}
+# Whether the ext price _EXT_LAST re-serves was a print from its own session.
+_EXT_LAST_FRESH: dict[str, bool] = {}
+
+
+def _ext_session_start(session: str, now=None) -> float | None:
+    """Epoch seconds the CURRENT extended session began: pre-market today 04:00 ET;
+    after-hours the last weekday's 16:00 ET (today after the bell; the previous weekday
+    overnight; Friday over a weekend). None in the regular session."""
+    if session not in ("pre_market", "post_market"):
+        return None
+    tz = ZoneInfo("America/New_York")
+    now = now or datetime.now(tz)
+    if session == "pre_market":
+        return now.replace(hour=4, minute=0, second=0, microsecond=0).timestamp()
+    day = now
+    if not (now.weekday() < 5 and now.hour >= 16):
+        day = now - timedelta(days=1)
+        while day.weekday() >= 5:
+            day -= timedelta(days=1)
+    return day.replace(hour=16, minute=0, second=0, microsecond=0).timestamp()
+
+
+def _ext_session_volume(ticker: str, session: str, today: int) -> int | None:
+    """This extended session's own volume from the last aggregate warm (same day only)."""
+    rec = _EXSESS_LAST.get(ticker)
+    if not rec or rec[0] != today:
+        return None
+    if session == "pre_market":
+        return rec[1]
+    if session == "post_market":
+        return rec[2]
+    return None
+
+
+def _ext_price_fresh(ext_price, last_trade: dict, minute: dict, start: float | None) -> bool:
+    """True when `ext_price` is a print from THIS extended session (at/after its start) —
+    a pre-market row at 4:00 ET still carrying last night's after-hours lastTrade is not."""
+    if ext_price is None or start is None:
+        return False
+    def _same(v):
+        try:
+            return v is not None and round(float(v), 2) == round(float(ext_price), 2)
+        except (TypeError, ValueError):
+            return False
+    lt_t = (last_trade or {}).get("t")       # nanoseconds
+    if _same((last_trade or {}).get("p")) and lt_t:
+        return float(lt_t) / 1e9 >= start
+    m_t = (minute or {}).get("t")            # milliseconds
+    if _same((minute or {}).get("c")) and m_t:
+        return float(m_t) / 1e3 >= start
+    return False
+
+
+def _split_session_volume(bars: list) -> tuple[int, int]:
+    """(pre-market, after-hours) volume from today's 30-minute bars, by bar start ET:
+    before 09:30 → pre-market, at/after 16:00 → after-hours (30-minute bars split cleanly)."""
+    tz = ZoneInfo("America/New_York")
+    pre = post = 0
+    for r in bars:
+        t, v = r.get("t"), _f(r.get("v")) or 0
+        if not t:
+            continue
+        et = datetime.fromtimestamp(float(t) / 1e3, tz)
+        hm = et.hour * 100 + et.minute
+        if hm < 930:
+            pre += int(v)
+        elif hm >= 1600:
+            post += int(v)
+    return pre, post
+
+
 def _fetch_extended_volume(client, ticker: str) -> int | None:
     """Today's total traded volume from hourly aggregates — the chart's tally.
 
@@ -286,7 +363,9 @@ def _fetch_extended_volume(client, ticker: str) -> int | None:
     """
     day = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
     url = (
-        f"https://api.massive.com/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/60/minute/"
+        # 30-minute bars (same total as hourly) so the 09:30 and 16:00 edges split cleanly
+        # into the session-only volumes (_split_session_volume → _EXSESS_LAST).
+        f"https://api.massive.com/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/30/minute/"
         f"{day}/{day}?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
     )
     try:
@@ -296,6 +375,11 @@ def _fetch_extended_volume(client, ticker: str) -> int | None:
     res = data.get("results") or []
     if not res:
         return None
+    try:
+        pre_v, post_v = _split_session_volume(res)
+        _EXSESS_LAST[ticker] = (_today_yyyymmdd(), pre_v, post_v)
+    except Exception:
+        pass
     return int(sum(_f(r.get("v")) or 0 for r in res))
 
 
@@ -418,6 +502,11 @@ def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> 
 # function's signature (which many tests replace by name) is unchanged; a
 # replacement that never sets it reads as "not answered", the old 503.
 _FETCH_STATUS = threading.local()
+# Per-thread opt-out of the extended-hours volume warm. The scheduled price-alert
+# evaluator reads only `price`, so the per-ticker aggregate fetch the warm queues
+# would be pure waste (and _EXVOL_TTL is shorter than its cadence, so it would
+# re-fire for every symbol every cycle). Unset (the request path) = unchanged.
+_SUPPRESS_EXVOL_WARM = threading.local()
 
 
 def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
@@ -458,6 +547,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     # us report the PREVIOUS regular session's change (prevDay.c vs the one before it),
     # which the header's pre-market split shows as the "original" (regular-hours) number.
     _, _prior_map = _session_closes()
+    _ext_start = _ext_session_start(session)
     for ticker, t in result.value.items():
         day = t.get("day", {})
         prev_day = t.get("prevDay", {})
@@ -531,13 +621,16 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
 
         ext_price = None
         ext_session = None
+        ext_fresh = False
         if session != "regular":
             # min.c-aware: a STALE lastTrade (SPY sits pinned to the 4pm regular close
             # in pre/post) falls back to the minute-aggregate close that the chart's
             # extended bars use. See _ext_price_for.
             ext_price, ext_session = _ext_price_for(session, last_trade, minute, day)
+            ext_fresh = _ext_price_fresh(ext_price, last_trade, minute, _ext_start)
             if ext_price is not None:
                 _EXT_LAST[ticker] = (_today, session, ext_price)
+                _EXT_LAST_FRESH[ticker] = ext_fresh
             else:
                 # Empty read on THIS poll only — see _EXT_LAST. Re-serve the last
                 # print from this same session so the ticker never reads as "no
@@ -546,6 +639,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
                 prior = _EXT_LAST.get(ticker)
                 if prior is not None and prior[0] == _today and prior[1] == session:
                     ext_session, ext_price = prior[1], prior[2]
+                    ext_fresh = _EXT_LAST_FRESH.get(ticker, False)
             # NOTE: `price` deliberately stays the frozen RTH/prior close in
             # extended hours (see the price derivation above) — the locked-close
             # axis tag and the Regular-Hours view depend on it. Consumers that
@@ -587,6 +681,23 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
             "day_close": round(float(day["c"]), 2) if day.get("c") else None,
             "ext_price": ext_price,
             "ext_session": ext_session,
+            # ── Additive (owner 11-14, Watchlist RTH · EXT) ──
+            # market_session: the clock's session ('pre_market' | 'regular' | 'post_market').
+            # ext_fresh: ext_price is a print from THIS extended session (not last night's).
+            # ext_volume: THIS extended session's volume only (pre 04:00-09:30 / post 16:00-20:00
+            #   ET; None until today's aggregate is warmed; 0-4am the post session is
+            #   yesterday's, which today's bars don't hold → None).
+            # rth_close / rth_volume: the last REGULAR session as of its 4:00 PM close —
+            #   today's after the bell, the previous day's before the open.
+            "market_session": session,
+            "ext_fresh": bool(ext_fresh),
+            "ext_volume": _ext_session_volume(ticker, session, _today),
+            "rth_close": (round(float(day["c"]), 2) if session == "post_market" and day.get("c")
+                          else round(float(prev_day.get("c") or 0), 2) if session == "pre_market" and prev_day.get("c")
+                          else None),
+            "rth_volume": (int(day.get("v") or 0) if session == "post_market" and day.get("v")
+                           else int(prev_day.get("v") or 0) if session == "pre_market" and prev_day.get("v")
+                           else None),
             # Seam 8: the vendor's own observation epoch (seconds) for this
             # ticker's quote, when available -- None (never a guess) when
             # the provider omitted both `updated` and `lastTrade.t`.
@@ -611,7 +722,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
 
     # Warm the aggregate volume for any extended-hours ticker still on its
     # placeholder; the next poll reads the chart-matching value from cache.
-    if need_exvol:
+    if need_exvol and not getattr(_SUPPRESS_EXVOL_WARM, "on", False):
         _warm_extended_volumes_async(need_exvol)
     return out
 

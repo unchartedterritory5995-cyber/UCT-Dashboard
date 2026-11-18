@@ -12,7 +12,7 @@ vi.mock('../../../hooks/useLivePrices', () => ({
   default: (tickers) => { live.asked.push(tickers); return { prices: live.prices, isLoading: false, error: null } },
 }))
 
-import MoversPanel from './MoversPanel'
+import MoversPanel, { NO_CATALYST } from './MoversPanel'
 import { CATALYSTS_URL, MOVERS_URL, VOLUME_URL, sessionOf } from './moversModel'
 
 const MOVERS = { ripping: [{ sym: 'AAA', pct: '+12.50%' }, { sym: 'BBB', pct: '+4.00%' }], drilling: [{ sym: 'CCC', pct: '-8.25%' }] }
@@ -126,6 +126,69 @@ describe('MOST', () => {
     expect(screen.getByTestId('terminal-movers-thesis-AAA').textContent).toContain('Beat and raised guidance.')
     fireEvent.click(screen.getByText('Open AAA MOVE'))
     expect(onRun).toHaveBeenCalledWith('AAA MOVE', { next: true })
+  })
+
+  it('a name the catalyst board does not list reads "No catalyst on file"; a board that did not answer leaves a dash', async () => {
+    ok()
+    renderPanel()
+    await screen.findByTestId('terminal-movers-table')
+    expect(NO_CATALYST).toBe('No catalyst on file')
+    for (const sym of ['BBB', 'CCC', 'EEE']) expect(screen.getByTestId(`terminal-movers-nowhy-${sym}`).textContent).toBe('No catalyst on file')
+    expect(screen.queryByTestId('terminal-movers-nowhy-AAA')).toBeNull()
+    cleanup()
+    // the board failed: "none on file" would be a claim nobody checked, so the cell is a dash and the note says why
+    ok({ [CATALYSTS_URL]: 500 })
+    renderPanel()
+    await screen.findByTestId('terminal-movers-table')
+    expect(screen.getByTestId('terminal-movers-nowhy-BBB').textContent).toBe('—')
+    expect(screen.getByTestId('terminal-movers').textContent).not.toContain('No catalyst on file')
+    expect(screen.getByTestId('terminal-movers').textContent).toContain('The catalyst board could not be read just now.')
+  })
+
+  it('the why is the board\'s own type, and opened it is attributed: AI-written, timed, with the links it cites', async () => {
+    const written = Date.parse('2026-11-18T12:05:00Z') / 1000      // 7:05 AM ET
+    ok({ [CATALYSTS_URL]: { rows: [
+      { ticker: 'AAA', tag: 'Catalyst', catalyst_type: 'Analyst', thesis_text: 'Upgraded to **Buy** at Acme.', gap_pct: 11, vol_x: 6.5, price: 50,
+        thesis_at: written, thesis_sources: JSON.stringify(['https://www.example.com/note', 'https://news.example.org/a', 'javascript:alert(1)']),
+        rating_change: { action: 'upgrade', company: 'Acme Research', from_grade: 'Hold', to_grade: 'Buy', date: '2026-11-18' } },
+      { ticker: 'BBB', tag: 'Gapper', catalyst_type: 'None', thesis_text: 'No company news found; the move followed the sector.', gap_pct: 4 },
+    ] } })
+    renderPanel()
+    await screen.findByTestId('terminal-movers-table')
+    expect(screen.getByTestId('terminal-movers-why-AAA').textContent).toBe('Analyst')     // the type, not the bucket "Catalyst"
+    expect(screen.getByTestId('terminal-movers-why-BBB').textContent).toBe('Gapper')      // "None" is never shown as a reason
+    fireEvent.click(screen.getByTestId('terminal-movers-why-AAA'))
+    const src = screen.getByTestId('terminal-movers-sources-AAA')
+    expect(src.textContent).toContain('Summary written by AI for the UCT catalyst board at 7:05 AM ET.')
+    expect(src.textContent).toContain('It cites: example.com, news.example.org.')
+    const links = within(src).getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['https://www.example.com/note', 'https://news.example.org/a'])
+    for (const a of links) {
+      expect(a.getAttribute('target')).toBe('_blank')
+      expect(a.getAttribute('rel')).toBe('noopener noreferrer')
+    }
+    expect(screen.getByTestId('terminal-movers-rating-AAA').textContent).toBe('Analyst action on file: Upgrade by Acme Research, Hold to Buy, 2026-11-18.')
+    // a summary that cites nothing says so; it is never passed off as confirmed
+    fireEvent.click(screen.getByTestId('terminal-movers-why-BBB'))
+    expect(screen.getByTestId('terminal-movers-sources-BBB').textContent)
+      .toBe('Summary written by AI for the UCT catalyst board. It cites no source link, so read it as unconfirmed.')
+    expect(screen.queryByTestId('terminal-movers-rating-BBB')).toBeNull()
+    expect(screen.getByTestId('terminal-movers-method').textContent).toContain('AI-written summary and the sources it cites')
+  })
+
+  it('MOST RVOL says what unusual volume means on that lens, and points to the day-long list', async () => {
+    ok({ [VOLUME_URL]: { ...VOLUME, universe_top: 300 } })
+    const onRun = vi.fn()
+    renderPanel({ lens: 'volume', onRun })
+    await screen.findByTestId('terminal-movers-table')
+    const def = screen.getByTestId('terminal-movers-volume-def')
+    expect(def.textContent).toContain('Unusual volume here is a burst: a stock among the 300 most liquid')
+    expect(def.textContent).toContain('A stock that has been heavy all day with no fresh burst is not listed.')
+    fireEvent.click(within(def).getByRole('button', { name: 'open UNVOL' }))
+    expect(onRun).toHaveBeenCalledWith('UNVOL', { next: true })
+    // the definition belongs to that lens only
+    fireEvent.click(screen.getByTestId('terminal-movers-lens-all'))
+    expect(screen.queryByTestId('terminal-movers-volume-def')).toBeNull()
   })
 
   it('outside the regular session it never says Live, and names the basis it is showing', async () => {

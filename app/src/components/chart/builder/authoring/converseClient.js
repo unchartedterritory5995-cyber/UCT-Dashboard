@@ -74,12 +74,41 @@ export function distinctNotUnderstood(res) {
   return items.filter((n) => !(n && n.reason && n.reason === res.reason))
 }
 
+/**
+ * ⭐ 2026-11-17 — THE BROWSER'S OWN REFUSAL, SENT BACK FOR ONE REPAIR. The door checks a patch's
+ * structure; this engine applies it and holds rules of its own, so the door can offer a patch the
+ * engine then refuses ("Nothing was changed" for a request the assistant had built). The turn is
+ * sent once more with the refused patch and the engine's own words (`definition_conversation.
+ * browser_refusal` decides whether to use them); the model's repair is spent on that.
+ * The bounds are the server's (`BROWSER_REFUSAL_MAX_ERRORS`, `BROWSER_REFUSAL_MAX_CHARS`).
+ */
+export const BROWSER_REFUSAL_LIMITS = Object.freeze({ maxErrors: 4, maxChars: 300 })
+
+/** `{envelope, errors}` as it goes on the wire, or null when there is nothing usable to send. */
+export function browserRefusalBlock(refusal) {
+  if (!refusal || typeof refusal !== 'object' || !refusal.envelope || typeof refusal.envelope !== 'object') return null
+  const errors = (Array.isArray(refusal.errors) ? refusal.errors : [])
+    .filter((e) => typeof e === 'string' && e.trim())
+    .slice(0, BROWSER_REFUSAL_LIMITS.maxErrors)
+    .map((e) => e.replace(/\s+/g, ' ').trim().slice(0, BROWSER_REFUSAL_LIMITS.maxChars))
+  return errors.length ? { envelope: refusal.envelope, errors } : null
+}
+
+/**
+ * What THIS build of the browser accepts beyond the first contract, told to the door on every turn.
+ * The door adds an optional field to its answer only for a browser that names it here, so a tab
+ * still running an older build never meets a field its own validator refuses.
+ *   note.by: a note may say who wrote it (`by: "uct"`).
+ */
+export const ACCEPTS = Object.freeze(['note.by'])
+
 /** The request body for one turn — exported so tests can pin the wire shape. */
-export function converseBody({ message, state, gateCtx = {}, snippets = [] }) {
+export function converseBody({ message, state, gateCtx = {}, snippets = [], browserRefusal = null }) {
   const view = compactView(state.working, state, gateCtx)
   const body = {
     message: String(message || '').slice(0, CONVERSE_LIMITS.maxMessage),
     view,
+    accepts: [...ACCEPTS],
     authoring: { assumptions: view.assumptions, openQuestions: view.openQuestions },
     snippets: boundedSnippets(snippets),
     chart: {
@@ -95,6 +124,8 @@ export function converseBody({ message, state, gateCtx = {}, snippets = [] }) {
   // (`definition_conversation.conversation_usage`). Omitted when not well-formed.
   const id = state && state.lineage
   if (typeof id === 'string' && CONVERSATION_ID_RE.test(id)) body.conversationId = id
+  const refused = browserRefusalBlock(browserRefusal)
+  if (refused) body.browser_refusal = refused
   return body
 }
 
@@ -106,7 +137,19 @@ export const CONVERSATION_ID_RE = /^[A-Za-z0-9_-]{8,64}$/
  * @returns {Promise<{ok: true, disposition: string, reply: string, turn: string, envelope: object, notUnderstood: object[], unavailable: object[]}
  *                 | {ok: false, gate: string, reason: string, disposition?: string, preflight?: boolean, notUnderstood: object[], unavailable: object[]}>}
  */
-export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null }) {
+/** The gate of a turn the MEMBER stopped waiting for (`signal` aborted). Not a failure. */
+export const STOPPED_GATE = 'client:stopped'
+
+/** `Retry-After` as whole seconds, or null when the header is absent or not a count. */
+function retryAfterOf(r) {
+  try {
+    const raw = r && r.headers && typeof r.headers.get === 'function' ? r.headers.get('Retry-After') : null
+    const n = raw == null || raw === '' ? NaN : Number(raw)
+    return Number.isFinite(n) && n > 0 ? Math.ceil(n) : null
+  } catch { return null }
+}
+
+export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null, signal = null, browserRefusal = null }) {
   const doFetch = fetchImpl || globalThis.fetch
   let r
   try {
@@ -114,9 +157,13 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(converseBody({ message, state, gateCtx, snippets })),
+      body: JSON.stringify(converseBody({ message, state, gateCtx, snippets, browserRefusal })),
+      ...(signal ? { signal } : {}),
     })
   } catch {
+    // The member pressed Stop: the browser gave up the request. The server may still
+    // finish the turn; nothing it returns is read.
+    if (signal && signal.aborted) return { ok: false, gate: STOPPED_GATE, reason: '', notUnderstood: [], unavailable: [] }
     return { ok: false, gate: 'network', reason: NETWORK, notUnderstood: [], unavailable: [] }
   }
   if (!r || !r.ok) {
@@ -127,8 +174,10 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
       if (typeof body?.detail === 'string') detail = body.detail
     } catch { /* not JSON */ }
     const reason = status === 402 ? 'Custom indicators require a paid plan.'
-      : (detail || `The assistant could not answer (${status}).`)
-    return { ok: false, gate: `http:${status}`, reason, notUnderstood: [], unavailable: [] }
+      : (detail || `The UCT Agent could not answer (${status}).`)
+    const retryAfterS = status === 429 ? retryAfterOf(r) : null
+    return { ok: false, gate: `http:${status}`, reason, notUnderstood: [], unavailable: [],
+      ...(retryAfterS ? { retryAfterS } : {}) }
   }
   let body
   try { body = await r.json() } catch { body = null }
@@ -138,20 +187,28 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
     return {
       ok: false,
       gate: (body && body.gate) || 'converse:unreadable',
-      reason: (body && typeof body.reason === 'string' && body.reason) || 'The assistant gave no usable answer.',
+      reason: (body && typeof body.reason === 'string' && body.reason) || 'The UCT Agent gave no usable answer.',
       ...(body && body.disposition === 'unsupported' ? { disposition: 'unsupported' } : {}),
       ...(body && body.preflight === true ? { preflight: true } : {}),
       notUnderstood, unavailable,
+      ...allowanceOf(body),
     }
   }
   if (!body.envelope || typeof body.envelope !== 'object') {
-    return { ok: false, gate: 'converse:no-envelope', reason: 'The assistant gave no change to apply.', notUnderstood, unavailable }
+    return { ok: false, gate: 'converse:no-envelope', reason: 'The UCT Agent gave no change to apply.', notUnderstood, unavailable }
   }
   if (!DISPOSITIONS.includes(body.disposition)) {
-    return { ok: false, gate: 'converse:no-disposition', reason: 'The assistant did not say what kind of answer this was, so nothing was changed.', notUnderstood, unavailable }
+    return { ok: false, gate: 'converse:no-disposition', reason: 'The UCT Agent did not say what kind of answer this was, so nothing was changed.', notUnderstood, unavailable }
   }
   return {
     ok: true, disposition: body.disposition, reply: typeof body.reply === 'string' ? body.reply : '',
     turn: body.turn || null, envelope: body.envelope, notUnderstood, unavailable,
+    ...allowanceOf(body),
   }
+}
+
+/** ⭐ F1: the share of today's allowance left (0 to 1) when the server sent one. */
+export function allowanceOf(body) {
+  const v = body && body.allowance_left
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1 ? { allowanceLeft: v } : {}
 }

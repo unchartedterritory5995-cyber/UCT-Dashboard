@@ -29,9 +29,10 @@
 //                    cannot change after its import, so one check at boot covers every run). With
 //                    a budget, the run names EVERY
 //                    wall-clock stop `runtime:time-budget` (runtimeColumns.js), which the result
-//                    cache never stores (cache.mjs `cacheable`). Without one, the VM's WALL_TIME stop
-//                    would surface as `runtime:limit`, read as deterministic and CACHED: that is the
-//                    hole this check closes.
+//                    cache never stores (cache.mjs `cacheable`): the pane budget's AND the VM's own
+//                    `limits.WALL_TIME` (LIMITS r1 ruling B2-a; the sentence names whichever ceiling
+//                    fired). The budget stays
+//                    explicit so that no future routing of a wall-clock stop can reach the cache.
 //   run-wide stop    status `withheld`, no `columns`, refusals `[{key: '*', guard, sentence, bar}]`.
 //                    guard = the run's own `err.guard`; the script's `runtime.error` is guard
 //                    `runtime.error`; an unnamed throw is the bundle's `RUNTIME_FAILED_GUARD`.
@@ -70,8 +71,18 @@ export const SERVER_ONLY_OPTS = Object.freeze({
 
 /** Every HP-7 difference between this adapter and the browser's, by argument (test/adapter.test.mjs). */
 export const DECLARED_DIFFERENCES = Object.freeze({
-  // the wire has no framed instance (protocol.mjs closes ctx); a server run never slides that way
-  ctxBrowserOnly: Object.freeze(['framed']),
+  // the wire has no framed instance (protocol.mjs closes ctx); a server run never slides that way.
+  // RS RATING L5: nor does it carry the chart's other-symbol cache (`secondaryEntries`): a job
+  // holds ONE symbol's bars, so a server run is handed no other symbol's bars (see ctxServerOnly).
+  ctxBrowserOnly: Object.freeze(['framed', 'secondaryEntries']),
+  // RS RATING L3: the wire's symbol is closed to {ticker, exchange} (protocol.mjs), so a server run
+  // carries no classification: `syminfo.industry` / `sector` / `type` stay unsettled there and the
+  // run refuses them by name (bind.js::classificationWith), never a guessed string.
+  ctxSymbolBrowserOnly: Object.freeze(['industry', 'sector', 'securityType']),
+  // RS RATING L5: the ctx facts only this host states. `otherSymbolSupply: false` tells the run it
+  // will never be handed another symbol's bars, so a `request.security` of one is refused by name
+  // (requestSupply.js) instead of held as "still loading", which on this lane never ends.
+  ctxServerOnly: Object.freeze({ otherSymbolSupply: false }),
   // the whole document meta, so the run's own runtimeVersionRefusal (runtimeColumns.js) reads the
   // version facts on every document (design 3.2); the browser worker passes runtimeHistory only
   defMeta: 'doc.meta',
@@ -99,6 +110,8 @@ export function runArgs(doc, job) {
     historyFromListing: job.ctx.historyFromListing === true,
     runtimeInputs: { ...job.ctx.runtimeInputs },
     symbol: { ticker: job.symbol.ticker, exchange: job.symbol.exchange },
+    // RS RATING L5: declared above (DECLARED_DIFFERENCES.ctxServerOnly); HP-7 reads the literal
+    otherSymbolSupply: false,
     // W9-T11: the window, from the job's ctx exactly as the browser forwards its own (runtimeAsync.js
     // ::messageOf); never a literal here. HP-7 compares the two shapes.
     ...(job.ctx.historyWindowBars !== undefined ? { historyWindowBars: job.ctx.historyWindowBars } : {}),
@@ -115,16 +128,28 @@ export function encodeColumn(rt, col, n) {
   return rt.bytesToB64(bytes)
 }
 
-const runWide = (job, guard, sentence, bar = null) => ({
-  job, status: 'withheld', refusals: [{ key: '*', guard, sentence, bar }],
+/** ⛔ LIMITS r2 — PHASE 1 OF 2: the service does NOT emit a refusal's `limit` field yet. The web,
+ *  worker and runtime services deploy independently, and a client older than LIMITS r1 refuses a
+ *  refusal with any key outside {key, guard, sentence, bar} as INTEGRITY. The new client accepts the
+ *  field (`pine_runtime_client.py::_REFUSAL_KEYS`); TODO(LIMITS phase 2): set this true once every
+ *  Python service runs a client that accepts it. Railed: `job.test.mjs` (the emitted key set). */
+export const EMIT_REFUSAL_LIMIT = false
+
+const runWide = (job, guard, sentence, bar = null, limit = null) => ({
+  job, status: 'withheld', refusals: [{ key: '*', guard, sentence, bar, ...(EMIT_REFUSAL_LIMIT && limit ? { limit } : {}) }],
 })
+
+/** LIMITS r1: a stop's limit NAME (`CALL_COUNT`, `WALL_TIME`, ...) rides as a field: the
+ *  member's sentence names it in plain words only (`limits.js::LIMIT_PLAIN`). */
+const LIMIT_NAME = /^[A-Z][A-Z0-9_]{0,63}$/
 
 /** The run-wide refusal for a thrown stop, by the run's own name. */
 export function refusalOf(rt, err) {
   const guard = (err && typeof err.guard === 'string' && err.guard)
     || (err && err.name === SCRIPT_ERROR_GUARD ? SCRIPT_ERROR_GUARD : rt.RUNTIME_FAILED_GUARD)
   const sentence = String((err && err.message) || err).slice(0, 2000)
-  return { guard, sentence, bar: err && Number.isInteger(err.bar) ? err.bar : null }
+  const limit = err && typeof err.limit === 'string' && LIMIT_NAME.test(err.limit) ? err.limit : null
+  return { guard, sentence, bar: err && Number.isInteger(err.bar) ? err.bar : null, limit }
 }
 
 /** W9-T14: why `rec` cannot be written as JSON exactly (a path and a reason), or null. Every number
@@ -199,21 +224,65 @@ export function encodeResult(rt, job, cols) {
     ...(strategy !== undefined ? { strategy } : {}) }
 }
 
+/** ⭐⭐ U15: the guards a document's library pins are refused under (`pineLibraries.js`). */
+export const LIBRARY_CHANGED_GUARD = 'pine:library-changed'
+export const LIBRARY_ABSENT_GUARD = 'runtime:library'
+
+/** ⭐⭐ U15: hold the run to the document's library pins (`doc.meta.libraries`, `[{path, sha256}]`)
+ *  and register the request's entries for it, or answer the run-wide refusal.
+ *
+ *  The entries arrive verified (protocol.mjs recomputed each sha256); here every PIN must be met by
+ *  an entry of that path and that sha, and the registry the linker reads holds exactly those
+ *  entries, nothing a previous job left (cleared first and again after the run, runJob). An entry
+ *  no pin names is not registered. A document with no pins registers nothing. */
+export function libraryRefusalOf(rt, doc, libraries) {
+  if (typeof rt.clearPineLibraries === 'function') rt.clearPineLibraries()
+  const pins = doc && doc.meta && Array.isArray(doc.meta.libraries) ? doc.meta.libraries : []
+  if (!pins.length) return null
+  // fail closed: a bundle that cannot hold a library cannot run a document that links one
+  if (typeof rt.registerPineLibrary !== 'function' || typeof rt.clearPineLibraries !== 'function') {
+    return { guard: LIBRARY_ABSENT_GUARD, sentence: 'this service\'s bundle cannot link a library, so a document that imports one is not run here' }
+  }
+  const byPath = new Map((Array.isArray(libraries) ? libraries : []).map((e) => [e.path, e]))
+  for (const pin of pins) {
+    const path = pin && typeof pin.path === 'string' ? pin.path : null
+    const sha = pin && typeof pin.sha256 === 'string' ? pin.sha256.toLowerCase() : null
+    if (!path || !sha) return { guard: LIBRARY_CHANGED_GUARD, sentence: 'a library pin on the document is not {path, sha256}' }
+    const e = byPath.get(path)
+    if (!e) return { guard: LIBRARY_ABSENT_GUARD, sentence: `the library ${path} was not sent with the request` }
+    if (e.sha256 !== sha) {
+      return { guard: LIBRARY_CHANGED_GUARD,
+        sentence: `the library ${path} sent is not the code the document was saved against (sha256 ${sha.slice(0, 12)}…, sent ${e.sha256.slice(0, 12)}…)` }
+    }
+    if (!rt.registerPineLibrary(e)) {
+      return { guard: LIBRARY_CHANGED_GUARD, sentence: `the library ${path} sent was refused by the bundle's registry (its sha256 or its licence), so it is not run` }
+    }
+  }
+  return null
+}
+
 /**
  * Run one job ONCE on the bundle `rt`, cold, and reset the bundle's session state afterwards.
  * Never throws: every stop is a named, run-wide refusal.
  */
-export function runJob(rt, doc, job, clock = () => performance.now()) {
+export function runJob(rt, doc, job, clock = () => performance.now(), libraries = null) {
   const started = clock()
   let out
   try {
-    const { def, rows, ctx } = runArgs(doc, job)
-    const cols = rt.computeRuntimeColumns(def, rows, ctx, { budgetMs: rt.RUNTIME_PANE_TIME_BUDGET_MS, incremental: false })
-    out = encodeResult(rt, job, cols)
+    const held = libraryRefusalOf(rt, doc, libraries)
+    if (held) {
+      out = runWide(job.job, held.guard, held.sentence)
+    } else {
+      const { def, rows, ctx } = runArgs(doc, job)
+      const cols = rt.computeRuntimeColumns(def, rows, ctx, { budgetMs: rt.RUNTIME_PANE_TIME_BUDGET_MS, incremental: false })
+      out = encodeResult(rt, job, cols)
+    }
   } catch (err) {
     const r = refusalOf(rt, err)
-    out = runWide(job.job, r.guard, r.sentence, r.bar)
+    out = runWide(job.job, r.guard, r.sentence, r.bar, r.limit)
   } finally {
+    // ⭐⭐ U15: a job's libraries are registered for THAT run only (libraryRefusalOf), never kept
+    if (typeof rt.clearPineLibraries === 'function') rt.clearPineLibraries()
     rt.resetRuntimeSessions()
     rt.resetRuntimeLedgers()
   }

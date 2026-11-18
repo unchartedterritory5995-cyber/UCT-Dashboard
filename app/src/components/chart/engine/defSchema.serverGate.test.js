@@ -260,3 +260,36 @@ describe('3-14 · a gated plot', () => {
     expect(r.errors.join(' | ')).toMatch(/plots\[1\]\.requiresServer/)
   })
 })
+
+// ⭐ UCT RS split, unit U1 — `meta.requiresServer`: the DEFINITION-level gate.
+// Every surface that offers indicators to add hides the definition until the
+// live server lists its id (`serverCompute.isDefinitionOffered`).
+describe('U1 · meta.requiresServer on a DEFINITION', () => {
+  it('accepts `true` on a server definition, and absent; the flag survives validation', () => {
+    const def = ok(serverDef({ meta: { requiresServer: true } }))
+    expect(def.meta.requiresServer).toBe(true)
+    expect(ok(serverDef()).meta.requiresServer).toBeUndefined()
+  })
+
+  it('refuses every other spelling by name — false, "yes", 1, null gate nothing', () => {
+    for (const v of [false, 'yes', 1, null, 'true']) {
+      refused(serverDef({ meta: { requiresServer: v } }), /meta\.requiresServer: expected true or absent/)
+    }
+  })
+
+  it('refuses it on a definition no live row could ever list (native lane)', () => {
+    const local = { ...serverDef({ meta: { requiresServer: true } }), compute: { kind: 'native', fn: 'probeServer', rev: 1 } }
+    // the native lane also refuses the input-level gates; the definition-level
+    // message is asserted by name so the case cannot pass on those alone.
+    const r = validateDefinition(local)
+    expect(r.ok).toBe(false)
+    expect(r.errors.join(' | ')).toMatch(/meta\.requiresServer: compute\.kind is "native"/)
+  })
+
+  it('⭐ an instance of a gated definition still VALIDATES (F20): the gate hides offers, never saved charts', () => {
+    const def = ok(serverDef({ meta: { requiresServer: true } }))
+    const reg = (id) => (id === def.id ? def : null)
+    const r = validateInstance({ instanceId: 'probeServer', defId: def.id, inputs: { length: 21 } }, reg)
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+  })
+})

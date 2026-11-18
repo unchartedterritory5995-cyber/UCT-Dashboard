@@ -19,12 +19,16 @@ import { registerRuntimeLane } from '../nativeRegistry.js'
 import { notifyColumnsLanded } from '../serverCompute.js'
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY } from './runtimeObjects.js'
 import { withStrategyRecord } from './strategyRecord.js'
+import { CALC_BARS_KEY } from '../calcBarsWindow.js'
 import {
   runtimeColumnsFor, computeRuntimeColumns, setRuntimeRunner, onRuntimeColumnsLanded,
   RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD,
 } from './runtimeColumns.js'
 import { LIMIT_NAMES } from './limits.js'
+import { errorFromImage } from './errorImage.js'
 import { runtimeSourceHash } from '../runtimeKill.js'
+import { bindSymbolOf } from '../ast/bind.js'
+import { noteRuntimeRunStarted, noteRuntimeRunSettled, resetRuntimeRunTelemetry } from '../runtimeRunTelemetry.js'
 
 let _ready = false
 let _worker = null
@@ -50,14 +54,11 @@ export const RUNTIME_WORKER_MAX_STARTS = 3
 export const RUNTIME_WORKER_UNRESPONSIVE_GUARD = 'runtime:worker-unresponsive'
 export const RUNTIME_WORKER_FAILED_GUARD = 'runtime:worker-failed'
 
-/** Rebuild the error a worker reported, with the fields the registry reads. */
+/** Rebuild the error a worker reported, with EVERY field it carried (`errorImage.js`, the rule: an error
+ *  that crosses a worker boundary keeps every field the main thread reads). ⚰️ A hand-picked list here
+ *  dropped `pending` (RS Rating L10b): a wait came back as a refusal. */
 function errorOf(e) {
-  const err = new Error(e && e.message ? e.message : 'the runtime lane failed')
-  err.name = (e && e.name) || 'Error'
-  if (e && e.guard) err.guard = e.guard
-  if (e && Number.isInteger(e.bar)) err.bar = e.bar
-  if (e && Number.isFinite(e.ms)) err.ms = e.ms
-  return err
+  return errorFromImage(e, 'the runtime lane failed')
 }
 
 // ─── ⭐⭐ P3 WS-H (S8) — THE STOP BEACON ──────────────────────────────────────
@@ -107,8 +108,8 @@ export function runtimeStopBeaconOf(def, rows, err, ms, lane) {
     lane: lane === 'main' ? 'main' : 'worker',
   }
   if (guard === RUNTIME_LIMIT_GUARD) {
-    const m = /\(([A-Z_]+): at most /.exec(String(err.message || ''))
-    if (m && LIMIT_NAMES.includes(m[1])) body.limit = m[1]
+    // the NAME rides the refusal as a field; the member's sentence carries none
+    if (LIMIT_NAMES.includes(err.limit)) body.limit = err.limit
   }
   return body
 }
@@ -165,7 +166,7 @@ const workerFailed = () => named(RUNTIME_WORKER_FAILED_GUARD,
 function runHere(def, rows, ctx, done, job) {
   let columns = null
   let failed = null
-  if (job) { job.lane = 'main'; job.startedAt = clock() }
+  if (job) { job.lane = 'main'; job.startedAt = clock(); noteRuntimeRunStarted() }
   try {
     columns = computeRuntimeColumns(def, rows, ctx, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
   } catch (err) { failed = err }
@@ -176,6 +177,9 @@ function runHere(def, rows, ctx, done, job) {
 function settle(job, err, columns) {
   if (job.settled) return
   job.settled = true
+  // ⭐ U4 — the run count (`runtimeRunTelemetry.js`): every ANSWERED job, by outcome,
+  // with its round trip when it started. An integer bump; nothing is sent from here.
+  noteRuntimeRunSettled(err || null, job.startedAt != null ? clock() - job.startedAt : undefined)
   if (err) {
     reportStop(job.def, job.rows, err,
       Number.isFinite(err.ms) ? err.ms : clock() - (job.startedAt ?? clock()), job.lane)
@@ -228,7 +232,7 @@ function workerOf(factory) {
     return null
   }
   _worker.onmessage = (event) => {
-    const { id, ok, columns, error, objects, warmup, strategy } = event.data || {}
+    const { id, ok, columns, error, objects, warmup, strategy, calcBars } = event.data || {}
     const job = _jobs.get(id)
     if (!job) return
     _jobs.delete(id)
@@ -239,6 +243,10 @@ function workerOf(factory) {
     }
     // ⭐⭐ W9-T11 — the run's `strategy` record, re-attached as the worker found it
     if (landed && strategy) withStrategyRecord(landed, strategy)
+    // ⭐⭐ CBC-FMT — and its `calc_bars_count` window record (the disclosure strip reads it)
+    if (landed && calcBars) {
+      Object.defineProperty(landed, CALC_BARS_KEY, { value: calcBars, enumerable: false, configurable: true })
+    }
     settle(job, ok ? null : errorOf(error), landed)
     postHeld(job.coalesce, factory)
   }
@@ -254,7 +262,12 @@ function messageOf(id, def, rows, ctx) {
   const plainDef = {
     id: def && def.id,
     compute: def && def.compute,
-    meta: { runtimeHistory: def && def.meta ? def.meta.runtimeHistory : undefined },
+    meta: {
+      runtimeHistory: def && def.meta ? def.meta.runtimeHistory : undefined,
+      // ⭐⭐ CBC-FMT — the `calc_bars_count` window stamp: the run takes its window from it
+      // (`engine/calcBarsWindow.js`). ⛔ Without it a worker run would compute every bar.
+      ...(def && def.meta && Number.isInteger(def.meta.calcBarsCount) ? { calcBarsCount: def.meta.calcBarsCount } : {}),
+    },
   }
   const plainCtx = {
     tf: ctx && ctx.tf,
@@ -264,11 +277,25 @@ function messageOf(id, def, rows, ctx) {
     ...(ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object'
       ? { runtimeInputs: { ...ctx.runtimeInputs } } : {}),
     ...(ctx && ctx.symbol && typeof ctx.symbol === 'object'
-      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } } : {}),
+      // ⭐ RS RATING L3 — every field the fold reads (`bind.js::BIND_SYMBOL_FIELDS`), not only
+      // `{ticker, exchange}`: the worker's run settles `syminfo.industry` from the same symbol.
+      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol) } } : {}),
     // ⭐ P3 WS-F — a framed instance's window slides, so the run refuses a `varip` there
     ...(ctx && ctx.framed === true ? { framed: true } : {}),
     // ⭐⭐ W9-T11 — the window a broker run takes (design 3.4), as the context holds it
     ...(ctx && ctx.historyWindowBars !== undefined ? { historyWindowBars: ctx.historyWindowBars } : {}),
+    // ⭐⭐ RS RATING L5 — the chart's other-symbol cache, for a run that reads another symbol
+    // (`requestSupply.js` decides from it by the host bind's rules): plain entries, each with
+    // the store exchange the bind matches a spelling against (`exchangeOf` is a function and
+    // does not cross), rebuilt as a Map on the other side (`runtimeWorker.js`).
+    ...(ctx && ctx.secondary && typeof ctx.secondary.entries === 'function' ? {
+      secondaryEntries: [...ctx.secondary.entries()].map(([k, e]) => [k, {
+        bars: e && Array.isArray(e.bars) ? e.bars.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })) : [],
+        status: e && e.status,
+        exchange: (e && typeof e.exchange === 'string' && e.exchange)
+          || (typeof ctx.exchangeOf === 'function' ? ctx.exchangeOf(k) : null) || null,
+      }]),
+    } : {}),
   }
   const plainRows = rows.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }))
   return { id, def: plainDef, rows: plainRows, ctx: plainCtx }
@@ -285,6 +312,7 @@ function post(job, factory) {
   job.lane = 'worker'
   job.startedAt = clock()
   _jobs.set(id, job)
+  noteRuntimeRunStarted()
   try {
     w.postMessage(messageOf(id, job.def, job.rows, job.ctx))
   } catch {
@@ -343,6 +371,7 @@ export function resetRuntimeAsync() {
   _beaconed.clear()
   _hashOf.clear()
   _stopReporter = null
+  resetRuntimeRunTelemetry()
   setRuntimeRunner(null)
 }
 
@@ -356,4 +385,25 @@ export function ensureRuntimeLane({ factory } = {}) {
   onRuntimeColumnsLanded((key) => notifyColumnsLanded(key))
   const canWork = typeof Worker === 'function' && typeof window !== 'undefined'
   if (factory || canWork) setRuntimeRunner(workerRunner(factory || defaultFactory))
+}
+
+/** ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — the lane, AND ITS WORKER, now.
+ *
+ *  ⚰️ Measured on production (RS Rating, RDDT 1D, 2026-11-16): "Add this script to my chart" to
+ *  labels drawn took 7.98 s in a cold tab against 1.85 s warm, and the cold cost is the worker
+ *  chunk (~1.3 MB, ~380 KB gzip) fetched, parsed and evaluated on the FIRST job: `workerOf` spawns
+ *  the worker only when a run is posted, so the download started after the bars and the run had
+ *  already been asked for.
+ *
+ *  This spawns it ahead of the first job, so the chunk loads while the member is still reading the
+ *  preview or the chart is still painting. Idempotent (`workerOf` keeps one worker), posts nothing,
+ *  arms no watchdog (that is per job). Callers decide WHEN (never before the first chart paint) and
+ *  WHETHER (only for a member whose runtime pane is permitted: this module is reached only behind
+ *  that gate). Returns whether a worker now exists.
+ *  ⛔ Without `Worker` (tests, a non-browser host) it registers the lane and spawns nothing. */
+export function warmRuntimeLane({ factory } = {}) {
+  ensureRuntimeLane({ factory })
+  const canWork = typeof Worker === 'function' && typeof window !== 'undefined'
+  if (!factory && !canWork) return false
+  return !!workerOf(factory || defaultFactory)
 }

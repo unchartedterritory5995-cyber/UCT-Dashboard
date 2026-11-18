@@ -62,7 +62,8 @@ const maskMDY = (raw) => {
 
 const isoOf = (y, m, day) => `${y}-${pad2(m + 1)}-${pad2(day)}` // m is 0-based
 
-function CalendarPopover({ anchor, seedIso, minIso, maxIso, years, onPickDate, onPickYear, onClose }) {
+// Exported for the breadth drill window's joined date control (drill/JoinedDateNav).
+export function CalendarPopover({ anchor, seedIso, minIso, maxIso, years, onPickDate, onPickYear, onClose }) {
   const ref = useRef(null)
   const seed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(seedIso || '')
   const [viewY, setViewY] = useState(seed ? +seed[1] : new Date().getUTCFullYear())

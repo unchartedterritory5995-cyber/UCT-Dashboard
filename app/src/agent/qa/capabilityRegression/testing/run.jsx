@@ -3,11 +3,14 @@
 // receipt / proposal / refusal by its structure. Never an exact string of prose.
 import { anyAverageOn } from '../../../../components/chart/averageVisibility'
 import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import { readUctIntelligence } from '../../../../components/chart/uctIntelligence'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
+import { volumeProfileOf } from '../../../../components/chart/builder/agentMutations'
 import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow, nlm1Of } from './harness'
 import { routedNames } from './route'
+import { tilingProblems, sizesOf } from './tiling'
 import { kindsFor } from './registry'
 import * as drawingsStore from '../../../../components/chart/drawingsStore'
 import { resolveLevels } from '../../../../components/chart/drawingFib'
@@ -15,6 +18,8 @@ import { loadIndicatorAlerts, _resetIndicatorAlertCache } from '../../../capabil
 import { _resetScreenerCache } from '../../../capabilities/screener'
 import { looksLikeFormula } from '../../../capabilities/indicatorAuthoring'
 import { listDrafts } from '../../../../components/chart/builder/agentAuthoring'
+import { readFavoriteTools } from '../../../../components/chart/drawToolFavorites'
+import { normalizeDock } from '../../../../pages/charts/widgets/chartDock'
 
 /** A hex colour's hue family (red / green / blue / yellow / …) — a colour word maps to a palette shade, never one exact hex. */
 export function hueFamily(hex) {
@@ -55,6 +60,12 @@ export function checkExpect(ctx, e, label) {
     }
   }
   if (e.restored) expect(boardState(board), `${label}: the board is back as it started`).toBe(start)
+  // #1030: the Multi Chart grid's own state (the GRID board's host.gridControl), each named field exactly
+  if (e.grid) for (const [k, want] of Object.entries(e.grid)) {
+    const g = h.gridControl
+    const now = k === 'maxId' ? g?.maxId() : k === 'settingsOpen' ? g?.settingsOpen() : k === 'cellCount' ? g?.state()?.cells?.length : g?.state()?.[k]
+    expect(now, `${label}: the grid's ${k}`).toEqual(want)
+  }
   if (e.charts) {
     const cs = chartsOf(board)
     if (e.charts.count != null) expect(cs.length, `${label}: chart count`).toBe(e.charts.count)
@@ -63,6 +74,9 @@ export function checkExpect(ctx, e, label) {
     if (e.charts.symbolSet) expect([...syms].sort(), `${label}: chart symbols (any order)`).toEqual([...e.charts.symbolSet].sort())
     if (e.charts.keepsIds) for (const id of e.charts.keepsIds) expect(cs.map(w => w.id), `${label}: chart ${id} reused (kept)`).toContain(id)
     if (e.charts.sameSize) expect(new Set(cs.map(w => `${w.w}x${w.h}`)).size, `${label}: all charts the same size`).toBe(1)
+    // #1275: layouts that hold for any number of charts (testing/tiling.js) — one rectangle, no overlap, no gap; exact cell sizes
+    if (e.charts.tiled) expect(tilingProblems(cs), `${label}: the charts tile one rectangle (no overlap, no gap)`).toEqual([])
+    if (e.charts.sizes) expect(sizesOf(cs), `${label}: the charts' cell sizes`).toEqual([...e.charts.sizes].sort())
     if (e.charts.tf) expect(cs.map(w => h.charts.read(w.id)?.tf), `${label}: every chart's timeframe`).toEqual(cs.map(() => e.charts.tf))
     if (e.charts.tfs) expect(cs.map(w => h.charts.read(w.id)?.tf), `${label}: the charts' timeframes`).toEqual(e.charts.tfs)
     if (e.charts.types) expect(cs.map(w => h.charts.read(w.id)?.cs?.chartType ?? null), `${label}: chart types`).toEqual(e.charts.types)
@@ -155,6 +169,12 @@ export function checkExpect(ctx, e, label) {
     if ('name' in e.drafts) expect(open[0]?.name ?? null, `${label}: the draft's name`).toBe(e.drafts.name)
   }
   if (e.prefs) for (const [k, v] of Object.entries(e.prefs)) expect(ctx.st.prefs[k], `${label}: preference ${k}`).toEqual(v)
+  if (e.boards) {
+    // C1-167..170: the member's Drawing Boards as the panel lists them (labels: a name, or "Board N") and the active one
+    const all = drawingsStore.listTracings()
+    if (e.boards.names) expect(all.map(t => drawingsStore.tracingLabel(t)), `${label}: the drawing boards`).toEqual(e.boards.names)
+    if (e.boards.active) expect(drawingsStore.tracingLabel(all.find(t => t.id === drawingsStore.getActiveTracingId())), `${label}: the active drawing board`).toBe(e.boards.active)
+  }
   if (e.templates) {
     const names = (() => { try { return JSON.parse(ctx.st.prefs.chart_templates || '[]').map(t => t.name) } catch { return [] } })()
     for (const n of e.templates.include || []) expect(names, `${label}: a chart template ${n}`).toContain(n)
@@ -186,6 +206,9 @@ export function checkExpect(ctx, e, label) {
     }
   }
   if ('replay' in e) expect(ctx.st.replay, `${label}: the Replay Mode cutoff`).toBe(e.replay)
+  // the Custom-Period Sort's floating panel ({start, end, group} | null) and the Period Sort widgets on the board (their opts)
+  if ('periodSortPanel' in e) expect(ctx.st.periodSort?.panel ?? null, `${label}: the Custom-Period Sort panel`).toEqual(e.periodSortPanel)
+  if (e.periodSortWidgets) expect(board.state.widgets.filter(w => w.type === 'periodsort').map(w => w.opts), `${label}: the Period Sort widgets`).toEqual(e.periodSortWidgets)
   if (e.listView) {
     // what the Watchlist widget shows (the LISTVIEW board): only the fields a case names
     const now = ctx.st.listViewNow()
@@ -208,8 +231,31 @@ export function checkExpect(ctx, e, label) {
   if (e.viewRight) expect(new Date(ctx.st.views[chartsOf(board)[0]?.id]?.rightMs || 0).toISOString().slice(0, 10), `${label}: the chart's right edge`).toBe(e.viewRight)
   // the chart's view as its read-back reports it (activeRange, atDefaultView, indicatorsHidden)
   if (e.view) for (const [k, v] of Object.entries(e.view)) expect(ctx.st.views[chartsOf(board)[0]?.id]?.[k], `${label}: the chart's view ${k}`).toEqual(v)
+  // chartReplay.playback: the first chart's Replay / Time Machine bar as getDateMeta().replay reads it (only the fields named)
+  if (e.barReplay) expect(ctx.st.views[chartsOf(board)[0]?.id]?.replay, `${label}: the chart's bar replay`).toMatchObject(e.barReplay)
+  // C1-165: the member's favourite drawing tools, as the toolbar's ★ stores them (drawToolFavorites)
+  if (e.favoriteTools) expect(readFavoriteTools(), `${label}: favourite drawing tools`).toEqual(e.favoriteTools)
+  // C1-127: the first chart's Chart Settings dialog open (or not), as the pane reads it back
+  if ('settingsOpen' in e) expect(!!ctx.st.settingsOpen?.[chartsOf(board)[0]?.id], `${label}: Chart Settings open`).toBe(e.settingsOpen)
+  // family C: the first chart's hand-placed watermark as the chart reads it back (null = Reset to center); the Ask AI routes opened
+  // newsLibrary.*: the member's library as its stand-in holds it (saved ids, collection names, notes, collection places) — only the keys named
+  if (e.newsLibrary) {
+    const s = h.newsLibrary?.getSnapshot?.() || {}
+    const got = { saved: [...(s.ids || [])].sort(), collections: (s.collections || []).map(c => c.name).sort(), notes: s.notes || {},
+      member: Object.fromEntries(Object.entries(s.member || {}).map(([id, ks]) => [id, ks.map(k => (s.collections || []).find(c => c.id === k)?.name).filter(Boolean)])) }
+    for (const [k, v] of Object.entries(e.newsLibrary)) expect(got[k], `${label}: the News library's ${k}`).toEqual(v)
+  }
+  if ('watermarkPos' in e) expect(h.charts.read(chartsOf(board)[0]?.id)?.watermarkPos ?? null, `${label}: the watermark position`).toEqual(e.watermarkPos)
+  // compare.openView: the Compare panel open or closed and the tab it shows; `comparePick` the last detail's stock / group
+  if ('comparePanel' in e) expect({ open: !!ctx.st.compare?.open, tab: ctx.st.compare?.open ? ctx.st.compare.tab : null }, `${label}: the Compare panel`).toEqual(e.comparePanel)
+  if ('comparePick' in e) expect({ sym: ctx.st.compare?.intent?.sym ?? null, group: ctx.st.compare?.intent?.group ?? null }, `${label}: the rotation map's pick`).toEqual(e.comparePick)
+  // chartFeatures: the first chart's dock as ChartWidget reads it (normalizeDock of opts.dock); only the fields named
+  if (e.dock) { const d = normalizeDock(chartsOf(board)[0]?.opts?.dock); for (const [k, v] of Object.entries(e.dock)) expect(d[k], `${label}: the chart's dock ${k}`).toEqual(v) }
+  if ('askAiOpened' in e) expect(ctx.st.askAi || [], `${label}: Ask AI opened`).toEqual(e.askAiOpened)
   // is any moving average on the first chart showing (the same answer Ctrl+M reads)
   if ('movingAveragesOn' in e) expect(anyAverageOn(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null), nativeRegistry.getDefinition), `${label}: a moving average showing`).toBe(e.movingAveragesOn)
+  // volumeProfile.set: the first chart's Volume Profile as the canvas reads it ({enabled, bins, ...} — only the keys a case names)
+  if (e.volumeProfile) expect(volumeProfileOf(chartsOf(board)[0]?.opts?.settings ?? null), `${label}: the Volume Profile`).toMatchObject(e.volumeProfile)
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)
@@ -228,6 +274,8 @@ export function checkExpect(ctx, e, label) {
       expect(bad, `${label}: every returned row has ${c.key} ${c.op} ${JSON.stringify(c.value)}`).toEqual([])
     }
   }
+  // uctIntelligence.set: the first chart's UCT Intelligence layers as its stored settings read (readUctIntelligence); only the fields named
+  if (e.uctIntelligence) { const u = readUctIntelligence(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null)); for (const [k, v] of Object.entries(e.uctIntelligence)) expect(u[k], `${label}: UCT Intelligence ${k}`).toBe(v) }
   for (const r of e.reads || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical read matching /${r}/ ran (ran: ${calls.map(c => `${c[0]} ${c[1]}`).join(' | ')})`).toBe(true)
   for (const r of e.writes || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical write matching /${r}/ ran`).toBe(true)
   for (const r of e.noCalls || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: nothing matching /${r}/ ran`).toBe(false)
@@ -239,6 +287,8 @@ export function checkExpect(ctx, e, label) {
   if (e.receipt != null) expect(receiptsNow().length - since.receipts > 0, `${label}: a receipt`).toBe(e.receipt)
   if (e.undoable) expect(receiptsNow().at(-1)?.getAttribute('data-undoable'), `${label}: the receipt is undoable`).toBe('true')
   if (e.proposal != null) expect(proposalsNow().length > 0, `${label}: a proposal waiting`).toBe(e.proposal)
+  // what the waiting CARD itself says (a confirm-risk action's card names what it will do before anything is done)
+  for (const r of e.proposalSays || []) expect(proposalsNow().map(x => x.textContent).join(' '), `${label}: the card says /${r}/`).toMatch(new RegExp(r, 'i'))
   if (e.refusal != null) expect(refusals().length - since.refusals > 0, `${label}: a refusal`).toBe(e.refusal)
 }
 

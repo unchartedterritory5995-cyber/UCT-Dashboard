@@ -59,6 +59,7 @@ import { DRAWING_NOTE_NAME, withRenderDrops } from '../engine/ast/objectLoss'
 import { TABLES_FIT } from '../engine/objectTableDom'
 import * as defaultRegistry from '../engine/nativeRegistry'
 import { requirementNote } from '../engine/ast/parse'
+import { withoutGuardIds } from '../engine/ast/guardIdText'
 import styles from './AttachedPineDisclosures.module.css'
 
 /** The definitions this chart is actually DRAWING, resolved through the registry.
@@ -179,6 +180,13 @@ export function attachedDisclosures(settings, registry = defaultRegistry, barsLo
       ? dropsFor(inst.instanceId) : null
     let merged = false
     for (const n of (Array.isArray(meta.disclosures) ? meta.disclosures : [])) {
+      // ⭐⭐ CHART-STATE AWARE (2026-11-17). The document's drawing note is the HOST lane's ("its drawings
+      // are not shown ... where this chart can run the script bar by bar, ... made by that run instead").
+      // ⚰️ It stood above RS Rating's drawn label on production. Where the binder drew THIS instance's
+      // drawings from the run half (`servedByRun`, its own decision), that note is not this chart's truth
+      // and is left out; the run's own losses, if any, still get a note of their own (below). Where the run
+      // is refused, the binder publishes no `servedByRun` and the note stands with the refusal sentence.
+      if (n && n.name === DRAWING_NOTE_NAME && drops && drops.servedByRun === true) continue
       if (drops && !merged && n && n.name === DRAWING_NOTE_NAME) { push(withRenderDrops(n, drops)); merged = true; continue }
       push(n)
     }
@@ -263,6 +271,8 @@ export default function AttachedPineDisclosures({
   // ⛔ ONCE, however many panes scaled. Two attached documents on one phone are
   // one fact about the screen, not two sentences.
   // ⭐ C43 — a stopped script leads: it is why its pane is empty.
+  // ⛔ NO GUARD ID REACHES THE DOM: every note passes `withoutGuardIds` (engine/ast/sentence.js) at
+  // the one place this strip prints text; composers keep their ids for rails.
   const all = [
     ...stopped,
     ...rows,
@@ -273,7 +283,7 @@ export default function AttachedPineDisclosures({
   if (!all.length) return null
   return (
     <ul data-testid="pine-attached-disclosures" className={styles.notes}>
-      {all.map((n) => <li key={`${n.name}::${n.note}`}>{n.note}</li>)}
+      {all.map((n) => <li key={`${n.name}::${n.note}`}>{withoutGuardIds(n.note)}</li>)}
     </ul>
   )
 }

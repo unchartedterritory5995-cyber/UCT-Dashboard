@@ -40,6 +40,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { AuthContext } from '../../../context/AuthContext'
@@ -67,7 +68,7 @@ const flush = async () => {
 }
 
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet
@@ -82,6 +83,8 @@ function mount() {
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
 const saveBtn = () => screen.getByRole('button', { name: /^Sav/ })
@@ -98,7 +101,7 @@ describe('a refused save explains itself where the member is looking', () => {
   it('⭐⭐ the store\'s refusal renders inside the sticky footer, beside the button that produced it', async () => {
     mount()
     await act(async () => {
-      fireEvent.change(screen.getByLabelText('Formula'), { target: { value: 'close > sma(close, 20)' } })
+      fireEvent.change(formulaBox(), { target: { value: 'close > sma(close, 20)' } })
     })
     await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS + 1) })
     await flush()
@@ -126,7 +129,7 @@ describe('a refused save explains itself where the member is looking', () => {
 
   it('⛔ the attach door\'s refusal is unchanged — still beside its own button', async () => {
     mount()
-    fireEvent.click(screen.getByRole('tab', { name: /^import$/i }))
+    openSource('pine')
     fireEvent.change(screen.getByTestId('pine-box').querySelector('textarea'), { target: { value: CLOUDS } })
     await act(async () => { vi.advanceTimersByTime(PINE_DEBOUNCE_MS + 1) })
     await flush()

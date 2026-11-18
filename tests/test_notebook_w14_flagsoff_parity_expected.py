@@ -4,7 +4,7 @@
 every difference is explained exactly by a NAMED entry in `EXPECTED`. The list is the accepted
 changes: the home skip link and the editor toolbar as one Tab stop (keyboard lane, 2026-10-07),
 and the P0 doors of ruling R9 (2026-10-11): the Active setups box, the New note menu, the home
-search input and the note's "Ask this note" door. (The passed-setups status line and the reviews
+search input and the note's "Ask this note" door (named "Ask about this note" since simplify pass 2, A6). (The passed-setups status line and the reviews
 heading were removed on 2026-10-11: the 10/10 UX pass took their targets out of the page.) This
 rail keeps it from becoming a tolerance: the judge's own self-check must pass, and every entry is
 literal text with its commit, date and reason.
@@ -40,7 +40,7 @@ EXPECTED_COUNT = 6
 ALWAYS_ON = {
     "New note menu on Research Home (P0.1)",
     "Home search input (P0.13)",
-    "note Ask door is named 'Ask this note' (P0.7)",
+    "note Ask door is named 'Ask about this note' (P0.7; simplify pass 2 A6)",
     "editor formatting toolbar is one Tab stop (lane KEYS)",
 }
 # entry name -> the one non-leaf shape it is allowed. Each is checked by `SHAPE_CHECKS`, not by a pattern.
@@ -48,7 +48,7 @@ ALLOWANCES = {
     "Active setups box (P0.5; replaces the lane NAV door)": "nested element",
     "New note menu on Research Home (P0.1)": "nested element",
     "Home search input (P0.13)": "void element",
-    "note Ask door is named 'Ask this note' (P0.7)": "whole-button pair",
+    "note Ask door is named 'Ask about this note' (P0.7; simplify pass 2 A6)": "whole-button pair",
 }
 
 VOID = {"input", "br", "hr", "img", "meta", "link"}
@@ -171,7 +171,7 @@ def test_the_entry_check_refuses_a_malformed_entry(tool):
     by_name = {e["name"]: e for e in tool.EXPECTED}
     box = by_name["Active setups box (P0.5; replaces the lane NAV door)"]
     inp = by_name["Home search input (P0.13)"]
-    ask = by_name["note Ask door is named 'Ask this note' (P0.7)"]
+    ask = by_name["note Ask door is named 'Ask about this note' (P0.7; simplify pass 2 A6)"]
     skip = next(e for e in tool.EXPECTED if e["name"].startswith("Research Home skip link"))
     bad = {
         "nested element left unbalanced": {**box, "element": box["element"][:-6]},

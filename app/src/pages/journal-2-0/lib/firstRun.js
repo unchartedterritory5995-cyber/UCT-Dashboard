@@ -53,3 +53,29 @@ const read = () => showing
 export function useFirstRunShowing() {
   return useSyncExternalStore(subscribe, read, () => false)
 }
+
+// ── "May the first run still open here?" -- for the walkthrough gate in the app shell ───────────────────────────
+// Final fix (C5): the shell's RegistryToursGate cannot compute `firstRunIsDue` (it does not know the notes count), and
+// the "showing" fact above is set in FirstRunGate's effect, after the render that decides it. So the notes list, which
+// knows both inputs, publishes "the first run is due here, or cannot be decided yet" from a LAYOUT effect (before any
+// walkthrough's passive effects look for an anchor). Null wherever the list is not mounted: the first run only opens
+// on the Notebook.
+// Follow-up B, item 2c: WHICH of the two it is, because the gate treats them differently. 'due': the first run opens
+// here (the gate holds a walkthrough for a bounded time). 'undecided': the preferences or the notes count have not
+// answered yet (the gate holds without a limit: a member who is NOT new but whose preferences read is slow must not
+// lose the walkthrough they asked for). `true` is read as 'due'.
+export const FIRST_RUN_DUE = 'due'
+export const FIRST_RUN_UNDECIDED = 'undecided'
+let pending = null
+const pendingSubs = new Set()
+export function setFirstRunPending(state) {
+  const next = state === true ? FIRST_RUN_DUE : state || null
+  if (next === pending) return
+  pending = next
+  for (const f of Array.from(pendingSubs)) f()
+}
+const subscribePending = (f) => { pendingSubs.add(f); return () => pendingSubs.delete(f) }
+const readPending = () => pending
+export function useFirstRunPending() {
+  return useSyncExternalStore(subscribePending, readPending, () => false)
+}

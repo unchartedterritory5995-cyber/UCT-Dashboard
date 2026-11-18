@@ -106,9 +106,20 @@ def test_the_fixture_is_not_vacuous():
     # C45: the two `bar-index:` codes ride the same channel and are exercised by their
     # OWN fixture (tests/test_ast_bar_index_shift_parity.py) -- this one has no Pine
     # document reading `bar_index`, so they are set aside here by prefix, not by name.
-    clock = {c for c in ai.CHART_CLOCK_WITHHELD_CODES if not c.startswith("bar-index:")}
+    # 2026-11-09: so do the `running-total:` and `var-origin:` codes, held by that same fixture.
+    # Engine HL: the `window-extreme:` code (`window_hole_mask`) is exercised by
+    # tests/test_engine_hl_holes.py, set aside here by prefix for the same reason.
+    # 2026-11-17: the two `opening-range:` codes are a native call on bars it cannot be read from,
+    # not a `time(<timeframe>)` reading; tests/test_ast_session_regular.py exercises both on real bars.
+    clock = {c for c in ai.CHART_CLOCK_WITHHELD_CODES
+             if not c.startswith(("bar-index:", "running-total:", "var-origin:", "window-extreme:",
+                                  "opening-range:"))}
     assert clock - named == {"time-anchor:other-bars"}
-    assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {"bar-index:window", "bar-index:early-bars"}
+    assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {
+        "bar-index:window", "bar-index:early-bars", "bar-index:first-bar",
+        "running-total:window", "running-total:early-bars", "var-origin:window", "var-origin:bars",
+        "window-extreme:left-edge",
+        "opening-range:bars-longer", "opening-range:bars-do-not-divide"}
 
 
 def test_the_builders_are_the_fixtures_own_trees():

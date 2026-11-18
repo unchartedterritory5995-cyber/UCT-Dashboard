@@ -37,7 +37,7 @@ const EQUAL_SIZE = /\b(same|equal|even|identical) (size|sizes|sized|width|height
 
 /** Action groups, keyed by capability DOMAIN (the name prefix). Titles are shown to the model. */
 export const GROUPS = [
-  { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume', domains: ['chart', 'volume'],
+  { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume', domains: ['chart', 'volume'],
     // Gate B vocabulary (soft): an overlay or a symbol swap said without "compare" / "chart"
     vocab: [/\b(next to (this|it)|on top of (this|it)|swap \$?[a-z]{1,5} (for|with)|instead of \$?[a-z]{1,5})\b/],
     words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|hourly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
@@ -46,7 +46,10 @@ export const GROUPS = [
       // execution family L (pl-exec): the strips Chart Settings → Header names, whose fields chart.setSetting picks
       /\b(?:info row|bar info|header)\b/,
       // CG-25 (corpus #774): "theme" is the CHART's look — never the app's ("light / dark / app / UCT theme")
-      /\b(?<!(?:light|dark|app|uct|site) )themes?\b/,
+      // ⛔ no lookbehind (iOS 16 floor, src/noRegexLookbehind.test.js): the 0–5 characters before the space are consumed and
+      // checked by lookahead instead — the same answer as `\b` + not-after-"light |dark |app |uct |site " + `themes?\b`
+      // (agentNoLookbehindEquivalence.test.js runs the old pattern against this one)
+      /(?:^|[^ ])\bthemes?\b|(?:^[^]{0,2}|^(?!app|uct)[^]{3}|^(?!dark|site|[^](?:app|uct))[^]{4}|(?!light|[^](?:dark|site)|[^]{2}(?:app|uct))[^]{5}) themes?\b/,
       // "defaults" — a chart's own defaults ("restore the chart defaults"), never a default for NEW charts (settings)
       /^(?!.*\b(?:new charts?|by default|always open)\b).*\bdefaults?\b/,
       // CG-20 (corpus #774): "swing" (swing labels) — not a layout's / list's NAME ("open my Swing layout")
@@ -77,7 +80,46 @@ export const GROUPS = [
       // temporary reachability; replace with description-driven discovery
       /\b(?:range|show|frame|zoom)\b.*\b(?:3m|6m|ytd|1y|5y|year to date|(?:one|1|last|past|five|5) years?|(?:three|3|six|6) months)\b|\bsince (?:the )?ipo\b/,
       /\breset (?:the |this |my |chart |chart's )*(?:view|zoom)\b|\bdefault view\b/,
-      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/] },
+      /\b(?:hide|show|bring back|turn (?:off|on)|unhide)\b.*\b(?:all|every)\b.*\b(?:indicators?|moving averages?|mas|overlays)\b/,
+      // C1-127: OPENING a chart's own Chart Settings dialog (chartSetup.openSettings) — an open verb and the chart's settings
+      /\b(?:open|show|bring up|pull up|pop up|pop open|launch|display)\b.*\b(?:chart'?s? settings|settings (?:dialog|panel|window|modal)|settings (?:for|of|on) (?:the |this |that |my )?(?:\w+ )?(?:\w+ )?chart)\b/] },
+  // C1-035 / C1-037 / C1-040: chartSetup.compareGroup in its OWN one-action group, WORDS-ONLY (as #1027's watchlistShow), so the chartSetup group keeps
+  // master's size: a 19th chartSetup action made it outsize the lists group, and the per-request budget then cut chartSetup
+  // for a template message ("add the Swing Setup indicator template to this chart", corpus indicatorTemplate.apply).
+  { id: 'compareGroups', title: 'Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['chartSetup.compareGroup'],
+    words: [
+      // C1-035 / C1-037 / C1-040: a whole group compared, removed or re-scaled ("compare against the semis group", "remove the semis overlay").
+      // The verb (compare… / overlay / remove / drop / take off / clear) must govern the group noun within six words: a bare
+      // "vs … themes" or a plural "overlays … group" (indicator talk) never reaches this group.
+      /\b(?:compar\w*|overlay|remove|drop|take off|clear)\s+(?:[\w’'-]+\s+){0,6}?(?:groups?|sectors?|industr(?:y|ies)|themes?)\b|\b(?:groups?|sectors?|industr(?:y|ies)|themes?|semis)\b.*\b(?:overlays?|scale|comparisons?)\b/] },
+  // Charts family (2026-11-15): newsLibrary.* — the member's UCT News library (save / unsave a headline, its note, collections),
+  // in its OWN words-only group: never a filler. The words name a HEADLINE / story / article with a save / bookmark / note verb,
+  // the library itself, or a collection with its own verbs — never "save my layout", "save the screen", a watchlist note,
+  // "note to self", or a news question (news.latest).
+  { id: 'newsLibrary', title: 'Your UCT News library: save or unsave a headline, its note, collections', domains: ['newsLibrary'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:save|unsave|bookmark|unbookmark)\b[^.;!?]*\b(?:headlines?|stor(?:y|ies)|articles?|news items?)\b|\b(?:headlines?|stor(?:y|ies)|articles?)\b[^.;!?]*\b(?:to|in|from|out of) (?:my |the )?(?:news )?library\b/,
+      /\b(?:saved headlines|research library|news library)\b|\bmy (?:news )?collections\b/,
+      /\b(?:create|make|start|rename|delete|remove)\b[^.;!?]*\b(?:news )?collections?\b|\b(?:into|in|to|out of|from) (?:my |the )?[\w “”"'-]{1,40} collection\b/,
+      /\bnote\b[^.;!?]*\b(?:headline|story|article)\b|\b(?:headline|story|article)\b[^.;!?]*\bnote\b/] },
+  // Family C (right-click and header parity, 2026-11-11): a chart's right-click Ask AI and the watermark's Reset position, in
+  // their OWN words-only group (as compareGroups): never a filler, so no existing group and no unrecognised request changes.
+  // "ask" / "watermark" are used elsewhere, so each needs its context: Ask AI with about / on / for or a chart word; the
+  // watermark with a reset / back / default word (either order). No lookbehind (src/noRegexLookbehind.test.js).
+  { id: 'chartMenu', title: 'A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position', domains: ['chartMenu'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:ask|open|pull up|bring up|launch|use)\s+(?:the\s+)?ai\s+(?:about|on|for|regarding)\b|\bask\s+(?:the\s+)?ai\b.*\b(?:chart|stock|symbol|ticker|this one|name)\b/,
+      /\bwatermark\b.*\b(?:reset|back|default|original|re-?cent(?:er|re)|where it was)\b|\b(?:reset|re-?cent(?:er|re)|restore|undrag)\b.*\bwatermark\b/] },
+  // Charts family (2026-11-12): a chart's Company Info side panel and Earnings Strip (Add to Chart's host features), in their
+  // OWN words-only group (as chartMenu): never a filler, so no existing group and no unrecognised request changes. The
+  // words name the PANEL or the STRIP itself (company info / company or profile panel / earnings or fundamentals strip / the
+  // strip under the chart) or a tab only that panel has; a bare "earnings" / "news" / "panel" is not enough.
+  { id: 'chartFeatures', title: 'A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)', domains: ['chartFeatures'], fillLast: true, wordsOnly: true,
+    words: [
+      /\bcompany\s+(?:info(?:rmation)?|panel|profile\s+panel|intelligence|sidebar|side\s*panel)\b|\b(?:profile|info|fundamentals?)\s+(?:side\s*)?panel\b/,
+      /\b(?:earnings|fundamentals?|eps)\s+strip\b|\bstrip\s+(?:under|below|beneath|at the bottom of)\s+(?:the\s+|this\s+|my\s+|that\s+)?chart\b/,
+      /\b(?:financials|ownership|valuation)\s+tab\b|\b(?:overview|earnings|news|financials|ownership)\s+tab\s+(?:of|on|in)\s+(?:the\s+)?(?:company|side|profile|info)\b/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,
@@ -89,10 +131,15 @@ export const GROUPS = [
       MULTI_CHARTS, EQUAL_SIZE, GRID_CELLS] },
   // ⭐ PHASE 3: two widgets trading places, a chart duplicated into half its cell — their OWN small group (as chartGrid), so
   // neither the NL-1 core nor the workspace group grows past the per-request budget
-  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal', domains: ['board'], fillLast: true,
+  { id: 'boardEdit', title: 'Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale', domains: ['board'], fillLast: true,
     // W1-B B-05: widget.setOption here by action name — the workspace group was exactly at the NL-1 reroute budget
-    actions: ['widget.setOption', 'widget.readOptions', 'widget.sendToJournal'],
-    words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/] },
+    // pl-exec4 (C1-025/C1-032): a chart's ◀ / ▶ step and Auto-scale here by action name too — chartSetup at 18 would pack
+    // after the lists group and be cut beside indicators + workspace; a new group would change every unmatched routing
+    actions: ['widget.setOption', 'widget.readOptions', 'widget.sendToJournal', 'chartSetup.stepBars', 'chartSetup.autoScale'],
+    words: [/\b(swap|switch places|trade places|exchange)\b/, /\b(duplicate|clone)\b/, /\b(a |another )?(copy|duplicate) of\b/, /\bmove\b.*\bto the (left|right|top|bottom)\b/, /\bother side\b/,
+      // "go back 5 bars", "nudge it forward a bar", "auto scale", "fit the price axis"
+      /\b(?:step|go|move|scroll|nudge|shift|pan)\b.*\b(?:back|backwards?|forwards?|ahead|left|right)\b.*\bbars?\b|\b(?:back|forwards?|ahead)\b.*\b(?:a|one|\d{1,3}|two|three|four|five|ten) (?:more )?bars?\b/,
+      /\bauto[- ]?scal\w*\b|\b(?:re-?)?fit\b.*\bprice (?:scale|axis)\b|\bprice (?:scale|axis)\b.*\b(?:fit|auto)\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
     // CG-14 / CG-16 (corpus #769): "get rid of the AMD chart", "give me new charts for AAPL and MSFT" (widget.addCharts — the
     // existing charts stay; chartGrid.set only with a count, grid or equal-size words, or a replace)
@@ -101,11 +148,42 @@ export const GROUPS = [
       // CG-3a (corpus #769): a COUNT of charts with no tickers ("put four charts on my screen", "create four charts") is
       // new charts + an even re-tile — the widget adds and the arrange live here (chartGrid needs tickers)
       MULTI_CHARTS, GRID_CELLS, /\b(2 ?x ?2|[2-4] by [2-4])\b/] },
+  // ⭐ pl-grid (C3-042..061): the Multi Chart GRID itself — its shape, entering / leaving it, the sync toggles, Groups, saved
+  // grids, the shared settings dialog, maximize and "Reset to my chart" — its OWN fillLast group (two actions), so neither the
+  // NL-1 core nor the workspace / chartGrid groups grow. ADD-ONLY: routing only adds what the model may see.
+  { id: 'multiChart', title: 'The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart', domains: ['multiChart'], fillLast: true,
+    // #1030 re-merge (Lead 2026-11-11): WORDS-ONLY (never v2 filler, as watchlistShow / compareGroups), and every word needs GRID
+    // context: a bare "group(s)", "row(s)", "sync" or "crosshair" never selects it alone (the frozen no-lookbehind rows stay master's)
+    wordsOnly: true,
+    // a bare \"grid\" / \"2x2\" is chartGrid's (charts tiled on the board): this group needs the grid AS a thing the member acts on
+    words: [/\bmulti[\s-]?charts?\b/, /\bsplit (?:my|the) screen\b/,
+      /\b(?:open|save|delete|apply|load|close|exit|leave|restore|fill|refresh|rename) (?:the |this |that |my |a )?(?:[\w’'&-]+ ){0,3}?grids?\b/,
+      /\b(?:show|give) me an? (?:\d\s*(?:x|by|×)\s*\d|(?:one|two|three|four)\s+(?:by|x)\s+(?:one|two|three|four)) grid\b/, /\b(?:in|of|across) the (?:whole )?grid\b/,
+      // a shape said as rows AND columns ("three rows and four columns")
+      /\b(?:\d|one|two|three|four)\s+rows?\b.*\b(?:\d|one|two|three|four)\s+columns?\b|\b(?:\d|one|two|three|four)\s+columns?\b.*\b(?:\d|one|two|three|four)\s+rows?\b/,
+      // sync WITH what it syncs (the crosshair, the time range, the charts / cells); link / lock only the crosshair or time range
+      // ("link the top two charts" is widget.setLink's)
+      /\bsync\w*\s+(?:[\w’'-]+\s+){0,4}?(?:cross[\s-]?hairs?|time[\s-]?ranges?|charts|cells)\b|\b(?:link\w*|lock\w*)\s+(?:[\w’'-]+\s+){0,4}?(?:cross[\s-]?hairs?|time[\s-]?ranges?)\b|\bcross[\s-]?hairs?\s+(?:[\w’'-]+\s+){0,3}?(?:sync\w*|link\w*|across)\b/,
+      /\b(?:every|all(?: the| my)?|each) (?:charts?|cells?) (?:\w+ ){0,3}?(?:to |on )?the same (?:dates|time ?range)\b/,
+      // Groups mode, or stepping the grid's group
+      /\bgroups mode\b|\b(?:next|previous|prev) group\b|\brefresh (?:the |this |my )?group\b|\bswitch (?:over )?to (?:the |my )?[\w&’' -]{1,40}? group\b(?! (?:comparisons?|overlays?|scale))/,
+      /\bmaximi[sz]e|\bfull[\s-]?(?:size|screen)\b|\bblow (?:it |that |the \w+ )?up\b|\bwhole grid\b|\bun-?maximi[sz]e\b/,
+      /\bshared (?:chart )?settings\b|\bmy (?:own )?(?:chart|normal) settings\b|\breset\b.*\bmy chart\b|\bback to my (?:own )?chart\b/,
+      /\bnormal (?:board|charts? board)\b|\bback to (?:the |my )?(?:normal |regular )?(?:board|workspace)\b/] },
   // Split from 'workspace' (2026-10-09): a whole-group packer packs better with smaller groups, and
   // saved layouts are their own concept ("open my Swing layout", "save this").
   { id: 'layouts', title: 'Saved layouts (open, save, create, copy, rename, delete)', domains: ['layout'],
     // W1.1 R-03 (LT-9): "rename <X> to <Y>" names a layout as often as a tab or a list — the group rides along (routing only ADDS)
     words: [/\blayouts?\b/, /\bworkspaces?\b/, /\bsave\b.*\b(changes|this|it|layout|arrangement|board)\b/, /\brename\b(?!.*\b(?:watch ?lists?|lists?|tabs?|screens?|scans?|indicators?|drafts?|alerts?)\b).*\bto\b/] },
+  // C3-037..039 (#1074): the Layout Dock's BAR — pin a layout to it, take one off, move one along it. Its OWN three-action group by
+  // action name, WORDS-ONLY (never a filler), like watchlistShow (#1027): #1074 re-merge onto 64421f770d — with the three in
+  // `layouts`, that group grew past what NL-1's budget fits beside the core + another group (corpus ws-11, layout.duplicate, lost
+  // its first call), and the bar words made `layouts` ride on the chart header's bar-info readout (C1-065, chart.setSetting).
+  // Words: a place on the bar or dock ("take Swing off the bar", "move Swing to the left on the bar"), but never a bar-info noun
+  // after "bar" ("hide the close in the bar info": the chart's readout, not the dock); "unpin"; "pin" with "layout".
+  { id: 'layoutBar', title: 'The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it',
+    domains: [], actions: ['layout.pinToBar', 'layout.unpinFromBar', 'layout.moveOnBar'], fillLast: true, wordsOnly: true,
+    words: [/\b(?:off|from|to|on|onto|of|in) (?:the |my )?(?:layouts? )?(?:bar|dock)\b(?! (?:info|readouts?|data|values?|legend|strip)\b)/, /\bunpin\b/, /\bpin\b.*\blayout/] },
   // INDICATORS M1 (agreed with Indicators, AGENT-INTEGRATION-HANDOFF §11). A message matching an
   // indicators word AND a charts word routes BOTH; the hints decide.
   { id: 'indicators', title: 'Indicators on a chart (list, add, remove, show, hide; build, preview and save indicator drafts)', domains: ['indicator'],
@@ -120,7 +198,8 @@ export const GROUPS = [
       /\bwhat'?s on (this|the|my) chart\b|\b(have|got) the \d+ on\b|\b\d+ (line|ma|average)\b/,
       // CG-28 (corpus #774): the words traders use for a chart's indicators — "which studies do I have on here", "my
       // oscillators", "the averages", "what overlays are on", "which lines (MAs) are on here" — and "on here" = this chart
-      /\b(?<!case )stud(?:y|ies)\b|\boscillators\b|\bmas\b/,
+      // ⛔ no lookbehind (iOS 16 floor): "case study" is excluded by checking the 4 characters before the space by lookahead
+      /(?:^|[^ ])\bstud(?:y|ies)\b|(?:^[^]{0,3}|(?!case)[^]{4}) stud(?:y|ies)\b|\boscillators\b|\bmas\b/,
       /^(?:(?=.*\bcharts?\b)|(?!.*\b(?:the market|market'?s|s ?& ?p|spx|nyse|nasdaq|breadth|stocks)\b)).*\b(?:moving |the |my |which |what |all (?:the |my )?)averages\b/,
       /\b(?:what|which|any|my|the) (?:[a-z-]+ ){0,2}(?:overlays|lines)\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/,
       /\b(?:what|which)\b.*\b(?:have|got|is|are)\b.*\b(?:on|in) here\b/,
@@ -138,7 +217,7 @@ export const GROUPS = [
       /\b(preview|draft)\b/] },
   // ⭐ INDICATORS P2 (AGENT-CONTRACT-P2, 2026-10-27): how an indicator looks and where it draws, pane order and
   // size, duplicating and copying across charts — their own group, so the NL-1 core keeps its size.
-  { id: 'indicatorSetup', title: 'Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts', domains: ['indicatorStyle', 'indicatorCopy', 'pane'], fillLast: true,
+  { id: 'indicatorSetup', title: 'Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts', domains: ['indicatorStyle', 'indicatorCopy', 'pane'], fillLast: true,
     words: [/\b(thick|thicker|thin|thinner|width|dashed|dotted|solid|histogram|columns|plot style|line style)\b/, /\bpanes?\b/, /\b(above|below) (the )?(price|volume)\b/,
       /\b(own|separate|new) pane\b|\b(overlay|put|move)\b.*\b(on|onto) (the )?(price|volume)\b/, /\b(duplicate|copy|copies|clone)\b.*\b(indicators?|studies|rsi|macd|ema|sma)\b/, /\b(same|these|my) indicators\b/,
       /\b(make|turn|colou?r|paint)\b.*\bthe \d{1,3}\b.*\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y)\b/,
@@ -146,12 +225,41 @@ export const GROUPS = [
       /\b(daily|weekly|monthly|intraday|hourly)( charts?)? only\b|\bonly (show|display|draw|on)\b.*\b(daily|weekly|monthly|intraday|hourly)\b|\bexcept (on )?the (daily|weekly|monthly|intraday)\b/,
       // ⭐ PACKAGE 3: the indicator just built / changed onto another chart ("apply it to my other chart", "copy it to the SPY chart")
       /\b(apply|put|copy|add|place)\b.*\b(it|this|that|them|those)\b.*\b(other|another|both|all)\b.*\bcharts?\b|\bcopy (it|this|that|them|those)\b.*\bcharts?\b/] },
+  // calc-TF family (indicatorStyle.setCalcTimeframe) in its OWN one-action group, WORDS-ONLY (as compareGroups / chartMenu): a 7th
+  // indicatorSetup action made that group outsize boardEdit in the per-request budget, and an unrecognised request ("show tomorrow
+  // on the terminal", agentExecTune C3-148) lost widget.setOption from its v2 first call (firstCallRatchet, AUDIT #1171 hold). Never
+  // a filler, so indicatorSetup keeps master's size and title. Its words: which bars COMPUTE it — "calculate the RSI on weekly",
+  // "make the 50 sma use the weekly bars", "a weekly RSI", "back to the chart's timeframe" (the chart's own timeframe words stay charts').
+  { id: 'indicatorCalc', title: 'An indicator calculated on another timeframe\'s bars (a weekly RSI on a daily chart), or back on the chart\'s own', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['indicatorStyle.setCalcTimeframe'],
+    words: [
+      /\b(calculat\w*|comput\w*|calc)\b.*\b(daily|weekly|monthly|hourly|\d+ ?(min|minute|hour)s?|time ?frame)\b/,
+      /\b(use|uses|using|run on)\b (the )?(daily|weekly|monthly|hourly)( bars| data| candles| closes)?$/,
+      /\b(daily|weekly|monthly|hourly) (rsi|macd|atr|adx|cci|mfi|obv|stoch\w*|bollinger\w*|vwap|\d{1,3} ?(sma|ema|wma|ma)|(sma|ema|wma) ?\d{1,3})\b/,
+      /\bchart'?s (own )?time ?frame\b|\bcalc(ulation)? time ?frame\b/] },
   { id: 'definitions', title: 'Indicator definitions: search UCT\'s and your own indicators, describe one, save a copy, delete one of yours', domains: ['definition'], fillLast: true,
     // CG-24 (corpus #774): "are there any volatility indicators", "which momentum indicators do you have" — a SEARCH of the catalog
     words: [/\b(my|saved|custom|own) indicators?\b/, /\bindicators? (for|that|which|to)\b/, /^(?!.*\b(?:remove|delete|clear|hide|show|add|drop|take off)\b)(?!.*\b(?:on|in) (?:my|this|the|that) charts?\b).*\b(?:(?:any|which|what|some|other|more) (?:[a-z-]+ ){1,2}indicators|indicators? (?:do you have|are available|exist)|are there (?:any )?(?:[a-z-]+ ){0,2}indicators?)\b/, /^(?!.*\b(?:on|in) (?:my|this|the|that) charts?\b)(?!.*\bon (?:here|it|there)\b).*\b(find|search|look for|what) .*\bindicators?\b/, /\b(describe|explain|what does)\b.*\b(indicator|rsi|macd|atr|study)\b/, /\b(delete|remove|copy|duplicate)\b.*\b(my|saved|custom)\b(?:\s+[a-z0-9-]+){0,3}\s+(indicator|formula|study)\b/] },
+  // Charts family (2026-11-12): a chart's Volume Profile overlay (volumeProfile.set), in its OWN words-only group (as chartMenu):
+  // never a filler, so no existing group and no unrecognised request changes. The words name the PROFILE itself (volume
+  // profile / VPVR / visible range volume); "VP" only beside an on / off verb or a bins word. A bare "volume" (the Volume
+  // pane), "VWAP" and volume alerts are not its words.
+  { id: 'volumeProfile', title: 'A chart’s Volume Profile overlay: on / off, bins, colors', domains: ['volumeProfile'], fillLast: true, wordsOnly: true,
+    words: [
+      /\bvolume[\s-]?profiles?\b|\bvol profile\b|\bvpvr\b|\bvisible range volume\b/,
+      /\b(?:add|show|hide|remove|turn on|turn off|enable|disable|switch on|switch off|toggle)\s+(?:the\s+|my\s+)?vp\b|\bvp\s+(?:on|off|bins?)\b/] },
   // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
   // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
+  // #1076 (Lead decision 2026-11-11): the drawing menu's Duplicate and a position's Alerts row in their OWN group, WORDS-ONLY
+  // (as #1027's watchlistShow / #1073's compareGroups), so `alerts` and `drawings` keep master's exact size: one more action in
+  // either moved the nothing-recognised fill, which sits exactly at the 55-action budget (data / boardEdit / screener / undo cut).
+  // Its words: a duplicate / copy / clone verb with a drawing noun; an alert word with a position's entry / stop / target.
+  // Plain "alert at 150" stays `alerts` and "draw a line" stays `drawings` (no position or duplicate word).
+  { id: 'drawingOps', title: 'Duplicate a drawing on its chart; set a position drawing\'s entry / stop / target alerts', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['drawing.duplicate', 'drawing.setPositionAlerts'],
+    words: [/\b(?:duplicate|copy|clone)\b.*\b(?:drawings?|trend ?lines?|lines?|rays?|shapes?|rectangles?|boxe?s?|fib\w*|channels?|pitchforks?|arrows?|annotations?|positions?)\b/,
+      /\balerts?\b.*\b(?:entry|stops?|targets?|positions?)\b|\b(?:entry|stops?|targets?|positions?)\b.*\balerts?\b|\b(?:alert|notify|ping|tell) me\b.*\b(?:entry|stops?|targets?)\b/] },
   { id: 'drawingTools', title: 'Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move', domains: [], fillLast: true,
     actions: ['drawing.addTrendline', 'drawing.addRay', 'drawing.addHorizontalRay', 'drawing.addRectangle', 'drawing.addFib', 'drawing.addText', 'drawing.addAvwap', 'drawing.add'],
     // CG-29..32 (corpus #774): "connect … with a trend line", "draw a line from <date> to <date>", a bare "fib retracement
@@ -164,6 +272,42 @@ export const GROUPS = [
     // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
     // CG-28 family: "the lines on here" may be the member's drawn levels as much as their averages — both groups ride
     words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
+  // drawing extras (C1-144 / C1-160 / C1-165): the Position Calculator with entry / stop / target, a drawing's "Save as
+  // default", and a drawing tool's ★ — their OWN group, WORDS-ONLY (as #1027's watchlistShow / #1073's compareGroups), so
+  // `drawings` keeps master's exact size and the nothing-recognised fill (exactly at the 55-action budget) does not move.
+  // Its words: a position-calculator / position-size word, or entry + stop + target with no alert word; "default" with a
+  // save / make / set verb and a drawing noun (or "default style"); a favourite / star word with a TOOL noun. Plain "draw a
+  // line" stays `drawings`, "set an alert at my stop" stays `alerts`, and "favourite NVDA" (a ticker flag) is not this.
+  { id: 'drawingExtras', title: 'Position Calculator with an entry, stop and target on a chart; make a drawing\'s style the chart\'s default for new drawings; star / unstar a drawing tool as a favourite', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['drawing.positionCalculator', 'drawing.saveDefaults', 'drawing.favoriteTool'],
+    words: [/\bposition (?:calculator|calc|sizer|sizing)\b|\bsize (?:the|my|a|this) (?:position|trade)\b|^(?!.*\b(?:alerts?|notify|ping)\b)(?=.*\bentry\b)(?=.*\bstops?\b).*\btargets?\b/,
+      /\bdefault (?:drawing )?style\b|^(?=.*\b(?:save|make|set|use)\b)(?=.*\b(?:drawings?|trend ?lines?|lines?|rays?|rectangles?|boxe?s?|fib\w*|arrows?|notes?|circles?|channels?|pitchforks?)\b).*\bdefaults?\b/,
+      /\b(?:favou?rit\w*|star|unstar|starred)\b.*\b(?:tools?|toolbar)\b|\b(?:tools?|toolbar)\b.*\bfavou?rit\w*\b/] },
+  // C1-167..170: the four Drawing Boards actions in their OWN group, WORDS-ONLY (as #1027's watchlistShow, #1073's compareGroups), so the
+  // drawings group keeps master's size and routing v2's unrecognised-request fill (at its 55-action budget) is unchanged
+  { id: 'drawingBoards', title: 'Drawing Boards: switch the board you draw on, make a new board, rename one, delete one', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['drawing.setActiveBoard', 'drawing.createBoard', 'drawing.renameBoard', 'drawing.deleteBoard'],
+    // a Drawing Board by its verb ("switch to my Swing board", "rename Board 2 to Earnings"), the verb governing the board noun within
+    // two words — a bare "board" is the workspace ("remove everything from the board" is not a Drawing Board)
+    words: [/\b(?:switch|change|go|flip|jump|move)\s+(?:back\s+|over\s+)?to\s+(?:my|the|a|another|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\bdraw(?:ing)?\s+on\s+(?:my|the|a|another|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\b(?:rename|delete|remove|erase)\s+(?:my|the|this|that)?\s*(?:[\w'’-]+\s+){0,2}boards?\b/,
+      /\b(?:new|another|create|make|start)\s+(?:(?:me|a|an|another|new)\s+)*(?:drawing\s+)?boards?\b/, /\bdrawing\s+boards?\b/] },
+  // Charts family (2026-11-12): the UCT Intelligence chart INDICATOR (uctIntelligence.set), its OWN words-only group (as chartMenu):
+  // never a filler, so no existing group and no unrecognised request changes. The words name the indicator, or one of its panel's
+  // switches with its own label (auto patterns, pattern labels, candlestick patterns, the setups / caution / S&R layer) or a toggle
+  // verb on it. ⛔ "Modify / create / build an indicator WITH UCT Intelligence" is indicator AUTHORING (indicatorAuthoring.js, the
+  // guide's 'modify' / 'create'): an authoring verb, "with / using UCT Intelligence" or a new / custom indicator never selects
+  // this group. A bare "patterns" / "setups" / "labels" / "support" (a question, a scan, price labels, a drawn level) is not enough.
+  { id: 'uctIntelligence', title: 'The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)',
+    domains: ['uctIntelligence'], fillLast: true, wordsOnly: true,
+    words: [
+      /^(?!.*\b(?:modify|modif(?:ied|ying)|create|creating|build|building|write|writing|draft|drafting|edit|editing|author(?:ing)?|generate|design)\b)(?!.*\b(?:with|using|via|through|ask|asking) (?:the )?uct[\s-]?intel)(?!.*\b(?:new|own|custom) (?:\w+ )?indicators?\b).*\buct[\s-]?intel(?:ligence)?\b/,
+      /\bauto(?:matic)?[\s-]?(?:chart )?patterns?\b|\bpattern (?:labels?|numbers|overlay|layer|drawings?)\b|\b(?:chart )?patterns? (?:button|overlay|layer|toggle)\b/,
+      /^(?!.*\b(?:recognition|chart iq)\b).*\b(?:turn|switch|toggle)\s+(?:on\s+|off\s+)?(?:the\s+|my\s+)?(?:chart\s+)?patterns\b|\bhide\s+(?:the\s+)?(?:chart\s+)?patterns\b/,
+      /\b(?:turn|switch|toggle|show|hide|enable|disable)\b.*\bcandlestick patterns?\b|\bcandlestick (?:pattern )?(?:markers|layer)\b/,
+      /\b(?:turn|switch|toggle|enable|disable)\s+(?:on\s+|off\s+)?(?:the\s+|my\s+)?(?:confirmed\s+)?(?:setups|caution)\b|\b(?:setups?|caution|support\s*(?:&|and|\/)\s*resistance|s\/r) (?:layer|lines|toggle)\b|\bcaution setups?\b/,
+      /\b(?:turn|switch|toggle|enable|disable)\b.*\bsupport\s*(?:&|and|\/)\s*resistance\b/] },
   { id: 'lists', title: 'Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
@@ -230,9 +374,17 @@ export const GROUPS = [
     words: [] },
   // W2-B1 (RS-1): `research.ask` rides in this group by domain ("why is X down", "what's driving …", catalysts);
   // W2-B2: `history.afterEvent` too ("how has X behaved after …", "what happens after …")
+  // Terminal data wave 1: the four local-only stock.* answers (analyst actions, session highs / lows, long-run leaders, dark
+  // pool levels) ride here by domain. Their own words are NOT listed below: capabilities/terminalDataLocal.js adds each one's
+  // (TERMINAL_ROUTE_WORDS) to this group only while that capability is registered (the server serves its kind), so on a dark
+  // server this group's words are exactly this list (pinned in agentTerminalData.test.js). The sector answer needs none.
+  // Terminal data wave 2: five more local-only stock.* answers (52-week highs / lows, theme rotation, the confluence board,
+  // the expected move, the earnings call search) ride here the same way: capabilities/terminalDataWave2.js adds each one's
+  // words (WAVE2_ROUTE_WORDS) only while that capability is registered (pinned in agentTerminalDataWave2.test.js).
+  // Terminal data wave 3's four stock.* answers are NOT in this group: see `marketBoards` at the end of the catalog.
   { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
     // CG-21 (corpus #774): "news" — not the News WIDGET ("add a news widget")
-    words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sector|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
+    words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sectors?|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
       /\b(how (has|did|does) \S+ (behaved?|do|done|perform(ed)?|react(ed)?|trade[d]?) after|what (happens|happened) (to|with) \S+ after|after .*\b(gaps?|gapped|cross(es|ed)?)\b)\b/,
       // PKG2: an event study said another way ("in the weeks after gapping up 8%", "after 20-day breakouts", "after new 50-day highs")
       /\b(?:after|following) .*\b(?:gapping|gaps? (?:up|down)|breakouts?|break(?:s|ing)? out|new \d{1,3}[- ]?(?:day|week|session) (?:closing )?highs?)\b/,
@@ -288,7 +440,27 @@ export const GROUPS = [
       /\bput (?:it|that|them|everything|things) back (?:the way|how|as) (?:it|they) (?:was|were)\b/,
       // W2 (CG-9): "put my layout back", "put the charts back"
       /\bput (?:my|the) (?:layout|board|charts?|workspace|widgets) back\b/,
+      // #1076: an undo is MATCHED by its own words whatever the pack size (v1's fallback fill can reach the budget and
+      // cut the 1-action undo group): "scratch that", "never mind", "go back to how it was (before)", "put it back"
+      /\bscratch (?:that|it|this)\b|\bnever ?mind\b|\bgo back to (?:how|the way|what) (?:it|they|things|everything) (?:was|were)\b|\bput (?:it|that|them) back\b/,
       /\btake (?:it|that|this|them|those|everything|all (?:of )?(?:that|it|this)) (?:all )?back\b|\btake back (?:that|what (?:you|u)|the last|my last|your last|those changes|that change|everything|whatever (?:you|u))\b/] },
+  // watchlist group A (pl-exec): what ONE Watchlist widget shows — its own, UCT's prebuilt, community or Flagged lists, or back to
+  // its picker. Its OWN one-action group by action name, WORDS-ONLY (never a filler: the lists group and every request keep their size)
+  // AUDIT #1027 (NL-1 first-call coverage, corpus.json): the size rule above holds for EVERY action this PR adds. NL-1 sends
+  // core 37 + lists 17 = 54 of its 55 (nl1/selection.js), so one more action in `lists` cost the requests that need lists beside
+  // another 18-action group ("…put the top 10 in a new list": workspace won the tie). watchlist.arrangeColumns acts on ONE Watchlist
+  // widget's own view (a list-view op, like showList), so it is in this group, not in lists. And "on my watchlist" is the ADD idiom
+  // ("put tsla on my watchlist": watchlist.add), so "on" names the widget only with its position or the word widget; a list is
+  // shown IN a watchlist.
+  { id: 'watchlistShow', title: 'What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget',
+    domains: [], actions: ['watchlist.showList', 'watchlist.exportList', 'watchlist.arrangeColumns'], fillLast: true, wordsOnly: true,
+    words: [/\b(?:list\s+)?picker\b/, /\b(?:prebuilt|community|public|flagged|uct['’]s)\b.*\b(?:lists?|watch ?lists?|widget|tickers)\b|\b(?:lists?|watch ?lists?)\b.*\b(?:prebuilt|community|flagged)\b/,
+      /\b(?:switch|change|put|show|open|load)\b.*\bwatch ?list(?:\s+widget)?\b.*\bto\b|\b(?:in|into)\s+(?:my|the|this)\s+(?:left |right |top |bottom |other )?watch ?list\b|\bon\s+(?:my|the|this)\s+(?:(?:left|right|top|bottom|other)\s+watch ?list\b|watch ?list\s+widget\b)/,
+      // group C: a column moved (the header drag) or its width set (the gridline) — a column word beside a place or a width
+      /\b(?:move|drag|reorder)\b.*\bcolumns?\b|\bcolumns?\b.*\b(?:to the (?:left|right)|before|after|ahead of)\b|\b(?:wider|narrower|widen|narrow|shrink|resize|width)\b.*\bcolumns?\b|\bcolumns?\b.*\b(?:wider|narrower|width|\d+\s*(?:px|pixels?))\b/,
+      /\b(?:red|blue|green|yellow|orange|purple|pink)\s+(?:tags?|tag list)\b/,
+      // group D: a list out of the widget (the list menu's Copy / Export)
+      /\b(?:copy|export|download|save)\b.*\b(?:lists?|watch ?lists?|tickers)\b|\b(?:csv|excel|xlsx|clipboard)\b/] },
   // ⭐ PHASE 2 Workstream B: EXPLAIN a term or feature, SHOW ME where a control is — both change nothing
   { id: 'guide', title: 'Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing', domains: ['guide'],
     // (show-me words only: an explanation question is the model's to answer, as before — it may reroute to this group)
@@ -299,7 +471,95 @@ export const GROUPS = [
     // review B1: EMPTY here — capabilities/coach.js arms COACH_ROUTE_WORDS only while the coach capabilities are
     // registered, so on a dark server routing is byte-identical to the base (a coach word never narrows the catalog)
     words: [] },
+  // C1-028 (pl-zoom): VIEW GESTURES on one chart — the + / - zoom (chartSetup.zoom) — in their OWN group, WORDS-ONLY and fillLast
+  // (as compareGroups / watchlistShow): master's unrecognised-request fill sits at exactly 55 actions, so a 19th chartSetup
+  // action would push another group out. Last in the catalog, so every existing group keeps its place and its listing order.
+  // Later view gestures (C1-026 price-axis compress, …) join this group. Only its own words select it: zoom + in / out
+  // (optionally "the chart" between), "closer" / "tighter" on the chart's bars, a wider / zoomed-out view, more / fewer bars.
+  // Not "reset the zoom" (chartSetup.resetView), not a "zoom" that names no direction (a company, a ticker).
+  { id: 'chartView', title: 'Chart view gestures: zoom one chart\'s time axis in or out (the + / - keys), more or fewer bars on screen', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['chartSetup.zoom'],
+    words: [
+      /\bzoom(?:ed|ing)? (?:(?:the |this |that |my |it |its )?(?:\w+ )?(?:chart|view|time axis|axis|one|candles|bars) )?(?:way |all the way |back |a (?:bit|little|lot) |further |more )?(?:in|out)\b/,
+      /\b(?:closer|tighter) (?:in |look |view )?(?:on|at) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars|price action)\b|\b(?:wider|broader|zoomed[- ]out) view (?:of|on) (?:the |this |that |my )?(?:\w+ )?(?:chart|candles|bars)\b/,
+      /\b(?:show|see|fit|squeeze|cram) (?:me )?(?:more|fewer|less) (?:bars|candles)\b/] },
+  // Charts family (2026-11-12): Tools → Compare Symbols opened on its Rotation (RRG-style) or Overlay tab (compare.openView), in
+  // its OWN words-only group (as chartMenu / periodSort): never a filler, so no existing group and no unrecognised request changes.
+  // The words name the PANEL or its view: a rotation / RRG map, graph, tab, view or quadrant; the Compare (Symbols) panel; its
+  // Overlay tab. ⛔ The RS INDICATOR's Rotation view is an indicator input (nativeRegistry `view: 'rotation'`): a message that
+  // names the indicator (RS, relative strength, indicator, pane, line, study, input) never selects this group. No lookbehind.
+  { id: 'comparePanel', title: 'The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them',
+    domains: ['compare'], fillLast: true, wordsOnly: true,
+    words: [
+      /^(?!.*\b(?:rs|relative strength|indicators?|panes?|stud(?:y|ies)|inputs?|lines?|mansfield)\b).*\b(?:rotation|rrg)\s+(?:map|graph|chart|tab|view|quadrants?|panel)\b|^(?!.*\b(?:rs|relative strength|indicators?|panes?|stud(?:y|ies)|inputs?|lines?)\b).*\brelative rotation\b/,
+      /\bcompare(?:\s+symbols)?\s+(?:panel|window|dialog|tool|popup|modal)\b|\boverlay tab\b/] },
+  // C3-205..207 (pl-exec6, #1082): Tools → Custom-Period Sort (periodSort.run / periodSort.dock) in its OWN two-action group,
+  // WORDS-ONLY (as compareGroups / watchlistShow), so boardEdit and every other group stay character-identical to master:
+  // in boardEdit (by domain) it changed v2's lexical scores and its fill, and 5 first calls lost the action they needed.
+  // Words need context: the tool's name; a rank / sort said over DATES (a month-day, M/D or an ISO day after from / since /
+  // between); a Dock of the ranking. LAST in the catalog: the server once named at most turn.MAX_GROUPS (24) groups; #1089
+  // raised that cap to 48, so this group is named too. It stays last so it is the first left unnamed if the catalog outgrows the cap.
+  { id: 'periodSort', title: 'Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget',
+    domains: [], actions: ['periodSort.run', 'periodSort.dock'], fillLast: true, wordsOnly: true,
+    words: [/\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
+      /\b(?:rank|ranking|sort)\b.*\b(?:from|since|between)\b.*(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b)/,
+      /\bdock\b.*\b(?:ranking|sort|sorted results)\b/] },
+  // Charts family (2026-11-12): ONE chart's bar replay playback (chartReplay.playback: the toolbar's Replay / Time Machine
+  // bar) in its OWN words-only fillLast group, LAST, so every existing group keeps its place and no fill changes. Its words
+  // name the replay as a THING played (a playback verb governing "the replay", the replay bar / speed, "in the replay" with a
+  // step, a speed with replay) — never "replay mode" / "replay as of / from <date>" (chart.replay's cutoff), never the verb
+  // "replay the tutorial / alert". Bare playback words ("next bar", "pause", "5x") bring it only while a chart's bar replay
+  // is ON (routingNames.replayOn): outside replay "next bar" stays chartSetup.stepBars.
+  { id: 'chartReplay', title: 'A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit', domains: ['chartReplay'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:play|pause|un-?pause|resume|restart|rewind|step|advance|scrub|skip|jump|move|fast[- ]?forward|speed up|slow down|run|continue|start|stop|exit|leave|quit|close|end|enter|open|launch|turn (?:on|off))\s+(?:the\s+|this\s+|that\s+|my\s+|its\s+)?(?:\w+\s+)?(?:bar\s+)?replay\b(?!\s+(?:mode|as of|from|of)\b)/,
+      /\breplay\s+(?:bar|speed|playback|controls?|scrubber|slider)\b|\btime machine\b/,
+      /\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b).*\b(?:step|forward|back|next|previous|bars?|play|pause|speed|faster|slower)\b|\b(?:step|forward|next|previous|bars?|play|pause|speed|faster|slower)\b.*\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b)/,
+      /\breplay\b(?!\s+mode\b).*\b(?:\d+ ?x|faster|slower)\b|\b(?:\d+ ?x|faster|slower)\b.*\breplay\b(?!\s+mode\b)/] },
+  // Phase 2 COT research (cot.positioning): CFTC Commitments of Traders positioning in its OWN group, WORDS-ONLY and fillLast (as
+  // indicatorCalc / chartMenu): never a filler, so no existing group and no unrecognised request changes. `words` stays EMPTY here:
+  // capabilities/cot.js arms them only while the capability is registered (the server serves the `cot.positioning` kind), so on a
+  // dark server this group never matches and routing is byte-identical to the base (as playbook / coach). Last in the catalog.
+  { id: 'cot', title: 'CFTC COT futures positioning (specs, commercials, open interest): changes, N-year extremes, comparisons', domains: ['cot'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Phase 2 market intelligence (rs.compare): relative strength + sector / industry leadership + the market backdrop in its OWN
+  // group, WORDS-ONLY and fillLast (as indicatorCalc / chartMenu): never a filler, so no existing group and no unrecognised
+  // request changes. `words` stays EMPTY here: capabilities/rsLeadership.js arms them only while the capability is registered
+  // (the server serves the `rs.leadership` kind), so on a dark server this group never matches and routing is byte-identical.
+  { id: 'rs', title: 'Relative strength + leadership: a ticker\'s UCT RS Rating vs its industry / SPY, sector and industry rankings, the market backdrop', domains: ['rs'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Phase 2 catalysts (news.movers): UCT's catalyst board ("what's moving the market", "why is NVDA up", "catalysts for my
+  // watchlist this week") in its OWN group, WORDS-ONLY and fillLast (as periodSort / chartView): never a filler, so no existing
+  // group and no unrecognised request changes. `words` stays EMPTY here: capabilities/catalysts.js arms them only while the
+  // capability is registered (the server serves `catalysts.board`), so on a dark server routing is byte-identical to the base.
+  { id: 'catalysts', title: 'UCT catalyst board: what moved / is moving the market, why a stock is up or down (stored catalysts + headlines), catalysts for your tickers or watchlist',
+    domains: [], actions: ['news.movers'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 3 (stock.gammaLevels / stock.topFlowPicks / stock.flowRecord / stock.earningsReactions): one stock's gamma
+  // walls, UCT's Top Flow picks, the Flow Record and a day's earnings reactions in their OWN group, WORDS-ONLY and fillLast (as cot /
+  // rs / catalysts): never a filler, so no existing group and no unrecognised request changes. They are listed by `actions` because
+  // their `stock` domain would put them in the `data` group, and that group has no room: with every dark kind served it already holds
+  // 20 actions, and four more put it past the routing budget whenever drawings or lists ride along (measured: two wave 1 / wave 2
+  // corpus phrasings stopped routing). `words` stays EMPTY here: capabilities/terminalDataWave3.js arms each capability's own words
+  // only while it is registered (the server serves its kind), so on a dark server this group never matches and routing is
+  // byte-identical to the base (pinned in agentTerminalDataWave3.test.js).
+  { id: 'marketBoards', title: 'Gamma walls of a stock (call wall, put wall, zero gamma), UCT\'s Top Flow picks and Flow Record win rates, how a day\'s earnings reporters moved',
+    domains: [], actions: ['stock.gammaLevels', 'stock.topFlowPicks', 'stock.flowRecord', 'stock.earningsReactions'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 4 (stock.earningsSeason / stock.callThemes / stock.groupDrill): one day's earnings season, the phrases rising
+  // across earnings calls and the stocks inside one sector, industry or theme, in their OWN group for wave 3's reasons: WORDS-ONLY
+  // and fillLast, so it is never a filler and no existing group or unrecognised request changes; listed by `actions` because their
+  // `stock` domain would put them in the `data` group, which has no room under the routing budget. They are not added to
+  // `marketBoards` either: that group is held at its four actions (three more ride with every wave 3 ask and its title has no room
+  // to name seven things). `words` stays EMPTY here: capabilities/terminalDataWave4.js arms each capability's own words only while
+  // it is registered (the server serves its kind), so on a dark server this group never matches and routing is byte-identical to the
+  // base (pinned in agentTerminalDataWave4.test.js).
+  { id: 'marketViews', title: 'One day\'s earnings season (who reports, priced and past moves), phrases rising across earnings calls, the stocks inside one sector, industry or theme',
+    domains: [], actions: ['stock.earningsSeason', 'stock.callThemes', 'stock.groupDrill'], fillLast: true, wordsOnly: true,
+    words: [] },
 ]
+// chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)
+const REPLAY_ON_WORDS = /^(?:please )?(?:play|pause|resume|unpause|stop)\b|\b(?:play|pause|resume) (?:it|playback|playing)\b|\b(?:next|previous|prev|last) bar\b|\bstep (?:it )?(?:forward|back(?:ward)?)\b|\b(?:forward|back) (?:\d+|one|a|ten) bars?\b|\b(?:speed (?:it )?up|slow (?:it )?down|faster|slower)\b|\b(?:1|5|20) ?x\b|\b(?:to )?the (?:start|end|beginning)\b/
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/
 const NOT_TICKERS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'ATR', 'ET', 'AM', 'PM', 'OK', 'US', 'NYSE', 'HLC'])
@@ -356,8 +616,14 @@ function namedGroups(q, names) {
       if (w.length >= 3 && text.includes(` ${w} `)) { out.add(id); break }
     }
   }
-  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).length) out.add('boardEdit')
+  // #1082 re-merge: a docked Period Sort widget's controls (Refresh) never take a date, so "period sort sectors, Oct 1 to Oct 30"
+  // (dates beside the tool's name) asks for a NEW run (the periodSort group), not that widget: it alone does not bring boardEdit
+  const runsPeriodSort = /\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/.test(q)
+    && /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b/.test(q)
+  if (names?.widgetTypes?.length && controlledWidgetTypes(q, names.widgetTypes, surfaceWord).some(t => !(runsPeriodSort && t === 'periodsort'))) out.add('boardEdit')
   if (names?.widgetItems?.length && itemNamedTypes(q, names.widgetItems).length) out.add('boardEdit')
+  // chartReplay: while a chart's bar replay is on, its bare playback words ("next bar", "pause", "5x") mean the replay
+  if (names?.replayOn === true && REPLAY_ON_WORDS.test(q)) out.add('chartReplay')
   return out
 }
 
@@ -375,6 +641,8 @@ export function routingNames(host) {
       try { r = host.widgets.door?.(w.id)?.read?.() || null } catch { r = null }
       return ITEM_LISTS[w.type].map(l => ({ type: w.type, key: l.key, names: (Array.isArray(r?.[l.key]) ? r[l.key] : []).map(x => x?.name).filter(Boolean) }))
     })),
+    // chartReplay: is any chart's bar replay (the Replay / Time Machine button) on right now
+    replayOn: (() => { try { return !!host?.charts?.list?.()?.some(s => s?.view?.replay?.mode === true) } catch { return false } })(),
     indicatorTemplates: read(() => {
       const raw = host?.prefs?.read?.()?.indicator_templates
       const list = typeof raw === 'string' ? JSON.parse(raw) : raw
@@ -427,9 +695,32 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   // recognised, every group is a candidate in catalog order (charts first — the page's own
   // controls), so a catalog bigger than one request still sends as much as fits, not just the
   // always-on group; the rest are named and the model can ask for them.
-  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...addOnlyHits, ...soft, ...GROUPS.map(g => g.id)]
+  // `wordsOnly` (Lead 2026-11-09): a NICHE group is sent only when the words name it — never as filler for a message nothing
+  // recognised (or a knowledge-only one), so adding one never displaces what such a request packs
+  const filler = GROUPS.filter(g => !g.wordsOnly || hits.has(g.id)).map(g => g.id)
+  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : [...addOnlyHits, ...soft, ...filler]
   const priority = [...new Set([...always, ...followUps, ...own])]
   return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched, soft }
+}
+
+/**
+ * ROUTE REACHABILITY guard: a group a request needed that the per-request budget could not carry is never cut SILENTLY —
+ * one console line names the groups and their actions (names only, never the message). Nothing member-visible changes:
+ * the cut groups stay named to the model (need_groups), as before. Pinned by qa/capabilityRegression/routeReachability.test.js.
+ * Rate-limited: ONCE per distinct set of cut groups per page session (bounded), so a busy console is not flooded.
+ */
+const CUT_SEEN = new Set()
+const CUT_SEEN_MAX = 256
+export const _resetBudgetCutLog = () => CUT_SEEN.clear()
+export function warnBudgetCut(manifest, groupOf, ids) {
+  if (!ids || !ids.length) return
+  const cut = ids.filter(id => manifest.some(c => groupOf(c.name) === id))
+  if (!cut.length) return
+  const key = [...cut].sort().join(',')
+  if (CUT_SEEN.has(key) || CUT_SEEN.size >= CUT_SEEN_MAX) return
+  CUT_SEEN.add(key)
+  const names = manifest.filter(c => cut.includes(groupOf(c.name))).map(c => c.name)
+  try { console.warn(`[uct-agent] routing budget cut: ${cut.join(', ')} not sent (${names.join(', ')})`) } catch { /* no console */ }
 }
 
 /**
@@ -487,6 +778,10 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
     if (used + n > budget && want.size >= always.length) { over.push(id); continue }
     want.add(id); used += n
   }
+  // a group this message NEEDED (pinned, its own words, a carried answer, soft vocabulary) that the budget cut is logged —
+  // the fallback's fill groups are not: past the catalog size they are expected not to fit
+  const needed = new Set([...pinned, ...carried, ...(matched ? own : (soft || []))])
+  warnBudgetCut(manifest, groupOf, over.filter(id => needed.has(id)))
   const present = GROUPS.filter(g => counts.has(g.id))
   const routed = manifest.filter(c => want.has(groupOf(c.name)) || groupOf(c.name) === null)
   if (routed.length === manifest.length) return { manifest, routing: null }

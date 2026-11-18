@@ -1,11 +1,11 @@
 // S13 (audit 2026-11-05, detail #67): My Playbook from the Notebook's own sidebar. It opens INSIDE the Journal shell
 // (`/journal/notebook/playbook`: the Journal tabs stay, "Back to Notebook"), its data the same read as Insights'.
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import FolderSidebar from './FolderSidebar'
+import FolderSidebar, { MORE_FOLD_KEY, TAGS_FOLD_KEY } from './FolderSidebar'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 import { PLAYBOOK_IN_NOTEBOOK_PATH } from '../../lib/myPlaybookLink'
 
@@ -36,6 +36,18 @@ const renderSidebar = () => render(
     </Routes>
   </MemoryRouter>,
 )
+
+// Notebook simplify, Task 2: Unfiled/Archived/Trash/My Playbook sit under the panel's "More" fold and the tags
+// under its "Tags" fold, both closed by default. This file is about what those rows DO, so it opens both folds
+// the way a member's browser remembers them (FolderSidebar.folds.test.jsx owns the folds themselves).
+beforeEach(() => {
+  window.localStorage.setItem(MORE_FOLD_KEY, '1')
+  window.localStorage.setItem(TAGS_FOLD_KEY, '1')
+})
+afterEach(() => {
+  window.localStorage.removeItem(MORE_FOLD_KEY)
+  window.localStorage.removeItem(TAGS_FOLD_KEY)
+})
 
 describe('My Playbook in the Notebook sidebar (S13)', () => {
   it('with its gate on: a "My Playbook" link to the page inside the Journal shell, and it goes there', async () => {

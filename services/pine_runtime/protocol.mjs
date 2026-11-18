@@ -62,6 +62,13 @@ export const MAX_JOBS = 500
 /** = `runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES` (api/services/runtime_definitions.py);
  *  a rail reads the Python value, so the two cannot drift. */
 export const MAX_DOC_BYTES = 128 * 1024
+/** ⭐⭐ U15: the library entries one request may carry (the libraries its document pins), and the
+ *  largest source each may be. A library is third-party code the WEB server read from its own
+ *  store; the service checks each one's sha256 again (here) and holds the run to the document's
+ *  pins (job.mjs). */
+export const MAX_LIBRARIES = 32
+export const MAX_LIBRARY_SOURCE_BYTES = 512 * 1024
+export const LIBRARY_PATH_RX = /^[A-Za-z0-9_]{1,80}\/[A-Za-z0-9_]{1,80}\/[1-9][0-9]{0,5}$/
 export const ENGINE_FIELDS = Object.freeze(['script_engine', 'runtime_language', 'runtime_frontend', 'runtime_ir', 'bundle_sha256'])
 export const BAR_COLUMNS = Object.freeze(['t', 'o', 'h', 'l', 'c', 'v'])
 export const BARS_TAG = 'pine-runtime-bars/1'
@@ -267,11 +274,12 @@ function parse(body, { identity, tfSet, maxBars }, docs) {
   const engine = {}
   for (const k of ENGINE_FIELDS) engine[k] = identityField(raw.engine[k], `engine.${k}`)
   str(engine.bundle_sha256, 'engine.bundle_sha256', HEX64)
-  const d = closed(raw.definition, 'definition', ['def_id', 'version', 'doc_sha256', 'doc'])
+  const d = closed(raw.definition, 'definition', ['def_id', 'version', 'doc_sha256', 'doc'], ['libraries'])
   const defId = str(d.def_id, 'definition.def_id', /^[A-Za-z0-9_.:-]{1,64}$/)
   const version = nonNegInt(d.version, 'definition.version')
   const docSha = str(d.doc_sha256, 'definition.doc_sha256', HEX64)
   if (d.doc !== null && typeof d.doc !== 'string') throw bad('definition.doc', "must be the document's JSON text or null")
+  const libraries = librariesOf(d.libraries)
   const owner = str(raw.owner, 'owner', /^hmac:[0-9a-f]{16,64}$/)
   if (!Array.isArray(raw.jobs) || raw.jobs.length < 1 || raw.jobs.length > MAX_JOBS) {
     throw bad('jobs', `must be an array of 1 to ${MAX_JOBS} jobs`)
@@ -317,8 +325,36 @@ function parse(body, { identity, tfSet, maxBars }, docs) {
   if (docs && d.doc !== null) docs.put(docSha, d.doc)
   return {
     protocol: PROTOCOL, profile: raw.profile, engine, owner,
-    definition: { def_id: defId, version, doc_sha256: docSha, doc }, jobs,
+    definition: { def_id: defId, version, doc_sha256: docSha, doc, ...(libraries ? { libraries } : {}) }, jobs,
   }
+}
+
+/** ⭐⭐ U15: `definition.libraries` -> the entries, each `{path, source, sha256, licence, attribution}`
+ *  and each source's sha256 recomputed HERE (a mismatch is integrity, nothing is computed), or null
+ *  when the request carries none. */
+function librariesOf(v) {
+  if (v === undefined) return null
+  if (!Array.isArray(v) || v.length < 1 || v.length > MAX_LIBRARIES) {
+    throw bad('definition.libraries', `must be an array of 1 to ${MAX_LIBRARIES} library entries`)
+  }
+  const seen = new Set()
+  return v.map((e, i) => {
+    const at = `definition.libraries[${i}]`
+    closed(e, at, ['path', 'source', 'sha256', 'licence', 'attribution'])
+    const path = str(e.path, `${at}.path`, LIBRARY_PATH_RX)
+    if (seen.has(path)) throw bad(`${at}.path`, `repeats ${JSON.stringify(path)}`)
+    seen.add(path)
+    if (typeof e.source !== 'string' || !e.source) throw bad(`${at}.source`, 'must be a non-empty string')
+    const bytes = Buffer.from(e.source, 'utf8')
+    if (bytes.length > MAX_LIBRARY_SOURCE_BYTES) throw bad(`${at}.source`, `is larger than ${MAX_LIBRARY_SOURCE_BYTES} bytes`)
+    const sha = str(e.sha256, `${at}.sha256`, HEX64)
+    if (createHash('sha256').update(bytes).digest('hex') !== sha) {
+      throw new Refused(422, INTEGRITY_GUARD, `${at}.sha256 does not match the library source sent, so nothing is computed.`)
+    }
+    if (typeof e.licence !== 'string' || !e.licence) throw bad(`${at}.licence`, 'must be a non-empty string')
+    if (typeof e.attribution !== 'string' || !e.attribution) throw bad(`${at}.attribution`, 'must be a non-empty string')
+    return { path, source: e.source, sha256: sha, licence: e.licence, attribution: e.attribution }
+  })
 }
 
 // ─── the response (W5-T7b) ──────────────────────────────────────────────────────
@@ -337,6 +373,9 @@ export const RESULT_FIELDS = Object.freeze({
   withheld: Object.freeze({ required: Object.freeze([...RUNNER_RESULT_FIELDS.withheld.required, 'digest']), optional: RUNNER_RESULT_FIELDS.withheld.optional }),
 })
 export const REFUSAL_FIELDS = Object.freeze(['key', 'guard', 'sentence', 'bar'])
+/** LIMITS r1: a run-wide stop may name the engine limit it met, as a field (never in the sentence). */
+export const REFUSAL_OPTIONAL_FIELDS = Object.freeze(['limit'])
+const LIMIT_NAME = /^[A-Z][A-Z0-9_]{0,63}$/
 export const WARMUP_FIELDS = Object.freeze(['withheldBars'])
 const U32_MAX = 0xffffffff
 
@@ -344,14 +383,17 @@ function refusalsOf(v, path) {
   if (!Array.isArray(v)) throw bad(path, 'must be an array')
   return v.map((r, i) => {
     const p = `${path}[${i}]`
-    closed(r, p, REFUSAL_FIELDS)
+    closed(r, p, REFUSAL_FIELDS, REFUSAL_OPTIONAL_FIELDS)
     if (typeof r.key !== 'string' || r.key.length === 0) throw bad(`${p}.key`, 'must be a non-empty string')
     if (typeof r.guard !== 'string' || r.guard.length === 0) throw bad(`${p}.guard`, 'must be a non-empty string')
     if (typeof r.sentence !== 'string') throw bad(`${p}.sentence`, 'must be a string')
     if (r.bar !== null && (!Number.isSafeInteger(r.bar) || r.bar < 0 || r.bar > U32_MAX)) {
       throw bad(`${p}.bar`, 'must be null or a bar index')
     }
-    return { key: r.key, guard: r.guard, sentence: r.sentence, bar: r.bar }
+    if (Object.hasOwn(r, 'limit') && (typeof r.limit !== 'string' || !LIMIT_NAME.test(r.limit))) {
+      throw bad(`${p}.limit`, 'must be an engine limit name')
+    }
+    return { key: r.key, guard: r.guard, sentence: r.sentence, bar: r.bar, ...(Object.hasOwn(r, 'limit') ? { limit: r.limit } : {}) }
   })
 }
 

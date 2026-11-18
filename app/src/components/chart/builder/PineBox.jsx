@@ -45,6 +45,9 @@ import PineEditorStatus, { usePineEditorStatus } from './PineEditorStatus'
 import { editorStatusEnabled } from './editorStatusGate'
 import { lineMarks as toLineMarks } from './editorStatus'
 import styles from './PineBox.module.css'
+// The CodeMirror chunk's own visually-hidden class for the value-carrier textarea —
+// the same arrangement `FormulaField` uses once its editor has mounted.
+import editorStyles from './editor/CodeEditor.module.css'
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
  *  one event but an edit is a keystroke, and translating on every one runs a
@@ -400,6 +403,10 @@ function inspectSourceUnguarded(source, dialect = 'auto', opts = undefined) {
       // levels box empty. That is the same failure this whole wave is about — a
       // carriage that stops one door short — committed inside the wave fixing it.
       presentation: t.presentation || null,
+      // ⭐ ENGINE 55 (review F1) — which other symbols the trees read and how each was spelled,
+      // so the import screen can say up front which plots a binding will refuse
+      // (`importOutcome` → `otherSymbols.staticOtherSymbolRefusalOf`), forwarded by name.
+      otherSymbols: Array.isArray(t.otherSymbols) ? t.otherSymbols : null,
       // ⭐ L1 — the imported libraries this translation linked, with their licence
       // and attribution, which the member is shown (forwarded by name: see above).
       libraries: t.libraries || [],
@@ -602,7 +609,7 @@ function loadEditor() {
  *  (already mounted and already the value carrier) stays the box. Never a reload. */
 const TEXTAREA_FALLBACK = null
 
-function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry, sym = null, tf = null, savedRow = null }) {
+function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry, sym = null, tf = null, savedRow = null, onStatusHeadline = null, lineJumpRef = null }) {
   const inspect = useCallback(
     (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
@@ -652,6 +659,15 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   const editorStatusNow = usePineEditorStatus({ enabled: statusOn, report, inspectedSource: inspected, savedRow })
   const statusMarks = useMemo(
     () => (editorStatusNow ? toLineMarks(editorStatusNow, inspected) : null), [editorStatusNow, inspected])
+  // ⭐ STUDIO R4 — the host is told the panel's sentence and the exact text it is about, so a save
+  // of THAT text can put it on record for people the script is shared with. Null while the panel
+  // is off, is still checking a newer buffer, or has no sentence: nothing is recorded then.
+  const headlineNow = editorStatusNow && text === inspected && typeof editorStatusNow.headline === 'string'
+    ? editorStatusNow.headline : null
+  useEffect(() => {
+    if (typeof onStatusHeadline !== 'function') return
+    onStatusHeadline(headlineNow ? { headline: headlineNow, source: inspected } : null)
+  }, [onStatusHeadline, headlineNow, inspected])
   /** The panel's `Line N` button: caret to the start of that line, scrolled into
    *  view. CodeMirror when it has loaded, the textarea otherwise. */
   const goToLine = useCallback((n) => {
@@ -672,6 +688,13 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     area.focus()
     area.setSelectionRange(at, at)
   }, [])
+  // ⭐ STUDIO R5 — the host may ask for the same jump (Inspect a bar's `line N`): it owns a ref
+  // and this box puts its own `goToLine` in it while mounted. One implementation, this one.
+  useEffect(() => {
+    if (!lineJumpRef) return undefined
+    lineJumpRef.current = goToLine
+    return () => { if (lineJumpRef.current === goToLine) lineJumpRef.current = null }
+  }, [lineJumpRef, goToLine])
 
   // ⭐⭐ THE MEMBER'S OWN VALUES. `translatePine`'s `inputValues` has shipped,
   // tested and green since the knob work — and until now its only caller was its
@@ -1112,7 +1135,13 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
 
       <textarea
         ref={areaRef}
-        className={styles.area}
+        // ⚰️ FIXED 2026-11-16 (Direction A): this kept `styles.area` after the editor
+        // mounted, so `aria-hidden` hid it from a screen reader and NOTHING hid it from
+        // the eye — an empty second box sat under the CodeMirror editor. Once `Editor`
+        // has loaded the textarea is only the value carrier, so it takes the editor's
+        // visually-hidden class instead — exactly `FormulaField`'s arrangement, and
+        // standalone (never combined with `styles.area`) for the reason that one gives.
+        className={Editor ? editorStyles.model : styles.area}
         // A phone keyboard that capitalises `Close` produces a name Pine does not
         // declare either — same reasoning as `FormulaField`.
         spellCheck={false}
@@ -1615,7 +1644,8 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
  */
 export function ImportBox({
   onPick, disabled = false, initialSource = '', dialect = 'auto', onSourceChange = null,
-  onImportTelemetry = null, sym = null, tf = null, savedRow = null,
+  onImportTelemetry = null, sym = null, tf = null, savedRow = null, onStatusHeadline = null,
+  lineJumpRef = null,
 }) {
   return (
     <PasteBox
@@ -1623,6 +1653,8 @@ export function ImportBox({
       disabled={disabled}
       initialSource={initialSource}
       dialect={dialect}
+      onStatusHeadline={onStatusHeadline}
+      lineJumpRef={lineJumpRef}
       onSourceChange={onSourceChange}
       onImportTelemetry={onImportTelemetry}
       sym={sym}

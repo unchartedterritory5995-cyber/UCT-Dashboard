@@ -46,7 +46,8 @@ describe('the editor sends its pending edits before a file is exported (M-9)', (
     // straight to Export, inside the autosave window
     fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))   // K2 (D-3): the file doors are in the panel
     fireEvent.click(screen.getByRole('button', { name: /^export/i }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'JSON' }))
+    // Simplify pass 2: the formats are a chunk fetched on idle or at the press (export/NoteExportMenu.jsx).
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'JSON' }))
     await waitFor(() => expect(callsOf().some((c) => c.url.startsWith('/api/j2/export/notes/n1'))).toBe(true), { timeout: 4000 })
     const calls = callsOf()
     const save = calls.findIndex((c) => c.method === 'PUT' && c.url.startsWith('/api/j2/notes/n1') && c.body.includes('NVDA thesis, revised'))

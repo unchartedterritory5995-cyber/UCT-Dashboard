@@ -53,7 +53,8 @@ function targetsOf(f) {
 }
 
 describe('every walkthrough points at a real control', () => {
-  for (const f of GUIDE_FEATURES) {
+  // the named-control catalog has its own rail, which also reads each control's accessible name (agentGuideControls.test.js)
+  for (const f of GUIDE_FEATURES.filter(x => x.id !== 'control')) {
     it(`${f.id}: each target is rendered by the product`, () => {
       for (let t of targetsOf(f)) {
         if (typeof t === 'object' && t.widgetType) {

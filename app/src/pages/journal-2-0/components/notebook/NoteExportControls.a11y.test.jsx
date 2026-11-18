@@ -1,12 +1,15 @@
 // The editor's Export menu through 8A's axe harness (wave 8, lane 8C, C4) -- the rail file
 // a11y/notebookSurfaces.js names for this surface. Harness: a11y/axeHarness.js
 // (`expectNoAxeViolations`, component level), both states: closed, and open on the menu.
-import { describe, it, expect, vi } from 'vitest'
+import { beforeAll, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import NoteExportControls from './NoteExportControls'
+import NoteExportControls, { exportMenuModule } from './NoteExportControls'
 import { expectNoAxeViolations } from '../../a11y/axeHarness'
 
 vi.mock('../../lib/exportNote', () => ({ exportNoteAsPng: vi.fn(), printNote: vi.fn() }))
+
+// Simplify pass 2: the menu is a held chunk (export/NoteExportMenu.jsx); read with it in hand.
+beforeAll(async () => { await exportMenuModule.warm() })
 
 describe('NoteExportControls -- axe', () => {
   it('closed: zero violations', async () => {
@@ -21,7 +24,8 @@ describe('NoteExportControls -- axe', () => {
       <NoteExportControls noteId="n1" title="Plan" columnRef={{ current: null }} onMessage={() => {}} />,
     )
     fireEvent.click(screen.getByRole('button', { name: /^export/i }))
-    expect(screen.getAllByRole('menuitem')).toHaveLength(4)
+    // Notebook simplify, Task 4: PNG and Print are the menu's first two items, above the four formats.
+    expect(screen.getAllByRole('menuitem')).toHaveLength(6)
     await expectNoAxeViolations(container)
   })
 })

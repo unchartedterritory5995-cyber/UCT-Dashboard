@@ -261,16 +261,105 @@ def test_the_series_read_walks_the_ticker_session_index(history):
     _store({"2026-11-05": 70, "2026-11-06": 71})
     conn = sqlite3.connect(history)
     try:
-        plan = " ".join(str(r[-1]) for r in conn.execute(
-            f"EXPLAIN QUERY PLAN SELECT session, ibd FROM {rs_history.TABLE} WHERE ticker = ? AND session <= ? "
-            "ORDER BY session DESC LIMIT ?", ("NVDA", "2026-11-06", 50)).fetchall())
+        # The statements the reader RUNS (one spelling, in rs_history): the walk, and the same
+        # walk aggregated into one result row. Both must be the bounded index walk.
+        plans = {}
+        for name, sql, args in (
+                ("walk", rs_history.rating_series_sql(True), ("NVDA", "2026-11-06", 50)),
+                ("walk, newest", rs_history.rating_series_sql(False), ("NVDA", 50)),
+                ("one step", rs_history.rating_series_one_step_sql(True), ("NVDA", "2026-11-06", 50)),
+                ("one step, newest", rs_history.rating_series_one_step_sql(False), ("NVDA", 50))):
+            plans[name] = " ".join(str(r[-1]) for r in conn.execute("EXPLAIN QUERY PLAN " + sql, args).fetchall())
     finally:
         conn.close()
-    assert "idx_rsh_ticker" in plan and "TEMP B-TREE" not in plan, plan
+    for name, plan in plans.items():
+        assert "idx_rsh_ticker" in plan and "TEMP B-TREE" not in plan, (name, plan)
     assert rs_history.rating_series("nvda", upto="2026-11-05") == [("2026-11-05", 70)]
     assert rs_history.rating_series("NVDA", limit=1) == [("2026-11-06", 71)]
     assert rs_history.rating_series("NVDA", limit=10 ** 9) == [("2026-11-05", 70), ("2026-11-06", 71)]
     assert rs_history.rating_series("", limit=5) == [] and rs_history.rating_series("NVDA", limit=0) == []
+
+
+def _spy_connect(monkeypatch):
+    """Every statement `rating_series` runs, and how many result rows python took from each."""
+    seen = []
+    real = rs_history.snapshot_db.connect
+
+    class Cur:
+        def __init__(self, cur, sql):
+            self.cur, self.sql = cur, sql
+
+        def fetchone(self):
+            row = self.cur.fetchone()
+            seen.append((self.sql, 0 if row is None else 1))
+            return row
+
+        def fetchall(self):
+            rows = self.cur.fetchall()
+            seen.append((self.sql, len(rows)))
+            return rows
+
+    class Conn:
+        def __init__(self):
+            self.conn = real()
+
+        def execute(self, sql, params=()):
+            return Cur(self.conn.execute(sql, params), sql)
+
+        def close(self):
+            self.conn.close()
+    monkeypatch.setattr(rs_history.snapshot_db, "connect", Conn)
+    return seen
+
+
+def test_the_series_comes_back_in_one_result_row_however_long_it_is(history, monkeypatch):
+    """⚡ 2026-11-13: python took one row PER SESSION from sqlite (up to 2,520), re-taking the
+    GIL after each: `rs-rating` 0.5 to 1.8 s on the web pod. The walk is aggregated inside
+    sqlite now; what python takes is ONE row."""
+    days = _weekdays(400)
+    stored = {str(t): (None if i % 37 == 5 else 1 + (i * 7) % 99) for i, t in enumerate(days)}
+    _store(stored)
+    want = [(f"{str(t)[:4]}-{str(t)[4:6]}-{str(t)[6:]}", stored[str(t)]) for t in days]
+    seen = _spy_connect(monkeypatch)
+    got = rs_history.rating_series("NVDA", limit=10 ** 9)
+    assert got == want, "oldest first, a short-rated session kept as a gap"
+    series_reads = [(sql, n) for sql, n in seen if rs_history.TABLE in sql and "sqlite_master" not in sql]
+    assert series_reads == [(rs_history.rating_series_one_step_sql(False), 1)]
+    # the same answers through the bounded form and a small limit
+    assert rs_history.rating_series("NVDA", upto=str(days[-3]), limit=5) == want[-7:-2]
+    assert rs_history.rating_series("NVDA", limit=3) == want[-3:]
+    assert rs_history.rating_series("ZZZZ", limit=10) == []
+
+
+def test_a_rating_that_is_not_a_stored_integer_is_read_row_by_row_never_through_text(history, monkeypatch):
+    _store({"2026-11-05": 70, "2026-11-06": 71})
+    conn = sqlite3.connect(history)
+    conn.execute(f"UPDATE {rs_history.TABLE} SET ibd = 70.9 WHERE session = '2026-11-05'")
+    conn.commit()
+    conn.close()
+    seen = _spy_connect(monkeypatch)
+    assert rs_history.rating_series("NVDA", limit=10) == [("2026-11-05", 70), ("2026-11-06", 71)]
+    series_reads = [(sql, n) for sql, n in seen if rs_history.TABLE in sql and "sqlite_master" not in sql]
+    assert series_reads == [(rs_history.rating_series_one_step_sql(False), 1), (rs_history.rating_series_sql(False), 2)]
+
+
+def test_a_sqlite_without_json_functions_still_answers_row_by_row(history, monkeypatch):
+    _store({"2026-11-05": 70, "2026-11-06": 71})
+    real = rs_history.snapshot_db.connect
+
+    class NoJson:
+        def __init__(self):
+            self.conn = real()
+
+        def execute(self, sql, params=()):
+            if "json_group_array" in sql:
+                raise sqlite3.OperationalError("no such function: json_group_array")
+            return self.conn.execute(sql, params)
+
+        def close(self):
+            self.conn.close()
+    monkeypatch.setattr(rs_history.snapshot_db, "connect", NoJson)
+    assert rs_history.rating_series("NVDA", limit=10) == [("2026-11-05", 70), ("2026-11-06", 71)]
 
 
 def test_the_read_is_bounded_by_the_chart_window(v4_row, history, monkeypatch):

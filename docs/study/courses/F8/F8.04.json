@@ -1,0 +1,1987 @@
+{
+ "unit": "F8.04",
+ "track": "F8",
+ "title": "Tilt and revenge",
+ "teaches": "Tilt is emotion taking over your trade decisions after losses, mistakes or bad breaks; revenge trading is sizing up and trading more to win it back fast; you stop both with rules set before the session: no new trades on a day you're tired, angry or distracted, the same size rules on every trade, and our monthly loss limit.",
+ "skills": [
+  {
+   "id": "psych.tilt",
+   "title": "Tilt and revenge"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stock Market Circuit Breakers (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/stock-market-circuit-breakers",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Thinking of Day Trading? Know the Risks. (Lori Schock, Director's Take)",
+   "url": "https://www.investor.gov/additional-resources/spotlight/formerdirectorlorischock-directors-take/thinking-day-trading-know-risks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Investor Alert: Thinking About Investing in the Latest Hot Stock? Understand the Significant Risks of Short-Term Trading Based on Social Media (2021-01-29)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-alerts/investor-alert-thinking-about-investing-latest-hot-stock-understand-significant-risks-short-term",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Investor Bulletin: Behavioral Patterns of U.S. Investors (2014-06-16)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-72",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Overtrading Explained: Causes, Types, and Prevention Methods (James Chen, CMT, updated 2026-07-01)",
+   "url": "https://www.investopedia.com/terms/o/overtrading.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Trading Psychology (Kerron Blandin, updated 2026-07-19)",
+   "url": "https://www.investopedia.com/terms/t/trading-psychology.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Breaking Bad Trade Behaviors (Kevin Horner, 2025-10-01)",
+   "url": "https://www.schwab.com/learn/story/breaking-bad-trade-behaviors",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Trading Psychology: Recovering From Big Losses (Henry Hoenig, 2026-02-10)",
+   "url": "https://www.schwab.com/learn/story/trading-psychology-recovering-from-big-losses",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "CIBC Investor's Edge",
+   "title": "Rebound trades: The risks of revenge trading and doubling down (2025-02-03)",
+   "url": "https://www.investorsedge.cibc.com/en/learn/investing/portfolio-strategies/rebound-trades.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "The investor-education centre of CIBC's online brokerage (a broker education centre, as the contract's Tier 2 allows), a dated article under the bank's own name."
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Jared Tendler (author's site)",
+   "title": "Surprising Facts About Tilt (2023-05-08)",
+   "url": "https://jaredtendler.com/surprising-facts-about-tilt/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Jared Tendler, MS, LMHC, author of The Mental Game of Trading and The Mental Game of Poker, coaches poker players and traders. Named, dated posts on his own site, cited only for his own framework and named as his."
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Jared Tendler (author's site)",
+   "title": "Hating to Lose (2025-11-10)",
+   "url": "https://jaredtendler.com/hating-to-lose/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same author as s10: a named, dated post on his own site."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Jared Tendler (author's site)",
+   "title": "The Malfunctioning Mind (2024-08-05)",
+   "url": "https://jaredtendler.com/the-malfunctioning-mind/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same author as s10. The post is his model of how strong emotion degrades decisions (he ties it to the Yerkes-Dodson law); the file states it as his, and keys use it only together with the peer-reviewed tilt definitions (s19, s20)."
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Jared Tendler (author's site)",
+   "title": "You Can't Stop a Problem You Can't See (2021-04-14)",
+   "url": "https://jaredtendler.com/you-cant-stop-a-problem-you-cant-see/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same author as s10: a named, dated post on his own site."
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Jared Tendler (author's site)",
+   "title": "Troubleshooting Your Real-Time Strategy (2023-07-10)",
+   "url": "https://jaredtendler.com/troubleshooting-your-real-time-strategy/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same author as s10: a named, dated post on his own site."
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Jared Tendler (author's site)",
+   "title": "Urge to Make it Happen Now (2025-09-08)",
+   "url": "https://jaredtendler.com/urge-to-make-it-happen-now/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same author as s10: a named, dated post on his own site."
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "The Journal of Finance (American Finance Association)",
+   "title": "Coval and Shumway, 'Do Behavioral Biases Affect Prices?', vol. 60(1), 2005: abstract on RePEc IDEAS",
+   "url": "https://ideas.repec.org/a/bla/jfinan/v60y2005i1p1-34.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed paper in a leading finance journal; the abstract is indexed by RePEc, the economics bibliographic database."
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Management Science (INFORMS)",
+   "title": "Thaler and Johnson, 'Gambling with the House Money and Trying to Break Even', vol. 36(6), 1990: abstract on RePEc IDEAS",
+   "url": "https://ideas.repec.org/a/inm/ormnsc/v36y1990i6p643-660.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed paper by Richard Thaler (2017 Nobel laureate in economics) and Eric Johnson; the abstract is indexed by RePEc."
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Journal of Financial and Quantitative Analysis",
+   "title": "O'Connell and Teo, 'Institutional Investors, Past Performance, and Dynamic Loss Aversion', vol. 44(1), 2009: abstract on RePEc IDEAS",
+   "url": "https://ideas.repec.org/a/cup/jfinqa/v44y2009i01p155-188_09.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed paper (Cambridge University Press) built on a proprietary database of institutional currency trades; the abstract is indexed by RePEc."
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "International Gambling Studies (Taylor & Francis)",
+   "title": "Palomäki, Laakasuo and Salmela, ''This is just so unfair!': A qualitative analysis of loss-induced emotions and tilting in on-line poker', vol. 13(2), 2013: abstract on RePEc IDEAS",
+   "url": "https://ideas.repec.org/a/taf/intgms/v13y2013i2p255-270.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "A peer-reviewed study (60 players' written accounts of big losses) from the research group that has published most on tilt; the abstract is indexed by RePEc."
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 4: the owner's own drawdown ladder (quoted, 2026-07-19)",
+   "url": "repo:docs/study/sizing_rule.md#4-ceilings-and-the-drawdown-ladder",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "Market-wide circuit breakers provide for cross-market trading halts during a severe market decline as measured by a single-day decrease in the S&P 500 Index.",
+   "claim": "The stock market's own circuit breakers halt trading after a big one-day drop in the S&P 500."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "A cross-market trading halt can be triggered at three circuit breaker thresholds—7% (Level 1), 13% (Level 2), and 20% (Level 3).",
+   "claim": "The market-wide triggers are one-day S&P 500 drops of 7%, 13% and 20%."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "A market decline that triggers a Level 1 or Level 2 circuit breaker before 3:25 p.m. will halt market-wide trading for 15 minutes",
+   "claim": "A Level 1 or Level 2 drop before 3:25 p.m. halts all trading for 15 minutes."
+  },
+  {
+   "id": "f05",
+   "source": "s2",
+   "quote": "It can be especially difficult to check your emotions at the door when making investment decisions in this kind of environment, which may lead to some costly financial mistakes.",
+   "claim": "In fast trading it is hard to keep emotions out of decisions, and that can lead to costly mistakes."
+  },
+  {
+   "id": "f07",
+   "source": "s3",
+   "quote": "Never feel pressured to invest right away.",
+   "claim": "Feeling you must buy right now is a warning sign, not a reason."
+  },
+  {
+   "id": "f08",
+   "source": "s4",
+   "quote": "The disposition effect is the tendency of an investor to hold on to losing investments too long and sell winning investments too soon.",
+   "claim": "The disposition effect is holding losers too long and selling winners too soon."
+  },
+  {
+   "id": "f09",
+   "source": "s5",
+   "quote": "Individual traders usually overtrade after suffering a significant loss or a series of smaller losses in a long losing streak.",
+   "claim": "Overtrading usually follows a big loss or a run of smaller ones."
+  },
+  {
+   "id": "f10",
+   "source": "s5",
+   "quote": "To recoup their capital, or to seek “revenge” on the market after a string of losing trades, they may try to make up profits wherever they can, usually by increasing the size and frequency of their trades.",
+   "claim": "Revenge trading usually means raising both the size and the number of trades to win losses back."
+  },
+  {
+   "id": "f11",
+   "source": "s5",
+   "quote": "Take a break: Overtrading may be caused by investors feeling as though they have to make a trade. This often leads to suboptimal trades that end in a loss.",
+   "claim": "Feeling you have to trade leads to poor trades that often lose; a break is one fix."
+  },
+  {
+   "id": "f12",
+   "source": "s5",
+   "quote": "will have rules about how much risk they can take (including how many trades are appropriate for them to make). Once they have reached this limit, to continue trading is to do so unsoundly.",
+   "claim": "Traders set limits on risk and on the number of trades; trading past the limit is unsound."
+  },
+  {
+   "id": "f13",
+   "source": "s5",
+   "quote": "Craving action, traders often develop a “shotgun blast” approach, buying anything and everything they think might be good. A telltale sign is multiple small positions open concurrently, none of which the trader has a specific plan for.",
+   "claim": "A burst of positions with no plan behind any of them is a telltale sign of overtrading."
+  },
+  {
+   "id": "f14",
+   "source": "s6",
+   "quote": "The emotional gap refers to decision-making based on extreme emotions or emotional strains, such as anxiety, anger, fear, or excitement. Emotions are often a key reason why people make irrational choices.",
+   "claim": "Strong emotions such as anger are a key reason people make irrational choices."
+  },
+  {
+   "id": "f15",
+   "source": "s7",
+   "quote": "Losing streaks can happen to the best of us, but sometimes a bout of bad luck can actually reflect a problem with our trading strategy.",
+   "claim": "Losing streaks happen to good traders; sometimes a streak also points to a flaw worth checking."
+  },
+  {
+   "id": "f16",
+   "source": "s7",
+   "quote": "As a trader works to figure out what needs fixing, there's no harm in reducing the size of your trades. Once your results get back on track, you can increase your risk-taking.",
+   "claim": "After a string of losses, trade smaller while you review, and size back up once results recover."
+  },
+  {
+   "id": "f17",
+   "source": "s7",
+   "quote": "If a trader has trouble distancing their emotions from their trading decisions, it's never a bad idea to slow down or even take a break. Cooler heads usually prevail, and trading is no exception.",
+   "claim": "When emotions are steering your trades, slow down or take a break."
+  },
+  {
+   "id": "f18",
+   "source": "s8",
+   "quote": "Even a modest losing streak can mess with a trader's head, interfering with their execution and ultimately their profit-loss statement.",
+   "claim": "Even a small losing streak can hurt your execution and your P&L."
+  },
+  {
+   "id": "f19",
+   "source": "s8",
+   "quote": "which helps explain the downward spiral of “revenge trading” that fuels many catastrophic trading blowups.",
+   "claim": "Schwab ties revenge trading to many account blowups."
+  },
+  {
+   "id": "f20",
+   "source": "s8",
+   "quote": "The first thing to do is step away from the market. This can be hard. Many traders feel a strong urge to jump right back in and start to regain their footing.",
+   "claim": "After a big loss, step away first, even though the urge to jump back in is strong."
+  },
+  {
+   "id": "f21",
+   "source": "s8",
+   "quote": "Reduce position size. Less money at risk equals less pressure and clearer thinking. Traders can then increase position size as they demonstrate a new track record of executing their system.",
+   "claim": "Come back smaller, and add size back as you show you are executing your system again."
+  },
+  {
+   "id": "f22",
+   "source": "s8",
+   "quote": "Many professional trading systems set stops automatically for losses and profits to eliminate second-guessing in the heat of the moment.",
+   "claim": "Pros automate exits so they don't have to decide in the emotional moment."
+  },
+  {
+   "id": "f23",
+   "source": "s8",
+   "quote": "They can also implement “circuit breakers” to prevent additional trading after a certain level of loss in a day.",
+   "claim": "A trading circuit breaker stops more trading once the day's loss reaches a set level."
+  },
+  {
+   "id": "f24",
+   "source": "s8",
+   "quote": "Traders should at least have written “if, then” plans to help limit emotion-based actions and prevent additional big losses and should consciously commit to these plans before every trading session.",
+   "claim": "Write if-then plans and commit to them before each session."
+  },
+  {
+   "id": "f25",
+   "source": "s8",
+   "quote": "For example, they could pledge to step away for the day if they lose a certain amount of money or take 15 minutes if they feel an urge to break a trading rule.",
+   "claim": "Example rules: done for the day at a set loss, and a 15-minute break when you feel the urge to break a rule."
+  },
+  {
+   "id": "f26",
+   "source": "s8",
+   "quote": "The practice may help traders recognize and acknowledge market triggers as they occur and then take steps to avoid or counteract the emotion-based behaviors that typically follow.",
+   "claim": "Recognising a trigger as it happens is what lets you head off the emotional trade that follows."
+  },
+  {
+   "id": "f27",
+   "source": "s8",
+   "quote": "The lingering effects of a blowup can hurt a trader's decision-making by slowing down thinking and hindering deeper thought.",
+   "claim": "The effects of a big loss linger and can keep hurting your decisions afterward."
+  },
+  {
+   "id": "f28",
+   "source": "s9",
+   "quote": "Revenge trading: Instead of reflecting on the loss and building a strong investment plan, the investor is motivated to take action for a quick gain.",
+   "claim": "Revenge trading is acting for a quick gain instead of reflecting on the loss."
+  },
+  {
+   "id": "f29",
+   "source": "s9",
+   "quote": "This can easily backfire, especially if the investor selects stocks they have not carefully considered in terms of their investment knowledge, time horizon and risk tolerance. In some cases, the second loss can be even larger than the first.",
+   "claim": "Revenge picks are often stocks you haven't studied, and the second loss can be bigger than the first."
+  },
+  {
+   "id": "f30",
+   "source": "s9",
+   "quote": "I’m not just going to sit here and accept these losses, the investor says. I’m going to make it all back, and then some.",
+   "claim": "The revenge mindset: refuse to accept the loss and try to make it all back."
+  },
+  {
+   "id": "f31",
+   "source": "s10",
+   "quote": "Tilt is essentially a more fun way of saying you have a problem with anger in performance.",
+   "claim": "Tendler: tilt is a problem with anger while you perform."
+  },
+  {
+   "id": "f32",
+   "source": "s10",
+   "quote": "Anger blinds you from reason, and you feel justified in taking overly aggressive lines vs. an opponent who is constantly re-raising you, or jumping back into a position after getting stopped out for the second time.",
+   "claim": "Tendler: anger makes overly aggressive moves, like jumping back in after a second stop-out, feel justified."
+  },
+  {
+   "id": "f33",
+   "source": "s10",
+   "quote": "I identified seven different types of tilt: Run Bad Tilt Hate-losing Tilt Injustice Tilt Mistake Tilt Revenge Tilt Entitlement Tilt Desperation Tilt",
+   "claim": "Tendler's poker book named seven kinds of tilt, including injustice tilt and revenge tilt."
+  },
+  {
+   "id": "f34",
+   "source": "s10",
+   "quote": "In The Mental Game of Trading I took the first and last out of that list to narrow it down to five.",
+   "claim": "His trading book keeps five: hate-losing, injustice, mistake, revenge and entitlement tilt."
+  },
+  {
+   "id": "f35",
+   "source": "s10",
+   "quote": "For you, Tilt can show up in the opposite way, a very subtle seething, where irritation or frustration can cause you to shut down – you become distracted, quiet, disinterested, or bored.",
+   "claim": "Tilt can be quiet: irritation that shows up as distraction, silence or boredom."
+  },
+  {
+   "id": "f36",
+   "source": "s10",
+   "quote": "the anger you feel when in a drawdown or downswing is a consequence of a large amount of Tilt-inducing triggers happening in such a short amount of time that your mind can’t recover.",
+   "claim": "Many small triggers packed into a short time can add up to tilt."
+  },
+  {
+   "id": "f37",
+   "source": "s10",
+   "quote": "So Tilt carries over day-over-day, making it easier and easier for you to Tilt.",
+   "claim": "Tilt can carry over from one day to the next."
+  },
+  {
+   "id": "f38",
+   "source": "s10",
+   "quote": "He coaches professional athletes, world champion poker players and financial traders.",
+   "claim": "Tendler coaches athletes, poker players and traders."
+  },
+  {
+   "id": "f39",
+   "source": "s11",
+   "quote": "This isn’t the worst problem to have if they put firm risk management controls in place about the number of trades/day, or a daily loss-limit, and the market provides plenty of opportunities.",
+   "claim": "Tendler: firm controls on trades per day, or a daily loss limit, keep the damage in check."
+  },
+  {
+   "id": "f40",
+   "source": "s11",
+   "quote": "a problem that’s rarely just about losing, but about how your severe reaction to losing ends up costing you more.",
+   "claim": "The damage comes from your reaction to losing, more than from the loss itself."
+  },
+  {
+   "id": "f41",
+   "source": "s11",
+   "quote": "Yes, money is the scoreboard in trading, but it is not reliable for measuring performance in the short-term.",
+   "claim": "Short-term P&L is not a reliable measure of how well you are trading."
+  },
+  {
+   "id": "f42",
+   "source": "s12",
+   "quote": "when the emotional system becomes overactive, it shuts down higher brain functions, limiting your ability to process information, make correct decisions, translate your thoughts into action, access things you’ve learned recently, and even control your emotions.",
+   "claim": "Tendler: when emotion runs too high, it limits your ability to make correct decisions."
+  },
+  {
+   "id": "f43",
+   "source": "s12",
+   "quote": "You’re aware that what you’re doing is wrong, but you can’t stop yourself; it’s like you’re compelled to take excessive risks.",
+   "claim": "On tilt you can know a trade is wrong and still feel compelled to take it."
+  },
+  {
+   "id": "f44",
+   "source": "s12",
+   "quote": "You must catch the rise of emotion early, when you still have the mental strength to control them.",
+   "claim": "Catch the emotion early, while you can still control it."
+  },
+  {
+   "id": "f45",
+   "source": "s13",
+   "quote": "Catching it early is critical. When emotions get too intense, the mind isn’t powerful enough to stop them and mistakes become inevitable. Seeing it afterwards, is like seeing a trade you missed.",
+   "claim": "Once emotion gets too intense you can't stop it, so it has to be caught early."
+  },
+  {
+   "id": "f46",
+   "source": "s14",
+   "quote": "Step 1: Recognizing that your problems have been triggered Step 2: Disrupting the momentum of those emotions Step 3: Injecting Logic Step 4: Using a Strategic Reminder",
+   "claim": "Tendler's real-time strategy: recognise the trigger, disrupt the momentum, inject logic, use a reminder."
+  },
+  {
+   "id": "f47",
+   "source": "s15",
+   "quote": "Once you scale up without impairing execution, consolidate that expansion of skill before increasing size again.",
+   "claim": "Raise size only while execution holds, and settle in before the next step up."
+  },
+  {
+   "id": "f48",
+   "source": "s16",
+   "quote": "This paper documents strong evidence for behavioral biases among Chicago Board of Trade proprietary traders",
+   "claim": "The study looked at professional traders at the Chicago Board of Trade."
+  },
+  {
+   "id": "f49",
+   "source": "s16",
+   "quote": "Our traders appear highly loss-averse, regularly assuming above-average afternoon risk to recover from morning losses.",
+   "claim": "Those pros regularly took above-average risk in the afternoon to win back morning losses."
+  },
+  {
+   "id": "f50",
+   "source": "s16",
+   "quote": "losing traders actively purchase contracts at higher prices and sell contracts at lower prices than those that prevailed previously.",
+   "claim": "Traders chasing a morning loss bought at higher prices and sold at lower prices than just before."
+  },
+  {
+   "id": "f51",
+   "source": "s16",
+   "quote": "Prices set by loss-averse traders are reversed significantly more quickly than those set by unbiased traders.",
+   "claim": "Prices set by loss-chasing traders reversed faster than prices set by others."
+  },
+  {
+   "id": "f52",
+   "source": "s17",
+   "quote": "“break-even effects” (in the presence of prior losses, outcomes which offer a chance to break even are especially attractive)",
+   "claim": "Break-even effect: after losses, a chance to get back to even looks especially attractive."
+  },
+  {
+   "id": "f53",
+   "source": "s17",
+   "quote": "a “house money effect” (increased risk seeking in the presence of a prior gain)",
+   "claim": "House money effect: more risk taking after a gain."
+  },
+  {
+   "id": "f54",
+   "source": "s18",
+   "quote": "Instead, institutions aggressively reduce risk following losses and mildly increase risk following gains. This asymmetry is more pronounced later in the calendar year and among older and more experienced funds.",
+   "claim": "In their currency trades, large institutions cut risk hard after losses and added only a little after gains, more so in older, more experienced funds."
+  },
+  {
+   "id": "f55",
+   "source": "s19",
+   "quote": "Detrimental out-of-control poker decision-making due to negative emotions is known as tilting.",
+   "claim": "Researchers define tilt as out-of-control decisions driven by negative emotions."
+  },
+  {
+   "id": "f56",
+   "source": "s19",
+   "quote": "Tilting, in the narratives, was often instigated by dissociative feelings ('unreality', disbelief) following a significant monetary loss.",
+   "claim": "Tilt often started with disbelief right after a big loss, before any anger."
+  },
+  {
+   "id": "f57",
+   "source": "s19",
+   "quote": "Thereafter, moral indignation was experienced, followed by chasing behaviour, in an attempt to restore a 'fair balance' between wins and losses.",
+   "claim": "Then came a sense of unfairness, and players chased their losses to even the score."
+  },
+  {
+   "id": "f58",
+   "source": "s19",
+   "quote": "It was also observed that experienced players, as compared to inexperienced ones, exhibited in their narratives a more mature disposition towards encountering 'bad luck', and losing in general.",
+   "claim": "Experienced players handled bad luck and losing more maturely than beginners."
+  },
+  {
+   "id": "f59",
+   "source": "s10",
+   "quote": "You may have a Tilt problem and have no idea it’s Tilt",
+   "claim": "Tendler: you can have a tilt problem without knowing it's tilt."
+  },
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "After a 6% drawdown I immediately reduce to 10% max. After an 8% drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max.",
+   "claim": "The owner's ladder: max position 10% after a 6% drawdown, 8% after 8%, 5% after 10%."
+  },
+  {
+   "id": "f60",
+   "source": "s6",
+   "quote": "Regret may cause a trader to get into a trade after initially missing out on it because the stock moved too fast.",
+   "claim": "Regret can pull a trader into a stock they missed because it moved too fast."
+  },
+  {
+   "id": "h02",
+   "source": "h2",
+   "quote": "B15. No daily loss limit. (\"15, no.\")",
+   "claim": "Our rules set no daily loss limit."
+  },
+  {
+   "id": "h03",
+   "source": "h2",
+   "quote": "No weekly loss limit; a monthly loss limit of 8%: at 8% down in a calendar month (from the month's starting value), no new trades for the rest of the month.",
+   "claim": "Our loss limit is monthly: 8% down in a calendar month means no new trades until the month ends."
+  },
+  {
+   "id": "h04",
+   "source": "h2",
+   "quote": "Tired, sick, angry or distracted: no new trades that day.",
+   "claim": "Our rule: tired, sick, angry or distracted means no new trades that day."
+  },
+  {
+   "id": "h05",
+   "source": "h2",
+   "quote": "On the way down: under 6% down, the normal cap (A7); 6% down, max position 10%; 8% down, 8%; 10% down, 5%; 15% down, no new trades (B13).",
+   "claim": "Our drawdown ladder: normal cap under 6% down, then 10% at 6% down, 8% at 8%, 5% at 10%, no new trades at 15%."
+  },
+  {
+   "id": "h06",
+   "source": "h2",
+   "quote": "A7. Max position 40% of the account",
+   "claim": "Our normal cap on one position is 40% of the account."
+  },
+  {
+   "id": "h07",
+   "source": "h2",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "We trade only stocks priced at $10 or more with at least $20 million traded a day."
+  },
+  {
+   "id": "h08",
+   "source": "h2",
+   "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
+   "claim": "We try the same stock at most 3 times a week and 6 times a month."
+  },
+  {
+   "id": "h09",
+   "source": "h2",
+   "quote": "Each day, a focus list of the 5 to 10 best setups; the rest are ignored.",
+   "claim": "Each day we keep a focus list of the 5 to 10 best setups and ignore the rest."
+  },
+  {
+   "id": "h10",
+   "source": "h2",
+   "quote": "A drawdown is how far the account is below its highest value, open trades included, checked at least weekly.",
+   "claim": "A drawdown is measured from the account's highest value, open trades included."
+  },
+  {
+   "id": "h11",
+   "source": "h2",
+   "quote": "On the way back up: one rung up each time the account wins back half of the drawdown; the normal cap again once the account is within 5% of its peak (B14).",
+   "claim": "Size comes back one rung each time the account wins back half the drawdown, and fully within 5% of the peak."
+  },
+  {
+   "id": "h12",
+   "source": "h2",
+   "quote": "A1. Risk 0.25% to 2% of the account on a trade, picked by setup quality, recent results, the market and your edge.",
+   "claim": "Our risk per trade runs from 0.25% to 2%, picked partly by recent results."
+  },
+  {
+   "id": "f61",
+   "source": "s6",
+   "quote": "Overconfidence is the tendency to overestimate one’s own abilities, skills and knowledge.",
+   "claim": "Overconfidence means overestimating your own skill and knowledge."
+  },
+  {
+   "id": "f62",
+   "source": "s10",
+   "quote": "Another one to watch out for is Entitlement Tilt, which is caused by a belief that your prior work, knowledge, and experience means that you deserve to win.",
+   "claim": "Tendler: one kind of tilt comes from believing your work, knowledge and experience mean you deserve to win."
+  },
+  {
+   "id": "f63",
+   "source": "s8",
+   "quote": "Ultimately, trading is a marathon, not a sprint, and even the most seasoned runners trip up occasionally.",
+   "claim": "Schwab: even the most seasoned traders trip up now and then."
+  },
+  {
+   "id": "h13",
+   "source": "h2",
+   "quote": "B17. No losing-streak rule: size is cut only by the drawdown ladder, in percent (A8, B13, B14).",
+   "claim": "Our rules have no losing-streak rule: size is cut only by the drawdown ladder."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "What tilt is",
+   "steps": [
+    "Tilt's a poker word. A loss gets under your skin, and from there the emotion's making your calls.",
+    "Jared Tendler coaches poker players and traders. He names five kinds: hating to lose, mistakes, injustice, revenge and entitlement.",
+    "Revenge is behind lots of blowups. You size up, trade more to win it back, and the next loss can be bigger."
+   ],
+   "facts": [
+    "f55",
+    "f31",
+    "f38",
+    "f33",
+    "f34",
+    "f10",
+    "f29",
+    "f19"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Your circuit breaker",
+   "steps": [
+    "The market has circuit breakers. If the S&P 500 drops 7% before 3:25 p.m., everything halts for 15 minutes.",
+    "Build your own before the session, while you're calm. Once tilt builds, your head can't stop it. The rule has to.",
+    "Ours: no daily loss limit. But down 8% in a calendar month, no new trades for the rest of it.",
+    "Tired, angry or distracted, no new trades that day. A 15-minute break when the urge to break a rule hits works too."
+   ],
+   "facts": [
+    "f01",
+    "f02",
+    "f03",
+    "f23",
+    "f24",
+    "f25",
+    "f45",
+    "h02",
+    "h03",
+    "h04"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "After a run of losses",
+   "steps": [
+    "Losing streaks hit the best traders. Even a small one can get in your head and mess with your execution.",
+    "After a big loss, step away first. The urge to jump right back in is strong. Let it pass.",
+    "No streak rule for us. Only drawdown cuts size: down 6%, max position 10%. Down 8%, max 8%. Down 10%, max 5%."
+   ],
+   "facts": [
+    "f15",
+    "f18",
+    "f20",
+    "f21",
+    "f16",
+    "h01",
+    "h13"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "psych.tilt",
+   "rung": 1,
+   "format": "mcq",
+   "term": "tilt",
+   "q": "Your buddy texts you he's on tilt after a rough morning. What's he telling you?",
+   "choices": [
+    "Emotion's making his calls",
+    "He's in a long losing streak",
+    "He hit his monthly loss limit",
+    "He's trading bigger than usual"
+   ],
+   "answer": "Emotion's making his calls",
+   "why": "Emotion's making his calls. Tilt is a poker word. A loss or a bad break gets under your skin, and from there the feeling picks the trades, not the plan. Notice the loss itself isn't tilt. The loss is already paid for. Tilt is what it does to the next decision, and the one after that. That's why we watch for it. One stop is a cost of doing business. Tilt is what turns it into a bad day.",
+   "lesson_line": "Tilt isn't the loss. It's what the loss does to your next decision.",
+   "facts": [
+    "f55",
+    "f31",
+    "f14",
+    "f05",
+    "f15",
+    "f56",
+    "f10",
+    "f39",
+    "h03"
+   ],
+   "wrong": {
+    "He's in a long losing streak": "A streak can set it off, but streaks hit good traders too. Tilt is the emotion that takes over after.",
+    "He hit his monthly loss limit": "That's the rule that stops tilt from costing more. Hitting it isn't tilt.",
+    "He's trading bigger than usual": "That's something tilt makes you do, a symptom. Tilt is the emotion behind it."
+   },
+   "simple": "Tilt means emotion is making your trade calls, most often right after a loss.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Researchers who studied poker players define tilt as out-of-control decisions driven by negative emotions. Jared Tendler, who coaches poker players and traders, puts it more bluntly: tilt is a problem with anger while you perform."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "psych.tilt",
+   "rung": 1,
+   "format": "tf",
+   "q": "Even a trader with years of experience can still go on tilt.",
+   "answer": "True",
+   "why": "True. Nobody's immune. Experience helps. In one study of poker players, the experienced ones handled bad luck better than beginners. But experience can feed its own kind of tilt. You've put in the hours, so you start to feel you deserve to win. When the market doesn't pay you, it stings harder. Seasoned traders trip up too. That's why your rules go in writing before the open, while you're calm. They don't care how long you've been doing this.",
+   "lesson_line": "Nobody is immune to tilt. Written rules protect you when experience doesn't.",
+   "facts": [
+    "f58",
+    "f62",
+    "f63",
+    "f24"
+   ],
+   "simple": "True, because seasoned traders trip up too, and feeling you deserve to win can even feed tilt.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "fixed before",
+     "statement turned around so the key is True: absolutes no longer always read False",
+     "key now rests on Tendler (s10, experience can feed tilt) and Schwab (s8, the most seasoned trip up), not on the inference 'calmer, not immune'"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Jared Tendler calls it entitlement tilt: a belief that your prior work, knowledge and experience means you deserve to win. Schwab makes the same point in plainer words: even the most seasoned traders trip up now and then."
+   }
+  },
+  {
+   "key": "q03",
+   "skill": "psych.tilt",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Revenge trading",
+   "q": "You get stopped out, then jump into another name with twice your normal size to make it back today. What's that called?",
+   "choices": [
+    "Revenge trading",
+    "Averaging down",
+    "Scaling into it",
+    "Hedging your risk"
+   ],
+   "answer": "Revenge trading",
+   "why": "Revenge trading. You're not trading a setup anymore, you're trading the loss. Bigger size, more trades, all to win it back fast. The problem is the next loss can be bigger than the first, because now you're at twice the size on a trade you never planned. So the trade right after a stop gets the same size and the same rules as every other trade. If it wasn't on your list, it isn't a trade.",
+   "lesson_line": "The trade right after a loss gets the same rules as every other trade.",
+   "facts": [
+    "f10",
+    "f30",
+    "f28",
+    "f33",
+    "f29"
+   ],
+   "wrong": {
+    "Averaging down": "That's adding to a loser you still hold. Here the loss is already booked, and you sized up a fresh trade to win it back.",
+    "Scaling into it": "That's building a position in planned pieces. Nothing here was planned. It's a reaction to the stop.",
+    "Hedging your risk": "A hedge cuts risk you already hold. Doubling your size on a new name adds risk."
+   },
+   "simple": "Revenge trading, because you sized up on a new trade just to win back the loss.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "CIBC describes revenge trading as acting for a quick gain instead of reflecting on the loss, and warns the second loss can be even larger than the first. Investopedia notes revenge traders raise both the size and the number of their trades. Jared Tendler lists revenge as one of his kinds of tilt."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "psych.tilt",
+   "rung": 2,
+   "format": "mcq",
+   "term": "The break-even effect",
+   "q": "You're red on the day, and a long shot that would get you back to even suddenly looks great. What's pulling at you?",
+   "choices": [
+    "The break-even effect",
+    "House money effect",
+    "Disposition effect",
+    "Overconfidence bias"
+   ],
+   "answer": "The break-even effect",
+   "why": "The break-even effect. After a loss, any chance to get back to even looks way better than it should. So a long shot you'd skip on a normal day starts to look smart. Ask yourself what changed. Not the chart. Just your P&L. Getting back to even is a feeling, not a setup. The mirror image is the house money effect: you're up, so you swing bigger. Both let the day's P&L pick your trades instead of the chart.",
+   "lesson_line": "Getting back to even is a feeling, not a setup.",
+   "facts": [
+    "f52",
+    "f53",
+    "f08",
+    "f61"
+   ],
+   "wrong": {
+    "House money effect": "That's the mirror image: taking more risk because you're up on the day.",
+    "Disposition effect": "That's holding losers too long and selling winners too soon. Nothing to do with chasing even.",
+    "Overconfidence bias": "That's thinking you're better than you are. This pull comes from being down, not from feeling sure."
+   },
+   "simple": "It's the break-even effect, because after losses a shot at getting back to even looks better than it is.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the effect's name rests on one source (Thaler and Johnson)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Richard Thaler and Eric Johnson named both effects. After prior losses, outcomes that offer a chance to break even are especially attractive. After a prior gain, people seek more risk, which they called the house money effect."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "psych.tilt",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the first step of Tendler's real-time strategy.",
+   "sentence": "Step 1: ___ that your problem has been triggered.",
+   "bank": [
+    "Recognize",
+    "Suppress",
+    "Ignore",
+    "Justify"
+   ],
+   "answer": "Recognize",
+   "why": "Recognize. Step 1 of Tendler's real-time strategy is recognizing that your problems have been triggered. Then you disrupt the momentum of the emotion, inject logic and use a strategic reminder. The order matters. Once emotion gets too intense, he says, the mind can't stop it, so you must see it early.",
+   "lesson_line": "Spot it early. The sooner you name it, the cheaper it is.",
+   "facts": [
+    "f46",
+    "f45",
+    "f26"
+   ],
+   "simple": "Recognize comes first, because you can't stop a feeling you haven't noticed yet.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the four steps are one author's framework (Tendler), named as his"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q06",
+   "skill": "psych.tilt",
+   "rung": 3,
+   "format": "tf",
+   "q": "After a loss you feel flat and bored, not angry. That means you're not on tilt.",
+   "answer": "False",
+   "why": "False. Anger is the loud kind of tilt. There's a quiet kind too. The irritation turns into distraction, silence or boredom, and you stop paying attention. You can have a tilt problem and not even know it's tilt. In a study of poker players, tilt often started with disbelief right after a big loss, before any anger showed up. So don't judge yourself by how mad you feel. Watch what you do: skipped checks, sloppy entries, trades you didn't plan.",
+   "lesson_line": "Quiet tilt still costs money. Watch what you do, not only how you feel.",
+   "facts": [
+    "f35",
+    "f59",
+    "f56",
+    "f14"
+   ],
+   "simple": "False, because tilt can be quiet, like feeling bored or tuned out, and you may not know it's tilt.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (quote trimmed, study named)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Jared Tendler describes tilt that shows up as a very subtle seething, where irritation makes you shut down and turn distracted, quiet, disinterested or bored. He adds that you may have a tilt problem and have no idea it's tilt."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "psych.tilt",
+   "rung": 3,
+   "format": "mcq",
+   "q": "After a stop-out you fire off trade after trade to win it back. Which of our rules stops that?",
+   "choices": [
+    "Rattled? No new trades that day",
+    "A tighter stop on every trade",
+    "A bigger watchlist for the day",
+    "A daily profit target to hit"
+   ],
+   "answer": "Rattled? No new trades that day",
+   "why": "No new trades that day. Tired, sick, angry or distracted, you're done. Revenge trading is anger doing the clicking. One more trade won't fix it. It just starts a burst of bad ones. Walk away, and the setups will still be there tomorrow. On a single name we also stop at 3 tries in a week and 6 in a month.",
+   "lesson_line": "Rattled after a stop, you're done for the day. The setups will be there tomorrow.",
+   "facts": [
+    "f39",
+    "f12",
+    "f10",
+    "f13",
+    "h04",
+    "h08",
+    "h02",
+    "h03"
+   ],
+   "wrong": {
+    "A tighter stop on every trade": "That shrinks each loss, but you still fire off the whole burst.",
+    "A bigger watchlist for the day": "More names means more things to click. After a stop you want fewer names in front of you, not more.",
+    "A daily profit target to hit": "A target tells you when to stop on a good day. Revenge happens on the bad ones."
+   },
+   "simple": "Angry or rattled means no new trades that day, so the burst never starts.",
+   "deeper": {
+    "example": "Jared Tendler names firm controls on the number of trades a day. Investopedia says traders set limits on how many trades fit them. We don't cap trades per day, and we have no daily loss limit. Our loss limit is monthly: at 8% down in a calendar month, no new trades for the rest of the month."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before",
+     "the key is general practice (Tendler, Investopedia); our rulebook caps tries per stock (E56), not trades per day"
+    ]
+   },
+   "batch": "voice-9-2026-11-17"
+  },
+  {
+   "key": "q08",
+   "skill": "psych.tilt",
+   "rung": 3,
+   "format": "mcq",
+   "q": "You know your rule. Right after a big loss, you break it anyway. What's usually going on?",
+   "choices": [
+    "Emotion is overriding your judgment",
+    "Your strategy stopped working",
+    "The rule doesn't fit this market"
+   ],
+   "answer": "Emotion is overriding your judgment",
+   "why": "Emotion is overriding your judgment. Tendler: when emotion runs too high, it limits your ability to make correct decisions. You can know it's wrong and still feel compelled to do it.",
+   "lesson_line": "You won't think your way out mid-tilt. Catch it early, or step away.",
+   "facts": [
+    "f42",
+    "f43",
+    "f14",
+    "f05",
+    "f44",
+    "f17",
+    "f24"
+   ],
+   "wrong": {
+    "Your strategy stopped working": "A strategy problem shows up in your log over many trades. Breaking a rule you know, right after a loss, is a decision problem.",
+    "The rule doesn't fit this market": "That's the story the emotion tells you. If a rule needs changing, change it before the next session, not mid-loss."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "psych.tilt",
+   "rung": 4,
+   "format": "scenario",
+   "story": "Two stops this morning, both on names from your list. Now a $3 stock you've never traded is up 30% on the day. One good pop would get you back to even.",
+   "q": "What's really going on here?",
+   "choices": [
+    "A revenge pick outside your lane",
+    "Smart rotation into strength",
+    "A normal momentum entry today",
+    "Spotting a hot new stock early on"
+   ],
+   "answer": "A revenge pick outside your lane",
+   "why": "A revenge pick outside your lane. Look at why you want it. Not the chart and not your list. You want it because you're down and it's moving. That's the trade that backfires: a stock you haven't studied, bought for a quick win after losses. Sometimes the second loss is bigger than the first. And it's out anyway. We only trade stocks at $10 or more that trade at least $20 million a day, so a $3 stock never makes our list.",
+   "lesson_line": "If it wasn't on your list before the open, it isn't a trade after two losses.",
+   "facts": [
+    "f28",
+    "f29",
+    "f30",
+    "f52",
+    "f07",
+    "h07"
+   ],
+   "wrong": {
+    "Smart rotation into strength": "Rotation is a planned shift into a group that's leading. You'd never touch this stock on a normal day.",
+    "A normal momentum entry today": "A momentum entry comes off your setup and your list. The only reason here is getting even.",
+    "Spotting a hot new stock early on": "It may well be hot. But you've never traded it, and you're only looking because you're down."
+   },
+   "simple": "It's a revenge pick, because you only want this stock to win back the morning's losses fast.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before",
+     "the why also cites our rulebook (B23, the $10 floor)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "CIBC warns that revenge trades can easily backfire, especially in stocks you haven't carefully considered, and that in some cases the second loss is even larger than the first."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "psych.tilt",
+   "rung": 4,
+   "format": "numeric",
+   "q": "Your daily loss limit is 1.5% of a $40,000 account. You're down $410 so far. How much more can you lose before you stop?",
+   "answer": 190,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "account * limit_pct / 100 - lost",
+     "account": 40000,
+     "limit_pct": 1.5,
+     "lost": 410
+    }
+   },
+   "prefix": "$",
+   "why": "$190. Your limit is 1.5% of $40,000. Take away the $410 you've already lost, and $190 is left. A trade whose stop would lose more than that could carry you past your line. Once you reach the line, you're done for the day.",
+   "lesson_line": "Know your room before every trade. When it's gone, you're done for the day.",
+   "facts": [
+    "f23",
+    "f39",
+    "f25",
+    "h02",
+    "h03"
+   ],
+   "simple": "You can lose $190 more, because your 1.5% limit on $40,000 minus the $410 already lost leaves $190.",
+   "deeper": {
+    "counter": "UCT's own rules set no daily loss limit. Ours is monthly: at 8% down in a calendar month, from the month's starting value, no new trades for the rest of the month. The math works the same way. Know the line, know the room left, and obey the line when you reach it."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "a daily loss limit is a web view our rulebook (B15) does not use",
+     "fixed before"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q11",
+   "skill": "psych.tilt",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You want a circuit breaker for your own account, like the market has. Which one does the job?",
+   "choices": [
+    "No new trades at a set loss",
+    "A stop-loss on every trade",
+    "Trade until you're back to even",
+    "The market's 7% trading halt"
+   ],
+   "answer": "No new trades at a set loss",
+   "why": "No new trades at a set loss. A stop protects one trade. A run of stops can still add up, and that's where tilt does its damage. The breaker protects the whole account from you. Set the line before the session, and when you hit it you're done. Ours runs by the month: at 8% down in a calendar month, no new trades until the next one. We don't use a daily limit. Whatever clock you pick, the rule decides, not your mood.",
+   "lesson_line": "A stop protects the trade. A loss limit protects the account from you.",
+   "facts": [
+    "f23",
+    "f22",
+    "f39",
+    "f52",
+    "f01",
+    "f02",
+    "h02",
+    "h03"
+   ],
+   "wrong": {
+    "A stop-loss on every trade": "You need stops, but each one covers a single trade. A run of stops still adds up. You want both.",
+    "Trade until you're back to even": "That's the break-even pull. It keeps you clicking exactly when you're thinking least clearly.",
+    "The market's 7% trading halt": "That's the market's own breaker. It trips on a 7% one-day drop in the S&P 500, whatever your account did."
+   },
+   "simple": "No new trades at a set loss, because that line stops the whole account from bleeding, not just one trade.",
+   "deeper": {
+    "example": "Schwab describes trading circuit breakers that stop more trading once the day's loss reaches a set level, for example stepping away for the day at a set loss. We run ours by the month instead, at 8% from the month's starting value."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before",
+     "rekeyed so the key fits our monthly limit (B16), not the daily one B15 rules out"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q12",
+   "skill": "psych.tilt",
+   "rung": 5,
+   "format": "scenario",
+   "story": "Three trades today. Three stops, each a small loss, each one taken exactly where your plan said.",
+   "q": "Are you on tilt?",
+   "choices": [
+    "No, losses alone aren't tilt",
+    "Yes, three losses in a row is tilt",
+    "No, only a big loss causes tilt",
+    "Yes, so stop trading for the week"
+   ],
+   "answer": "No, losses alone aren't tilt",
+   "why": "No. Losses alone aren't tilt. Three planned stops are just results, and every good trader has days like that. Tilt is what you do next. The damage comes from how you react to losing, more than from the losses. So watch your next move. A rushed entry, a bigger size, a bent rule, a name that wasn't on your list. Any of those and now you're tilting. If your next trade looks like your first three, you're fine.",
+   "lesson_line": "Losses aren't tilt. What you do after them can be.",
+   "facts": [
+    "f15",
+    "f40",
+    "f55",
+    "f36",
+    "f10"
+   ],
+   "wrong": {
+    "Yes, three losses in a row is tilt": "Losses are results. Tilt is emotion taking over your decisions after them.",
+    "No, only a big loss causes tilt": "Small hits can stack up. A run of small triggers in a short time can tip you over too.",
+    "Yes, so stop trading for the week": "That treats a normal day as a crisis. Watch your next decisions and let the limits you set decide."
+   },
+   "simple": "No, because planned stops are normal results, and tilt is how you react to them.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (the key was a lone hedge)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Schwab notes that losing streaks happen to the best of us. Jared Tendler says the problem is rarely just about losing, but about how your severe reaction to losing ends up costing you more."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "psych.tilt",
+   "rung": 5,
+   "format": "tf",
+   "q": "A rough Tuesday can still be steering your trades on Wednesday morning.",
+   "answer": "True",
+   "why": "True. Tilt doesn't reset at the closing bell. It carries over from one day to the next, and each time it gets easier to tip over again. A big loss lingers too. It slows your thinking the next day. So before the open, check yourself, not only your charts. If you slept badly or you're still replaying yesterday's stop, be honest about it. Our rule is simple: tired, sick, angry or distracted means no new trades that day.",
+   "lesson_line": "Tilt doesn't reset at the bell. Check yourself before the open, not only your charts.",
+   "facts": [
+    "f37",
+    "f36",
+    "f27",
+    "h04"
+   ],
+   "simple": "True, because tilt can carry over to the next day and make it easier to tilt again.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Jared Tendler says tilt carries over day over day, making it easier and easier to tilt. Schwab adds that the lingering effects of a big loss can slow down thinking and hinder deeper thought."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "psych.tilt",
+   "rung": 5,
+   "format": "scenario",
+   "story": "You get stopped out at 10 a.m. By 10:40 you've made six more trades, and not one of them was on your watchlist.",
+   "q": "What do you call that?",
+   "choices": [
+    "Overtrading to win it all back",
+    "Scalping, a valid fast style",
+    "Normal action on a busy day",
+    "Testing some new setups live today"
+   ],
+   "answer": "Overtrading to win it all back",
+   "why": "Overtrading to win it back. Six trades in well under an hour, not one of them on your list, right after a stop. That burst is the tell. Lots of positions, no plan behind any of them. It tends to show up right after a big loss or a run of small ones. Here's the fix we use. Every day we keep a focus list of the 5 to 10 best setups and ignore the rest. Not on the list, not a trade.",
+   "lesson_line": "Count your trades after a loss. A sudden burst is the tell.",
+   "facts": [
+    "f09",
+    "f10",
+    "f13",
+    "f32",
+    "h09"
+   ],
+   "wrong": {
+    "Scalping, a valid fast style": "Scalping is planned ahead of time. Six unplanned trades right after a stop is a reaction.",
+    "Normal action on a busy day": "A busy market doesn't put stocks on your list. These trades came from the loss.",
+    "Testing some new setups live today": "A real test is planned, small and on purpose. This burst came straight out of a stop."
+   },
+   "simple": "It's overtrading to win back the loss, because a burst of unplanned trades right after a stop is the tell.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before",
+     "the why also cites our rulebook (F64, the focus list)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia calls multiple small positions open at once, with no specific plan for any of them, a telltale sign of overtrading, and says it most often follows a big loss or a string of smaller ones."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "psych.tilt",
+   "rung": 6,
+   "format": "mcq",
+   "q": "You risk 1% a trade. Three stops in a row, so you double your risk to win it back. That one stops out too. What's the day's damage?",
+   "answer": "5%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "losses * risk + 2 * risk",
+     "losses": 3,
+     "risk": 1
+    }
+   },
+   "suffix": "",
+   "why": "5%. Three stops at 1% each is 3%. The doubled trade risked 2%, and it lost. 3% plus 2% is 5%. One revenge trade cost you as much as two normal stops. Doubling up feels like the shortcut back to even. It's the shortcut to a bigger hole. At your normal 1%, that fourth stop costs half as much, and you're still in shape to trade tomorrow.",
+   "lesson_line": "Doubling up after losses doesn't dig you out faster. It digs the hole faster.",
+   "facts": [
+    "f10",
+    "f29",
+    "f52"
+   ],
+   "simple": "You're down 5%, because three 1% losses plus one doubled 2% loss add up to 5%.",
+   "deeper": {
+    "trap": "Doubling up feels like a shortcut back to even. That's the break-even pull: after losses, a chance to get even looks especially attractive. But bigger size only makes the loss bigger when it stops out. CIBC warns the second loss can be even larger than the first."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "6%",
+    "7%",
+    "8%",
+    "5%"
+   ],
+   "wrong": {
+    "6%": "That doubles the whole three-stop total, not the one trade.",
+    "7%": "That doubles the three-stop total, then adds a normal 1% trade.",
+    "8%": "That doubles the risk on all four trades."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Then double the risk",
+    "rows": [
+     {
+      "key": "risk_each_trade",
+      "label": "Risk each trade",
+      "value": 1,
+      "fmt": "%"
+     },
+     {
+      "key": "losses_in_a_row",
+      "label": "Losses in a row",
+      "value": 3,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "The day's total loss",
+     "as": "pct"
+    }
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "psych.tilt",
+   "rung": 6,
+   "format": "scenario",
+   "house": true,
+   "story": "Your account has slid to 9% below its peak, open trades included, the deepest it's been. A great setup triggers, and you want a full-size position to make some of it back.",
+   "q": "What's the most you can put in it?",
+   "choices": [
+    "8% of the account",
+    "10% of the account",
+    "5% of the account",
+    "40% of the account"
+   ],
+   "answer": "8% of the account",
+   "why": "8% of the account. In a drawdown our max position shrinks in steps. Under 6% down you get the normal cap, 40%. At 6% down it's 10%. At 8% down, 8%. At 10% down, 5%. You're 9% down and still sliding, past the 8% step and short of 10%, so 8% is your cap. Here's why it's that strict. A drawdown is exactly when you want to swing big to get it back, and it's when a big loss hurts most. A great setup doesn't change the cap.",
+   "lesson_line": "The deeper the drawdown, the smaller the cap. A great setup doesn't change that.",
+   "facts": [
+    "h01",
+    "h05",
+    "h06",
+    "h10",
+    "h11",
+    "f16",
+    "f54"
+   ],
+   "wrong": {
+    "10% of the account": "That's the cap at 6% down. You're past 8%, so it's lower.",
+    "5% of the account": "That kicks in at 10% down. You're at 9%.",
+    "40% of the account": "That's our normal cap, and it only holds under 6% down. At 9% down the steps have already cut it."
+   },
+   "simple": "The cap is 8%, because at 9% down you're past the 8% step but short of 10%.",
+   "deeper": {
+    "trap": "Two things trip people up. A drawdown counts from the account's highest value, open trades included, so paper losses count too. And size comes back slowly: one step up each time the account wins back half the drawdown. The normal cap returns only once the account is within 5% of its peak."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 8,
+    "reasons": [
+     "the key rests on one source, our rulebook (A8)",
+     "a number that the owner can change",
+     "rests on the owner's rulebook",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q17",
+   "skill": "psych.tilt",
+   "rung": 7,
+   "format": "scenario",
+   "story": "A 2005 study followed pro traders at the Chicago Board of Trade, traders who trade for their firm's own book. Some of them had a losing morning.",
+   "q": "What did they do that afternoon?",
+   "choices": [
+    "Above-average risk to win it back",
+    "Lower risk to keep what's left",
+    "No change from usual trading",
+    "Most stopped trading that day"
+   ],
+   "answer": "Above-average risk to win it back",
+   "why": "Above-average risk to win it back. These were pros trading their firm's own book. After a losing morning, they regularly took on more risk in the afternoon to recover. The researchers called them highly loss-averse. They hated the loss so much they chased it. If seasoned pros feel that pull, you will too. Willpower won't fix it. A rule you wrote before the morning went wrong will.",
+   "lesson_line": "Even pros chase a losing morning. That's why the rule goes in writing.",
+   "facts": [
+    "f48",
+    "f49",
+    "f10",
+    "f54"
+   ],
+   "wrong": {
+    "Lower risk to keep what's left": "That's what big institutions did in their currency trades, in a different study. These Chicago traders did the opposite.",
+    "No change from usual trading": "The study found a clear shift after a losing morning: more risk, not the same.",
+    "Most stopped trading that day": "That's the right habit, and it's what a loss limit forces. It isn't what this study found."
+   },
+   "simple": "They took more risk than usual in the afternoon, trying to win back the losing morning.",
+   "deeper": {
+    "example": "Joshua Coval and Tyler Shumway studied proprietary traders at the Chicago Board of Trade. Not everyone chases, though. In a separate study, large institutions did the reverse in their currency trades: they cut risk hard after losses and added only a little after gains, more so in older, more experienced funds."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one study (Coval and Shumway) carries the key",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "psych.tilt",
+   "rung": 7,
+   "format": "tf",
+   "q": "In the Chicago Board of Trade study, pros who were down on the morning paid up to buy and sold for less.",
+   "answer": "True",
+   "why": "True. Traders chasing a losing morning bought above the prices just before and sold below them. They paid up to get in and took less to get out. And the prices they set reversed faster than prices set by other traders. Think about that at your own screen. When you need a trade, you pay for it. You chase the fill, and the move you paid for doesn't hold. The trader who doesn't need the trade gets the better price.",
+   "lesson_line": "When you need a trade, you pay for it.",
+   "facts": [
+    "f50",
+    "f51",
+    "f11"
+   ],
+   "simple": "True, because traders chasing a losing morning paid more to buy and took less to sell.",
+   "deeper": {
+    "example": "Picture it. Down on the morning, you buy a few cents above the last trade, then sell a few cents below it. Each rushed fill costs a little. Coval and Shumway found those rushed prices didn't hold. They reversed faster than other traders' prices."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one study (Coval and Shumway) carries the key",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "psych.tilt",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You followed your plan, but a surprise midday downgrade knocked your stock through your stop. You're well inside your loss limit. And you want to buy something, now.",
+   "q": "Your limit hasn't tripped. What's the move?",
+   "choices": [
+    "Pause, the urge is the warning",
+    "Keep going, since the limit decides",
+    "Buy it back now to get even",
+    "Double size on the next good setup"
+   ],
+   "answer": "Pause, the urge is the warning",
+   "why": "Pause. Nothing's broken yet, but the urge to buy something, anything, right now is the warning. It shows up before the damage does. A downgrade knocking you out of a good plan feels unfair, and that feeling is where chasing starts. Catch it early, while you can still control it. A simple habit: when you feel the urge to break a rule, step away for 15 minutes. And if you're actually angry, our rule goes further. Angry or distracted means no new trades that day.",
+   "lesson_line": "Under the limit doesn't mean in control. The urge is your cue to pause.",
+   "facts": [
+    "f25",
+    "f57",
+    "f44",
+    "f17",
+    "h04"
+   ],
+   "wrong": {
+    "Keep going, since the limit decides": "The limit caps how much you can lose. It says nothing about your head. The urge is the earlier warning.",
+    "Buy it back now to get even": "That's buying to get even, not buying a setup.",
+    "Double size on the next good setup": "That's revenge sizing. If it fails, the loss is twice the size."
+   },
+   "simple": "Pause anyway, because the sudden urge to buy right after a loss is the warning sign, even inside your limit.",
+   "deeper": {
+    "trap": "The limit feels like permission: I'm still inside it, so I'm fine. But a loss limit only caps how much you can lose. Schwab's example habit is a 15-minute break when you feel an urge to break a rule. Jared Tendler says to catch emotion early, while you still have the strength to control it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (story no longer gaps through the stop or names a daily limit)",
+     "our rulebook (F67) is stricter than the key; the why says so"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "psych.tilt",
+   "rung": 8,
+   "format": "tf",
+   "q": "Once tilt kicks in, you'll notice it in time to stop yourself.",
+   "answer": "False",
+   "why": "False. Once the emotion gets intense enough, your mind isn't strong enough to stop it, and the mistakes come. Seeing it afterward is like seeing a trade you missed. Too late to matter. And you may not notice at all, because tilt can hide from the person on it. So don't count on catching it late. Set your rules while you're calm, and put your stop in with the broker when you buy. A rule written in advance doesn't need you to notice.",
+   "lesson_line": "Don't count on catching it late. Set the rule early.",
+   "facts": [
+    "f45",
+    "f44",
+    "f59",
+    "f22"
+   ],
+   "simple": "False, because once the feeling gets too strong you can't stop it, so the rules have to be set early.",
+   "deeper": {
+    "trap": "Jared Tendler says that when emotions get too intense, the mind isn't powerful enough to stop them and mistakes become inevitable. He also says you can have a tilt problem with no idea it's tilt. Schwab notes many pro systems set stops automatically to take out second-guessing in the heat of the moment."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the key rests mainly on one author (Tendler); Schwab agrees only in part"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q21",
+   "skill": "psych.tilt",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Your rule: done for the day at a 1.5% loss. Today so far: -0.5%, -0.5%, +0.2%, -0.7%. At 2 p.m. a textbook setup appears.",
+   "q": "What does your rule say?",
+   "choices": [
+    "Stop: you're down 1.5%, the limit",
+    "Take it, a great setup is different",
+    "Take it, but only at half size",
+    "Stop, but only for 15 minutes"
+   ],
+   "answer": "Stop: you're down 1.5%, the limit",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "-(a + b + c + d)",
+     "a": -0.5,
+     "b": -0.5,
+     "c": 0.2,
+     "d": -0.7
+    }
+   },
+   "why": "Stop. The day adds up to a 1.5% loss, and that's your line. Investopedia: once traders reach their limit, to keep trading is unsound. Schwab's example is to step away for the day at a set loss. A great setup, half size or a short break doesn't change that.",
+   "lesson_line": "The limit doesn't care how good the next one looks. That's the point of it.",
+   "facts": [
+    "f23",
+    "f12",
+    "f39",
+    "f25",
+    "f52",
+    "h02",
+    "h03"
+   ],
+   "wrong": {
+    "Take it, a great setup is different": "Every setup looks great when you want the day back. The rule exists for exactly this moment.",
+    "Take it, but only at half size": "Half size still breaks a rule you set when you were calm.",
+    "Stop, but only for 15 minutes": "A 15-minute break is Schwab's fix for an urge to break a rule. A loss limit means you step away for the day."
+   },
+   "simple": "Stop, because your losses add up to 1.5%, which is your line, and the rule says you're done for the day.",
+   "deeper": {
+    "trap": "Count the day, not the last trade. Each loss here looks small, and one trade was even a winner, so it's easy to feel only a bit down. Add them up and you're at the line. UCT's own rules use a monthly limit of 8% instead of a daily one, but the habit is the same. Once you reach a limit you set, you obey it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "a daily loss limit is a web view our rulebook (B15) does not use",
+     "fixed before"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q22",
+   "skill": "psych.tilt",
+   "rung": 9,
+   "format": "scenario",
+   "story": "A tilt day cost you 4% last week. Since then you've cut your risk per trade and taken eight trades, all by your plan.",
+   "q": "When do you bring your risk back up?",
+   "choices": [
+    "While your execution holds up",
+    "Right away, to win back 4%",
+    "After your next big winner",
+    "Never, small is safer"
+   ],
+   "answer": "While your execution holds up",
+   "why": "While your execution holds up. You earn size back by showing you're trading your plan again. Eight clean trades is a good start. Step up a notch, make sure the execution holds at the new size, then settle in before the next step. Not all at once. One big winner doesn't prove much, because short-term P&L is a poor measure of how well you're trading. And chasing the 4% back with bigger risk is revenge on a delay. Our risk per trade runs from 0.25% to 2%, and recent results are part of how you pick it.",
+   "lesson_line": "Earn your risk back with execution, one step at a time.",
+   "facts": [
+    "f21",
+    "f16",
+    "f47",
+    "f41",
+    "h12",
+    "h05",
+    "h13"
+   ],
+   "wrong": {
+    "Right away, to win back 4%": "That's revenge on a delay. The 4% comes back through good trades, not bigger ones.",
+    "After your next big winner": "One winner is one result. Short-term P&L doesn't tell you how well you're trading.",
+    "Never, small is safer": "Too far. Your risk is meant to come back once your execution is back on track."
+   },
+   "simple": "Bring your risk back step by step while your trades keep following your plan, not to win money back fast.",
+   "deeper": {
+    "trap": "One big winner feels like proof you're back. Jared Tendler warns that money is the scoreboard, but not a reliable measure of performance in the short term. Schwab says to size back up as you show a new track record of executing your system.",
+    "counter": "Our rules have no losing-streak rule. Size is cut only by the drawdown ladder, and its first step is at 6% down. So a 4% hit doesn't force a smaller size. Cutting your risk here was your own call, which our range of 0.25% to 2% allows."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before",
+     "the key is general practice (Schwab, Tendler); our rulebook has no losing-streak rule (B17), and the deeper counter says so"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q23",
+   "skill": "psych.tilt",
+   "rung": 4,
+   "format": "mcq",
+   "house": true,
+   "q": "Our line is 8% down in a calendar month. You started the month at $40,000 and you're down $2,600. How much room is left?",
+   "answer": "$600",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "account * limit_pct / 100 - lost",
+     "account": 40000,
+     "limit_pct": 8,
+     "lost": 2600
+    }
+   },
+   "prefix": "$",
+   "why": "$600. 8% of $40,000 is $3,200. You've already lost $2,600. 3,200 minus 2,600 leaves $600. That number matters before every trade from here. If a trade's stop would cost more than $600, it can carry you past the line, so size it smaller or skip it. And measure from where the month started, not today's balance. Once you hit the line, no new trades until next month.",
+   "lesson_line": "Know your room before every trade. When it's gone, no new trades until next month.",
+   "simple": "You have $600 of room, because 8% of $40,000 is $3,200 and you've already lost $2,600.",
+   "facts": [
+    "h03",
+    "h02",
+    "f23",
+    "f25"
+   ],
+   "deeper": {
+    "counter": "Schwab's example runs by the day instead: step away for the day at a set loss. We don't use a daily limit. The math works the same on either clock: know the line, know the room left, and obey the line."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B16)",
+     "replaces q10, which keyed a daily limit our rulebook (B15) does not use"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$3,200",
+    "$392",
+    "$600",
+    "$5,800"
+   ],
+   "wrong": {
+    "$3,200": "That's the whole limit. You forgot the $2,600 you've already lost.",
+    "$392": "That takes 8% of today's balance, not the month's starting value.",
+    "$5,800": "That adds the loss to the limit instead of taking it away."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The monthly limit",
+    "rows": [
+     {
+      "key": "month_began_at",
+      "label": "Month began at",
+      "value": 40000,
+      "fmt": "$"
+     },
+     {
+      "key": "loss_limit",
+      "label": "Loss limit",
+      "value": 8,
+      "fmt": "%"
+     },
+     {
+      "key": "down_so_far",
+      "label": "Down so far",
+      "value": 2600,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Room left before the limit",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "psych.tilt",
+   "rung": 9,
+   "format": "scenario",
+   "house": true,
+   "story": "You started the month at $50,000. Weeks so far: -$1,500, -$1,250, +$500, -$1,750. Our line is no new trades at 8% down in a calendar month. A clean setup triggers.",
+   "q": "Can you take it?",
+   "choices": [
+    "No, you're at the 8% line",
+    "Yes, you're still under 8%",
+    "Yes, this setup is too good",
+    "Wait 15 minutes, then take it"
+   ],
+   "answer": "No, you're at the 8% line",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "-(a + b + c + d) / start * 100",
+     "a": -1500,
+     "b": -1250,
+     "c": 500,
+     "d": -1750,
+     "start": 50000
+    }
+   },
+   "wrong": {
+    "Yes, you're still under 8%": "Count every week, the gain too. Together they come to an 8% loss on the $50,000 start.",
+    "Yes, this setup is too good": "Every setup looks great when you want the month back. The line is there for exactly this moment.",
+    "Wait 15 minutes, then take it": "A 15-minute break is for an urge to break a rule. Our limit means no new trades for the rest of the month."
+   },
+   "why": "No. Add up the month, the good week too. -1,500, -1,250, +500 and -1,750 come to -4,000. On a 50,000 start that's 8%, right on the line. Each week looks manageable on its own, and that's the trap. Count the month, not the last week. You're done until the next month starts. A great setup doesn't change that. The line only works if it holds on the day you most want to break it.",
+   "lesson_line": "The limit doesn't care how good the next one looks. That's the point of it.",
+   "simple": "No, because the month's weeks add up to an 8% loss, and that's our line.",
+   "facts": [
+    "h03",
+    "h02",
+    "f12",
+    "f23",
+    "f25",
+    "f52"
+   ],
+   "deeper": {
+    "trap": "Investopedia makes the same point about any limit: once traders reach it, to keep trading is to trade unsoundly. Schwab's 15-minute break is a different tool, for the urge to break a rule, not for a limit you've already hit."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B16)",
+     "replaces q21, which keyed a daily limit our rulebook (B15) does not use"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "visual": {
+    "kind": "size",
+    "title": "The month so far",
+    "rows": [
+     {
+      "key": "month_began_at",
+      "label": "Month began at",
+      "value": 50000,
+      "fmt": "$"
+     },
+     {
+      "key": "loss_limit",
+      "label": "Loss limit",
+      "value": 8,
+      "fmt": "%"
+     },
+     {
+      "key": "week_one:_lost",
+      "label": "Week one: lost",
+      "value": 1500,
+      "fmt": "$"
+     },
+     {
+      "key": "week_two:_lost",
+      "label": "Week two: lost",
+      "value": 1250,
+      "fmt": "$"
+     },
+     {
+      "key": "week_three:_made",
+      "label": "Week three: made",
+      "value": 500,
+      "fmt": "$"
+     },
+     {
+      "key": "week_four:_lost",
+      "label": "Week four: lost",
+      "value": 1750,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Down this month",
+     "as": "pct"
+    }
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "psych.tilt",
+   "rung": 5,
+   "format": "scenario",
+   "house": true,
+   "story": "You slept badly, and a call before the open left you angry. Then the best setup on your focus list triggers.",
+   "q": "Do you take it?",
+   "choices": [
+    "No new trades for the day",
+    "No new trades for 15 minutes",
+    "Take it, but at half size",
+    "Take it, it's on your list"
+   ],
+   "answer": "No new trades for the day",
+   "wrong": {
+    "No new trades for 15 minutes": "A short pause is for an urge to break a rule. Tired or angry covers the whole day.",
+    "Take it, but at half size": "Smaller size doesn't fix your head. Tired or angry means no new trades that day, at any size.",
+    "Take it, it's on your list": "The focus list picks the best setups. Your state comes first: tired or angry means no new trades that day."
+   },
+   "why": "No new trades for the day. Tired, sick, angry or distracted means you don't trade, and you're two of those. It doesn't matter how good the setup is. You can't judge whether you're fit to trade when you're not fit to judge. That's the whole point. The answer's already written down, so close the platform. The setup will be there again, or another one will. I'd rather miss a good trade than take one with my head not right.",
+   "lesson_line": "Check yourself before your charts. Tired or angry means no new trades today.",
+   "simple": "No new trades for the day, because tired or angry means you don't trade, however good the setup looks.",
+   "facts": [
+    "h04",
+    "h09",
+    "f25",
+    "f17"
+   ],
+   "deeper": {
+    "counter": "Schwab's milder habit is to slow down or take a break when emotion creeps in. Our rule is stricter. When you're tired, sick, angry or distracted, you don't weigh whether you're fit to trade. The answer is already written: not today."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (F67)",
+     "new in wave9 to teach our own tilt rule"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "Tendler's tilt types: his poker book named seven; his trading book keeps five (he took out Run Bad and Desperation, per s10). Only his own site names the types, so no question is keyed on a type's label: the five appear in walk-through w1 and, attributed to him, in the why of q03. (Checker, 2026-11-09: q19's 'Tendler calls it injustice tilt' was removed, because his page lists the label without defining it.) Keys rest on the behaviour (revenge, injustice leading to chasing), which other publishers back.",
+  "Tilt definition: Tendler (s10) calls tilt a problem with ANGER; the peer-reviewed definition (s19) says NEGATIVE EMOTIONS more broadly, and its stories begin with disbelief, then moral indignation. q01's key ('Emotion is making your trade calls') and q06 fit both readings.",
+  "Experience and tilt: s19 (2013) found experienced players took bad luck more maturely; the same group's 2014 Journal of Gambling Studies paper (link.springer.com/article/10.1007/s10899-012-9339-4) found experience associated with MORE severe tilting in the long run. The 2014 paper and Moreau et al. 2020 (perceived vs measured tilt, link.springer.com/article/10.1007/s10899-019-09903-7) were dropped because Springer serves a bot challenge to the quote checker's client (the text is in the page for curl, so the checker read MISSING). q02 keys only what both papers allow: experience does not make anyone immune. (Checker, 2026-11-09: the why said flatly 'Experience helps', which the 2014 paper does not support; summaries of it say experienced players may tilt less per hand but more in the long run. The why now reports only the 2013 finding, as one study, and says it is not immunity.)",
+  "api/data/voice_kb/trading_principles.json (bb-003, a draft recall item in docs/study/bank/recall.principles.json) says 'trades placed within 5 minutes of a loss have a 30% lower win rate' and prescribes 'the next trade must be 50% smaller, OR a 15-minute mandatory break'. No source was found for the 30% figure or the rule; nothing here uses it. This unit's 15-minute pause is Schwab's own example (f25), stated as an example.",
+  "Coval and Shumway (s16): summaries of the full paper put the extra afternoon risk at about 15 or 16 percent more likely (versions differ). The file uses only the abstract's qualitative finding, never a number.",
+  "Schwab, 'How to Recover From a Big Trading Loss' (schwab.com/learn/story/how-to-recover-from-big-trading-loss, Joe Mazzola, 2026-03-09) illustrates a trader who 'never risks more than 5% of their trading portfolio on a single trade': far above the 2% ceiling in sizing_rule.md section 1 (a line not marked as the owner's answer, so the track asks it as a house rule nowhere; see F8.05 and F9.02 conflicts), and it also discusses taxes. Read, not cited.",
+  "Schwab s8 ties revenge trading to cortisol and stress hormones. Only its sentence linking revenge trading to blowups (f19) is cited; the physiology is not taught.",
+  "The SEC hot-stock alert (s3) also lists 'momentum investing' among risky behaviours. Only its lines on emotional, impulsive decisions and pressure to act are cited. The SEC Director's Take (s2) says it is no longer updated; it is cited only for the timeless line on emotions and costly mistakes.",
+  "FINRA: the units plan names 'FINRA on overtrading'. FINRA's excessive-trading material is about brokers churning client accounts; Investopedia (s5) confirms those rules cover brokers, not a trader's own account. No FINRA page on self-directed overtrading or tilt was found, so FINRA is not cited.",
+  "Drawdown ladder (h01): the owner's own published words (2026-07-19), quoted in docs/study/sizing_rule.md section 4, where section 8 still asks him to confirm them as the house protocol (the curriculum dossier's '-5% halve, -10% pilot only' is not a source and is not used). q16 asks it as 'our drawdown rule' once, at a 9% drawdown, to stay clear of F9.04's planned '-7%' case.",
+  "The units row mentions the Journal's tilt rules (rapid fire, loss streak, daily loss approach, cooling off). Those live in app code, not in a house source the contract allows, so they are not quoted as our rules; the unit teaches the same ideas (trade cap, loss limit, pause) from Schwab, Investopedia and Tendler.",
+  "Market circuit breakers (s1, f01-f03) are time-sensitive rules: read from the current Investor.gov page on 2026-11-09 and used only in walk-through w2 as the analogy, never keyed.",
+  "Track audit (2026-11-09, all seven F8 units read together): q08 cut as a duplicate of F8.01 q19; w3 step 2 scoped to 'After a big loss' as its Schwab source is, so it agrees with F8.03 q22 and this unit's q12; the 2% conflict note no longer calls sizing_rule.md's 2% line 'our' ceiling. The drawdown ladder is used here as F9.04 uses it (house, owner confirmation open). All 18 jaredtendler.com quotes were word-matched on fresh plain-curl copies (HTTP 200) with the quote checker's own normalisation, none missing; Investopedia s6 (f14) and s5 (f09-f13) were found by the checker's own client that day; f01-f03 found on the current Investor.gov page."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "fixed": false,
+   "by": "checker",
+   "notes": "f55 (RePEc abstract), f31/f33/f34/f38 (Tendler, curl 200), f10 (Investopedia), f29 (CIBC), f19 (Schwab) all read in context on the live pages 2026-11-09. Five kinds = seven minus Run Bad and Desperation, as his page says. 'Revenge is behind many blowups' matches Schwab's 'fuels many catastrophic trading blowups'; 'can be bigger' matches CIBC's 'in some cases'. Tendler pages (s10-s15) show 'unreachable' in the quote script; each quote confirmed by WebFetch and by plain curl (200) 2026-11-09."
+  },
+  "w2": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "f01-f03 confirmed on the current Investor.gov circuit-breaker page (time-sensitive, read 2026-11-09): Level 1 = 7%, before 3:25 p.m. = 15-minute market-wide halt. Changed 'all trading halts' to 'trading halts market-wide' and added 'in a day' (the page measures a single-day S&P 500 decline). f23, f24, f25 (Schwab), f39, f45 (Tendler) confirmed. Tendler pages (s10-s15) show 'unreachable' in the quote script; each quote confirmed by WebFetch and by plain curl (200) 2026-11-09."
+  },
+  "w3": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "f15, f16 (Schwab, Horner), f18, f20, f21 (Schwab, Hoenig) confirmed live; h01 matches the owner's quote in sizing_rule.md section 4 word for word. Changed 'Here's my rule ... my max position' to 'Here's our rule ... max position size', so it matches q16's 'our drawdown rule'. Owner: section 8 item 1 (confirm the ladder steps) is still open. Track audit 2026-11-09: step 2 said 'Step away first' right after a line about losing streaks, but f20 is Schwab's 'Cool off' advice in a piece on recovering from big losses (re-read live, in context). As written it clashed with F8.03 q22 (after four losers taken by the rules, take the valid setup smaller) and with this unit's q12 (three planned stops are not tilt by themselves). Step 2 now reads 'After a big loss, step away first', which is what f20 says; 'come back smaller' still rests on f21 and f16."
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Real situation (a friend's text), not a dictionary prompt. Why says why tilt matters (one stop becomes a bad day). Key and wrong notes true to f55/f14/h03. Tendler and the study sit in deeper."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Writer's why read like a research summary ('But that's one study, and handling it better isn't being immune'). Rewritten as a mentor talking: nobody's immune, the deserve-to-win trap, rules in writing before the open. Facts unchanged (f58, f62, f63, f24); answer True unchanged."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "averaging down and scaling in are defined as distractors; nothing teaches adding or scaling in as ours. Voice 4."
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Trader words ('red on the day'). Why asks what changed (only the P&L), true to f52/f53. Choices stay academic terms because the question tests the break-even pull by name; worth watching against rule 1 when he reviews."
+  },
+  "q05": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Plain claim about a real feeling; False is right (f35, f59, f56). Why tells the member what to watch (actions, not mood)."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded voice-9-2026-11-17; awaiting cold re-read"
+  },
+  "q08": {
+   "status": "cut",
+   "fixed": false,
+   "by": "auditor",
+   "notes": "duplicate of F8.01#q19. Track audit 2026-11-09: both ask what is going on when you know a rule and break it anyway, and both key 'emotion' on Tendler's point that you can know it's wrong and still not stop yourself (F8.01 f24, F8.04 f42/f43). F8.01#q19 is kept: it is a Prove-level case (a weekly pattern with a trigger) paired with q18's 'no rule yet' case, while this one also overlaps this unit's own q01 key ('Emotion is making your trade calls'). The tilt-specific points stay in q01, q06 and q20. Checker's earlier note follows. Rewritten: 'On tilt, ... Why?' gave the answer away (q01 defines tilt as emotion) and 'They're just unlucky that day' was a silly choice. Now 'You know your rule. Right after a big loss, you break it anyway.' with 'The rule doesn't fit this market' as a real rationalisation. Key rests on f42/f43 (Tendler), f14 (Investopedia), f05 (SEC); new wrong note rests on f24 (Schwab: commit before every session), new lesson on f44 and f17. Tendler pages (s10-s15) show 'unreachable' in the quote script; each quote confirmed by WebFetch and by plain curl (200) 2026-11-09. Investopedia s6 shows 'unreachable' in the quote script and refuses WebFetch; f14 confirmed in the page text by plain curl (200) 2026-11-09."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Story gives the screen ($3 stock, up 30%, two stops on list names). Why asks why you want it, cites the revenge-pick risk (f29) and our liquidity line ($10, $20 million a day, h07, rulebook B23). Right."
+  },
+  "q10": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave9: see the resolver's notes"
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Why right: our breaker is monthly (8% in a calendar month, h03), no daily limit (h02). One wrong note invented a count ('Five stops in a row'); made plain."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "'Tilt is what you do next' then the concrete tells (rushed entry, bigger size, bent rule, off-list name). True to f15/f40/f36."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Real Tuesday-to-Wednesday claim; True (f37, f27). Adds the practical how and our tired/sick/angry/distracted rule (h04)."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Why stated as a certainty that overtrading 'follows a big loss' (f09 says it usually does) and said 'the size and the count both climb' though the story shows only the count. Tightened to what the story and facts support; focus-list fix (h09) kept."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: 3 x 1% = 3%, doubled trade 2%, total 5%. Wrong notes check: 6% = 3% doubled, 7% = 6% + 1%, 8% = 4 x 2%. At normal size the fourth stop costs 1%, half of 2%, so 'half as much' is right. Steps shown."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "TRUTH: the writer's story dropped 'its deepest drawdown yet'. The ladder answer (8% cap at 9% down) holds only on the way DOWN; on the way back up size returns one rung per half the drawdown won back (rulebook A8/B14), so a 9% reading after a deeper slide can carry a different cap. Restored 'the deepest it's been' and said 'still sliding' in the why. Ladder numbers rechecked: under 6% normal 40%, 6% -> 10%, 8% -> 8%, 10% -> 5%."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Writer's why was correct (f48, f49) but stiff ('That's the point for you'). Rewritten so the finding turns into the mentor's point: if seasoned pros chase, so will you, and only a rule written beforehand stops it."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True (f50, f51). Why turns the finding into the screen lesson: when you need a trade, you pay for it."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Choice no longer a semicolon clause. Why: the urge is the warning, the unfair feeling starts the chase (f57), the 15-minute step-away (f25), and our angry/distracted rule (h04). Right answer does not stand out."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False is right (f45, f59). Practical how: rules set while calm, stop placed with the broker when you buy (matches our stop-with-the-broker rule)."
+  },
+  "q21": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave9: see the resolver's notes"
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Stepwise return of risk (f47, f21), P&L a poor short-term measure (f41), our 0.25%-2% range (h12). Deeper counter correctly says we have no losing-streak rule and the ladder starts at 6% (h13, h05)."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: 8% of 40,000 = 3,200; minus 2,600 = 600. $392 = 8% of today's 37,400 (2,992) minus 2,600. $5,800 = 3,200 + 2,600. Steps shown, plus the how (a stop bigger than the room means smaller size or skip)."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed: -1,500 - 1,250 + 500 - 1,750 = -4,000; 4,000 / 50,000 = 8%, on the line. Story opened on a bare rule statement and said 'Your weeks' without tying them to this month; reordered so the screen comes first and the weeks are this month's."
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Story gives the state (bad sleep, angry) and a real trigger. Why: the rule (h04), the reason (you can't judge your fitness while unfit) and a line of his judgment."
+  }
+ }
+}

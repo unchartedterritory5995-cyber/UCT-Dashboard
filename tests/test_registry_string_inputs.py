@@ -33,7 +33,8 @@ LEDGER = REPO / "docs" / "feature_flags.json"
 V3_INPUT_KEYS = ["benchmark", "maLength", "maType", "lookback", "priceTolerance", "redDayThreshold",
                  "showNewHigh", "showNewHighBeforePrice", "shortHistoryDots",
                  "mansfieldLength", "showMansfield", "showRedDay", "showNewLow"]
-V4_NEW_INPUT_KEYS = ["view", "customBenchmark", "rrgRatioLength", "rrgMomentumLength",
+V4_NEW_INPUT_KEYS = ["view", "customBenchmark", "sectorBenchmark", "themeBenchmark", "rrgRatioLength",
+                     "rrgMomentumLength",
                      "clenowWindow", "clenowGapPct", "atrLength", "varsLookback", "anchorDate"]
 
 
@@ -334,8 +335,9 @@ def test_every_shipped_row_declares_only_kinds_the_resolver_knows(monkeypatch):
 def test_the_alert_benchmarks_have_no_custom():
     assert "CUSTOM" not in alert_rs_series.RS_ALERT_BENCHMARKS
     assert rb.CUSTOM_BENCHMARK in alert_rs_series.RS_ALERT_EXCLUDED_BENCHMARKS, "excluded BY NAME"
-    assert alert_rs_series.RS_ALERT_BENCHMARKS == ("SPY", "RSP", "SECTOR", "QQQ", "IWM"), \
-        "Phase 3 left the alert menu exactly as it was"
+    # 2026-11-12: THEME (the stock's own theme) is APPENDED; the five before it keep their order.
+    assert alert_rs_series.RS_ALERT_BENCHMARKS == ("SPY", "RSP", "SECTOR", "QQQ", "IWM", "THEME"), \
+        "Phase 3 left the alert menu exactly as it was; THEME is appended last"
 
 
 def test_an_rs_alert_on_custom_is_refused_with_a_reason():

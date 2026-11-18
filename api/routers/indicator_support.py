@@ -5,7 +5,7 @@ through ``api/services/indicator_support.py``, which owns every check; this file
 only maps who may call what.
 
   GET    /config                 member  — is report storage on? (the flag)
-  POST   /gaps                   member  — A2: allowlisted built-in names + kind
+  POST   /gaps                   member  — A2: allowlisted built-in names + kind; U4: refusal codes (closed list)
   GET    /gaps                   ADMIN   — Phase B's ranking (distinct members)
   POST   /reports                member  — A3: the opt-in report (flag + consent)
   GET    /reports/mine           member  — their own reports and status
@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import hmac
 import os
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -68,6 +68,9 @@ class GapsBody(BaseModel):
     dialect: str = Field("pine", max_length=16)
     gaps: list[GapItem] = Field(default_factory=list, max_length=svc.MAX_GAPS)
     unlisted: int = Field(0, ge=0, le=10_000)
+    # U4: refusal guard codes; the SERVICE keeps only codes on the closed list
+    # (review L1) an over-long item is the SERVICE's `_unlisted`, never a 422 for the whole POST
+    guards: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=svc.MAX_GUARDS)
 
 
 class ReportBody(BaseModel):
@@ -81,6 +84,8 @@ class ReportBody(BaseModel):
     symbol: Optional[str] = Field(None, max_length=32)
     timeframe: Optional[str] = Field(None, max_length=16)
     gaps: list[GapItem] = Field(default_factory=list, max_length=svc.MAX_GAPS)
+    # ⭐ L8: 'pine' (the default, a pasted script) or 'converse' (a Create Indicator conversation)
+    kind: Optional[str] = Field(None, max_length=16)
 
 
 class StatusBody(BaseModel):
@@ -100,7 +105,8 @@ def config(user: dict = Depends(get_current_user)) -> dict[str, Any]:
 def post_gaps(body: GapsBody, user: dict = Depends(get_current_user)) -> dict[str, Any]:
     if body.dialect != "pine":
         return {"ok": True, "recorded": 0}
-    n = svc.record_gaps(user["id"], [g.model_dump() for g in body.gaps], body.unlisted)
+    n = svc.record_gaps(user["id"], [g.model_dump() for g in body.gaps], body.unlisted,
+                        guards=list(body.guards))
     return {"ok": True, "recorded": n}
 
 
@@ -116,6 +122,7 @@ def post_report(body: ReportBody, user: dict = Depends(get_current_user)) -> dic
             user["id"], consent=body.consent, source=body.source, note=body.note,
             tradingview_link=body.tradingview_link, symbol=body.symbol,
             timeframe=body.timeframe, gaps=[g.model_dump() for g in body.gaps],
+            kind=body.kind,
         )
     except svc.ReportRefused as e:
         raise HTTPException(status_code=e.status, detail={"code": e.code, "message": e.message})

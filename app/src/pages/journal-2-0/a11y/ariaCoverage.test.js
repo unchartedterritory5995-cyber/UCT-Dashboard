@@ -49,6 +49,8 @@ export const EXEMPT = Object.freeze({
     'the community library card dispatcher (P4b): renders LayoutLibraryCard, StyleLibraryCard or GalleryCard (each a card with its own named controls) or null; no markup or control of its own',
   'components/notebook/myTools/RoutinesTab.jsx':
     'renders ToolsTab with kind routine (the list with its named filters, rows, menu and live region); no markup of its own',
+  'components/notebook/myTools/TemplatesTab.jsx':
+    'one sentence and one native button named by its visible text ("Open Manage templates"), inside My tools\' tabpanel (named by its tab); since follow-up C the list it drew lives in Manage templates; no control that needs aria',
   'components/notebook/myTools/TrackersTab.jsx':
     'renders ToolsTab with kind tracker (the list with its named filters, rows, menu and live region); no markup of its own',
   'components/notebook/myTools/UsedInList.jsx':

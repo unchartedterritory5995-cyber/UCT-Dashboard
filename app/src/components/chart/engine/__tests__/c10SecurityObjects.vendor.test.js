@@ -129,7 +129,10 @@ describe('C10 — a request below the chart\'s timeframe whose value is never sh
     // the 15m tag and the header both read the 15-minute oscillator now
     expect(ours.filter((c) => c.startsWith('1,1 ') || c.startsWith('1,0 '))).toEqual([])
     // the rows whose validity still folds keep their answer
-    expect(ours).toContain('1,2 — n/a')
-    expect(ours).toContain('1,4 ▼ BEAR')
+    // ⛔ Engine 52: row 2's `text_color` reads the now-per-bar validity through a choice no
+    // colour reader follows, so that cell is WITHHELD by name (`pine:prop-unreadable`) rather
+    // than drawn in the default ink, as engine 51 drew it.
+    expect(ours.filter((c) => c.startsWith('1,2 '))).toEqual([])
+    expect(ours.filter((c) => c.startsWith('1,4 '))).toEqual([]) // the same, row 4 (engine 52)
   }, 60000)
 })

@@ -7,7 +7,7 @@ import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
 import { OP, IMPLEMENTED } from '../program.js'
-import { BROKER_RULE_IDS, BROKER_RULES } from '../brokerRules.js'
+import { BROKER_RULE_IDS, BROKER_RULES, PRESENTATION_RULE_IDS, PRESENTATION_RULES, isLedgerRuleId } from '../brokerRules.js'
 import RESOLVED from '../brokerPins.resolved.json'
 
 const SYMBOL = { ticker: 'RDDT', exchange: 'NYSE' }
@@ -31,17 +31,29 @@ const attempt = (src, { bars = QUIET, pins, window = 5000, confirmed = true, lis
 const SCRIPT = `${V5}if bar_index == 3\n    strategy.entry("L", strategy.long)\nif bar_index == 10\n    strategy.close("L")\n`
   + 'plot(strategy.position_size)\nplot(strategy.netprofit)\n'
 
-describe('W9-T1 pinned(): the committed ledger is empty, so nothing serves', () => {
-  it('the production ledger pins no rule', () => {
-    expect(Object.keys(RESOLVED.rules)).toEqual([])
+import PINS_SRC from '../brokerPins.json'
+describe('W9-T1 pinned(): the committed ledger holds the rules the captures witness, by their fixture ids', () => {
+  it('ONE AUTHORITY: brokerPins.resolved.json is the resolution of brokerPins.json (2)', () => {
+    expect(PINS_SRC.rules).toEqual(RESOLVED.rules)
+    expect(Object.keys(RESOLVED.rules).sort()).toEqual([
+      'B-CANCEL', 'B-CLOSE', 'B-COMM-CONTRACT', 'B-COMM-ORDER', 'B-COMM-PCT', 'B-DEFAULTS', 'B-DIR', 'B-ENTRY-ORDER', 'B-EXIT-BIND',
+      'B-EXIT-LIFE', 'B-FIFO', 'B-FILL', 'B-FUNDS', 'B-FUNDS-REVERSE', 'B-FUNDS-SHORT', 'B-GAP', 'B-MARGIN', 'B-MARGIN-CALL',
+      'B-MARGIN-CALL-ALL', 'B-MARKET', 'B-OCA', 'B-ORDER', 'B-PATH', 'B-PYR', 'B-QTY', 'B-QTY-REVERSE',
+      'B-REVERSE', 'B-RISK-ALLOW', 'B-RISK-DDOWN', 'B-ROUND', 'B-SIG', 'B-SLIPPAGE', 'B-TICK-HIST',
+      'B-TXT-CLOSE-ALL-ID', 'B-TXT-CLOSE-ID', 'B-TXT-ENTRY-CLOSE-ID', 'B-TXT-NO-COMMENT', 'B-V3', 'B-V4-MARGIN0', 'B-VAL', 'B-WHEN',
+    ])
   })
-  it('with the real ledger a run stops at the first rule it reaches, by name', () => {
-    const { err } = attempt(SCRIPT) // no brokerPinned: the committed ledger
-    expect(err).toBeDefined()
-    expect(err.guard).toBe('runtime:strategy-unpinned')
-    expect(err.rule).toBe('B-VAL') // the plot reads a value on bar 0, before any order is placed
-    expect(err.message).toMatch(/B-VAL/)
-    expect(err.message).toMatch(/Q-S1-core/)
+  it('with the real ledger a run that exercises only pinned rules completes; an unpinned rule stops it by name', () => {
+    // SCRIPT exercises B-VAL, B-FILL, B-MARKET, B-CLOSE, B-DEFAULTS, B-DIR, B-FIFO, B-MARGIN, B-QTY, B-SIG, all pinned
+    const { err, res } = attempt(SCRIPT) // no brokerPinned: the committed ledger
+    expect(err).toBeUndefined()
+    expect(res.broker.record.rulesUsed).toEqual(expect.arrayContaining(['B-VAL', 'B-FILL', 'B-MARKET']))
+    // a script that exercises an UNPINNED rule (B-POC-COST, under process_orders_on_close with a cost) still stops
+    const POC = '//@version=5\nstrategy("t", process_orders_on_close = true, commission_type = strategy.commission.percent, commission_value = 0.1)\n'
+      + 'if bar_index == 3\n    strategy.entry("L", strategy.long)\nplot(strategy.position_size)\n'
+    const r = attempt(POC)
+    expect(r.err && r.err.guard).toBe('runtime:strategy-unpinned')
+    expect(['B-POC', 'B-POC-COST']).toContain(r.err.rule)
   })
   it('every rule the run used, taken out of the pin set one at a time, stops the run naming THAT rule', () => {
     const full = attempt(SCRIPT, { pins: ALL })
@@ -69,10 +81,22 @@ describe('W9-T1 pinned(): the committed ledger is empty, so nothing serves', () 
   it('a rule with no queued capture is refused saying so', () => {
     const { err } = attempt(`${V5}if bar_index == 3\n    strategy.cancel_all()\nplot(strategy.opentrades)\n`, { pins: (id) => id !== 'B-CANCEL' })
     expect(err.rule).toBe('B-CANCEL')
-    expect(err.message).toMatch(/no capture row is queued/)
+    // W9-T5 r1: B-CANCEL's row is W9-X5 (queued on origin/fix/pine-capture-queue-hygiene d1a6cb9fb3)
+    expect(err.message).toMatch(/capture row W9-X5/)
   })
-  it('the rule table is the only vocabulary: the ledger can name nothing outside it', () => {
-    for (const r of Object.keys(RESOLVED.rules)) expect(BROKER_RULE_IDS).toContain(r)
+  it('the rule tables are the only vocabulary: the ledger can name nothing outside them', () => {
+    // W9-T12: an emulator rule (BROKER_RULE_IDS) or a presentation rule (PRESENTATION_RULE_IDS)
+    for (const r of Object.keys(RESOLVED.rules)) expect(isLedgerRuleId(r), r).toBe(true)
+    // CONTROL: the check can fail -- an unknown id, a prototype key and a non-string are refused
+    expect(isLedgerRuleId('NO-SUCH-RULE')).toBe(false)
+    expect(isLedgerRuleId('toString')).toBe(false)
+    expect(isLedgerRuleId(undefined)).toBe(false)
+    expect(isLedgerRuleId('B-PATH')).toBe(true)
+    expect(isLedgerRuleId('MK-LOOK')).toBe(true)
+    expect(PRESENTATION_RULE_IDS).toEqual(['MK-LOOK'])
+    expect(PRESENTATION_RULES['MK-LOOK'].capture).toBe('W9-MK1')
+    // a presentation rule is never an emulator rule
+    for (const id of PRESENTATION_RULE_IDS) expect(BROKER_RULE_IDS).not.toContain(id)
     for (const id of BROKER_RULE_IDS) expect(BROKER_RULES[id].what.length).toBeGreaterThan(5)
   })
   it('RAIL: the test-only pin predicate is named in vm.js only (broker.js takes it as data.isPinned)', () => {

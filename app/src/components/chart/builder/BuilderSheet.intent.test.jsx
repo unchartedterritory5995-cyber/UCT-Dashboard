@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 import { clearUserDefinitions } from '../engine/nativeRegistry'
@@ -34,22 +35,24 @@ const flush = async () => {
 }
 
 function mount({ onChange = () => {}, settings = { indicatorInstances: [], indicators: {} } } = {}) {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={() => {}} onSaved={() => {}} settings={settings} onChange={onChange} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
 async function typeFormula(text) {
-  fireEvent.change(screen.getByLabelText('Formula'), { target: { value: text } })
+  fireEvent.change(formulaBox(), { target: { value: text } })
   await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
   await flush()
 }
 async function nameIt(text = 'Mine') {
-  fireEvent.change(screen.getByLabelText('Name'), { target: { value: text } })
+  fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: text } })
   await flush()
 }
 const saveBtn = () => screen.getByRole('button', { name: /^Sav/ })
@@ -74,7 +77,7 @@ describe('the typed read-back names every output’s DERIVED type in plain words
   it('ASKED two plots, one a current-only scalar · CLAIMED partial · DID refuse that one and say so, not "all good"', async () => {
     mount()
     await typeFormula('sma(close, 20)')
-    fireEvent.click(screen.getByTestId('add-plot'))
+    fireEvent.click((openPlots(), screen.getByTestId('add-plot')))
     await flush()
     fireEvent.change(screen.getByLabelText('Plot 2 key'), { target: { value: 'cap' } })
     fireEvent.change(screen.getByLabelText('Formula for plot 2'), { target: { value: 'market_cap > 1e9' } })

@@ -568,6 +568,9 @@ _SHAPE_6_NEW_TOP = {"ratingHistory"}
 _SHAPE_6_FIELDS = {"rating.m9", "ratingHistory.summary", "ratingHistory.reason", "ratingHistory.value",
                    "ratingHistory.average", "ratingHistory.change20", "ratingHistory.sessions",
                    "ratingHistory.asof", "ratingHistory.stale"}
+#: Shape 7 (2026-11-12, sector and theme benchmarks): the plain benchmark name the
+#: pane label prints, and the picked sector / theme beside the custom ticker.
+_SHAPE_7_FIELDS = {"benchmark.name", "inputs.sectorBenchmark", "inputs.themeBenchmark"}
 
 
 def test_a_v4_payload_field_change_comes_with_a_v4_shape_bump(monkeypatch):
@@ -578,11 +581,13 @@ def test_a_v4_payload_field_change_comes_with_a_v4_shape_bump(monkeypatch):
     p = sig._rs_line_provider("NVDA", "D", {"benchmark": "SPY"})["payload"]
     got = _key_paths(p)
     assert {k for k in got if "." not in k} == _SHAPE_3_TOP | _SHAPE_5_NEW_TOP | _SHAPE_6_NEW_TOP
-    assert _SHAPE_3_FIELDS | _SHAPE_5_FIELDS | _SHAPE_6_FIELDS <= got
+    assert _SHAPE_3_FIELDS | _SHAPE_5_FIELDS | _SHAPE_6_FIELDS | _SHAPE_7_FIELDS <= got
     import hashlib
     digest = hashlib.sha256("\n".join(sorted(got)).encode()).hexdigest()[:16]
     # 5 / 941624d86bef76c7 until Deepvue round 2 (2026-11-08): shape 6 adds
     # `rating.m9` and the `ratingHistory` block (`compute.rev` 5).
-    assert (rsp._RS_PAYLOAD_SHAPE_V4, digest) == (6, "b7e71e5426b27163"), (
+    # 6 / b7e71e5426b27163 until 2026-11-12: shape 7 adds `benchmark.name` and the
+    # sector / theme picks in `inputs`.
+    assert (rsp._RS_PAYLOAD_SHAPE_V4, digest) == (7, "574bbe475d7e130d"), (
         f"the v4 RS payload's key paths changed (digest {digest}): bump rs_provider._RS_PAYLOAD_SHAPE_V4, "
         f"then pin the new pair here. Paths: {sorted(got)}")

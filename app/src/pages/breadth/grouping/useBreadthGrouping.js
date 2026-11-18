@@ -28,6 +28,7 @@ export const DIMENSIONS = ['sector', 'industry', 'theme']
 // instead of on what they actually read.
 const DEFAULT_TICKER_OF = r => r?.t
 const DEFAULT_PCT_OF = r => r?.pct
+const NO_TICKERS = []
 
 function readLS(key, allowed, fallback) {
   try {
@@ -79,7 +80,12 @@ export default function useBreadthGrouping(items, opts = {}) {
    */
   const tickerKey = rows.map(tickerOf).join(',')
   const tickers = useMemo(() => tickerKey.split(',').filter(Boolean), [tickerKey])
-  const meta = useGroupMeta(tickers)
+  // `opts.meta`: a caller that already holds the maps for a SUPERSET of these
+  // rows (the scan window fetches once for the whole cell, then filters) passes
+  // them in, so toggling a filter never re-asks the server. Hooks cannot be
+  // conditional, so the own fetch is handed an empty list instead of skipped.
+  const ownMeta = useGroupMeta(opts.meta ? NO_TICKERS : tickers)
+  const meta = opts.meta || ownMeta
   const labelByTicker = dimension === 'sector' ? meta.sectors
     : dimension === 'theme' ? meta.themes
       : meta.industries

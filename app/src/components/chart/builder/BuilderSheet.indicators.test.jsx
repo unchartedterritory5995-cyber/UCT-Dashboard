@@ -28,6 +28,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { evaluateFormula, canSaveFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { AuthContext } from '../../../context/AuthContext'
@@ -59,16 +60,18 @@ const flush = async () => {
 const noop = () => {}
 
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={noop} onSaved={noop} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
-const field = () => screen.getByLabelText('Formula')
+const field = () => formulaBox()
 const saveBtn = () => screen.getByRole('button', { name: /^Sav/ })
 
 async function settle() {
@@ -183,7 +186,7 @@ describe('🔴 `rsi(close, 14) > 70` — the one expression Phase F is measured 
     // be a second gate, and the two would disagree the day the linter moves.
     expect(canSaveFormula(expected, false), expected.error || '').toBe(true)
 
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'RSI overbought' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'RSI overbought' } })
     await flush()
     expect(saveBtn()).not.toBeDisabled()
     fireEvent.click(saveBtn())

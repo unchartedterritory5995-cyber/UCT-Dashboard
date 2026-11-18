@@ -20,8 +20,6 @@
   margin: 0;
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -54,7 +52,7 @@
 }
 
 .link:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid rgba(248, 247, 243, 0.4);
   outline-offset: 1px;
 }
 
@@ -73,9 +71,9 @@
   cursor: pointer;
 }
 
-.btn:hover:not(:disabled) { border-color: var(--gold); }
+.btn:hover:not(:disabled) { border-color: #c9c6be; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.btn:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 2px; }
 
 .quiet {
   align-self: flex-start;
@@ -91,7 +89,7 @@
 
 .quiet:hover:not(:disabled) { color: var(--text-bright); }
 .quiet:disabled { opacity: 0.45; cursor: not-allowed; }
-.quiet:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.quiet:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 2px; }
 
 .preview {
   display: flex;
@@ -146,7 +144,7 @@
 .vNum {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-weight: 600;
-  color: var(--gold);
+  color: #c9c6be;
   min-width: 3ch;
 }
 

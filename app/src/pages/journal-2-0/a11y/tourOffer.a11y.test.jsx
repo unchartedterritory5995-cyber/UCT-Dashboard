@@ -8,7 +8,7 @@
 //                              Layout-shaped first-run slot.
 // OUTSIDE_POPULATION_SURFACES (notebookSurfaces.js) names this file for TourOfferPrompt.jsx
 // and TourOfferGate.jsx (both under components/notebook/onboarding/, outside the derived
-// population, like CapabilityPreview.jsx).
+// population).
 import { describe, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { SWRConfig } from 'swr'

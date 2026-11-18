@@ -19,7 +19,6 @@ vi.mock('../components/notebook/FolderSidebar', () => ({ default: () => <div dat
 vi.mock('../components/notebook/NoteEditorPage', () => ({ default: () => <div data-testid="note-editor" /> }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 // S16 (audit 2026-11-05): the 60-second first run has its own rails (components/notebook/FirstRunSheet.test.jsx). Here
 // the gate is left out so these walks read the offer machinery itself, for a member who has not seen the first run.
 vi.mock('../components/notebook/FirstRunGate', () => ({ default: () => null, FirstRunInlineSlot: () => null }))

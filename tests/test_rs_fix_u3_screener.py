@@ -303,8 +303,8 @@ def test_the_default_splits_reader_never_schedules_a_warm_and_fetches_on_budget(
     from api.services import bars_sanitize as san
     from api.services import declared_splits as ds
     submitted, asked = [], []
-    monkeypatch.setattr(san.cache, "get", lambda key: None)
-    monkeypatch.setattr(san.cache, "set", lambda key, value, ttl: None)
+    monkeypatch.setattr(san._META_CACHE, "get", lambda key: None)
+    monkeypatch.setattr(san._META_CACHE, "set", lambda key, value, ttl: None)
     monkeypatch.setattr(san._warm_pool, "submit", lambda fn: submitted.append(fn))
     monkeypatch.setattr(ds, "_default_fetch",
                         lambda t: asked.append(t) or {"ipo": None, "splits": [("2026-01-02", 2.0)]})
@@ -452,8 +452,12 @@ def test_a_one_symbol_read_touches_only_that_symbols_rows(tmp_db, monkeypatch):
     narrow = rh.read_fields(["AAA"])
     assert narrow["AAA"] == wide["AAA"], "same answer, d5 and d20 included"
     assert narrow["AAA"]["d5"] == 5 and narrow["AAA"]["d20"] == 20
-    reads = [s for s in statements if "FROM rs_rating_history WHERE session = " in s]
-    assert len(reads) == 3 and all("ticker IN" in s for s in reads), reads
+    # since 2026-11-14 the three keyed reads are ONE statement (`rs_history.narrow_read_sql`): the
+    # symbol's row in the newest session and, by key, its rating 5 and 20 stored sessions earlier
+    reads = [s for s in statements if "rs_rating_history a ON a.session = " in s]
+    assert len(reads) == 1 and "a.ticker IN ('AAA')" in reads[0], reads
+    assert reads[0].count("p.ticker = a.ticker") == 2, "the two earlier ratings are read by key too"
+    assert not any("FROM rs_rating_history WHERE session = " in s for s in statements), "no whole session is read"
     assert not any("DISTINCT" in s for s in statements), "sessions come from PK seeks"
 
 

@@ -3,14 +3,10 @@ import { render, screen, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 /**
- * Tier 3b fix round 1 (I1), its own file so the module registry is fresh: the Today chunk is asked for in the
- * Notebook's first render, while the preferences read is still in flight.
- *
- * Audit 2026-11-05, S15: where the Notebook opens. A bare Notebook lands on the Today home unless the member CHOSE
- * another landing (the `notebook_landing` preference); `?view=today` and `?view=home` open each home whatever the
- * landing; and until the preferences answer, a bare Notebook shows NEITHER home (opening Today makes the day's note,
- * which a member who chose Research Home must never get from a flash of the page they opted out of).
- * Through the real NotebookTab; the homes themselves are stand-ins (each has its own suite).
+ * Tier 3b fix round 1 (I1), its own file so the module registry is fresh: on the Daily brief's address (`?view=today`)
+ * its chunk is asked for in the Notebook's first render, while the preferences read is still in flight.
+ * Notebook simplify, Task 5: the Notebook opens on the notes list, so a bare open never asks for it at all (it used to,
+ * as the default landing). The Daily brief itself is a stand-in (it has its own suite).
  */
 const H = vi.hoisted(() => ({ total: 3, todayChunk: [] }))
 vi.mock('../hooks/useJ2Notes', () => ({
@@ -29,12 +25,10 @@ vi.mock('../components/notebook/FolderSidebar', () => ({
 vi.mock('../components/notebook/NoteEditorPage', () => ({ default: () => <div data-testid="note-editor" /> }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../components/notebook/TodayHome', () => {
   H.todayChunk.push(Date.now())          // the chunk was asked for
   return { default: (p) => (
     <div data-testid="today-home" data-hold={p.holdMake ? 'make-0' : 'make'}>
-      <button type="button" onClick={p.onOpenResearchHome}>Research home →</button>
       <button type="button" onClick={p.onSelectAllNotes}>All notes</button>
     </div>
   ) }
@@ -73,15 +67,24 @@ afterEach(() => { setCurrentAccountId(null); __resetNotebookFlags() })
 
 const at = (path) => render(<MemoryRouter initialEntries={[path]}><NotebookTab /></MemoryRouter>)
 
-// Fix round 1 (I1): Today is the default landing, so its chunk is asked for in the Notebook's FIRST render, beside the
+// Fix round 1 (I1): on its own address the Daily brief's chunk is asked for in the Notebook's FIRST render, beside the
 // preferences read -- never after it (that made three round trips in a row).
-describe('the Today chunk starts with the preferences read (I1)', () => {
-  it('asks for the Today chunk while the preferences are still unanswered', async () => {
+describe('the Daily brief chunk starts with the preferences read (I1)', () => {
+  // first in the file: the module registry is fresh, so the chunk has not been asked for by anything yet
+  it('Task 5: a bare Notebook never asks for it (the list is drawn), even with the preferences unanswered', async () => {
     prefsGate = new Promise(() => {})                 // the preferences never answer in this test
     const before = H.todayChunk.length
     at('/journal')
-    await screen.findByRole('status', { name: 'Opening the Notebook' }, T)
+    await screen.findByRole('toolbar', { name: 'Notes list tools' }, T)
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(H.todayChunk.length).toBe(before)
+    expect(screen.queryByTestId('today-home')).toBeNull()
+  })
+
+  it('asks for the Daily brief chunk on ?view=today while the preferences are still unanswered', async () => {
+    prefsGate = new Promise(() => {})                 // the preferences never answer in this test
+    const before = H.todayChunk.length
+    at('/journal?view=today')
     await waitFor(() => expect(H.todayChunk.length).toBeGreaterThan(before), T)
-    expect(screen.queryByTestId('today-home')).toBeNull()      // still pending: the chunk came first
   })
 })

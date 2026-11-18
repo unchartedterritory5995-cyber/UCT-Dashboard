@@ -261,9 +261,11 @@ describe('where the indicator and Share\'s word are', () => {
 describe('the row the phone draws, counted (review 4)', () => {
   // The controls a phone SHOWS in the header row: real buttons, not inside a closed panel (`[hidden]`), not the Ask
   // toggle and not a `.phoneInMore` item (both `display: none` in the phone block), not a header message.
+  // Notebook simplify, Task 4: nor the desktop "AI" menu (`.desktopOnly`: `display: none` below 1025 px,
+  // NoteEditorPage.calmToolbar.test.jsx holds that rule).
   const phoneVisibleControls = () => [...header().querySelectorAll('[data-tour="ask-row"] button')].filter((el) =>
     !el.closest('[hidden]') && !el.closest('[data-ask-toggle]') && !el.closest(`.${editorStyles.phoneInMore}`)
-    && !el.closest(`.${editorStyles.headerMsg}`))
+    && !el.closest(`.${editorStyles.headerMsg}`) && !el.closest(`.${editorStyles.desktopOnly}`))
 
   it('counts the controls the phone shows and the budget fits THAT count at 360 and 390 px', async () => {
     await renderAt(390)

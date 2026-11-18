@@ -17,6 +17,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { evaluateFormula, canSaveFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { NUMBER_OPTION } from './CriteriaPicker'
@@ -47,16 +48,18 @@ const flush = async () => {
 const noop = () => {}
 
 function mount({ onSaved = noop } = {}) {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={noop} onSaved={onSaved} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
-const field = () => screen.getByLabelText('Formula')
+const field = () => formulaBox()
 
 async function settle() {
   await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS + 1) })
@@ -68,7 +71,7 @@ async function typeFormula(text) {
   await settle()
 }
 
-const openPicker = () => fireEvent.click(screen.getByRole('tab', { name: /conditions/i }))
+const openPicker = () => openSource('picker')
 
 /** Drive the picker's FIRST row through the sheet. A numeric right-hand side
  *  goes through the "a number" option, exactly as a member's click would. */
@@ -88,7 +91,7 @@ async function pickRow({ left, cmp, right }) {
 }
 
 async function nameIt(text = 'Picked line') {
-  fireEvent.change(screen.getByLabelText('Name'), { target: { value: text } })
+  fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: text } })
   await flush()
 }
 
@@ -392,9 +395,12 @@ describe('the sheet still behaves as it did', () => {
     // default-tab call — a second authority over a product decision this file
     // does not own. `BuilderSheet.starters.test.jsx` owns which door opens; this
     // file owns that Conditions is a door and that it is not mounted unasked.
-    const tabs = screen.getAllByRole('tab').map((t) => t.textContent)
-    expect(tabs).toEqual(expect.arrayContaining(['Conditions', 'Formula']))
-    expect(screen.getByRole('tab', { name: /conditions/i })).toHaveAttribute('aria-selected', 'false')
+    // Direction A: the doors are the start view's starts — Conditions is one of them —
+    // and the editor's own Formula tab; Conditions is not open until it is chosen.
+    expect(screen.getByRole('tab', { name: 'Formula' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('tab', { name: /conditions/i })).toBeNull()
+    toStart()
+    expect(screen.getByRole('button', { name: /Build from conditions/ })).toBeTruthy()
     // ⛔ THE PICKER IS NOT MOUNTED UNTIL IT IS ASKED FOR. A hidden picker still
     // deriving from every keystroke is work nobody asked for on a surface whose
     // 250 ms debounce exists because nobody had measured the frame budget.

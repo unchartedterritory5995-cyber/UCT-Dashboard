@@ -17,6 +17,26 @@ const complete = {
   pagesTotal: 3, pagesWithText: 3, pagesAwaitingOcr: 0, textComplete: true,
 }
 
+describe('a captured web source is not a scan', () => {
+  // The row `tweet_capture_sync.remove_post` leaves behind: the document stays, its page does not.
+  const removedPost = {
+    id: 'x1', name: '@north_ledger on X', status: 'ready', sourceKind: 'web',
+    attachmentUrl: 'x:1990000000000000004',
+    pagesTotal: 0, pagesWithText: 0, pagesAwaitingOcr: 0, textComplete: false,
+  }
+
+  it('says nothing about a post that left X', () => {
+    expect(documentTextNotice(removedPost)).toBeNull()
+    const { container } = render(<DocumentTextStatus documents={[removedPost]} imageUrls={new Set()} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('still calls a real file with no text a scan (the guard is the source kind, not the numbers)', () => {
+    const scan = { ...removedPost, name: 'Scanned.pdf', sourceKind: 'attachment', attachmentUrl: '/a/Scanned.pdf' }
+    expect(documentTextNotice(scan).text).toMatch(/looks like a scan/)
+  })
+})
+
 describe('it speaks only when there is something to disclose', () => {
   it('renders NOTHING for a fully readable document', () => {
     const { container } = render(<DocumentTextStatus documents={[complete]} />)

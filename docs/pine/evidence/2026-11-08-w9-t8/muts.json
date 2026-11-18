@@ -1,0 +1,334 @@
+[
+ {
+  "mutant": "M1 a forbidden entry proceeds (reverses)",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 5,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) a forbidden market entry against the position CLOSES it at the entry's fill and opens nothing",
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) a forbidden entry with no position open fills nothing (and the next one still nothing)",
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) allow_entry_in(short): the long entry fills nothing at all",
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) an exit waiting on the forbidden entry binds nothing (the entry opened no trade)",
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) a forbidden PRICE entry refuses by name (W9-R1: the probe places market entries only)"
+  ]
+ },
+ {
+  "mutant": "M2 B-RISK-ALLOW never asked",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 5,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) a forbidden market entry against the position CLOSES it at the entry's fill and opens nothing",
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) allow_entry_in(short): the long entry fills nothing at all",
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) an ALLOWED entry, and strategy.direction.all, change nothing but ask the rule (HYPOTHESIS, W9-R1)",
+   "w9T8Risk.test.js > W9-T8 pin before serve (D1): nothing T8 adds serves without its own pin B-RISK-ALLOW: served with every rule pinned, and stops naming B-RISK-ALLOW (and its row) when only it is unpinned",
+   "w9T8Risk.test.js > W9-T8 pin before serve (D1): nothing T8 adds serves without its own pin B-RISK-ALLOW: S1's 22 rules pinned never serve it (it stops naming B-RISK-ALLOW)"
+  ]
+ },
+ {
+  "mutant": "M3 direction.all forbids the other side",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) an ALLOWED entry, and strategy.direction.all, change nothing but ask the rule (HYPOTHESIS, W9-R1)"
+  ]
+ },
+ {
+  "mutant": "M4 a forbidden price entry served",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) a forbidden PRICE entry refuses by name (W9-R1: the probe places market entries only)"
+  ]
+ },
+ {
+  "mutant": "M5 the risk close not labelled B-RISK-ALLOW",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) a forbidden market entry against the position CLOSES it at the entry's fill and opens nothing"
+  ]
+ },
+ {
+  "mutant": "M6 a forbidden entry while flat walks the close path",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) allow_entry_in(short): the long entry fills nothing at all"
+  ]
+ },
+ {
+  "mutant": "M7 the forbidden entry stays queued",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) a forbidden entry with no position open fills nothing (and the next one still nothing)"
+  ]
+ },
+ {
+  "mutant": "M8 risk beside a cost served",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) allow_entry_in under a commission, a slippage or process_orders_on_close refuses by name (W9-R1)",
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) under a commission it refuses by name with its own row (W9-R1i)"
+  ]
+ },
+ {
+  "mutant": "M9 risk under process_orders_on_close served",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) allow_entry_in under a commission, a slippage or process_orders_on_close refuses by name (W9-R1)",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached max_drawdown under process_orders_on_close refuses by name before the first bar"
+  ]
+ },
+ {
+  "mutant": "M10 a T7 kind beside a risk command served",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) strategy.order beside a risk command refuses by name (R6 and the manual name strategy.entry only)",
+   "w9T8Risk.test.js > W9-T8 allow_entry_in (W9-R1, B-RISK-ALLOW) a T7 kind beside a risk command refuses by name (a trailing stop)"
+  ]
+ },
+ {
+  "mutant": "M11 one row for every risk refusal",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) under a commission it refuses by name with its own row (W9-R1i)"
+  ]
+ },
+ {
+  "mutant": "M12 the limit is strict (>)",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 5,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a cash limit of exactly 2 MAY be reached at bar 3's low (100.5): refused by name (W9-R1), never a halt served",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a cash limit of 1 is reached first at bar 2's low (99.5), 1 below the initial capital",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached percent: taken of the initial capital (the smaller base): 0.002 % of 100000 = 2 refuses, 0.0025 % = 2.5 is served",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a short: the peak is an intrabar FAVOURABLE extreme (bar 2's low), the trough the next bar's high",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a stop-loss: the trough is the stop level, where the trade closed, not the bar's low past it"
+  ]
+ },
+ {
+  "mutant": "M13 a percent of the peak, not the initial capital",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached percent: taken of the initial capital (the smaller base): 0.002 % of 100000 = 2 refuses, 0.0025 % = 2.5 is served"
+  ]
+ },
+ {
+  "mutant": "M14 no sample at a fill level",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a REVERSAL at a level on the path is an equity extreme no vertex holds: sampled there",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a stop-loss: the trough is the stop level, where the trade closed, not the bar's low past it"
+  ]
+ },
+ {
+  "mutant": "M15 no sample at the vertices",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 5,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a cash limit of exactly 2 MAY be reached at bar 3's low (100.5): refused by name (W9-R1), never a halt served",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a cash limit of 1 is reached first at bar 2's low (99.5), 1 below the initial capital",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached percent: taken of the initial capital (the smaller base): 0.002 % of 100000 = 2 refuses, 0.0025 % = 2.5 is served",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a short: the peak is an intrabar FAVOURABLE extreme (bar 2's low), the trough the next bar's high",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a REVERSAL at a level on the path is an equity extreme no vertex holds: sampled there"
+  ]
+ },
+ {
+  "mutant": "M16 the peak never moves",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 4,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a cash limit of exactly 2 MAY be reached at bar 3's low (100.5): refused by name (W9-R1), never a halt served",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached percent: taken of the initial capital (the smaller base): 0.002 % of 100000 = 2 refuses, 0.0025 % = 2.5 is served",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a short: the peak is an intrabar FAVOURABLE extreme (bar 2's low), the trough the next bar's high",
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a REVERSAL at a level on the path is an equity extreme no vertex holds: sampled there"
+  ]
+ },
+ {
+  "mutant": "M17 B-RISK-DDOWN never asked",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 3,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached a cash limit of 2.5 is never reached: the run is the run without the call, and asks B-RISK-DDOWN",
+   "w9T8Risk.test.js > W9-T8 pin before serve (D1): nothing T8 adds serves without its own pin B-RISK-DDOWN: served with every rule pinned, and stops naming B-RISK-DDOWN (and its row) when only it is unpinned",
+   "w9T8Risk.test.js > W9-T8 pin before serve (D1): nothing T8 adds serves without its own pin B-RISK-DDOWN: S1's 22 rules pinned never serve it (it stops naming B-RISK-DDOWN)"
+  ]
+ },
+ {
+  "mutant": "M18 max_drawdown under POC served",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_drawdown (W9-R1, B-RISK-DDOWN): served below the limit, refused where it may be reached max_drawdown under process_orders_on_close refuses by name before the first bar"
+  ]
+ },
+ {
+  "mutant": "M19 an unknown trading day counted, not refused",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) the run must be told each bar's trading day: without it the first fill refuses by name (W9-R1i)",
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) a limit of 1 is reached by the first fill, the entry on d2; a bar whose day is not stated refuses there"
+  ]
+ },
+ {
+  "mutant": "M20 the limit is strict (>)",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 3,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) a day that REACHES the limit refuses by name: R6 \"is reached\" against the manual \"fills more orders than the limit\"",
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) a reversal counts each trade it closes and opens (an upper bound on filled orders): 2 on day d4",
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) a limit of 1 is reached by the first fill, the entry on d2; a bar whose day is not stated refuses there"
+  ]
+ },
+ {
+  "mutant": "M21 an opened trade not counted",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 3,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) a day that REACHES the limit refuses by name: R6 \"is reached\" against the manual \"fills more orders than the limit\"",
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) a reversal counts each trade it closes and opens (an upper bound on filled orders): 2 on day d4",
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) a limit of 1 is reached by the first fill, the entry on d2; a bar whose day is not stated refuses there"
+  ]
+ },
+ {
+  "mutant": "M22 a closed trade not counted",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 3,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) a day that REACHES the limit refuses by name: R6 \"is reached\" against the manual \"fills more orders than the limit\"",
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) a reversal counts each trade it closes and opens (an upper bound on filled orders): 2 on day d4",
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) a limit of 1 is reached by the first fill, the entry on d2; a bar whose day is not stated refuses there"
+  ]
+ },
+ {
+  "mutant": "M23 B-RISK-INTRADAY-ORDERS never asked",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 3,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) below the limit on every day: the run is the run without the call",
+   "w9T8Risk.test.js > W9-T8 pin before serve (D1): nothing T8 adds serves without its own pin B-RISK-INTRADAY-ORDERS: served with every rule pinned, and stops naming B-RISK-INTRADAY-ORDERS (and its row) when only it is unpinned",
+   "w9T8Risk.test.js > W9-T8 pin before serve (D1): nothing T8 adds serves without its own pin B-RISK-INTRADAY-ORDERS: S1's 22 rules pinned never serve it (it stops naming B-RISK-INTRADAY-ORDERS)"
+  ]
+ },
+ {
+  "mutant": "M24 intraday beside a cost served",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) under a commission it refuses by name with its own row (W9-R1i)"
+  ]
+ },
+ {
+  "mutant": "M25 one count for every day",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) below the limit on every day: the run is the run without the call",
+   "w9T8Risk.test.js > W9-T8 max_intraday_filled_orders (W9-R1i, B-RISK-INTRADAY-ORDERS) a reversal counts each trade it closes and opens (an upper bound on filled orders): 2 on day d4"
+  ]
+ },
+ {
+  "mutant": "M26 a risk call inside a block read",
+  "file": "src/components/chart/engine/ast/pineRuntimeFrontend.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 read at build: what a capture witnesses, and every other shape refused by name a risk command inside a block refuses at build (the probes call it at the top level)"
+  ]
+ },
+ {
+  "mutant": "M27 any Pine version read",
+  "file": "src/components/chart/engine/ast/strategyBroker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 read at build: what a capture witnesses, and every other shape refused by name a version other than 6, a second call, a non-literal and a bad argument refuse at build"
+  ]
+ },
+ {
+  "mutant": "M28 a second call wins",
+  "file": "src/components/chart/engine/ast/strategyBroker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 read at build: what a capture witnesses, and every other shape refused by name a version other than 6, a second call, a non-literal and a bad argument refuse at build"
+  ]
+ },
+ {
+  "mutant": "M29 a percent above 100 read",
+  "file": "src/components/chart/engine/ast/strategyBroker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 read at build: what a capture witnesses, and every other shape refused by name a version other than 6, a second call, a non-literal and a bad argument refuse at build"
+  ]
+ },
+ {
+  "mutant": "M30 the unwitnessed commands fall through",
+  "file": "src/components/chart/engine/ast/strategyBroker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 read at build: what a capture witnesses, and every other shape refused by name the three commands no probe calls refuse at build, naming why"
+  ]
+ },
+ {
+  "mutant": "M31 any type name read as cash",
+  "file": "src/components/chart/engine/ast/strategyBroker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 read at build: what a capture witnesses, and every other shape refused by name a version other than 6, a second call, a non-literal and a bad argument refuse at build"
+  ]
+ },
+ {
+  "mutant": "M32 a non-literal alert_message read past",
+  "file": "src/components/chart/engine/ast/strategyBroker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 read at build: what a capture witnesses, and every other shape refused by name a version other than 6, a second call, a non-literal and a bad argument refuse at build"
+  ]
+ },
+ {
+  "mutant": "M33 B-RISK-DDOWN pinned by W9-R1i",
+  "file": "src/components/chart/engine/runtime/brokerRules.js",
+  "verdict": "killed",
+  "failed": 1,
+  "failing_tests": [
+   "w9T8Risk.test.js > W9-T8 pin before serve (D1): nothing T8 adds serves without its own pin each T8 rule is named, with the capture row the design gives it; RISK_RULES names exactly them; the ledger pins none"
+  ]
+ }
+]

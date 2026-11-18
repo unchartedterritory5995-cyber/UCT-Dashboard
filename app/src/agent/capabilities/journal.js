@@ -29,6 +29,8 @@ const when = (iso) => (iso ? String(iso).slice(0, 10) : '')
 
 export const journalKind = {
   name: 'journal',
+  source: 'journal',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Your notes aren't available on this page — open the Journal to work with notes.",
   boardScoped: false,
   selfDescribing: true,
   persistsInCommit: true,

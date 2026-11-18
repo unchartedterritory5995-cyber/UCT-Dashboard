@@ -112,13 +112,23 @@ MAX_TOKENS: int = 8192
 #: the byte bound `budget.worst_case_usd` uses for text does not apply to it.
 IMAGE_TOKENS_WORST: int = 4784
 
-#: The most this call's fixed prompt can bill: its 33,166 bytes (system, tool schema, framing of the user
-#: turn) at an ASSUMED 2 bytes a token, plus `budget.FRAMING_TOKENS`: about $0.332 a call, against the $0.467
-#: a token per byte reserved. ⛔ The 2 is a conservative assumption, not a measurement: no live call is allowed
+#: The most this call's fixed prompt can bill: its bytes (system, tool schema, framing of the user turn) at an
+#: ASSUMED 2 bytes a token, plus `budget.FRAMING_TOKENS`.
+#: RE-MEASURED 2026-11-16: the request is 35,732 bytes (it was 33,166 when this was first pinned; the function
+#: table in the prompt grows with the engine), so the bound is 17,866 + 4,000 = 21,866 tokens. Pinned at 23,000:
+#: 1,134 tokens of headroom, about 2,270 more bytes of prompt (6%) before the test fails again. That is about
+#: $0.344 a call, against the $0.453 a token per byte reserves.
+#: ⚠️ MEMBER-FACING: at $0.344 a member's `MEMBER_VISION_USD` holds TWO worst-case reservations, where at the
+#: old $0.332 it held three. It only bites on calls that time out (a call that answers settles at its real,
+#: far smaller cost). Raising the member figure is the owner's decision. ⛔ The 2 is a conservative assumption, not a measurement: no live call is allowed
 #: here, so no provider token count exists. 3 bytes a token left only 45 tokens of slack and held only at
 #: 2.3 bytes a token or more, so it was not a proven bound. Replace it with a count if one is ever made.
 #: `tests/test_vision_spend_containment.py` fails if the prompt outgrows it.
-PROMPT_TOKENS_WORST: int = 20_600
+PROMPT_TOKENS_WORST: int = 23_000
+
+#: One member's hard daily ceiling on the $4 interactive lane. A fixed figure on purpose: as a fraction of the
+#: lane it would rise whenever the lane did. Without it, one member's timeouts could drain the lane for everyone.
+MEMBER_VISION_USD: float = 1.00
 
 #: ⛔ ONE BILLED ATTEMPT. See the header: a timed-out call has already generated
 #: tokens and reports no ``usage``, so an SDK retry is spend the ledger counts as
@@ -201,6 +211,8 @@ REFUSALS: Mapping[str, str] = MappingProxyType({
         "the chart is holding more history than one request can carry"),
     "vision:spend-cap": (
         "the picture reader has reached its spending limit for today"),
+    "vision:member-share": (
+        "you have used your share of the picture reader for today"),
     "vision:hourly": (
         "you have sent as many pictures as one hour allows"),
     "vision:transport": (
@@ -355,7 +367,7 @@ _TASK = (
     "something like it. Offer them most-likely first, and for each one report:\n"
     "  * what you actually SAW that led you there -- where it sits (its own pane "
     "or on the price), the bounds of its axis, guide lines and their values, how "
-    "many lines, how they cross, shading, colour changes, the title text and any "
+    "many lines, how they cross, shading, color changes, the title text and any "
     "parameters printed in it;\n"
     "  * a name for it if you recognise one, and an empty label if you do not;\n"
     "  * a confidence from 0 to 100, and BE HONEST WITH IT. A picture does not "
@@ -542,13 +554,16 @@ def candidates_from_image(*, image_bytes: bytes, media_type: str, user_id: Any,
     ticker = f"indicator-vision:{user_id}"
     worst = worst_case_usd(note)
     try:
-        slot = cost_guard.reserve_member_call(market_date, ticker, MODEL, worst,
-                                              max_per_hour=max_per_hour)
+        slot = cost_guard.reserve_member_call(
+            market_date, ticker, MODEL, worst, max_per_hour=max_per_hour,
+            member_limit_usd=MEMBER_VISION_USD)
     except Exception:                               # noqa: BLE001 -- never raises out
         logger.exception("[indicator-vision] ledger unavailable; call refused")
         return _refusal("vision:spend-cap")
     if slot.get("refused") == "hourly":
         return _refusal("vision:hourly", retry_after=slot.get("retry_after"))
+    if slot.get("refused") == "member-share":
+        return _refusal("vision:member-share")
     if slot.get("refused"):
         return _refusal("vision:spend-cap")
     rowid = slot["id"]

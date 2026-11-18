@@ -1,0 +1,51 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-11T02:50:23Z
+tree: /c/w/pl-auto-remeasure HEAD 644b6d7188019c6a6d2d0ad4708152ead1c53ebb (measured master 75421184a33c10f42201c43f6bd2d6391594f4c1)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/qa/chartsOutcome/chartSettings.outcome.test.jsx --reporter=default --reporter=json
+[bn] free memory GB: 44.9
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+ [32m✓[39m src/agent/qa/chartsOutcome/chartSettings.outcome.test.jsx [2m([22m[2m52 tests[22m[2m | [22m[33m7 skipped[39m[2m)[22m[33m 39414[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-016 "switch this chart to heikin ashi candles": the selected chart reads heikinAshi=true; the other charts keep theirs; Undo restores it [33m 1317[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-017 "color the candles by open vs close": the selected chart reads candleColorMode=openclose; the other charts keep theirs; Undo restores it [33m 1209[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-018 "make the bars thicker on this chart": the selected chart reads candles.thinBars=false; the other charts keep theirs; Undo restores it [33m 1177[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-024 "flip the price scale upside down": the selected chart reads invertScale=true; the other charts keep theirs; Undo restores it [33m 1165[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-050 "give this chart a gradient background with a navy top": the selected chart reads bgMode=gradient, bgGradient.top=#1a2b4c; the other charts keep theirs; Undo restores it [33m 1176[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-051 "only show the crosshair while I hold the mouse": the selected chart reads crosshair.mode=hold; the other charts keep theirs; Undo restores it [33m 1177[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-052 "make the crosshair red, 2px and dashed": the selected chart reads crosshair.color=#ff0000, crosshair.width=2, crosshair.style=2; the other charts keep theirs; Undo restores it [33m 1188[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-053 "turn on the magnet crosshair": the selected chart reads crosshair.magnet=true; the other charts keep theirs; Undo restores it [33m 1163[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-054 "hide the last price label and show the moving average labels": the selected chart reads showPriceLabels=false, showMaLabels=true; the other charts keep theirs; Undo restores it [33m 1193[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-055 "bump the scale text up to 14": the selected chart reads textSize=14; the other charts keep theirs; Undo restores it [33m 1213[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-056 "hide the watermark on this chart": the selected chart reads watermark.visible=false; the other charts keep theirs; Undo restores it [33m 1161[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-057 "take the company name off the watermark and add the logo": the selected chart reads watermark.lines.company=false, watermark.lines.logo=true; the other charts keep theirs; Undo restores it [33m 1163[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-059 "make the watermark bigger, bold, blue and 30% opacity": the selected chart reads watermark.sizeScale=2, watermark.weight=700, watermark.color=#336699, watermark.opacity=0.3; the other charts keep theirs; Undo restores it [33m 1212[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-061 "put the watermark back in the middle": the selected chart reads watermark.x=0.5, watermark.y=0.5; the other charts keep theirs; Undo restores it [33m 1192[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-062 "show the ticker and the company name in the title": the selected chart reads header.titleMode=both; the other charts keep theirs; Undo restores it [33m 1209[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-063 "hide the day change next to the title": the selected chart reads header.showChange=false; the other charts keep theirs; Undo restores it [33m 1193[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-064 "only show the legend when I hold the crosshair": the selected chart reads header.legendMode=hold; the other charts keep theirs; Undo restores it [33m 1185[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-068 "turn on swing labels with high sensitivity": the selected chart reads swingLabels.enabled=true, swingLabels.sensitivity=high; the other charts keep theirs; Undo restores it [33m 1183[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-069 "swing labels on, tinted by high and low, green highs, red lows, dark grey background": the selected chart reads swingLabels.tintByType=true, swingLabels.upColor=#00ff00, swingLabels.downColor=#ff0000, swingLabels.bg=#222222; the other charts keep theirs; Undo restores it [33m 1252[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-070 "show earnings and news markers": the selected chart reads markers.earnings=true, markers.news=true; the other charts keep theirs; Undo restores it [33m 1196[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-071 "earnings beats in green, misses in red, and a yellow IPO badge": the selected chart reads markers.earningsBeat=#00aa00, markers.earningsMiss=#aa0000, markers.ipoColor=#ffcc00; the other charts keep theirs; Undo restores it [33m 1195[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-072 "turn off the previous day high line": the selected chart reads prevDayLevels.high.enabled=false; the other charts keep theirs; Undo restores it [33m 1167[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-073 "make the prior day low line solid, 3px and magenta": the selected chart reads prevDayLevels.low.style=solid, prevDayLevels.low.width=3, prevDayLevels.low.color=#ff00ff; the other charts keep theirs; Undo restores it [33m 1197[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-075 "show the bar close countdown": the selected chart reads countdown=true; the other charts keep theirs; Undo restores it [33m 1193[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-090 "stop highlighting the highest volume candle": the selected chart reads volume.hvcEnabled=false; the other charts keep theirs; Undo restores it [33m 1172[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-091 "volume bars blue up and orange down, a 50 period volume average in white, hide the volume label, histogram bars": the selected chart reads volume.upColor=#2962ff, volume.downColor=#ff9800, volume.maPeriod=50, volume.maColor=#ffffff, volume.labelVisible=false, volume.barStyle=histogram; the other charts keep theirs; Undo restores it [33m 1207[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-144 "set my position calculator to a 25k account risking half a percent": the selected chart reads positionCalc.accountSize=25000, positionCalc.riskPct=0.5; the other charts keep theirs; Undo restores it [33m 1182[2mms[22m[39m
+     [33m[2m✓[22m[39m C2-013 "turn on Chart IQ pattern recognition": the selected chart reads showChartIq=true; the other charts keep theirs; Undo restores it [33m 1191[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-087 "remove volume from this chart": the selected chart reads volume.removed=true; the other charts keep theirs; Undo restores it [33m 1161[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-015 "show the breadth chart as a line": a breadth series writes breadthChartType (the key its canvas reads), chartType untouched; Undo [33m 1179[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-055 (colour half) "make the scale text yellow": refused as inert (the axes pick their ink from the canvas); nothing is written [33m 982[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-076 "restore this chart to the default look": colours/markers go back to CHART_DEFAULTS, the chart's own overlays (indicator-owned) stay; Undo [33m 1316[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-080 "apply a theme to all my charts": every chart takes the gallery's all-charts result (themeAllChartWidgets); the news widget is untouched; Undo [33m 1339[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m45 passed[39m[22m[2m | [22m[90m7 todo[39m[90m (52)[39m
+[2m   Start at [22m 21:50:26
+[2m   Duration [22m 46.92s[2m (transform 5.32s, setup 244ms, import 6.69s, tests 39.41s, environment 445ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-2/packet/chartSettings.outcome.test.json
+# exit=0 end 02:51:13Z

@@ -66,8 +66,8 @@ export const TOURS = Object.freeze([
     flag: 'notebook_voice_notes_enabled',
     title: 'Voice notes',
     replayable: true,
-    // its door is the voice item in Research Home's New note menu (NewNoteMenu.jsx)
-    start: '/journal/notebook?view=home',
+    // its door is the voice item in the notes list's New menu (go-live wave 1; on a phone, ⋯ carries it)
+    start: '/journal/notebook?view=all',
     load: steps(() => import('./b1VoiceNotes.steps')),
   },
   {

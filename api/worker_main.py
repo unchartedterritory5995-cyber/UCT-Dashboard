@@ -34,10 +34,16 @@ from api.services.alert_destination import ops_webhook as _ops_webhook
 from fastapi import FastAPI
 import uvicorn
 
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) in
+# every log record -- this pod runs bars_fetch/httpx, whose URLs carry the key.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(message)s",
 )
+_install_log_redaction()   # put RedactSecretsFilter on the handlers basicConfig just made
 # Quiet the per-request httpx/httpcore noise. The prewarmer fires thousands
 # of Massive aggs requests per pass; at INFO each one logs a "GET … 200 OK"
 # line. Railway tags all worker stderr as severity=error, so that firehose
@@ -55,6 +61,8 @@ log = logging.getLogger("worker")
 _uploader_state = {
     "last_attempt_at": None,   # int unix seconds, or None before first loop
     "last_outcome": None,      # "success" | "no_data" | "error" | None
+    "base_started_at": None,   # int unix seconds while a daily base is building
+    "base_last_outcome": None, # "base" | "no_data" | "no_credentials" | "error" | None
 }
 _uploader_state_lock = threading.Lock()
 
@@ -143,6 +151,10 @@ def _start_massive_ws():
         log.exception(f"Massive WS consumer failed to start (non-fatal): {e}")
 
 
+#: How long the day's full base waits for the boot's first delta to finish.
+BASE_WAITS_FOR_DELTA_SECONDS = 3600
+
+
 def _start_uploader():
     """Push a snapshot to R2 every SNAPSHOT_INTERVAL_SECONDS."""
     from api.services import data_sync
@@ -161,6 +173,8 @@ def _start_uploader():
         from zoneinfo import ZoneInfo
         return _dt.datetime.now(ZoneInfo("America/New_York")).date().isoformat()
 
+    first_delta_done = threading.Event()
+
     def loop():
         while True:
             # Default to "error" so an exception below leaves the right
@@ -171,25 +185,17 @@ def _start_uploader():
                 # would otherwise return None and look identical in health.
                 if not data_sync.credentials_ok():
                     outcome = "no_credentials"
+                elif data_sync.adoption_active():
+                    outcome = "adopting"   # the clustered adoption owns bars.db + the disk
                 elif data_sync.DELTA_ENABLED:
-                    # One full base per ET day; deltas the rest of the time.
-                    today = _et_today()
-                    if _last_base_day["d"] != today:
-                        ts = data_sync.upload_snapshot(force=True)  # full base
-                        if ts and ts != data_sync.SNAPSHOT_UNCHANGED:
-                            _last_base_day["d"] = today
-                            data_sync.set_last_base_day(today)
-                            outcome = "base"
-                            log.info(f"uploaded base snapshot {ts}")
-                        else:
-                            outcome = "no_data"
+                    # The day's full base runs on its own thread (base_loop).
+                    started = time.monotonic()
+                    ts = data_sync.upload_delta()
+                    if ts:
+                        outcome = "delta"
+                        log.info(f"uploaded delta {ts} in {time.monotonic() - started:.0f}s")
                     else:
-                        ts = data_sync.upload_delta()
-                        if ts:
-                            outcome = "delta"
-                            log.info(f"uploaded delta {ts}")
-                        else:
-                            outcome = "unchanged"  # nothing in the window
+                        outcome = "unchanged"  # nothing in the window
                 else:
                     ts = data_sync.upload_snapshot()
                     if ts == data_sync.SNAPSHOT_UNCHANGED:
@@ -204,9 +210,51 @@ def _start_uploader():
             with _uploader_state_lock:
                 _uploader_state["last_attempt_at"] = int(time.time())
                 _uploader_state["last_outcome"] = outcome
+            first_delta_done.set()
             # Adaptive cadence: 5 min in the active data window, slow overnight/
             # weekends. With skip-if-unchanged this drops the round-the-clock
             # 688 MB upload firehose to near-zero when the market's closed.
+            time.sleep(data_sync.snapshot_interval_seconds())
+
+    def base_loop():
+        # ⛔ The base gets its OWN thread so it can never hold up the deltas.
+        # It takes hours on a 40 GB bars.db and a master merge restarts this
+        # process, so on 2026-11-09 every base was killed before finishing and,
+        # sharing the delta loop, no delta shipped after the restore. A base stamped
+        # after deltas that ran during its build is safe: each delta carries a
+        # full 7-45 day window, so the next one restores anything a pod skipped.
+        #
+        # ⛔ The boot's first delta goes first. While the base copied bars.db on
+        # 2026-11-09 a delta wrote 286 KB in 10 minutes, then 12 MB a minute once
+        # the copy ended, so running them together lost the short gap between deploys.
+        first_delta_done.wait(BASE_WAITS_FOR_DELTA_SECONDS)
+        while True:
+            outcome = None
+            try:
+                today = _et_today()
+                if not data_sync.credentials_ok():
+                    outcome = "no_credentials"
+                elif data_sync.adoption_active():
+                    outcome = "adopting"   # never copy a 40 GB store beside a 20 GB adoption
+                elif _last_base_day["d"] != today:
+                    with _uploader_state_lock:
+                        _uploader_state["base_started_at"] = int(time.time())
+                    outcome = "error"
+                    ts = data_sync.upload_snapshot(force=True)
+                    if ts and ts != data_sync.SNAPSHOT_UNCHANGED:
+                        _last_base_day["d"] = today
+                        data_sync.set_last_base_day(today)
+                        outcome = "base"
+                        log.info(f"uploaded base snapshot {ts}")
+                    else:
+                        outcome = "no_data"
+            except Exception as e:
+                outcome = "error"
+                log.exception(f"base upload error (non-fatal): {e}")
+            if outcome is not None:
+                with _uploader_state_lock:
+                    _uploader_state["base_started_at"] = None
+                    _uploader_state["base_last_outcome"] = outcome
             time.sleep(data_sync.snapshot_interval_seconds())
 
     log.info(
@@ -214,6 +262,8 @@ def _start_uploader():
         f"({data_sync.SNAPSHOT_INTERVAL_SECONDS // 60}-min cadence)"
     )
     threading.Thread(target=loop, daemon=True, name="s3_upload").start()
+    if data_sync.DELTA_ENABLED:
+        threading.Thread(target=base_loop, daemon=True, name="s3_base_upload").start()
 
 
 def _start_breadth_backfill():
@@ -882,6 +932,14 @@ async def _worker_lifespan(app):
         logging.getLogger("uvicorn.error").warning("[worker] consumer stop failed: %s", e)
 
 
+def _chart_monitor_health():
+    try:
+        from api.services.chart_monitor import runner as _cm
+        return _cm.status()
+    except Exception as e:  # noqa: BLE001 -- health must answer
+        return {"error": type(e).__name__}
+
+
 def _build_app() -> FastAPI:
     app = FastAPI(title="UCT Worker", docs_url=None, redoc_url=None,
                   lifespan=_worker_lifespan)
@@ -899,6 +957,8 @@ def _build_app() -> FastAPI:
         with _uploader_state_lock:
             last_attempt_at = _uploader_state["last_attempt_at"]
             last_outcome = _uploader_state["last_outcome"]
+            base_started_at = _uploader_state["base_started_at"]
+            base_last_outcome = _uploader_state["base_last_outcome"]
         seconds_since_attempt = (
             int(time.time()) - last_attempt_at
             if last_attempt_at is not None else None
@@ -929,6 +989,9 @@ def _build_app() -> FastAPI:
             "uploader_last_attempt_at": last_attempt_at,
             "uploader_last_outcome": last_outcome,
             "uploader_seconds_since_attempt": seconds_since_attempt,
+            # The daily full base runs apart from the deltas above.
+            "base_upload_started_at": base_started_at,
+            "base_upload_last_outcome": base_last_outcome,
             # PREWARMER liveness + DAILY store freshness — the signals whose absence
             # let the 2026-08-11 week-long freeze go undetected. `prewarm.alive`
             # false or `bars_daily.stale` true means warming has stopped.
@@ -938,6 +1001,8 @@ def _build_app() -> FastAPI:
             # UCT RS evidence job (unit 2b-02): the latest nightly pass, every
             # field None while RS_EVIDENCE_ENABLED is off or before the first run.
             "rs_evidence": _rs_evidence_health(),
+            # Chart-data synthetic monitor (P0a): last cycle, open alerts, age.
+            "chart_monitor": _chart_monitor_health(),
         }
 
     # /api/health is exposed so the worker satisfies the shared
@@ -1019,6 +1084,11 @@ from api.flow_router_mount import mount_flow_routers as _mount_flow_routers  # n
 
 
 def main():
+    try:  # AI-spend ledger: set LLM_USAGE_FORWARD_URL on this service so rows reach web's ledger
+        from api.services import llm_usage
+        llm_usage.install()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).warning('llm_usage install failed (non-fatal)', exc_info=True)
     log.info("worker boot starting")
     # An unreadable bars.db makes init_db raise, so repair comes first.
     try:
@@ -1030,6 +1100,17 @@ def main():
         log.exception(f"bars.db repair failed: {e}")
         sys.exit(1)
 
+    # A clustered adoption deferred by a busy old store finishes HERE, before anything in
+    # this process opens bars.db (repair_at_boot probes in a subprocess), so no reader can
+    # block the swap's checkpoint (2026-11-14: one held the store past a 5-minute budget).
+    try:
+        from api.services import data_sync as _ds_boot
+        _r = _ds_boot.complete_deferred_swap()
+        if _r != "none":
+            log.info(f"adopt-clustered boot swap: {_r}")
+    except Exception as e:  # noqa: BLE001
+        log.exception(f"adopt-clustered boot swap error (non-fatal): {e}")
+
     # Bring up SQLite (needed by the prewarmer)
     try:
         from api.services import bars_sqlite as _bs
@@ -1038,6 +1119,33 @@ def main():
     except Exception as e:
         log.exception(f"bars SQLite init failed: {e}")
         sys.exit(1)
+
+    # Clustered-layout adoption (BARS_ADOPT_CLUSTERED=1, one-shot via its marker): the same
+    # restart-safe path web and bars-api use -- carries this store's newer rows into the
+    # latest clustered base and swaps under the write + swap locks. The uploader stands
+    # aside while it runs (`adoption_active`). After it the daily base ships the store as
+    # is instead of spending hours converting a rowid copy. Restart the worker after the
+    # swap: idle threads hold the old 40 GB file open until they next touch bars.db.
+    def _exit_for_boot_swap():
+        # Called with the bars write lock held: no write can land between the saved series
+        # list and process exit. Railway's ALWAYS restart policy brings the worker back,
+        # and main() finishes the swap before anything opens bars.db.
+        log.warning("adopt-clustered: restarting the worker to finish the swap at boot")
+        for _h in logging.getLogger().handlers:
+            try:
+                _h.flush()
+            except Exception:  # noqa: BLE001
+                pass
+        os._exit(75)
+
+    def _adopt():
+        try:
+            from api.services import data_sync as _ds
+            log.info(f"adopt-clustered: "
+                     f"{_ds.adopt_clustered_store(defer_swap=_exit_for_boot_swap)}")
+        except Exception as e:  # noqa: BLE001
+            log.warning(f"adopt-clustered check failed (non-fatal): {e}")
+    threading.Thread(target=_adopt, daemon=True, name="adopt-clustered").start()
 
     # Volume watchdog (see api/services/disk_watchdog.py). This pod holds the
     # 12GB bars.db plus the bars_cache trees, so it has the most room to run away.
@@ -1083,9 +1191,25 @@ def main():
         target=_purge_then_start_uploader, name="weekly-purge", daemon=True
     ).start()
 
+    # Off-grid intraday rows (trade-time stamped yfinance live rows, 2026-11-10): this
+    # store is the snapshot source, so repair it here. Background, paced, idempotent;
+    # the merge gate keeps any row it has not reached yet out of the other tiers.
+    try:
+        from api.services import intraday_grid as _grid
+        _grid.sweep_async(delay_s=60)
+    except Exception as e:
+        log.warning(f"off-grid sweep did not start (non-fatal): {e}")
+
     _start_prewarmer()
     _start_universe_crawler()
     _start_bars_freshness_watchdog()
+    # Chart-data synthetic monitor (P0a): probes the PUBLIC edge every ~5 min in market hours,
+    # pages ops on N consecutive failures. ON by default; CHART_MONITOR_ENABLED=0 stops it.
+    try:
+        from api.services.chart_monitor import runner as _chart_monitor
+        _chart_monitor.start()
+    except Exception as e:
+        log.warning(f"chart monitor did not start (non-fatal): {type(e).__name__}")
     try:   # Chart IQ pack backup builder: OFF unless CHART_IQ_PACK_WORKER_ENABLED=1 (api/services/chart_iq/pack_backup.py)
         from api.services.chart_iq import pack_backup as _ciq_backup
         _ciq_backup.start_loop()

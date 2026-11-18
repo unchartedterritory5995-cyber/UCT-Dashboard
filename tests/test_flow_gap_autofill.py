@@ -392,3 +392,149 @@ def test_prune_backups_enforces_a_size_cap_not_just_age(tmp_path, monkeypatch):
 def test_prune_backups_no_dir_is_a_noop(tmp_path, monkeypatch):
     monkeypatch.setattr(gf, "BACKUP_DIR", str(tmp_path / "nope"))
     assert gf._prune_backups() == 0
+
+
+# --- Disk guard (2026-11-12): a full volume corrupted flow.db four times ------------------
+# Each gap-fill snapshot is a FULL copy of flow.db (11 GB). It used to be taken before the
+# flat file was known to exist (most morning runs then ended `no_file`), the newest 3 were
+# exempt from the size cap, old ones were pruned only AFTER the new copy, and free space was
+# never checked: the volume filled, SQLite hit `disk I/O error` and the write head corrupted.
+
+def test_no_snapshot_is_taken_when_the_flat_file_is_not_published(db, monkeypatch):
+    session = list(range(gf.SESSION_START_MIN, 16 * 60))
+    _insert_live(db["path"], _minute_rows([m for m in session if m not in set(range(605, 615))]))
+    monkeypatch.setattr(gf, "_build_fill_rows", lambda target: (None, {}))
+    taken = []
+    monkeypatch.setattr(gf, "_backup_db", lambda run_id, target: taken.append(1) or "x")
+    result = gf.run_fill(target=TARGET, dry_run=False)
+    assert result["status"] == "no_file"
+    assert taken == [], "a full flow.db copy was made for a run that could write nothing"
+
+
+def test_no_room_for_a_snapshot_aborts_the_run_with_nothing_written(db, monkeypatch):
+    session = list(range(gf.SESSION_START_MIN, 16 * 60))
+    _insert_live(db["path"], _minute_rows([m for m in session if m not in set(range(605, 615))]))
+    monkeypatch.setattr(gf, "_build_fill_rows",
+                        lambda target: (_fill_rows_at([m * 60 + 30 for m in range(604, 616)]),
+                                        {"min_premium": 10000, "min_volume": 50}))
+    monkeypatch.setattr(gf, "_backup_room", lambda: (False, 50 << 30, 3 << 30))
+    before = sqlite3.connect(db["path"]).execute("SELECT COUNT(*) FROM flow").fetchone()[0]
+    result = gf.run_fill(target=TARGET, dry_run=False)
+    after = sqlite3.connect(db["path"]).execute("SELECT COUNT(*) FROM flow").fetchone()[0]
+    assert result["status"] == "failed"
+    assert after == before, "rows were written without a rollback snapshot"
+    assert not os.path.isdir(gf.BACKUP_DIR) or not [
+        f for f in os.listdir(gf.BACKUP_DIR) if f.startswith("flow-pre-")], "a snapshot was written anyway"
+
+
+def test_old_snapshots_are_pruned_before_the_new_one_is_written(db, monkeypatch, tmp_path):
+    os.makedirs(gf.BACKUP_DIR, exist_ok=True)
+    monkeypatch.setattr(gf, "BACKUP_KEEP", 1)
+    monkeypatch.setattr(gf, "_backup_room", lambda: (True, 0, 1 << 40))
+    for i in range(3):
+        _snap(gf.BACKUP_DIR, i, 10, age_days=0.1 * (3 - i))   # fresh: the old rule kept them all
+    seen_at_copy = []
+    real_connect = sqlite3.connect
+
+    def spy(path, *a, **k):
+        if str(path).startswith(gf.BACKUP_DIR):
+            seen_at_copy.append(sorted(f for f in os.listdir(gf.BACKUP_DIR) if f.startswith("flow-pre-")))
+        return real_connect(path, *a, **k)
+    monkeypatch.setattr(gf.sqlite3, "connect", spy)
+    gf._backup_db(77, TARGET)
+    assert seen_at_copy and seen_at_copy[0] == [], f"old snapshots still present while copying: {seen_at_copy}"
+    left = [f for f in os.listdir(gf.BACKUP_DIR) if f.startswith("flow-pre-")]
+    assert left == [f"flow-pre-77-{TARGET.isoformat()}.db"]
+
+
+def test_backup_room_counts_the_db_and_its_wal_plus_the_floor(tmp_path, monkeypatch):
+    p = tmp_path / "flow.db"
+    p.write_bytes(b"x" * 1000)
+    (tmp_path / "flow.db-wal").write_bytes(b"x" * 500)
+    monkeypatch.setattr(gf, "DB_PATH", str(p))
+    monkeypatch.setattr(gf, "BACKUP_DIR", str(tmp_path / "flow_backups"))
+    monkeypatch.setattr(gf, "BACKUP_FREE_FLOOR_BYTES", 100)
+    monkeypatch.setattr(gf.shutil, "disk_usage", lambda path: type("U", (), {"free": 1599})())
+    assert gf._backup_room() == (False, 1600, 1599)
+    monkeypatch.setattr(gf.shutil, "disk_usage", lambda path: type("U", (), {"free": 1600})())
+    assert gf._backup_room()[0] is True
+
+
+def test_flow_db_connections_cap_the_wal_file():
+    import tempfile
+    from api.flow_db import FlowDB, WAL_SIZE_LIMIT_BYTES
+    with tempfile.TemporaryDirectory() as d:
+        fdb = FlowDB(os.path.join(d, "f.db"))
+        with fdb._conn() as c:
+            assert c.execute("PRAGMA journal_size_limit").fetchone()[0] == WAL_SIZE_LIMIT_BYTES
+    assert 0 < WAL_SIZE_LIMIT_BYTES <= 1 << 30
+
+
+# --- Saturday coverage (2026-11-14 incident) ----------------------------------
+# A Friday session's flat file publishes on the SATURDAY (Massive is T+1, ~11 AM
+# ET). Every trigger in register_jobs was `mon-fri`, so Friday's last fire
+# (21:00 ET Fri) landed BEFORE the file existed and was structurally guaranteed
+# to return no_file -- after which nothing fired again until Mon 08:00. 11/13
+# sat at 21,245 rows with its whole 09:30-14:00 morning missing all weekend.
+
+def test_saturday_resolves_to_the_prior_friday():
+    """The Saturday fires lean on this: Saturday is not a trading day, so the
+    default target walks back to Friday with no special-casing anywhere."""
+    from datetime import datetime
+    for hh in (8, 12, 16, 21):
+        got = gf._latest_completed_trading_day(
+            datetime(2026, 11, 14, hh, 30, tzinfo=gf.ET))
+        assert got == date(2026, 11, 13), (hh, got)
+
+
+def test_register_jobs_fires_on_saturday_to_heal_a_friday(monkeypatch):
+    """The rail that was missing. Asserts real trigger behaviour (next fire
+    time), not a day_of_week string, so it holds however the cron is spelled."""
+    from datetime import datetime
+    monkeypatch.setattr(gf, "ENABLED", True)
+    jobs = []
+
+    class _Sched:
+        def add_job(self, func, trigger, id=None, **kw):
+            jobs.append((func, trigger, id))
+
+    assert gf.register_jobs(_Sched()) is True
+
+    sat_start = datetime(2026, 11, 14, 0, 5, tzinfo=gf.ET)    # Saturday
+    sat_end = datetime(2026, 11, 14, 23, 59, tzinfo=gf.ET)
+    fills, walkbacks = [], []
+    for func, trig, jid in jobs:
+        nxt = trig.get_next_fire_time(None, sat_start)
+        if nxt is None or nxt > sat_end:
+            continue
+        (walkbacks if func is gf.run_fill_walkback else fills).append((jid, nxt))
+
+    assert fills, ("no run_fill job fires on a Saturday -- a damaged Friday "
+                   "cannot be healed until Monday")
+    assert walkbacks, "no walkback job fires on a Saturday"
+    # Each Saturday fire must land AFTER Massive's ~11 AM ET publish: run_fill
+    # copies the whole ~11GB DB BEFORE _build_fill_rows fetches, so an earlier
+    # fire burns a full backup and only then discovers no_file.
+    for jid, nxt in fills + walkbacks:
+        assert nxt.hour >= 11, ("Saturday fire before the ~11 AM publish", jid, nxt)
+
+
+def test_weekday_schedule_is_unchanged_by_the_saturday_fix(monkeypatch):
+    """Guard the blast radius: the Mon-Fri cadence must be exactly as before."""
+    from datetime import datetime
+    monkeypatch.setattr(gf, "ENABLED", True)
+    jobs = []
+
+    class _Sched:
+        def add_job(self, func, trigger, id=None, **kw):
+            jobs.append((func, trigger, id))
+
+    gf.register_jobs(_Sched())
+    wed = datetime(2026, 11, 11, 0, 5, tzinfo=gf.ET)          # Wednesday
+    wed_end = datetime(2026, 11, 11, 23, 59, tzinfo=gf.ET)
+    fired = set()
+    for func, trig, jid in jobs:
+        nxt = trig.get_next_fire_time(None, wed)
+        if nxt is not None and nxt <= wed_end:
+            fired.add((nxt.hour, nxt.minute))
+    assert fired == {(8, 0), (8, 15), (16, 35), (16, 45), (21, 0)}, sorted(fired)

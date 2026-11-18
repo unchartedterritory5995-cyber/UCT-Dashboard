@@ -1,0 +1,12 @@
+Tue Nov 10 22:56:01 UTC 2026
+commit 91cf48dc79 + temporary DBG988 console.log in negatedClick (not committed)
+DBG988 rule=STAY_CLICK clause=[ it is right above support]
+DBG988 rule=STAY_CLICK clause=[ it is right above support]
+DBG988 rule=STAY_CLICK clause=[ it is right above support]
+DBG988 rule=STAY_CLICK clause=[ it is right above support]
+DBG988 rule=STAY_CLICK clause=[ it is right above support]
+DBG988 rule=STAY_CLICK clause=[ it is right above support]
+     × make it weekly, it is right above support | clicked c2 | plan c2 1150ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: got DDDD; transcript: y?User5:56 PMmake it weekly, it is right above supportUCT Agent5:56 PMYou said not the chart you clicked. Which chart do you mean?Chart (c0)Chart (c1)Chart (c3): expected [ 'DDWD' ] to include 'DDDD'
+      Tests  1 failed | 23 skipped (24)

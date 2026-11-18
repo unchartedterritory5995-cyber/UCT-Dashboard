@@ -332,7 +332,7 @@ export default function ResearchComparePage() {
       </div>
 
       <div className={styles.aiSection}>
-        <TileCard title="Ask AI" icon="sparkle">
+        <TileCard title="Ask the UCT Agent" icon="sparkle">
           <ComparisonAskAi symA={sym} symB={comparator} />
         </TileCard>
       </div>

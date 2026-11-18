@@ -1,0 +1,513 @@
+{
+ "report_day": "2026-11-18",
+ "data_dir": "<temp>\\t4-full-d84aa2d949\\data\\c2",
+ "c2_email": "q1c2m5049759@local.dev",
+ "sample_ids": [
+  "7b36f656ceee40f18d4f0a02dfc2150a",
+  "a567a6c280fc45c8b22e48f56ed1ea04",
+  "09aa0c9200c749c5bd789d68577060fa",
+  "7818020c7228421d91ea5a4b2a8cbe2b",
+  "8eb03b4a2a1d40af87d8eaee9bfad410",
+  "4ea954bfc3684a9095ce592c96dfd8d4",
+  "eead9a60923b4faa8a541accea43616b",
+  "a5be5881e7f54af2a4d055a608091828",
+  "800b065252594e0fbc923384482ebf80",
+  "533a3b6ac39e4999a841e894704ef10e"
+ ],
+ "sample_titles": [
+  "Call excerpt: example -- TSLA",
+  "Earnings prep draft: example -- AMZN",
+  "Thesis: example -- NVDA leadership",
+  "Active setup: example -- MSFT base breakout",
+  "Trade plan: example -- AAPL pullback",
+  "Research: how a base forms",
+  "Thesis: leaders recover first",
+  "Welcome to your sample notebook",
+  "Daily note example",
+  "Pre-market checklist"
+ ],
+ "sample_by_ticker": {
+  "AAPL": "4ea954bfc3684a9095ce592c96dfd8d4",
+  "MSFT": "eead9a60923b4faa8a541accea43616b",
+  "NVDA": "a5be5881e7f54af2a4d055a608091828",
+  "GOOGL": null,
+  "TSLA": "533a3b6ac39e4999a841e894704ef10e",
+  "AMZN": "800b065252594e0fbc923384482ebf80"
+ },
+ "first_note": "4cca3fa826dc4dbdb6d72011efc5f87a",
+ "gallery_submission": "1bde9c2181504378b212682a639305a7",
+ "formula_note": "00916f9b5abc40f3a549f8daa3ba8784",
+ "amd_note": "62602ec8326f419d87a2888611ae08b6",
+ "amd_plan": {
+  "target": 534.1234117261956,
+  "entry": 383.68808508590814,
+  "stop": 233.25275844562063
+ },
+ "amd_embed": "f1eb9a44-1e43-4942-9719-21e1e959e9cf",
+ "amd_tag": "VCP",
+ "amd_pos": "fefb46c0-c659-4f66-ab03-b2ff5d235c55",
+ "nvda_pos": "252ae646-d57f-4f84-9d2b-04a14313d7bf",
+ "ibm_note": "1cb1f23bad6c40f890d72ea86d3e4263",
+ "ibm_v1": "82c4aedaad78456c9a67449334237543",
+ "ibm_pos": "aecaddc0-9a33-4f54-814e-91d306b79d11",
+ "post_child": {
+  "block_keys": [
+   "asOf",
+   "embedId",
+   "embedKey",
+   "fingerprint",
+   "fingerprintSource",
+   "frozenAt",
+   "mode",
+   "noteId",
+   "noteTitle",
+   "position",
+   "setupTag",
+   "symbol",
+   "timeframe",
+   "values"
+  ],
+  "block_symbols": [
+   [
+    "IBM",
+    null
+   ],
+   [
+    "AMD",
+    "VCP"
+   ],
+   [
+    "MSFT",
+    "Flat Base Breakout"
+   ],
+   [
+    "AAPL",
+    "Classic Flag/Pullback"
+   ]
+  ],
+  "template": {
+   "found": true,
+   "tag": "VCP"
+  },
+  "nightly": {
+   "ran": true,
+   "asOf": "2026-11-13",
+   "universe": 1,
+   "universeTruncated": false,
+   "members": 1,
+   "templates": 1,
+   "rows": 1,
+   "thin": 0,
+   "deferred": 0,
+   "errors": 0,
+   "patternReads": 0,
+   "seconds": 0.002
+  },
+  "passed_setups": {
+   "added": 2,
+   "scored": 3
+  },
+  "projected": 2,
+  "scans": [
+   {
+    "label": "above the stops",
+    "price": {
+     "AMD": 308.47,
+     "IBM": 200.0
+    },
+    "result": {
+     "resurface": {
+      "members": 1,
+      "priced_symbols": 2,
+      "fired": 0,
+      "sides_moved": 6,
+      "notes_projected": 12,
+      "notes_removed": 0,
+      "rows_written": 17,
+      "notes_behind": 0
+     }
+    },
+    "insights": [],
+    "levels": [
+     {
+      "note_id": "1cb1f23bad6c40f890d72ea86d3e4263",
+      "level_id": "entry@205.0",
+      "role": "entry",
+      "price": 205.0,
+      "version_id": "82c4aedaad78456c9a67449334237543",
+      "last_side": "below"
+     },
+     {
+      "note_id": "1cb1f23bad6c40f890d72ea86d3e4263",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "1cb1f23bad6c40f890d72ea86d3e4263",
+      "level_id": "stop@195.0",
+      "role": "stop",
+      "price": 195.0,
+      "version_id": "82c4aedaad78456c9a67449334237543",
+      "last_side": "above"
+     },
+     {
+      "note_id": "1cb1f23bad6c40f890d72ea86d3e4263",
+      "level_id": "target@230.0",
+      "role": "target",
+      "price": 230.0,
+      "version_id": null,
+      "last_side": "below"
+     },
+     {
+      "note_id": "4ea954bfc3684a9095ce592c96dfd8d4",
+      "level_id": "entry@180.0",
+      "role": "entry",
+      "price": 180.0,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "4ea954bfc3684a9095ce592c96dfd8d4",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "4ea954bfc3684a9095ce592c96dfd8d4",
+      "level_id": "stop@170.0",
+      "role": "stop",
+      "price": 170.0,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "4ea954bfc3684a9095ce592c96dfd8d4",
+      "level_id": "target@205.0",
+      "role": "target",
+      "price": 205.0,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "533a3b6ac39e4999a841e894704ef10e",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "62602ec8326f419d87a2888611ae08b6",
+      "level_id": "entry@383.688085",
+      "role": "entry",
+      "price": 383.688085,
+      "version_id": null,
+      "last_side": "below"
+     },
+     {
+      "note_id": "62602ec8326f419d87a2888611ae08b6",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "62602ec8326f419d87a2888611ae08b6",
+      "level_id": "stop@233.252758",
+      "role": "stop",
+      "price": 233.252758,
+      "version_id": null,
+      "last_side": "above"
+     },
+     {
+      "note_id": "62602ec8326f419d87a2888611ae08b6",
+      "level_id": "target@534.123412",
+      "role": "target",
+      "price": 534.123412,
+      "version_id": null,
+      "last_side": "below"
+     },
+     {
+      "note_id": "800b065252594e0fbc923384482ebf80",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "a5be5881e7f54af2a4d055a608091828",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "a5be5881e7f54af2a4d055a608091828",
+      "level_id": "stop@110.0",
+      "role": "stop",
+      "price": 110.0,
+      "version_id": "887418137dd84b29849fd10cc0df7a01",
+      "last_side": null
+     },
+     {
+      "note_id": "eead9a60923b4faa8a541accea43616b",
+      "level_id": "entry@410.0",
+      "role": "entry",
+      "price": 410.0,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "eead9a60923b4faa8a541accea43616b",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "eead9a60923b4faa8a541accea43616b",
+      "level_id": "stop@395.0",
+      "role": "stop",
+      "price": 395.0,
+      "version_id": null,
+      "last_side": null
+     }
+    ],
+    "deliver_calls": 0
+   },
+   {
+    "label": "through the stops",
+    "price": {
+     "AMD": 230.92,
+     "IBM": 193.0
+    },
+    "result": {
+     "resurface": {
+      "members": 1,
+      "priced_symbols": 2,
+      "fired": 2,
+      "sides_moved": 2,
+      "notes_projected": 0,
+      "notes_removed": 0,
+      "rows_written": 0,
+      "notes_behind": 0
+     }
+    },
+    "insights": [
+     {
+      "id": 1,
+      "kind": "note_level_touch",
+      "symbol": "AMD",
+      "headline": "AMD reached 233.25, the stop you named",
+      "importance": 7
+     },
+     {
+      "id": 2,
+      "kind": "note_level_touch",
+      "symbol": "IBM",
+      "headline": "IBM reached 195.00, the stop you named",
+      "importance": 7
+     }
+    ],
+    "levels": [
+     {
+      "note_id": "1cb1f23bad6c40f890d72ea86d3e4263",
+      "level_id": "entry@205.0",
+      "role": "entry",
+      "price": 205.0,
+      "version_id": "82c4aedaad78456c9a67449334237543",
+      "last_side": "below"
+     },
+     {
+      "note_id": "1cb1f23bad6c40f890d72ea86d3e4263",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "1cb1f23bad6c40f890d72ea86d3e4263",
+      "level_id": "stop@195.0",
+      "role": "stop",
+      "price": 195.0,
+      "version_id": "82c4aedaad78456c9a67449334237543",
+      "last_side": "below"
+     },
+     {
+      "note_id": "1cb1f23bad6c40f890d72ea86d3e4263",
+      "level_id": "target@230.0",
+      "role": "target",
+      "price": 230.0,
+      "version_id": null,
+      "last_side": "below"
+     },
+     {
+      "note_id": "4ea954bfc3684a9095ce592c96dfd8d4",
+      "level_id": "entry@180.0",
+      "role": "entry",
+      "price": 180.0,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "4ea954bfc3684a9095ce592c96dfd8d4",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "4ea954bfc3684a9095ce592c96dfd8d4",
+      "level_id": "stop@170.0",
+      "role": "stop",
+      "price": 170.0,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "4ea954bfc3684a9095ce592c96dfd8d4",
+      "level_id": "target@205.0",
+      "role": "target",
+      "price": 205.0,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "533a3b6ac39e4999a841e894704ef10e",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "62602ec8326f419d87a2888611ae08b6",
+      "level_id": "entry@383.688085",
+      "role": "entry",
+      "price": 383.688085,
+      "version_id": null,
+      "last_side": "below"
+     },
+     {
+      "note_id": "62602ec8326f419d87a2888611ae08b6",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "62602ec8326f419d87a2888611ae08b6",
+      "level_id": "stop@233.252758",
+      "role": "stop",
+      "price": 233.252758,
+      "version_id": null,
+      "last_side": "below"
+     },
+     {
+      "note_id": "62602ec8326f419d87a2888611ae08b6",
+      "level_id": "target@534.123412",
+      "role": "target",
+      "price": 534.123412,
+      "version_id": null,
+      "last_side": "below"
+     },
+     {
+      "note_id": "800b065252594e0fbc923384482ebf80",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "a5be5881e7f54af2a4d055a608091828",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "a5be5881e7f54af2a4d055a608091828",
+      "level_id": "stop@110.0",
+      "role": "stop",
+      "price": 110.0,
+      "version_id": "887418137dd84b29849fd10cc0df7a01",
+      "last_side": null
+     },
+     {
+      "note_id": "eead9a60923b4faa8a541accea43616b",
+      "level_id": "entry@410.0",
+      "role": "entry",
+      "price": 410.0,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "eead9a60923b4faa8a541accea43616b",
+      "level_id": "note",
+      "role": "note",
+      "price": null,
+      "version_id": null,
+      "last_side": null
+     },
+     {
+      "note_id": "eead9a60923b4faa8a541accea43616b",
+      "level_id": "stop@395.0",
+      "role": "stop",
+      "price": 395.0,
+      "version_id": null,
+      "last_side": null
+     }
+    ],
+    "deliver_calls": 0
+   }
+  ]
+ },
+ "resurface_version": "82c4aedaad78456c9a67449334237543",
+ "amd_level": {
+  "note_id": "62602ec8326f419d87a2888611ae08b6",
+  "level_id": "stop@233.252758",
+  "role": "stop",
+  "price": 233.252758,
+  "version_id": null,
+  "last_side": "below"
+ },
+ "resurface_insights": [
+  {
+   "id": 1,
+   "kind": "note_level_touch",
+   "symbol": "AMD",
+   "headline": "AMD reached 233.25, the stop you named",
+   "importance": 7
+  },
+  {
+   "id": 2,
+   "kind": "note_level_touch",
+   "symbol": "IBM",
+   "headline": "IBM reached 195.00, the stop you named",
+   "importance": 7
+  }
+ ],
+ "explainer_in_feature_step": true,
+ "ibm_trade": "72d2d93a-f784-4502-a412-ed120f125398",
+ "amd_trade": "a2b8abc3-291e-45bc-8453-b81c2351f3b6",
+ "prep_note": "62339c6df81e43998983f6a21f212474",
+ "review_daily": "cde74527bd6a4a219fc00b61497d2aac",
+ "review_weekly": "edb890526b3645548ea2e83c36818d52",
+ "review_monthly": "3c124f787b1b4ce883af3d3af527b31c",
+ "own_same_name_folder": "5bd55c87a41748618828c474d2b0f134",
+ "tip": "d84aa2d949"
+}

@@ -1,0 +1,59 @@
+{
+ "report_day": "2026-11-18",
+ "data_dir": "<temp>\\ff2-held-141c001088\\data\\c2",
+ "tip": "4f3d94089f",
+ "c2_email": "q1c2m3886443@local.dev",
+ "sample_ids": [
+  "bcc3f788f16346a39caf9a2d933e8580",
+  "52a3e97bf13c49b4ae47aa9ea69120c0",
+  "b627dc6751b44e7bb3327a8c4a0bf4dd",
+  "f600889541504a9b9077f3b12dd485fe",
+  "29701639a7514bfda26fc8695d8990eb",
+  "ad3b6ff51e8442bba0d4a2145d21fecb",
+  "8ee68ae88e8b4c2d975ea460baaac5b6",
+  "eca44d278de749428c1142b03aeb4e63",
+  "0c82f18580684a398035f7c4cb1b21aa",
+  "10a93a78620f4e2c9aeb862dc30ce66e"
+ ],
+ "sample_titles": [
+  "Call excerpt: example -- TSLA",
+  "Earnings prep draft: example -- AMZN",
+  "Thesis: example -- NVDA leadership",
+  "Active setup: example -- MSFT base breakout",
+  "Trade plan: example -- AAPL pullback",
+  "Research: how a base forms",
+  "Thesis: leaders recover first",
+  "Welcome to your sample notebook",
+  "Daily note example",
+  "Pre-market checklist"
+ ],
+ "sample_by_ticker": {
+  "AAPL": "ad3b6ff51e8442bba0d4a2145d21fecb",
+  "MSFT": "8ee68ae88e8b4c2d975ea460baaac5b6",
+  "NVDA": "eca44d278de749428c1142b03aeb4e63",
+  "GOOGL": null,
+  "TSLA": "10a93a78620f4e2c9aeb862dc30ce66e",
+  "AMZN": "0c82f18580684a398035f7c4cb1b21aa"
+ },
+ "first_note": "854084a641274597bf1fd7b1cdbd952b",
+ "amd_note": "c541252ee4d243718dfe515e19d4b8c3",
+ "amd_plan": {
+  "target": 534.4738051669934,
+  "entry": 384.46221644790205,
+  "stop": 234.4506277288107
+ },
+ "amd_embed": "7266f121-82f0-43fa-8278-5c7054ddd015",
+ "amd_tag": "VCP",
+ "amd_pos": "ba70fcc3-a450-4aa5-9c81-12026a8e1f8a",
+ "nvda_pos": "af93cb44-5d48-440e-b404-5d5e8e683c41",
+ "ibm_note": "01cd3ae475fd429fa8ebc3744cf50d38",
+ "ibm_v1": "bc9be830afa34c28a83940cf72197d8b",
+ "ibm_pos": "f77aa60b-d47c-41bf-b72f-648bbdde4cd5",
+ "review_daily": "2eb40fcb5c8f410f87111b3d3bda41a9",
+ "review_weekly": "18e57ca249aa487a8666c389bb1f0953",
+ "review_monthly": "d5d2951b28be40e7b330709e74b067df",
+ "explainer_in_feature_step": false,
+ "ibm_trade": "a9511884-3aef-4b16-a528-830237c7a0cb",
+ "amd_trade": "1e8fc8d8-07c9-4aa3-ae7d-9d3fa110da17",
+ "own_same_name_folder": "6c63438da0c946bd86ae71b1a600754e"
+}

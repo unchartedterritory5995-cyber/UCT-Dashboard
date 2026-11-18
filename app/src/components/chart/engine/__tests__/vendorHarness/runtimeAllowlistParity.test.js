@@ -37,11 +37,31 @@ import {
   __allowEveryRuntimeScriptForTests,
 } from '../../runtimeKill'
 import { __permitRuntimePaneForTests, runtimePaneEnabled } from '../../runtimePaneGate'
+import { setRunHalfObjectEvidence, runHalfEvidenceAdmits } from '../../runHalfRailSeam'
 
 const ALLOWLIST = path.join(REPO, 'api', 'data', 'pine_runtime_allowlist.json')
 const doc = JSON.parse(fs.readFileSync(ALLOWLIST, 'utf8'))
 const scripts = doc.scripts
 const listedHashes = scripts.map((s) => String(s.sha256).toLowerCase())
+/** ⭐ RS Rating (2026-11-16) — WHAT THE KILL READ SERVES AS `run_half_evidence` for the committed list,
+ *  field for field as `api/services/runtime_definitions.py::run_half_evidence` builds it (a record's
+ *  captures that carry an `objectsV2` grade). Production latches exactly this beside the allowlist
+ *  (`runtimeKill.js`), and a host-partial script's labels are drawn only on it. ⛔ Whether an entry
+ *  ADMITS is still the seam's own rule (`runHalfEvidenceAdmits`), never decided here. */
+const servedRunHalfEvidence = scripts
+  .map((s) => ({ s, caps: (s.captures || []).filter((c) => c && 'objectsV2' in c && typeof c.id === 'string' && c.id) }))
+  .filter(({ caps }) => caps.length)
+  .map(({ s, caps }) => ({
+    sha256: String(s.sha256).toLowerCase(),
+    ...('admission' in s ? { admission: s.admission, substituted: s.substituted } : {}),
+    captures: caps.map((c) => ({
+      capture: c.id, verdict: c.verdict, objectsV2: c.objectsV2 === 'MATCH', runtimeOn: c.runtimePane === 'on',
+      ...('substituted' in c ? { substituted: c.substituted } : {}),
+      // ⭐ SETTINGS PARITY (2c): the settings a capture was taken at (the server serves them as given)
+      ...(c.inputs && typeof c.inputs === 'object' && Object.keys(c.inputs).length ? { inputs: { ...c.inputs } } : {}),
+      ...(c.objectsV2 === 'MATCH_SUBSTITUTED' ? { objectsV2Substituted: c.objectsV2Substituted || [] } : {}),
+    })),
+  }))
 
 /** The flag NAMES are read off their gate modules, never typed. */
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
@@ -65,11 +85,13 @@ beforeEach(() => {
   setRuntimeKillList([])
   // ⛔ THE SERVER'S LIST, not the suites' allow-every override (`src/test-setup.js`)
   setRuntimeAllowList(listedHashes)
+  setRunHalfObjectEvidence(servedRunHalfEvidence)
 })
 
 afterEach(() => {
   vi.unstubAllEnvs()
   setRuntimeKillList([])
+  setRunHalfObjectEvidence([])
   __allowEveryRuntimeScriptForTests()
 })
 
@@ -100,18 +122,60 @@ describe('W2 — every allowlisted script still grades MATCH through the runtime
   for (const s of scripts) {
     for (const c of s.captures) {
       it(`⭐ ${s.slug} · ${c.id}: drawn by the runtime lane and graded ${c.verdict}`, () => {
-        expect(c.verdict).toBe('MATCH')
+        // ⭐ L7 (RS Rating, 2026-11-16) — a record on the SUBSTITUTED path is graded MATCH_SUBSTITUTED and
+        // never MATCH (`rollout_gate.pine_runtime_admission`): every plot and object equals the vendor's
+        // with the vendor's own value of each substituted input fed. Any other record must grade MATCH.
+        const want = s.admission === 'substituted' ? 'MATCH_SUBSTITUTED' : 'MATCH'
+        expect(c.verdict).toBe(want)
         expect(c.runtimePane).toBe('on')
         const cap = capture(`${c.id}.json`)
         expect(runtimeSourceHash(cap.source.text)).toBe(s.sha256)
         const door = memberPaneDefinition({ source: cap.source.text, id: 'u_w2-allowlist-probe' })
         expect(door.ok, door.reason).toBe(true)
-        expect(door.lane).toBe('runtime')
+        // A script the runtime lane runs WHOLE answers `lane: 'runtime'`. RS Rating is a host-partial
+        // script: the host lane draws its plots and the RUN draws its labels (the run half, L5), so the
+        // door answers no lane and a minted run half. Either way the per-bar run is what was admitted.
+        if (door.lane === 'runtime') expect(door.runHalf).toBeUndefined()
+        else expect(door.runHalf && door.runHalf.minted, 'neither a runtime-lane script nor a minted run half').toBe(true)
+        if (s.admission !== 'substituted') expect(door.lane).toBe('runtime')
         const { verdict } = gradeCapture(cap)
-        expect(verdict.verdict, verdict.reason).toBe('MATCH')
-        const compared = (verdict.plots || []).filter((p) => p.verdict === 'MATCH')
-        expect(compared.length, 'every vendor plot compared').toBe(cap.study.plots.length)
-      })
+        // ⛔⛔ WHAT EACH GRADE HERE COVERS (2026-11-16 correction, after #1410 overstated it):
+        //   · `verdict.objects` is objects v1: counts, texts and colours. NO coordinates, no x.
+        //   · objects v2, WITH x witnessed, is what admits a run half (`runHalfEvidenceAdmits`, from the
+        //     record's `objectsV2` grade). This rail never reads objects v2.
+        //   · a capture that records no x table can never admit one: its objects v2 is INCONCLUSIVE.
+        // So for a host-partial script the drawings are checked on v1 ONLY where the committed evidence
+        // admits the run half. Where it does not (RS Rating today: its three captures predate the x
+        // table), the labels must be WITHHELD BY NAME at the production gate, never drawn on a claim
+        // the harness does not reproduce, and the capture then grades DIVERGE for that named gap alone.
+        const runHalfAdmitted = door.lane !== 'runtime' && runHalfEvidenceAdmits(String(s.sha256).toLowerCase())
+        if (door.lane === 'runtime' || runHalfAdmitted) {
+          expect(verdict.verdict, verdict.reason).toBe(want)
+        } else {
+          expect((c.objectsV2 || null), 'a record that admits no run half does not claim an objects-v2 MATCH').not.toMatch(/^MATCH/)
+          expect(verdict.objects && verdict.objects.verdict, verdict.objects && verdict.objects.reason).toBe('DIVERGE')
+          expect(String(verdict.objects.reason)).toMatch(/our drawing is withheld by name \(pine:object-removal-lost\)/)
+          expect(verdict.verdict, verdict.reason).toBe('DIVERGE')
+        }
+        if (runHalfAdmitted) {
+          // ⛔ non-vacuity: TradingView holds drawings and ours are drawn and agree on objects v1
+          expect(String(verdict.objects && verdict.objects.reason), 'the capture holds drawings').not.toMatch(/neither side draws/)
+          expect(['MATCH', 'MATCH_SUBSTITUTED'], verdict.objects && verdict.objects.reason).toContain(verdict.objects && verdict.objects.verdict)
+        }
+        const compared = (verdict.plots || []).filter((p) => p.verdict === want)
+        // every vendor plot that draws a VALUE is compared and agrees. A `colorer` row is the colour
+        // channel of the plot before it, graded with that plot (RS Rating has four lines and four
+        // colourers); an `alertcondition` draws nothing on TradingView either.
+        const NOT_A_VALUE = new Set(['colorer', 'bar_colorer', 'alertcondition'])
+        const valuePlots = cap.study.plots.filter((p) => !NOT_A_VALUE.has(p.type))
+        expect(valuePlots.length, 'the capture holds value plots').toBeGreaterThan(0)
+        expect((verdict.plots || []).length, 'every graded plot agrees').toBe(compared.length)
+        expect(compared.length, 'every vendor value plot compared').toBe(valuePlots.length)
+        // 60 s, not the suite's 15: the FIRST capture graded here pays the runtime lane's and the run
+        // half's cold start (13.5 s measured alone on one worker for RS Rating's RDDT capture, whose
+        // run half is admitted since Q-RS8 and so is now run and object-railed), and it timed out at
+        // 15 s under two workers. A time limit is not part of the grade.
+      }, 60_000)
     }
   }
 })

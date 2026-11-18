@@ -660,3 +660,25 @@ def store_media(user_id: str, note_id: str, result: MediaResult, *, budget: Medi
             reason = "storage_limit" if isinstance(e.__cause__, NoteQuotaExceeded) else "unsupported"
         raise _reject(reason, result.filename) from e
     return replace(primary, original=original)
+
+
+def delete_stored_media(user_id: str, note_id: str, url: str) -> bool:
+    """The inverse of `store_media`: delete the file `url` names, if it is THIS member's file
+    under THIS note, and give its bytes back to the member's budget. False when the URL is not
+    such a file (never one it could reach by another tenant's URL) or the delete failed.
+    ⛔ An inline image is content-addressed: identical bytes share one file in the note, so the
+    caller decides whether another reference still needs it."""
+    prefix = f"/api/j2/notes/attachments/{user_id}/{note_id}/"
+    if not isinstance(url, str) or not url.startswith(prefix):
+        return False
+    sub, _, name = url[len(prefix):].partition("/")
+    path = notes_svc.serve_note_image_path(user_id, note_id, sub, name)
+    if path is None:
+        return False
+    try:
+        size = path.stat().st_size
+        path.unlink()
+    except OSError:
+        return False
+    _memo_release(user_id, size)
+    return True

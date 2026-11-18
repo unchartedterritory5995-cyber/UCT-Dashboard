@@ -99,6 +99,9 @@ export function turnOutput(role) {
   if (!turn || turn.output != null) return
   turn.output = since(turn)
   turn.outputRole = role
+  // a User Timing measure of the Agent's OWN time to its first useful output (path + role, never content): readable in a
+  // profiler and by a test that must not count render, polling or the queue around the turn
+  try { performance.measure(`uct-agent:output:${turn.path || 'none'}:${role}`, { start: turn.t0, end: now() }) } catch { /* no User Timing */ }
 }
 /** ms from the start of the open turn to the first mark of `phase` (null when none yet / no turn). */
 export function turnMarkMs(phase) {

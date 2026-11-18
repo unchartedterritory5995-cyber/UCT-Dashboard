@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import pathlib
 import re
@@ -68,17 +69,42 @@ MARKERS = {
 }
 
 
+def _decoded(body: bytes, encoding: str | None) -> bytes:
+    """The real bytes of a response. An encoded chunk read as text holds no marker, and
+    a missing marker reads as a feature that did not ship."""
+    coding = (encoding or "").strip().lower()
+    if coding == "br":
+        import brotli
+        return brotli.decompress(body)
+    if coding == "gzip":
+        return gzip.decompress(body)
+    if coding in ("", "identity"):
+        return body
+    raise ValueError(f"unexpected Content-Encoding: {coding}")
+
+
 def fetch(url: str, timeout: int = 45) -> bytes:
+    # Asks for Brotli because that is what members get: hashed chunks are served
+    # precompressed, and Cloudflare can answer from an encoded cached copy.
     req = urllib.request.Request(url, headers={
         "User-Agent": UA,                     # Cloudflare 1010-blocks bare curl UAs
         "Cache-Control": "no-cache",
         "Pragma": "no-cache",
+        "Accept-Encoding": "br",
     })
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read()
+        return _decoded(r.read(), r.headers.get("Content-Encoding"))
 
 
 def main() -> int:
+    # `brotli` is not a production dependency. Checked first, so a missing package can
+    # never turn into a sweep of undecodable chunks reported as missing markers.
+    try:
+        import brotli  # noqa: F401
+    except ImportError:
+        print("FAIL: this tool needs the brotli package (pip install brotli)", file=sys.stderr)
+        return 2
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="https://uctintelligence.com")
     args = ap.parse_args()

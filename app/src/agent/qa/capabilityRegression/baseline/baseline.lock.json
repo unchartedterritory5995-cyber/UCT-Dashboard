@@ -787,6 +787,26 @@
     }
    }
   },
+  "compare.group.aiChips": {
+   "digest": "494ad9bbe232a6bb",
+   "phrasings": {
+    "compare this chart against the AI Chips theme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "overlay the AI Chips group on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "compare NVDA with the AI Chips theme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "widget.news": {
    "digest": "3ed95be08c5b166b",
    "phrasings": {
@@ -2307,6 +2327,26 @@
     }
    }
   },
+  "watchlist.showList": {
+   "digest": "cb0aef705d4ecae5",
+   "phrasings": {
+    "put the Flagged list in my watchlist widget": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch my watchlist over to the flagged one": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show Flagged in the watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "layout.rename": {
    "digest": "77d04097a502f477",
    "phrasings": {
@@ -2351,6 +2391,66 @@
      "modes": {}
     },
     "delete the layout called Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.pinToBar": {
+   "digest": "18d1777c1ce27d93",
+   "phrasings": {
+    "pin my Breadth layout to the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pin the Breadth layout to the dock": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put my Breadth layout on the layout bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.moveOnBar": {
+   "digest": "5b2de85e1344a543",
+   "phrasings": {
+    "move Breadth to the front of the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put my Breadth layout first on the layouts bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the Breadth layout to spot 1 on the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "layout.unpinFromBar": {
+   "digest": "8b5193f315f73691",
+   "phrasings": {
+    "take Main Trading off the bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "unpin my Main Trading layout": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove Main Trading from the layout bar": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
@@ -2857,6 +2957,106 @@
     }
    }
   },
+  "periodSort.run": {
+   "digest": "8aadd94b35628dbd",
+   "phrasings": {
+    "run a custom period sort of sectors from oct 1 to oct 30 with replay on and the start marked": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rank the sectors from Oct 1 to Oct 30 and replay the charts to the end date, mark the start with a line": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "period sort by sector between 2026-10-01 and 2026-10-30, replay mode on, gold line at the start": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "custom-period sort: sectors, Oct 1 to Oct 30, hide bars after the end and mark the start": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "periodSort.dock": {
+   "digest": "7cdc88865497796f",
+   "phrasings": {
+    "dock that period sort onto the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "dock the ranking as a widget": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "keep that period sort on my board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pin the custom period sort results to the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "compare.openView": {
+   "digest": "5598351f373e43a5",
+   "phrasings": {
+    "open the rotation map for nvda's sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me nvda's sector on the rrg view": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the compare panel on the rotation tab with nvda's sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pull up the relative rotation graph for the nvda sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "compare.openView.overlay": {
+   "digest": "6efec622cb6e7a5a",
+   "phrasings": {
+    "go to the overlay tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch the compare panel to its overlay tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "back to the overlay tab of the compare symbols panel": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the overlay tab in the compare window": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chart.replay.exit": {
    "digest": "3858cdefd5b544c3",
    "phrasings": {
@@ -3217,6 +3417,93 @@
     }
    }
   },
+  "cot.positioning": {
+   "digest": "0894466d212c1648",
+   "phrasings": {
+    "where are large speculators positioned in gold": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what does the COT report say about gold": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "are specs net long gold at a 3-year extreme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the commitments of traders for gold": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "history.monthlyReturns": {
+   "digest": "46b9c0a2068ebf2e",
+   "phrasings": {
+    "monthly returns for NVDA in 2024": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "\"monthly returns for NVDA in 2024\" → stock.dailyBars"
+     }
+    },
+    "NVDA's monthly performance in 2024": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "\"NVDA's monthly performance in 2024\" → stock.dailyBars"
+     }
+    },
+    "show me the monthly closes for NVDA in 2024": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "\"show me the monthly closes for NVDA in 2024\" → stock.dailyBars"
+     }
+    }
+   }
+  },
+  "history.weeklyCompare": {
+   "digest": "771c2395b0113429",
+   "phrasings": {
+    "compare AAPL and MSFT weekly over the last year": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "AAPL vs MSFT weekly performance over the past year": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "history.dayMove": {
+   "digest": "962f45c7d4ef036f",
+   "phrasings": {
+    "what happened to SPY after the last 5 times it fell 3% in a day": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "what happened to SPY after the last 5 times it dropped 3% in one day": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "history.breakout": {
    "digest": "d15f33781be224ac",
    "phrasings": {
@@ -3562,6 +3849,26 @@
     }
    }
   },
+  "indicatorStyle.calcTimeframe-weekly": {
+   "digest": "e047db71b09811d5",
+   "phrasings": {
+    "calculate the 50 sma on weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "compute the 50 sma on the weekly bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make the 50 sma use the weekly": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "indicatorCopy.duplicate": {
    "digest": "c6951d43c3be58f7",
    "phrasings": {
@@ -3585,22 +3892,22 @@
   "grid.add-count.reuses-one": {
    "digest": "70f2a00e08ea5b00",
    "phrasings": {
-    "add a 2x2 of SPY QQQ IWM DIA": {
+    "make a 2x2 of SPY QQQ IWM DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add a 2x2 grid of SPY, QQQ, IWM and DIA": {
+    "set up a 2x2 grid of SPY, QQQ, IWM and DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add SPY, QQQ, IWM and DIA on four charts": {
+    "show SPY, QQQ, IWM and DIA on four charts": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add four charts for SPY QQQ IWM DIA": {
+    "four charts for SPY QQQ IWM DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
@@ -3610,22 +3917,22 @@
   "grid.add-count.reuses-two": {
    "digest": "ca0b596a2127cd12",
    "phrasings": {
-    "add a 2x2 of SPY QQQ IWM DIA": {
+    "make a 2x2 of SPY QQQ IWM DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add a 2x2 grid of SPY, QQQ, IWM and DIA": {
+    "set up a 2x2 grid of SPY, QQQ, IWM and DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add SPY, QQQ, IWM and DIA on four charts": {
+    "show SPY, QQQ, IWM and DIA on four charts": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
     },
-    "add four charts for SPY QQQ IWM DIA": {
+    "four charts for SPY QQQ IWM DIA": {
      "digest": "dcd51037b21b1b84",
      "gaps": [],
      "modes": {}
@@ -4022,6 +4329,46 @@
     }
    }
   },
+  "drawing.duplicate": {
+   "digest": "8d5c7e8ac3961968",
+   "phrasings": {
+    "duplicate this trendline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "duplicate that drawing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a duplicate of the trendline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setPositionAlerts": {
+   "digest": "e5b1a99d6dccea5a",
+   "phrasings": {
+    "set the stop and target alerts on my position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "alert me on my position's stop and target": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on the stop and target alerts for that position": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.setRange": {
    "digest": "c7d636cd12bccc5a",
    "phrasings": {
@@ -4066,6 +4413,371 @@
      "modes": {}
     },
     "put this chart back to its default view": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.openSettings": {
+   "digest": "f4b0df19afb82566",
+   "phrasings": {
+    "open chart settings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the settings for this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the chart settings panel": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "bring up this chart's settings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "volumeProfile.set": {
+   "digest": "4765e7854fb1a6df",
+   "phrasings": {
+    "turn on volume profile": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the volume profile to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show vpvr": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "volumeProfile.set.bins": {
+   "digest": "4653f21c769be5f6",
+   "phrasings": {
+    "turn on volume profile with 40 bins": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a volume profile with 40 rows": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the volume profile using 40 bins please": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "newsLibrary.save": {
+   "digest": "0a7b6822479210fa",
+   "phrasings": {
+    "save the NVDA headline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "bookmark the NVDA headline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save the NVDA story to my library": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "newsLibrary.setNote": {
+   "digest": "22d9bb249dec9d0c",
+   "phrasings": {
+    "add a note to the NVDA headline: watch guidance": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put a note on the NVDA headline: watch guidance": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "write a note on the NVDA headline: watch guidance": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "newsLibrary.collection": {
+   "digest": "59155d8de3d7b977",
+   "phrasings": {
+    "create a collection called Fed": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a news collection named Fed": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "start a new collection called Fed": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "newsLibrary.deleteCollection": {
+   "digest": "9a0bb808851f6670",
+   "phrasings": {
+    "delete my Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete the Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "newsLibrary.place": {
+   "digest": "e54f74f203e34102",
+   "phrasings": {
+    "put the NVDA headline in my Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the NVDA headline to my Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the NVDA headline into the Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartMenu.resetWatermark": {
+   "digest": "df220e8af0d696e0",
+   "phrasings": {
+    "reset the watermark on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the watermark back in the center": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "recenter the watermark": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartMenu.askAi": {
+   "digest": "49c7fc65cd5a9fe5",
+   "phrasings": {
+    "ask ai about this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "ask the ai about the stock on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the ai on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartFeatures.companyPanel": {
+   "digest": "6f6b2385593a9cb0",
+   "phrasings": {
+    "add the company panel and open news": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the company info panel on the news tab": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the profile panel on news": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartFeatures.companyPanel.remove": {
+   "digest": "91654df96a810986",
+   "phrasings": {
+    "remove the company panel from this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "take the company info off the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "get rid of the company panel": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartFeatures.earningsStrip": {
+   "digest": "b3ebdae1e5c5b176",
+   "phrasings": {
+    "show the earnings strip on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the fundamentals strip": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the earnings strip under the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.stepBars": {
+   "digest": "f1ef323ce91ffc4b",
+   "phrasings": {
+    "step this chart back 5 bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "go back five bars on the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "scroll the chart back 5 bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the chart back 5 bars": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.autoScale": {
+   "digest": "b25c76554b8fddc2",
+   "phrasings": {
+    "auto scale this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "auto-scale the price axis": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "fit the price scale to the bars again": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the price axis back on auto": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartSetup.zoom": {
+   "digest": "8372590e9451dc10",
+   "phrasings": {
+    "zoom this chart out": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "zoom out on the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "zoom the chart out one step": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "give me a wider view of the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "chartReplay.playback": {
+   "digest": "ff4013691b1537c3",
+   "phrasings": {
+    "start the bar replay": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on the bar replay on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the replay bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "start the time machine on this chart": {
      "digest": "44136fa355b3678a",
      "gaps": [],
      "modes": {}
@@ -4122,6 +4834,101 @@
     }
    }
   },
+  "uctIntelligence.add": {
+   "digest": "7e2aad12dc9b1350",
+   "phrasings": {
+    "add uct intelligence to this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the UCT Intelligence indicator on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on uct intelligence": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.layer": {
+   "digest": "de7f421bb371b5a3",
+   "phrasings": {
+    "turn on the setups layer": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "enable the uct intelligence setups": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch on setups in uct intelligence": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.autoPatterns": {
+   "digest": "2eb31971f4d4cd74",
+   "phrasings": {
+    "turn off auto patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "hide the chart patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.remove": {
+   "digest": "2df7df406dc5875f",
+   "phrasings": {
+    "remove uct intelligence from this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "take the UCT Intelligence indicator off": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.gated": {
+   "digest": "28162d06703fe4ce",
+   "phrasings": {
+    "turn on candlestick patterns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show the candlestick pattern markers": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "uctIntelligence.patterns.which": {
+   "digest": "a386783468197b46",
+   "phrasings": {
+    "turn the patterns off on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "widget.readOptions": {
    "digest": "bcbf2ab575d27c22",
    "phrasings": {
@@ -4145,9 +4952,659 @@
      "modes": {}
     }
    }
+  },
+  "multiChart.grid.layout": {
+   "digest": "20021a750af90a29",
+   "phrasings": {
+    "can you split my screen into a two by three grid of charts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open Multi Chart with two rows and three columns": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "multiChart.grid.syncCrosshair": {
+   "digest": "e260682e60609d94",
+   "phrasings": {
+    "link the crosshairs across the multi chart grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on crosshair sync for the grid": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.setActiveBoard": {
+   "digest": "48dd7e99f9b9ba07",
+   "phrasings": {
+    "switch to my Swing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch to the Swing drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "draw on my Swing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.createBoard": {
+   "digest": "f8f8a31f6fe78acb",
+   "phrasings": {
+    "create a new drawing board called Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a new drawing board named Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add a drawing board called Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.renameBoard": {
+   "digest": "25c50932ca7843f2",
+   "phrasings": {
+    "rename Board 2 to Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rename my Board 2 drawing board to Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call drawing Board 2 Breakouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.deleteBoard": {
+   "digest": "66044a6a393bf91b",
+   "phrasings": {
+    "delete the Breakouts board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete my Breakouts drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Breakouts drawing board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.positionCalculator": {
+   "digest": "ae39380cbdbe0412",
+   "phrasings": {
+    "open the position calculator with entry 50 stop 48 target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "size this trade: entry 50, stop 48, target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put a position calculator on the chart, entry 50, stop 48 and target 56": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.saveDefaults": {
+   "digest": "f9f30761c1779e5c",
+   "phrasings": {
+    "make this trendline my default style": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save this trendline's style as the default for new drawings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "use that line's look as my default drawing style": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "drawing.favoriteTool": {
+   "digest": "53410fdea7505f5e",
+   "phrasings": {
+    "add the fib tool to my favourites": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "star the fibonacci retracement tool": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the fib tool on my favorites toolbar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "rs.compare": {
+   "digest": "6f6826f3b7cb2e92",
+   "phrasings": {
+    "which sectors are leading this month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what are the strongest sectors over the last month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which sectors are lagging this month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me sector leadership for the past month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "news.movers": {
+   "digest": "0fc07180c92d22c5",
+   "phrasings": {
+    "what's moving the market today": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is driving stocks this morning": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the catalyst board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what are today's catalysts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.analystActions": {
+   "digest": "cf94ff7fc84e454e",
+   "phrasings": {
+    "what got upgraded today": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "any analyst upgrades this morning": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks did analysts upgrade": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the analyst upgrades from the morning wire": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.sessionHighsLows": {
+   "digest": "584aed351d5ea970",
+   "phrasings": {
+    "new highs today": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is making new highs today": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks are hitting new highs of the day": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "stocks at session highs this morning": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.sectorPerformance": {
+   "digest": "66510ec9171d31eb",
+   "phrasings": {
+    "sector performance this month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how have the sector funds performed over the last month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me sector fund returns for the past month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "sector fund performance over 1 month": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.longRunLeaders": {
+   "digest": "34185c326c34c098",
+   "phrasings": {
+    "top gainers over 60 days": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "biggest gainers over the last 60 sessions": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "best performers over 60 days": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "top gainers in the past 60 trading days": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.darkPoolLevels": {
+   "digest": "4fa2b90d9b042aef",
+   "phrasings": {
+    "dark pool levels on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "NVDA dark pool levels": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the dark pool levels for NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "big dark pool prints in NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.yearlyHighsLows": {
+   "digest": "52ebd1f125ddce75",
+   "phrasings": {
+    "which stocks made new 52-week highs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks are at new 52-week highs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is making new 52 week highs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what stocks hit a new 52-week high": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.themeRotation": {
+   "digest": "c9c99f4fe3c41c9c",
+   "phrasings": {
+    "which themes are rotating in": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the themes rotating in": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what themes is money rotating into": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list the themes that are rotating in": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.confluenceBoard": {
+   "digest": "246d947974d87541",
+   "phrasings": {
+    "what is bullish on the confluence board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the bullish confluence names": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "bullish names on the confluence board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks are bullish on the confluence radar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.expectedMove": {
+   "digest": "c65734e994f3b9e6",
+   "phrasings": {
+    "expected move for NVDA earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is the implied move on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "NVDA expected move": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how much is NVDA expected to move on earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.callSearch": {
+   "digest": "3d204c89ddd7b91c",
+   "phrasings": {
+    "which companies mentioned tariffs on their earnings call": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "search earnings calls for tariffs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "who talked about tariffs on their earnings call": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "find mentions of tariffs in earnings call transcripts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.gammaLevels": {
+   "digest": "4b720eca7ef409e8",
+   "phrasings": {
+    "gamma levels for NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "where is the call wall on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "NVDA gamma walls": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is the zero gamma level for NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.topFlowPicks": {
+   "digest": "74ae11576d419656",
+   "phrasings": {
+    "show me the top flow picks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how are the top flow picks doing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what are the top flow picks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "top flow picks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.flowRecord": {
+   "digest": "c714c8f31e36cbe4",
+   "phrasings": {
+    "what is the flow record's win rate": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how has the flow record done": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "flow record results": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is the win rate of the flow picks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.earningsReactions": {
+   "digest": "720c755c0b81e4be",
+   "phrasings": {
+    "show me the latest earnings reactions": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how did the latest earnings reporters move": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "earnings reactions": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how did the stocks that just reported earnings react": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.earningsSeason": {
+   "digest": "6c6492c7105e03ee",
+   "phrasings": {
+    "earnings season": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the earnings season": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how does earnings season look": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "give me the earnings season": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.callThemes": {
+   "digest": "5f6a906b863ba93d",
+   "phrasings": {
+    "what are CEOs saying": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call themes": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rising phrases on earnings calls": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what are executives talking about": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.groupDrill": {
+   "digest": "ca1a3af76f3a28ad",
+   "phrasings": {
+    "stocks in the technology sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is in the technology sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "members of the technology sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "drill into the technology sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
+  "refuse.calcTimeframe.unclear-put-on-weekly": {
+   "digest": "ad7e43c51ae45ee5",
+   "gap": false,
+   "mode": null
+  },
   "refuse.undo-nothing": {
    "digest": "c4ac79408ca94a75",
    "gap": false,
@@ -4347,6 +5804,21 @@
    "digest": "9211f771f5a80c2d",
    "gap": false,
    "mode": null
+  },
+  "refuse.exportList-no-menu": {
+   "digest": "09d0480ebe838073",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.arrangeColumns-standin": {
+   "digest": "bb2d172e740d8613",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.multiChart.cell-grid-closed": {
+   "digest": "0638b246c841cc2a",
+   "gap": false,
+   "mode": null
   }
  },
  "workflows": {
@@ -4441,7 +5913,7 @@
    "mode": null
   },
   "GW-19.daily-charts-each-with-50sma": {
-   "digest": "4f95da5faaa1a67a",
+   "digest": "ba9b16d24883f44c",
    "gap": false,
    "mode": null
   },

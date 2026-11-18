@@ -54,6 +54,28 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
                 session more than ``RS_HISTORY_MAX_LAG_SESSIONS`` trading
                 sessions behind the build's settled session is WITHHELD (the
                 seven go NULL) and counted ``withheld_stale``.
+  - RS screens post-pass -> ``rs_post_pass.run`` (RS screens unit U1), AFTER the
+                loop, beside the sector ranking. DARK unless ``RS_SCREENS_ENABLED``.
+                It moves every row's rating columns onto the settled session once
+                that session is stored, stamps ``rs_rating_session`` and fills the
+                exact places (``snapshot_db.POST_PASS_COLUMNS``). It runs at the end
+                of EVERY build because the loop's INSERT OR REPLACE blanks those
+                columns on each row it rebuilds. Its receipt is ``rs_post_pass``.
+                Before that session is stored (every 03:00 build) it carries the
+                places from the ratings the rows already hold (unit U4). The same
+                pass keeps UCT RS Leaders' list (unit U12, ``rs_leaders_list``:
+                ``rs_leaders_member`` / ``rs_leaders_days``), for the same reason.
+  - RS screens bar columns -> ``rs_columns.screen_fields`` in the
+                ``bars_rs_screens`` step (inside the ``bars_rs`` gate, reusing its
+                Phase 1 pass) and ``_rs_setup_fields`` in the ``bars_rs_setup``
+                step (after the seam scan): thirteen columns (RS screens unit
+                U4). DARK unless ``RS_SCREENS_ENABLED``. Armed, the receipt's
+                ``bars_rs`` block carries ``screens_ms`` / ``screens_ms_per_row``.
+  - RS screens weekly columns -> ``rs_columns.weekly_fields`` in the
+                ``bars_rs_weekly`` step (RS screens unit U12): the weekly RS new
+                high and its before-price reading, on completed weeks, for rows
+                on the RS liquid floor only. Same flags as the six daily measures.
+                The receipt carries ``weekly_rows`` / ``weekly_ms_per_row``.
   - UCT RS bar columns -> ``rs_columns.collect_one`` (Phase 2a, unit 2a-05),
                 the ``bars_rs`` step. DARK unless ``registry_defs.RS_V2_ENABLED``:
                 a dark pod reads no RSP, settles no benchmark and pays no CPU
@@ -85,7 +107,7 @@ import time
 from . import (snapshot_db, candles, bar_character, bases, technicals, enrich, setup_score,
               context_joins, finviz_universe, earnings_dates, earnings_context,
               analyst_pass, insider_capture, pattern_join, darkpool_agg, opt_flow,
-              archive_join, rs_columns)
+              archive_join, rs_columns, rs_setup)
 
 log = logging.getLogger(__name__)
 
@@ -269,7 +291,11 @@ def _ymd_int(d) -> int:
     return d.year * 10000 + d.month * 100 + d.day
 
 
-def stale_row_gate(conn, table="screener_rows"):
+class StaleGateUnreadable(Exception):
+    """`stale_row_gate(strict=True)` could not read the table, so it has no answer to keep."""
+
+
+def stale_row_gate(conn, table="screener_rows", *, strict=False):
     """The stale-ROW exclusion for this database, or ``None`` when no row is
     behind (or the table cannot say). The ONE implementation behind
     ``query.stale_gate`` (interactive scans; see the block above it there for
@@ -290,7 +316,11 @@ def stale_row_gate(conn, table="screener_rows"):
             f'SELECT MAX(CAST("bars_asof" AS INTEGER)), MIN(CAST("bars_asof" AS INTEGER)) '
             f'FROM {table} WHERE "bars_asof" IS NOT NULL').fetchone()
         ref = datetime.date(int(mx) // 10000, (int(mx) // 100) % 100, int(mx) % 100)
-    except Exception:  # noqa: BLE001 — no table / no column / no parseable date
+    except Exception as e:  # noqa: BLE001 — no table / no column / no parseable date
+        # `None` is every caller's answer. `strict` only tells a caller that keeps answers
+        # (query.stale_gate) that this None is a failed read, not "no row is behind".
+        if strict:
+            raise StaleGateUnreadable(str(e)) from e
         return None
     reference = _ymd_int(ref)
     day, cutoff = ref, None
@@ -405,6 +435,87 @@ def _withhold(row, state, name, columns) -> bool:
     return True
 
 
+def rs_screens_enabled() -> bool:
+    """``RS_SCREENS_ENABLED``, read per call through its one reader
+    (``rs_post_pass.enabled``, the post-pass's own gate). Gates the two RS screens
+    steps of ``build_row`` (unit U4): off, neither runs and the thirteen columns
+    they write stay NULL at no build cost. Unreadable is off."""
+    try:
+        from . import rs_post_pass                           # noqa: PLC0415 - lazy: no cycle
+        return bool(rs_post_pass.enabled())
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def _on_rs_floor(row) -> bool:
+    """Is this row on the RS liquid floor (``rs_post_pass.on_liquid_floor``, liquidity
+    alone: no full year asked)? The one copy of the floor, read lazily like the flag.
+    Unreadable is off the floor: the weekly step it gates then writes nothing."""
+    try:
+        from . import rs_post_pass                           # noqa: PLC0415 - lazy: no cycle
+        return bool(rs_post_pass.on_liquid_floor(row, full_year=False))
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def rs_leader_shadow_enabled() -> bool:
+    """``RS_LEADER_SHADOW_ENABLED``, read per call through its one reader
+    (``rs_leader_shadow.enabled``). Gates the shadow Leader score's two bar inputs in
+    ``build_row`` (unit U9): off, nothing is computed and nothing is stored.
+    Unreadable is off."""
+    try:
+        from . import rs_leader_shadow                       # noqa: PLC0415 - lazy: no cycle
+        return bool(rs_leader_shadow.enabled())
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def _store_shadow_inputs(shadow_rows: dict) -> None:
+    """Hand one batch's shadow inputs to ``rs_leader_shadow.write_inputs`` and empty
+    the dict. Called beside each ``upsert_rows`` so a side row is as new as the
+    screener row it belongs to. Never raises and reports nothing into the build's
+    stats: that receipt is served on ``/api/screener/snapshot-status``, and the
+    shadow score is not a member's to see."""
+    if not shadow_rows:
+        return
+    try:
+        from . import rs_leader_shadow                       # noqa: PLC0415 - lazy: no cycle
+        rs_leader_shadow.write_inputs(shadow_rows)
+    except Exception as e:                                   # noqa: BLE001 - never costs the build
+        log.warning("[screener] shadow inputs not stored: %s: %s", type(e).__name__, e)
+    shadow_rows.clear()
+
+
+#: The seven columns ``_rs_setup_fields`` writes (RS screens unit U4).
+RS_SETUP_COLUMNS = ("rs_setup", "rs_tight", "rs_flag", "rs_near_buy",
+                    "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21")
+
+
+def _rs_setup_fields(bars, row) -> dict:
+    """The Setup label for one row (plan 2026-11-14 v2, section 3): the seven
+    :data:`RS_SETUP_COLUMNS`, every key present.
+
+    ``bars`` is the build's sanitized 400-bar window, the one ``compute_technicals``
+    was handed, so the label's ``atr_ext_sma50`` is the stored column's number
+    (``technicals.setup_inputs``). ``row`` is read for two values this build has
+    already computed: ``base_pivot_px`` (``bases.classify`` reports a pivot only for
+    the structure it names on THIS build, which is the "fresh" pivot ``rs_setup``
+    asks for; a row with no named base has none) and ``tight_consolidation``.
+
+    ``rs_near_buy`` is NULL, not 0, when there is no setup: nothing vouches that the
+    row is not extended, and a 0 would read as "we checked"."""
+    inp = technicals.setup_inputs(bars)
+    res = rs_setup.label({**inp, "pivot": row.get("base_pivot_px"),
+                          "tight_consolidation": row.get("tight_consolidation"),
+                          "closes": [b["c"] for b in bars[-rs_setup.CLOSES_NEEDED:]]})
+    near = None if res["setup"] is None else int(rs_setup.near_buy_point(res))
+    return {"rs_setup": res["setup"], "rs_tight": res["tight"], "rs_flag": res["flag"],
+            "rs_near_buy": near,
+            "atr_ext_ema21": inp["atr_ext_ema21"],
+            "pct_vs_ema8": technicals._pct(inp["close"], inp["ema8"]),
+            "pct_vs_ema21": technicals._pct(inp["close"], inp["ema21"])}
+
+
 def rs_fields(rs_row) -> dict:
     """``rs_ranking`` entry -> snapshot columns. ``{}`` when there is no entry.
 
@@ -414,9 +525,17 @@ def rs_fields(rs_row) -> dict:
     ``rs_score`` -> ``rs_return`` is not a rename of convenience: it is the
     40%·3m + 20%·6m + 20%·1m + 20%·1w weighted return
     (``rs_ranking._compute_returns``), which is the same quantity
-    ``research.ratings._weighted_rs_return`` computes and the same number
-    ``rs_rank`` is the universe percentile OF. Writing both from one entry is
-    what makes the rank and the return beside it consistent by construction.
+    ``research.ratings._weighted_rs_return`` computes and, with
+    ``RS_RANK_IBD_ENABLED`` off, the same number ``rs_rank`` is the universe
+    percentile OF. Writing both from one entry is what makes the rank and the
+    return beside it consistent by construction.
+
+    Under ``RS_RANK_IBD_ENABLED`` (RS split unit U5a) the entry's ``rs_rank`` is
+    already the nightly IBD-style rating (``rs_ranking.cached_rank_map`` lays it
+    over the hourly map), so ``rs_rank`` equals ``rs_rating_ibd`` on the same
+    row and is no longer the percentile of ``rs_return``; the entry says which
+    in ``rs_rank_source`` and ``run_build`` counts it into the receipt. Nothing
+    here changes: the column takes whatever the authority hands it.
     """
     if not rs_row:
         return {}
@@ -444,9 +563,15 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
               bulk_row=None, spy_closes=None, context_row=None,
               market_row=None, failures=None, identity_state=None,
               spy_bars=None, rsp_bars=None, rs_timing=None,
-              rs_weekly_cache=None) -> dict:
+              rs_weekly_cache=None, shadow_out=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
     keys are already snapshot COLUMNS (the readers do source-name mapping).
+
+    ``shadow_out`` (RS screens unit U9) is an optional out-dict. While
+    ``rs_leader_shadow_enabled()`` it receives ``{ticker: {rs_steady,
+    rs_line_below_high_pct, bars_asof}}`` for this row: the shadow Leader score's
+    two bar inputs, which are NOT row keys (a scan serves every column of the row).
+    Off, or with no dict, nothing is computed and the row is the one it was.
 
     ``bulk_row`` is one ticker's slice of ``fundamentals_bulk.fetch_bulk`` — the
     ten Group-A columns plus ``exchange``. It is merged as a PEER, not layered
@@ -501,6 +626,16 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     ``rs_v3_enabled()`` as well; ``rs_timing["phase3_ms"]`` is their share of
     the step's time, and ``rs_weekly_cache`` (optional, one dict per build) holds
     SPY's weekly resample so it is made once per session, not once per row.
+
+    The thirteen RS screens columns (unit U4) run only while
+    ``rs_screens_enabled()``: six in ``bars_rs_screens`` (inside the ``bars_rs``
+    gate, reusing its Phase 1 pass) and seven in ``bars_rs_setup`` (after the seam
+    scan, so the label reads this row's final pivot). ``rs_timing["screens_ms"]`` /
+    ``["screens_rows"]`` carry their wall time, apart from ``ms``.
+
+    The two weekly RS new high columns (unit U12) run under the same flags, in
+    ``bars_rs_weekly``, after ``dollar_vol_30d`` is derived and only for a row on the
+    RS liquid floor. ``rs_timing["weekly_ms"]`` / ``["weekly_rows"]`` are theirs alone.
 
     ``failures`` is the same optional ``{source: {outcome: count}}`` out-dict
     every ``_read_*`` in this file already reports into; ``run_build`` passes
@@ -600,6 +735,14 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
             return {}
 
     if bars:
+        # RS screens (unit U4): read ONCE per row. Off, nothing below that names
+        # `_scr` runs, and the `bars_rs` call is the one it was before this unit.
+        _scr = rs_screens_enabled()
+        _scr_ms = 0.0
+        # The shadow Leader score's two bar inputs (unit U9): only for a caller that
+        # will store them, and only while RS_LEADER_SHADOW_ENABLED is on.
+        _shd = shadow_out is not None and rs_leader_shadow_enabled()
+        _shd_vals = None
         row.update(_step("bars_technicals",
                          lambda: technicals.compute_technicals(
                              bars, ipo_date=row.get("ipo_date"))))
@@ -638,17 +781,47 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
             # DARK unless RS_V3_ENABLED too, read per row like RS_V2; dark, the
             # collector is not asked and the three stay NULL at no cost.
             _p3 = rs_v3_enabled()
+            # `_p1` receives the Phase 1 columns `collect_one` computes, for the RS
+            # screens step below (and the shadow inputs, unit U9); asked for only
+            # while one of them will run.
+            _p1 = {} if (_scr or _shd) else None
             row.update(_step("bars_rs",
                              lambda: rs_columns.collect_one(
                                  rs_bars, spy_bars, rsp_bars,
                                  session=_asof_of(bars), stats=_rs_stats,
                                  **({"phase3": True, "full": bars_full,
                                      "weekly_cache": rs_weekly_cache,
-                                     "timing": rs_timing} if _p3 else {}))))
+                                     "timing": rs_timing} if _p3 else {}),
+                                 **({"phase1_out": _p1} if _p1 is not None else {}))))
             if rs_timing is not None:
                 rs_timing["rows"] = rs_timing.get("rows", 0) + 1
                 rs_timing["ms"] = rs_timing.get("ms", 0.0) + \
                     (time.perf_counter() - _rs_t0) * 1000.0
+            # ⭐ RS SCREENS, the six last-bar measures (unit U4; plan 2026-11-14 v2,
+            # sections 1.2 and 1.3): the same window, the same SPY bars and the
+            # SAME Phase 1 pass as the ten above, handed in (measured 0.10 ms a
+            # ticker that way, 2.67 ms standalone). Its own step label, so a raise
+            # costs these six and is counted by name, never the ten. Timed apart
+            # from `ms`, so the cost of arming RS_SCREENS_ENABLED reads on its own.
+            if _scr:
+                _scr_t0 = time.perf_counter()
+                row.update(_step("bars_rs_screens",
+                                 lambda: rs_columns.screen_fields(
+                                     rs_bars, spy_bars, session=_asof_of(bars),
+                                     phase1=_p1.get("phase1"))))
+                _scr_ms += (time.perf_counter() - _scr_t0) * 1000.0
+            # The shadow inputs, from the same window and the same Phase 1 pass.
+            # ⛔ NOT THROUGH `_step`: its label would be written into `failures`,
+            # which the build receipt serves to members. A raise costs these two
+            # values and is logged here; nothing else hears of it.
+            if _shd:
+                try:
+                    _shd_vals = rs_columns.shadow_fields(
+                        rs_bars, spy_bars, session=_asof_of(bars),
+                        phase1=_p1.get("phase1"))
+                except Exception as e:                         # noqa: BLE001
+                    log.warning("[screener] shadow inputs raised for %s: %s: %s",
+                                row["ticker"], type(e).__name__, e)
         row.update(_step("bars_ath_fields",
                          lambda: technicals.ath_fields(
                              bars_full, ipo_date=row.get("ipo_date"))))
@@ -704,6 +877,40 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
         if _seam_cols:
             _withhold(row, identity_state, "series_contradicts_itself",
                       sorted(_seam_cols))
+        # ⭐ RS SCREENS, the Setup label (unit U4; plan section 3). AFTER
+        # `bars_structure`, `bars_multi_candle` and the seam scan, because it reads
+        # two values this row already holds (`base_pivot_px`, `tight_consolidation`)
+        # and must read them as they will be stored. Needs no benchmark, so it is
+        # not inside the `spy_bars` gate.
+        # ⛔ A SERIES THAT CONTRADICTS ITSELF GETS NO LABEL: the 8- and 21-day EMAs
+        # are smoothed over every bar (the `pct_vs_ema20` rule in
+        # `technicals._WINDOW_BARS`), so the seam is inside every input. Counted,
+        # never guessed. `px_below_high_pct` reads the same 252 closes as
+        # `dist_52w_high_pct` and is withheld with it.
+        if _scr:
+            _scr_t0 = time.perf_counter()
+            if _seam_cols:
+                if failures is not None:
+                    _c = failures.setdefault("bars_rs_setup", {})
+                    _c["series_contradicts_itself"] = _c.get("series_contradicts_itself", 0) + 1
+                if "dist_52w_high_pct" in _seam_cols:
+                    row["px_below_high_pct"] = None
+            else:
+                row.update(_step("bars_rs_setup", lambda: _rs_setup_fields(bars, row)))
+            _scr_ms += (time.perf_counter() - _scr_t0) * 1000.0
+            if rs_timing is not None:
+                rs_timing["screens_rows"] = rs_timing.get("screens_rows", 0) + 1
+                rs_timing["screens_ms"] = rs_timing.get("screens_ms", 0.0) + _scr_ms
+        # The shadow inputs leave through the out-dict, stamped with this row's own
+        # `bars_asof` (the post-pass joins on it, so a score never mixes two builds).
+        # A row that got none (the RS step dark, no SPY bars, a raise) is still
+        # written as blanks: yesterday's inputs must not stand beside today's row.
+        # ⛔ A SERIES THAT CONTRADICTS ITSELF GETS NONE: both inputs read a year of
+        # closes, the window the seam scan just refused (`px_below_high_pct`'s rule).
+        if _shd:
+            if _shd_vals is None or _seam_cols:
+                _shd_vals = {c: None for c in rs_columns.SHADOW_COLUMNS}
+            shadow_out[row["ticker"]] = {**_shd_vals, "bars_asof": row["bars_asof"]}
 
     # How old this row's price is, decided ONCE and read by every cross-clock
     # derivation below. See the module-level block above for what this does and
@@ -720,6 +927,33 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
     # technicals lane's finding; the fix for a wrong LABEL is the label.)
     if row.get("price") is not None and row.get("avg_volume_30d") is not None:
         row["dollar_vol_30d"] = row["price"] * row["avg_volume_30d"]
+    # ⭐ RS SCREENS, the WEEKLY RS new high (unit U12; the house lesson is the weekly
+    # RS line making a new high before price). HERE, after `dollar_vol_30d`, because
+    # it runs only for a row on the RS liquid floor (`rs_post_pass.LIQUID_FLOOR`,
+    # the floor every RS screen filters on): the cost is a weekly resample of the
+    # row's bars (measured 2026-11-14 on a 652-bar window: 2.2 to 2.7 ms a ticker,
+    # three quarters of it the shared resampler; about 5 s over 2,000 liquid rows),
+    # and a row off the floor is on no RS screen, so its two columns stay NULL at
+    # no cost. The receipt's `weekly_ms_per_row` is the pod's own figure. Same gates as
+    # the six daily measures (RS_SCREENS under RS_V2, SPY read this build), the
+    # same RS window and the build's one weekly SPY resample (`rs_weekly_cache`).
+    # ⛔ A SERIES THAT CONTRADICTS ITSELF GETS NONE: a year of weekly closes is
+    # the window the seam scan just refused (the shadow inputs' rule).
+    # (`bars` first: `_scr` and `_seam_cols` exist only for a row that had bars.)
+    if bars and _scr and spy_bars and rs_v2_enabled() and _on_rs_floor(row):
+        _wk_t0 = time.perf_counter()
+        if _seam_cols:
+            if failures is not None:
+                _c = failures.setdefault("bars_rs_weekly", {})
+                _c["series_contradicts_itself"] = _c.get("series_contradicts_itself", 0) + 1
+        else:
+            row.update(_step("bars_rs_weekly",
+                             lambda: rs_columns.weekly_fields(
+                                 rs_bars, spy_bars, session=row.get("bars_asof"),
+                                 weekly_cache=rs_weekly_cache)))
+        if rs_timing is not None:
+            rs_timing["weekly_rows"] = rs_timing.get("weekly_rows", 0) + 1
+            rs_timing["weekly_ms"] = rs_timing.get("weekly_ms", 0.0) +                 (time.perf_counter() - _wk_t0) * 1000.0
     # Pure derivation, single writer: analyst price-target upside vs today's
     # price. `analyst_pass.read_analyst_fields` deliberately does NOT emit
     # this — it has no price — so the builder is the one place `pt_target`
@@ -806,7 +1040,15 @@ RS_WINDOW_BARS = rs_columns.LOOKBACK + RS_PUBLISHED_AGE_BARS     # 652
 
 
 def _read_daily_bars(ticker):
-    from api.services import bars_sqlite
+    """The ticker's daily bars from the store, CURRENT LISTING ONLY.
+
+    The store keeps a recycled or renamed symbol's earlier security in front of its
+    own bars (BNY on production, 2026-11-12: a fund near $10, 104 days of nothing, then
+    the bank at $139). Read whole, every bar-derived column of that row spans two
+    securities: the 200-day line, the 52-week range, the one-year change, the RS line's
+    highs. ``listing_break.current_listing`` is the chart's own cut, applied to what the
+    store hands the build (the rating's window uses the same rule)."""
+    from api.services import bars_sqlite, listing_break
     rows = bars_sqlite.get_bars(ticker, "D", DEEP_BARS) or []
     out = []
     for r in rows:
@@ -815,7 +1057,7 @@ def _read_daily_bars(ticker):
                         "c": r[4], "v": r[5]})
         except Exception:
             continue
-    return out
+    return listing_break.current_listing(out)
 
 
 #: The benchmark symbols the bar-derived RS columns read, ONCE per build each
@@ -825,6 +1067,22 @@ RS_BENCHMARKS = ("SPY", "RSP")
 #: How many trailing SPY closes the `rs_line_trend` float list carries — what
 #: the pre-2a `_read_spy_closes` always fetched (the trend itself reads 20).
 RS_LINE_TREND_SPY_BARS = 60
+
+
+def bars_through(bars, through_ymd):
+    """``bars`` without any bar dated after ``through_ymd`` (a ``YYYYMMDD`` int). Pure."""
+    if through_ymd is None:
+        return bars
+    through = int(through_ymd)
+    out = []
+    for b in bars or []:
+        try:
+            if int(b.get("t")) > through:
+                continue
+        except (TypeError, ValueError):
+            pass
+        out.append(b)
+    return out
 
 
 def _read_benchmark_bars(symbol):
@@ -1109,9 +1367,10 @@ _RS_HISTORY_COLUMNS = {
     "rs_rating_ibd": "ibd",       # IBD-style rating 1-99 (plan §7 item 17)
     "rs_rating_chg_5": "d5",      # rating minus its value 5 stored sessions ago
     "rs_rating_chg_20": "d20",    # ... 20 stored sessions ago (item 20)
-    "rs_rating_1m": "m1",         # component percentiles of the plain
-    "rs_rating_3m": "m3",         #   21/63/126/252-bar returns (item 19)
+    "rs_rating_1m": "m1",         # component percentiles (item 19): 1M the plain 21-bar return,
+    "rs_rating_3m": "m3",         #   3M the equal-weighted 1/2/3-month average (2026-11-12),
     "rs_rating_6m": "m6",
+    "rs_rating_9m": "m9",         # S1 (2026-11-10): the 189-bar window the chart ranks strip prints
     "rs_rating_12m": "m12",
 }
 
@@ -1205,6 +1464,35 @@ def _read_rs_history_fields(targets, failures=None) -> dict:
     return out
 
 
+def _rs_post_pass(populated: dict, spy_bars=None):
+    """The RS screens post-pass at the end of a build (RS screens unit U1): its
+    receipt, or ``None`` while ``RS_SCREENS_ENABLED`` is off (then nothing is read,
+    written or reported, and the build's stats carry no key for it).
+
+    ``spy_bars`` (unit U8) is this build's own SPY read, handed to the pass for the
+    market caution state so SPY is still read once per build.
+
+    ⭐ WHY HERE, EVERY BUILD: ``upsert_rows`` is INSERT OR REPLACE over every column, so
+    a row this build rebuilt holds NULL in every column only the pass writes. A single
+    nightly pass would be wiped by the next resume or admin build.
+
+    The pass's own counts replace ``populated`` for the columns it owns (the
+    ``sector_rs_pct`` rule: counted over the table it just wrote). Never raises: a
+    failed pass is ``{"error": ...}`` in the receipt and the build goes on."""
+    try:
+        from . import rs_post_pass                           # noqa: PLC0415 - lazy: no cycle
+        if not rs_post_pass.enabled():
+            return None
+        receipt = rs_post_pass.run(source="build", spy_bars=spy_bars)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[screener] rs post-pass failed: %s", e)
+        return {"error": f"{type(e).__name__}: {e}"}
+    for col, n in (receipt.get("populated") or {}).items():
+        if col in snapshot_db.POST_PASS_COLUMNS and isinstance(populated.get(col), int):
+            populated[col] = n
+    return receipt
+
+
 # ── orchestration ─────────────────────────────────────────────────────────────
 
 # The generator's `{ticker: Stock|ADR|ETF}` map, loaded ONCE per build (it is
@@ -1233,6 +1521,44 @@ def _load_universe():
     # superset of the old behaviour and never returns fewer names than before.
     from api.services.screener import screener_universe
     return list(screener_universe.symbols())
+
+
+def _prune_second_spellings(universe) -> list:
+    """Delete the stored rows that are a SECOND SPELLING of a listing the universe
+    holds (`screener_universe.second_spelling_of`): ``BRK.B`` when ``BRK-B`` is in the
+    universe AND has a row of its own. Returns the tickers deleted.
+
+    `_stalest` rebuilds every row it finds, in the universe or not, and prunes nothing
+    (its docstring says why: deleting a member-visible row is an owner decision). These
+    rows are the exception the owner delegated on 2026-11-15: each is the same listing
+    as another row, same bars, same price, and it takes a place of its own in every
+    ranking. Dropping the spelling from the universe alone would leave the row rebuilt
+    forever.
+
+    ⛔ NEVER THE ONLY ROW. A dot spelling is deleted only when its hyphen twin already
+    HAS a row; until then it is left (and rebuilt as an orphan), so a listing never
+    vanishes from the Screener for a night. ⛔ NO UNIVERSE, NO DELETE: an unreadable
+    universe file must not empty anything. Never raises: a failed delete costs nothing
+    but the duplicate staying one more night."""
+    try:
+        from api.services.screener import screener_universe
+        names = {str(t).upper() for t in (universe or [])}
+        if not names:
+            return []
+        with snapshot_db.connect() as conn:
+            have = {str(r[0]).upper() for r in conn.execute("SELECT ticker FROM screener_rows") if r[0]}
+            gone = sorted(t for t in have
+                          if screener_universe.second_spelling_of(t, names) in have)
+            if gone:
+                conn.executemany("DELETE FROM screener_rows WHERE UPPER(ticker) = ?",
+                                 [(t,) for t in gone])
+        if gone:
+            log.info("[screener] %d second-spelling row(s) deleted (the hyphen spelling "
+                     "holds the listing): %s", len(gone), ", ".join(gone[:20]))
+        return gone
+    except Exception as e:                                   # noqa: BLE001 - never costs the build
+        log.warning("[screener] second-spelling prune failed: %s: %s", type(e).__name__, e)
+        return []
 
 
 def _stalest(tickers, limit):
@@ -1577,7 +1903,7 @@ def build_in_flight() -> bool:
     return _BUILD_LOCK.locked()
 
 
-def run_build(max_tickers=None) -> dict:
+def run_build(max_tickers=None, through_ymd=None) -> dict:
     """Build + upsert the snapshot, and REPORT WHAT ACTUALLY LANDED.
 
     Returns ``{built, skipped, errors, populated, empty_columns, sources}``:
@@ -1593,6 +1919,15 @@ def run_build(max_tickers=None) -> dict:
     while writing NULL into ``market_cap`` on all 3,708 rows. Nothing in that
     line could have told anyone. ``errors`` counts rows LOST; it has never
     counted a column that silently came back empty on every row that survived.
+
+    ``through_ymd`` (a ``YYYYMMDD`` int) drops every daily bar dated after it, for the
+    tickers and for SPY/RSP alike. The resume job (``api.main._run_snapshot_resume``)
+    passes ``settled_session()`` so a build that finishes a killed nightly publishes
+    exactly what the nightly would have. ⛔ It matters because ``bars.db`` holds
+    TODAY's forming bar for every charted ticker (measured 2026-11-11 09:20 ET: AAPL
+    and NVDA ended at 20261111) and a build without the limit stores that half-day
+    bar as a completed session, which shifts every lookback and the live tier's
+    stored bases by one day. ``None`` (every other caller) builds as before.
     """
     if not _BUILD_LOCK.acquire(blocking=False):
         # ⛔ REFUSE, never queue: a queued second build would run the whole
@@ -1608,7 +1943,7 @@ def run_build(max_tickers=None) -> dict:
         global _SECURITY_TYPES_CACHE
         _SECURITY_TYPES_CACHE = None   # reload the type map fresh for this build
         started = time.time()
-        stats = _run_build_locked(max_tickers)
+        stats = _run_build_locked(max_tickers, through_ymd)
         snapshot_db.record_build_run({**stats, "started_at": started,
                                       "finished_at": time.time()})
         return stats
@@ -1633,9 +1968,10 @@ def _per_run_cap(max_tickers=None):
     return int(env) if env else None
 
 
-def _run_build_locked(max_tickers=None) -> dict:
+def _run_build_locked(max_tickers=None, through_ymd=None) -> dict:
     snapshot_db.init_db()
     universe = _load_universe()
+    _prune_second_spellings(universe)
     targets = _stalest(universe, _per_run_cap(max_tickers))
     built = skipped = errors = 0
     batch = []
@@ -1660,9 +1996,19 @@ def _run_build_locked(max_tickers=None) -> dict:
     rs_p3 = rs_on and rs_v3_enabled()
     rs_timing = {"enabled": rs_on, "rows": 0, "ms": 0.0,
                  "phase3": rs_p3, "phase3_ms": 0.0}
+    # RS screens (unit U4): the two `build_row` steps behind RS_SCREENS_ENABLED add
+    # their own keys only while the flag is on, so a dark build's receipt is the
+    # one it was. `screens_ms` is NOT inside `ms`.
+    rs_scr = rs_screens_enabled()
+    if rs_scr:
+        rs_timing.update(screens=True, screens_rows=0, screens_ms=0.0,
+                         weekly_rows=0, weekly_ms=0.0)
     rs_weekly_cache: dict = {}
-    spy_bars = _read_benchmark_bars("SPY")
-    rsp_bars = _read_benchmark_bars("RSP") if rs_on else []
+    # The shadow Leader score's bar inputs (unit U9), collected per batch and stored
+    # beside each `upsert_rows`. Stays empty while RS_LEADER_SHADOW_ENABLED is off.
+    shadow_rows: dict = {}
+    spy_bars = bars_through(_read_benchmark_bars("SPY"), through_ymd)
+    rsp_bars = bars_through(_read_benchmark_bars("RSP"), through_ymd) if rs_on else []
     spy_closes = spy_closes_from_bars(spy_bars)
     if not spy_bars:
         sources.setdefault("spy_bars", {})["none"] = 1
@@ -1826,7 +2172,7 @@ def _run_build_locked(max_tickers=None) -> dict:
     from api.services import massive as _massive  # symbol mapping only; no I/O
     for t in targets:
         try:
-            bars = _read_daily_bars(t)
+            bars = bars_through(_read_daily_bars(t), through_ymd)
             if not bars:
                 skipped += 1
                 continue
@@ -1873,6 +2219,14 @@ def _run_build_locked(max_tickers=None) -> dict:
                 sources.setdefault("rs_ranking", {})
                 sources["rs_ranking"]["no_rank"] = \
                     sources["rs_ranking"].get("no_rank", 0) + 1
+            elif rs_row.get("rs_rank_source"):
+                # U5a: under RS_RANK_IBD_ENABLED the entry says whether `rs_rank`
+                # is the nightly rating or the hourly fallback. Counted so the
+                # receipt shows how much of the universe the rating covered (the
+                # arm rule is 99 %); flag off there is no key and nothing is added.
+                k = f"source_{rs_row['rs_rank_source']}"
+                sources.setdefault("rs_ranking", {})
+                sources["rs_ranking"][k] = sources["rs_ranking"].get(k, 0) + 1
             bulk_row = bulk_map.get(t.upper())
             if not bulk_row:
                 # Counted for the same reason as `no_rank`: an empty bulk map
@@ -1913,7 +2267,8 @@ def _run_build_locked(max_tickers=None) -> dict:
                             context_row=context_row, market_row=market_row,
                             failures=sources, identity_state=identity_state,
                             spy_bars=spy_bars, rsp_bars=rsp_bars,
-                            rs_timing=rs_timing, rs_weekly_cache=rs_weekly_cache)
+                            rs_timing=rs_timing, rs_weekly_cache=rs_weekly_cache,
+                            shadow_out=shadow_rows)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1
@@ -1922,11 +2277,13 @@ def _run_build_locked(max_tickers=None) -> dict:
             if len(batch) >= 200:
                 snapshot_db.upsert_rows(batch)
                 batch = []
+                _store_shadow_inputs(shadow_rows)
         except Exception as e:
             errors += 1
             log.warning("[screener] build %s failed: %s", t, e)
     if batch:
         snapshot_db.upsert_rows(batch)
+    _store_shadow_inputs(shadow_rows)
     # Sector RS over the whole table, from each row's own RS Ret (see
     # snapshot_db.rank_sector_rs). A failure leaves the previous ranks and is
     # named in the receipt; it never fails the build.
@@ -1937,10 +2294,14 @@ def _run_build_locked(max_tickers=None) -> dict:
         log.warning("[screener] sector RS ranking failed: %s", e)
     if isinstance(populated.get("sector_rs_pct"), int) and "ranked" in sector_rs:
         populated["sector_rs_pct"] = sector_rs["ranked"]
+    # The RS screens post-pass, over the whole table the loop just wrote (see
+    # `_rs_post_pass`). None while RS_SCREENS_ENABLED is off.
+    rs_post = _rs_post_pass(populated, spy_bars=spy_bars)
 
     empty_columns = sorted(c for c in snapshot_db.COLUMNS
                            if built and populated[c] == 0
-                           and c not in snapshot_db.LIVE_ONLY_COLUMNS)
+                           and c not in snapshot_db.LIVE_ONLY_COLUMNS
+                           and c not in snapshot_db.POST_PASS_COLUMNS)
     log.info("[screener] build done built=%s skipped=%s errors=%s "
              "rs_map=%s bulk_map=%s empty_columns=%s",
              built, skipped, errors, len(rs_map), len(bulk_map),
@@ -1963,9 +2324,25 @@ def _run_build_locked(max_tickers=None) -> dict:
     rs_timing["phase3_ms"] = round(rs_timing.get("phase3_ms", 0.0), 1)
     rs_timing["ms_per_row"] = (round(rs_timing["ms"] / rs_timing["rows"], 2)
                                if rs_timing["rows"] else None)
+    if rs_scr:
+        # Beside `ms_per_row`: what the RS screens steps cost per row they ran on,
+        # the figure to read on the pod before the flag reaches members.
+        rs_timing["screens_ms"] = round(rs_timing["screens_ms"], 1)
+        rs_timing["screens_ms_per_row"] = (
+            round(rs_timing["screens_ms"] / rs_timing["screens_rows"], 3)
+            if rs_timing["screens_rows"] else None)
+        # The weekly RS new high (unit U12), apart from both: it runs only for rows
+        # on the liquid floor, so `weekly_rows` is that count, not the build's.
+        rs_timing["weekly_ms"] = round(rs_timing["weekly_ms"], 1)
+        rs_timing["weekly_ms_per_row"] = (
+            round(rs_timing["weekly_ms"] / rs_timing["weekly_rows"], 3)
+            if rs_timing["weekly_rows"] else None)
     log.info("[screener] bars_rs step: %s", rs_timing)
-    return {"built": built, "skipped": skipped, "errors": errors,
-            "targets": len(targets), "sector_rs": sector_rs,
-            "populated": populated, "empty_columns": empty_columns,
-            "sources": sources, "identity_refusals": identity_state,
-            "settled_bars": settled_receipt, "bars_rs": rs_timing}
+    stats = {"built": built, "skipped": skipped, "errors": errors,
+             "targets": len(targets), "sector_rs": sector_rs,
+             "populated": populated, "empty_columns": empty_columns,
+             "sources": sources, "identity_refusals": identity_state,
+             "settled_bars": settled_receipt, "bars_rs": rs_timing}
+    if rs_post is not None:
+        stats["rs_post_pass"] = rs_post
+    return stats

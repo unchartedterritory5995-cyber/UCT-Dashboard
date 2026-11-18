@@ -16,6 +16,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { BUILDER_INPUTS } from './builderInputs'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
@@ -30,11 +31,12 @@ function mount() {
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
   return { ...utils, writes }
 }
 
-const field = () => screen.getByLabelText('Formula')
-const addInput = () => screen.getByTestId('add-input')
+const field = () => formulaBox()
+const addInput = () => (openInputs(), screen.getByTestId('add-input'))
 const keyBox = (i = 0) => screen.getByLabelText(`Input ${i + 1} name`)
 
 async function typeFormula(text) {

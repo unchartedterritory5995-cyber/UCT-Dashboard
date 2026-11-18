@@ -1,0 +1,3575 @@
+{
+ "note": "Local harness, scripted model. Nothing here is REAL-MODEL.",
+ "execution": {
+  "inScope": 484,
+  "documentVerified": 158,
+  "reconfirmedOrRaised": 188,
+  "stillProvenFromDocument": 188,
+  "raisedByTest": [],
+  "raisedByBrowser": [],
+  "documentRowsNotReproved": {
+   "C1-011": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C1-019": [
+    "Undo turns it off\"",
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C2-092": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-002": [
+    "Undo puts it back\"",
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-003": [
+    "Undo puts both back\"",
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-006": [
+    "Undo unlinks it again\"",
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-016": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-017": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-019": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-030": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-056": [
+    "C3-056 (pre-model path) \"make the top-right chart weekly\""
+   ],
+   "C3-062": [
+    "C3-062 CONTROL (clicked top-left NVDA, named top-right AMD)",
+    "C3-062 CONTROL (the check has teeth: an active-cell plan fails it)"
+   ],
+   "C3-107": [
+    "Undo goes back\"",
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-110": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-120": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-121": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-138": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-148": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-150": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-152": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-156": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-158": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-163": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-169": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-170": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-171": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-174": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-177": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-183": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-184": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-187": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-188": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-192": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-202": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-216": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-217": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ],
+   "C3-219": [
+    "see docs/agent/program/EXEC-CITED-RERUN.md"
+   ]
+  },
+  "raisesRefused": {},
+  "states": {
+   "VERIFIED": 158,
+   "MISSING": 126,
+   "IMPLEMENTED / UNVERIFIED": 69,
+   "VERIFIED (SIMULATED panel test, scripted model, jsdom)": 4,
+   "VERIFIED (SIMULATED outcome test, scripted model, jsdom)": 62,
+   "PARTIAL (SIMULATED) — covered: percent scale (chart.setScale, settings.percentScale read back, Undo back to arithmetic); not covered: log scale, and asking for arithmetic by name, are not driven by this test": 1,
+   "BLOCKED": 43,
+   "UNMAPPED": 12,
+   "PARTIAL (SIMULATED) — covered: scale text SIZE (chart.setSetting textSize, read back, Undo); not covered: scale text COLOUR, which chart.setSetting refuses as inert by design (the axes take their ink from the canvas)": 1,
+   "PARTIAL (SIMULATED) — covered: the watermark ends centred (watermark.x/y = 0.5 in opts.watermarkPos, Undo); not covered: the product's own Reset write (watermarkPos: null, ChartWidget.jsx:499), which no capability makes": 1,
+   "PARTIAL (SIMULATED) — covered: the calculator inputs (positionCalc.accountSize / riskPct, read back, Undo); not covered: placing the position-calculator drawing (drawing family)": 1,
+   "PARTIAL (SIMULATED) — covered: intraday, the cell's own extendedHoursShading fork read back from the saved multichart_state, Undo drops it; not covered as persisted state: D/W/M, whose session view is cell-local by design (GridChartCell.jsx:107, never saved) and is read back only as the prop the real cell hands its stubbed canvas": 1,
+   "VERIFIED (SIMULATED outcome test, scripted model, jsdom) — note: the alert is on the NAMED cell's symbol, at the asked level (250) and direction (above), exactly one added and none on another cell's symbol, and Undo leaves the book byte-identical; a CONTROL case (the member clicked a cell holding a different symbol) and a negative control (a plan alerting the active cell is rejected by the same check): the controls prove the request context and the outcome check; the cell-to-symbol choice is made by the scripted model. The cell's right-click \"Set alert @ price\" entry point (GridChartCell.jsx:353-360) is NOT exercised: this is the Agent's route to the same outcome. The alert book is a stateful /api/watchlist-alerts stub with the real routes (GET/POST/DELETE)": 1,
+   "PARTIAL (SIMULATED) — covered: the watchlist filter (watchlistId and the shown headlines read back, Undo, NEGATIVE); not covered: the category filter and the linked-symbol filter": 1,
+   "PARTIAL (SIMULATED) — covered: opening a theme by its name (door openTheme, its holdings drawn); not covered: picking a holding inside the open theme": 1,
+   "PARTIAL (SIMULATED) — covered: the Y axis and the size axis (yKey, sizeKey read back); not covered: picking an X axis (only the refusal of an axis the map lacks is tested)": 1,
+   "PARTIAL (SIMULATED) — covered: opening a note by its name (noteId read back, Undo; an ambiguous or unknown name is refused); not covered: the widget's own note search": 1
+  }
+ },
+ "browserMethod": {
+  "autotestRowsNotCountedAsExecution": 0,
+  "retagged": false,
+  "tagInflation": "a request names every row of its family, so one passing request credits each of them: browser counts are an upper bound"
+ },
+ "browser": {
+  "rows": 0,
+  "p0": 0,
+  "p0Total": 74,
+  "failedRows": {}
+ },
+ "panelP0": {
+  "verified": 58,
+  "total": 74
+ },
+ "teaching": {
+  "total": 499,
+  "states": {
+   "VERIFIED": 295,
+   "ASSIGNED / NOT REACHED": 60,
+   "NO WALKTHROUGH": 46,
+   "NO ASSIGNED WALKTHROUGH": 75,
+   "ROUTED / BROWSER FAILED": 23
+  }
+ },
+ "tests": {
+  "total": 9883,
+  "passed": 9845,
+  "failed": 0,
+  "skipped": 14,
+  "files": 314
+ },
+ "ledger": {
+  "source": "M",
+  "rows": {
+   "C1-001": {
+    "area": "Symbol",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-002": {
+    "area": "Symbol",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-003": {
+    "area": "Symbol",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C1-004": {
+    "area": "Symbol",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-005": {
+    "area": "Symbol",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-006": {
+    "area": "Timeframe",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-007": {
+    "area": "Timeframe",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-008": {
+    "area": "Timeframe",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-009": {
+    "area": "Timeframe",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-010": {
+    "area": "Timeframe",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-011": {
+    "area": "Timeframe",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-013": {
+    "area": "Chart type",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-015": {
+    "area": "Chart type",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C1-016": {
+    "area": "Chart type",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C1-017": {
+    "area": "Chart type",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-018": {
+    "area": "Chart type",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-019": {
+    "area": "Session",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-020": {
+    "area": "Session",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-022": {
+    "area": "Scale",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-023": {
+    "area": "Scale",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-024": {
+    "area": "Scale",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-025": {
+    "area": "Scale",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-026": {
+    "area": "Scale",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C1-027": {
+    "area": "View",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-028": {
+    "area": "View",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-029": {
+    "area": "View",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-030": {
+    "area": "Go to date",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-031": {
+    "area": "Go to date",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-032": {
+    "area": "Go to date",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C1-033": {
+    "area": "Go to date",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-034": {
+    "area": "Compare",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-035": {
+    "area": "Compare",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-036": {
+    "area": "Compare",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-037": {
+    "area": "Compare",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-038": {
+    "area": "Compare",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-039": {
+    "area": "Compare",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-040": {
+    "area": "Compare",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-041": {
+    "area": "Compare",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-042": {
+    "area": "Replay",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-043": {
+    "area": "Replay",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-044": {
+    "area": "Replay",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C1-045": {
+    "area": "Replay",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C1-046": {
+    "area": "Replay",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C1-047": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-048": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-049": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-050": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-051": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-052": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-053": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C1-054": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-055": {
+    "area": "Settings",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-056": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-057": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-058": {
+    "area": "Settings",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-059": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-060": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-061": {
+    "area": "Settings",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-062": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-063": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-064": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-065": {
+    "area": "Settings",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-066": {
+    "area": "Settings",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-067": {
+    "area": "Settings",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-068": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-069": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-070": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-071": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-072": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-073": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-074": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-075": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-076": {
+    "area": "Settings",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-077": {
+    "area": "Settings",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C1-078": {
+    "area": "Settings",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-079": {
+    "area": "Themes",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-080": {
+    "area": "Themes",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-081": {
+    "area": "Themes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-082": {
+    "area": "Templates",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-083": {
+    "area": "Templates",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-084": {
+    "area": "Templates",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-086": {
+    "area": "Volume",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-087": {
+    "area": "Volume",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-089": {
+    "area": "Volume",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-090": {
+    "area": "Volume",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-091": {
+    "area": "Volume",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-092": {
+    "area": "Volume",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C1-093": {
+    "area": "Panes",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-094": {
+    "area": "Panes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-097": {
+    "area": "Legend",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-098": {
+    "area": "Legend",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-099": {
+    "area": "Legend",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-100": {
+    "area": "Legend",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-101": {
+    "area": "Legend",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-102": {
+    "area": "Legend",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-103": {
+    "area": "Legend",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-104": {
+    "area": "Legend",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-105": {
+    "area": "Legend",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-106": {
+    "area": "Measure",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-107": {
+    "area": "Measure",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-108": {
+    "area": "Measure",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C1-109": {
+    "area": "Measure",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-110": {
+    "area": "Share",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-111": {
+    "area": "Share",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-112": {
+    "area": "Share",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-113": {
+    "area": "Share",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-114": {
+    "area": "Alerts",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-115": {
+    "area": "Alerts",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-116": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-117": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C1-118": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C1-119": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-120": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-121": {
+    "area": "Alerts",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-125": {
+    "area": "Right-click",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-126": {
+    "area": "Right-click",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-127": {
+    "area": "Settings door",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-128": {
+    "area": "Drawing",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-130": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-131": {
+    "area": "Drawing",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-132": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-133": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-134": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-135": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-136": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-137": {
+    "area": "Drawing",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-138": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-139": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-140": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-141": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-142": {
+    "area": "Drawing",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-143": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-144": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-145": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-146": {
+    "area": "Drawing",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-147": {
+    "area": "Drawing",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-148": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-149": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-150": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-151": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-152": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C1-153": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C1-154": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-155": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-156": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-157": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-158": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-159": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-160": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C1-161": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C1-162": {
+    "area": "Drawing",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-163": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-164": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-165": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-166": {
+    "area": "Drawing",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-167": {
+    "area": "Boards",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-168": {
+    "area": "Boards",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-169": {
+    "area": "Boards",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-170": {
+    "area": "Boards",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-171": {
+    "area": "Keyboard",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-172": {
+    "area": "Keyboard",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C1-173": {
+    "area": "Keyboard",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C1-174": {
+    "area": "Keyboard",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C1-175": {
+    "area": "Keyboard",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-001": {
+    "area": "Picker",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-002": {
+    "area": "Picker",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-003": {
+    "area": "Picker",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-004": {
+    "area": "Add",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-005": {
+    "area": "Add",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-006": {
+    "area": "Add",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-007": {
+    "area": "Add",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C2-008": {
+    "area": "Add",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-009": {
+    "area": "Add",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-010": {
+    "area": "Add",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-011": {
+    "area": "Add",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-012": {
+    "area": "Add",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-013": {
+    "area": "Add",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-014": {
+    "area": "Remove",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-015": {
+    "area": "Remove",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-016": {
+    "area": "Remove",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-017": {
+    "area": "Remove",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-018": {
+    "area": "Visibility",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-019": {
+    "area": "Visibility",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-020": {
+    "area": "Visibility",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-021": {
+    "area": "Visibility",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-022": {
+    "area": "Read",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-023": {
+    "area": "Read",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-024": {
+    "area": "Inputs",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-025": {
+    "area": "Inputs",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-026": {
+    "area": "Inputs",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-027": {
+    "area": "Inputs",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-028": {
+    "area": "Inputs",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-029": {
+    "area": "Inputs",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-030": {
+    "area": "Style",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-031": {
+    "area": "Style",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-032": {
+    "area": "Style",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-033": {
+    "area": "Style",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-034": {
+    "area": "Style",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-035": {
+    "area": "Style",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-036": {
+    "area": "Placement",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-037": {
+    "area": "Placement",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-038": {
+    "area": "Panes",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-039": {
+    "area": "Panes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-040": {
+    "area": "Panes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-041": {
+    "area": "Legend",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-042": {
+    "area": "Legend",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-043": {
+    "area": "Legend",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-044": {
+    "area": "Legend",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-045": {
+    "area": "Legend",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-046": {
+    "area": "Legend",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-047": {
+    "area": "Legend",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-048": {
+    "area": "Undo",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-049": {
+    "area": "Copy",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-050": {
+    "area": "Copy",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-051": {
+    "area": "Templates",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-052": {
+    "area": "Templates",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-053": {
+    "area": "Templates",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-054": {
+    "area": "Templates",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-055": {
+    "area": "Create",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-056": {
+    "area": "Create",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-057": {
+    "area": "Create",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-058": {
+    "area": "Create",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-059": {
+    "area": "Create",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-060": {
+    "area": "Create",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-061": {
+    "area": "Create",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-062": {
+    "area": "Create",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-063": {
+    "area": "Create",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-064": {
+    "area": "Builder",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-065": {
+    "area": "Builder",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-066": {
+    "area": "Builder",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-067": {
+    "area": "Builder",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-068": {
+    "area": "Builder",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-069": {
+    "area": "Builder",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-070": {
+    "area": "Builder",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C2-071": {
+    "area": "Builder",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C2-072": {
+    "area": "Builder",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-073": {
+    "area": "Builder",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-074": {
+    "area": "Builder",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-075": {
+    "area": "Builder",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-076": {
+    "area": "Import",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-077": {
+    "area": "Import",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-078": {
+    "area": "Import",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-079": {
+    "area": "Import",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-080": {
+    "area": "Image",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-081": {
+    "area": "Image",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C2-082": {
+    "area": "Saved",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-083": {
+    "area": "Saved",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C2-084": {
+    "area": "Saved",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-085": {
+    "area": "Saved",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-086": {
+    "area": "Saved",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-087": {
+    "area": "Saved",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-088": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-089": {
+    "area": "Alerts",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-090": {
+    "area": "Alerts",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-091": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C2-092": {
+    "area": "Alerts",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C2-093": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-094": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-095": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C2-096": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-097": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-098": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-099": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C2-100": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-001": {
+    "area": "Board",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-002": {
+    "area": "Board",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-003": {
+    "area": "Board",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-004": {
+    "area": "Board",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-005": {
+    "area": "Board",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-006": {
+    "area": "Link",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-007": {
+    "area": "Link",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-008": {
+    "area": "Float",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-009": {
+    "area": "Float",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-010": {
+    "area": "Float",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-011": {
+    "area": "Float",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-012": {
+    "area": "Popout",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-013": {
+    "area": "Popout",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-014": {
+    "area": "Popout",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-015": {
+    "area": "Popout",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-016": {
+    "area": "Widget tabs",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-017": {
+    "area": "Widget tabs",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-018": {
+    "area": "Widget tabs",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-019": {
+    "area": "Widget tabs",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-020": {
+    "area": "Chart tabs",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-021": {
+    "area": "Chart tabs",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-022": {
+    "area": "Chart tabs",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-023": {
+    "area": "Chart tabs",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-024": {
+    "area": "Chart tabs",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-025": {
+    "area": "Layout Dock",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-026": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-027": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-028": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-029": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-030": {
+    "area": "Layout Dock",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-031": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-032": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-033": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-034": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-035": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-036": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-037": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-038": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-039": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-040": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-041": {
+    "area": "Layout Dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-042": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-043": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-044": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-045": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-046": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-047": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-048": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-049": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-050": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-051": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-052": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-053": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-054": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-055": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-056": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-057": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-058": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-059": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-060": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-061": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-062": {
+    "area": "Multi Chart",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-063": {
+    "area": "Watchlist",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-064": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-065": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-066": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-067": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-068": {
+    "area": "Watchlist",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-069": {
+    "area": "Watchlist",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-070": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-071": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-072": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-074": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-075": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-076": {
+    "area": "Watchlist",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-077": {
+    "area": "Watchlist",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-078": {
+    "area": "Watchlist",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-079": {
+    "area": "Watchlist",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-080": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-082": {
+    "area": "Watchlist",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-083": {
+    "area": "Watchlist",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-085": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-086": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-087": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-088": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-089": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-091": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-092": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-093": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-094": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-095": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-096": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-097": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-098": {
+    "area": "Watchlist",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-099": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-100": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-101": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-102": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-103": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-104": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-105": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-106": {
+    "area": "Watchlist",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-107": {
+    "area": "Scanner",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-108": {
+    "area": "Scanner",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-109": {
+    "area": "Scanner",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-110": {
+    "area": "Scanner",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-111": {
+    "area": "Scanner",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-112": {
+    "area": "Scanner",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-113": {
+    "area": "Scanner",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-114": {
+    "area": "Scanner",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-115": {
+    "area": "Scanner",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-116": {
+    "area": "Scanner",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-117": {
+    "area": "Scanner",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-118": {
+    "area": "Scanner",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-119": {
+    "area": "Scanner",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-120": {
+    "area": "Scanner",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-121": {
+    "area": "Volume Surge",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-122": {
+    "area": "Volume Surge",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-123": {
+    "area": "Volume Surge",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-124": {
+    "area": "Volume Surge",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-125": {
+    "area": "Volume Surge",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-126": {
+    "area": "Volume Surge",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-127": {
+    "area": "Alerts",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-128": {
+    "area": "Alerts",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-129": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-130": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-131": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-132": {
+    "area": "Alerts",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-133": {
+    "area": "News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-134": {
+    "area": "News",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-135": {
+    "area": "News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-136": {
+    "area": "News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-137": {
+    "area": "News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-138": {
+    "area": "TE News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-139": {
+    "area": "TE News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-140": {
+    "area": "TE News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-141": {
+    "area": "TE News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-142": {
+    "area": "TE News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-143": {
+    "area": "TE News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-144": {
+    "area": "TE News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-145": {
+    "area": "TE News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-146": {
+    "area": "TE News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-147": {
+    "area": "TE News",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-148": {
+    "area": "Calendar",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-149": {
+    "area": "Calendar",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-150": {
+    "area": "Calendar",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-151": {
+    "area": "Calendar",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-152": {
+    "area": "Calendar",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-153": {
+    "area": "Calendar",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-154": {
+    "area": "Calendar",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-155": {
+    "area": "Calendar",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-156": {
+    "area": "Calendar",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-157": {
+    "area": "Breadth",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-158": {
+    "area": "Breadth",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-159": {
+    "area": "Breadth",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-160": {
+    "area": "Breadth",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-161": {
+    "area": "Breadth",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-162": {
+    "area": "Breadth",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-163": {
+    "area": "Breadth",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-164": {
+    "area": "Options Flow",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-165": {
+    "area": "Options Flow",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-166": {
+    "area": "Options Flow",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-167": {
+    "area": "Options Flow",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-168": {
+    "area": "Options Flow",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-169": {
+    "area": "Themes",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-170": {
+    "area": "Themes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-171": {
+    "area": "Themes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-172": {
+    "area": "Themes",
+    "p0": true,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-173": {
+    "area": "Themes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-174": {
+    "area": "Themes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-175": {
+    "area": "Themes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-176": {
+    "area": "Themes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-177": {
+    "area": "Themes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-178": {
+    "area": "Fundamentals",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-179": {
+    "area": "Fundamentals",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-180": {
+    "area": "Fundamentals",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-181": {
+    "area": "Profile",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-182": {
+    "area": "Profile",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-183": {
+    "area": "Indexes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-184": {
+    "area": "Indexes",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-185": {
+    "area": "Market Context",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-186": {
+    "area": "Market Context",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-187": {
+    "area": "NH/NL",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-188": {
+    "area": "NH/NL",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-189": {
+    "area": "NH/NL",
+    "p0": false,
+    "executed": true,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-190": {
+    "area": "NH/NL",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-191": {
+    "area": "H/L Pulse",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-192": {
+    "area": "Market Map",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-193": {
+    "area": "Market Map",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-194": {
+    "area": "Market Map",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-195": {
+    "area": "Market Map",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-196": {
+    "area": "AI Search",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-197": {
+    "area": "AI Search",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-198": {
+    "area": "AI Search",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-199": {
+    "area": "AI Search",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-200": {
+    "area": "AI Search",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-201": {
+    "area": "Notebook",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-202": {
+    "area": "Notebook",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-203": {
+    "area": "Notebook",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-204": {
+    "area": "Notebook",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-205": {
+    "area": "Period Sort",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-206": {
+    "area": "Period Sort",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-207": {
+    "area": "Period Sort",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-208": {
+    "area": "Period Sort",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-209": {
+    "area": "Replay",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-210": {
+    "area": "Replay",
+    "p0": true,
+    "executed": true,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-211": {
+    "area": "Replay",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-212": {
+    "area": "Replay",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-216": {
+    "area": "Company dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ASSIGNED / NOT REACHED"
+   },
+   "C3-217": {
+    "area": "Company dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "VERIFIED"
+   },
+   "C3-218": {
+    "area": "Company dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-219": {
+    "area": "Company dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "ROUTED / BROWSER FAILED"
+   },
+   "C3-220": {
+    "area": "Company dock",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-221": {
+    "area": "Workspace",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C3-222": {
+    "area": "Workspace",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO ASSIGNED WALKTHROUGH"
+   },
+   "C3-223": {
+    "area": "Workspace",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": "NO WALKTHROUGH"
+   },
+   "C1-176": {
+    "area": "Right-click",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": null
+   },
+   "C1-177": {
+    "area": "Right-click",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": null
+   },
+   "C1-178": {
+    "area": "Right-click",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": null
+   },
+   "C1-179": {
+    "area": "Right-click",
+    "p0": false,
+    "executed": false,
+    "browser": false,
+    "teach": null
+   }
+  }
+ }
+}

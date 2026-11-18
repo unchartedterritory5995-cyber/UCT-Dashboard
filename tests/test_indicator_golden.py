@@ -87,13 +87,22 @@ RS_PHASE3_CASES = ["rs_rrg", "rs_clenow", "rs_vars"]
 # Phase 3 public-method parity (unit 3-13): NOT compute_case inputs. Each holds what an
 # outside reference publishes (Quant Investing's Clenow example, OANDA's VARS case study,
 # a person's StockCharts RRG reading) and is read by tests/test_rs_phase3_parity.py.
-# Design round (2026-11-08): `rs_parity_deepvue` records our RS Rating beside Deepvue's
-# ranks for 21 names; read by tests/test_rs_parity_deepvue.py.
-RS_PARITY_CASES = ["rs_parity_clenow", "rs_parity_vars", "rs_parity_rrg_stockcharts", "rs_parity_deepvue"]
+# Design round (2026-11-08): `rs_parity_reference` records our RS Rating beside a reference
+# vendor's ranks for 21 names; read by tests/test_rs_parity_reference.py.
+# 2026-11-17: + `rs_parity_reference_universe` (4a28c0b483, the all-stocks ranking fit: 61 names x 5 horizons),
+# graded by tests/test_rs_parity_reference.py's wide-universe tests; unlisted here, it left
+# `test_every_fixture_file_is_covered_by_a_test` red on master from 2026-11-11.
+RS_PARITY_CASES = ["rs_parity_clenow", "rs_parity_vars", "rs_parity_rrg_stockcharts", "rs_parity_reference",
+                   "rs_parity_reference_universe"]
 # Deepvue round 2 (2026-11-08): the RS Rating Reading's hand-checkable golden case (stored
 # ratings in, `ratingLine` / `ratingMa` and `payload.ratingHistory` out). NOT a compute_case
 # input; read by tests/test_rs_rating_view.py through the real provider.
 RS_RATING_VIEW_CASES = ["rs_rating_view"]
+# UCT RS split, unit U6 (2026-11-09): the `rsPhases` / `rsVsEma` maths on one seeded
+# synthetic series, regenerated and compared by tests/test_rs_split_golden.py and read
+# by the JS lane's definition tests. NOT compute_case inputs (two series, like RS_LINE_CASES).
+# 2026-11-12 (RS Exit Warnings): + `rs_exit_spy`, the same series at the daily 21 / 50 pair.
+RS_SPLIT_CASES = ["rs_phases_spy", "rs_vs_ema_spy", "rs_exit_spy"]
 
 # ⛔ THE AST CASES ARE THEIR OWN LIST FOR TWO STRUCTURAL REASONS, AND BOTH ARE
 # STATEMENTS ABOUT THE CASES RATHER THAN ABOUT THIS FILE — the same shape as
@@ -272,7 +281,8 @@ def test_every_fixture_file_is_covered_by_a_test():
     on_disk = {p.stem for p in FIX.glob("*.json")}
     listed = (set(CASES) | set(VWAP_CASES) | set(RS_LINE_CASES) | set(RS_EVENT_CASES)
               | set(RS_MANSFIELD_CASES) | set(AST_CASES) | set(RS_LEARN_FIXTURES)
-              | set(RS_PHASE3_CASES) | set(RS_PARITY_CASES) | set(RS_RATING_VIEW_CASES))
+              | set(RS_PHASE3_CASES) | set(RS_PARITY_CASES) | set(RS_RATING_VIEW_CASES)
+              | set(RS_SPLIT_CASES))   # U6 (2026-11-09): the RS split fixtures (three since 2026-11-12)
     assert on_disk == listed, (
         f"fixture files and the CASES lists disagree: {on_disk ^ listed}"
     )

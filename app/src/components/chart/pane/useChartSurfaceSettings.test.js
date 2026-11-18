@@ -535,3 +535,38 @@ describe('resolveOwnChartMergedSettings — capture-time own-chart blob (pure fn
     expect(out.background).toBe('#000001')          // the widget override wins where it speaks
     expect(out.crosshair.color).toBe('#123abc')     // the seed's customized section SURVIVES
   })
+
+describe('canvasCs — what StockChart itself draws with (the raw blob over the ACCOUNT, not the defaults)', () => {
+  test('a widget blob without extendedHoursShading takes the account value on the canvas', () => {
+    mockPrefs = { chart_settings: { extendedHoursShading: false, background: '#111' } }
+    const { result } = renderHook(() => useChartSurfaceSettings({ stored: { indicatorInstances: [] }, onStore: vi.fn() }))
+    expect(result.current.cs.extendedHoursShading).toBe(true)            // filled from the defaults
+    expect(result.current.canvasCs.extendedHoursShading).toBe(false)     // what the member actually sees
+    expect(result.current.canvasCs.background).toBe('#111')
+  })
+
+  test('a blob that says it wins on the canvas too, either way', () => {
+    for (const [acct, own] of [[false, true], [true, false]]) {
+      mockPrefs = { chart_settings: { extendedHoursShading: acct } }
+      const { result } = renderHook(() => useChartSurfaceSettings({ stored: { extendedHoursShading: own }, onStore: vi.fn() }))
+      expect(result.current.canvasCs.extendedHoursShading).toBe(own)
+    }
+  })
+
+  test('the own-chart surface: its source over the account; no source: the account', () => {
+    mockPrefs = {
+      chart_settings: { extendedHoursShading: false },
+      charts_workspace_layout: JSON.stringify({ widgets: [{ id: 'w1', type: 'chart', opts: { settings: { background: '#abcdef' } } }] }),
+    }
+    const own = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(own.result.current.ownChartSource).toBeTruthy()
+    expect(own.result.current.canvasCs.extendedHoursShading).toBe(false)
+    expect(own.result.current.canvasCs.background).toBe('#abcdef')
+    mockPrefs = { chart_settings: { extendedHoursShading: false } }
+    const plain = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(plain.result.current.canvasCs.extendedHoursShading).toBe(false)
+    mockPrefs = {}
+    const empty = renderHook(() => useChartSurfaceSettings({ stored: null }))
+    expect(empty.result.current.canvasCs.extendedHoursShading).toBe(true)   // nothing set anywhere: the default
+  })
+})

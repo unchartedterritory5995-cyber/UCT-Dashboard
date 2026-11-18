@@ -41,6 +41,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useId, useSyncExternalStore } from 'react'
 import Sheet from '../mobile/Sheet'
 import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
+import OptionsSourcePicker from './OptionsSourcePicker'
 import { effectiveColourFor } from './engine/pool'
 import { fieldsForInstance, evalActiveWhen, timeInputText, timeInputMs,
          sectionize, initialCollapsed, INLINE_MAX,
@@ -54,7 +55,6 @@ import { findInstance, setInstanceInput, setInstanceHidden,
          instanceDotSizeReading, DOT_SIZE_MIXED,
          saveInstanceAsDefault, resetInstanceToUctDefault, memberDefaultState,
          withIndicatorDefaultsOf } from './engine/instanceControls'
-import { noteRsPreset } from '../../lib/rsTelemetry'
 import { memberDefaultNote, saveDefaultIsNoop, SAVE_DEFAULT_LABEL, RESET_DEFAULT_LABEL } from './memberDefaultCopy'
 // ⭐ 2a-12 — the preset readers moved into the engine (`presetsOf`, `detectPreset`,
 // `CUSTOM_PRESET`) so this dialog and the phone sheet read ONE copy. The id is
@@ -402,7 +402,7 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
     setDraft((d) => { const out = { ...d }; for (const k of keys) delete out[k]; return out })
     setNotes((s) => { const out = { ...s }; for (const k of keys) out[k] = null; return out })
     setPickedPresetId(preset.id)
-    noteRsPreset(def, preset)
+    // (the `rs_preset` count was retired with the presets, RS split U9)
     writeSettings(applyPresetInputs(settingsRef.current, instanceId, def, preset, registry))
   }, [def, instanceId, registry, flushNow, writeSettings])
 
@@ -527,7 +527,8 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
   const panelId = `${uid}-panel`
 
   const renderField = (field, inPack) => {
-    const active = evalActiveWhen(field.activeWhen, shown)
+    // a LOCKED setting (`field.disabled`, its sentence the visible tip below) is inert like an inactive one
+    const active = !field.disabled && evalActiveWhen(field.activeWhen, shown)
     const id = `${uid}-${field.key}`
     const labelId = `${id}-lbl`
     const tipId = field.tooltip ? `${id}-tip` : null
@@ -652,13 +653,29 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitText(field) } }}
             />
           )}
+          {field.type === 'pick' && (
+            // ⭐ 2026-11-12 — a server-owned list (`optionsSource`): the shared
+            // searchable chooser, written once on the pick like a select.
+            <OptionsSourcePicker
+              field={field} value={value ?? ''} idBase={id} disabled={!active}
+              inputClassName={styles.text}
+              aria={{ 'aria-labelledby': labelId, ...(tipId ? { 'aria-describedby': tipId } : null),
+                'aria-disabled': String(!active) }}
+              onPick={(val) => {
+                setDraft((d) => ({ ...d, [field.key]: val }))
+                pendingRef.current.set(field.key, val)
+                flushNow()
+              }}
+            />
+          )}
           {field.type === 'toggle' && (
             <button
               type="button" role="switch" {...aria}
-              aria-checked={value !== false}
-              className={`${styles.toggle} ${value !== false ? styles.toggleOn : ''}`}
+              aria-checked={field.numeric ? Number(value) === 1 : value !== false}
+              className={`${styles.toggle} ${(field.numeric ? Number(value) === 1 : value !== false) ? styles.toggleOn : ''}`}
               onClick={() => {
-                const val = value === false
+                // a numeric switch (a Pine `bool` held as 1 / 0) writes 1 / 0
+                const val = field.numeric ? (Number(value) === 1 ? 0 : 1) : value === false
                 setDraft((d) => ({ ...d, [field.key]: val }))
                 pendingRef.current.set(field.key, val)
                 flushNow()

@@ -1,0 +1,20 @@
+# head 3a8d30dafc 2026-11-10T22:59:08Z dirty: 5 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentWhichWidget.rail.test.jsx src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx src/agent/watchlistTarget.rail.test.js
+ RUN  v4.0.18 C:/w/pl-widget/app
+ ✓ src/agent/watchlistTarget.rail.test.js (10 tests) 9ms
+ ✓ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx (3 tests) 3373ms
+     ✓ the plan picked the left one: a question, and neither widget's look changed  1238ms
+     ✓ the plan picked Momentum's view: a question, and no saved column layout  1027ms
+     ✓ control: "move the volume column after the symbol in Momentum" names it: moved, no question  1105ms
+ ✓ src/agent/agentWhichWidget.rail.test.jsx (6 tests) 6533ms
+     ✓ "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed  1218ms
+     ✓ "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed  1028ms
+     ✓ u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question  1050ms
+     ✓ u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question  1116ms
+     ✓ "refresh the IPOs scanner" with two Scanners: that one only  1050ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1068ms
+ Test Files  3 passed (3)
+      Tests  19 passed (19)
+   Start at  17:59:12
+   Duration  17.14s (transform 15.74s, setup 1.24s, import 20.01s, tests 9.91s, environment 2.70s)

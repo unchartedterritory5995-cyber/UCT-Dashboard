@@ -56,6 +56,9 @@ const { USER_CATEGORY, REFUSED_CATEGORY, userRefusalRows, UNATTRIBUTED_DEF_ID } 
 const engineRegistry = await import('./engine/nativeRegistry')
 const { installUserDefinitions, clearUserDefinitions } = engineRegistry
 const { SHIPPED_DEF_IDS, REGISTRY_SIZES, idsByLane } = await import('./engine/registrySizes')
+// ⭐ RS split U1/U6 — a `meta.requiresServer` definition is shipped but not OFFERED
+// until the live server lists it; under vitest nothing lands, so the dialog hides it.
+const { isDefinitionOffered } = await import('./engine/serverCompute')
 const { buildDefinition } = await import('./builder/BuilderSheet')
 const { evaluateFormula } = await import('./builder/FormulaField')
 const { mutate } = await import('swr')
@@ -298,7 +301,7 @@ describe('🔴 a formula the gates refuse SAYS SO, in the gate\'s own words', ()
     // asserted in `IndicatorLibraryDialog.test.jsx`; this sweep subtracts it so a
     // definition that REALLY fell out of the library still fails here.
     for (const shipped of [...SHIPPED_DEF_IDS.native, ...SHIPPED_DEF_IDS.server]
-      .filter((id) => !LIBRARY_HIDDEN_IDS.includes(id))) {
+      .filter((id) => !LIBRARY_HIDDEN_IDS.includes(id) && isDefinitionOffered(engineRegistry.getDefinition(id)))) {
       expect(ids, `${shipped} fell out of the library`).toContain(shipped)
     }
     expect(ids).toContain('volumeProfile')

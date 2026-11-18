@@ -1,4 +1,6 @@
-/** Wave H — Research Home's one aggregated read (checkpoint decision 14). */
+/** Wave H — the Notebook's one aggregated "home" read (checkpoint decision 14). Research home was its first reader;
+ *  since go-live wave 1 the Daily brief reads its "Needs review" and "Notes on your open positions" sections, and the
+ *  get-started list reads it too. */
 import useSWR from 'swr'
 
 const fetcher = (url) =>
@@ -9,8 +11,9 @@ const fetcher = (url) =>
 
 const EMPTY = { continueWorking: [], favorites: [], activeTheses: [], openPositionResearch: [], needsReview: [] }
 
-export default function useNotebookHome() {
-  const { data, error, isLoading, mutate } = useSWR('/api/j2/notebook/home', fetcher, {
+/** `enabled: false` asks for nothing yet (the Daily brief holds this read until its own read has answered). */
+export default function useNotebookHome({ enabled = true } = {}) {
+  const { data, error, isLoading, mutate } = useSWR(enabled ? '/api/j2/notebook/home' : null, fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })

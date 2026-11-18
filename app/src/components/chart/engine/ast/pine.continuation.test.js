@@ -40,15 +40,18 @@ ${body}
     // Reduced from `07-hull-suite`'s `Mode(…)`: three lines, one indent, each of
     // the first two ending on the ternary's `:`.
     const out = pine(`pick(s) =>
-      close > open ? sma(s, 10) :
-      close < open ? ema(s, 10) : na
+      close > open ? max(s, 10) :
+      close < open ? min(s, 10) : na
 plot(pick(close))`)
     expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
     expect(out.outputs.length).toBe(1)
     // ⭐ THE WHOLE CHAIN, not its first arm — a splitter that glued only the
     // second line would still translate and would draw a different indicator.
     expect(printFormula(out.outputs[0].ast))
-      .toBe('close > open ? sma(close, 10) : close < open ? ema(close, 10) : 0 / 0')
+      // ⭐ COND-TA (engine 58): the arms call `max` / `min` (no history), not `sma` / `ema`. A v4 `?:`
+      // arm is lazy, so a history call there is refused on this lane by name now, and this case is
+      // about where a statement may END.
+      .toBe('close > open ? max(close, 10) : close < open ? min(close, 10) : 0 / 0')
   })
 
   it('⭐ and the same chain at top level, which already worked, still does', () => {

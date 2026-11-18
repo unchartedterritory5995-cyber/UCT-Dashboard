@@ -25,10 +25,12 @@
 //
 // ⛔ A WITHHELD FAMILY IS NOT DRAWN AT ALL, and the reason rides out with the run.
 // Correctness over coverage: a drawing that may be wrong is worse than none.
-import { POOL_LIMITS, resolveCapacity, collectsAbove } from '../objectPool.js'
+import { POOL_LIMITS, resolveCapacity, collectsAbove, countAtCapReason, COUNT_AT_CAP_FAMILIES } from '../objectPool.js'
 import { packedToObjectHex } from './colours.js'
 import { objectHandle, isDrawingHandle } from './handles.js'
-import { ENUM_NA_SENTENCE } from '../enumNaRule.js'
+import { ENUM_NA_SENTENCE, ENUM_DROPS } from '../enumNaRule.js'
+import { pointSizeWord } from '../objectPointSizes.js'
+import { writeCell, spanned, CELL_WRITE, MERGED_HEAD_REWRITE, MERGED_HEAD_REWRITE_SENTENCE } from '../objectCells.js'
 
 /** Pine's absent colour (`color = na`): fully transparent — the host lane's
  *  `NA_OBJECT_COLOUR` (`pine.js`). */
@@ -47,9 +49,9 @@ export const RUN_FAMILIES = Object.freeze(['line', 'label', 'box', 'table', 'lin
 // default applies) — which is a different fact from `na` (NaN), passed.
 //
 // ⚠️ `table.cell`'s order is the vendor's: `text_size` comes BEFORE `bgcolor`.
-// (`pineObjects.js::CELL_POSITIONAL` lists `bgcolor, tooltip, text_size` after
-// `text_valign`; that host table is not this lane's to change, and a positional
-// call reaching both lanes with ten or more arguments is the case it decides.)
+// ⭐ Engine 51: the host lane's `pineObjects.js::CELL_POSITIONAL` now has the
+// same order, and `ast/cellPositionalOrder.test.js` derives it from
+// `OBJECT_OPS['table.cell'].params` below, so the two lanes cannot drift.
 const LINE_NEW = ['x1', 'y1', 'x2', 'y2', 'xloc', 'extend', 'color', 'style', 'width', 'force_overlay']
 const LABEL_NEW = ['x', 'y', 'text', 'xloc', 'yloc', 'color', 'style', 'textcolor', 'size', 'textalign',
   'tooltip', 'text_font_family', 'force_overlay', 'text_formatting']
@@ -261,12 +263,6 @@ export function declaredCapsOf(stripped) {
   return caps
 }
 
-/** The declared `calc_bars_count` of a source (same stripped scan), or null. */
-export function declaredCalcBarsOf(stripped) {
-  const m = /calc_bars_count\s*=\s*(\d+)/.exec(String(stripped || ''))
-  return m ? Number(m[1]) : null
-}
-
 export class ObjectRunError extends Error {
   constructor(message) { super(message); this.name = 'ObjectRunError' }
 }
@@ -284,6 +280,8 @@ const isNa = (v) => v === undefined || (typeof v === 'number' && Number.isNaN(v)
  * @param {number} [o.fillCap]      house envelope for linefills (no Pine rule)
  */
 export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fillCap = 500 } = {}) {
+  // ⭐ DRAW-1 GC — the families whose handle the script reads at a past offset (`historyHeldOf`)
+  const historyHeld = new Set(Array.isArray(caps && caps.historyHeld) ? caps.historyHeld : [])
   const limits = {}
   for (const fam of Object.keys(POOL_LIMITS)) {
     if (pineVersion < POOL_LIMITS[fam].since) continue
@@ -372,6 +370,16 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         // draws for it is not captured (Q-HS1): the family is withheld by name, as
         // the host object program withholds the drawing (`enum:na`).
         if (isNa(raw)) { withhold(fam, ENUM_NA_SENTENCE); return undefined }
+        // ⭐⭐ ENGINE 52 — Pine v6's INTEGER text size, in typographic points (`text_size = 11`):
+        // carried as that number, as the host lane carries it; the renderers size it
+        // (`objectCanvas.js::textSizePx`, the reference's word ↔ point table). 0 is `size.auto`.
+        // Only a size the reference equates with a word (`objectPointSizes.js`); any other int
+        // is withheld by name, as the host lane withholds it.
+        if ((prop === 'size' || prop === 'text_size') && isNum(raw) && Number.isFinite(raw)) {
+          if (pointSizeWord(raw, prop === 'size' ? 'label' : 'boxTable') !== null) return raw
+          withhold(fam, ENUM_DROPS.pointsUnwitnessed.sentence)
+          return undefined
+        }
         if (typeof raw !== 'string') throw new ObjectRunError(`\`${name}\`: \`${prop}\` takes a constant`)
         return raw.replace(/^(position|xloc|yloc|extend|size|text)\./, '')
       }
@@ -415,13 +423,24 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     for (const inst of [...live.values()]) {
       if (counts[fam] <= cap) break
       if (inst.family !== fam || inst.createdBar === bar || held.vars.has(inst.id)) continue
-      if (held.containers.has(inst.id)) {
+      // ⭐ W-C22-DEL r6 — a BOX held only in arrays is collected like any other box
+      // (objectPool.js C7: witnessed on sonarlab-order-blocks-spy-1d); every other
+      // kind in an array, and any kind in a map, a matrix or a UDT field, is not
+      // witnessed: the family is withheld (capture queue Q-C22-1).
+      if (held.containers.has(inst.id) || (fam !== 'box' && held.arrays && held.arrays.has(inst.id))) {
         withhold(fam, `TradingView's collector deletes the oldest ${fam}s past ${cap + 5}; one it reaches `
           + 'here is held in an array or a user type, and no capture shows whether such an object is spared')
       }
       reap(inst)
       stats.collected += 1
     }
+    // ⭐⭐ DRAW-1 GC — a BOX collector ran in a script that reads a past value of the variable holding
+    // its boxes (`objectPool.js::historyHeldOf`, inside-bar-boxes' shape): which of the oldest TradingView
+    // still shows is not what C7 says there (inside-bar-boxes 52 where C7 holds 50; vw-draw-count-at-cap
+    // 20 / 23 where it holds 22 / 25), so that family is withheld by name. Every other box family keeps
+    // C7 above, the newest kept (rs-arm-label-last-bar-spy 503 / 503, sonarlab-order-blocks 24 / 24).
+    // Said AFTER the walk, so a box held in a user type keeps that sentence.
+    if (COUNT_AT_CAP_FAMILIES.includes(fam) && historyHeld.has(fam)) withhold(fam, countAtCapReason(fam, cap))
   }
 
   function tablePos(props) {
@@ -429,7 +448,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     return typeof p === 'string' && p ? p : null
   }
 
-  function create(name, spec, args, bar, heldNow) {
+  function create(name, spec, args, bar, heldNow, site = null) {
     const fam = spec.family
     if (fam === 'linefill') {
       const a = instOf(args[0])
@@ -466,7 +485,8 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     const id = nextId
     nextId += 1
     const handle = objectHandle(fam, id)
-    const inst = { family: fam, id, createdBar: bar, props, handle }
+    // ⭐⭐ ENGINE 54 — the source call that made it (`objectSiteKey`), or null
+    const inst = { family: fam, id, createdBar: bar, props, handle, site: typeof site === 'string' ? site : null }
     if (fam === 'table') inst.cells = new Map()
     live.set(id, inst)
     handles.set(id, handle)
@@ -498,10 +518,11 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
 
   /**
    * Execute one call. `args` is positional on `spec.params` (undefined = not
-   * passed). Returns the call's value (a handle, a number, text, an array, or
+   * passed). ⭐⭐ ENGINE 54 — `site`: the source call (`objectSiteKey`) a create or a copy
+   * was written at; the object it makes carries it (`finish().live[].site`). Returns the call's value (a handle, a number, text, an array, or
    * `undefined` for a void call).
    */
-  function call(name, args, bar, heldNow) {
+  function call(name, args, bar, heldNow, site = null) {
     let spec = OBJECT_OPS[name] || null
     if (!spec && name.startsWith('any.')) {
       const recv = args[0]
@@ -521,7 +542,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     }
     if (!spec) throw new ObjectRunError(`no drawing operation \`${name}\``)
     switch (spec.kind) {
-      case 'create': return create(name, spec, args, bar, heldNow)
+      case 'create': return create(name, spec, args, bar, heldNow, site)
       case 'all': {
         const out = []
         for (const inst of live.values()) if (inst.family === spec.family) out.push(inst.handle)
@@ -540,7 +561,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         if (!inst) return NaN
         const values = spec.family === 'line' ? LINE_NEW : spec.family === 'label' ? LABEL_NEW : BOX_NEW
         const fresh = create(`${spec.family}.new`, OBJECT_OPS[`${spec.family}.new`],
-          values.map(() => undefined), bar, heldNow)
+          values.map(() => undefined), bar, heldNow, site)
         live.get(fresh.id).props = { ...inst.props }
         return fresh
       }
@@ -578,14 +599,19 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         if (inst.family !== 'table') throw new ObjectRunError(`\`${name}\` was handed a ${inst.family}`)
         const key = cellAddr(name, inst, args[1], args[2])
         if (key === null) return undefined
-        if (spec.kind === 'cell') {
-          // ⭐ a whole `table.cell` REPLACES the cell (unpassed properties take
-          // their defaults again); a `cell_set_*` patches one property.
-          inst.cells.set(key, assign(name, {}, spec.params.slice(3), args.slice(3), 'table'))
-        } else {
-          const cur = inst.cells.get(key) || {}
-          inst.cells.set(key, assign(name, cur, [spec.prop], [args[3]], 'table'))
-        }
+        // ⭐⭐ DIV-3 r1 — ONE RULE, BOTH LANES (`objectCells.js::writeCell`): a whole
+        // `table.cell` REPLACES the cell (unpassed properties take their defaults
+        // again), a `cell_set_*` patches one property, and a `table.cell` on a
+        // merged head withholds the tables by name — the reference does not say
+        // what it does to the span. ⚰️ This lane dropped the span; the host lane
+        // kept it.
+        const wrote = spec.kind === 'cell'
+          ? writeCell(inst.cells.get(key), CELL_WRITE.REPLACE,
+            (base) => assign(name, base, spec.params.slice(3), args.slice(3), 'table'))
+          : writeCell(inst.cells.get(key), CELL_WRITE.PATCH,
+            (base) => assign(name, base, [spec.prop], [args[3]], 'table'))
+        if (wrote.withhold === MERGED_HEAD_REWRITE) withhold('table', MERGED_HEAD_REWRITE_SENTENCE)
+        inst.cells.set(key, wrote.cell)
         stats.updated += 1
         return undefined
       }
@@ -609,7 +635,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
             for (let c = c0; c <= c1; c += 1) if (!inst.cells.has(`${c},${r}`)) inst.cells.set(`${c},${r}`, {})
           }
           const head = `${c0},${r0}`
-          inst.cells.set(head, { ...inst.cells.get(head), colspan: c1 - c0 + 1, rowspan: r1 - r0 + 1 })
+          inst.cells.set(head, spanned(inst.cells.get(head), c1 - c0 + 1, r1 - r0 + 1))
         }
         stats.updated += 1
         return undefined
@@ -645,7 +671,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         const rec = {
           family: inst.family,
           id: inst.id,
-          site: null,
+          site: inst.site || null,
           createdBar: inst.createdBar,
           props: {},
         }

@@ -1,0 +1,22 @@
+//@version=6
+indicator("UCTPROBE_RS_SEED_RSRATING", overlay = false)
+
+// RS RATING TRANSFER, L6 -- THE CAPTURE THAT WITNESSES A PINE SEED (docs/pine/RS-RATING-TRANSFER.md).
+//
+// `api/services/pine_seed_store.py` rebuilds SEED_FRED6725_RS_RATING:RSRATING by replaying the
+// public mirror (Fred6725/rs-log, output/RSRATING.csv) upload by upload, a later upload winning
+// per date. This probe is the witness: TradingView's own seed values on each chart bar, its na
+// pattern (weekend rows, the days since the last upload) and the bars-since count the RS Rating
+// script's loop starts from. Until it MATCHes, the harness grades with THESE bars, not ours.
+// A VALUE capture: read the plot values (capture-procedure.md).
+
+s_c = request.seed("seed_fred6725_rs_rating", "RSRATING", close)
+s_o = request.seed("seed_fred6725_rs_rating", "RSRATING", open)
+s_h = request.seed("seed_fred6725_rs_rating", "RSRATING", high)
+plot(s_c, "S01_seed_close")
+plot(s_o, "S02_seed_open")
+plot(s_h, "S03_seed_high")
+plot(na(s_c) ? 1 : 0, "S04_seed_is_na")
+plot(ta.barssince(not na(s_c)), "S05_barssince_seed")
+// NON-VACUITY CONTROL: the chart's own close, so a dead study cannot pass as all-na seed rows.
+plot(close, "S06_chart_close_CONTROL")

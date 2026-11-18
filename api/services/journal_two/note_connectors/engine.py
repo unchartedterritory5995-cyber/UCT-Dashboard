@@ -3845,9 +3845,7 @@ def _existing_folder(conn: sqlite3.Connection, user_id: str, dest: str, parts: l
     pid = dest or ""
     for raw in parts:
         name = (raw or "").strip()[:80] or "Untitled"
-        row = conn.execute(
-            "SELECT id FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name = ?",
-            (user_id, pid, name)).fetchone()
+        row = notes_svc.find_folder_segment(conn, user_id, pid, name)   # the same rule (root: any casing)
         if row is None:
             return _FOLDER_MISSING
         pid = row["id"]

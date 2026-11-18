@@ -9,7 +9,7 @@
 //     guard and a member sentence; the harness's report slots are all accounted for.
 //   - PIN BEFORE SERVE (D1): a metric resting on an unpinned rule inherits
 //     `runtime:strategy-unpinned`, naming the rule and its capture row.
-//   - D2: the start sentence, exactly, whenever the window does not reach the listing.
+//   - D2: the start sentence, exactly, on every record, from the listing too (W9-T13b r1).
 //
 // ⛔ PINS: tests pass `isPinned` (a predicate). The committed ledger is read once, unmocked,
 // to show the product default refuses what it does not pin.
@@ -22,6 +22,7 @@ import {
   REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD, REPORT_RECORD_GUARD,
 } from '../brokerReport.js'
 import { strategyRecordOf, strategyRecordShapeErrors } from '../strategyRecord.js'
+import { orderLogFor } from './orderLogFixture.js'
 import { UNPINNED_GUARD, BROKER_RULE_IDS, COMMISSION_RULE, COMMISSION_NET_VALUES } from '../brokerRules.js'
 import { BROKER_UNSETTLED_GUARD, BROKER_OPS, makeBroker } from '../broker.js'
 import { pinned } from '../brokerPins.js'
@@ -41,7 +42,7 @@ const tr = (id, dir, qty, e, x, exact = true) => ({
 })
 const recordOf = (trades, { pointvalue = 1, mintick = 0.01, initialCapital = 100000, fromListing = false,
   rulesUsed = ['B-MARKET', 'B-CLOSE'], defaulted = {} } = {}) => strategyRecordOf({
-  summary: { record: { trades, rulesUsed, symbol: { mintick, pointvalue } } },
+  summary: { record: { trades, orders: orderLogFor(trades), rulesUsed, symbol: { mintick, pointvalue } } },
   decl: { version: 5, initialCapital, defaultQty: 1, pyramiding: 1, fromListing, defaulted },
   barTimes: BAR_TIMES, historyWindowBars: 5000, confirmed: true,
 })
@@ -78,9 +79,11 @@ describe('W9-T13a served metrics, hand-computed', () => {
       totalClosedTrades: 4, totalOpenTrades: 1,
       numberWinningTrades: 2, numberLosingTrades: 1, numberEvenTrades: 1,
       netProfit: 5, netProfitPercent: 0.005, grossProfit: 10, grossLoss: 5, profitFactor: 2,
+      // W9-T5: no commission declared, so the closed trades paid 0 (resting on B-DEFAULTS)
+      commissionPaid: 0,
     })
     for (const k of SERVED_KEYS) {
-      expect(rep.metrics[k].source).toMatch(/strategy-broker-spec\.md B-VAL/)
+      expect(rep.metrics[k].source).toMatch(k === 'commissionPaid' ? /strategy\.closedtrades\.commission/ : /strategy-broker-spec\.md B-VAL/)
       expect(rep.metrics[k].pine).toBe(SERVED_METRICS[k].pine)
     }
     expect(rep.trades.status).toBe('served')
@@ -113,7 +116,7 @@ describe('W9-T13a served metrics, hand-computed', () => {
     const rep = strategyReportOf(recordOf([tr('a', 'long', 1, [1, 10], [2, 7]), tr('b', 'short', 2, [3, 4], [4, 5])]), { isPinned: ALL })
     expect(vals(rep, SERVED_KEYS)).toEqual({
       totalClosedTrades: 2, totalOpenTrades: 0, numberWinningTrades: 0, numberLosingTrades: 2, numberEvenTrades: 0,
-      netProfit: -5, netProfitPercent: -0.005, grossProfit: 0, grossLoss: 5, profitFactor: 0,
+      netProfit: -5, netProfitPercent: -0.005, grossProfit: 0, grossLoss: 5, profitFactor: 0, commissionPaid: 0,
     })
   })
 
@@ -121,7 +124,7 @@ describe('W9-T13a served metrics, hand-computed', () => {
     const rep = strategyReportOf(recordOf([]), { isPinned: ALL })
     expect(vals(rep, SERVED_KEYS)).toEqual({
       totalClosedTrades: 0, totalOpenTrades: 0, numberWinningTrades: 0, numberLosingTrades: 0, numberEvenTrades: 0,
-      netProfit: 0, netProfitPercent: 0, grossProfit: 0, grossLoss: 0, profitFactor: REPORT_UNDEFINED_GUARD,
+      netProfit: 0, netProfitPercent: 0, grossProfit: 0, grossLoss: 0, profitFactor: REPORT_UNDEFINED_GUARD, commissionPaid: 0,
     })
     expect(rep.metrics.profitFactor.sentence).toBe('Profit factor is not shown: it is gross profit divided by gross loss, and this backtest has no gross loss to divide by.')
     expect(rep.trades).toEqual({ status: 'served', rows: [] })
@@ -169,8 +172,9 @@ describe('W9-T13a pin before serve (D1)', () => {
     for (const k of SERVED_KEYS) {
       expect(rep.metrics[k]).toMatchObject({ status: 'refused', guard: UNPINNED_GUARD, rule: 'B-VAL', row: 'Q-S1-core' })
     }
-    expect(rep.metrics.netProfit.sentence).toBe('Net profit is not shown: it rests on the broker rule B-VAL, which no matching '
-      + 'TradingView capture pins yet (capture row Q-S1-core).')
+    // W9-T13b r2 plain words: the rule and row are FIELDS (above); the sentence names neither
+    expect(rep.metrics.netProfit.sentence).toBe('Net profit is not shown: it depends on a rule of how TradingView runs a '
+      + 'backtest that has not yet been checked against TradingView.')
     // the list's fills rest on the fill rules only, so it serves; its profits rest on B-VAL too
     expect(rep.trades.status).toBe('served')
     expect(rep.trades.rows[0].profit).toMatchObject({ guard: UNPINNED_GUARD, rule: 'B-VAL' })
@@ -191,7 +195,10 @@ describe('W9-T13a pin before serve (D1)', () => {
   // not read from COMMISSION_NET_VALUES, so dropping a figure from the shared list goes red
   const NET_FIGURES = ['strategy.wintrades', 'strategy.losstrades', 'strategy.eventrades', 'strategy.netprofit',
     'strategy.netprofit_percent', 'strategy.grossprofit', 'strategy.grossloss', 'strategy.openprofit',
-    'strategy.equity', 'strategy.closedtrades.profit']
+    'strategy.equity', 'strategy.closedtrades.profit',
+    // W9-T5: the fee itself rests on the commission's rules too
+    'strategy.closedtrades.commission', 'strategy.opentrades.commission']
+  const TRADE_FN = (fn) => fn.includes('trades.')
   const NOT_NET = ['strategy.closedtrades', 'strategy.opentrades', 'strategy.position_size', 'strategy.initial_capital']
   const brokerWith = (isPinned) => {
     const b = makeBroker({ pyramiding: 1, defaultQty: 1, initialCapital: 100000, marginLong: 0, marginShort: 0, defaulted: {} },
@@ -199,7 +206,7 @@ describe('W9-T13a pin before serve (D1)', () => {
     b.call('#symbol', [0.01, 1], 0)
     return b
   }
-  const callOf = (b, fn) => { try { return { v: b.call(fn, fn.endsWith('.profit') ? [0] : [], 0) } } catch (e) { return { e } } }
+  const callOf = (b, fn) => { try { return { v: b.call(fn, TRADE_FN(fn) ? [0] : [], 0) } } catch (e) { return { e } } }
 
   for (const fn of NET_FIGURES) {
     it(`r3 broker: ${fn} is net of commission, so it asks B-DEFAULTS (refused unpinned without it)`, () => {
@@ -212,7 +219,7 @@ describe('W9-T13a pin before serve (D1)', () => {
     const b = brokerWith(except('B-DEFAULTS'))
     for (const fn of NOT_NET) expect(callOf(b, fn).e).toBeUndefined()
     const all = brokerWith(ALL)
-    for (const fn of NET_FIGURES.filter((f) => !f.endsWith('.profit'))) expect(callOf(all, fn).e).toBeUndefined()
+    for (const fn of NET_FIGURES.filter((f) => !TRADE_FN(f))) expect(callOf(all, fn).e).toBeUndefined()
   })
   it('r3 ONE AUTHORITY: the shared list names real broker values, and every non-count report metric is one of them', () => {
     for (const fn of COMMISSION_NET_VALUES) expect(Object.keys(BROKER_OPS)).toContain(fn)
@@ -252,12 +259,13 @@ describe('W9-T13a refused by name (D8)', () => {
       expect(rep.metrics[k].guard).toBe(r.guard)
       expect([REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD]).toContain(r.guard)
       expect(rep.metrics[k].sentence).toMatch(/ is not shown: /)
-      if (r.guard === REPORT_UNSTATED_GUARD) expect(rep.metrics[k].sentence).toMatch(new RegExp(`capture row ${r.row}\\)\\.$`))
+      if (r.guard === REPORT_UNSTATED_GUARD) expect(rep.metrics[k].sentence).toMatch(/has not yet been checked against TradingView\.$/)
     }
-    expect(rep.metrics.maxDrawdown.sentence).toBe("Max drawdown is not shown: no source we hold states exactly how TradingView's "
-      + 'Strategy Tester computes it, and no capture has witnessed it yet (capture row W9-S1).')
+    expect(rep.metrics.maxDrawdown.sentence).toBe("Max drawdown is not shown: we do not yet know exactly how TradingView's "
+      + 'Strategy Tester computes it, and it has not yet been checked against TradingView.')
     expect(rep.metrics.sharpeRatio.row).toBe('W9-S2')
-    expect(rep.metrics.commissionPaid).toMatchObject({ guard: REPORT_UNRECORDED_GUARD, owner: 'W9-T5' })
+    // W9-T5 served it (the closed trades' fees; w9T5Costs.test.js has the non-zero cases)
+    expect(rep.metrics.commissionPaid).toMatchObject({ status: 'served', value: 0 })
   })
 
   it('the served and refused sets are disjoint and cover every report slot the capture harness reads', () => {
@@ -268,8 +276,8 @@ describe('W9-T13a refused by name (D8)', () => {
     expect(Object.keys(slots).filter((k) => !served.has(k) && !refused.has(k))).toEqual([])
   })
 
-  it('a served metric is only a B-VAL value or the manual\'s profit factor', () => {
-    for (const m of Object.values(SERVED_METRICS)) expect(m.source).toMatch(/B-VAL/)
+  it('a served metric is only a B-VAL value, the manual\'s profit factor, or (W9-T5) the reference\'s trade fees', () => {
+    for (const m of Object.values(SERVED_METRICS)) expect(m.source).toMatch(/B-VAL|`strategy\.closedtrades\.commission`/)
     expect(BROKER_RULE_IDS).toContain('B-VAL')
   })
 })
@@ -283,16 +291,21 @@ describe('W9-T13a window and run-wide refusals', () => {
     expect(rep.window).toMatchObject({ startTime: T0, startDate: '2024-03-21', fromListing: false, asOfBar: at(39), asOfDate: '2024-04-29' })
   })
 
-  it('D2: a window from the listing carries no start caveat', () => {
-    const rep = strategyReportOf(recordOf([], { fromListing: true }), { isPinned: ALL })
-    expect(rep.window).toMatchObject({ fromListing: true, sentence: null })
+  it('D2 ALWAYS (W9-T13b r1): a window from the listing carries the same sentence (the plan bar limit can move TradingView start)', () => {
+    const rec = recordOf([], { fromListing: true })
+    const rep = strategyReportOf(rec, { isPinned: ALL })
+    expect(rep.window).toMatchObject({ fromListing: true, sentence: 'this backtest starts on 2024-03-21 (UTC); TradingView may start elsewhere' })
+    expect(rec.window.startSentence).toBe(startSentenceOf(T0))
+    // a from-listing record WITHOUT the sentence is not a v1 record
+    const bare = { ...rec, window: { ...rec.window, startSentence: null } }
+    expect(strategyReportOf(bare, { isPinned: ALL }).refusals[0].fields).toContain('window.startSentence')
   })
 
   it('D2 ONE AUTHORITY: the report READS the record sentence, never recomputes it', () => {
     const rec = { ...A, window: { ...A.window } }
     // a record carrying a sentence other than the rule's is not a v1 record (the shape check owns the rule)
     rec.window.startSentence = 'this backtest starts on 1999-01-01 (UTC); TradingView may start elsewhere'
-    expect(strategyReportOf(rec, { isPinned: ALL }).refusals[0].sentence).toMatch(/window\.startSentence/)
+    expect(strategyReportOf(rec, { isPinned: ALL }).refusals[0].fields).toContain('window.startSentence')
   })
 
   it('D2 FIXTURE: a non-US daily session (ASX, 10:00 AEDT = 23:00 UTC the day BEFORE) — record and report say the same sentence, and the route reads this file', () => {
@@ -302,17 +315,20 @@ describe('W9-T13a window and run-wide refusals', () => {
       { name: 'NYSE 2024-01-02 session, 09:30 ET', startTime: Date.UTC(2024, 0, 2, 14, 30) / 1000 },
       // review N3: 00:00-05:59 UTC is the PREVIOUS day in every US zone, so a host-local date is told apart
       { name: 'TSE 2024-03-21 session, 09:00 JST', startTime: Date.UTC(2024, 2, 21, 0, 0) / 1000 },
+      // W9-T13b r1, D2 ALWAYS: a run from the listing states the same sentence
+      { name: 'NYSE 2024-01-02 session, 09:30 ET, from the listing', startTime: Date.UTC(2024, 0, 2, 14, 30) / 1000, fromListing: true },
     ].map((c) => {
-      const rec = strategyRecordOf({ summary: { record: { trades: [], rulesUsed: [] } },
-        decl: { version: 5, fromListing: false }, barTimes: [c.startTime, c.startTime + DAY],
+      const rec = strategyRecordOf({ summary: { record: { trades: [], orders: [], rulesUsed: [] } },
+        decl: { version: 5, fromListing: c.fromListing === true }, barTimes: [c.startTime, c.startTime + DAY],
         historyWindowBars: 5000, confirmed: true })
       const rep = strategyReportOf(rec, { isPinned: ALL })
       expect(rep.window.sentence).toBe(rec.window.startSentence)
       expect(rep.window.startDate).toBe(rec.window.startDate)
-      return { ...c, startDate: rec.window.startDate, recordSentence: rec.window.startSentence, reportSentence: rep.window.sentence }
+      return { ...c, fromListing: rec.window.fromListing, startDate: rec.window.startDate, recordSentence: rec.window.startSentence, reportSentence: rep.window.sentence }
     })
     expect(cases[0].reportSentence).toBe('this backtest starts on 2024-03-20 (UTC); TradingView may start elsewhere')
     expect(cases[2].startDate).toBe('2024-03-21')
+    expect(cases[3]).toMatchObject({ fromListing: true, reportSentence: cases[1].reportSentence })
     const text = `${JSON.stringify({ why: 'W9-T13a r1, ruling D2: written by w9T13aBrokerReport.test.js from strategyRecord.js; read by tests/test_pine_strategy_backtest.py', cases }, null, 1)}
 `
     const file = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../../../../tests/fixtures/pine_runtime/w9t13a_start_sentence.json')
@@ -332,6 +348,53 @@ describe('W9-T13a window and run-wide refusals', () => {
     expect(rep).toMatchObject({ status: 'refused', metrics: null, trades: null })
     expect(rep.refusals[0].guard).toBe(REPORT_RECORD_GUARD)
     const noExact = { ...A, trades: A.trades.map((t) => ({ ...t, exact: undefined })) }
-    expect(strategyReportOf(noExact, { isPinned: ALL }).refusals[0].sentence).toMatch(/trades\[0\]\.exact/)
+    const bad = strategyReportOf(noExact, { isPinned: ALL }).refusals[0]
+    expect(bad.fields).toContain('trades[0].exact')
+    expect(bad.sentence).toBe('the backtest record is incomplete or in a form this report cannot read, so there is no report.')
+  })
+})
+
+// ─── W9-T13b r2: PLAIN WORDS. No member sentence names a rule id, a capture row, a field path
+// or a guard id; the engineer's detail rides the refusal's own fields (`rule`, `row`, `fields`).
+const ENGINEER_WORDS = [/\bB-[A-Z]+\b/, /\bQ-S1/, /\bW9-[A-Z0-9]+/, /capture row/,
+  /\b[a-z][a-zA-Z_]*\.[a-zA-Z_]+/, /\[\d+\]/, /runtime:|pine:/]
+const memberTexts = (rep) => [
+  ...Object.values(rep.metrics || {}).map((m) => m.sentence).filter(Boolean),
+  ...((rep.trades && rep.trades.rows) || []).map((r) => r.profit && r.profit.sentence).filter(Boolean),
+  ...(rep.trades && rep.trades.sentence ? [rep.trades.sentence] : []),
+  ...(rep.refusals || []).map((r) => r.sentence),
+]
+describe('W9-T13b r2 plain words in every member sentence the report writes', () => {
+  const OFF = recordOf([tr('L1', 'long', 1, [1, 10], [3, 10.004], false)])
+  const reports = {
+    allPinned: strategyReportOf(A, { isPinned: ALL }),
+    unpinnedVal: strategyReportOf(A, { isPinned: except('B-VAL') }),
+    unpinnedFill: strategyReportOf(A, { isPinned: except('B-CLOSE') }),
+    unpinnedDefaults: strategyReportOf(A, { isPinned: except('B-DEFAULTS') }),
+    offGrid: strategyReportOf(OFF, { isPinned: ALL }),
+    badRecord: strategyReportOf({ schema: 'nope' }, { isPinned: ALL }),
+    productDefault: strategyReportOf(A),
+  }
+  for (const [name, rep] of Object.entries(reports)) {
+    it(`${name}: no rule id, capture row, field path or guard id`, () => {
+      const texts = memberTexts(rep)
+      expect(texts.length).toBeGreaterThan(0)
+      for (const t of texts) for (const re of ENGINEER_WORDS) expect(t, `${re} in: ${t}`).not.toMatch(re)
+    })
+  }
+  it('the exact sentences', () => {
+    expect(reports.offGrid.metrics.netProfit.sentence).toBe("Net profit is not shown: a trade filled at a price between the "
+      + "symbol's price steps, and how TradingView treats such a fill has not yet been checked.")
+    expect(reports.unpinnedFill.trades.sentence).toBe('The list of trades is not shown: it depends on a rule of how '
+      + 'TradingView runs a backtest that has not yet been checked against TradingView.')
+    // the engineer's detail is still there, as fields
+    expect(reports.unpinnedVal.metrics.netProfit).toMatchObject({ rule: 'B-VAL', row: 'Q-S1-core' })
+    expect(reports.offGrid.metrics.netProfit.row).toBe('Q-S1l')
+  })
+  it('CONTROL: the rail can fail (the T13a r0 wording is caught)', () => {
+    const r0 = ['Net profit is not shown: it rests on the broker rule B-VAL, which no matching TradingView capture pins yet (capture row Q-S1-core).',
+      'the backtest record is not one this report reads (window.startSentence), so there is no report.',
+      'the backtest record is not one this report reads (trades[0].exact), so there is no report.']
+    for (const t of r0) expect(ENGINEER_WORDS.some((re) => re.test(t)), t).toBe(true)
   })
 })

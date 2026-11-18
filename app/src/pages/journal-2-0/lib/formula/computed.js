@@ -225,3 +225,13 @@ export function describeRollup(config, defs, savedViews = []) {
   if (config.aggregate === 'count') return `Count of ${set}`
   return `${agg} of ${what || '…'} across ${set}`
 }
+
+/** Is a rollup config complete enough to send? (The server re-checks everything.) Moved here from RollupEditor.jsx in
+ *  go-live wave 1, fix round 2: the properties panel reads it on every render, and the editor is a chunk of its own. */
+export function rollupReady(cfg) {
+  if (!cfg?.source || !cfg?.aggregate) return false
+  if (cfg.source === 'saved_view' && !cfg.savedViewId) return false
+  if (cfg.aggregate === 'count') return true
+  if (cfg.source === 'trades') return Boolean(cfg.tradeField) && (cfg.tradeField !== 'result' || Boolean(cfg.optionId))
+  return Boolean(cfg.propertyId)
+}

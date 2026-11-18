@@ -1,0 +1,139 @@
+{
+ "base": "f552c13d09",
+ "lane": "production (objects-only pane armed, runtime pane dark)",
+ "totals": {
+  "captures": 152,
+  "errors": 0,
+  "v1": {
+   "DIVERGE": 31,
+   "INCONCLUSIVE": 15,
+   "MATCH": 79
+  },
+  "v2": {
+   "DIVERGE": 35,
+   "INCONCLUSIVE": 15,
+   "MATCH": 75
+  }
+ },
+ "perFamily": {
+  "lines": {
+   "v1": {
+    "MATCH": 88,
+    "DIVERGE": 1
+   },
+   "v2": {
+    "MATCH": 88,
+    "DIVERGE": 1
+   }
+  },
+  "labels": {
+   "v1": {
+    "MATCH": 89,
+    "DIVERGE": 0
+   },
+   "v2": {
+    "MATCH": 87,
+    "DIVERGE": 2
+   }
+  },
+  "boxes": {
+   "v1": {
+    "MATCH": 91,
+    "DIVERGE": 2
+   },
+   "v2": {
+    "MATCH": 91,
+    "DIVERGE": 2
+   }
+  },
+  "tables": {
+   "v1": {
+    "MATCH": 95,
+    "DIVERGE": 0
+   },
+   "v2": {
+    "MATCH": 95,
+    "DIVERGE": 0
+   }
+  },
+  "tableCells": {
+   "v1": {
+    "MATCH": 82,
+    "DIVERGE": 13
+   },
+   "v2": {
+    "MATCH": 82,
+    "DIVERGE": 13
+   }
+  },
+  "linefills": {
+   "v1": {
+    "MATCH": 0,
+    "DIVERGE": 0
+   },
+   "v2": {
+    "MATCH": 5,
+    "DIVERGE": 2
+   }
+  }
+ },
+ "moved": [
+  {
+   "file": "tests/fixtures/vendor/harness/liquidity-pools-spy-1d-2026-10-03.json",
+   "first": {
+    "family": "linefills",
+    "field": "count",
+    "vendor": 504,
+    "ours": 252,
+    "where": "linefills held"
+   },
+   "orderOnly": false
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/price-action-as-in-book-fibonacci-supportresistant-trendline-spy-1d-2026-10-03.json",
+   "first": {
+    "family": "linefills",
+    "field": "count",
+    "vendor": 261,
+    "ours": 49,
+    "where": "linefills held"
+   },
+   "orderOnly": false
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-call-site-history-rddt-1d-2026-10-01.json",
+   "first": {
+    "family": "labels",
+    "field": "text",
+    "vendor": "A12 block local bx[1]|NaN",
+    "ours": "A11 ta.cum(volume)|3540778",
+    "vendorId": 12,
+    "ourId": 11,
+    "where": "label #11"
+   },
+   "orderOnly": true
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-call-site-history-spy-1d-2026-10-01.json",
+   "first": {
+    "family": "labels",
+    "field": "text",
+    "vendor": "A12 block local bx[1]|NaN",
+    "ours": "A11 ta.cum(volume)|42926998",
+    "vendorId": 12,
+    "ourId": 11,
+    "where": "label #11"
+   },
+   "orderOnly": true
+  }
+ ],
+ "runHalf": {
+  "door": {
+   "declined:run-half:pane-off": 42
+  },
+  "bind": {},
+  "bindCodes": {},
+  "minted": [],
+  "movedToDiverge": []
+ }
+}

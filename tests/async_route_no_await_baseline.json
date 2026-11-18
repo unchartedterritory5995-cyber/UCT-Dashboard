@@ -54,8 +54,6 @@
     "api/routers/note_sync.py::add_source",
     "api/schwab_router.py::contract_history",
     "api/schwab_router.py::earnings_test",
-    "api/schwab_router.py::schwab_login",
-    "api/schwab_router.py::schwab_status",
     "api/schwab_router.py::track_contracts"
   ]
 }

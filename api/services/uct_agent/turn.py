@@ -50,6 +50,7 @@ import re
 import time
 from typing import Any, Callable
 
+from api.services.uct_agent.scan import hidden
 from api.services.uct_agent.scan import refine as scan_refine
 
 DISPOSITIONS = ("answer", "clarify", "apply", "propose", "unsupported")
@@ -128,6 +129,9 @@ MAX_CAPABILITIES_NL1 = MAX_CAPABILITIES
 NL1_ENV = "UCT_AGENT_NL1"
 MAX_CAP_BYTES = 6000
 MAX_HINTS = 1000
+#: a capability's summary is cut to this on every request (validate_manifest). Named so the browser's rail
+#: (app/src/agent/capabilityTextLimits.test.js) reads the limit from HERE, never a retyped copy.
+MAX_SUMMARY = 400
 MAX_SHAPE = 600          # W1.1: a capability's exact-shape example (manifest `shape`), printed under its catalog line
 _CAP_NAME = re.compile(r"^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$")
 _SCHEMA_KEYS = {"type", "properties", "required", "additionalProperties", "enum", "const",
@@ -139,7 +143,16 @@ _SCHEMA_KEYS = {"type", "properties", "required", "additionalProperties", "enum"
 # The model is told which groups exist but were not given; if it needs one it sets
 # `need_groups` and plans nothing, and the browser asks once more with those groups.
 _GROUP_ID = re.compile(r"^[a-z][a-zA-Z]{1,23}$")
-MAX_GROUPS = 24
+# MAX_GROUPS bounds an untrusted browser payload: validate_routing's {id, title} list (each title cut to 160 chars
+# below), i.e. the "OTHER ACTION GROUPS" lines of the request's LAST system block (the per-request part, after the
+# cached core) and the `need_groups` enum. It never bounds actions: the browser's action budget (NL-1: 55) and
+# MAX_CAPABILITIES do. Groups past it are still cut, but never silently: the first cut in a process is logged
+# (a WARNING naming the dropped ids). Master reached exactly 24 on 2026-11-11 (a 25th group dropped `guide`); master
+# declares 26, queued PRs bring it to 31 and family builds in flight to 33, so 48 gives every family headroom and stays
+# bounded (48 × 160 chars). Rail: app/src/agent/routingMaxGroups.test.js fails when routing.js GROUPS outgrows this.
+MAX_GROUPS = 48
+#: set once the first over-limit routing.groups has been logged (validate_routing runs on every turn)
+_GROUPS_DROP_LOGGED = False
 
 
 def validate_routing(routing: Any) -> dict | None:
@@ -150,6 +163,14 @@ def validate_routing(routing: Any) -> dict | None:
     selected = routing.get("selected")
     if not isinstance(groups, list) or not isinstance(selected, list):
         return None
+    global _GROUPS_DROP_LOGGED
+    if len(groups) > MAX_GROUPS and not _GROUPS_DROP_LOGGED:
+        # ⛔ NEVER A SILENT DROP (like the args-schema drop): the cut groups can't be offered to the model or asked for
+        # in need_groups. Behaviour is unchanged (still cut); say which, ONCE per process.
+        _GROUPS_DROP_LOGGED = True
+        dropped = [str(g.get("id") or "?") if isinstance(g, dict) else "?" for g in groups[MAX_GROUPS:]]
+        log.warning("[uct-agent] routing sent %d groups; the server keeps only MAX_GROUPS=%d, dropped: %s",
+                    len(groups), MAX_GROUPS, ", ".join(dropped[:20]))
     seen, out = set(), []
     for g in groups[:MAX_GROUPS]:
         if not isinstance(g, dict):
@@ -176,22 +197,41 @@ def nl1_stable_names(routing: Any, capabilities: Any) -> set[str]:
         return set()
     return {str(c.get("name")) for c in capabilities[:n] if isinstance(c, dict) and c.get("name")}
 
-def _closed_schema(node: Any, depth: int = 0) -> bool:
-    """Only the structured-output-safe subset, every object closed and fully required."""
-    if depth > 6 or not isinstance(node, dict) or set(node) - _SCHEMA_KEYS:
-        return False
+#: (capability name, reason) pairs already logged by validate_manifest's schema drop — one ERROR each per process
+_SCHEMA_DROP_LOGGED: set[tuple[str, str]] = set()
+
+
+def schema_problems(node: Any, path: str = "args", depth: int = 0) -> list[str]:
+    """Why a capability's args schema is outside the structured-output-safe subset (every object closed and fully
+    required; only the _SCHEMA_KEYS keywords). Empty = accepted. Each problem names the path and the keyword, so a
+    capability the server leaves out is never a silent mystery (2026-11-11: #1076's `minItems`/`maxItems` would
+    have dropped its action with no log). Bounds the subset can't express (minItems, maxItems, minimum, pattern…)
+    are enforced in the capability's own code, never in the schema."""
+    if depth > 6:
+        return [f"{path}: nested deeper than 6"]
+    if not isinstance(node, dict):
+        return [f"{path}: not an object"]
+    extra = sorted(set(node) - _SCHEMA_KEYS)
+    if extra:
+        return [f"{path}: unsupported keyword(s) {', '.join(extra)}"]
+    out: list[str] = []
     if node.get("type") == "object" or "properties" in node:
         props = node.get("properties")
-        if not isinstance(props, dict) or node.get("additionalProperties") is not False:
-            return False
+        if not isinstance(props, dict):
+            return [f"{path}: object without properties"]
+        if node.get("additionalProperties") is not False:
+            out.append(f"{path}: additionalProperties is not false")
         if sorted(node.get("required") or []) != sorted(props):
-            return False
-        return all(_closed_schema(v, depth + 1) for v in props.values())
-    if "items" in node and not _closed_schema(node["items"], depth + 1):
-        return False
-    if "anyOf" in node and not all(_closed_schema(v, depth + 1) for v in node["anyOf"]):
-        return False
-    return True
+            out.append(f"{path}: required is not every property")
+        for k, v in props.items():
+            out += schema_problems(v, f"{path}.{k}", depth + 1)
+        return out
+    if "items" in node:
+        out += schema_problems(node["items"], f"{path}[]", depth + 1)
+    if "anyOf" in node:
+        for i, v in enumerate(node["anyOf"] if isinstance(node["anyOf"], list) else [None]):
+            out += schema_problems(v, f"{path}.anyOf[{i}]", depth + 1)
+    return out
 
 
 def nl1_enabled() -> bool:
@@ -222,17 +262,26 @@ def validate_manifest(caps: Any, limit: int = MAX_CAPABILITIES) -> list[dict]:
         if not _CAP_NAME.match(name) or name in seen:
             continue
         args = c.get("args")
-        if not (isinstance(args, dict) and args.get("type") == "object" and _closed_schema(args)):
+        problems = (["args: not an object schema"] if not (isinstance(args, dict) and args.get("type") == "object")
+                    else schema_problems(args))
+        if problems:
+            # ⛔ NEVER A SILENT DROP: the action is left out (the model can't call it), so say which and why — ONCE
+            # per capability and reason per process (this runs on every turn). The contract rail
+            # (tests/test_uct_agent_contract.py) fails CI before a shipped manifest can get here.
+            reason = "; ".join(problems[:5])
+            if (name, reason) not in _SCHEMA_DROP_LOGGED:
+                _SCHEMA_DROP_LOGGED.add((name, reason))
+                log.error("[uct-agent] capability %s left out: args schema outside the server's subset: %s", name, reason)
             continue
         if len(json.dumps(c)) > MAX_CAP_BYTES:
             log.warning("[uct-agent] capability %s is over %d bytes and was left out", name, MAX_CAP_BYTES)
             continue
-        if len(str(c.get("hints") or "")) > MAX_HINTS or len(str(c.get("summary") or "")) > 400:
+        if len(str(c.get("hints") or "")) > MAX_HINTS or len(str(c.get("summary") or "")) > MAX_SUMMARY:
             log.warning("[uct-agent] capability %s has its summary/hints cut", name)
         seen.add(name)
         out.append({
             "name": name,
-            "summary": str(c.get("summary") or "")[:400],
+            "summary": str(c.get("summary") or "")[:MAX_SUMMARY],
             # 1000, not 400: a capability's hints carry its usage rules (widget.add's alias
             # rule, screener.run's field/refine rules); a cut there silently changes behaviour.
             "hints": str(c.get("hints"))[:MAX_HINTS] if c.get("hints") else None,
@@ -521,6 +570,60 @@ def _del_path(d: dict, path: str) -> None:
             break
 
 
+# ⛔ BUG C (owner live test 2026-11-14; AUDIT T2 on #1289): a TIMEFRAME enum arg (by schema: it holds D and W and a minute
+# bucket) reads its value BY GRAMMAR — [number][ -|space ]unit — never by a word list. The SAME rule as the browser
+# (app/src/agent/capabilities/timeframeWords.js parseTimeframe); parity: app/src/agent/contract/timeframe.parity.json.
+# Only a value the arg's own enum offers; "1m" (a minute or a month), "4 hours" (240 is not offered), "2 weeks" stay as said.
+_TF_UNIT = {"m": "m", "min": "m", "mins": "m", "minute": "m", "minutes": "m",
+            "h": "h", "hr": "h", "hrs": "h", "hour": "h", "hours": "h",
+            "d": "d", "day": "d", "days": "d",
+            "w": "w", "wk": "w", "week": "w", "weeks": "w",
+            "mo": "mo", "month": "mo", "months": "mo"}
+_TF_LY = {"hourly": "h", "daily": "d", "weekly": "w", "monthly": "mo"}
+_TF_LETTER = {"m", "h", "d", "w", "mo"}
+_TF_SHAPE = re.compile(r"^(\d{1,4})?\s*-?\s*([a-z]+)$")
+
+
+def _is_timeframe_enum(spec: dict) -> bool:
+    vals = {v for v in (spec.get("enum") or []) if isinstance(v, str)}
+    return {"D", "W"} <= vals and bool(vals & {"1", "5", "15", "30", "60"})
+
+
+def _parse_timeframe(v: Any, enum: list) -> str | None:
+    """The canonical timeframe a string spells, if this enum offers it — else None (left as said; the enum refuses it)."""
+    if not isinstance(v, str):
+        return None
+    s = re.sub(r"\s+", " ", v.strip().lower())
+    m = _TF_SHAPE.match(s)
+    if not m:
+        return None
+    n = int(m.group(1)) if m.group(1) is not None else None
+    word = m.group(2)
+    if word in _TF_LY:
+        if n is not None:
+            return None
+        unit, n = _TF_LY[word], 1
+    elif word in _TF_UNIT:
+        unit = _TF_UNIT[word]
+        if n is None:
+            if word in _TF_LETTER:
+                return None
+            n = 1
+        if word == "m" and n == 1:
+            return None
+    else:
+        return None
+    if not n:
+        return None
+    if unit == "m":
+        value = str(n)
+    elif unit == "h":
+        value = str(n * 60)
+    else:
+        value = {"d": "D", "w": "W", "mo": "M"}[unit] if n == 1 else None
+    return value if value is not None and value in (enum or []) else None
+
+
 def _coerce_schema(spec: dict, v: Any, path: str, applied: list[str]) -> Any:
     """The schema-driven rules for ONE value: strings the schema types as boolean / number / null, enum
     case-folding, numbers the schema types as an enum string; lists element by element; nested objects
@@ -553,6 +656,11 @@ def _coerce_schema(spec: dict, v: Any, path: str, applied: list[str]) -> Any:
             if hit is not None:
                 applied.append(f"{path}:enum-case")
                 return hit
+            if _is_timeframe_enum(spec):
+                tf = _parse_timeframe(v, enum)
+                if tf is not None:
+                    applied.append(f"{path}:timeframe")
+                    return tf
         return v
     if isinstance(v, bool):
         if "boolean" not in types and enum:
@@ -642,7 +750,68 @@ def normalize_args(cap: dict, args: Any) -> tuple[Any, list[str]]:
     return out, applied
 
 
-def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
+# ⛔ BUG C (owner live test 2026-11-14): an op whose args miss its schema still kills the WHOLE envelope (fail-closed, no repair
+# round — no extra model call), but the member hears WHICH step and WHICH setting, never the generic "one of the steps". The
+# sentence names the setting by its schema KEY (code, not member data), the target by its <workspace_context> label (UCT's own
+# words), and the value only when the member typed it themselves. ARGS_SCHEMA_COUNTS counts (action, key) — never a value.
+ARGS_SCHEMA_COUNTS: dict[tuple[str, str], int] = {}
+
+
+def _schema_miss(schema: dict, args: Any) -> tuple[str, str | None]:
+    """Why these args miss a closed schema: ('missing' | 'extra' | 'value', key) or ('shape', None)."""
+    props = (schema or {}).get("properties") or {}
+    if not isinstance(args, dict):
+        return "shape", None
+    for k in props:
+        if k not in args:
+            return "missing", k
+    for k in args:
+        if k not in props:
+            return "extra", str(k)
+    for k in props:
+        if not _value_ok(props[k], args[k]):
+            return "value", k
+    return "shape", None
+
+
+def _ref_label(context: Any, ref: Any) -> str | None:
+    """The <workspace_context> label UCT wrote for a ref (never member text), or None."""
+    if not isinstance(context, dict) or not isinstance(ref, str):
+        return None
+    for section in context.values():
+        if not isinstance(section, list):
+            continue
+        for e in section:
+            if isinstance(e, dict) and e.get("ref") == ref:
+                lab = e.get("label") or e.get("chart") or e.get("name")
+                return _clean(str(lab), 60) if lab else None
+    return None
+
+
+def args_schema_sentence(action: Any, target: Any, args: Any, schema: dict, message: str | None, context: Any) -> str:
+    """The member's sentence for ONE op whose args miss its schema (see ARGS_SCHEMA_COUNTS)."""
+    why, key = _schema_miss(schema, args)
+    where = _ref_label(context, target)
+    on = f" for {where}" if where else ""
+    if why == "value" and key:
+        v = args.get(key) if isinstance(args, dict) else None
+        said = ""
+        if isinstance(v, (str, int, float)) and not isinstance(v, bool):
+            t = str(v).strip()
+            if t and len(t) <= 24 and "\n" not in t and t.lower() in str(message or "").lower():
+                said = f" “{t}”"
+        return f"I couldn't read the {key.replace('_', ' ')}{said}{on}, so nothing was changed. Try saying the {key.replace('_', ' ')} another way."
+    if why in ("missing", "extra"):
+        return f"I couldn't fill in one of the steps{on} — it was missing a setting or used one that step doesn't have — so nothing was changed. Try naming the values directly."
+    return _UNREADABLE_SAYS["args"]
+
+
+def _count_args_schema(action: Any, key: str | None) -> None:
+    k = (_clean(str(action or "?"), 60), _clean(str(key or "-"), 40))
+    ARGS_SCHEMA_COUNTS[k] = ARGS_SCHEMA_COUNTS.get(k, 0) + 1
+
+
+def expand_compact_ops(env: dict, capabilities: list[dict], *, message: str | None = None, context: Any = None) -> dict:
     """COMPACT ops → {action, target, args}. Args that are not JSON, or that do not
     match the action's own schema (after normalize_args), make the whole envelope unreadable (never guessed)."""
     by_name = {c["name"]: c for c in capabilities}
@@ -662,9 +831,15 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
             if applied:
                 log.info("uct_agent args normalized: %s %s", o.get("action"), applied)
         if cap is None or not args_match(cap["args"], args):
-            _unreadable("args_schema", action=o.get("action"),
-                        keys=sorted(args) if isinstance(args, dict) else type(args).__name__,
-                        want=sorted((cap or {}).get("args", {}).get("properties") or {}))
+            miss = _schema_miss(cap["args"], args) if cap is not None else ("action", None)
+            _count_args_schema(o.get("action"), miss[1])
+            log.warning("uct_agent unreadable: args_schema %s", {"action": o.get("action"), "why": miss[0], "key": miss[1],
+                        "keys": sorted(args) if isinstance(args, dict) else type(args).__name__,
+                        "want": sorted((cap or {}).get("args", {}).get("properties") or {})})
+            if cap is not None:
+                raise TurnError(args_schema_sentence(o.get("action"), o.get("target"), args, cap["args"], message, context),
+                                reason="unreadable:args_schema")
+            _unreadable("args_schema", action=o.get("action"), keys=sorted(args) if isinstance(args, dict) else type(args).__name__, want=[])
         out.append({"action": o.get("action"), "target": o.get("target"), "args": args})
     return {**env, "ops": out}
 
@@ -1047,7 +1222,30 @@ _OUTCOME_LABEL = {
 #: Actions whose results are local only. Decided by NAME on the server (never trusted from the
 #: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
 # journal.reviewTrades (W3 review B3): the member's own journal stats are shown, never replayed to a model
-LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades"})
+# news.movers (Phase 2 catalysts): UCT's catalyst board — stored third-party headlines and the engine's AI write-ups
+# (catalysts.board is model-isolated): a model never sees them, so a co-occurring headline never becomes a stated cause
+# rs.compare (Phase 2 market intelligence): UCT's RS Ratings / leadership are UCT-derived (rs.leadership is model-isolated)
+# stock.analystActions / stock.sessionHighsLows / stock.longRunLeaders / stock.darkPoolLevels (terminal data wave 1): each
+# reads a model-isolated kind (analyst.actions: third-party analyst calls; highsLows.session, leaders.longRun and
+# levels.darkpool: UCT-derived counts, selections and levels), so the member sees the card and a model never sees a value
+# stock.yearlyHighsLows / stock.themeRotation / stock.confluenceBoard / stock.expectedMove / stock.callSearch (terminal data
+# wave 2): each reads a model-isolated kind (highsLows.yearly: UCT breadth lists; themes.rotation and confluence.board:
+# UCT's own selections; earnings.expectedMove: UCT-computed from an option chain; earnings.callSearch: third-party
+# transcript excerpts), so the member sees the card and a model never sees a value or an excerpt
+# stock.gammaLevels / stock.topFlowPicks / stock.flowRecord / stock.earningsReactions (terminal data wave 3): each reads a
+# model-isolated kind (levels.gamma: UCT-computed from an option chain; flow.topPicks and flow.record: UCT's own selections
+# and their option contract results; earnings.reactions: UCT's calendar with third-party results and estimates), so the
+# member sees the card and a model never sees a value
+# stock.earningsSeason / stock.callThemes / stock.groupDrill (terminal data wave 4): each reads a model-isolated kind
+# (earnings.season: UCT's calendar with third-party results and estimates, and UCT's priced and past moves;
+# earnings.callThemes: phrases from third-party transcripts; group.drill: UCT's RS rank, confluence board and themes),
+# so the member sees the card and a model never sees a value or a phrase
+LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades", "news.movers",
+                                "rs.compare", "stock.analystActions", "stock.sessionHighsLows", "stock.longRunLeaders",
+                                "stock.darkPoolLevels", "stock.yearlyHighsLows", "stock.themeRotation",
+                                "stock.confluenceBoard", "stock.expectedMove", "stock.callSearch",
+                                "stock.gammaLevels", "stock.topFlowPicks", "stock.flowRecord", "stock.earningsReactions",
+                                "stock.earningsSeason", "stock.callThemes", "stock.groupDrill"})
 #: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
 #: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
 #: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written
@@ -1059,6 +1257,10 @@ DATA_READ_ACTIONS = frozenset({
     "news.latest", "news.catalysts", "screener.run", "screener.runSaved",
     # train2 (W2-B3 #746, live for admins): the setup description is a deterministic read of bars.daily
     "chart.describeSetup",
+    # Phase 2 COT research: the positioning card is UCT's deterministic read of stored CFTC rows (cot.positioning)
+    "cot.positioning",
+    # Terminal data wave 1: the sector card is UCT's deterministic read of the sector ranking (sectors.performance)
+    "stock.sectorPerformance",
 })
 #: Brain response handling (owner, 2026-11-03, before activation). Planner v1 writes `reply` BEFORE any knowledge is
 #: read, so a plan holding ANY knowledge read (playbook.*, decided by action name: knowledge.frame) never serves it,
@@ -1229,6 +1431,55 @@ _HIDDEN_NOT_A_SCREEN = re.compile(r"\b(?:where|how|what(?:'s| is| does| do| are)
                                   r"settings?|overlay|widget|turn (?:on|off)|enable|disable|bars)\b", re.I)
 
 
+#: The owner's exception to F-16 (app/src/agent/capabilities/screener.js; 11-05 Calls only, WIDENED 2026-11-10 to every chip): the
+#: Agent operates controls already available to the member: the Options Flow widget's own filter chips, nothing else.
+_FLOW_WIDGET_NAME = "options flow"
+#: The widget's four single-select chip groups (OptionsFlowWidget.jsx; app/src/widgets/widgetControls.js `optionsflow` rows):
+#: control key → every value it takes, each as its stored value and as the word on its chip. agentFlowChipsParity.test.js
+#: pins this table to the JS rows, so a chip added on one side and not the other fails a rail.
+_FLOW_CHIPS = {
+    "minPremium": {"0": "0", "all": "0", "250000": "250000", "$250k": "250000", "500000": "500000", "$500k": "500000",
+                   "1000000": "1000000", "$1m": "1000000"},
+    "callPut": {"all": "all", "c": "C", "calls": "C", "p": "P", "puts": "P"},
+    "printType": {"all": "all", "any": "all", "sweep": "SWEEP", "block": "BLOCK"},
+    "direction": {"all": "all", "bull": "BULL", "bear": "BEAR"},
+}
+#: the words a member says a chip with (the chips' own words, less All / Any, and how a person says one)
+_FLOW_CHIP_WORD = re.compile(r"(?:^|[^a-z0-9$])(?:calls?|puts?|sweeps?|blocks?|bull(?:ish)?s?|bear(?:ish)?s?|premium|million|\$?250k|\$?500k|\$?1m)(?![a-z0-9])")
+_STOCK_UNIVERSE = re.compile(r"\b(?:stocks?|names|tickers?|equities|companies)\b")
+
+
+def plans_only_flow_chips(message: str, env: dict, context: dict | None) -> bool:
+    """True only when the member named the widget and one of its chips, asked for no universe of stocks, and EVERY planned op
+    sets one of that widget's chip groups to one of its own chips on an Options Flow widget on this turn's own board. Nothing
+    else leaves the F-16 refusal: a screen, prose, another control, a value no chip has, another widget, a mixed plan. It reads
+    no field and opens no data: only chips the member has."""
+    low = str(message or "").lower()
+    hit = hidden.hidden_phrase_in(low)
+    if not hit or not _FLOW_CHIP_WORD.search(low) or _STOCK_UNIVERSE.search(low):
+        return False
+    if re.sub(r"[\s-]+", " ", hit[1]).replace("option ", "options ", 1) != _FLOW_WIDGET_NAME:
+        return False
+    ops = env.get("ops") if isinstance(env, dict) else None
+    entries = (context or {}).get("board") if isinstance(context, dict) else None
+    if not ops or not isinstance(entries, list):
+        return False
+    flow = {str(w.get("id")) for b in entries if isinstance(b, dict) for w in (b.get("widgets") or [])
+            if isinstance(w, dict) and w.get("type") == "optionsflow"}
+    for o in ops:
+        args = o.get("args") if isinstance(o, dict) else None
+        if not isinstance(args, dict) or o.get("action") != "widget.setOption":
+            return False
+        chips = _FLOW_CHIPS.get(str(args.get("key")))
+        if str(args.get("widget")) not in flow or chips is None or str(args.get("value")).strip().lower() not in chips:
+            return False
+    return True
+
+
+#: kept for callers of the 11-05 name: the Calls chip is one of the chips
+plans_only_flow_calls_chip = plans_only_flow_chips
+
+
 def hidden_screen_request(message: str) -> bool:
     """A screen (or a refinement) over a universe, as far as words can tell — never one stock's figure ("show me the
     composite rating for NVDA"), a question or a chart control."""
@@ -1288,6 +1539,10 @@ ACTIONLESS_OUTCOME_KINDS = frozenset({
     # of its changes are still on the board (each of them already has its own receipt row, with its actions); this row
     # names no action, so the model never reads it as an applied change
     "compound-takeback-failed",
+    # H14 / D23 (#1324): a chart pick refused because that chart changed since the question was asked — UCT's own
+    # fixed sentence ("Your board changed since I asked, so I didn't change anything …"), no data, nothing applied;
+    # the same class as "refused-stale", so it is replayable and names no action
+    "refused-stale-pick",
 })
 
 
@@ -1491,9 +1746,9 @@ def _research(query: str, recency: str) -> dict:
 
 def _default_caller(**kwargs):
     from api.services.engine import _get_anthropic_client
-    from api.services import llm_timeouts
+    from api.services import call_deadline, llm_timeouts
     client = _get_anthropic_client().with_options(
-        max_retries=0, timeout=llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH))
+        max_retries=0, timeout=call_deadline.cap(llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH)))
     return client.messages.create(**kwargs)
 
 
@@ -1501,13 +1756,15 @@ def _default_stream_caller(on_text: Callable[[str], None], **kwargs):
     """The same request as `_default_caller`, streamed: each text chunk of the envelope JSON goes to
     `on_text` as it arrives; returns the same final message (usage, stop reason, content)."""
     from api.services.engine import _get_anthropic_client
-    from api.services import llm_timeouts
+    from api.services import call_deadline, llm_timeouts
     client = _get_anthropic_client().with_options(
-        max_retries=0, timeout=llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH))
+        max_retries=0, timeout=call_deadline.cap(llm_timeouts.seconds("UCT_AGENT_TIMEOUT_S", llm_timeouts.REQUEST_PATH)))
     seen: dict | None = None
     try:
         with client.messages.stream(**kwargs) as stream:
             for event in stream:
+                if call_deadline.expired():                   # a timeout is per read: a trickle would never trip it
+                    raise call_deadline.Expired()
                 kind = getattr(event, "type", None)
                 if kind == "text":
                     on_text(event.text)
@@ -2617,7 +2874,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         if "screener.run" in cap_names and isinstance(env, dict) and not asks_groups:
             hidden_why = scan_refine.refusal_for_text(msg)
             plans_screen = any(isinstance(o, dict) and str(o.get("action") or "").startswith("screener.") for o in env.get("ops") or [])
-            if hidden_why and (plans_screen or hidden_screen_request(msg)):
+            if hidden_why and (plans_screen or hidden_screen_request(msg)) and not plans_only_flow_chips(msg, env, context):
                 usage["hidden_phrase"] = True
                 env = {**env, "disposition": "answer", "reply": f"I didn't run it: {hidden_why}", "ops": [], "question": None,
                        "research": None, "need_groups": None}
@@ -2759,7 +3016,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # THIS call, from the member's words alone, before any web text existed — it is
             # kept as planned. Nothing the post-research call returns can add or alter ops.
             if env.get("disposition") in MUTATING and env.get("ops"):
-                planned = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
+                planned = expand_compact_ops(env, caps, message=msg, context=context) if compact else normalize_embedded_ops(env, caps)
                 pre_research = {"disposition": env["disposition"], "ops": list(planned.get("ops") or [])}
             usage["research_calls"] += 1
             if researched is not None:
@@ -2827,7 +3084,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             env = {**env, "disposition": "answer", "ops": [], "question": None,
                    "reply": env.get("reply") or "I can only answer questions about this headline here."}
         if isinstance(env, dict) and env.get("disposition") in MUTATING:
-            env = expand_compact_ops(env, caps) if compact else normalize_embedded_ops(env, caps)
+            env = expand_compact_ops(env, caps, message=msg, context=context) if compact else normalize_embedded_ops(env, caps)
         envelope = enforce_approval(finish(sanitize_envelope(env, valid_refs, cap_names, unselected_ids, local_notice=notice,
                                                              claim_repaired=bool(usage.get("false_claim")),
                                                              knowledge_no_web=kn_no_web,

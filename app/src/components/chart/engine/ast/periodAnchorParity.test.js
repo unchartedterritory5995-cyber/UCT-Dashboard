@@ -299,9 +299,23 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
     // `time-anchor:other-bars` needs a tree the translator refuses to write; it is
     // railed on a hand-built tree in both lanes' own tests.
     // ⭐ C45 — the two `bar-index:` codes are not a `time(<timeframe>)` reading
+    // (nor, since 2026-11-09, the two `running-total:` codes — `barIndexShift.test.js` holds them)
     // and have their own fixture, both lanes (`bar_index_shift_parity.json`).
     expect([...codes].sort()).toEqual(Object.keys(CHART_CLOCK_WITHHELD)
-      .filter((k) => k !== 'time-anchor:other-bars' && !k.startsWith('bar-index:')).sort())
+      .filter((k) => k !== 'time-anchor:other-bars' && !k.startsWith('bar-index:') && !k.startsWith('running-total:')
+        // engine HL: the window-hole codes are exercised by `engineHlHoles.test.js`
+        && !k.startsWith('var-origin:') && !k.startsWith('window-extreme:') && !k.startsWith('arg-extreme:')
+        // ⭐ ENGINE 56 — the two per-bar witness codes (`pine:bool-na-unwitnessed`, `pine:tie-unwitnessed`)
+        // read no clock; both lanes rail them in `engine56Values.test.js` / `tests/test_engine56_values.py`
+        && !k.startsWith('pine:')
+        // ⭐ ENGINE 57 (landing train 1) — the three built-in witness codes (`stoch:flat-window`,
+        // `stoch:left-edge`, `rci:left-edge`) read no clock either; `engine57Builtins.test.js` and
+        // `tests/test_engine57_builtins.py` rail them on both lanes
+        && !k.startsWith('stoch:') && !k.startsWith('rci:')
+        // ⭐ 2026-11-17 — the two opening-range codes are not a `time(<timeframe>)` reading either: a
+        // native call on bars it cannot be read from. Both lanes rail them on real bars in
+        // `sessionRegular.test.js` / `tests/test_ast_session_regular.py`
+        && !k.startsWith('opening-range:')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })
@@ -586,10 +600,27 @@ describe('C36 · the fixture is not vacuous', () => {
     expect(col('reqD · weekdays · D')).toEqual(closes('weekdays'))
     expect(col('reqD · weekdays · no tf')).toEqual(closes('weekdays'))
     expect(codes('reqD · weekdays · D').concat(codes('reqD · weekdays · no tf'))).toEqual([])
-    // the weekly one there is the last closed week (`nz` of the first partial week is Pine's 0)
-    expect(col('nz(reqW) · weekdays · D').slice(0, 2)).toEqual([0, 0])
-    expect(col('nz(reqW) · weekdays · D')[2]).toBe(PARITY.bars.weekdays[1].c)
-    expect(col('nz(reqW) · weekdays · no tf')).toEqual(col('nz(reqW) · weekdays · D'))
+    // ⭐⭐ ENGINE 55 — the weekly one is `tf_merge`, TradingView's merge: the week's close on the
+    // bar that CLOSES the week (Friday 2024-10-11, bar 1), the last closed week on the bars after
+    // it; `nz` of the first partial week's open is Pine's 0; the newest finished bar is withheld
+    // by name (`request:htf-newest-unconfirmed`), never `nz`'s confident 0.
+    // ⚰️ It was `tf`: [0, 0] and bar 2 = Friday's close — one bar late on every week's close.
+    // ⭐⭐ REVIEW L2 (PR #1264) — these bars do not start at the listing, and the first bar
+    // (Thursday 2024-10-10) does not open its week, so the first week's value would be built from
+    // two days of it: Friday's closing bar and the next week's other bars (1-5) are withheld by
+    // name (`request:htf-first-period-partial`), never `nz`'s confident 0; Friday 10-18 (bar 6)
+    // closes a whole week and is drawn.
+    // ⭐⭐ REVIEW L3 — the newest bar (Friday 2025-12-19) certainly closes its week on this DAILY
+    // chart, so it is drawn; where no timeframe is stated nothing is certain, and it is withheld.
+    const w = col('nz(reqW) · weekdays · D')
+    const days = PARITY.bars.weekdays
+    expect(w.slice(0, 7)).toEqual([0, null, null, null, null, null, days[6].c])
+    expect(w[w.length - 1]).toBe(days[days.length - 1].c)
+    expect(codes('nz(reqW) · weekdays · D')).toEqual(['request:htf-first-period-partial'])
+    const noTf = col('nz(reqW) · weekdays · no tf')
+    expect(noTf.slice(0, -1)).toEqual(w.slice(0, -1))
+    expect(noTf[noTf.length - 1]).toBe(null)
+    expect(codes('nz(reqW) · weekdays · no tf')).toEqual(['request:htf-first-period-partial', 'request:htf-newest-unconfirmed'])
     // ⛔ on a 15-minute and a weekly chart both are withheld on every bar — never a 15-minute
     // close under the name of the daily one, never `nz`'s confident 0
     for (const k of ['reqD', 'nz(reqW)']) {

@@ -51,6 +51,9 @@ describe('control — no shipped definition other than UCT RS declares the opt-o
     expect(defs.length).toBeGreaterThan(10)
     for (const def of defs) {
       if (def.id === 'rsLine') continue
+      // 2026-11-12 (RS Exit Warnings): its three glyph dots opt out like the RS line's (a sparse dot column
+      // restyled as a line draws nothing); the next case pins that none of them is offered a Plot style.
+      if (def.id === 'rsExit') continue
       for (const p of def.plots || []) expect(isPlotRestyleable(p), `${def.id}.${p.key}`).toBe(true)
     }
   })
@@ -61,5 +64,16 @@ describe('control — no shipped definition other than UCT RS declares the opt-o
     const offered = styleChoicesFor(def, inst, { indicatorInstances: [inst] }).map((c) => c.key)
     for (const p of def.plots) if (p.restyle === false) expect(offered).not.toContain(p.key)
     for (const k of ['rsLine', 'rsMa', 'mansfield']) expect(offered).toContain(k)
+  })
+
+  it('UCT RS Exit Warnings: styleChoicesFor offers the line and the averages, never a dot (2026-11-12)', () => {
+    const def = registry.getDefinition('rsExit')
+    const inst = { instanceId: 'user:rsExit:1', defId: 'rsExit', inputs: {} }
+    const offered = styleChoicesFor(def, inst, { indicatorInstances: [inst] }).map((c) => c.key)
+    for (const k of ['dotQuick', 'dotQuicksand', 'dotDead']) {
+      expect(def.plots.find((p) => p.key === k).restyle, k).toBe(false)
+      expect(offered, k).not.toContain(k)
+    }
+    for (const k of ['rsLine', 'fast', 'slow']) expect(offered, k).toContain(k)
   })
 })

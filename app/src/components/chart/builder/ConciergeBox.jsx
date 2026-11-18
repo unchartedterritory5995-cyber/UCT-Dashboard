@@ -48,7 +48,8 @@
 // `closedTable.json`'s own note. Neither is the read-back and neither is written
 // by the model, so the rule at the top of this file is untouched.
 
-import { useCallback, useId, useState } from 'react'
+import { withoutGuardIds } from '../engine/ast/guardIdText'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { sentenceFor } from '../engine/ast/sentence.js'
 import { truncateBarsForPropose } from './proposeBars.js'
 
@@ -65,49 +66,53 @@ export function readBackFor(ast, inputs) {
   }
 }
 
+// ⭐ UCT Signature (Direction A, owner 2026-11-16): a sentence-case label over an input
+// well, soft buttons (the primary one step brighter, never gold); gold only on the ✦.
 const S = {
   box: { display: 'flex', flexDirection: 'column', gap: 8 },
-  label: { fontSize: 12, color: 'var(--text-muted)', letterSpacing: 0.4 },
-  input: {
-    width: '100%', minHeight: 64, padding: '8px 10px', resize: 'vertical',
-    background: 'var(--bg-surface)', color: 'var(--text-bright)',
-    border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
-    fontSize: 13, lineHeight: 1.45,
+  label: { fontSize: 11.5, fontWeight: 600, color: '#c9c6be' },
+  well: {
+    display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 12px 10px',
+    background: '#0f1012', border: '1px solid #26282c', borderRadius: 9,
   },
-  row: { display: 'flex', gap: 8, alignItems: 'center' },
+  input: {
+    width: '100%', minHeight: 44, padding: 0, resize: 'none',
+    background: 'transparent', color: '#ededed', border: 0, outline: 'none',
+    font: '500 13.5px/1.45 var(--font-sans, inherit)',
+  },
+  row: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
+  wellRow: { display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' },
+  hint: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#93939a' },
+  spark: { color: 'var(--ut-gold, #dcbb5e)' },
   button: {
-    minHeight: 'var(--tap-min)', padding: '0 14px',
-    background: 'var(--bg-elevated)', color: 'var(--text-bright)',
-    border: '1px solid var(--border-accent)', borderRadius: 'var(--radius-md)',
-    fontSize: 13, cursor: 'pointer',
+    minHeight: 28, padding: '0 12px',
+    background: 'rgba(248,247,243,.06)', color: '#ededed',
+    border: 0, borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
   },
   primary: {
-    minHeight: 'var(--tap-min)', padding: '0 14px',
-    background: 'var(--ut-gold-dim)', color: 'var(--text-heading)',
-    border: '1px solid var(--ut-gold)', borderRadius: 'var(--radius-md)',
-    fontSize: 13, cursor: 'pointer',
+    minHeight: 28, padding: '0 12px',
+    background: 'rgba(248,247,243,.08)', color: '#f8f7f3',
+    border: 0, borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
   },
   panel: {
-    padding: 10, borderRadius: 'var(--radius-md)',
-    border: '1px solid var(--border)', background: 'var(--bg-surface)',
+    padding: 12, borderRadius: 9, background: '#1a1b1f',
     display: 'flex', flexDirection: 'column', gap: 6,
   },
-  sentence: { fontSize: 14, color: 'var(--text-heading)', lineHeight: 1.5 },
-  source: { fontSize: 12, color: 'var(--text)', fontFamily: 'var(--font-mono, monospace)' },
-  meta: { fontSize: 11, color: 'var(--text-muted)' },
+  sentence: { fontSize: 13, color: '#f8f7f3', lineHeight: 1.5 },
+  source: { fontSize: 12, color: '#c9c6be', fontFamily: 'var(--font-mono, monospace)' },
+  meta: { fontSize: 11.5, color: '#93939a' },
   refusal: {
-    padding: 10, borderRadius: 'var(--radius-md)',
+    padding: 10, borderRadius: 9,
     border: '1px solid var(--loss-border)', background: 'var(--loss-bg)',
-    color: 'var(--text-bright)', fontSize: 13, lineHeight: 1.5,
+    color: '#ededed', fontSize: 12.5, lineHeight: 1.5,
   },
   gap: {
-    padding: 10, borderRadius: 'var(--radius-md)',
-    border: '1px solid var(--border-accent)', background: 'var(--bg-elevated)',
-    color: 'var(--text-bright)', fontSize: 13, lineHeight: 1.5,
+    padding: 10, borderRadius: 9, background: '#1a1b1f',
+    color: '#ededed', fontSize: 12.5, lineHeight: 1.5,
     display: 'flex', flexDirection: 'column', gap: 6,
   },
-  gapHead: { fontSize: 12, color: 'var(--text-muted)', letterSpacing: 0.4 },
-  quote: { color: 'var(--text-heading)' },
+  gapHead: { fontSize: 11.5, fontWeight: 600, color: '#c9c6be' },
+  quote: { color: '#f8f7f3' },
 }
 
 /** ⭐⭐ A DISABLED BUTTON HAS TO LOOK DISABLED — AND AN INLINE STYLE CANNOT SAY SO.
@@ -147,7 +152,7 @@ function Gaps({ notUnderstood, unavailable }) {
           {dropped.map((item, i) => (
             <div key={`nu-${i}`} data-testid="concierge-not-understood-item">
               <span style={S.quote}>“{item.clause || item.phrase}”</span>
-              {' — '}{item.reason}
+              {' — '}{withoutGuardIds(item.reason)}
             </div>
           ))}
         </div>
@@ -158,7 +163,7 @@ function Gaps({ notUnderstood, unavailable }) {
           {absent.map((item, i) => (
             <div key={`un-${i}`} data-testid="concierge-unavailable-item">
               <span style={S.quote}>“{item.phrase}”</span>
-              {' — '}{item.reason}
+              {' — '}{withoutGuardIds(item.reason)}
             </div>
           ))}
         </div>
@@ -173,14 +178,16 @@ function Gaps({ notUnderstood, unavailable }) {
 // but ONLY if it was told which question it is answering. A box that always asked
 // for an indicator would be a box whose scan stage can never fire, which is the
 // built-tested-green-and-unreachable shape this phase keeps finding.
+// ⭐ ONE LABEL, BOTH KINDS (Direction A): the member is describing their indicator either
+// way; only the example differs, and the KIND still travels on the request.
 const KIND_COPY = {
   scan: {
-    label: 'Describe the screen in plain English',
+    label: 'Describe it',
     placeholder: 'e.g. trending stocks pulling back to the 20 day average',
   },
   indicator: {
-    label: 'Describe the indicator in plain English',
-    placeholder: 'e.g. the twenty bar average of the close',
+    label: 'Describe it',
+    placeholder: 'e.g. RSI under 30 while price is above its 200-day average',
   },
 }
 
@@ -197,8 +204,10 @@ const KIND_COPY = {
  *                                     uses the global `fetch`
  */
 export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetchImpl,
-                                       disabled = false, replacedAt = 0 }) {
-  const [prompt, setPrompt] = useState('')
+                                       disabled = false, replacedAt = 0, clearKey = null, prefill = null }) {
+  const [prompt, setPrompt] = useState(() => (prefill && typeof prefill.text === 'string' ? prefill.text : ''))
+  // ⭐ UCT SIGNATURE R2 — `prefill` ({text}, a fresh object per opening) is PUT in the box, never sent.
+  useEffect(() => { if (prefill && typeof prefill.text === 'string') setPrompt(prefill.text) }, [prefill])
   // The `replacedAt` value the description was last written against. When the host
   // bumps `replacedAt` (another lane wrote the formula box) this no longer matches,
   // and the description is stale until the member touches it again.
@@ -208,6 +217,9 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
   const [proposal, setProposal] = useState(null)
   const [refusal, setRefusal] = useState(null)
   const fieldId = useId()
+  // ⭐ A failed call does not follow the member around: when the host's view changes
+  // (`clearKey`), the last refusal goes; a new attempt clears it too (`submit`).
+  useEffect(() => { setRefusal(null) }, [clearKey])
 
   const submit = useCallback(async () => {
     const text = prompt.trim()
@@ -231,7 +243,7 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
           gate: `http:${status}`,
           reason: status === 402
             ? 'Custom indicators require a paid plan.'
-            : 'The assistant could not be reached just now.',
+            : "The UCT Agent couldn't be reached just now.",
         })
         return
       }
@@ -258,7 +270,7 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
                     notUnderstood: body.not_understood || [],
                     unavailable: body.unavailable || [] })
     } catch (err) {
-      setRefusal({ gate: 'network', reason: 'The assistant could not be reached just now.' })
+      setRefusal({ gate: 'network', reason: "The UCT Agent couldn't be reached just now." })
     } finally {
       setBusy(false)
     }
@@ -269,15 +281,19 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
   return (
     <div style={S.box} data-testid="concierge-box" data-kind={kind}>
       <label style={S.label} htmlFor={fieldId}>{copy.label}</label>
+      <div style={S.well}>
       <textarea
         id={fieldId}
         style={S.input}
+        rows={2}
         value={prompt}
         disabled={disabled || busy}
         placeholder={copy.placeholder}
         onChange={(e) => { setPrompt(e.target.value); setSeenReplacedAt(replacedAt) }}
       />
-      <div style={S.row}>
+      <div style={S.wellRow}>
+        <span style={S.hint}><span style={S.spark} aria-hidden="true">✦</span>The UCT Agent writes it — you check the plain-English read-back</span>
+        <span style={S.row}>
         {/* ⛔ ONE EXPRESSION, BOTH PROPS. `draftBlocked` decides whether the button
             works AND how it looks, so the two can never disagree — the shape that
             let a fully-live-looking button do nothing at all. */}
@@ -286,11 +302,11 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
           return (
             <button
               type="button"
-              style={dimmed(S.button, draftBlocked)}
+              style={dimmed(S.primary, draftBlocked)}
               disabled={draftBlocked}
               onClick={submit}
             >
-              {busy ? 'Drafting…' : 'Draft a formula'}
+              {busy ? 'Writing…' : 'Write it'}
             </button>
           )
         })()}
@@ -314,12 +330,14 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
             describes an earlier formula
           </span>
         ) : null}
+        </span>
+      </div>
       </div>
 
       {refusal ? (
         <>
           <div style={S.refusal} role="alert" data-testid="concierge-refusal">
-            <div>{refusal.reason}</div>
+            <div>{withoutGuardIds(refusal.reason)}</div>
             <div style={S.meta} data-testid="concierge-gate">{refusal.gate}</div>
           </div>
           <Gaps notUnderstood={refusal.notUnderstood}
@@ -334,7 +352,7 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
               asked for unless the missing half is in front of them first. */}
           <Gaps notUnderstood={proposal.notUnderstood}
                 unavailable={proposal.unavailable} />
-          <div style={S.sentence} data-testid="concierge-sentence">{proposal.sentence}</div>
+          <div style={S.sentence} data-testid="concierge-sentence">{withoutGuardIds(proposal.sentence)}</div>
           <div style={S.source} data-testid="concierge-source">{proposal.source}</div>
           <div style={S.meta} data-testid="concierge-repaint">{proposal.repaint}</div>
           <div style={S.row}>

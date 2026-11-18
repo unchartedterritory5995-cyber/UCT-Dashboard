@@ -234,3 +234,34 @@
   font-weight: 700;
   text-decoration: underline;
 }
+
+/* PHONE FIT (2026-11-18): at 390px this table was 165px wider than the screen and scrolled sideways.
+   On a phone the share count steps aside (Vol x avg stays), the Why label may take two lines, and
+   the cells sit closer. Desktop and tablet are unchanged. */
+@media (max-width: 640px) {
+  .phoneHide {
+    display: none;
+  }
+
+  .table th,
+  .table td {
+    padding-inline: var(--space-xs);
+  }
+
+  .table td.whyCell,
+  .table th.whyCell {
+    white-space: normal;
+  }
+
+  .table td.whyCell .whyBtn {
+    text-align: left;
+    white-space: normal;
+  }
+
+  /* The "gapper · volume" tag drops under the symbol, in line with it, so the name column is as
+     wide as a ticker and no wider. */
+  .asideTag {
+    display: block;
+    padding-left: 1.6em;
+  }
+}

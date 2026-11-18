@@ -144,7 +144,8 @@ def test_the_alter_adds_m9_once_and_existing_rows_stay_null(tmp_db):
     with snapshot_db.connect() as c:
         rh.ensure_schema(c)
         rh.ensure_schema(c)                                  # idempotent: no second ALTER
-    assert _cols(tmp_db)[-1] == "m9" and _cols(tmp_db).count("m9") == 1
+    # Pin moved 2026-11-14 (RS screens U1): the same ALTER now also adds v1..v12 after m9.
+    assert _cols(tmp_db)[-6:] == ["m9", "v1", "v3", "v6", "v9", "v12"] and _cols(tmp_db).count("m9") == 1
     assert _rows(tmp_db) == before, "the ALTER rewrites no existing value"
     assert _query(tmp_db, f"SELECT m9 FROM {rh.TABLE}") == [{"m9": None}]
     assert _query(tmp_db, "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_rsh_ticker'")
@@ -173,7 +174,12 @@ def test_the_nightly_fills_m9_for_a_new_session(tmp_db):
     assert all(rows[t]["m9"] is not None for t in rows)
     m9 = {t: rows[t]["m9"] for t in ("AAA", "BBB", "CCC", "DDD")}
     assert len(set(m9.values())) == 4, m9
-    assert m9["DDD"] == min(m9.values()), "the weakest nine months ranks lowest"
+    # 2026-11-11: m9 is the recency-weighted blend (newest quarter double), so the
+    # name that LED nine months ago and faded (AAA) is now the weakest, not DDD.
+    names = ("AAA", "BBB", "CCC", "DDD")
+    expected = sorted(names, key=lambda t: rh.component_values(series[t])["m9"])
+    assert sorted(names, key=lambda t: m9[t]) == expected
+    assert expected[0] == "AAA" and m9["AAA"] == min(m9.values()), "the faded leader ranks lowest"
     assert rh.read_fields(["BBB"])["BBB"]["m9"] == rows["BBB"]["m9"]
 
 

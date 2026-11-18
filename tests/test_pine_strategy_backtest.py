@@ -138,8 +138,15 @@ def strategy_row(stamp=codec.STRATEGY_WINDOW_HISTORY):
                                                      "outputs": {"p": 0}}}}
 
 
+#: Twelve real NYSE sessions from 2024-01-02 (no weekends; 2024-01-15 is Martin Luther King Day).
+#: `bars_fetch._fmt_sqlite_bars` drops a daily bar dated on a non-session, so a calendar-day run
+#: (20240102 + i) served 9 of 12 and the window assertions read 9 == 12.
+_SESSIONS = (20240102, 20240103, 20240104, 20240105, 20240108, 20240109, 20240110, 20240111,
+             20240112, 20240116, 20240117, 20240118)
+
+
 def _store_rows(n=12):
-    return [(20240102 + i, 10.0 + i, 11.0 + i, 9.0 + i, 10.5 + i, 1000.0) for i in range(n)]
+    return [(_SESSIONS[i], 10.0 + i, 11.0 + i, 9.0 + i, 10.5 + i, 1000.0) for i in range(n)]
 
 
 class StubClient:
@@ -183,6 +190,19 @@ def world(monkeypatch):
         return [] if sym == "NONE" else _store_rows()
     monkeypatch.setattr(bars_sqlite, "get_bars", get_bars)
     monkeypatch.setattr(pst, "_runtime_client", lambda: state["client"])
+    # W9-T4-F1: the store's CACHED exchange per ticker (r1 N2: the route reads the cache only)
+    from api.services import ticker_meta
+    state["exchanges"] = {"AAA": "NYSE"}
+    monkeypatch.setattr(ticker_meta, "_peek_base",
+                        lambda sym: {"exchange": state["exchanges"].get(sym)} if sym in state["exchanges"] else None)
+
+    state["provider_calls"] = []
+
+    def no_provider(*a, **k):
+        state["provider_calls"].append(a)
+        raise AssertionError("the strategy route made a provider call")
+    for name in ("get_ticker_meta", "_base_meta", "_from_yfinance", "_from_fmp", "_from_finnhub", "_primary_theme"):
+        monkeypatch.setattr(ticker_meta, name, no_provider)
     app = FastAPI()
     app.include_router(pst.router)
     app.dependency_overrides[get_current_user] = lambda: dict(PAID)
@@ -472,6 +492,10 @@ def test_D2_the_routes_mirror_says_exactly_what_strategyRecord_js_says():
     assert any(c["name"].startswith("ASX") for c in cases)
     # review N3: a start between 00:00 and 05:59 UTC is the previous day in host-local US time
     assert any(0 <= (c["startTime"] % 86400) < 6 * 3600 for c in cases)
+    # W9-T13b r1, D2 ALWAYS: a run from the listing states the same sentence, so the mirror needs no
+    # listing argument (and the route's runs are never from the listing anyway)
+    assert any(c["fromListing"] is True for c in cases)
+    assert all(isinstance(c["recordSentence"], str) and c["recordSentence"] for c in cases)
     for c in cases:
         assert pst.start_date_of(c["startTime"]) == c["startDate"]
         assert pst.start_sentence_of(c["startTime"]) == c["recordSentence"] == c["reportSentence"]
@@ -520,3 +544,72 @@ def test_D2_a_record_that_does_not_state_its_start_by_the_rule_is_a_500(world):
     assert post(world).status_code == 500
     world["client"] = StubClient(lambda job: ok(job, startSentence=None))
     assert post(world).status_code == 500
+
+
+# --- W9-T4-F1: the job carries the store's exchange; the SERVICE settles the minimum contract -------
+
+def test_F1_the_job_carries_the_symbols_store_exchange(world):
+    """The route hands the service ``{ticker, exchange}`` from the store the chart reads, so the run's
+    ``syminfo.*`` (and the broker's minimum contract, derived from it in ``runtimeColumns.js``) settle
+    from one symbol. It never states a minimum contract itself."""
+    r = post(world, symbols=["AAA"])
+    assert r.status_code == 200, r.text
+    [job] = world["client"].calls[0]["jobs"]
+    assert (job.ticker, job.exchange) == ("AAA", "NYSE")
+
+
+@pytest.mark.parametrize("meta", [None, {}, {"exchange": None}, {"exchange": 7}, {"exchange": "x" * 40},
+                                  {"exchange": "bad\tname"}])
+def test_F1_an_unknown_or_unusable_exchange_is_empty_never_guessed(world, monkeypatch, meta):
+    from api.services import ticker_meta
+    monkeypatch.setattr(ticker_meta, "_peek_base", lambda sym: meta)
+    r = post(world, symbols=["AAA"])
+    assert r.status_code == 200, r.text
+    assert world["client"].calls[0]["jobs"][0].exchange == ""
+
+
+def test_F1_a_store_failure_is_empty_never_a_dead_request(world, monkeypatch):
+    from api.services import ticker_meta
+
+    def boom(sym):
+        raise RuntimeError("cache unreadable")
+    monkeypatch.setattr(ticker_meta, "peek_exchange", boom)
+    r = post(world, symbols=["AAA"])
+    assert r.status_code == 200, r.text
+    assert world["client"].calls[0]["jobs"][0].exchange == ""
+
+
+def test_F1_the_route_never_states_a_minimum_contract():
+    """The wire's ctx is closed (``protocol.mjs``); the route must not try to smuggle one either."""
+    text = (ROOT / "api" / "routers" / "pine_strategy_backtest.py").read_text(encoding="utf-8")
+    assert not re.search(r"\bminContract\b|min_contracts?\s*=", text)
+
+
+def test_F1_r1_a_cold_cache_is_empty_and_never_calls_a_provider(world):
+    """r1 N2: nothing cached for the ticker -> "" (sizing then refuses by name). The fixture makes every
+    provider-backed reader raise, so a synchronous provider call on the request path fails this test."""
+    world["exchanges"] = {}
+    r = post(world, symbols=["AAA"])
+    assert r.status_code == 200, r.text
+    assert world["client"].calls[0]["jobs"][0].exchange == ""
+    assert world["provider_calls"] == []
+
+
+def test_F1_r1_peek_exchange_reads_memory_then_disk_and_nothing_else(monkeypatch, tmp_path):
+    """The accessor itself: memory hit, disk hit (24h entry), cold -> None; never a provider."""
+    from api.services import ticker_meta as tm
+
+    def no_provider(*a, **k):
+        raise AssertionError("peek_exchange made a provider call")
+    for name in ("_base_meta", "_from_yfinance", "_from_fmp", "_from_finnhub", "_primary_theme"):
+        monkeypatch.setattr(tm, name, no_provider)
+    monkeypatch.setattr(tm, "_CACHE_DIR", str(tmp_path))
+    monkeypatch.setattr(tm, "_mem", tm.TTLCache())  # a fresh memory layer, nothing leaks
+    tm._mem.set("tmeta_ZZMEM", {"exchange": "NASDAQ"}, ttl=60)
+    assert tm.peek_exchange("zzmem") == "NASDAQ"
+    (tmp_path / "ZZDISK.json").write_text(json.dumps({"name": "x", "exchange": "NYSE Arca"}), encoding="utf-8")
+    assert tm.peek_exchange("ZZDISK") == "NYSE Arca"
+    assert tm.peek_exchange("ZZCOLD") is None
+    (tmp_path / "ZZNOEX.json").write_text(json.dumps({"name": "x", "exchange": None}), encoding="utf-8")
+    assert tm.peek_exchange("ZZNOEX") is None
+    assert tm.peek_exchange("") is None

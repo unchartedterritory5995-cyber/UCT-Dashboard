@@ -1,4 +1,5 @@
 import { useMemo, useState, useId, useSyncExternalStore } from 'react'
+import OptionsSourcePicker from '../../../components/chart/OptionsSourcePicker'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import haptics from '../../../components/mobile/haptics'
@@ -8,7 +9,9 @@ import { isRowOn, toggledRow, rowVisibility } from '../../../components/chart/In
 import { fieldsForInstance, evalActiveWhen, sectionize, initialCollapsed,
          visiblePresets, textInputCommit, textInputDraft } from '../../../components/chart/indicatorRegistry'
 // ⭐ UCT RS Phase 3, unit 3-02 — what the LIVE server row declares (the gate).
-import { serverDeclares, subscribeServerDefinitions } from '../../../components/chart/engine/serverCompute'
+import { serverDeclares, subscribeServerDefinitions,
+         // ⭐ RS split U1 — the definition-level gate for the sheet's add list.
+         isCatalogRowOffered, serverDefinitionsVersion } from '../../../components/chart/engine/serverCompute'
 import { setInstanceInput, removeInstance, applyPresetInputs,
          presetsOf, detectPreset, CUSTOM_PRESET,
          saveInstanceAsDefault, resetInstanceToUctDefault, memberDefaultState } from '../../../components/chart/engine/instanceControls'
@@ -307,6 +310,26 @@ function TextRow({ inputKey, label, labelId, tip, tipId, active = true, value, f
   )
 }
 
+/** ⭐ 2026-11-12 — a `string` input naming a server-owned list (`optionsSource`,
+ *  the RS "Pick a theme" benchmark): the shared searchable chooser, the same one
+ *  the dialog and the inspector render, in the text box's 44 px / 16 px chrome.
+ *  One write per pick. */
+function PickRow({ inputKey, label, labelId, tip, tipId, active = true, value, field, onChange }) {
+  const aria = controlAria(tipId, active)
+  return (
+    // stacked: the label above, the chooser and its list the row's full width
+    <ParamRow inputKey={inputKey} label={label} labelId={labelId} tip={tip} tipId={tipId} active={active} stacked>
+      <OptionsSourcePicker
+        field={field} value={value == null ? '' : String(value)} disabled={!active}
+        inputClassName={`${styles.textInput} ${styles.pickInput}`}
+        idBase={`${labelId}-pick`}
+        aria={{ 'aria-labelledby': labelId, ...aria }}
+        onPick={onChange}
+      />
+    </ParamRow>
+  )
+}
+
 /** Bool input as the sheet's iOS-style switch. */
 function SwitchRow({ inputKey, label, labelId, tip, tipId, active = true, value, onChange }) {
   const aria = controlAria(tipId, active)
@@ -348,11 +371,10 @@ function SwitchRow({ inputKey, label, labelId, tip, tipId, active = true, value,
 // instance so the switch here and the chart agree.
 import { averageSlotView, writeAverageSlot, MA_DEF_ID } from '../../../components/chart/maAdoption'
 import { safeCssColour } from '../../../components/chart/engine/objectColour'
-import { noteRsPreset } from '../../../lib/rsTelemetry'
 
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
-export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, className = '', initialEditing = null, historyKey = null, historyUserId = null }) {
+export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, onCreateIndicator = null, className = '', initialEditing = null, historyKey = null, historyUserId = null }) {
   const uid = useId()
   const chartIqAllowed = useChartIqAllowed()
   const overlays = averageSlotView(cs)
@@ -415,16 +437,25 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [generation],
   )
+  // ⭐ RS split U1 — a `meta.requiresServer` definition is OFFERED only once the
+  // live server lists it (`isCatalogRowOffered`, the same fail-closed fetch as
+  // `declared` below); `serverVersion` re-lists the moment the answer lands.
+  // ⛔ THE GATE IS ON THE OFFER, NEVER ON A RUNNING STUDY: `extras` unions in
+  // every study that is ON so the ƒx badge never counts ghosts, and a gated
+  // study a member already placed stays listed exactly as it draws.
+  const serverVersion = useSyncExternalStore(subscribeServerDefinitions, serverDefinitionsVersion, () => 0)
   const studyRows = useMemo(() => {
     const byId = new Map(rows.map((r) => [r.id, r]))
-    const quick = QUICK_STUDY_IDS.map((id) => byId.get(id)).filter(Boolean)
+    const quick = QUICK_STUDY_IDS.map((id) => byId.get(id))
+      .filter((r) => r && (isRowOn(r, cs) || isCatalogRowOffered(r, engineRegistry)))
     // ⛔ NOT THE MOVING AVERAGE. Its instances are listed ABOVE, one switch per
     // average; a per-DEFINITION switch here would tombstone every one of them —
     // the member's default EMA 9 included — with one tap (`toggledRow` turns a
     // definition off by tombstoning ALL its live instances).
     const extras = rows.filter((r) => !QUICK_STUDY_IDS.includes(r.id) && r.id !== MA_DEF_ID && isRowOn(r, cs))
     return [...quick, ...extras]
-  }, [rows, cs])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `serverVersion` IS the gate's version
+  }, [rows, cs, serverVersion])
 
   // ONE write door for a flipped study — the same `toggledRow` the library
   // dialog commits through, so this switch and that checkbox can never disagree
@@ -512,7 +543,7 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
   const applyPreset = (preset) => {
     if (!studyDef || !studyInst || !preset) return
     haptics.tap()
-    noteRsPreset(studyDef, preset)
+    // (the `rs_preset` count was retired with the presets, RS split U9)
     const next = applyPresetInputs(cs, studyInst.instanceId, studyDef, preset, engineRegistry)
     if (next !== cs) onWrite({ ...next, preset: 'custom' })
   }
@@ -527,7 +558,8 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
 
   const renderStudyField = (f) => {
     const cur = studyModel.values[f.key]
-    const active = evalActiveWhen(f.activeWhen, studyModel.values)
+    // a LOCKED setting (`f.disabled`, its sentence the visible tip) is inert like an inactive one
+    const active = !f.disabled && evalActiveWhen(f.activeWhen, studyModel.values)
     const id = `${uid}-${f.key}`
     const common = {
       inputKey: f.key,
@@ -546,13 +578,17 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
         return <SwatchRow key={f.key} {...common} value={cur} fallback={declared ? declared.default : undefined} onChange={write} />
       }
       case 'toggle':
-        return <SwitchRow key={f.key} {...common} value={!!cur} onChange={write} />
+        // a numeric switch (a Pine `bool` held as 1 / 0) reads and writes 1 / 0
+        return <SwitchRow key={f.key} {...common} value={f.numeric ? Number(cur) === 1 : !!cur}
+          onChange={f.numeric ? (v) => write(v ? 1 : 0) : write} />
       case 'select':
         return <ChipRow key={f.key} {...common} value={cur} options={f.options || []} onChange={write} />
       case 'text':
         // keyed by instance too, so a half-typed draft never follows the member
         // into another copy's editor
         return <TextRow key={`${studyInst.instanceId}:${f.key}`} {...common} value={cur} field={f} onChange={write} />
+      case 'pick':
+        return <PickRow key={`${studyInst.instanceId}:${f.key}`} {...common} value={cur} field={f} onChange={write} />
       default:
         // `source`, `datetime`, `session`: no phone control yet — the same gap
         // the hand loop had (returned null for them), named rather than hidden.
@@ -599,6 +635,23 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
     <>
     <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Indicators" ariaLabel="Indicators" className={className}>
       <div className={styles.sheetList}>
+        {/* ⭐ 2026-11-17 (Studio plan H2 / X1) — CREATE INDICATOR, FIRST, as the desktop Indicators window
+            has it in its header. Measured on production: on a phone it was three taps deep and below
+            the fold (this sheet, scroll, "Browse indicator library…", then Create Indicator). Absent
+            where the host has no such door. */}
+        {onCreateIndicator && (
+          <button
+            type="button"
+            className={styles.row}
+            data-testid="mobile-create-indicator"
+            data-guide="indicators.create"
+            onClick={() => { haptics.tap(); onClose(); onCreateIndicator() }}
+          >
+            <span className={styles.rowIcon}><UIcon name="sparkle" size={17} /></span>
+            <span className={styles.rowLabel}>Create indicator</span>
+            <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
+          </button>
+        )}
         {/* ⭐ A1.2 — Undo / Redo for this chart's indicator changes (absent without a key). */}
         {historyKey && (
           <div className={styles.sectionLabel} style={{ display: 'flex', justifyContent: 'flex-end' }}>

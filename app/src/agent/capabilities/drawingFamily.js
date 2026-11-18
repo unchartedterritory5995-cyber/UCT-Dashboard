@@ -28,7 +28,8 @@ import { RESET_FIB_STYLE, bandKey, bandsFor, bandState, defaultBandColor, hasFib
 import { alertKindFor, anchorsForDrawing, boundIdFor } from '../../components/chart/drawingAlertAnchors'
 import { measurementFor } from '../../components/chart/drawingMeasure'
 import { FONT_OPTIONS, fontLabelFor } from '../../components/chart/drawingText'
-import { ET_OFFSET } from '../../components/chart/barTime'
+import { fromChartTime, etDateOf } from '../../components/chart/barTime'
+import { pointUnixTime, toUnixTimeBase } from '../../components/chart/drawingTimeBase'
 import { isDateTf } from '../../components/chart/patternTime'
 import { isoDayMs, dayWord } from '../dateWords'
 import { normalizeColor, colorName } from './chart'
@@ -65,11 +66,13 @@ export const ADD_TOOLS = Object.freeze({
 // the same rules for the tools with their own add capability, so moving their anchors cannot make what adding refuses
 const RULES = { ...ADD_TOOLS, trendline: { order: true }, ray: { order: true }, fib: { order: true, prices: true } }
 
-const timeMs = (p) => (typeof p?.time === 'string' ? isoDayMs(p.time.slice(0, 10)) : Number.isFinite(p?.time) ? p.time * 1000 : null)
-/** A stored point's calendar day: a display epoch reads as ET wall time, so its UTC date IS the ET date. */
-export function pointDay(p) {
-  const ms = timeMs(p)
-  return ms == null ? null : new Date(ms).toISOString().slice(0, 10)
+const timeMs = (p) => (typeof p?.time === 'string' ? isoDayMs(p.time.slice(0, 10)) : Number.isFinite(p?.time) ? pointUnixTime(p.time) * 1000 : null)
+/** A stored point's calendar day: D/W/M dates as stored; an intraday point (raw unix, or a legacy
+ *  Agent chart time — drawingTimeBase.js) by its ET calendar date. */
+export function pointDay(p, drawing = null) {
+  if (typeof p?.time === 'string') return p.time.slice(0, 10)
+  if (!Number.isFinite(p?.time)) return null
+  return etDateOf(pointUnixTime(p.time, drawing))
 }
 const ordinal = (i) => ['first', 'second', 'third'][i] || `#${i + 1}`
 /** The sentence refusing points this tool cannot be drawn from, or null. */
@@ -139,7 +142,7 @@ const opacityOf = (raw) => {
 /** A colour value, with its alpha where one applies → {value, says} or {why}. */
 function colorValue(raw, opacity, { defaultAlpha = null } = {}) {
   const hex = normalizeColor(raw)
-  if (!hex) return { why: `“${raw}” isn't a colour I know — use a name like blue or a #hex.` }
+  if (!hex) return { why: `“${raw}” isn't a color I know — use a name like blue or a #hex.` }
   const o = opacityOf(opacity)
   if (Number.isNaN(o)) return { why: `“${opacity}” isn't an opacity — say a percent from 0 to 100.` }
   const alpha = o ?? defaultAlpha
@@ -243,7 +246,7 @@ function fibPlan(d, { levels, bands, reset }) {
       if (c.why) return c
       patch.color = c.value
     }
-    if (!Object.keys(patch).length) return { why: `Say what to change on the ${lv} level: show, hide or a colour.` }
+    if (!Object.keys(patch).length) return { why: `Say what to change on the ${lv} level: show, hide or a color.` }
     cur = { ...cur, levels: withLevel(cur, lv, patch) }
     says.push(`${lv}${patch.visible != null ? (patch.visible ? ' shown' : ' hidden') : ''}${patch.color ? ` ${colorName(patch.color)}` : ''}`)
   }
@@ -343,7 +346,9 @@ export function registerDrawingFamily(common, h) {
     const pane = paneWhy(d)
     if (pane) return { why: pane }
     if (!Array.isArray(points) || !points.length) return { why: 'Say which point to move, and to what date or price.' }
-    const was = d.points || []
+    // An intraday Agent drawing being rewritten moves to the ONE time base (raw unix, `tb` stamp) whole,
+    // so a new raw point never sits beside a legacy chart-time one (drawingTimeBase.js).
+    const was = (toUnixTimeBase(d) || d).points || []
     // a new time is written in the form the drawing's other points use (one made on the daily stays in dates)
     const numeric = typeof was.find(p => p?.time != null)?.time === 'number'
     const tf = numeric ? (isDateTf(st.tf) ? '5' : st.tf) : 'D'
@@ -396,7 +401,8 @@ export function registerDrawingFamily(common, h) {
     apply(st, args) {
       const { d, placed } = movePlan(st, args)
       if (same(placed, d.points)) return st
-      return setOn(st, d.id, { points: placed, ...(d.type === 'advance' ? advanceFigures(placed) : {}) })
+      const tb = placed.some(p => typeof p?.time === 'number') ? { tb: 'unix' } : {}   // drawingTimeBase.js
+      return setOn(st, d.id, { points: placed, ...tb, ...(d.type === 'advance' ? advanceFigures(placed) : {}) })
     },
     describe(b, a, args, env) {
       const o = byId(b, args.drawing), n = byId(a, args.drawing)
@@ -416,8 +422,8 @@ export function registerDrawingFamily(common, h) {
   registerCapability({
     ...common,
     name: 'drawing.setProps',
-    summary: 'Change settings on ONE drawing, as its right-click menu does: fill, price label, percent label, arrow size, Measure label fields and position, a note\'s words, font, size, bold, italic, background, border. Each tool has only its own settings; one it lacks is refused and its real ones named. Colour, width and line style are drawing.style. Undo puts them back.',
-    hints: 'target = the drawings entry; drawing = its id; set = [{prop, value, opacity}]. prop by tool: rectangle fillColor, showPercentChange; horizontal line / ray showPriceLabel; arrow arrowSize (small | medium | large); Measure / Price Range showDollar, showPercent, showBars, showTime, labelPos (top | center | bottom); Bars & Time showBars, showTime, labelPos; Price Move showDollar, showPercent; note text, fontFamily, fontSize (8-64), bold, italic, bgEnabled, bgColor, borderEnabled, borderColor. value = true / false for a switch, a colour, null = back to default. opacity = 0-100 for a colour, null = default.',
+    summary: 'Change settings on ONE drawing, as its right-click menu does: fill, price label, percent label, arrow size, Measure label fields and position, a note\'s words, font, size, bold, italic, background, border. Each tool has only its own settings; one it lacks is refused and its real ones named. Color, width and line style are drawing.style. Undo puts them back.',
+    hints: 'target = the drawings entry; drawing = its id; set = [{prop, value, opacity}]. prop by tool: rectangle fillColor, showPercentChange; horizontal line / ray showPriceLabel; arrow arrowSize (small | medium | large); Measure / Price Range showDollar, showPercent, showBars, showTime, labelPos (top | center | bottom); Bars & Time showBars, showTime, labelPos; Price Move showDollar, showPercent; note text, fontFamily, fontSize (8-64), bold, italic, bgEnabled, bgColor, borderEnabled, borderColor. value = true / false for a switch, a color, null = back to default. opacity = 0-100 for a color, null = default.',
     args: { type: 'object', properties: {
       drawing: { type: 'string' },
       set: { type: 'array', items: { type: 'object', properties: { prop: { type: 'string', enum: [...ALL_PROPS] }, value: { type: ['string', 'number', 'boolean', 'null'] }, opacity: { type: ['number', 'null'] } }, required: ['prop', 'value', 'opacity'], additionalProperties: false } },
@@ -444,7 +450,7 @@ export function registerDrawingFamily(common, h) {
   registerCapability({
     ...common,
     name: 'drawing.setFibLevels',
-    summary: 'Edit a Fibonacci retracement or extension\'s Levels… menu: show or hide a level, colour a level, turn the fill between two neighbouring levels on or off and colour it, or reset them all to defaults. The anchors and any level alerts are not touched. Undo puts them back.',
+    summary: 'Edit a Fibonacci retracement or extension\'s Levels… menu: show or hide a level, color a level, turn the fill between two neighbouring levels on or off and color it, or reset them all to defaults. The anchors and any level alerts are not touched. Undo puts them back.',
     hints: 'target = the drawings entry; drawing = the Fibonacci\'s id. levels = [{level, visible, color}], level as the member says it (0.786 or 78.6), visible false = "remove the 78.6"; null = leave. bands = [{from, to, enabled, color, opacity}] between two neighbouring levels, color null = its default, opacity = 0-100 or null. reset = true for "reset the fib levels" (levels and bands then both []). Levels are the tool\'s own table: there are no custom levels.',
     args: { type: 'object', properties: {
       drawing: { type: 'string' },
@@ -476,7 +482,8 @@ export function registerDrawingFamily(common, h) {
     const d = byId(st, drawing)
     if (!d) return { why: notFound(drawing) }
     const name = objectTypeName(d.type)
-    if (d.type === 'position') return { why: 'Set a position\'s alerts on the chart: its entry alert picks its side from the live price.' }
+    // a position's alerts are its menu's Alerts row: the side is the position's, never the member's (capabilities/drawingOps.js)
+    if (d.type === 'position') return { why: 'A position\'s alerts are its entry, stop and target, each on the side the position gives it — ask for those (entry, stop, target or all three).' }
     if (!alertKindFor(d.type)) return { why: `${A_(name)} can't carry an alert — only lines, rays and Fibonacci levels can.` }
     if (direction !== 'above' && direction !== 'below') return { why: 'Should it go off above or below the line?' }
     const pane = paneWhy(d)
@@ -488,7 +495,7 @@ export function registerDrawingFamily(common, h) {
       lv = fibLevel(d.type, level)
       if (lv == null) return { why: `Which level of the ${name}? Its levels are ${fibList(d.type)}.` }
     } else if (level != null) return { why: `That ${name} has no levels.` }
-    const geom = anchorsForDrawing(d, { tf: st.tf, etOffset: ET_OFFSET, level: lv })
+    const geom = anchorsForDrawing(d, { tf: st.tf, etOffset: fromChartTime, level: lv })
     if (!geom) return { why: `I can't read that ${name}'s position to set an alert on it.` }
     if (!boundIds(env)) return { why: 'I couldn\'t read your alerts, so I set nothing.' }
     const id = boundIdFor(d.id, lv)

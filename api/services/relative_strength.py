@@ -134,6 +134,12 @@ def _clamp(v, lo, hi, default):
 
 
 def _is_num(v) -> bool:
+    # ⚡ 2026-11-13. A plain float is decided first, with one type test: this is called
+    # about 70,000 times for one symbol's cold RS compute and was its largest self-time
+    # (profiled: 22% of the batch). For every other type the answer is the line below,
+    # exactly as before (`tests/test_rs_is_num_fast_path.py` compares the two).
+    if type(v) is float:
+        return math.isfinite(v)
     return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
@@ -658,6 +664,35 @@ def benchmark_agree(rs_vs_a: Column, rs_vs_b: Column, rs_vs_c: Column,
     return out
 
 
+def benchmark_agree_last(rs_vs_a: Column, rs_vs_b: Column, rs_vs_c: Column,
+                         window: int = DEFAULT_SENSITIVITY_WINDOW) -> MaybeNum:
+    """``benchmark_agree(...)[-1]``, computed without the bars before it.
+
+    ⚡ 2026-11-13. The readout's Agreement card reads only the newest bar, and the
+    column costs three least-squares slopes PER BAR: on a cold RS compute it was
+    the largest single item (profiled: 110 of 326 ms for one symbol's five
+    definitions, 2,480 slopes of which 3 were read). This is the same three
+    slopes over the same slices through the same `_slope`, so the value is the
+    column's last cell bit for bit (`tests/test_rs_benchmark_agree_last.py`
+    compares them over thousands of random series).
+
+    ``None`` for an empty first series (where the column has no last cell at all).
+    """
+    series = (rs_vs_a, rs_vs_b, rs_vs_c)
+    n = len(series[0])
+    if n < window:
+        return None                    # (a window under two bars has no slope: `_slope` answers None below)
+    t = n - 1
+    slopes: List[float] = []
+    for s in series:
+        sl = _slope(s[t - window + 1:t + 1]) if len(s) > t else None
+        if sl is None:
+            return None
+        slopes.append(sl)
+    signs = {1 if sl > 0 else (-1 if sl < 0 else 0) for sl in slopes}
+    return 1.0 if signs in ({1}, {-1}) else 0.0
+
+
 # ⛔ A SECOND TUPLE, NOT AN EXTENSION OF THE FIRST. `PHASE1_COLUMNS` is the
 # `rsLine` definition's wire contract at `compute.rev: 2`, pinned by
 # `tests/test_rs_columns_provider.py` and the `rs_events_default` fixture;
@@ -1011,3 +1046,572 @@ def vars_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
             state[i] = 3 if v > m else 4
     out["vars"], out["varsMa"], out["varsState"] = vars_col, ma, state
     return out
+
+
+# ── RS split, unit U4 (2026-11-09): UCT RS Phases and UCT RS vs 21 EMA ──────
+#
+# Two more pure readings for the two new server rows (`registry_defs`
+# `rsPhases` / `rsVsEma`; engineering map docs at
+# projects/rs-split-handoff-2026-11-09/engineering-map.md §(d)). Same contract
+# as everything above: aligned to ``bars``, no I/O, ``None`` (never 0) in the
+# warm-up and on any bar the benchmark does not carry. Nothing here touches a
+# Phase 1 / 2a / 3 function, so every earlier rail holds.
+#
+# * The EMAs are `rs_moving_average`'s: `indicator_compute.compute_ema` seeded
+#   with the SMA of the first n valid values, nulls before the seed, GAPS
+#   SKIPPED (a benchmark bar missing for this time is left out of the
+#   recursion and stays None in the output). Both the ratio's and the
+#   benchmark's trends use it, so the two sides are smoothed identically.
+# * `dist` is `legend_scalars`'s ``pctFromMa`` at every bar, so the RS vs 21
+#   EMA histogram and the RS line readout's "above its 21 EMA by X%" can never
+#   disagree: one formula, ``100 · (R / EMA_21(R) − 1)``.
+# * The divergence z-score reads the spread's population standard deviation
+#   over its last `PHASES_SIGMA_WINDOW` VALID values (gap-skipping, like the
+#   EMAs that feed it); a window of zero variance has no z-score (None, never
+#   0 or infinity), the frozen-tape ruling `clenow_columns` applies.
+
+DEFAULT_PHASES_SHORT = 3        # Deepvue's "short-term trend smoothing"
+DEFAULT_PHASES_LONG = 10        # Deepvue's "long-term trend smoothing"
+PHASES_SHORT_RANGE = (2, 20)
+PHASES_LONG_RANGE = (3, 60)
+PHASES_SIGMA_WINDOW = 63        # a quarter of sessions: the z-score's own scale
+PHASES_Z_CLAMP = 3.0            # |z| is capped so one wild day cannot own the pane
+
+DEFAULT_VS_EMA_LENGTH = DEFAULT_MA_LENGTH   # the RS line's own 21 EMA, by construction
+DEFAULT_VS_EMA_FAST = 3         # Deepvue's "Webby RS Line" EMA 3 of the distance
+DEFAULT_VS_EMA_SLOW = 13        # ... and its EMA 13
+
+#: Every column `compute_rs_phases_columns` returns. The wire carries `phase`
+#: and `divergence` (`registry_defs.RS_PHASES_WIRE_COLUMNS`); the two trend
+#: series stay here for the readout and for tests.
+RS_PHASES_COLUMNS = ("phase", "divergence", "rsTrend", "benchTrend")
+RS_VS_EMA_COLUMNS = ("dist", "fast", "slow")
+
+
+def ema_ratio_trend(series: Column, short: int, long: int) -> Column:
+    """``EMA_short(x) / EMA_long(x) − 1`` per bar: positive while the short
+    average leads the long one (the series is trending up). Scale-free, so a
+    stock's ratio and the benchmark's price read on one scale. None until both
+    averages exist and on any gap bar; None where the long average is 0."""
+    s = rs_moving_average(series, int(short), "EMA")
+    l = rs_moving_average(series, int(long), "EMA")
+    out: Column = [None] * len(series)
+    for i, (a, b) in enumerate(zip(s, l)):
+        if _is_num(a) and _is_num(b) and b != 0:
+            out[i] = a / b - 1.0
+    return out
+
+
+def rolling_zscore_clamped(series: Column, window: int = PHASES_SIGMA_WINDOW,
+                           clamp: float = PHASES_Z_CLAMP) -> Column:
+    """``clamp(x_t / σ_window(x)_t, −clamp, +clamp)``: the value against the
+    population standard deviation of the last ``window`` VALID values ending
+    at t (inclusive). None until ``window`` valid values exist, on gap bars,
+    and when σ is 0."""
+    n = len(series)
+    out: Column = [None] * n
+    w = int(window)
+    if w < 1:
+        return out
+    idx = [i for i, v in enumerate(series) if _is_num(v)]
+    vals = [float(series[i]) for i in idx]
+    for j in range(w - 1, len(vals)):
+        seg = vals[j - w + 1:j + 1]
+        mean = sum(seg) / w
+        var = sum((v - mean) ** 2 for v in seg) / w
+        sd = math.sqrt(var)
+        if sd <= 0:
+            continue
+        out[idx[j]] = max(-float(clamp), min(float(clamp), vals[j] / sd))
+    return out
+
+
+def compute_rs_phases_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
+                              short: int = DEFAULT_PHASES_SHORT,
+                              long: int = DEFAULT_PHASES_LONG) -> Dict[str, Column]:
+    """UCT RS Phases (map §(d)), aligned to ``bars``::
+
+        rsTrend_t    = EMA_short(R)_t / EMA_long(R)_t − 1
+        benchTrend_t = EMA_short(B)_t / EMA_long(B)_t − 1
+        phase_t      = 1 if rsTrend > 0 and benchTrend < 0   (RS up, market down)
+                     = 0 if rsTrend < 0 and benchTrend > 0   (RS down, market up)
+                     = None otherwise                        (no shading)
+        divergence_t = clamp((rsTrend − benchTrend) / σ63(spread), −3, +3)
+
+    ``B`` is the benchmark close on the stock's own calendar
+    (`benchmark_closes_aligned`), so a bar the benchmark lacks is None in every
+    column. The two lengths are taken as given: `registry_defs.resolve_inputs`
+    clamps them to `PHASES_SHORT_RANGE` / `PHASES_LONG_RANGE` first."""
+    n = len(bars)
+    if n == 0:
+        return {k: [] for k in RS_PHASES_COLUMNS}
+    rs = rs_line(bars, benchmark_bars)
+    bench = benchmark_closes_aligned(bars, benchmark_bars)
+    rs_trend = ema_ratio_trend(rs, short, long)
+    bench_trend = ema_ratio_trend(bench, short, long)
+    phase: Column = [None] * n
+    spread: Column = [None] * n
+    for i in range(n):
+        a, b = rs_trend[i], bench_trend[i]
+        if not (_is_num(a) and _is_num(b)):
+            continue
+        spread[i] = a - b
+        if a > 0 and b < 0:
+            phase[i] = 1.0
+        elif a < 0 and b > 0:
+            phase[i] = 0.0
+    return {
+        "phase": phase,
+        "divergence": rolling_zscore_clamped(spread),
+        "rsTrend": rs_trend,
+        "benchTrend": bench_trend,
+    }
+
+
+def rs_phase_flip_columns(cols: Dict[str, Column]) -> Dict[str, Column]:
+    """RS Phases flip events (alert lane, RS split lane S2), over the columns
+    `compute_rs_phases_columns` returns::
+
+        flipBlue[t] = 1 if phase[t] == 1 and phase[t-1] != 1     (RS turned blue)
+        flipRed[t]  = 1 if phase[t] == 0 and phase[t-1] != 0     (RS turned red)
+
+    ``phase[t-1] != x`` includes the neutral (None) bar before it: neutral to blue
+    is a flip. {0, 1, None}: None where either bar cannot be judged, i.e. a bar
+    whose ``rsTrend`` or ``benchTrend`` is None (warm-up, a gap bar) -- so the
+    first judged bar never reads as a flip out of nothing. Same convention as
+    `cross_columns`: a flip is an edge, a held phase is 0 after its first bar."""
+    phase, rs_t, b_t = cols["phase"], cols["rsTrend"], cols["benchTrend"]
+    n = len(phase)
+    blue: Column = [None] * n
+    red: Column = [None] * n
+    for i in range(1, n):
+        if not (_is_num(rs_t[i]) and _is_num(b_t[i]) and _is_num(rs_t[i - 1]) and _is_num(b_t[i - 1])):
+            continue
+        blue[i] = 1.0 if (phase[i] == 1.0 and phase[i - 1] != 1.0) else 0.0
+        red[i] = 1.0 if (phase[i] == 0.0 and phase[i - 1] != 0.0) else 0.0
+    return {"flipBlue": blue, "flipRed": red}
+
+
+def compute_rs_vs_ema_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
+                              ema: int = DEFAULT_VS_EMA_LENGTH,
+                              fast: int = DEFAULT_VS_EMA_FAST,
+                              slow: int = DEFAULT_VS_EMA_SLOW) -> Dict[str, Column]:
+    """UCT RS vs 21 EMA (map §(d)), aligned to ``bars``::
+
+        dist_t = 100 · (R_t / EMA_ema(R)_t − 1)    # percent above (+) / below (−)
+        fast_t = EMA_fast(dist)_t
+        slow_t = EMA_slow(dist)_t
+
+    ``dist`` at the last bar with a ratio IS `legend_scalars(...)["pctFromMa"]`
+    for the RS line's default average (the rail in tests/test_rs_vs_ema_math.py
+    holds the two equal), so the histogram and the readout never disagree."""
+    n = len(bars)
+    if n == 0:
+        return {k: [] for k in RS_VS_EMA_COLUMNS}
+    rs = rs_line(bars, benchmark_bars)
+    ma = rs_moving_average(rs, int(ema), "EMA")
+    dist: Column = [None] * n
+    for i, (v, m) in enumerate(zip(rs, ma)):
+        if _is_num(v) and _is_num(m) and m != 0:
+            dist[i] = (v / m - 1.0) * 100.0
+    return {
+        "dist": dist,
+        "fast": rs_moving_average(dist, int(fast), "EMA"),
+        "slow": rs_moving_average(dist, int(slow), "EMA"),
+    }
+
+
+# ── RS Exit Warnings (2026-11-12): UCT RS Exit Warnings (`rsExit`) ──────────
+#
+# Mike Webster's three warnings on the RS line (Quick Break, Quicksand, Grateful
+# Dead Break), as a fifth RS indicator beside `rsLine`, `rsRating`, `rsPhases`
+# and `rsVsEma`. Same contract as everything above: aligned to ``bars``, no I/O,
+# ``None`` (never 0) in the warm-up and on any bar the benchmark does not carry.
+#
+# ⭐ OUR READING OF A PUBLISHED IDEA, NOT A PUBLISHED FORMULA. The three names and
+# their one-line meanings are public (the TradingView script "Webby's Quick &
+# Grateful Dead RS" by Amphibiantrading, a community summary of Webster's video):
+#   Quick Break          the RS line drops below its fast moving average
+#   Quicksand            the RS line falls lower than it was at the Quick Break
+#   Grateful Dead Break  the RS line drops below its slow moving average
+# The exact mechanics (bar-close or intraday, how a cycle ends, whether a signal
+# repeats) are NOT published, so the rules below are ours, stated once here and
+# in the PR so they can be argued with. The averages are SIMPLE averages OF THE
+# RS LINE (not of price): daily 21 and 50, weekly 8 and 21, the lengths the same
+# community summary credits to Webster; both are inputs.
+#
+# THE RULES, on closed bars, left to right. ``below(t)`` is ``rs[t] < fast[t]``;
+# "at or above" is everything else, so a flat line sitting exactly on its average
+# is NOT below it (the `above_column` convention, ``rs >= ma``).
+#   quickBreak[t]  = 1 if below(t) and not below(t-1)           (a fresh cross down)
+#                    and remembers ``level = rs[t]``
+#   quicksand[t]   = 1 on the FIRST bar after a quickBreak, in the same cycle,
+#                    where below(t) and rs[t] < level; once per cycle
+#   cycle ends     on the first bar that is at or above the fast average: the
+#                    level is forgotten and both warnings are armed again
+#   deadBreak[t]   = 1 if rs[t] < slow[t] and rs[t-1] >= slow[t-1]
+#                    (a fresh cross down through the slow average; it does not need
+#                    a Quick Break first and has no cycle of its own)
+# {0, 1, None}: None where the bar or the one before it cannot be judged (warm-up,
+# a bar the benchmark lacks). A gap bar inside a cycle abandons the cycle (the
+# level is forgotten) because continuity cannot be vouched for: a missing Quicksand
+# is the safe error, an invented one is not. A series that STARTS below its fast
+# average has no Quick Break (nothing to cross from) and so no Quicksand until it
+# has been at or above the average once and crossed down again.
+
+EXIT_AUTO_LENGTHS: Dict[str, tuple] = {"D": (21, 50), "W": (8, 21)}
+EXIT_LENGTH_RANGE = (2, 400)
+#: Closed bars of cycle history the alert lane reads beyond the slow average, so a
+#: Quicksand can see the Quick Break it is measured from. A break older than this
+#: before the alert bar is not seen (documented in the alert's help text).
+EXIT_CYCLE_HISTORY = 120      # about six months of sessions; NOT 126, which beside 63 is the RS weighting table's fingerprint
+
+#: Every column `compute_rs_exit_columns` returns. The wire carries the line, the
+#: two averages and the three dots (`registry_defs.RS_EXIT_WIRE_COLUMNS`); the
+#: three 0/1 event columns stay here for the legend, the alerts and the tests.
+RS_EXIT_COLUMNS = ("rsLine", "fast", "slow", "quickBreak", "quicksand", "deadBreak",
+                   "dotQuick", "dotQuicksand", "dotDead")
+RS_EXIT_EVENT_COLUMNS = ("quickBreak", "quicksand", "deadBreak")
+#: The member's name for each warning: the chart legend, the alerts and the
+#: screener's `rs_exit_last` column all print these words (one vocabulary).
+RS_EXIT_LABELS: Dict[str, str] = {"quickBreak": "Quick Break", "quicksand": "Quicksand",
+                                  "deadBreak": "Grateful Dead Break"}
+#: Most severe first: on a bar where two warnings fire (a Quick Break and a
+#: Grateful Dead Break can share a bar), the worse one is the one named.
+RS_EXIT_SEVERITY = ("deadBreak", "quicksand", "quickBreak")
+
+
+def resolve_exit_lengths(store_tf: str, fast=0, slow=0) -> tuple:
+    """``(fast, slow)`` in bars for a store timeframe. 0 (or anything that is not
+    a number of at least 1) means AUTO: daily 21 / 50, weekly 8 / 21 (`EXIT_AUTO_LENGTHS`;
+    any other timeframe reads the daily pair). A given length is rounded and clamped
+    to `EXIT_LENGTH_RANGE`; the slow average is kept longer than the fast one (a
+    slow average at or under the fast one cannot mean "slow"), raised to fast + 1."""
+    auto_fast, auto_slow = EXIT_AUTO_LENGTHS.get(str(store_tf or "").upper(), EXIT_AUTO_LENGTHS["D"])
+    lo, hi = EXIT_LENGTH_RANGE
+
+    def one(v, auto):
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return auto
+        if not math.isfinite(f) or f < 1:
+            return auto
+        return int(round(min(hi, max(lo, f))))
+
+    f, s = one(fast, auto_fast), one(slow, auto_slow)
+    if f >= hi:
+        f = hi - 1
+    if s <= f:
+        s = f + 1
+    return f, s
+
+
+def rs_exit_events(rs: Column, fast_ma: Column, slow_ma: Column) -> Dict[str, Column]:
+    """``{quickBreak, quicksand, deadBreak}`` over an RS line and its two averages
+    (all aligned, ``None`` where unknown). The rules are the section header's."""
+    n = len(rs)
+    quick: Column = [None] * n
+    sand: Column = [None] * n
+    dead: Column = [None] * n
+    level = None
+    sand_done = False
+    for i in range(n):
+        r, f, s = rs[i], fast_ma[i], slow_ma[i]
+        prev_ok = i > 0 and _is_num(rs[i - 1])
+        # ── the fast average: Quick Break and Quicksand, with the cycle ──
+        if _is_num(r) and _is_num(f):
+            if prev_ok and _is_num(fast_ma[i - 1]):
+                below = r < f
+                prev_below = rs[i - 1] < fast_ma[i - 1]
+                q = 0.0
+                qs = 0.0
+                if below:
+                    if not prev_below:
+                        q = 1.0
+                        level = float(r)
+                        sand_done = False
+                    elif level is not None and not sand_done and r < level:
+                        qs = 1.0
+                        sand_done = True
+                else:
+                    level = None
+                    sand_done = False
+                quick[i], sand[i] = q, qs
+            else:
+                level, sand_done = None, False      # continuity unknown: abandon the cycle
+        else:
+            level, sand_done = None, False
+        # ── the slow average: Grateful Dead Break, no cycle ──
+        if _is_num(r) and _is_num(s) and prev_ok and _is_num(slow_ma[i - 1]):
+            dead[i] = 1.0 if (r < s and rs[i - 1] >= slow_ma[i - 1]) else 0.0
+    return {"quickBreak": quick, "quicksand": sand, "deadBreak": dead}
+
+
+def rs_exit_latest(events: Dict[str, Column]):
+    """``(kind, index)`` of the NEWEST warning in `rs_exit_events`' three columns,
+    the worse one (`RS_EXIT_SEVERITY`) when two share that bar, or ``(None, None)``
+    when none fired. ``index`` is into the columns; the bars-ago count is
+    ``len - 1 - index``. The chart legend and the screener's `rs_exit_last` /
+    `rs_exit_bars_ago` both read this, so the two name the same warning."""
+    n = max((len(events.get(k) or ()) for k in RS_EXIT_EVENT_COLUMNS), default=0)
+    for i in range(n - 1, -1, -1):
+        for kind in RS_EXIT_SEVERITY:
+            col = events.get(kind) or ()
+            if i < len(col) and col[i] == 1.0:
+                return kind, i
+    return None, None
+
+
+def compute_rs_exit_columns(bars: Sequence[dict], benchmark_bars: Sequence[dict],
+                            fast: int = 21, slow: int = 50, *,
+                            rs_values: Optional[Column] = None) -> Dict[str, Column]:
+    """UCT RS Exit Warnings, aligned to ``bars``: the RS line (`rs_line`), a SIMPLE
+    average of it at each of the two lengths (`rs_moving_average`, gaps skipped),
+    the three events (`rs_exit_events`) and the three dot columns (the RS value on
+    an event bar, ``None`` elsewhere: a dot sits exactly on the line). The lengths
+    are taken as given: `resolve_exit_lengths` resolves them first.
+
+    ``rs_values`` — the caller's ``rs_line(bars, benchmark_bars)`` when it has
+    already joined them (the screener's `bars_rs` step reads
+    `compute_phase1_columns(...)["rsLine"]`, the same function over the same
+    inputs), so one ticker pays for one join, not two; the `compute_mansfield_columns`
+    convention. Used only when aligned to ``bars``; anything else is ignored and
+    the line recomputed."""
+    n = len(bars)
+    if n == 0:
+        return {k: [] for k in RS_EXIT_COLUMNS}
+    if rs_values is not None and len(rs_values) == n:
+        rs = list(rs_values)
+    else:
+        rs = rs_line(bars, benchmark_bars)
+    fast_ma = rs_moving_average(rs, int(fast), "SMA")
+    slow_ma = rs_moving_average(rs, int(slow), "SMA")
+    ev = rs_exit_events(rs, fast_ma, slow_ma)
+    return {
+        "rsLine": rs, "fast": fast_ma, "slow": slow_ma,
+        "quickBreak": ev["quickBreak"], "quicksand": ev["quicksand"], "deadBreak": ev["deadBreak"],
+        "dotQuick": dot_column(rs, ev["quickBreak"]),
+        "dotQuicksand": dot_column(rs, ev["quicksand"]),
+        "dotDead": dot_column(rs, ev["deadBreak"]),
+    }
+
+
+# ── RS screens (2026-11-14): last-bar measures over the Phase 1 event columns ─
+#
+# The five Relative Strength screens (plan 2026-11-14 v2, sections 1.2 and 1.3)
+# ask questions of the SAME event columns the chart draws: how many RS new highs
+# lately, how long since the one before, how long the RS line has been ahead of
+# price. Each helper below answers one of them for the NEWEST bar only, in one
+# backward walk, so the nightly build pays microseconds per ticker on top of the
+# Phase 1 columns it already holds. Nothing above this line is touched.
+#
+# SAME RULE AS THE REST OF THE MODULE: never invent a value. Where the walk
+# meets a bar the event column could not judge (``None``), it stops and answers
+# ``None`` rather than read across it; `bars_ago_column` counts through such
+# bars because an age that is too LARGE is the safe direction for an age filter,
+# but "first RS high in N sessions" and "ahead of price for N sessions" are
+# claims about every bar in between, and a hidden bar would make them too strong.
+
+#: "RS new highs in the last 20 sessions" (plan 1.2 row facts and header line).
+SCREEN_NH_COUNT_WINDOW = 20
+#: An RS-new-high-before-price state is read at most a quarter back: 63 sessions
+#: counting today, so ages 0 to 62 (the `breakout_20d_age` convention in
+#: `screener.technicals`, which is blank past the same 63).
+SCREEN_NHBP_WINDOW = 63
+
+
+def event_gap_last(events: Column) -> Optional[int]:
+    """Sessions between the newest ``1`` in an event column and the ``1`` before
+    it (``1`` = on consecutive bars); ``None`` when there are not two, or when a
+    bar the column could not judge sits anywhere from the newest bar back to the
+    earlier event. The screen's "first RS high in N sessions"."""
+    newest: Optional[int] = None
+    for i in range(len(events) - 1, -1, -1):
+        e = events[i]
+        if e is None:
+            return None
+        if e == 1.0:
+            if newest is None:
+                newest = i
+            else:
+                return newest - i
+    return None
+
+
+def event_age_unbroken_last(events: Column, broken: Column, window: int) -> Optional[int]:
+    """Bars since the newest ``events == 1`` bar τ for which ``broken`` is ``0``
+    on EVERY bar from τ to the newest (``0`` = the newest bar is τ); ``None``
+    when ``broken`` is ``1`` or unknown on any bar walked, when ``events`` is
+    unknown before an event is found, when the columns are not aligned, or when
+    no such event lies within ``window`` bars counting the newest.
+
+    With ``events = rsNH`` and ``broken = pxNH`` (price within the Phase 1
+    tolerance of its own prior-lookback closing high) this is "the RS line made a
+    new high τ bars ago and price has not reached its high since": age 0 is
+    exactly `rsNHbeforePx` on the newest bar."""
+    n = len(events)
+    if n == 0 or len(broken) != n or window <= 0:
+        return None
+    for age in range(min(operator.index(window), n)):
+        i = n - 1 - age
+        if broken[i] != 0.0:
+            return None
+        e = events[i]
+        if e == 1.0:
+            return age
+        if e is None:
+            return None
+    return None
+
+
+def level_span_last(series: Column) -> Optional[int]:
+    """How many bars, ending at and counting the newest, the newest value has
+    been the highest: the distance back to the nearest earlier bar that is at or
+    above it. ``len(series)`` when no earlier bar is (the answer is then "at
+    least the whole window"). A missing earlier value ends the run the same way
+    a higher one does, so the claim is only ever about bars that were read.
+    ``None`` when the newest value itself is missing. The screen's "highest in N
+    sessions", asked only on a bar that is an RS new high."""
+    n = len(series)
+    if n == 0:
+        return None
+    v = series[-1]
+    if not _is_num(v):
+        return None
+    for i in range(n - 2, -1, -1):
+        w = series[i]
+        if not _is_num(w) or w >= v:
+            return n - 1 - i
+    return n
+
+
+def close_below_high_pct_last(closes: Column, window: int = DEFAULT_LOOKBACK) -> MaybeNum:
+    """``(C[t] / max(C over the last window bars, t included) − 1) × 100`` for the
+    newest bar: zero at the high, negative below it. CLOSING basis, the RS line's
+    own (a 52-week high on intraday highs is the `dist_52w_high_pct` column, a
+    different number). ``None`` until ``window`` closes exist, and when any close
+    in the window is missing or not positive: a window with a hole has no honest
+    maximum (`rolling_extreme_event`'s rule)."""
+    window = operator.index(window)
+    if window <= 0 or len(closes) < window:
+        return None
+    seg = closes[-window:]
+    for c in seg:
+        if not _is_num(c) or c <= 0:
+            return None
+    return (seg[-1] / max(seg) - 1.0) * 100.0
+
+
+# ── The WEEKLY RS new high (RS screens unit U12, 2026-11-14) ─────────────────
+#
+# The house lesson is the WEEKLY RS line making a new high before price does; the
+# daily event series above is the faster, noisier reading of the same idea. The
+# rule is the daily one on weekly bars, so the two cannot drift: the weekly RS
+# line is the weekly close over the benchmark's weekly close joined by bar time
+# (`rs_line`), a new high is `rolling_extreme_event` (a tie counts, as on the
+# daily dot), and "before price" is `and_not` against the same event asked of the
+# weekly close with a tolerance, exactly the shape of `rsNHbeforePx`.
+#
+# ⛔ COMPLETED WEEKS ONLY, AND THAT IS THE CALLER'S JOB. A week still in progress
+# has no weekly close; `screener.rs_columns.weekly_fields` drops it before asking.
+
+#: The prior weeks a weekly RS new high is measured against: a year of weeks.
+WEEKLY_NH_LOOKBACK = 52
+#: "Before price" on weekly bars: the weekly close is MORE than this far under the
+#: highest weekly close of the prior `WEEKLY_NH_LOOKBACK` weeks, percent. Wider
+#: than the daily 2% because a week's close moves further than a day's.
+WEEKLY_NHBP_BELOW_PCT = 3.0
+
+
+def weekly_rs_high_last(week_bars: Sequence[dict], bench_week_bars: Sequence[dict],
+                        lookback: int = WEEKLY_NH_LOOKBACK,
+                        below_pct: float = WEEKLY_NHBP_BELOW_PCT) -> Dict[str, MaybeNum]:
+    """``{"rsNH", "rsNHbeforePx"}`` for the NEWEST of ``week_bars``, each ``1.0`` /
+    ``0.0`` / ``None``.
+
+    * ``rsNH``: the newest week's RS value (weekly close / benchmark weekly close)
+      is at or above the highest of the prior ``lookback`` weeks. A tie is a new
+      high (`rolling_extreme_event`'s rule, the daily dot's).
+    * ``rsNHbeforePx``: that, while the weekly close is more than ``below_pct``
+      percent below the highest weekly close of the same prior weeks. A close
+      exactly ``below_pct`` under it is NOT before price.
+
+    ``None`` for both under ``lookback + 1`` weeks, when the benchmark has no bar
+    for the newest week, and when any of the prior ``lookback`` weeks has no RS
+    reading (a window with a hole has no honest maximum). Both arguments are
+    weekly bar dicts on one calendar (the same ``t`` names the same week)."""
+    out: Dict[str, MaybeNum] = {"rsNH": None, "rsNHbeforePx": None}
+    lookback = operator.index(lookback)
+    if lookback <= 0 or len(week_bars) < lookback + 1:
+        return out
+    # The newest value reads its own bar and the `lookback` before it, no more.
+    tail = list(week_bars[-(lookback + 1):])
+    line = rs_line(tail, bench_week_bars)
+    rs_nh = rolling_extreme_event(line, lookback, high=True)
+    closes: Column = [float(b["c"]) if _is_num(b.get("c")) else None for b in tail]
+    px_near = rolling_extreme_event(closes, lookback, high=True, tolerance_pct=below_pct)
+    out["rsNH"] = rs_nh[-1]
+    out["rsNHbeforePx"] = and_not(rs_nh, px_near)[-1]
+    return out
+
+
+# ── The Leader score's "Steady" input (RS screens unit U9, 2026-11-14) ───────
+#
+# Plan 2026-11-14 v2, section 8: "Steady: sign(return) x (share of up days - share
+# of down days) over days t-252 to t-21". It is Da, Gurun and Warachka (2014),
+# "Frog in the Pan", with the sign flipped so that HIGHER IS SMOOTHER: their
+# information discreteness is sign(PRET) x (%negative - %positive), and a low
+# value is the steady climb. Read by the shadow Leader score only
+# (`screener.rs_leader_score`); nothing a member sees reads it.
+
+#: The window's far end: the close this many sessions before the newest.
+STEADY_FAR = DEFAULT_LOOKBACK
+#: ... and its near end. The newest 21 sessions are left out, as in the paper's
+#: formation window (the last month is a reversal effect, not a continuation one).
+STEADY_NEAR = 21
+#: Closes the window must hold. A stock listed under a year ago is measured over
+#: the part of the window it has, down to half a year; below that there is no value.
+#: Written as half the lookback, not as its literal: that number beside 63 in one
+#: module is the RS weighting table's fingerprint (`test_single_authority_rails`).
+STEADY_MIN_SESSIONS = DEFAULT_LOOKBACK // 2
+
+
+def steady_last(closes: Column, far: int = STEADY_FAR, near: int = STEADY_NEAR,
+                min_sessions: int = STEADY_MIN_SESSIONS) -> MaybeNum:
+    """``sign(PRET) x (share of up days - share of down days)`` for the newest bar.
+
+    The window is the closes from ``far`` sessions before the newest to ``near``
+    sessions before it, both ends included (``C[t-far] .. C[t-near]``), cut at the
+    first close held when the series is shorter. ``PRET`` is the close-to-close
+    return over that same window. A day is "up" when its close is above the close
+    before it and "down" when below; a zero-change day is in neither share, and
+    both shares are over every day of the window. Range -1 to 1; a flat ``PRET``
+    is ``0.0``.
+
+    ``None`` when the window holds fewer than ``min_sessions`` closes, and when any
+    close in it is missing or not positive (a window with a hole has no honest
+    count of its days: `rolling_extreme_event`'s rule)."""
+    far, near = operator.index(far), operator.index(near)
+    n = len(closes)
+    end = n - 1 - near                     # the index of C[t-near]
+    start = max(0, n - 1 - far)            # the index of C[t-far], or the first close held
+    if near < 0 or far <= near or end - start + 1 < max(2, operator.index(min_sessions)):
+        return None
+    seg = closes[start:end + 1]
+    for c in seg:
+        if not _is_num(c) or c <= 0:
+            return None
+    up = down = 0
+    for prev, cur in zip(seg, seg[1:]):
+        if cur > prev:
+            up += 1
+        elif cur < prev:
+            down += 1
+    days = len(seg) - 1
+    spread = (up - down) / days
+    if seg[-1] > seg[0]:
+        return spread
+    if seg[-1] < seg[0]:
+        return -spread
+    return 0.0

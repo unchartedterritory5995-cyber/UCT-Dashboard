@@ -1,0 +1,84 @@
+# head 799fb22964 2026-11-11T09:11:56Z mutant: i-pick-first
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentWhichWidget.rail.test.jsx src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx
+
+ RUN  v4.0.18 C:/w/pl-widget/app
+
+ ❯ src/agent/agentWhichWidget.rail.test.jsx (7 tests | 1 failed) 7250ms
+     × "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed 1151ms
+     ✓ "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed  982ms
+     ✓ u18-refresh-06: the refusal names the Period Sort AND the Scanner, and says it won't guess  993ms
+     ✓ u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question  1008ms
+     ✓ u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question  1031ms
+     ✓ "refresh the IPOs scanner" with two Scanners: that one only  1038ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1045ms
+stderr | src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx > F1 (c) u18-cols-07: two Watchlists, "move the volume column after the symbol": asked, no column moved > control: "move the volume column after the symbol in Momentum" names it: moved, no question
+[uct-agent] routing budget cut: indicators not sent (indicator.list, indicator.add, indicator.remove, indicator.update, indicator.show, indicator.hide)
+
+ ❯ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx (3 tests | 2 failed) 11098ms
+     × the plan picked the left one: a question, and neither widget's look changed 8930ms
+     × the plan picked Momentum's view: a question, and no saved column layout 1084ms
+     ✓ control: "move the volume column after the symbol in Momentum" names it: moved, no question  1082ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > (a) u18-refresh-10: two Scanners and no name: asked, nothing refreshed > "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed
+AssertionError: UCT Agent4:12 AMRefreshed the Scanner: expected [ 'refresh' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "refresh",
++ ]
+
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:49:43
+     47|     p.st.envelopes.push(plan(refresh('sa')))
+     48|     const out = await say('refresh the scanner')
+     49|     expect([...a.calls, ...b.calls], out).toEqual([])
+       |                                           ^
+     50|     expect(out).toMatch(/which/i)
+     51|     expect(out).not.toMatch(/Refreshed/)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx > F1 (b) u18-look-07: two Watchlists, "make the watchlist background black": asked, nothing written > the plan picked the left one: a question, and neither widget's look changed
+AssertionError: UCT Agent5:00 PMSome of that didn't take effect: Board failed (“canvasColor” did not change) — nothing was left changed.: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx:168:29
+    166|     const before = boardJson(m)
+    167|     const out = await m.say('make the watchlist background black', (c)…
+    168|     expect(asked(out), out).toBe(true)
+       |                             ^
+    169|     expect(boardJson(m)).toBe(before)
+    170|     expect(JSON.stringify(m.board.state.widgets)).not.toMatch(/#000000…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx > F1 (c) u18-cols-07: two Watchlists, "move the volume column after the symbol": asked, no column moved > the plan picked Momentum's view: a question, and no saved column layout
+AssertionError: UCT Agent5:00 PMOn “Momentum”: moved Volume after Symbol: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx:179:29
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  3 failed | 7 passed (10)
+   Start at  04:11:57
+   Duration  17.00s (transform 7.37s, setup 525ms, import 9.93s, tests 18.35s, environment 820ms)
+

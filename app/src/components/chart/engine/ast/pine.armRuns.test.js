@@ -47,7 +47,10 @@ describe('C45 — bindTimeConstantTree: decided before bar 0, per binding', () =
     expect(bindTimeConstantTree(series('close'))).toBe(false)
     expect(bindTimeConstantTree(series('dayofweek'))).toBe(false)
     expect(bindTimeConstantTree(series('ma'))).toBe(false)                   // a name, not a DECLARED input
-    expect(bindTimeConstantTree(call('nz', num(1)))).toBe(false)
+    // ⭐ COND-TA (engine 58): ONE authority (`barConstant.js`). A pointwise table call over constants
+    // is constant (the runtime lane always read it so); a call with a lookback is not.
+    expect(bindTimeConstantTree(call('nz', num(1)))).toBe(true)
+    expect(bindTimeConstantTree(call('sma', num(1), num(3)))).toBe(false)
     expect(bindTimeConstantTree({ type: 'offset', value: 1, args: [num(1)] })).toBe(false)
     expect(bindTimeConstantTree(op('>', series('close'), declared('k', 0)))).toBe(false)
     expect(bindTimeConstantTree(null)).toBe(false)

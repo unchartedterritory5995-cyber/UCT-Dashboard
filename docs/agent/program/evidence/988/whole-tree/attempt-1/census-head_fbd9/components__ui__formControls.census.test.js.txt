@@ -1,0 +1,14 @@
+rail src/components/ui/formControls.census.test.js
+## Γ¡É HAND-ROLLED SWITCHES MAY NOT GROW > no file gained a hand-rolled switch, and no new file appeared
++     "file": "app/src/pages/journal-2-0/components/notebook/NoteSharePanel.jsx",
++     "now": 1,
++   {
++   },
++ Received
+
+## Γ¡É UNNAMED CONTROL SITES MAY ONLY SHRINK > no new unnamed control site appeared anywhere in app/src
+(no diff lines; full failure in the raw log)
+
+## Γ¡É UNNAMED CONTROL SITES MAY ONLY SHRINK > the baseline is tight ΓÇö a migration lowers UNNAMED_BASELINE in the same commit
++ 7
++ Received

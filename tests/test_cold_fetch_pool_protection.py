@@ -44,6 +44,8 @@ def test_cold_fetch_NEVER_runs_the_provider_on_the_request_thread(monkeypatch):
 
     assert resp.status_code == 503, "a cold request must return 503 (warming), never hang"
     assert resp.headers.get("Retry-After") == "3", "client must be told to re-poll fast"
+    # names the shed so the edge passes it through instead of re-asking web
+    assert resp.headers.get("X-Bars-Shed") == "warming"
     assert calls["fetch"] == 0, "the provider fetch must NEVER run on the request thread"
     assert kicked == {"t": "ZSQR", "tf": "D", "bars": 300}, "a bounded bg warm must be kicked"
     assert bars_fetch.get_serve_layer() == "cold-bg"
@@ -94,7 +96,7 @@ def test_a_WARM_ticker_serves_normally_and_never_kicks_a_cold_fetch(monkeypatch)
     monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda ts, tf, ticker=None: True)
     monkeypatch.setattr(bars_fetch, "_is_cold_stale_daily", lambda tf, ts: True)   # force Layer 4
     monkeypatch.setattr(bars_fetch, "_daily_deblockable", lambda tf, ts: False)
-    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)
+    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf, *_a: True)
     monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_inflight", {})

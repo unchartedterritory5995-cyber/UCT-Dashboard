@@ -1,0 +1,77 @@
+neg-ticker-followup: branch 9c50346996 merged with origin/master 9d5e0847b8 (LOCAL / SIMULATED: vitest + jsdom, no model calls, no lock)
+Branch diff vs master: app/src/agent/deixis.js, app/src/agent/agentTrailingNegation.test.jsx, docs/agent/program/PR-neg-ticker-followup.md (no count pins, no qa baselines touched)
+
+== Run 1: REQUIRED focused set (16 files) ==
+ ✓ src/noRegexLookbehind.test.js (6 tests) 2384ms
+ ✓ src/agent/qa/capabilityRegression/corpus.routingV2.test.js (657 tests) 1253ms
+ ✓ src/agent/qa/capabilityRegression/routeReachability.test.js (8 tests) 1221ms
+ ✓ src/agent/qa/capabilityRegression/corpus.routing.test.js (657 tests) 425ms
+ ✓ src/agent/agentRouting.test.jsx (23 tests) 240ms
+ ✓ src/agent/agentScreener.test.jsx (13 tests) 153ms
+ ✓ src/agent/agentDeixis.test.js (42 tests) 77ms
+ ✓ src/agent/agentIndicatorsM2.test.jsx (28 tests) 7347ms
+ ✓ src/agent/deixisValueNotRelation.test.js (991 tests) 66ms
+ ✓ src/agent/agentNl1Selection.test.js (13 tests) 40ms
+ ✓ src/agent/agentNoLookbehindEquivalence.test.js (6 tests) 24ms
+ ✓ src/agent/agentScanSat1Requests.test.jsx (62 tests) 30814ms
+ ✓ src/agent/agentNl1SelectionCoverage.test.js (1 test) 72762ms
+ ✓ src/agent/qa/capabilityRegression/golden.test.jsx (71 tests) 86038ms
+ ✓ src/agent/agentExecReach.test.jsx (23 tests) 173048ms
+ ✓ src/agent/agentTrailingNegation.test.jsx (367 tests) 367959ms
+ Test Files  16 passed (16)
+      Tests  2968 passed (2968)
+
+Count pins (agentRouting 23, agentScreener 13, agentNl1Selection 13, agentIndicatorsM2 28): all green, files untouched by the branch.
+agentNoLookbehindEquivalence: every site identical to the master baseline (0 differing rows); baseline file untouched.
+agentNl1SelectionCoverage report:
+NL-1 selection coverage (dev / exposed only; budget 55 shipped, 60 for comparison)
+budget 55:
+  corpus.json      n 182  first call 174 (95.6%)  +reroute  8 (→ 100.0%)  not reachable 0  actions median 43 max 55
+  dev-nl1.json     n  43  first call  43 (100.0%)  +reroute  0 (→ 100.0%)  not reachable 0  actions median 46 max 55
+  heldout-v1.json  n 165  first call 164 (99.4%)  +reroute  1 (→ 100.0%)  not reachable 0  actions median 41 max 55
+budget 60:
+  corpus.json      n 182  first call 176 (96.7%)  +reroute  6 (→ 100.0%)  not reachable 0  actions median 46 max 59
+  dev-nl1.json     n  43  first call  43 (100.0%)  +reroute  0 (→ 100.0%)  not reachable 0  actions median 46 max 59
+  heldout-v1.json  n 165  first call 164 (99.4%)  +reroute  1 (→ 100.0%)  not reachable 0  actions median 42 max 59
+
+== Run 2: #988 exclusion / wrong-chart targeting rails + no-lookbehind (21 files) ==
+ ✓ src/agent/agentRelativeChart.test.jsx (69 tests) 62487ms
+ ✓ src/agent/agentStativePriceClause.test.jsx (104 tests) 63010ms
+ ✓ src/agent/agentSpatialConstraints.test.jsx (180 tests) 63896ms
+ ✓ src/agent/agentExcludedApproved.test.jsx (27 tests) 29361ms
+ ✓ src/agent/agentDiagonalChart.test.jsx (89 tests) 41539ms
+ ✓ src/agent/agentExceptCard.test.jsx (48 tests) 49845ms
+ ✓ src/agent/agentStructuralAnchor.test.jsx (26 tests) 26486ms
+ ✓ src/agent/agentStructuralAnchorNegative.test.jsx (24 tests) 25172ms
+ ✓ src/agent/agentEveryExceptSet.test.jsx (20 tests) 22970ms
+ ✓ src/agent/agentFastPathEveryExcept.test.jsx (28 tests) 14328ms
+ ✓ src/agent/agentDrawingsAnchored.test.jsx (15 tests) 2016ms
+ ✓ src/agent/agentNoLookbehindStrings.test.js (5 tests) 4885ms
+ ✓ src/agent/agentNoLookbehindOracle.test.js (9 tests) 697ms
+ ✓ src/agent/agentNoLookbehind988.test.js (3 tests) 618ms
+ ✓ src/agent/agentExcludedGate.test.js (7 tests) 30ms
+ ✓ src/agent/agentTargetTruth.test.jsx (28 tests) 13338ms
+ ✓ src/agent/agentPossessiveAnchor.test.jsx (152 tests) 155325ms
+ ✓ src/agent/agentNegatedAnchor.test.jsx (91 tests) 171344ms
+ ✓ src/agent/agentLineAbsolute.test.jsx (340 tests) 193409ms
+ ✓ src/agent/agentTickerAnchors.test.jsx (199 tests) 241939ms
+ ✓ src/agent/agentNegatedClickAct.test.jsx (335 tests) 336913ms
+ Test Files  21 passed (21)
+      Tests  1799 passed (1799)
+
+== Run 3: remaining tests that import deixis.js (11 files) ==
+ ✓ src/agent/agentNlCorpus.test.js (2 tests) 705ms
+ ✓ src/agent/agentOrdinalRowCol.test.jsx (14 tests) 1236ms
+ ✓ src/agent/agentEvalBaseline.test.js (1 test) 1763ms
+ ✓ src/agent/agentChartsOperatorP1.test.jsx (48 tests) 1874ms
+ ✓ src/agent/agentDiagonalChartHeldOut.test.js (1 test) 3ms
+ ✓ src/agent/agentGuideRelational.test.jsx (69 tests) 109ms
+ ✓ src/agent/agentGuideHeldOutRowColumn.test.js (9 tests) 31ms
+ ✓ src/agent/agentPhase2B.test.jsx (17 tests) 5800ms
+ ✓ src/agent/agentExecOtherOne.test.jsx (18 tests) 15617ms
+ ✓ src/agent/agentCountedUnits.test.jsx (99 tests) 68145ms
+ ✓ src/agent/agentCountedRelation.test.jsx (120 tests) 82106ms
+ Test Files  11 passed (11)
+      Tests  398 passed (398)
+
+Total: 48 files, 5165 tests passed, 0 failed.

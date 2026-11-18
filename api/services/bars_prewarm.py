@@ -873,6 +873,7 @@ def run_prewarmer_forever():
           f"cap_universe long tail = on-demand intraday only)")
     from concurrent.futures import ThreadPoolExecutor as _PrewarmTPE
     from api.routers.bars import _get_bars_inner, _needs_fresh
+    from api.services.bars_fetch import set_background_caller as _set_background_caller
     from api.services import bars_sqlite as _sqlite
     # Prewarmer runs on the DEDICATED worker (USE_REMOTE_BARS=1 gates it
     # off on web). Proactive 5-TF intraday warming is scoped to the
@@ -962,6 +963,9 @@ def run_prewarmer_forever():
         _PREWARM_WORKERS = 2
     def _warm_one(args):
         sym, tf, bar_count = args
+        # Background caller: the D/W/M delta pool counts it against the warm share,
+        # so the prewarm can never hold the slots a member's click needs (N1).
+        _set_background_caller(True)
         try:
             last_ts = _sqlite.get_last_ts(sym.upper(), tf)
             # Settled D/W/M outside the data window: provably nothing to fetch.
@@ -973,6 +977,8 @@ def run_prewarmer_forever():
             return ('warmed', sym, tf)
         except Exception:
             pass
+        finally:
+            _set_background_caller(False)
         return ('failed', sym, tf)
     jobs = []
     for sym in ticker_list: jobs.append((sym, 'D', 5000))

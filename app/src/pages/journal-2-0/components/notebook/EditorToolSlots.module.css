@@ -1,0 +1,47 @@
+/* Follow-up B fix round 2: the Insert palette's cold-press frame sits in the palette's own slot (WidgetPalette.module.css
+   `.panel`): an ABSOLUTE child of the sticky chrome, anchored under its bottom edge, so drawing it never grows the
+   chrome or moves the note. Same anchor, offsets (18px right, 10px down), width (268px) and layer (45, above the
+   chrome's 40) as the panel, written in tokens; on a phone the same bottom dock as the panel. Its own small class, so
+   the palette's stylesheet stays off the editor's first open. */
+.paletteFrame {
+  position: absolute;
+  right: calc(var(--space-lg) + var(--space-xs) / 2);
+  top: calc(100% + var(--space-sm) + var(--space-xs) / 2);
+  width: calc(var(--space-lg) * 16 + var(--space-md));
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm) var(--space-md);
+  box-sizing: border-box;
+  color: var(--text-muted);
+  font-size: var(--text-base);
+}
+.paletteFrameText { flex: 1; }
+.paletteFrameBtn {
+  background: none;
+  border: 0;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: var(--space-xs);
+  min-height: var(--space-xl);
+  min-width: var(--space-xl);
+}
+
+@media (max-width: 640px) {
+  .paletteFrame {
+    position: fixed;
+    right: 0;
+    left: 0;
+    top: auto;
+    bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+}
+@media (max-width: 1024px) {
+  .paletteFrameBtn { min-height: var(--tap-min, 44px); min-width: var(--tap-min, 44px); }
+}

@@ -766,7 +766,8 @@ describe('signColorsForPlot — colorMode "sign" is two colours or it is nothing
       .toEqual({ up: 'rgba(76,175,80,0.75)', down: 'rgba(244,67,54,0.75)' })
   })
 
-  const SIGNED_TIER1 = new Set(['ppo.histogram', 'balanceOfPower.bop', 'chaikinMoneyFlow.cmf', 'squeeze.momentum'])
+  // `rsVsEma.dist` joined at the UCT RS split (U6, 2026-11-09): the distance histogram is blue above / red below by design.
+  const SIGNED_TIER1 = new Set(['ppo.histogram', 'balanceOfPower.bop', 'chaikinMoneyFlow.cmf', 'squeeze.momentum', 'rsVsEma.dist'])
   it('every OTHER shipped plot has none — sign colouring is not the default', () => {
     for (const def of registry.listDefinitions()) {
       for (const plot of def.plots) {

@@ -1,0 +1,395 @@
+/* Import a tweet: the approved preview on the Notebook's token scale (spacing, type and radius
+   snapped to the VIS-6 steps; real buttons with the 44px floor on touch). */
+.sheet {
+  height: min(780px, 86vh, 86dvh);
+  background: var(--bg-elevated);
+  border-color: var(--border-accent);
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px 0;
+}
+.title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.close:hover {
+  background: var(--bg-hover);
+}
+.linkRow {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.linkBox {
+  position: relative;
+}
+.linkIcon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.linkInput {
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
+  padding: 0 12px 0 32px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--field-edge);
+  border-radius: 8px;
+}
+.linkInput:focus {
+  border-color: var(--ut-gold);
+  box-shadow: 0 0 0 3px var(--ut-gold-dim);
+}
+.linkInput::placeholder,
+.searchInput::placeholder {
+  color: var(--text-faint);
+}
+.linkError {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--danger-ink);
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 8px;
+}
+.chip {
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-accent);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.chip:hover {
+  background: var(--bg-hover);
+}
+.chipOn,
+.chipOn:hover {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+  color: var(--bg);
+}
+.search {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  width: 176px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--field-edge);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-surface);
+  color: var(--text-faint);
+}
+.searchInput {
+  width: 100%;
+  min-width: 0;
+  background: none;
+  border: 0;
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 12px;
+}
+.list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 8px 8px;
+}
+.day {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 8px 4px;
+  background: var(--bg-elevated);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+.post {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.post:hover {
+  background: var(--bg-hover);
+}
+.ticked {
+  background: var(--ut-gold-dim);
+  border-color: var(--ut-gold);
+}
+.already {
+  opacity: 0.6;
+  cursor: default;
+}
+.avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  /* The author's colour is the ring (set inline); the initials sit on a token surface so they
+     read in every theme, the light one included. */
+  border: 2px solid var(--border-accent);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  font-size: 12px;
+  font-weight: 700;
+  object-fit: cover;
+}
+.postMain {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+.postLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  font-size: 13px;
+}
+.name {
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.handle {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.postText {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.42;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.cash {
+  color: var(--ut-gold);
+  font-weight: 500;
+}
+.postImage {
+  display: block;
+  margin-top: 8px;
+  width: 270px;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.tag {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--border-accent);
+  border-radius: 4px;
+}
+.ticked .check {
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+  color: var(--bg);
+}
+.none {
+  margin: 0;
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.shim {
+  height: 76px;
+  margin: 4px 2px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--bg-surface), var(--bg-hover), var(--bg-surface));
+  background-size: 200% 100%;
+  animation: shimmer 1s linear infinite;
+}
+@keyframes shimmer {
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shim {
+    animation: none;
+  }
+}
+.notices {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  max-height: 30vh;
+  overflow-y: auto;
+}
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger-ink);
+}
+.result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-bright);
+}
+.result p {
+  margin: 0;
+}
+.warn {
+  color: var(--text-muted);
+}
+.openNote {
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md, 6px);
+  cursor: pointer;
+}
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+.saveTo {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.select {
+  height: 32px;
+  max-width: 240px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--field-edge);
+  border-radius: var(--radius-md, 6px);
+}
+.adding {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.adding b {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+.count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.go {
+  height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-md, 6px);
+  background: var(--ut-gold);
+  color: var(--bg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.go:hover:not(:disabled) {
+  background: var(--ut-gold-bright);
+}
+.go:disabled {
+  background: var(--bg-hover);
+  color: var(--text-faint);
+  cursor: default;
+}
+
+@media (max-width: 1024px) {
+  .sheet {
+    height: min(92vh, 92dvh);
+  }
+  .close {
+    width: var(--tap-min, 44px);
+    height: var(--tap-min, 44px);
+  }
+  .linkInput,
+  .chip,
+  .search,
+  .select,
+  .go,
+  .openNote,
+  .post {
+    min-height: var(--tap-min, 44px);
+  }
+  .search {
+    margin-left: 0;
+    width: 100%;
+  }
+  .foot {
+    flex-wrap: wrap;
+  }
+}

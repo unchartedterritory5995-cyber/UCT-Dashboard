@@ -65,7 +65,7 @@ const MUST_DOCUMENT = [
   'green_on_red_20', 'rs_line_above_ma', 'rs_cross_up_bars_ago', 'mansfield',
   'mansfield_cross_bars_ago', 'rs_benchmark_agree', 'rs_rating_ibd',
   'rs_rating_chg_5', 'rs_rating_chg_20', 'rs_rating_1m', 'rs_rating_3m',
-  'rs_rating_6m', 'rs_rating_12m',
+  'rs_rating_6m', 'rs_rating_9m', 'rs_rating_12m',
   // 2026-11-07 UCT RS Phase 3 (unit 3-11) — each says whose formula it follows
   // ("-style"), because a member will compare it with StockCharts, Clenow's book
   // or OANDA and find a different number.
@@ -90,7 +90,7 @@ describe('member-facing column descriptions', () => {
   })
 
   it('the RS family says it is daily-bar based, and the rating says whose number it is not', () => {
-    expect(RS_COLUMNS).toHaveLength(17)
+    expect(RS_COLUMNS).toHaveLength(18) // 17 -> 18 on 2026-11-10: rs_rating_9m (S1)
     for (const key of RS_COLUMNS) expect(descFor(key), key).toMatch(/daily/i)
     expect(descFor('rs_rating_ibd')).toMatch(/IBD-style/)
     expect(descFor('rs_rating_ibd')).toMatch(/our own calculation, not MarketSurge/)

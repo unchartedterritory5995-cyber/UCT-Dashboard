@@ -190,6 +190,34 @@ def _other_methods() -> list:
 
 
 def _rs_rank_method() -> dict:
+    """The RS Rank method, READ FROM THE FLAG that decides which rating the
+    column carries (RS split unit U5a). Off: the hourly weighted-return
+    percentile, as before. On (``RS_RANK_IBD_ENABLED``): the column is the
+    nightly IBD-style RS Rating, the same number as the RS Rating column and
+    the chart's UCT RS, with the hourly rank only where a name has no stored
+    rating; the prose says so, and says the number moves once a night."""
+    from api.services import rs_ranking as _rsr                 # noqa: PLC0415
+    if _rsr.rs_rank_ibd_enabled():
+        p = _rs_params()
+        return {
+            "column": "rs_rank", "label": "RS Rank",
+            "one_line": "The nightly IBD-style RS Rating, 1-99: one number, the same as "
+                        "the chart's UCT RS and the RS Rating column.",
+            "scale": f"1-{p['max']}, higher is stronger",
+            "how": (f"Since the two were unified, this column IS the RS Rating: over the "
+                    f"stock's daily closes, {_ibd_formula_prose(p)}, ranked as a percentile "
+                    f"across {_RATED_POPULATION}. It is written once a night by "
+                    f"the 04:15 ET rating job and does not move during the session. Where a "
+                    f"name has no stored rating for the newest session, the hourly weighted "
+                    f"return rank (" + _rs_terms_prose() + ") stands in and the row's "
+                    f"source says so."),
+            "caveat": ("Ranked against every stock we hold a recent daily price for, about "
+                       "6,000 names including warrants, rights, units and thin stocks, as "
+                       "Deepvue's rank does; ETFs are not ranked. IBD-style and our own "
+                       "calculation, not MarketSurge's number. RS Ret is still the hourly "
+                       "weighted return, so this column is no longer its percentile; read RS "
+                       "Rating and RS Rank as one number."),
+        }
     return {
         "column": "rs_rank", "label": "RS Rank",
         "one_line": "Price performance rank against the whole universe, 1-99.",
@@ -276,8 +304,30 @@ def _rs_params() -> dict:
         "agree": _rsc.AGREE_WINDOW, "dp": _rsc.MANSFIELD_DP,
         "tol": _rs.DEFAULT_PRICE_TOLERANCE_PCT, "red": abs(_rs.DEFAULT_RED_DAY_PCT),
         "terms": _rsw.IBD_TERMS, "components": _rsw.IBD_COMPONENTS,
+        "long_terms": dict(_rsw.IBD_STYLE_COMPONENT_TERMS),
+        "equal_terms": dict(_rsw.EQUAL_WEIGHT_COMPONENT_TERMS),
         "required": _rsw.IBD_REQUIRED_TERM, "max": _rsh.RATING_MAX,
     }
+
+
+def _long_blend_prose(terms) -> str:
+    """The recency weighting of a long component rank in words, READ FROM
+    `rs_weighted_return.IBD_STYLE_COMPONENT_TERMS` (one row of it): "the close
+    over the close 63 sessions earlier (weight 2) and 126 sessions earlier (weight 1)"."""
+    parts = [f"{n} sessions earlier (weight {w})" for n, w in terms]
+    if len(parts) == 1:
+        return "the close over the close " + parts[0]
+    return "the close over the close " + ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
+def _equal_blend_prose(terms) -> str:
+    """The equal weighting of the 3M component rank in words, READ FROM
+    `rs_weighted_return.EQUAL_WEIGHT_COMPONENT_TERMS` (its row): "the close over the
+    close 21, 42 and 63 sessions earlier"."""
+    bars = sorted(n for n, _w in terms)
+    parts = [str(n) for n in bars]
+    joined = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+    return f"the close over the close {joined} sessions earlier"
 
 
 def _ibd_formula_prose(p: dict) -> str:
@@ -293,6 +343,13 @@ _RS_BAR_NOTE = ("Daily bars only, measured at the last completed session, from t
                 "`relative_strength` functions the chart's UCT RS line draws, so a scan and a "
                 "chart dot never disagree. Blank, never 0, when the window is short, SPY has no "
                 "bar at the row's date, or a hole sits inside the lookback.")
+#: Who the nightly rating is ranked against (2026-11-12, owner: "everything"): every stock
+#: holding a recent daily price, ETFs excluded (about 6,000 names), NOT the 3,418-name cap
+#: universe the hourly RS Rank still ranks. Warrants, rights, units and thin names stay in,
+#: as they do in Deepvue's rank: against 61 of its readings this population sits 0.1
+#: points from it on average, the cap universe sat 5 to 8 points below.
+_RATED_POPULATION = "every stock with a recent daily price, ETFs excluded"
+
 _RS_RATING_NOTE = ("Written by the 04:15 ET rating job AFTER the 03:00 ET screener build and "
                    "read by the NEXT build, so the row carries the rating as of the session "
                    "before its bars date. Blank when the job has not rated the name: a dark "
@@ -385,6 +442,683 @@ def _rs_phase3_methods() -> list:
                     f"tool's VARS can differ. Strong and weak describe the past against SPY, not "
                     f"a forecast.")},
     ]
+
+
+#: RS Exit Warnings (2026-11-13): what every entry says about where the warning comes from.
+_RS_EXIT_NOTE = ("Mike Webster's method, our reading of it: the same rules and the same "
+                 "`relative_strength` functions the chart's UCT RS Exit Warnings draw, on daily "
+                 "bars against SPY, closed bars only. A warning is a prompt to review the "
+                 "position, not an order to sell. " + _RS_BAR_NOTE)
+
+
+def _rs_exit_params() -> dict:
+    from api.services import relative_strength as _rs           # noqa: PLC0415
+    from api.services.screener import rs_columns as _rsc        # noqa: PLC0415
+    return {"fast": _rsc.EXIT_FAST, "slow": _rsc.EXIT_SLOW, "min": _rsc.EXIT_MIN_BARS,
+            "names": tuple(_rsc.EXIT_NAMES),
+            "worst_first": tuple(_rs.RS_EXIT_LABELS[k] for k in _rs.RS_EXIT_SEVERITY)}
+
+
+def _rs_exit_methods() -> list:
+    """The five RS Exit Warning columns (`rs_columns.EXIT_COLUMNS`), every number and
+    name read from the writer so the page cannot drift from it."""
+    e = _rs_exit_params()
+    quick, sand, dead = e["names"]
+    f, sl = e["fast"], e["slow"]
+    age = "sessions, 0 = the last session"
+    rules = (f"{quick}: the RS line closes below its {f}-session simple average after "
+             f"closing at or above it. {sand}: later in the same dip (before the RS line closes "
+             f"back at or above its {f}-session average), the RS line closes below its value on "
+             f"the {quick} session; once per dip. {dead}: the RS line closes below its "
+             f"{sl}-session simple average after closing at or above it; it needs no {quick} "
+             f"first. The averages are simple averages of the RS line itself, not of price.")
+    return [
+        {"column": "rs_exit_last", "label": "RS Exit Warning (latest)",
+         "one_line": "The newest of Mike Webster's three RS-line exit warnings the stock has flashed.",
+         "scale": " | ".join(e["names"]),
+         "how": (f"{rules} This column names the newest warning in the window; when two fire on "
+                 f"the same session the worse one is named (worst first: "
+                 f"{', '.join(e['worst_first'])}). Blank when none has fired, or until {e['min']} "
+                 f"sessions exist. " + _RS_EXIT_NOTE),
+         "caveat": ("The newest warning hides an older one: a Grateful Dead Break yesterday is "
+                    "named even if a Quicksand came three sessions ago. Screen a single warning "
+                    "with its own age column.")},
+        {"column": "rs_exit_bars_ago", "label": "RS Exit Warning Age (sessions)",
+         "one_line": "Sessions since the newest RS-line exit warning, whichever it was.",
+         "scale": age,
+         "how": (f"0 on the session the newest Quick Break, Quicksand or Grateful Dead Break "
+                 f"fired, one more on every session after; blank when none has fired or until "
+                 f"{e['min']} sessions exist. \"Any exit warning in the last 10 sessions\" is "
+                 f"this column from 0 to 9. " + _RS_EXIT_NOTE),
+         "caveat": ("The count keeps running after the RS line recovers above its averages, so "
+                    "an old warning the line has since repaired still carries an age.")},
+        {"column": "rs_quick_break_bars_ago", "label": "Quick Break Age (sessions)",
+         "one_line": f"Sessions since the RS line last broke below its {f}-day average.",
+         "scale": age,
+         "how": (f"0 on the session of the last {quick}, one more on every session after; "
+                 f"blank when none has fired or until {e['min']} sessions exist. {rules} "
+                 + _RS_EXIT_NOTE),
+         "caveat": "The first and mildest warning; many are repaired within days."},
+        {"column": "rs_quicksand_bars_ago", "label": "Quicksand Age (sessions)",
+         "one_line": "Sessions since the RS line last undercut its own Quick Break level.",
+         "scale": age,
+         "how": (f"0 on the session of the last {sand}, one more on every session after; blank "
+                 f"when none has fired or until {e['min']} sessions exist. \"{sand} in the last "
+                 f"5 sessions\" is this column from 0 to 4. {rules} " + _RS_EXIT_NOTE),
+         "caveat": (f"A {sand} needs a {quick} before it in the same dip; a dip that began "
+                    f"before the window or across a missing benchmark bar has none to measure "
+                    f"from, so a warning can be missed, never invented.")},
+        {"column": "rs_dead_break_bars_ago", "label": "Grateful Dead Break Age (sessions)",
+         "one_line": f"Sessions since the RS line last broke below its {sl}-day average.",
+         "scale": age,
+         "how": (f"0 on the session of the last {dead}, one more on every session after; blank "
+                 f"when none has fired or until {e['min']} sessions exist. {rules} "
+                 + _RS_EXIT_NOTE),
+         "caveat": "The most serious of the three, and still a warning about the past, not a forecast."},
+    ]
+
+
+#: RS screens (unit U1, 2026-11-14): what every entry says about when it fills.
+_RS_SCREENS_NOTE = ("Empty until the RS screens are switched on: only then does a pass after "
+                    "each screener build, and again after the 04:15 ET rating job, fill this "
+                    "column, and until then every row is blank and the screener does not offer "
+                    "the control.")
+
+
+#: RS screens (unit U4): the same statement for the thirteen columns the nightly
+#: build itself writes (`snapshot_builder.build_row`), not the pass.
+_RS_SCREENS_BUILD_NOTE = ("Empty until the RS screens are switched on: only then does the nightly "
+                          "screener build fill this column, and until then every row is blank and "
+                          "the screener does not offer the control.")
+
+
+def _money_words(v: float) -> str:
+    """`20000000.0` -> `$20M`, `10.0` -> `$10`: a floor read from its constant, in words."""
+    v = float(v)
+    if v >= 1_000_000:
+        return f"${v / 1_000_000:g}M"
+    return f"${v:g}"
+
+
+def _rs_screens_params() -> dict:
+    from api.services.screener import rs_post_pass as _pp       # noqa: PLC0415
+    return {"price": _money_words(_pp.LIQUID_FLOOR["price_min"]),
+            "dollar_vol": _money_words(_pp.LIQUID_FLOOR["dollar_vol_30d_min"]),
+            "prev": _pp.PREV_SESSIONS, "keep": _pp.POS_KEEP_SESSIONS,
+            "periods": tuple(col for col, _v in _pp.PERIOD_PLACES)}
+
+
+def _rs_screens_methods() -> list:
+    """The RS screens columns: the ten the rating pass writes
+    (`rs_post_pass.OWNED_COLUMNS`) and the thirteen the build writes
+    (`rs_columns.SCREEN_COLUMNS`, `snapshot_builder.RS_SETUP_COLUMNS`). The floor, the
+    windows and every threshold are read from the writer so the page cannot drift."""
+    s = _rs_screens_params()
+    liquid = (f"not a fund, price {s['price']} or more, {s['dollar_vol']} or more traded a day "
+              f"on a 30-day average")
+    floor = f"{liquid}, and a full year of price history"
+    place = "a place, 1 = the strongest"
+    ties = ("Stocks with the same value are ordered by their 3-month value, then by dollar "
+            "volume, then alphabetically, so no two share a place.")
+    not_forecast = ("A place is a rank of past return, not a forecast, and it can change when "
+                    "other stocks move even if this one does not.")
+    out = [
+        {"column": "rs_rating_session", "label": "Ratings as of",
+         "one_line": "The market session the RS Rating columns on this row describe.",
+         "scale": "a date",
+         "how": ("The rating job scores each completed session at 04:15 ET the next morning. "
+                 "Once that session is stored, the RS Rating, its 5- and 20-session change and "
+                 "the 1, 3, 6, 9 and 12-month ranks on every row are refreshed to it, and this "
+                 "column shows its date. Blank when the stock has no rating for that session, "
+                 "and between the 03:00 ET build and the rating job on a row whose ratings "
+                 "cannot be matched to a stored session. " + _RS_SCREENS_NOTE),
+         "caveat": ("It dates the rating columns only. Price and the columns computed from "
+                    "daily bars carry the row's own bar date.")},
+        {"column": "rs_rating_score", "label": "RS Rating score",
+         "one_line": "The unrounded weighted return the RS Rating is a rank of.",
+         "scale": "a ratio, 1.00 = no change over the weighted year",
+         "how": ("The same weighted close ratio the IBD-style RS Rating ranks, kept to six "
+                 "decimal places for the session named in Ratings as of. Dozens of stocks share "
+                 "each rating from 1 to 99; this is the number that tells them apart. Blank "
+                 "when the stock has no rating. " + _RS_SCREENS_NOTE),
+         "caveat": ("It orders stocks, it is not a return to quote: the windows overlap and "
+                    "the newest quarter counts double. A higher score is a stronger past year, "
+                    "not a forecast.")},
+        {"column": "rs_rating_pos", "label": "RS Rating place",
+         "one_line": ("Where this stock ranks by RS Rating among liquid stocks: 1 is the "
+                      "strongest."),
+         "scale": place,
+         "how": (f"Liquid stocks ({floor}) are ordered by the RS Rating score, highest first. "
+                 f"{ties} Blank for a stock that is off that list or has no rating for the "
+                 f"session. " + _RS_SCREENS_NOTE),
+         "caveat": not_forecast},
+        {"column": "rs_rating_pos_n", "label": "Stocks ranked",
+         "one_line": "How many liquid stocks the RS Rating place is out of.",
+         "scale": "a count of stocks",
+         "how": (f"The number of stocks ranked for the session: {floor}. The same number on "
+                 f"every ranked row, so a place reads as \"14 of 1,931\". Blank on a row with "
+                 f"no place. " + _RS_SCREENS_NOTE),
+         "caveat": ("It changes a little each session as stocks cross the price and volume "
+                    "floors, so the same place can mean a slightly different share of the "
+                    "list.")},
+        {"column": "rs_rating_pos_prev20", "label": "Place a month ago",
+         "one_line": (f"The stock's RS Rating place {s['prev']} stored sessions earlier."),
+         "scale": place,
+         "how": (f"Each session's places are kept ({s['keep']} sessions of them), and this "
+                 f"column reads the place stored {s['prev']} sessions before the one named in "
+                 f"Ratings as of. Blank until {s['prev']} earlier sessions are stored, and for "
+                 f"a stock that was off the liquid list that day or is off it now. "
+                 + _RS_SCREENS_NOTE),
+         "caveat": ("The list itself was a different size that day, so compare places with "
+                    "care near the bottom. A climb is partly stocks bouncing back, so it is a "
+                    "list to study, not a signal.")},
+    ]
+    words = {"rs_pos_1m": ("1M place", "1-month", "1M Return Rank"),
+             "rs_pos_3m": ("3M place", "3-month", "3M Return Rank"),
+             "rs_pos_6m": ("6M place", "6-month", "6M Return Rank"),
+             "rs_pos_12m": ("12M place", "12-month", "12M Return Rank")}
+    for col in s["periods"]:
+        label, span, rank = words[col]
+        out.append({
+            "column": col, "label": label,
+            "one_line": (f"Where this stock ranks on its {span} return among liquid stocks: "
+                         f"1 is the strongest."),
+            "scale": place,
+            "how": (f"Liquid stocks ({liquid}) are ordered by the value the {rank} is taken "
+                    f"over, highest first. Unlike the RS Rating place this list does not need a "
+                    f"full year of price history, so a newer listing is ranked here and the "
+                    f"list can be longer than Stocks ranked. {ties} Blank for a stock off that "
+                    f"list, for one with no value for the window, and for a session stored "
+                    f"before these values were kept. " + _RS_SCREENS_NOTE),
+            "caveat": ("A single-window place reacts faster and flips more often than the "
+                       "overall one. " + not_forecast)})
+    out.extend(_rs_screens_build_methods(s))
+    return out
+
+
+def _rs_screens_build_methods(s: dict) -> list:
+    """The rating a month ago, and the thirteen columns the build writes (unit U4)."""
+    from api.services.screener import filters as _f                 # noqa: PLC0415
+    from api.services.screener import rs_columns as _rc             # noqa: PLC0415
+    from api.services.screener import rs_setup as _st               # noqa: PLC0415
+    from api.services.screener import snapshot_builder as _sb       # noqa: PLC0415
+    p = _rs_params()
+    lb, red, tol = p["lookback"], p["red"], p["tol"]
+    count_win, nhbp_win = _rc.SCREEN_NH_COUNT_WINDOW, _rc.SCREEN_NHBP_WINDOW
+    prev = s["prev"]
+    rules = _rs_setup_rules()
+    note, pass_note = _RS_SCREENS_BUILD_NOTE, _RS_SCREENS_NOTE
+    flag = "0 or 1 (1 = yes)"
+    age = "sessions, 0 = the last session"
+    high = "52-week high"
+    contradicts = "for a stock whose price history contradicts itself"
+
+    def label(key):
+        return _f.FILTERS[key]["label"]
+
+    out = [
+        {"column": "rs_rating_prev20",
+         "one_line": f"The stock's RS Rating {prev} stored sessions earlier.",
+         "scale": f"1-{p['max']}, higher is stronger",
+         "how": (f"The RS Rating for the session named in Ratings as of, minus its change over "
+                 f"{prev} stored sessions: the rating that was stored {prev} sessions before. "
+                 f"Blank until {prev + 1} sessions of ratings are stored, and for a stock with no "
+                 f"rating on either day. " + pass_note),
+         "caveat": ("A rating that climbed means the stock passed other stocks, not that its "
+                    "price rose. A climb is partly stocks bouncing back.")},
+        {"column": "rs_nh_count_20",
+         "one_line": (f"On how many of the last {count_win} sessions the RS line against SPY "
+                      f"closed at a {high}."),
+         "scale": f"a count, 0 to {count_win}",
+         "how": (f"Counts the sessions, among the last {count_win}, on which the RS line (the "
+                 f"close divided by SPY's close) closed above its highest close of the prior {lb} "
+                 f"sessions, the same RS new high the chart's dot marks. Blank until the stock "
+                 f"has the {lb + 1} daily bars the first such test needs, and when SPY has no bar "
+                 f"for the newest session. " + note),
+         "caveat": ("A count of past sessions. Several highs in a month say the stock kept "
+                    "outpacing the index. They do not say it will.")},
+        {"column": "rs_nh_quiet",
+         "one_line": f"Sessions between the newest RS line {high} and the one before it.",
+         "scale": "sessions, 1 = highs on back-to-back sessions",
+         "how": (f"Finds the newest session the RS line closed at a {high} and counts back to "
+                 f"the one before it. A large number means the newest high was the first in a "
+                 f"long while. Blank when the bars read hold fewer than two such highs, and when "
+                 f"a session in between could not be judged. " + note),
+         "caveat": ("It does not say how long ago the newest high was. Read it beside RS New "
+                    "High Age.")},
+        {"column": "rs_nh_red_bars_ago",
+         "one_line": (f"Sessions since the RS line last closed at a {high} on a market down "
+                      f"day."),
+         "scale": age,
+         "how": (f"A market down day is a session SPY closed down {red:g}% or more. This is the "
+                 f"age of the newest session that was both an RS line {high} and a market down "
+                 f"day, 0 on that session. Blank when the bars read hold no such session. "
+                 + note),
+         "caveat": ("Holding up on a weak day is a house reading with no published test, and "
+                    "one session is one observation.")},
+        {"column": "rs_nhbp_age",
+         "one_line": f"Sessions since an RS line {high} that price has not yet followed.",
+         "scale": age,
+         "how": (f"The age of the newest RS line {high} since which price has not closed within "
+                 f"{tol:g}% of its own {lb}-session closing high, 0 on the session of that RS "
+                 f"high. Blank once price reaches its high, when no such RS high came in the "
+                 f"last {nhbp_win} sessions, and when a session in between could not be judged. "
+                 + note),
+         "caveat": ("The RS line leading price is a trader's rule with no published test. Price "
+                    "may never follow.")},
+        {"column": "rs_nh_span",
+         "one_line": f"On a session the RS line is at a {high}: how long a high it is.",
+         "scale": "sessions",
+         "how": (f"Only when the newest session is an RS line {high}: the number of sessions "
+                 f"back to the nearest earlier close of the RS line at or above today's, over "
+                 f"the {_sb.RS_WINDOW_BARS} sessions the build reads. When none is that high it "
+                 f"equals the number of bars read, and then means at least that long. Blank on "
+                 f"every other session. " + note),
+         "caveat": "It is capped by the bars read, so a very long high reads as the cap."},
+        {"column": "px_below_high_pct",
+         "one_line": (f"The last close against the stock's highest close of the past {lb} "
+                      f"sessions."),
+         "scale": "a percent, 0 at the high and negative below it",
+         "how": (f"(close / highest close of the last {lb} sessions, today included, minus 1) x "
+                 f"100, to {_rc.PX_BELOW_HIGH_DP} decimals. Closing prices only, so it can differ "
+                 f"from Dist from 52W High. Blank until {lb} closes exist, when a close in the "
+                 f"window is missing, and {contradicts}. " + note),
+         "caveat": ("Closeness to a high is a description. A stock 3% under its high can as "
+                    "easily be rolling over as setting up.")},
+        {"column": "rs_setup",
+         "one_line": "Where price sits against its own averages, as one of six labels.",
+         "scale": "; ".join(x["label"] for x in rules["labels"]),
+         "how": (rules["order"] + " " + rules["atr"] + " "
+                 + " ".join(f"{x['label']}: {x['rule']}" for x in rules["labels"])
+                 + f" Blank when a measure the rules need cannot be computed, and {contradicts}; "
+                 f"a blank is never replaced by the next label down. " + note),
+         "caveat": ("A label describes the chart at the last close. It is not a recommendation, "
+                    "and the house thresholds in it have no published test.")},
+        {"column": "rs_tight",
+         "one_line": "The Setup label's second tag: the recent closes sit in a tight range.",
+         "scale": flag,
+         "how": ("A copy of the Tight Consolidation column as the Setup label read it on the "
+                 f"same build. Blank when that column is blank, and {contradicts}. " + note),
+         "caveat": ("Tight is measured against the stock's own recent closes. It says nothing "
+                    "about direction.")},
+        {"column": "rs_flag",
+         "one_line": "A caution beside the Setup label, the first that applies.",
+         "scale": "; ".join(x["label"] for x in rules["flags"]),
+         "how": (" ".join(f"{x['label']}: {x['rule']}" for x in rules["flags"])
+                 + f" Blank when none applies, and {contradicts}. " + note),
+         "caveat": ("Buyout pending is read from price alone, with no news behind it, so a "
+                    "quiet stock after a large one-day jump can carry it. A flag is a prompt to "
+                    "look at the chart.")},
+        {"column": "rs_near_buy",
+         "one_line": ("Yes when the Setup label is At pivot or a Pullback, or the range is "
+                      "tight, with no caution against it."),
+         "scale": flag,
+         "how": (rules["near"] + " Blank when the stock has no Setup label. " + note),
+         "caveat": ("It describes where price sits against its own averages. It is not a "
+                    "recommendation.")},
+        {"column": "atr_ext_ema21",
+         "one_line": "How many ATRs the last close is above the 21-day EMA.",
+         "scale": "ATRs, negative below the average",
+         "how": ("(close minus the 21-day EMA) divided by the 14-session ATR, to two decimals, "
+                 "over the same 400 sessions the other averages read. Blank until both exist, "
+                 f"when the stock has no daily range to measure, and {contradicts}. " + note),
+         "caveat": (f"The Setup label reads Extended at {_st.EXTENDED_ATR_EMA21:g} or more, a "
+                    f"house threshold with no published test.")},
+    ]
+    for col, n, speed in (("pct_vs_ema8", 8, "reacts within a few sessions, so this number "
+                                             "moves quickly"),
+                          ("pct_vs_ema21", 21, "is the slower of the two averages the Setup "
+                                               "label reads a pullback against")):
+        out.append({
+            "column": col,
+            "one_line": f"The last close against the {n}-day EMA, in percent.",
+            "scale": "a percent, positive above the average",
+            "how": (f"(close minus the {n}-day EMA) divided by the EMA, x 100, to two decimals. "
+                    f"Blank until the average exists, and {contradicts}. " + note),
+            "caveat": f"The {n}-day EMA {speed}."})
+    out.extend(_rs_weekly_methods(s, note))
+    out.extend(_rs_leaders_methods(pass_note))
+    for m in out:
+        m["label"] = label(m["column"])
+    return out
+
+
+def _rs_weekly_words() -> dict:
+    """The weekly RS new high's numbers, read from the writer (`rs_columns`): one copy
+    for the two column methods and for the screens' page."""
+    from api.services.screener import rs_columns as _rc             # noqa: PLC0415
+    return {"weeks": _rc.WEEKLY_LOOKBACK, "need": _rc.WEEKLY_MIN_WEEKS,
+            "below": f"{_rc.WEEKLY_BELOW_PCT:g}%"}
+
+
+def _rs_weekly_methods(s: dict, note: str) -> list:
+    """The two weekly RS new high columns (unit U12), which the build's
+    `bars_rs_weekly` step writes for rows on the liquid floor."""
+    w = _rs_weekly_words()
+    flag = "0 or 1 (1 = yes)"
+    weekly = (f"A week is its last session's close, and the weekly RS line is that close "
+              f"divided by SPY's close for the same week. Only finished weeks count: the "
+              f"current week joins once its last session has closed, so the answer changes "
+              f"once a week.")
+    blank = (f"Blank until the stock has {w['need']} finished weeks of bars, for a stock under "
+             f"a price of {s['price']} or under {s['dollar_vol']} traded a day, for a fund, "
+             f"and for a stock whose price history contradicts itself.")
+    return [
+        {"column": "rs_nh_weekly",
+         "one_line": (f"Yes when the weekly RS line against SPY closed the last finished week "
+                      f"at a {w['weeks']}-week high."),
+         "scale": flag,
+         "how": (f"{weekly} Yes when the last finished week's value is at or above the highest "
+                 f"of the {w['weeks']} weeks before it. {blank} " + note),
+         "caveat": ("The weekly reading is slower and steadier than the daily one. It is "
+                    "still a description of the past year, not a forecast.")},
+        {"column": "rs_nhbp_weekly",
+         "one_line": (f"Yes when the weekly RS line is at a {w['weeks']}-week high while the "
+                      f"weekly close is still more than {w['below']} below its own."),
+         "scale": flag,
+         "how": (f"{weekly} Yes when the last finished week's value is at or above the highest "
+                 f"of the {w['weeks']} weeks before it and that week's close is more than "
+                 f"{w['below']} below the highest weekly close of the same {w['weeks']} weeks. "
+                 f"{blank} " + note),
+         "caveat": ("The RS line leading price is a trader's rule with no published test. "
+                    "Price may never follow.")},
+    ]
+
+
+def _pct_words(fraction: float) -> str:
+    """`0.05` -> `5%`: a threshold stored as a fraction, in words."""
+    return f"{fraction * 100:g}%"
+
+
+def rs_screens_section() -> dict:
+    """The five Relative Strength screens in plain words (RS screens unit U4): each
+    screen's rule, the Setup label's rules with their numbers and where each number
+    comes from, the liquidity floor, what "Ratings as of" means, and the sentence that
+    our RS Rating is our own calculation.
+
+    ⛔ EVERY NUMBER IS READ FROM THE CODE THAT APPLIES IT (`rs_screens`' windows,
+    `rs_setup`'s thresholds, `rs_post_pass.LIQUID_FLOOR`, `technicals`' windows), so
+    this page cannot state a rule the screens do not run.
+    ⛔ NO SUCCESS RATE IS CLAIMED for any screen or label: none has been measured
+    (plan section 12), and the Evidence subsection is where a measured number prints.
+    Served by `all_methods()` only while RS_SCREENS_ENABLED is on."""
+    from api.services.screener import rs_screens as _sc            # noqa: PLC0415
+    s = _rs_screens_params()
+    week, month, down = _sc.WEEK_AGE + 1, _sc.MONTH_AGE + 1, _sc.DOWN_DAY_AGE + 1
+    near, far = -_sc.BELOW_HIGH_NEAR, -_sc.BELOW_HIGH_FAR
+    cap = _money_words(_sc.LEADERS_MIN_MARKET_CAP)
+    screens = [
+        {"id": "starter_rs_top_rating", "name": "Top RS Rating",
+         "rule": (
+             "Every stock on the liquidity floor that holds an RS Rating place, strongest "
+             "first. The order is the unrounded score behind the rating, so stocks that "
+             "share a rating are told apart and no two share a place. The overall list needs "
+             "a full year of price history. The 1, 3, 6 and 12-month lists need only a value "
+             "for that window, so a newer listing appears on the shorter lists."),
+         "controls": (
+             f"Rank by chooses the list: overall, one window, or Rising fastest (the largest "
+             f"gain in RS Rating over 20 stored sessions, among stocks above their 50-day "
+             f"line). Show narrows it to RS Rating {_sc.TOP_RATING_LINE} and up, or to stocks "
+             f"at {_sc.TOP_RATING_LINE} or higher now that were under {_sc.TOP_RATING_LINE} "
+             f"20 stored sessions ago."),
+         "caveat": (
+             "A rating is a rank of past return, not a forecast. Rising fastest is partly "
+             "stocks bouncing back, so read it as a list to study.")},
+        {"id": "starter_rs_new_high", "name": "RS New Highs",
+         "rule": (
+             f"The RS line (the stock's price divided by SPY's, daily closes) closed above "
+             f"its highest close of the prior {_pp_lookback()} sessions within the last "
+             f"{week} sessions, and the stock closed above its 200-day average. Newest first; "
+             f"stocks whose RS high came on the same session are ordered by RS Rating score."),
+         "controls": (
+             f"When: today, the last {week} sessions, the last {month}, or Weekly, which "
+             f"reads finished weeks in place of sessions. Min RS Rating. "
+             f"Market: Down days only keeps a stock whose RS line made that high within the "
+             f"last {down} sessions on a day SPY closed down {_red_day_words()} or more."),
+         "caveat": (
+             "An RS line can rise while the stock falls, when SPY falls faster. The market "
+             "down day reading is a house method with no published test.")},
+        {"id": "starter_rs_nh_before_price", "name": "RS New High Before Price",
+         "rule": (
+             f"The RS line made a 52-week high within the last {week} sessions and price has "
+             f"not made its own 52-week closing high since, the stock closed {near}% to "
+             f"{far}% below that high, and above its 200-day average. Closest to its high "
+             f"first. A stock leaves the list once price makes its high."),
+         "controls": (
+             f"When: today, the last {week} sessions, the last {month}, or Weekly, which "
+             f"reads finished weeks in place of sessions. Below its high by: "
+             f"at least {', '.join(f'{n}%' for n in _sc.BELOW_HIGH_CHOICES[:-1])} or "
+             f"{_sc.BELOW_HIGH_CHOICES[-1]}%. Min RS Rating."),
+         "caveat": (
+             "The RS line leading price is a trader's rule with no published test. An empty "
+             "list is normal in a weak market.")},
+        {"id": "starter_rs_leaders", "name": "UCT RS Leaders",
+         "rule": (
+             f"Stocks on the liquidity floor with an average daily range of "
+             f"{_sc.LEADERS_MIN_ADR_PCT}% or more, a market value of {cap} or more, RS Rating "
+             f"{_sc.LEADERS_MIN_RATING} or higher, the RS line above its 21-day average, a "
+             f"close above a rising 200-day average, and price within "
+             f"{-_sc.LEADERS_MAX_BELOW_HIGH}% of its 52-week high. "
+             + _rs_leaders_list_words()),
+         "controls": (
+             "Show: all, only stocks near a buy point, or everything except Extended and "
+             "Below its 50-day line. Min RS Rating: "
+             f"{', '.join(str(n) for n in _sc.LEADERS_RATING_CHOICES)}."),
+         "caveat": (
+             f"RS Rating {_sc.LEADERS_MIN_RATING} is a convention, not a tested threshold. "
+             "The list says which stocks to study, and the Setup label says where each one "
+             "sits against its own averages.")},
+        {"id": "starter_rs_exit_warning_5", "name": "RS exit warnings",
+         "rule": (
+             f"The RS line against SPY flashed a Quick Break, a Quicksand or a Grateful Dead "
+             f"Break (Mike Webster's warnings, our reading of them) within the last "
+             f"{_sc.EXIT_AGE + 1} sessions. Newest first."),
+         "controls": "Type keeps one kind of warning.",
+         "caveat": "A warning is a prompt to review a position, not an order to sell."},
+    ]
+    # The setup flags the list screens leave out (unit U6): said on each screen that
+    # carries the clause, from the clause's own values and the flag's own words.
+    left_out = _left_out_words()
+    for screen in screens:
+        if left_out and screen["id"] in _sc.NO_BUYOUT_SCREENS:
+            screen["rule"] = f"{screen['rule']} {left_out}"
+    return {
+        "label": "Relative Strength screens",
+        "screens": screens,
+        "setup": _rs_setup_rules(),
+        "floor": (f"Every screen here is stocks only, no funds, with a price of {s['price']} "
+                  f"or more and {s['dollar_vol']} or more traded a day on a 30-day average. "
+                  f"The benchmark is SPY, on daily closing prices."),
+        # Unit U8: the row's earnings tag. One sentence, because a missing tag reads
+        # as "no report soon" unless the page says it does not mean that.
+        "earnings": (
+            f"A row says when the stock next reports earnings only when that date is known "
+            f"to us and is {_sc.EARNINGS_TAG_DAYS} days away or less, so a row without the "
+            f"tag may still have a report coming."),
+        # Unit U12: the weekly reading behind the "Weekly RS high" tag and the Weekly
+        # choice of When. One sentence, every number the writer's.
+        "weekly": _rs_weekly_sentence(),
+        "ratings_as_of": (
+            "Ratings as of names the market session the RS Rating numbers on a row describe. "
+            "The rating job scores each completed session at 04:15 ET the next morning. "
+            "Between the 03:00 ET screener build and that job the screens keep the previous "
+            "session's ratings and places, and this date says so."),
+        "rating_note": ("Our RS Rating is our own calculation. It follows IBD's published "
+                        "method and can differ from IBD's number by a few points."),
+        "honesty": ("Every screen and label here describes the past. Each one says which "
+                    "stocks to study, not what will happen next, and none of them is a "
+                    "forecast or a recommendation."),
+    }
+
+
+def _ordinal(n: int) -> str:
+    """`65` -> `65th`, `51` -> `51st`: a rank, in words a member reads."""
+    n = int(n)
+    if 10 <= n % 100 <= 20:
+        return f"{n}th"
+    return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }"
+
+
+def _rs_leaders_list_words() -> str:
+    """How UCT RS Leaders keeps its list (unit U12), every number read from
+    `rs_screens`: one copy for the screen's rule and for the two column methods."""
+    from api.services.screener import rs_screens as _sc            # noqa: PLC0415
+    top, hold = _sc.LEADERS_TOP_N, _sc.LEADERS_HOLD_RANK
+    return (f"A stock joins the list when it ranks in the top {top} of these by RS Rating score, "
+            f"and stays until it falls past {_ordinal(hold)} or stops passing "
+            f"a rule, so a stock at the edge does not come and go from one day to the next. The "
+            f"list therefore holds {top} to {hold} stocks, strongest first, and is decided once a session.")
+
+
+def _rs_leaders_methods(note: str) -> list:
+    """The two UCT RS Leaders list columns (unit U12), which `rs_leaders_list.run`
+    writes inside the rating pass."""
+    rule = _rs_leaders_list_words()
+    return [
+        {"column": "rs_leaders_member",
+         "one_line": "Yes when the stock is on the UCT RS Leaders list today.",
+         "scale": "0 or 1 (1 = yes)",
+         "how": (f"The stocks that pass every rule of the UCT RS Leaders screen are ordered by RS "
+                 f"Rating score, highest first. {rule} Blank on a row the build has just rewritten "
+                 f"until the pass runs, and when the list could not be computed. " + note),
+         "caveat": ("The list says which stocks to study. A place on it is a rank of past "
+                    "return, not a forecast.")},
+        {"column": "rs_leaders_days",
+         "one_line": "How many sessions in a row the stock has been on UCT RS Leaders.",
+         "scale": "sessions, 1 = joined today",
+         "how": ("Counts back through the stored record of the list, one session at a time, and "
+                 "stops at the first session the stock was not on it or where the record ends. "
+                 "Today counts. Blank for a stock that is not on the list. " + note),
+         "caveat": ("A long run says the stock kept its place among the strongest. It does not "
+                    "say the run will go on.")},
+    ]
+
+
+def _rs_weekly_sentence() -> str:
+    """The method page's one sentence on the weekly reading (unit U12)."""
+    w = _rs_weekly_words()
+    return (f"The Weekly RS high tag and the Weekly choice of When read weekly closes in "
+            f"place of daily ones: the stock's weekly RS line finished its last full week at "
+            f"or above its highest value of the {w['weeks']} weeks before, and on RS New High "
+            f"Before Price the Weekly choice also needs that week's close more than "
+            f"{w['below']} below its highest weekly close of those {w['weeks']} weeks.")
+
+
+def _left_out_words() -> str:
+    """"Stocks flagged Buyout pending are left out." The flags are `rs_screens.
+    EXCLUDED_FLAGS` (the values of the screens' own exclude clause) and the words are
+    the Setup flag's (`rs_setup.SETUP_LABELS`), so the sentence follows the clause.
+    Empty when the screens exclude nothing."""
+    from api.services.screener import rs_screens as _sc            # noqa: PLC0415
+    from api.services.screener import rs_setup as _st              # noqa: PLC0415
+    names = [_st.SETUP_LABELS[k] for k in _sc.EXCLUDED_FLAGS]
+    if not names:
+        return ""
+    return f"Stocks flagged {' or '.join(names)} are left out."
+
+
+#: The last sentence of both Pullback rules (unit U7): the label is a description.
+PULLBACK_IS_A_PLACE = "It marks where the stock is, not what to do."
+
+
+def _rs_setup_rules() -> dict:
+    """The Setup label's rules in plain words, every number read from `rs_setup` and
+    `technicals`: one copy for the screens' page and for the `rs_setup`, `rs_flag` and
+    `rs_near_buy` column methods."""
+    from api.services.screener import rs_setup as _st              # noqa: PLC0415
+    from api.services.screener import technicals as _tech          # noqa: PLC0415
+    words = _st.SETUP_LABELS
+    band = f"{_st.PULLBACK_ATR_BAND:g}"
+    depth = f"{_st.PULLBACK_MIN_DEPTH_ATR:g}"
+    zone = _pct_words(_st.IBD_BUY_ZONE)
+    # Unit U7 (2026-11-14, polish from the real screens): the plain sentence leads and
+    # the numbers follow it. "Pullback to the 8-day" can be read as an instruction, so
+    # each of the two rules ends by saying what the label is (`PULLBACK_IS_A_PLACE`).
+    pullback = (
+        f"The stock made a {_tech.HIGH20_WINDOW}-session high within the last "
+        f"{_st.PULLBACK_HIGH_MAX_AGE} sessions, has come off it, and is now trading at its "
+        f"rising {{n}}-day average. In numbers: the high is a closing high, the close is at "
+        f"least {depth} ATR under that high, and today its low came within "
+        f"{band} ATR of a rising {{n}}-day EMA while its close is no more than {band} ATR "
+        f"under it. An EMA is rising when it stands above its value "
+        f"{_tech.EMA_RISING_SPAN} sessions earlier.")
+    return {
+        "order": "The first rule that matches names the stock. Tight range is a second tag "
+                 "that can sit beside any of them.",
+        "atr": "ATR is the 14-session average true range, the stock's typical daily move in "
+               "dollars.",
+        "labels": [
+            {"key": "below_50", "label": words["below_50"],
+             "rule": "The close is under the 50-day simple average.",
+             "source": "A definition."},
+            {"key": "extended", "label": words["extended"],
+             "rule": (f"{_st.EXTENDED_ATR_SMA50:g} or more ATRs above the 50-day average, or "
+                      f"{_st.EXTENDED_ATR_EMA21:g} or more ATRs above the 21-day EMA, or more "
+                      f"than {zone} past a base pivot."),
+             "source": (f"The {_st.EXTENDED_ATR_SMA50:g} ATR limit is Jeff Sun's published "
+                        f"rule. {_st.EXTENDED_ATR_EMA21:g} ATRs over the 21-day is a house "
+                        f"threshold with no published test. {zone} past a pivot is the top "
+                        f"of IBD's published range.")},
+            {"key": "at_pivot", "label": words["at_pivot"],
+             "rule": (f"From {_pct_words(_st.PIVOT_BELOW)} below a base pivot to {zone} above "
+                      f"it. The pivot is the one the Base Structure column names for the "
+                      f"stock on this build."),
+             "source": (f"{zone} above the pivot is IBD's published range. "
+                        f"{_pct_words(_st.PIVOT_BELOW)} below is a house threshold.")},
+            {"key": "pullback_8", "label": words["pullback_8"],
+             "rule": (pullback.format(n=8) + " Named ahead of the 21-day when both hold. "
+                      + PULLBACK_IS_A_PLACE),
+             "source": "The 8-day and 21-day EMAs are the house teaching averages. The "
+                       "half-ATR band is a house threshold with no published test."},
+            {"key": "pullback_21", "label": words["pullback_21"],
+             "rule": pullback.format(n=21) + " " + PULLBACK_IS_A_PLACE,
+             "source": "The same house rule, on the 21-day EMA."},
+            {"key": "uptrend", "label": words["uptrend"],
+             "rule": "None of the above, with the close at or above the 50-day average.",
+             "source": "A definition."},
+        ],
+        "tight": {"label": words["tight"],
+                  "rule": "The Tight Consolidation column reads yes for the stock."},
+        "flags": [
+            {"key": "buyout_pending", "label": words["buyout_pending"],
+             "rule": (f"One session closed {_st.BUYOUT_JUMP_PCT:g}% or more above the prior "
+                      f"close within the last {_st.BUYOUT_WINDOW} sessions, at least "
+                      f"{_st.BUYOUT_MIN_SESSIONS} sessions ago, and every close since has "
+                      f"stayed inside a {_st.BUYOUT_BAND_PCT:g}% range.")},
+            {"key": "one_day_move", "label": words["one_day_move"],
+             "rule": (f"Over the last {_st.ONE_DAY_WINDOW} sessions the stock is up, and one "
+                      f"session's gain was more than half of that rise and at least "
+                      f"{_st.ONE_DAY_MIN_PCT:g}% on its own.")},
+            {"key": "new_issue", "label": words["new_issue"],
+             "rule": f"Fewer than {_st.NEW_ISSUE_BARS} daily bars of price history."},
+        ],
+        "near": ("Near a buy point means At pivot, a Pullback, or a Tight range. It never "
+                 "includes a stock that is Extended, Below its 50-day line, Buyout pending or "
+                 "a One-day move. It describes where price sits against its own averages. It "
+                 "is not a recommendation."),
+        "blank": ("A label is blank when one of the measures it needs cannot be computed, "
+                  "and for a stock whose price history contradicts itself. A blank is never "
+                  "replaced by the next label down."),
+    }
+
+
+def _pp_lookback() -> int:
+    """The RS new-high lookback in sessions (252), from the bar writer."""
+    from api.services.screener import rs_columns as _rc            # noqa: PLC0415
+    return int(_rc.LOOKBACK)
+
+
+def _red_day_words() -> str:
+    """The market down day threshold (SPY down 0.5% or more), from `relative_strength`."""
+    return f"{abs(float(_rs_params()['red'])):g}%"
+
+
+def _rs_exit_note() -> str:
+    e = _rs_exit_params()
+    return (f"The RS Exit Warnings ({', '.join(e['names'])}) are Mike Webster's method, our "
+            f"reading of it, on daily bars against SPY with {e['fast']}- and {e['slow']}-session "
+            f"simple averages of the RS line, the same maths the chart's UCT RS Exit Warnings "
+            f"draw. A warning is a prompt to review the position, not an order to sell.")
 
 
 def _rs_phase3_note() -> str:
@@ -500,28 +1234,30 @@ def _rs_column_methods() -> list:
          "how": (f"1 when the sign of the {agree}-session least-squares slope of the stock's "
                  f"RS line is the same against SPY and against RSP, the equal-weight S&P 500 "
                  f"(both rising or both falling); 0 when they disagree or either slope is "
-                 f"flat; blank until {agree} sessions exist against both. The chart's "
-                 f"sensitivity read has a third leg, the sector ETF, which the nightly build "
-                 f"does not read, so this is a TWO-benchmark test. " + _RS_BAR_NOTE),
+                 f"flat; blank until {agree} sessions exist against both. The nightly build "
+                 f"reads two benchmarks, SPY and RSP, and not the sector ETF, so this is a "
+                 f"TWO-benchmark test. " + _RS_BAR_NOTE),
          "caveat": ("Agreement cuts both ways: two falling slopes agree too. To mean leaders, "
                     "pair it with an RS rank floor or the RS line above its average, as the "
                     "starter does. It answers the denominator question (did the share "
                     "strengthen, or did a few megacaps weaken the index), nothing more.")},
         {"column": "rs_rating_ibd", "label": "RS Rating (IBD-style)",
-         "one_line": "An IBD-style 1-99 price-performance rating, our own calculation.",
+         "one_line": "An IBD-style 1-99 price-performance rating, our own calculation. "
+                     "Once RS Rank is unified with it, RS Rating is the RS column: the "
+                     "same number, so this column leaves the picker (saved screens keep it).",
          "scale": rating_scale,
          "how": (f"Over the stock's daily closes: {_ibd_formula_prose(p)}. The score is "
-                 f"ranked across the cap universe excluding ETFs, as a percentile with ties "
+                 f"ranked across {_RATED_POPULATION}, as a percentile with ties "
                  f"sharing the mean position, and the rating is max(1, ceil(percentile x "
                  f"{top})). ETFs receive a rating by interpolating their score into the stock "
                  f"distribution, so SPY or a sector fund can carry a number on the same "
                  f"scale. " + _RS_RATING_NOTE),
          "caveat": (f"IBD-style, our own calculation, not MarketSurge's number: the weighting "
                     f"is the published one, the universe and the data are ours. The "
-                    f"denominator is the cap universe RS Rank already ranks over, minus ETFs, "
-                    f"which is neither the whole market nor every name the screener builds, "
-                    f"so the two ratings agree in population and a name outside it carries "
-                    f"neither. Measured difference to MarketSurge: "
+                    f"population is every stock we hold a recent daily price for, minus ETFs "
+                    f"(about 6,000 names, warrants, rights, units and thin stocks included, "
+                    f"as in Deepvue's rank), not only the liquid names the hourly RS Rank "
+                    f"still ranks. Measured difference to MarketSurge: "
                     f"{RS_RATING_VS_MARKETSURGE or 'not yet measured'}; no figure is claimed "
                     f"until it is.")},
         {"column": "rs_rating_chg_5", "label": "RS Rating Change (5 sessions)",
@@ -549,19 +1285,79 @@ def _rs_column_methods() -> list:
              "m12": ("rs_rating_12m", "12M Return Rank", "twelve-month")}
     for key, bars in p["components"]:
         column, label, words = names[key]
+        blend = p["long_terms"].get(key)
+        equal = p["equal_terms"].get(key)
+        if equal is not None:
+            out.append({
+                "column": column, "label": label,
+                "one_line": f"Percentile rank of the equal-weighted average of the one-, two- and "
+                            f"three-month returns, 1-{top}.",
+                "scale": rating_scale,
+                "how": (f"An equally weighted average of three close ratios, each counting once: "
+                        f"{_equal_blend_prose(equal)}, ranked across the same stocks as the "
+                        f"IBD-style rating ({_RATED_POPULATION}) and scored the same way, max(1, ceil(percentile "
+                        f"x {top})). A window the history cannot reach leaves no value: without the "
+                        f"{max(n for n, _w in equal)}-session term there is no rank. " + _RS_RATING_NOTE),
+                "caveat": ("Not the plain three-month return: until 2026-11-12 this rank was taken over "
+                           "the plain 63-session return, so a chart or saved screen from before then "
+                           "reads on a different basis. A stock that rose early in the quarter and has "
+                           "been flat since ranks below one that rose late, which a plain three-month "
+                           "return cannot tell apart. It reacts faster and flips more often than the "
+                           "weighted rating; a high short-window rank beside a low long-window one is "
+                           "a young move, not a leader yet."),
+            })
+            continue
+        if blend is None:
+            out.append({
+                "column": column, "label": label,
+                "one_line": f"Percentile rank of the plain {words} return, 1-{top}.",
+                "scale": rating_scale,
+                "how": (f"The close over the close {bars} sessions earlier, ranked across the "
+                        f"same stocks as the IBD-style rating ({_RATED_POPULATION}) and scored the same "
+                        f"way, max(1, ceil(percentile x {top})). One window alone, where the "
+                        f"rating above weights four of them. " + _RS_RATING_NOTE),
+                "caveat": ("A single-window rank reacts faster and flips more often than the "
+                           "weighted rating; a high short-window rank beside a low long-window one "
+                           "is a young move, not a leader yet."),
+            })
+            continue
         out.append({
             "column": column, "label": label,
-            "one_line": f"Percentile rank of the plain {words} return, 1-{top}.",
+            "one_line": f"Percentile rank of the recency-weighted {words} return, 1-{top}.",
             "scale": rating_scale,
-            "how": (f"The close over the close {bars} sessions earlier, ranked across the "
-                    f"same cap universe minus ETFs as the IBD-style rating and scored the same "
-                    f"way, max(1, ceil(percentile x {top})). One window alone, where the "
-                    f"rating above weights four of them. " + _RS_RATING_NOTE),
-            "caveat": ("A single-window rank reacts faster and flips more often than the "
-                       "weighted rating; a high short-window rank beside a low long-window one "
-                       "is a young move, not a leader yet."),
+            "how": (f"A weighted average of {_long_blend_prose(blend)}, so the newest quarter "
+                    f"counts double, ranked across the same stocks as the IBD-style rating "
+                    f"({_RATED_POPULATION}) and scored the same way, max(1, ceil(percentile x "
+                    f"{top})). A window the history cannot reach is dropped and the weights "
+                    f"renormalised; without the first term there is no value. " + _RS_RATING_NOTE),
+            "caveat": ("Not the plain {words} return: until 2026-11-11 this rank was taken over "
+                       "the plain return, so a chart or saved screen from before then reads on "
+                       "a different basis. It reacts faster than the weighted rating; a high "
+                       "short-window rank beside a low long-window one is a young move, not a "
+                       "leader yet.").replace("{words}", words),
         })
+    # S1 (2026-11-10): the ninth-month window. NOT one of the four the rating
+    # weights (`IBD_COMPONENTS`), so it gets its own entry and its own sentence.
+    from api.services import rs_weighted_return as _rsw9        # noqa: PLC0415
+    _label9, bars9 = _rsw9.IBD_M9_COMPONENT
+    out.append({
+        "column": "rs_rating_9m", "label": "9M Return Rank",
+        "one_line": f"Percentile rank of the recency-weighted nine-month return, 1-{top}.",
+        "scale": rating_scale,
+        "how": (f"A weighted average of {_long_blend_prose(p['long_terms']['m9'])}, so the "
+                f"newest quarter counts double, ranked across the same stocks as the "
+                f"IBD-style rating ({_RATED_POPULATION}) and scored the same way, max(1, ceil(percentile "
+                f"x {top})). It is not one of the rating's own four terms; it sits between the "
+                f"six- and twelve-month ranks so a long move can be read in five steps. "
+                + _RS_RATING_NOTE),
+        "caveat": ("It reacts faster and flips more often than the weighted rating. Blank "
+                   "until the rating history carries the nine-month figure for the session, "
+                   "which older stored sessions fill by a one-off backfill. Until 2026-11-11 "
+                   "this rank was taken over the plain nine-month return."),
+    })
     out.extend(_rs_phase3_methods())
+    out.extend(_rs_exit_methods())
+    out.extend(_rs_screens_methods())
     for m in out:
         m["family"] = RS_FAMILY
     return out
@@ -714,23 +1510,40 @@ def rs_columns_section() -> dict:
             "design, and no number here is intraday. The three Phase 3 columns (the rotation "
             "quadrant, the Clenow trend score and the VARS state) are computed in the same "
             "03:00 ET step from the same bars, only while that step's Phase 3 part is switched "
-            "on, and are empty until then."),
+            "on, and are empty until then. The five RS Exit Warning columns (the newest warning, "
+            "its age and each warning's own age) are computed in the same 03:00 ET step from "
+            "the same bars. Ten RS screens columns (the session the ratings are as of, "
+            "the score behind the rating, each liquid stock's exact place overall, by "
+            "window and a month ago, and its rating a month ago) are filled by a pass after "
+            "each build and again after the 04:15 ET rating job, only while the RS screens are "
+            "switched on, and are empty until then; once that pass has run, Ratings as of "
+            "names the session the rating columns on a row describe. Thirteen more (six "
+            "measures of the RS line's recent highs, the Setup label with its tight tag, flag "
+            "and near answer, and three of the label's own inputs) are computed in the same "
+            "03:00 ET build from the same bars, only while the RS screens are switched on. "
+            "Two more (the weekly RS new high and its before-price reading) are computed in "
+            "that build from the same bars grouped into finished weeks, for liquid stocks only. "
+            "Two more (whether a stock is on the UCT RS Leaders list and for how many sessions) "
+            "are filled by the same pass that fills the places."),
         "notes": [
+            # U9 (RS split): these two notes no longer name a chart Reading. The slim UCT RS
+            # Line draws no Mansfield line and no sensitivity row (map §(a) U7); the screener
+            # columns are the readings that stay, and this page describes the columns.
             f"Mansfield RS is read on {p['mansfield']} DAILY bars, the curriculum's daily form "
-            f"of Weinstein's 52-week weekly average, never on weekly bars; the chart's "
-            f"Mansfield plot reads the same series.",
+            f"of Weinstein's 52-week weekly average, never on weekly bars.",
             f"RS Agrees vs SPY and RSP is a TWO-benchmark test: the sign of the "
-            f"{p['agree']}-session RS slope against SPY and against equal-weight RSP. The "
-            f"chart's sensitivity read adds a third leg, the sector ETF, which the nightly "
-            f"build does not read.",
+            f"{p['agree']}-session RS slope against SPY and against equal-weight RSP; the "
+            f"nightly build does not read the sector ETF.",
             f"The rating is IBD-style, our own calculation, not MarketSurge's: "
-            f"{_ibd_formula_prose(p)}; percentile across the cap universe minus ETFs; "
+            f"{_ibd_formula_prose(p)}; percentile across {_RATED_POPULATION}; "
             f"max(1, ceil(percentile x {p['max']})). Measured difference to MarketSurge: "
             f"{RS_RATING_VS_MARKETSURGE or 'not yet measured'}.",
-            "Denominator: the rating ranks the cap universe RS Rank already ranks over, minus "
-            "ETFs, so the two ratings describe one population; it is not the whole market and "
-            "not every name the screener builds, and a name outside it carries no rating.",
+            "Denominator: the rating ranks every stock we hold a recent daily price for, "
+            "minus ETFs (about 6,000 names), which is wider than the liquid cap universe the "
+            "hourly RS Rank ranks and close to Deepvue's own population; a name with no recent "
+            "price or under a year of history carries no rating or no long-window rank.",
             _rs_phase3_note(),
+            _rs_exit_note(),
         ],
         "honesty": (
             "Every column here describes the past. Relative strength says which stocks to "
@@ -740,8 +1553,11 @@ def rs_columns_section() -> dict:
     }
 
 
-def all_methods() -> dict:
+def all_methods(user=None) -> dict:
     """Every composite column we publish, with how it is computed.
+
+    `user` (the route's user dict) decides one thing: whether the RS screens' own page
+    rides along (`_rs_screens_served`). The column methods are the same for everyone.
 
     ⭐ THE COMPONENT RATINGS ARE INCLUDED AS FIRST-CLASS ENTRIES rather than
     buried inside the composite, because they are their own screener columns —
@@ -774,7 +1590,7 @@ def all_methods() -> dict:
             m["scale"] = f"{_percentile_scale()} percentile within the sector"
         out.append(m)
     out.extend(_rs_column_methods())
-    return {
+    doc = {
         "methods": out,
         "rs_columns": rs_columns_section(),
         "as_of_note": (
@@ -783,6 +1599,21 @@ def all_methods() -> dict:
             "rating job, so they carry the prior session's rating. "
             "None of them is an intraday number."),
     }
+    # The five RS screens' own page (unit U4), only while they are served to this user:
+    # otherwise the payload carries no key for it.
+    if _rs_screens_served(user):
+        doc["rs_screens"] = rs_screens_section()
+    return doc
+
+
+def _rs_screens_served(user=None) -> bool:
+    """`rs_post_pass.surfaces_on(user)` (unit U10): the flag on for everyone, or `admin`
+    and the user is an admin. No user is a member's answer."""
+    try:
+        from api.services.screener import rs_post_pass as _pp      # noqa: PLC0415
+        return bool(_pp.surfaces_on(user))
+    except Exception:  # noqa: BLE001 -- an unreadable flag serves nothing new
+        return False
 
 
 def for_column(column):

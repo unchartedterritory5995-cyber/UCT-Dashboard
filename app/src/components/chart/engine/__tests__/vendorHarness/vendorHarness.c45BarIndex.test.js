@@ -63,31 +63,36 @@ describe('C45 — the five probes AS CAPTURED (300 bars, 8,175 bars after the li
     }
   })
 
-  it('⭐ NOT ONE ROW IS DRAWN WRONG: the control row is withheld by name in all five, and nothing DIVERGES', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): was "the control row is withheld by name in all five".
+  // The harness now replays SPY's proved history from its 1993 listing before these
+  // windows — the series the member's daily chart computes — so `bar_index` is counted
+  // from the listing, the control row reads TradingView's 8175..8474, and is SERVED.
+  it('⭐ NOT ONE ROW IS DRAWN WRONG: replayed from the listing, the control row is served and agrees in all five, and nothing DIVERGES (DIV-1)', () => {
     for (const [id, control] of PROBES) {
       const { verdict, ours } = gradeCapture(parent(id))
       expect(ours.ok, `${id}: ${ours.refusal}`).toBe(true)
+      expect(ours.historyReplay.kind, id).toBe('replayed')
       expect(byVerdict(verdict, 'DIVERGE'), id).toEqual([])
-      expect(plotOf(verdict, control).verdict, id).toBe('INCONCLUSIVE')
-      expect(plotOf(verdict, control).reason, id).toMatch(WITHHELD)
-      expect(ours.notes.some((n) => /`bar_index` withheld \(bar-index:window\)/.test(n)), id).toBe(true)
+      expect(plotOf(verdict, control).verdict, id).toBe('MATCH')
+      expect(ours.notes.some((n) => /`bar_index` withheld \(bar-index:window\)/.test(n)), id).toBe(false)
     }
   })
 
   it('what does NOT read the count is still served and still MATCHES', () => {
     // vw-ne-na: the two rows over a `var float` that stays na read no index
+    // ⭐ DIV-1 RE-PIN (2026-11-09): was 2 MATCH + 10 withheld by name. Replayed from the
+    // listing (DIV-1) the ten index rows are served too, and all twelve agree.
     const ne = gradeCapture(parent('vw-ne-na-spy-1d-2026-09-30')).verdict
-    expect(byVerdict(ne, 'MATCH')).toEqual(['Q10_na_var_ne_close', 'Q11_na_var_eq_close'])
-    expect(ne.plots.filter((p) => WITHHELD.test(p.reason || '')).map((p) => p.title)).toEqual([
-      'Q00_bar_index_CONTROL', 'Q01_x_is_na', 'Q02_x_ne_close', 'Q03_x_eq_close', 'Q04_x_ne_x',
-      'Q05_x_eq_x', 'Q06_i_ne_1', 'Q07_i_eq_1', 'Q08_x_gt_0', 'Q09_not_x_eq_close',
-    ])
+    expect(byVerdict(ne, 'MATCH').length).toBe(12)
+    expect(ne.plots.filter((p) => WITHHELD.test(p.reason || '')).map((p) => p.title)).toEqual([])
     // w4-cross-round: ONLY the control row reads the index; the crosses and the
     // rounding rows are untouched (five MATCH, as before C45)
     const x = gradeCapture(parent('w4-cross-round-spy-1d-2026-09-30')).verdict
-    expect(x.plots.filter((p) => WITHHELD.test(p.reason || '')).map((p) => p.title)).toEqual(['X00_bar_index'])
+    // ⭐ DIV-1 RE-PIN (2026-11-09): X00 (the index) was withheld by name; replayed from the
+    // listing it is served and agrees, beside the six rows that never read it.
+    expect(x.plots.filter((p) => WITHHELD.test(p.reason || '')).map((p) => p.title)).toEqual([])
     expect(byVerdict(x, 'MATCH')).toEqual([
-      'X01_crossover_close_sma5', 'X02_crossunder_close_sma5', 'X03_cross_EITHER_DIRECTION',
+      'X00_bar_index', 'X01_crossover_close_sma5', 'X02_crossunder_close_sma5', 'X03_cross_EITHER_DIRECTION',
       'X04_rising3', 'X05_falling3', 'X10_round_close_2dp',
     ])
     // vw-offset-na: `close[1]` reads no index
@@ -197,10 +202,24 @@ describe('C45 — a capture that PROVES it starts at the vendor\'s bar 0 is grad
     }
     walk(src)
     const product = hits.filter((f) => !/__tests__\//.test(f) && !/\.test\.js$/.test(f)).sort()
-    // the reader, and the two places a caller's statement is passed through
+    // the reader, and the places a caller's statement is passed through (⭐ engine 54: the
+    // binder's object-reader options moved, unchanged, into `runHalfObjectRail.js::
+    // hostObjectReaderOpts`, the one host object evaluation the binder and the run half's
+    // object rail share)
     expect(product).toEqual([
+      // ⭐ HEADLESS (Studio R6): the reader (`barIndexAbsoluteFor`) moved, unchanged, from
+      // `nativeRegistry.js` to `astColumns.js`, the host lane's host-neutral values
+      'components/chart/engine/astColumns.js',
       'components/chart/engine/binder.js',
-      'components/chart/engine/nativeRegistry.js',
+      // ⭐ CBC-FMT (landing train 1): the calc_bars_count window passes the caller's statement through
+      'components/chart/engine/calcBarsWindow.js',
+      // ⭐ HOST WORKER (2026-11-17): the host lane's worker is handed the caller's statement, never
+      // states it — the job key and the context image carry it across (`hostLaneAsync.js`,
+      // `hostLaneWire.js::HOST_CTX_FIELDS`), and the reader options moved, unchanged, from
+      // `runHalfObjectRail.js` into the host-neutral `hostObjects.js` (re-exported there)
+      'components/chart/engine/hostLaneAsync.js',
+      'components/chart/engine/hostLaneWire.js',
+      'components/chart/engine/hostObjects.js',
     ])
     // ⛔ non-vacuity: the walk does see the chart surface it is clearing
     expect(fs.existsSync(path.join(src, 'components/StockChart.jsx'))).toBe(true)

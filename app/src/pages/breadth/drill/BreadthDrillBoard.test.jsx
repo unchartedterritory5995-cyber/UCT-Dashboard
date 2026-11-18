@@ -116,7 +116,7 @@ describe('BreadthDrillBoard — the split resizes from the keyboard', () => {
     const { container } = mount()
     const d = sep(container)
     expect(d.getAttribute('tabindex')).toBe('0')
-    expect(d.getAttribute('aria-valuenow')).toBe('340')
+    expect(d.getAttribute('aria-valuenow')).toBe('372')
     // ⛔ Read off the module, never retyped — a hand-copied bound is the pair that
     // drifts silently because nobody can see aria values.
     expect(d.getAttribute('aria-valuemin')).toBe(String(SPLIT_MIN))

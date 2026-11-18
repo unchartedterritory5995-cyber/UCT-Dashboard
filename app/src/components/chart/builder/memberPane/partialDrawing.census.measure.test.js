@@ -12,6 +12,9 @@
 // Output: `$PARTIAL_CENSUS_OUT` (default: tools/partial_drawing_census.json
 // under the repo root is NOT written — pass a path; the scratch default is the
 // OS temp dir).
+// ⭐ ENGINE 53 — `PARTIAL_CENSUS_RUNTIME_ON=1` measures with the runtime pane ON as well (a
+// permitted member, every script graded: `src/test-setup.js` grants both in its `beforeEach`),
+// and every row records the run half (`runHalf`: minted, or the decline's code).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -21,6 +24,7 @@ import { memberPaneDefinition } from './memberPaneDefinition'
 import { assessObjectLoss, DRAWING_NOTE_NAME } from '../../engine/ast/objectLoss'
 
 const RUN = process.env.PARTIAL_CENSUS === '1'
+const RUNTIME_ON = process.env.PARTIAL_CENSUS_RUNTIME_ON === '1'
 const REPO = path.resolve(process.cwd(), '..')
 const CORPUS = path.join(REPO, 'corpus', 'committed')
 const OUT = process.env.PARTIAL_CENSUS_OUT
@@ -44,6 +48,7 @@ function carriedKinds(program) {
 
 function row(file, flag) {
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', flag ? '1' : '')
+  vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', RUNTIME_ON ? '1' : '')
   const source = fs.readFileSync(path.join(CORPUS, file), 'utf8')
   let d
   try { d = memberPaneDefinition({ source, id: 'u_census', name: 'C' }) } catch (err) {
@@ -78,6 +83,9 @@ function row(file, flag) {
       : assessObjectLoss(t).verdict === 'removes' ? 'object-withheld' : 'object-partial',
     drawingNote: drawingNote ? drawingNote.note : null,
     notes: (d.notes || []).map((n) => n.note),
+    // ⭐ ENGINE 53 — the run half: minted, or declined by code (null: nothing to complete)
+    runHalf: d.runHalf ? 'minted' : (d.runHalfDeclined ? `declined:${d.runHalfDeclined.code}` : null),
+    lane: d.ok ? (d.lane || 'host') : null,
   }
 }
 

@@ -11,6 +11,8 @@ from api.services.cache import cache
 from api.services import significant_catalysts
 from api.services.news_catalysts import store, service
 
+_REAL_COMPANY = service._company      # the autouse fixture stubs the module's
+
 
 @pytest.fixture(autouse=True)
 def _tmp_db(tmp_path, monkeypatch):
@@ -23,6 +25,9 @@ def _tmp_db(tmp_path, monkeypatch):
     monkeypatch.setenv("NEWS_CATALYSTS_ENABLED", "1")
     monkeypatch.setenv("NEWS_VERIFY_DATES", "0")   # deterministic phase-1 dates unless a test opts in
     monkeypatch.setenv("NEWS_RECENT_ENABLED", "0")  # no background recent layer unless a test opts in
+    # The company name comes from SEC's list over the network: never in a test unless it
+    # says so (TestTheSearchNamesTheCompany restores the real reader over a fake list).
+    monkeypatch.setattr(service, "_company", lambda sym: None)
     yield
 
 
@@ -396,6 +401,80 @@ class TestWebGrounding:
         monkeypatch.setattr(pplx, "web_search", lambda *a, **k: {"answer": answer, "citations": []})
         items, _ = service._web_catalysts("NVDA", None, _BARS, [])
         assert [it["title"] for it in items] == ["Real deal"]      # placeholder dropped
+
+
+class TestTheSearchNamesTheCompany:
+    """A symbol is not unique across markets. On 2026-11-15 the catalysts stored for AGL
+    (agilon health, NYSE) were AGL Energy's, an Australian utility: every search named the
+    stock by its bare symbol. Each search now names the US company when it is known."""
+
+    AGILON = "agilon health, inc."
+    ONLY = "AGL here means ONLY the US-listed company agilon health, inc."
+
+    def _capture(self, monkeypatch, answer='{"catalysts": []}'):
+        import api.services.perplexity_search as pplx
+        asked = []
+        monkeypatch.setattr(pplx, "web_search",
+                            lambda q, *a, **k: asked.append(q) or {"answer": answer, "citations": []})
+        return asked
+
+    def test_the_year_search_names_the_us_company_and_rules_out_a_namesake(self, monkeypatch):
+        asked = self._capture(monkeypatch)
+        service._web_catalysts("AGL", self.AGILON, _BARS, None)
+        assert "AGL (agilon health, inc.) stock" in asked[0]
+        assert self.ONLY in asked[0]
+        assert "that trades under the same ticker" in asked[0]
+
+    def test_with_no_name_the_year_search_is_the_one_it_was(self, monkeypatch):
+        asked = self._capture(monkeypatch)
+        service._web_catalysts("AGL", None, _BARS, None)
+        assert "catalysts and news events for AGL stock during 2026" in asked[0]
+        assert "here means ONLY" not in asked[0]
+
+    def test_the_recent_search_names_the_company_too(self, monkeypatch):
+        monkeypatch.setenv("NEWS_RECENT_ENABLED", "1")
+        monkeypatch.setattr(service, "_daily_bars_since", lambda sym, lo=service.YTD_LO: [])
+        monkeypatch.setattr(service, "_company", lambda sym: self.AGILON if sym == "AGL" else None)
+        asked = self._capture(monkeypatch)
+        service._recent_catalysts("AGL")
+        assert asked[0].startswith("Why is AGL (agilon health, inc.) stock moving today")
+        assert self.ONLY in asked[0]
+        service._recent_catalysts("ZZZ")                      # no name known: the old question
+        assert asked[1].startswith("Why is ZZZ stock moving today")
+        assert "here means ONLY" not in asked[1]
+
+    def test_generation_hands_the_name_to_both_the_search_and_the_fallback(self, monkeypatch):
+        _mock_bars(monkeypatch)
+        monkeypatch.setattr(service, "_company", lambda sym: self.AGILON)
+        seen = {}
+
+        def _web(sym, company, bars, movers, *, outcome=None):
+            seen["web"] = (sym, company)
+            return None, None                                 # nothing found: the fallback runs
+
+        def _gen(symbol, company, bars, period_label, **kw):
+            seen["gen"] = (symbol, company)
+            return []
+        monkeypatch.setattr(service, "_web_catalysts", _web)
+        monkeypatch.setattr(significant_catalysts, "generate", _gen)
+        service._generate_and_store("AGL")
+        assert seen == {"web": ("AGL", self.AGILON), "gen": ("AGL", self.AGILON)}
+
+    def test_the_name_is_read_from_the_news_lanes_cache_and_never_raises(self, monkeypatch):
+        from api.services.news import subject
+        monkeypatch.setattr(subject, "company_name", lambda sym: {"AGL": "  agilon health, inc. "}.get(sym, ""))
+        assert _REAL_COMPANY("AGL") == self.AGILON
+        assert _REAL_COMPANY("SPY") is None                # not on the list: no name, no sentence
+        assert service._only_this_company("SPY", None) == ""
+
+        def _boom(sym):
+            raise RuntimeError("SEC is down")
+        monkeypatch.setattr(subject, "company_name", _boom)
+        assert _REAL_COMPANY("AGL") is None
+
+    def test_the_stored_set_is_regenerated_under_a_new_period_key(self):
+        # Rows written by the nameless search are under the old key and are not read again.
+        assert service.HIST_PERIOD == "ytd2026_v11"
 
 
 class TestRecentLayer:

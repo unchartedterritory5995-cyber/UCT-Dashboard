@@ -129,7 +129,7 @@ export function planCompound(text, { host } = {}) {
 // right-hand rail), building in place would squeeze the request into whatever space the charts happen to have — so the
 // member is asked ONCE: replace the current board (a proposal naming what goes; Undo restores it) or build it in a new
 // layout (the current board untouched). Either way the WHOLE request then runs, step by step, through the same execute.
-const LABELS = (() => { try { return labelMap('menu') } catch { return {} } })()
+const LABELS = (() => { try { return labelMap('agent') } catch { return {} } })()
 const widgetName = (t) => LABELS[t] || t
 export const WORKSPACE_CHOICES = [{ ref: 'workspace:replace', label: 'Replace current board' }, { ref: 'workspace:new', label: 'New layout' }]
 /** The first step is a whole workspace and the board holds widgets it does not include → { names } (what's there), else null. */

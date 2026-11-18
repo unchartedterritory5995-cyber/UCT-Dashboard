@@ -105,6 +105,8 @@ import {
 import { legacyInstanceId } from './engine/instances'
 // ⭐ UCT RS PHASE 3 (unit 3-01) — the ONE reader of an enum option's gate marker.
 import { enumOptionRequiresServer, validateInputValue } from './engine/defSchema'
+// ⭐ RS split U1 — the definition-level gate (`meta.requiresServer`).
+import { isDefinitionOffered } from './engine/serverCompute'
 import { inputsAsRead } from './engine/legacyInputs'
 // ⚠️ IMPORTED, NEVER REDEFINED. The B4 plan sketched `unwiredKeys` and a second
 // carved-out field table inside THIS file; both live in `indicatorCatalog.js`,
@@ -121,6 +123,7 @@ import { isOverlayRemoved, isVolumeRemoved } from './chartDefaults'
 import { instanceLabel } from './engine/sourceRef'
 import { disambiguateLabels } from './engine/readout'
 import { namesItselfSemantically } from './engine/semanticName'
+import { pineFieldPresentation, inPineOrder } from './engine/pinePresentation.js'
 
 /** The two moving averages a member can pick, in the words a trader uses.
  *
@@ -235,6 +238,14 @@ function optionPair(option) {
  * cannot draw — which is why the descriptor and the renderer landed together.
  */
 export function fieldFromInput(input) {
+  const f = fieldOfInput(input)
+  // ⭐ SETTINGS PARITY (timeframe) — a setting its document LOCKS (`locked: '<sentence>'`) is shown READ-ONLY
+  // at its value with that sentence (`disabled`, the reason every settings surface already renders inert),
+  // never as a control that accepts a choice the run would then refuse (`runtimeInputs.withTimeframeInputs`)
+  return f && typeof input.locked === 'string' && input.locked ? { ...f, disabled: input.locked } : f
+}
+
+function fieldOfInput(input) {
   if (!input || typeof input.key !== 'string' || !input.key) return null
   const base = { key: input.key, label: input.label || input.key }
   switch (input.type) {
@@ -272,7 +283,12 @@ export function fieldFromInput(input) {
     // declares), which is everything the control needs to refuse a value before
     // `setInstanceInput` would (`textInputCommit`).
     case 'string': {
-      const out = { ...base, type: 'text' }
+      // ⭐ 2026-11-12 — a string that names a server-owned list of choices
+      // (`optionsSource`, e.g. the RS "Pick a theme" benchmark) is a searchable
+      // chooser on every surface (`OptionsSourcePicker`), never a free text box:
+      // what it stores is the chosen entry's ID.
+      const out = { ...base, type: input.optionsSource ? 'pick' : 'text' }
+      if (input.optionsSource) out.optionsSource = input.optionsSource
       for (const k of TEXT_FIELD_KEYS) if (input[k] !== undefined) out[k] = input[k]
       return out
     }
@@ -522,7 +538,18 @@ export function visiblePresets(def, declared = null) {
  *  ⭐ 3-01: through `visibleInputs`, so a legacy input never gets a field and a
  *  gated one gets one only when `opts.declared` declares it. */
 export function fieldsFromDefinition(def, opts = {}) {
-  return visibleInputs(def, opts && opts.declared).map(fieldFromInput).filter(Boolean)
+  const fields = visibleInputs(def, opts && opts.declared).map(fieldFromInput).filter(Boolean)
+  // ⭐ A PINE DOCUMENT'S SETTINGS AS TRADINGVIEW LAYS THEM OUT (`engine/pinePresentation.js`, read off the
+  // installed document, never stored): the script's source order, its titles where ours are column keys,
+  // and a 0/1 number that is a Pine `bool` as a switch reading and writing 1 / 0
+  const pres = pineFieldPresentation(def)
+  if (!pres.order.size && !pres.extra.size) return fields
+  return inPineOrder(fields.map((f) => {
+    const x = pres.extra.get(f.key)
+    let out = x && x.label ? { ...f, label: x.label } : f
+    if (pres.switches.has(f.key) && out.type === 'number') out = { ...out, type: 'toggle', numeric: true }
+    return out
+  }), pres)
 }
 
 // ─── THE PER-INSTANCE FORM MODEL (spec §6's settings dialog) ────────────────
@@ -652,8 +679,10 @@ export function fieldsForInstance(def, instance, opts = {}) {
     if (Object.prototype.hasOwnProperty.call(stored, d.key)) values[d.key] = stored[d.key]
   }
 
+  const pres = pineFieldPresentation(def)
   const all = fieldsFromDefinition(def, { declared: opts && opts.declared }).map((f) => {
     const d = byKey.get(f.key) || {}
+    const x = pres.extra.get(f.key) || {}
     return {
       ...f,
       inputType: d.type,
@@ -662,9 +691,10 @@ export function fieldsForInstance(def, instance, opts = {}) {
       // write `setInstanceInput` silently declines — the generated field's `step`
       // alone cannot tell the two apart once an author declares `step: 1` on a float.
       isInt: d.type === 'int',
-      group: typeof d.group === 'string' ? d.group : null,
-      inline: typeof d.inline === 'string' ? d.inline : null,
-      tooltip: typeof d.tooltip === 'string' ? d.tooltip : null,
+      // a setting's own presentation wins; a Pine document's script states the rest (`pinePresentation.js`)
+      group: typeof d.group === 'string' ? d.group : (typeof x.group === 'string' ? x.group : null),
+      inline: typeof d.inline === 'string' ? d.inline : (typeof x.inline === 'string' ? x.inline : null),
+      tooltip: typeof d.tooltip === 'string' ? d.tooltip : (typeof x.tooltip === 'string' ? x.tooltip : null),
       activeWhen: d.activeWhen || null,
     }
   })
@@ -690,6 +720,9 @@ export function fieldsForInstance(def, instance, opts = {}) {
   }
 
   const styleKeys = styleInputKeys(def)
+  // ⭐ a plot colour that IS the script's own colour input is shown on the Inputs tab, where TradingView
+  // shows it (`engine/pinePresentation.js`)
+  for (const k of pres.onInputs) styleKeys.delete(k)
   return {
     defId: def?.id,
     instanceId: instance?.instanceId,
@@ -938,6 +971,11 @@ export function listEngineIndicators(settings, registry) {
     // fresh chart shows — the "turn it on" control — is the one every earlier
     // regression in this function landed on (B5 Task 9's blank Period box).
     const live = liveInstancesFor(def.id, settings)
+    // ⭐ RS split U1 — a `meta.requiresServer` definition the live server has
+    // not listed gets no "turn it on" row: that row is an OFFER, and the server
+    // cannot compute it yet. An instance already on the chart keeps its rows —
+    // the gate hides offers, never what a member already placed.
+    if (!live.length && !isDefinitionOffered(def)) continue
     // Read through the ONE reader every other control door uses, so a
     // tombstone cannot leave this toggle ticked over a chart with no line. It is
     // per DEFINITION and therefore shared by every row of one definition.
@@ -1128,7 +1166,12 @@ export function listIndicators(settings, opts = {}) {
       ? VOLUME_FIELDS.map(f => (f.key === 'separatePane' ? { ...f, disabled: opts.volumePaneFixed } : f))
       : VOLUME_FIELDS,
     path: { kind: 'section', key: 'volume' },
-    values: settings?.volume || {},
+    // ⭐ A HOST THAT DEFAULTS VOLUME TO ITS OWN PANE (/charts, `volumePaneByDefault`)
+    // reads the member's `displayIn`, not `separatePane` — so the toggle shows THAT
+    // answer (absent ⇒ ON), and `patchFor` writes both keys. See volumePresentation.js.
+    values: opts.volumePaneByDefault
+      ? { ...(settings?.volume || {}), separatePane: settings?.volume?.displayIn !== 'price' }
+      : (settings?.volume || {}),
     canToggle: true,
     enabledKey: 'visible',   // volume uses `visible`, overlays use `enabled`
   })
@@ -1286,6 +1329,12 @@ export function patchFor(row, patch, settings) {
         [row.path.key]: { ...(settings.indicators?.[row.path.key] || {}), ...patch },
       },
     }
+  }
+  // ⭐ Volume's Separate pane toggle is a Display in choice: write `displayIn` beside
+  // `separatePane`, exactly as `legend/volumeChip.withVolumeDisplay` does, so a host
+  // that defaults volume to a pane (/charts) sees the choice. See volumePresentation.js.
+  if (row.path.key === 'volume' && patch && typeof patch.separatePane === 'boolean') {
+    patch = { ...patch, displayIn: patch.separatePane ? 'pane' : 'price' }
   }
   return { [row.path.key]: { ...(settings[row.path.key] || {}), ...patch } }
 }

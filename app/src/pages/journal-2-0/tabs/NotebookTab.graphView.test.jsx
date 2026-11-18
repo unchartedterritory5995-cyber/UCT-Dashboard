@@ -22,7 +22,7 @@ vi.mock('../components/notebook/FolderSidebar', () => ({
       <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
       {/* ⛔ The real "All notes" door is onSelectAllNotes, which re-sets
           ?view=all. onSelectFolder(null) CLEARS that param and lands on
-          Research Home -- correct existing behaviour, and not this path. */}
+          the bare Notebook (Research Home until Task 5) -- not this path. */}
       <button type="button" onClick={onSelectAllNotes}>go to all notes</button>
     </div>
   ),
@@ -51,9 +51,6 @@ vi.mock('../components/notebook/NoteEditorPage', () => ({
 }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({
-  default: () => <div data-testid="research-home" />,
-}))
 
 import NotebookTab from './NotebookTab'
 import { currentView, viewOption } from './__tests__/toolbarDoors'
@@ -104,9 +101,19 @@ describe('NotebookTab — graph view wiring', () => {
     // S11 (audit 2026-11-05): the seven icon toggles became ONE labelled View menu. Its rows are
     // `menuitemradio` with `aria-checked`, and the trigger itself SAYS the mode ("View: Graph"), so the
     // load-bearing check is the same: exactly ONE row is checked.
-    const checkedNames = () => { viewOption('List'); return screen.getAllByRole('menuitemradio')
-      .filter((b) => b.getAttribute('aria-checked') === 'true')
-      .map((b) => b.textContent.trim()) }
+    // Notebook simplify, Task 3: the modes only -- List's own Rows / Cards (a named group under it) and the saved
+    // views (a group below) are radios of their own.
+    // Simplify pass 2 (C1): Graph and Timeline are radios of the menu's "More views" second view (a named group); while
+    // one is on, "More views" is the current row and its second view holds the checked mode.
+    const checkedNames = () => {
+      viewOption('List')
+      const more = screen.getByRole('menuitem', { name: 'More views' })
+      if (more.getAttribute('aria-current') === 'true') fireEvent.click(more)
+      return screen.getAllByRole('menuitemradio')
+        .filter((b) => !b.closest('[role="group"]') || b.closest('[role="group"]').getAttribute('aria-label') === 'More views')
+        .filter((b) => b.getAttribute('aria-checked') === 'true')
+        .map((b) => b.textContent.trim())
+    }
 
     it('marks exactly one view mode checked, and moves it on click', () => {
       renderTab()
@@ -200,21 +207,21 @@ describe('NotebookTab — graph view wiring', () => {
     it('?view=graph renders the graph, never Research Home', async () => {
       renderTab('/journal?view=graph')
       await screen.findByTestId('note-graph')
-      expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
       expect(currentView()).toBe('Graph')
     })
 
     it('?view=table renders the table view directly (not just graph)', () => {
       renderTab('/journal?view=table')
       expect(screen.getByTestId('notes-table')).toBeInTheDocument()
-      expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
       expect(currentView()).toBe('Table')
     })
 
-    it('a bare /journal (no view param) still renders Research Home — the fix does not widen isHome', async () => {
+    // Notebook simplify, Task 5: a bare /journal is the notes list now (it rendered Research Home), in the List mode.
+    it('a bare /journal (no view param) renders the notes list in List mode, never the graph', async () => {
       renderTab('/journal')
-      // Tier 3b fix round 1 (I1): Research Home is a lazy view now, so it arrives a tick later.
-      expect(await screen.findByTestId('research-home')).toBeInTheDocument()
+      await screen.findByRole('toolbar', { name: 'Notes list tools' })
+      expect(screen.queryByTestId('note-graph')).not.toBeInTheDocument()
+      expect(currentView()).toBe('List')
     })
   })
 

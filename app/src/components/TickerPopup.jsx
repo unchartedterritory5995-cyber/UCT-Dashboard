@@ -1,5 +1,6 @@
 // app/src/components/TickerPopup.jsx
-import { useState, useEffect, useLayoutEffect, useRef, useId, useSyncExternalStore, lazy, Suspense } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useId, useSyncExternalStore, Suspense } from 'react'
+import { lazyDeferrable as lazy } from '../utils/lazyWithRetry'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
@@ -611,8 +612,8 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                 <button
                   className={styles.actionBtn}
                   onClick={goToAskAi}
-                  title="Ask AI about this security"
-                  aria-label={`Ask AI about ${activeSym}`}
+                  title="Ask the UCT Agent"
+                  aria-label={`Ask the UCT Agent about ${activeSym}`}
                 >
                   <UIcon name="sparkle" size={14} />
                 </button>

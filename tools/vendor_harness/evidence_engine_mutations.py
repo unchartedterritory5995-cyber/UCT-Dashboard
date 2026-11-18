@@ -14,6 +14,7 @@ import sys
 
 W = pathlib.Path(__file__).resolve().parents[2]
 EE = W / "tools" / "vendor_harness" / "evidence_engine.py"
+EL = W / "tools" / "vendor_harness" / "evidence_ledger.py"
 BC = W / "tools" / "vendor_harness" / "batch_capture.py"
 DOC = W / "docs" / "pine" / "EVIDENCE-ENGINE-DESIGN.md"
 RAILS = "tests/test_evidence_engine.py"
@@ -44,6 +45,14 @@ MUTATIONS = [
     ("packet sha not checked", EE, "    if not sha.startswith(packet_sha):\n", "    if False:\n", PROMOTE),
     ("rebuilt packet not compared", EE, "    if now != on_disk:\n", "    if False:\n",
      "test_a_run_that_changed_after_the_packet_refuses"),
+    # ── 2026-11-08: the ONE live marker (an explicit `live` column, else a session pattern) ──
+    ("the live column is ignored", EE, "    if col is not None:\n", "    if False:\n",
+     "test_the_committed_live_rows_are_exactly_the_session_rows"),
+    ("the weak live words come back", EE, 'r"minutes apart", re.I)',
+     'r"minutes apart|\\blive\\b|\\bticks?\\b|\\b1m\\b|\\bvarip\\b", re.I)',
+     "test_a_word_that_also_names_history_is_not_a_live_session"),
+    ("a negated mention is read as live", EE, "    return bool(LIVE_RX.search(NOT_LIVE_RX.sub(\" \", rtext)))",
+     "    return bool(LIVE_RX.search(rtext))", "test_a_word_that_also_names_history_is_not_a_live_session"),
     ("live guard removed", EE, 'elif t["needsLive"] and st in (None, "STALE"):',
      'elif False and st in (None, "STALE"):', "test_a_live_row_is_needs_live_and_never_reaches_a_manifest"),
     ("fixture overwrite admitted (the file in its own directory)", EE,
@@ -75,7 +84,8 @@ MUTATIONS = [
      "    p = pathlib.Path(DESKTOP_HEAVY_LOCK)", LOCK),
     ("the batch skips the lock pre-flight", EE, "            if heavy_lock_tool() is None:\n",
      "            if False:\n", LOCK),
-    ("grade ignores a missing lock", EE, "    if wrapped is None:\n", "    if False:\n", LOCK),
+    ("grade ignores a missing lock", EE, '    wrapped = heavy("evidence-grade", cmd)\n    if wrapped is None:\n',
+     '    wrapped = heavy("evidence-grade", cmd)\n    if False:\n', LOCK),
     # ── finding 2: the queue never invents a target ──
     ("a guessed chart is QUEUED", EE, '        if chart_defaulted:\n            st = "NEEDS_CHART"',
      '        if False:\n            st = "NEEDS_CHART"', "test_a_row_with_no_chart_is_needs_chart_and_never_reaches_a_manifest"),
@@ -129,8 +139,8 @@ MUTATIONS = [
     ("a REFUSE item is filed", EE, '        if i["action"] == "REFUSE":\n', "        if False:\n", NO_VERDICT),
     ("promotion overwrites a fixture that appeared after the check", EE, "            if dst.exists():\n",
      "            if False:\n", "test_promote_never_overwrites_a_fixture_that_appeared_after_the_check"),
-    ("the ledger files a capture twice", EE,
-     '    new = [r for r in rows if (r["captureId"], r["receipt"]) not in have]', "    new = list(rows)",
+    ("the ledger files a capture twice", EL,
+     '    new = [r for r in rows if row_key(r) not in have]', "    new = list(rows)",
      "test_the_ledger_files_each_capture_once"),
     ("a missing or short packet sha is accepted", EE,
      '    if not packet_sha or not re.fullmatch(r"[0-9a-f]{12,64}", packet_sha):\n', "    if False:\n",

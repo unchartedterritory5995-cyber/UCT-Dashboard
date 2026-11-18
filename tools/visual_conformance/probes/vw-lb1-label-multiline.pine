@@ -1,0 +1,26 @@
+//@version=5
+indicator("UCTPROBE_VW_LB1_LABEL_MULTILINE", overlay = false, max_labels_count = 20)
+// Queue row Q-LB1 (2026-11-17). Our painter breaks a label's text at `\n` by the box rule
+// (line height = font px + 2, the block where the one line sat, an empty line keeps its height).
+// The harness grades a label's TEXT and ANCHOR, not where its lines land, so this reading is the
+// layout: each label's lines against its anchor (a horizontal line at the anchor's price), per style.
+r = close / 1000
+plot(r, "L00_line_CONTROL")
+if barstate.islast
+    y = r
+    line.new(bar_index - 40, y, bar_index, y, color = color.gray)
+    // RS Rating's own pair: one line at the anchor, and the rating two lines below it (size.large)
+    label.new(bar_index - 35, y, "                RS Rating", color = color.rgb(0, 0, 0, 100), size = size.normal, textcolor = color.blue, style = label.style_label_center, textalign = text.align_left)
+    label.new(bar_index - 35, y, "\n\n       99", color = color.rgb(0, 0, 0, 100), size = size.large, textcolor = color.blue, style = label.style_label_center, textalign = text.align_left)
+    // a body: block height and width, left-aligned lines sharing one x
+    label.new(bar_index - 28, y, "L01\nwider line", color = color.yellow, textcolor = color.black, style = label.style_label_center, textalign = text.align_left)
+    // a pointer: the taller body still ends at the pointer
+    label.new(bar_index - 21, y, "L02\nb\nc", color = color.orange, textcolor = color.black, style = label.style_label_down)
+    // text alone and ringed
+    label.new(bar_index - 15, y, "L03\nb", style = label.style_none, textcolor = color.purple)
+    label.new(bar_index - 10, y, "L04\nb", style = label.style_text_outline, color = color.yellow, textcolor = color.black)
+    // a glyph with text below it, and above it (which line sits nearest the glyph)
+    label.new(bar_index - 6, y, "L05\nb", style = label.style_triangleup, color = color.green, textcolor = color.green)
+    label.new(bar_index - 2, y, "L06\nb", style = label.style_triangledown, color = color.red, textcolor = color.red)
+    // CONTROL: one line, no break
+    label.new(bar_index, y, "L07 CONTROL", color = color.teal, textcolor = color.white, style = label.style_label_center)

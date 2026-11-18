@@ -74,7 +74,7 @@ def _stub_store(monkeypatch, rows, last_ts):
     # has nothing to do with async heal.
     monkeypatch.setattr(bars_fetch, "_needs_fresh",
                         lambda ts, tf, ticker=None: True)                    # force stale
-    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)     # not "partial"
+    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf, *_a: True)     # not "partial"
     monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
 

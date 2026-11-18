@@ -164,7 +164,13 @@ describe('Layout — orb/feedback-FAB mount gate (spec exception a)', () => {
     expect(src).not.toMatch(/^\s*import\s+FloatingOrb/m)
     expect(src).not.toMatch(/<FloatingOrb[\s/>]/)
     expect(src).toMatch(/useHubActive/)
-    expect(src).toMatch(/!hubActive\s*&&\s*<FeedbackWidget/)
+    // The hub gate leads the condition. Further NEGATED page flags may follow it (c8f2002c31, owner
+    // 2026-11-15: `!onCharts`, the "?" stays off /charts) — nothing else, so the gate cannot be
+    // turned into an OR or moved behind another test.
+    expect(src).toMatch(/!hubActive\s*&&\s*(?:![A-Za-z]+\s*&&\s*)*<FeedbackWidget/)
+    expect('{!hubActive && <FeedbackWidget />}').toMatch(/!hubActive\s*&&\s*(?:![A-Za-z]+\s*&&\s*)*<FeedbackWidget/)
+    expect('{!onCharts && <FeedbackWidget />}').not.toMatch(/!hubActive\s*&&\s*(?:![A-Za-z]+\s*&&\s*)*<FeedbackWidget/)
+    expect('{!hubActive || onCharts && <FeedbackWidget />}').not.toMatch(/!hubActive\s*&&\s*(?:![A-Za-z]+\s*&&\s*)*<FeedbackWidget/)
   })
 })
 
@@ -409,7 +415,7 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
     act(() => { vi.advanceTimersByTime(HOLD_MS + 50) })
     fireEvent.pointerUp(pad, { clientX: 0, clientY: 0, pointerId: 1 })
 
-    expect(screen.getByTestId('loc').textContent).toBe('/dashboard')
+    expect(screen.getByTestId('loc').textContent).toBe('/charts')
   })
 
   it('an inner-ring kind:"home" fan action also navigates to /dashboard (non-flick push+release)', async () => {
@@ -441,7 +447,7 @@ describe('HubRoot — navigate / run+confirm / home (Phase 2 wiring)', () => {
     fireEvent.pointerMove(pad, { clientX: dx, clientY: dy, pointerId: 1 })
     fireEvent.pointerUp(pad, { clientX: dx, clientY: dy, pointerId: 1 })
 
-    expect(screen.getByTestId('loc').textContent).toBe('/dashboard')
+    expect(screen.getByTestId('loc').textContent).toBe('/charts')
   })
 })
 

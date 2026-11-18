@@ -126,7 +126,33 @@ RS_LINE_BENCHMARKS: tuple[str, ...] = rs_benchmark_menu(
 # the prewarm set and the screener's ETF set (all derived from those two tuples)
 # never grow it. Only the v4 row offers it; the ticker itself is the
 # `customBenchmark` string input, validated by `rs_benchmarks.CUSTOM_SYMBOL_RE`.
-RS_LINE_BENCHMARKS_V4: tuple[str, ...] = RS_LINE_BENCHMARKS + (_rs_benchmarks.CUSTOM_BENCHMARK,)
+#
+# ⭐ 2026-11-12 (owner: "benchmark to sector, theme etc"): the v4 menu also names
+# `rs_benchmarks.CHOICE_BENCHMARKS` (Pick a sector, Theme (auto), Pick a theme,
+# with CUSTOM), still OUT of the v3 tuple and every set derived from it, and is
+# arranged in its own order (`_RS_MENU_ORDER_V4`): the indexes, then the groups
+# from widest to narrowest, then the member's own ticker. The option KEYS are
+# unchanged (saved charts and bound alerts carry them); only the order moved.
+_RS_MENU_ORDER_V4: tuple[str, ...] = ("SPY", "RSP", "QQQ", "IWM", "SECTOR", "SECTOR_PICK", "INDUSTRY",
+                                      "THEME", "THEME_PICK", "CUSTOM")
+RS_LINE_BENCHMARKS_V4: tuple[str, ...] = rs_benchmark_menu(
+    _RS_MENU_ORDER_V4, _rs_benchmarks.LITERAL_BENCHMARKS + _rs_benchmarks.AUTO_BENCHMARKS
+    + _rs_benchmarks.CHOICE_BENCHMARKS)
+
+
+def rs_benchmark_choice_inputs() -> list[dict]:
+    """The second values the v4 benchmark menu's choices read, declared ONCE for
+    the rsLine v4 row and the split rows: the member's own ticker (CUSTOM), the
+    picked sector ETF (SECTOR_PICK) and the picked theme's ID (THEME_PICK). Each
+    pattern / option list is `rs_benchmarks`' own, never re-typed."""
+    return [
+        {"key": "customBenchmark", "type": "string", "default": "",
+         "pattern": _rs_benchmarks.CUSTOM_SYMBOL_RE.pattern, "maxLength": 10, "case": "upper"},
+        {"key": "sectorBenchmark", "type": "enum", "default": _rs_benchmarks.DEFAULT_SECTOR_PICK,
+         "options": list(_rs_benchmarks.SECTOR_PICKS)},
+        {"key": "themeBenchmark", "type": "string", "default": "",
+         "pattern": _rs_benchmarks.THEME_ID_RE.pattern, "maxLength": 64},
+    ]
 
 # ⭐ UCT RELATIVE STRENGTH v2 (plan docs/superpowers/specs/2026-11-05-uct-relative-
 # strength-indicator-design.md §8.1, §13). `wire_columns` requires the provider's
@@ -149,6 +175,18 @@ RS_V2_ENABLED: bool = _os.environ.get("RS_V2_ENABLED", "0") == "1"
 # (`tests/fixtures/rs_line_rows_pre_phase3.json` is the control). Import time,
 # so arming and rollback are the variable plus `railway redeploy --service web --yes`.
 RS_V3_ENABLED: bool = _os.environ.get("RS_V3_ENABLED", "0") == "1"
+
+# ⭐ THE RS SPLIT (engineering map projects/rs-split-handoff-2026-11-09/
+# engineering-map.md, unit U4; flags §(e) step 1). One import-time flag adds
+# FOUR server rows and their providers beside `rsLine`: `rsRating`, `rsPhases`,
+# `rsVsEma` and (2026-11-12) `rsExit`. It never touches the rsLine row (rev 5 stays
+# byte-identical with the flag off AND on; `tests/test_rs_split_rows.py` is the
+# control), so arming it only makes `/api/signature/definitions` list eight ids
+# where it listed four, and the client's definition-level gate (unit U1,
+# `meta.requiresServer`) shows the four new indicators once it does. Import
+# time, so arming and rollback are the variable plus
+# `railway redeploy --service web --yes`.
+RS_SPLIT_ENABLED: bool = _os.environ.get("RS_SPLIT_ENABLED", "0") == "1"
 
 _log = logging.getLogger(__name__)
 
@@ -326,8 +364,8 @@ def _rs_phase3_inputs() -> list[dict]:
         # ⭐ ONE AUTHORITY FOR WHAT A CUSTOM BENCHMARK MAY BE: the pattern is
         # `rs_benchmarks.CUSTOM_SYMBOL_RE`'s own source, never re-typed, and
         # `maxLength` is the longest ticker it accepts (a rail checks both).
-        {"key": "customBenchmark", "type": "string", "default": "",
-         "pattern": _rs_benchmarks.CUSTOM_SYMBOL_RE.pattern, "maxLength": 10, "case": "upper"},
+        # 2026-11-12: the picked sector and theme ride beside it.
+        *rs_benchmark_choice_inputs(),
         number("rrgRatioLength", "int", rsm.DEFAULT_RRG_RATIO_LEN),
         number("rrgMomentumLength", "int", rsm.DEFAULT_RRG_MOM_LEN),
         number("clenowWindow", "int", rsm.DEFAULT_CLENOW_WINDOW),
@@ -522,7 +560,121 @@ def legacy_mapped(def_id: str, inputs: dict | None) -> dict:
 
 _RS_LINE = _rs_line_row(RS_V2_ENABLED, RS_V3_ENABLED)
 
-SERVER_DEFS: tuple[dict, ...] = (_DPL, _GXW, _FCB, _RS_LINE)
+
+# ── The RS split rows (unit U4) ──────────────────────────────────────────────
+#
+# Three definitions cut out of the rsLine indicator (map §(a) U6 names the JS
+# side). Each is `version` 1 / `compute.rev` 1 and declares only the inputs
+# that change what the server computes, the rsLine rule: a colour pick never
+# reaches a cache key. The provider for each is `rs_provider.rs_*_envelope`,
+# plugged in by the router under the same flag.
+
+#: UCT RS Phases' wire columns: the hidden phase column (1 blue / 0 red / null
+#: unpainted) that drives the `bgcolor` paint, and the divergence z-score
+#: histogram. `rsTrend` / `benchTrend` stay off the wire (readout material).
+RS_PHASES_WIRE_COLUMNS: tuple[str, ...] = ("phase", "divergence")
+#: UCT RS vs 21 EMA's wire columns: the percent distance histogram and the
+#: EMA 3 / EMA 13 lines of it.
+RS_VS_EMA_WIRE_COLUMNS: tuple[str, ...] = ("dist", "fast", "slow")
+#: UCT RS Exit Warnings' wire columns (2026-11-12): the RS line, the two simple
+#: averages of it, and the three dots (the RS value on the bar a warning fired,
+#: null elsewhere, so a glyph sits exactly on the line). The three 0/1 event
+#: columns stay off the wire: the legend, the alerts and the tests read them from
+#: `relative_strength` directly (the `rsPhases` flip precedent).
+RS_EXIT_WIRE_COLUMNS: tuple[str, ...] = ("rsLine", "fast", "slow", "dotQuick", "dotQuicksand", "dotDead")
+
+
+def _rs_split_benchmark_inputs() -> list[dict]:
+    """The benchmark pair the two ratio-based rows share: the rsLine v4 menu
+    (CUSTOM included) and the member's own ticker, declared exactly as the
+    rsLine row declares them so one saved benchmark choice is legal on all
+    three ratio indicators."""
+    return [
+        {"key": "benchmark", "type": "enum", "default": "SPY", "options": list(RS_LINE_BENCHMARKS_V4)},
+        *rs_benchmark_choice_inputs(),
+    ]
+
+
+def _rs_split_row(def_id: str, fn: str, name: str, short_name: str, description: str,
+                  inputs: list[dict], columns: Sequence[str]) -> dict:
+    return _checked_legacy_maps({
+        "schemaVersion": SCHEMA_VERSION,
+        "id": def_id,
+        "version": 1,
+        "compute": {"kind": "server", "fn": fn, "rev": 1},
+        "meta": {
+            "name": name, "shortName": short_name, "category": "Momentum",
+            "description": description, "tier": "premium", "repaint": "non-repainting",
+        },
+        "placement": {"target": "pane"},
+        "inputs": inputs,
+        "columns": list(columns),
+        "payload_keys": ["payload"],
+        # Chart indicators, not Signature rules: nothing is written to the
+        # signal ledger (the rsLine rule, stated above).
+        "rules_key": None,
+    })
+
+
+def _rs_rating_row() -> dict:
+    """`rsRating`: the stock's stored nightly rating over time. Daily charts
+    only (the rating is stored once a session; the provider says so on any
+    other timeframe) and no benchmark: it reads `rs_history`, not a ratio.
+    The two columns are the rsLine rev 5 Rating Reading's, so the JS
+    definition moves its `ratingLine` / `ratingMa` plots across unchanged."""
+    return _rs_split_row(
+        "rsRating", "rsRating", "UCT RS Rating", "RS Rating",
+        "The stock's RS Rating, 1 to 99, over time, with its 21-session average.",
+        [], RS_RATING_WIRE_COLUMNS)
+
+
+def _rs_phases_row() -> dict:
+    from api.services import relative_strength as rsm
+    return _rs_split_row(
+        "rsPhases", "rsPhases", "UCT RS Phases", "RS Phases",
+        "Shades the bars where the RS line and the market pull apart: RS rising while "
+        "the market falls, or the reverse.",
+        _rs_split_benchmark_inputs() + [
+            {"key": "shortEma", "type": "int", "default": rsm.DEFAULT_PHASES_SHORT,
+             "min": rsm.PHASES_SHORT_RANGE[0], "max": rsm.PHASES_SHORT_RANGE[1]},
+            {"key": "longEma", "type": "int", "default": rsm.DEFAULT_PHASES_LONG,
+             "min": rsm.PHASES_LONG_RANGE[0], "max": rsm.PHASES_LONG_RANGE[1]},
+        ],
+        RS_PHASES_WIRE_COLUMNS)
+
+
+def _rs_vs_ema_row() -> dict:
+    return _rs_split_row(
+        "rsVsEma", "rsVsEma", "UCT RS vs 21 EMA", "RS vs 21 EMA",
+        "How far the RS line sits above or below its 21 EMA, in percent, with a 3 and "
+        "a 13 EMA of that distance.",
+        _rs_split_benchmark_inputs(), RS_VS_EMA_WIRE_COLUMNS)
+
+
+def _rs_exit_row() -> dict:
+    """`rsExit` (2026-11-12): Mike Webster's Quick Break / Quicksand / Grateful Dead
+    Break on the RS line. Two LENGTH inputs, 0 meaning AUTO (daily 21 / 50, weekly
+    8 / 21, `relative_strength.EXIT_AUTO_LENGTHS`): the provider resolves them for
+    the timeframe, so the row can only declare 0 .. the range's top. Daily and
+    weekly charts; the provider blanks every other timeframe and says so."""
+    from api.services import relative_strength as rsm
+    return _rs_split_row(
+        "rsExit", "rsExit", "UCT RS Exit Warnings", "RS Exit Warnings",
+        "Three warnings on the RS line: it drops below its fast average (Quick Break), falls "
+        "lower than at that break (Quicksand), or drops below its slow average (Grateful Dead Break).",
+        _rs_split_benchmark_inputs() + [
+            {"key": "fastLength", "type": "int", "default": 0, "min": 0, "max": rsm.EXIT_LENGTH_RANGE[1]},
+            {"key": "slowLength", "type": "int", "default": 0, "min": 0, "max": rsm.EXIT_LENGTH_RANGE[1]},
+        ],
+        RS_EXIT_WIRE_COLUMNS)
+
+
+#: The four rows, always built (tests install them by hand), served only
+#: when `RS_SPLIT_ENABLED`.
+RS_SPLIT_DEFS: tuple[dict, ...] = (_rs_rating_row(), _rs_phases_row(), _rs_vs_ema_row(), _rs_exit_row())
+RS_SPLIT_DEF_IDS: tuple[str, ...] = tuple(d["id"] for d in RS_SPLIT_DEFS)
+
+SERVER_DEFS: tuple[dict, ...] = (_DPL, _GXW, _FCB, _RS_LINE) + (RS_SPLIT_DEFS if RS_SPLIT_ENABLED else ())
 
 _BY_ID: dict[str, dict] = {d["id"]: d for d in SERVER_DEFS}
 

@@ -226,6 +226,12 @@ def _init_db() -> None:
             except sqlite3.OperationalError as e:
                 if "duplicate column name" not in str(e).lower():
                     raise
+        # What the provider reported, apart from `cost_usd`, which may still be a reservation's worst case.
+        try:
+            c.execute("ALTER TABLE catalyst_cost_log ADD COLUMN confirmed_usd REAL")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e).lower():
+                raise
         c.commit()
 
 
@@ -939,11 +945,22 @@ def settle_cost(rowid: int, *, ticker: str, input_tokens: int, output_tokens: in
     cannot be found stays as it is: over-counting is the safe side."""
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         n = c.execute(
-            "UPDATE catalyst_cost_log SET input_tokens = ?, output_tokens = ?, cost_usd = ?"
+            "UPDATE catalyst_cost_log SET input_tokens = ?, output_tokens = ?, cost_usd = ?, confirmed_usd = ?"
             " WHERE rowid = ? AND ticker = ?",
-            (int(input_tokens), int(output_tokens), float(cost_usd), int(rowid), ticker)).rowcount
+            (int(input_tokens), int(output_tokens), float(cost_usd), float(cost_usd), int(rowid), ticker)).rowcount
         c.commit()
     return bool(n)
+
+
+def estimated_and_confirmed(market_date: str, ticker_prefix: str) -> dict:
+    """A reserved lane's day, split: dollars the provider confirmed, and dollars still at a worst-case estimate
+    (a timeout, a reply with no usage, a call that has not finished)."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT COALESCE(SUM(confirmed_usd), 0), COALESCE(SUM(CASE WHEN confirmed_usd IS NULL THEN cost_usd END), 0)"
+            " FROM catalyst_cost_log WHERE market_date = ? AND ticker LIKE ?",
+            (market_date, ticker_prefix + "%")).fetchone()
+    return {"confirmed_usd": round(float(row[0]), 6), "estimated_usd": round(float(row[1]), 6)}
 
 
 def cost_stats_for_date(market_date: str) -> dict:

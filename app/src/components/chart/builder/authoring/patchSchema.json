@@ -44,7 +44,8 @@
       "properties": {
         "slot": { "$ref": "#/$defs/slotId" },
         "output": { "$ref": "#/$defs/outputKey" },
-        "text": { "type": "string", "minLength": 1, "maxLength": 300 }
+        "text": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "by": { "enum": ["uct"], "x-uct-door-only": true }
       }
     },
     "question": {
@@ -173,7 +174,8 @@
         "width": { "type": "integer", "minimum": 1, "maximum": 4 },
         "style": { "enum": ["line", "stepline", "histogram", "area", "baseline"] },
         "lineStyle": { "enum": ["solid", "dashed", "dotted", "largeDashed"] },
-        "hidden": { "type": "boolean" }
+        "hidden": { "type": "boolean" },
+        "breaks": { "description": "ROW 42 — true: the line breaks on bars where the output has no value (a level held for N bars after an event, a value only while a condition holds) instead of being joined across them; false: joined (the default).", "type": "boolean" }
       }
     },
     "op_set_marker": {

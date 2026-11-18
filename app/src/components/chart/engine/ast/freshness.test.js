@@ -168,7 +168,29 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                               the two TEXT names stay excluded for
     //                               `rs_line_trend`'s reason. The Python pin
     //                               moved with it: (149, 107) -> (149, 110).
-    expect(Object.keys(excluded).length).toBe(110)
+    //   excluded 110 + 1 = 111       `min_volume_3d_prior` (2026-11-10, TC2000's MINV3.1 for the
+    //                                Anticipation starter): a scan primitive, excluded with theirs.
+    //   excluded 111 + 4 = 115       the four `live_base_*` columns (2026-11-10): live-tier bases,
+    //                                not member columns, excluded with their own reason.
+    // 110 -> 111 on 2026-11-10 (RS split S1): rs_rating_9m, excluded like the other rating-history columns.
+    // => 116: master's four live_base_* columns + the RS split's rs_rating_9m (both 2026-11-10).
+    //   excluded 116 + 5 = 121       the five RS Exit Warning columns (2026-11-13): `rs_exit_last`
+    //                                (TEXT, a verdict, stays excluded) and four ages, NULL until the
+    //                                first build after deploy (R8). Python pin: (149, 116) -> (149, 121).
+    //   excluded 121 + 9 = 130       the nine UCT RS screens columns (2026-11-14, unit U1), written by
+    //                                `rs_post_pass.run` only while RS_SCREENS_ENABLED is on, so NULL on
+    //                                every row (R8). Python pin: (149, 121) -> (149, 130).
+    //   excluded 130 + 14 = 144      fourteen more UCT RS screens columns (2026-11-14, unit U4): the
+    //                                rating a month ago, six RS-line measures and the seven Setup
+    //                                label columns, written only while RS_SCREENS_ENABLED is on, so
+    //                                NULL on every row (R8). Python pin: (149, 130) -> (149, 144).
+    //   excluded 144 + 2 = 146       the two weekly RS new high columns (2026-11-14, unit U12), written
+    //                                by the build's `bars_rs_weekly` step only while RS_SCREENS_ENABLED
+    //                                is on, so NULL on every row (R8). Python pin: (149, 144) -> (149, 146).
+    //   excluded 146 + 2 = 148       UCT RS Leaders' two list columns (2026-11-14, unit U12), written by
+    //                                `rs_leaders_list.run` inside the post-pass only while
+    //                                RS_SCREENS_ENABLED is on (R8). Python pin: (149, 146) -> (149, 148).
+    expect(Object.keys(excluded).length).toBe(148)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

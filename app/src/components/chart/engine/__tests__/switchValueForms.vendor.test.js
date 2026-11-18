@@ -79,15 +79,19 @@ describe('the rule, one clause at a time, on the runtime lane', () => {
   const N = 5
   const BARS = Array.from({ length: N }, (_, i) => ({ t: 1700000000 + i * 86400, o: 1, h: 2, l: 0.5, c: 1.5, v: 10 }))
   const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((b) => b[k])))
+  // ⭐ Engine 51 (review of #1149) — every word here is read before bar 0 now (an input only
+  // a drawing reads has no knob, `staticEnumValue`), so the drawing has no per-bar expression
+  // left for the runtime lane to compute; the `plot` gives the lane its one output, as a
+  // real script carries one.
   const table = (decls, pos, size) => `//@version=6${LF}indicator(${Q}t${Q}, overlay = true)${LF}${decls}`
-    + `var t = table.new(${pos}, 1, 1)${LF}if barstate.islast${LF}    table.cell(t, 0, 0, ${Q}x${Q}, text_size = ${size})${LF}`
+    + `var t = table.new(${pos}, 1, 1)${LF}if barstate.islast${LF}    table.cell(t, 0, 0, ${Q}x${Q}, text_size = ${size})${LF}plot(close)${LF}`
   const draw = (src) => {
     const lane = buildObjectLane(src, { tf: 'D', newestBarIsForming: false, bars: BARS })
     expect(lane.ok, lane.ok ? '' : `refused ${(lane.refusal || {}).guard}`).toBe(true)
     const r = runObjectLane(lane, { bars: N, series: SERIES, confirmed: true, readTime: (i) => BARS[i].t })
     return toRenderState(r.live, { bars: BARS, tf: 'D' }).tables[0]
   }
-  const sizeSwitch = (options, arms) => `sz = input.string(${Q}Large${Q}, ${Q}s${Q}, options = [${options.map((o) => Q + o + Q).join(', ')}])${LF}`
+  const sizeSwitch = (options, arms, def = 'Large') => `sz = input.string(${Q}${def}${Q}, ${Q}s${Q}, options = [${options.map((o) => Q + o + Q).join(', ')}])${LF}`
     + `string s = switch sz${LF}${arms.map(([k, v]) => `    ${Q}${k}${Q} => ${v}`).join(LF)}${LF}`
 
   it('⭐ a default-less switch whose arms cover every option: the member\'s pick is the value', () => {
@@ -100,8 +104,10 @@ describe('the rule, one clause at a time, on the runtime lane', () => {
   // `text_size` dropped, i.e. at the renderer's default size, which no reference sentence or
   // capture states for a size that can be `na`. The cell is now WITHHELD by name (`enum:na`,
   // `ENUM_NA_SENTENCE`, capture row Q-HS1); `honestySweep.test.js` rails the rule.
+  // ⭐ Engine 51 (review of #1149) — the input is folded at its default, so the `na` is reached
+  // only when the default IS the uncovered option ("Huge"); at "Large" the cell is `large`.
   it('⛔ CONTROL — an option no arm covers could be `na`, so the cell is withheld by name, never drawn at a default size', () => {
-    const src = table(sizeSwitch(['Small', 'Large', 'Huge'], [['Small', 'size.small'], ['Large', 'size.large']]), 'position.bottom_left', 's')
+    const src = table(sizeSwitch(['Small', 'Large', 'Huge'], [['Small', 'size.small'], ['Large', 'size.large']], 'Huge'), 'position.bottom_left', 's')
     const t = translatePine(src, { strict: true, objects: true })
     expect(t.objects.ops.find((o) => o.k === 'cell'), 'the cell is withheld').toBeUndefined()
     expect(t.objectDiagnostics.dropReasons['enum:na']).toBe(1)
@@ -109,8 +115,8 @@ describe('the rule, one clause at a time, on the runtime lane', () => {
     expect(t.objectDiagnostics.enumUnreadable).toBeUndefined()
     expect((t.objectDiagnostics.cellTextWhy || []).join('|')).toContain(`pine:enum-na ${ENUM_NA_SENTENCE.slice(0, 60)}`)
     // …and the covered version of the same script DOES carry it (same reader, one option less)
-    const covered = translatePine(src.replace(`, ${String.fromCharCode(34)}Huge${String.fromCharCode(34)}`, ''), { strict: true, objects: true })
-    expect(covered.objects.ops.find((o) => o.k === 'cell').props.text_size).toBeTruthy()
+    const covered = translatePine(table(sizeSwitch(['Small', 'Large', 'Huge'], [['Small', 'size.small'], ['Large', 'size.large']]), 'position.bottom_left', 's'), { strict: true, objects: true })
+    expect(covered.objects.ops.find((o) => o.k === 'cell').props.text_size).toEqual({ v: 'text', node: { t: 'lit', s: 'large' } })
   })
 
   it('⭐ a function whose body is a switch, with a default arm, places the table', () => {

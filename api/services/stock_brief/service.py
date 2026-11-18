@@ -20,6 +20,7 @@ No per-view LLM call — the profile is generated on a background thread the fir
 time a ticker is viewed (generate-once + daily cap), exactly like News & Catalysts.
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import json
 import logging
@@ -35,7 +36,7 @@ from api.services.stock_brief import store
 
 _logger = logging.getLogger(__name__)
 
-_MODEL = os.environ.get("STOCK_BRIEF_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_MODEL = os.environ.get("STOCK_BRIEF_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", llm_models.SONNET)
 # 15 min, matching _EARN_TTL. Was 120s, which sat UNDER the bars layer's own
 # 300s daily TTL (`bars_fetch._CACHE_TTL['D']`) — so a recompute reliably
 # outlived the cache it read from, and every third view or so paid the full

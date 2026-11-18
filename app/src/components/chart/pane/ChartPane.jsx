@@ -1,46 +1,65 @@
 import {
-  forwardRef, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
+  forwardRef, lazy, Suspense, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
 } from 'react'
 import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
-import { labelFor as indicatorLabelFor } from '../indicatorCatalog'
+import { anyLabelFor as indicatorLabelFor } from '../indicatorCatalog'
 import StockChart from '../../StockChart'
+import { sendSeedFrom, agentOpenOpts } from '../builder/agentSeams'
 import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import ChartIdentityRow from './ChartIdentityRow'
+import SymbolActionsMenu from './SymbolActionsMenu'
+// /charts integrated header: at or above this pane width the timeframe row joins the
+// title row (one header row); below it, two rows. Measured pane width, px.
+const ONE_ROW_HEADER_MIN_W = 1180
 import ChartTfBar from './ChartTfBar'
 import { trimTimeframes } from './headerFit'
 import useChartSurfaceSettings from './useChartSurfaceSettings'
 import { paneLookProps } from './paneLook'
+import { headerColors } from './headerDefaultColors'
 import ChartSettingsModal from '../ChartSettingsModal'
 import AttachedPineDisclosures from './AttachedPineDisclosures'
+// W9-T13b: the strategy report panel, DARK behind VITE_PINE_STRATEGY_BROKER_ENABLED (read inside)
+import AttachedStrategyReports from './AttachedStrategyReports'
 import UIcon from '../../ui/UIcon'
+import ChartTypeMenu from './ChartTypeMenu'
 import { VOLUME_PANE_SURFACE_FIXED } from '../indicatorRegistry'
 import { tfLabel, tfSortKey, tfSpokenLabel } from '../timeframes'
 import { TF_ORDER, shortcutClaimsKey } from '../keyboardShortcuts'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { getExtSessionCached } from '../../../utils/extSession'
 import { useFlagged } from '../../../hooks/useFlagged'
-import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
-import useWatchlistPerformance from '../../../hooks/useWatchlistPerformance'
-import useWatchlistMeta from '../../../hooks/useWatchlistMeta'
-import useVolumeCurve from '../../../hooks/useVolumeCurve'
-import useWatchlistThemes from '../../../hooks/useWatchlistThemes'
+import useHeaderSnapshot from './useHeaderSnapshot'
+import useHeaderExtrasWarm from './useHeaderExtrasWarm'
+import { useChartPerformance as useWatchlistPerformance, useChartMeta as useWatchlistMeta } from '../restedReaders'
+import { useChartVolumeCurve as useVolumeCurve, useChartThemes as useWatchlistThemes } from '../restedReaders'
+import { useChartColumnFacts } from '../restedReaders'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
-  HEADER_FIELD_BY_KEY, PERF_HEADER_KEYS, QUOTE_HEADER_KEYS, META_HEADER_KEYS,
-  THEME_HEADER_KEYS, CURVE_HEADER_KEYS, headerFieldKeys, resolveHeaderField, SIGN_POS, SIGN_NEG,
+  PERF_HEADER_KEYS, QUOTE_HEADER_KEYS, META_HEADER_KEYS,
+  THEME_HEADER_KEYS, CURVE_HEADER_KEYS, SIGN_POS, SIGN_NEG,
 } from '../headerFields'
+import {
+  headerStatKeys, statLabelsOf, statNeedsQuote, statFactFields, headerStatItems,
+  HEADER_STAT_BY_KEY, withStatLabel, headerStatTogglePatch, statStylesFor, withHeaderStatStyle,
+} from '../headerStatCatalog'
+import { customStatsOf, customStatKey, customStatFor, isCustomStatKey } from '../headerCustomStats'
+import { withDevStatFill } from './devStatFill'
+// The header stat quick-edit menu (owner 11-17) loads on the first click of a stat.
+const HeaderStatMenu = lazy(() => import('./HeaderStatMenu'))
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
 import useMarketIndicators from '../../../hooks/useMarketIndicators'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
-import useTickerMeta from '../../../hooks/useTickerMeta'
-import useDelisted from '../../../hooks/useDelisted'
+import { useChartTickerMeta as useTickerMeta, useChartDelisted as useDelisted } from '../restedReaders'
 import { chordById, matchesChord } from '../../../pages/command/chords.js'
 import { isEconomicId } from '../engine/econMark'
 import useEconomicCatalog from '../engine/useEconomicCatalog'
+import { warmTypedSymbol as legacyWarmTypedSymbol } from '../../../utils/prefetchBars'
+import { warmTypedSymbol as storeWarmTypedSymbol } from '../../../data/barStore/prefetch'
+import { BARSTORE } from '../barStoreSwitch'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -48,6 +67,7 @@ import useEconomicCatalog from '../engine/useEconomicCatalog'
 import styles from '../../../pages/charts/ChartsWorkspace.module.css'
 
 import { STUDIO_DOCK_W_MAX, STUDIO_DOCK_W_MIN, STUDIO_DOCK_MIN_CHART_W, studioDockWidth } from './studioDock'
+import { resolveShowExtended } from '../../../utils/viewSession'
 
 // Letters only, no modifier combos. Period allowed for class-share tickers
 // (BRK.B). Digits are deliberately EXCLUDED — they are timeframe shortcuts,
@@ -149,6 +169,9 @@ function ChartPane({
   onApplyThemeAll = null,
   // Workspace-supplied: apply a theme to EVERY widget in the layout ("All widgets").
   onApplyThemeAllWidgets = null,
+  // Workspace-supplied: Chart Settings' "Apply to all charts" door, `{ count(), apply() }` (ChartWidget builds it;
+  // chartAppearance.js says what is copied). Absent ⇒ the settings modal shows no such control.
+  applyToAllCharts = null,
   // Adjustable watermark: the settings modal's "Move watermark" / "Reset to center"
   // shortcuts (the per-chart position itself lives in the widget's opts).
   onAdjustWatermark = null,
@@ -182,7 +205,7 @@ function ChartPane({
   const econCat = useEconomicCatalog(isEcon)
   const econRow = isEcon ? (econCat.list.find((r) => r && String(r.symbol).toUpperCase() === econSym) || null) : null
   const econName = econRow ? (econRow.name || econRow.short_name || econSym) : econSym
-  const { data: fund } = useFundamentalSnapshot(sym, !compact && !mini && showTfBar && !isEcon)
+  const { data: fund } = useHeaderSnapshot(sym, !compact && !mini && showTfBar && !isEcon)
   const [flagToast, setFlagToast] = useState(null)
   useEffect(() => {
     if (!flagToast) return
@@ -280,12 +303,13 @@ function ChartPane({
   // on its own blob), a popup passes neither (reads AND writes the user's global
   // chart_settings — "your chart, everywhere").
   const {
-    cs: chartCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource, theme: resolvedTheme } = useChartSurfaceSettings({
+    cs: chartCs, canvasCs, menuVars, write: writeActiveSettings, patchHeader, ownChartSource, theme: resolvedTheme } = useChartSurfaceSettings({
     stored,
     onStore,
     chartsTheme,
   })
-  const extHoursOn = chartCs.extendedHoursShading ?? true
+  // the canvas's own rule on the canvas's own settings (useChartSurfaceSettings `canvasCs`)
+  const extHoursOn = resolveShowExtended(canvasCs)
 
   // ⭐⭐ T5b — THE BAR COUNT THE `window_dependent` BADGE NAMES.
   //
@@ -344,9 +368,11 @@ function ChartPane({
   // Backed by the shared `extendedHoursShading` chart setting (StockChart reads
   // the same pref, so they stay in lockstep). ON = pre/post bars show; OFF =
   // regular session only (9:30–4:00 ET) with overnight gaps.
+  // Written over what the canvas SHOWS (canvasCs), so flipping EXT changes nothing else the member sees
+  // (a partial blob would otherwise take the defaults for every key it lacked).
   const setExtHours = useCallback((on) => {
-    writeActiveSettings({ ...chartCs, extendedHoursShading: on, preset: 'custom' })
-  }, [chartCs, writeActiveSettings])
+    writeActiveSettings({ ...canvasCs, extendedHoursShading: on, preset: 'custom' })
+  }, [canvasCs, writeActiveSettings])
 
   // ── UCT breadth line-chart quick-toggle ──
   // Breadth pseudo-tickers (UCTA50 = % above 50-day MA, etc.) often read better as a
@@ -452,6 +478,14 @@ function ChartPane({
   const identityRef = useRef(null)
   const [sessionForceAbbrev, setSessionForceAbbrev] = useState(false)
   const [titleForceCollapse, setTitleForceCollapse] = useState(false)
+  // ── One-row header ladder (owner 11-14) ── the /charts chart header stays ONE row at every
+  // width and sheds in steps as the pane narrows: 1 the clock, 2 the company name → the ticker,
+  // 3 the info labels → their abbreviations (Market Cap → MC), 4+ the timeframes fold one at a
+  // time into the ▾ menu (the active one always stays), then the info fields, the date
+  // navigator, the day change, RTH/PM and the symbol ▾. The window controls (⚙ · + · pop out ·
+  // ✕) are NEVER shed — the right cluster does not shrink; the ticker ellipsizes last.
+  const [rowLevel, setRowLevel] = useState(0)
+  const rowWidthRef = useRef(null)
 
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
@@ -486,6 +520,8 @@ function ChartPane({
   // escape to intraday) exactly like a host-supplied tfCodes lock. An explicit host
   // tfCodes still wins.
   const effTfCodes = Array.isArray(tfCodes) ? tfCodes : ((isBreadthLike || isEcon) ? DWM : null)
+  // The /charts integrated header is ONE row at every width (owner 11-14).
+  const oneRowMode = !!slots?.identityDragClass && !mini && showTfBar
   const visibleTfs = (() => {
     if (Array.isArray(effTfCodes)) return effTfCodes.map(c => [c, tfLabel(c)])
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
@@ -504,12 +540,27 @@ function ChartPane({
   // tfCap thins the timeframe bar, infoForceAbbrev shortens the info labels, and the
   // identity-row states collapse the title / abbreviate the session buttons. A
   // host-locked tfCodes set is never trimmed.
+  // One-row ladder steps (see rowLevel).
+  const tfFoldable = Array.isArray(effTfCodes) ? 0 : Math.max(0, visibleTfs.length - 1)
+  const L_TF = 4                                   // first timeframe fold
+  const L_META = L_TF + tfFoldable                 // after the last fold
+  const rowHideClock = oneRowMode && rowLevel >= 1
+  const rowTicker = oneRowMode && rowLevel >= 2
+  const rowAbbrev = oneRowMode && rowLevel >= 3
+  const rowCap = oneRowMode && rowLevel >= L_TF ? Math.max(1, visibleTfs.length - (rowLevel - L_TF + 1)) : 99
+  const rowHideMeta = oneRowMode && rowLevel >= L_META
+  const rowHideChartType = oneRowMode && rowLevel >= L_META + 1   // the chart-type button (owner 11-15)
+  const rowHideDateNav = oneRowMode && rowLevel >= L_META + 2
+  const rowHideChange = oneRowMode && rowLevel >= L_META + 3
+  const rowHideSession = oneRowMode && rowLevel >= L_META + 4
+  const rowHideSymMenu = oneRowMode && rowLevel >= L_META + 5
+  const ROW_LEVEL_MAX = L_META + 5
   const responsiveTfs = Array.isArray(effTfCodes)
     ? visibleTfs
-    : trimTimeframes(visibleTfs, (isBreadthLike || isEcon) ? breadthTf : tf, tfCap)
+    : trimTimeframes(visibleTfs, (isBreadthLike || isEcon) ? breadthTf : tf, oneRowMode ? rowCap : tfCap)
   shownTfCountRef.current = responsiveTfs.length
-  const infoAbbrev = infoForceAbbrev
-  const effHeaderLabel = exhibit ? identityLabel : ((titleForceCollapse && !_themeViewLabel && !isBreadthLike && !isEcon && !themeIdx.isIndex)
+  const infoAbbrev = infoForceAbbrev || rowAbbrev
+  const effHeaderLabel = exhibit ? identityLabel : (((titleForceCollapse || rowTicker) && !_themeViewLabel && !isBreadthLike && !isEcon && !themeIdx.isIndex)
     ? sym
     : headerLabel)
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
@@ -528,17 +579,23 @@ function ChartPane({
   // Per-item header color overrides (Chart Settings → Header → Show). Absent = the
   // item keeps its built-in color (see chartDefaults header.colors).
   const hdrColors = hdr.colors || {}
+  // Built-in header inks when nothing is saved (owner 11-16): white title, the chart's own candle up / down colours
+  // for the day change (headerDefaultColors.js; the Chart Settings swatches read the same authority).
+  const _hdrInk = headerColors(chartCs, resolvedTheme)
 
   // Info Row — the fields the user picked (migrates a legacy show* blob). Each extra data
   // source (live quote / perf / rvol+ipo meta / theme) is fetched for THIS one symbol ONLY
   // when a field that needs it is actually shown.
   // An economic series has no market cap, earnings, quote or theme — no info row.
-  const infoFieldKeys = useMemo(() => (isEcon ? [] : headerFieldKeys(hdr)), [hdr, isEcon])
+  // (owner 11-16) the stat library: `header.fields` may hold any catalog stat (headerStatCatalog.js), in the
+  // member's order, each with an optional short rename in `header.statLabels`. Absent = today's exact row.
+  const infoFieldKeys = useMemo(() => (isEcon ? [] : headerStatKeys(hdr)), [hdr, isEcon])
+  const statLabels = useMemo(() => statLabelsOf(hdr), [hdr])
   const infoGate = !compact && !mini && showTfBar
   // A delisted ticker has no live feed, so never open the live-quote poll for one
   // (it would return nothing and render a broken 0.00%). Its Info-Row quote fields
   // simply don't show — every other (static) field still resolves.
-  const wantsQuote = infoGate && !isDelisted && infoFieldKeys.some((k) => QUOTE_HEADER_KEYS.has(k))
+  const wantsQuote = infoGate && !isDelisted && infoFieldKeys.some((k) => QUOTE_HEADER_KEYS.has(k) || statNeedsQuote(k))
   const wantsMeta = infoGate && infoFieldKeys.some((k) => META_HEADER_KEYS.has(k))
   const wantsTheme = infoGate && infoFieldKeys.some((k) => THEME_HEADER_KEYS.has(k))
   const wantsPerf = infoGate && infoFieldKeys.some((k) => PERF_HEADER_KEYS.has(k))
@@ -549,24 +606,42 @@ function ChartPane({
   const { perfData } = useWatchlistPerformance(wantsPerf ? [sym] : [])
   // One request per chart symbol (its own curve rides the market one), never per tick.
   const volCurve = useVolumeCurve(wantsCurve, wantsCurve ? [sym] : [])
+  // The library stats from the nightly snapshot: asked for only while one is shown, only the fields it needs.
+  const factFields = useMemo(() => (infoGate && !isEcon ? statFactFields(infoFieldKeys) : []), [infoGate, isEcon, infoFieldKeys])
+  const hdrFacts = useChartColumnFacts(factFields.length ? [sym] : [], factFields)
+  const factsRow = factFields.length ? (hdrFacts?.[sym] || null) : null   // a stable row (the hook's `{}` is new each render)
+  // The rows a member is about to reach have these same reads asked for ahead, each only
+  // while this header makes it (the delisted check: for every real ticker, on a pane whose
+  // info row can show, as with the snapshot: a compact or mini pane asks for no row).
+  useHeaderExtrasWarm({ perf: wantsPerf, theme: wantsTheme, meta: wantsMeta, curve: wantsCurve, delisted: infoGate && !(synthDailyOnly || exhibit) })
+  // Custom stats (owner 11-16, headerCustomStats.js): the chosen ones are handed to StockChart, which computes each
+  // over the chart's own bars (engine/customStatCompute.js) and reports the values back only when one changes.
+  const shownCustomStats = useMemo(() => {
+    if (!infoGate) return null
+    const on = new Set(infoFieldKeys)
+    const list = customStatsOf(hdr).filter((c) => on.has(customStatKey(c.id)))
+    return list.length ? list : null
+  }, [hdr, infoFieldKeys, infoGate])
+  const [customValues, setCustomValues] = useState(null)
+  const onHeaderCustomStats = useCallback((v) => setCustomValues(v && Object.keys(v).length ? v : null), [])
   const metaItems = useMemo(() => {
-    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, volCurve, sym }
-    return infoFieldKeys.map((key) => {
-      const f = HEADER_FIELD_BY_KEY[key]
-      if (!f) return null
-      const { value, color, sign } = resolveHeaderField(key, ctx)
-      // Signed fields (% change, $ change, N-day…): pick the pos/neg override by the value's
-      // sign, falling back to the green/red default tint. Non-signed: user override → default.
-      let finalColor
-      if (f.signed) {
-        const s = sign || 'pos'
-        finalColor = hdrColors[`${f.colorKey}:${s}`] || color || (s === 'neg' ? SIGN_NEG : SIGN_POS)
-      } else {
-        finalColor = (f.colorKey ? hdrColors[f.colorKey] : null) || color || f.dflt || null
-      }
-      return { key, label: f.label, short: f.short || f.label, title: f.title, value, color: finalColor, sign: f.signed ? (sign || 'pos') : null }
-    }).filter(Boolean)
-  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName, isFundLike, volCurve])
+    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, facts: factsRow, custom: customValues, header: hdr, volCurve, sym }
+    // one pure builder (headerStatCatalog.js): value, colour override / sign tint, and the member's rename
+    const items = headerStatItems(infoFieldKeys, statLabels, hdrColors, ctx)
+    // ⛔ DEV ONLY (owner 11-17): placeholder values for empty stats on localhost, so a stat's look can be judged.
+    // `import.meta.env.DEV` is false in a build, so Vite drops this branch AND devStatFill.js; `?realstats` turns it off.
+    if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
+      return withDevStatFill(items, sym, {
+        colors: hdrColors,
+        isSigned: (it) => (isCustomStatKey(it.key) ? !!customValues?.[it.key]?.signed : !!HEADER_STAT_BY_KEY[it.key]?.signed),
+      })
+    }
+    return items
+  }, [infoFieldKeys, statLabels, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, factsRow, sym, companyName, isFundLike, volCurve, customValues, hdr])
+  // The SAME next-earnings date the header's "Next Earnings" field shows, handed to the chart's "E" marker so the two
+  // always agree (owner test 11-16: the header read 12/9 while /api/chart/markers had no upcoming row → no E).
+  const nextEarningsHint = (fund?.next_earnings || hdrMeta?.[sym]?.next_earnings || null)
+  const nextEarningsHintDate = typeof nextEarningsHint === 'string' ? nextEarningsHint.slice(0, 10) : null
 
   // ── Wrap-fit measurement (drives tfCap / infoForceAbbrev declared above) ──
   // A signature of what occupies the row besides the timeframe buttons: the info
@@ -576,12 +651,13 @@ function ChartPane({
   // NOT depend on infoAbbrev/tfCap: those are OUR outputs, and keying the reset on
   // them would oscillate (abbreviate → narrower → reset → un-abbreviate → …).
   const infoSig = useMemo(
-    () => metaItems.map((i) => `${i.label.length}:${String(i.value ?? '').length}`).join(','),
+    // a stat's size / box changes its width too (headerStatStyle.js), so it is part of the fit signature
+    () => metaItems.map((i) => `${i.label.length}:${String(i.value ?? '').length}${i.style ? `:${i.style.size || ''}${i.style.box ? 'b' : ''}` : ''}`).join(','),
     [metaItems],
   )
   useLayoutEffect(() => { setTfCap(99); setInfoForceAbbrev(false) }, [paneWidth, infoSig])
   useLayoutEffect(() => {
-    if (compact || mini || !showTfBar || Array.isArray(effTfCodes)) return
+    if (oneRowMode || compact || mini || !showTfBar || Array.isArray(effTfCodes)) return
     const el = tfBarRef.current
     if (!el) return
     // The row is nowrap + overflow:hidden, so it stays ONE line and overflows instead
@@ -601,7 +677,7 @@ function ChartPane({
   // resizes. Sheds monotonically: session buttons first, then the title. The reset
   // below restores both when the pane widens or the symbol changes.
   useLayoutEffect(() => {
-    if (mini) return
+    if (mini || oneRowMode) return
     const el = identityRef.current
     if (!el || el.scrollWidth <= el.clientWidth + 1) return
     if (!sessionForceAbbrev) setSessionForceAbbrev(true)
@@ -611,6 +687,25 @@ function ChartPane({
     setSessionForceAbbrev(false)
     setTitleForceCollapse(false)
   }, [paneWidth, headerLabel, sym])
+  // One-row ladder: when anything in the row is clipped (the row itself, or the timeframe
+  // strip squeezed inside it), take one more step — synchronously, before paint, until it
+  // fits. Narrowing keeps the steps already taken (it can only need more); widening, a new
+  // symbol or different info resets to the full row and re-fits. jsdom lays nothing out
+  // (every width 0), so this is inert in tests.
+  useLayoutEffect(() => {
+    if (!oneRowMode) return
+    const prev = rowWidthRef.current
+    rowWidthRef.current = paneWidth
+    if (prev == null || !Number.isFinite(paneWidth) || paneWidth > prev) setRowLevel(0)
+  }, [oneRowMode, paneWidth])
+  useLayoutEffect(() => { if (oneRowMode) setRowLevel(0) }, [oneRowMode, headerLabel, sym, infoSig, visibleTfs.length])
+  useLayoutEffect(() => {
+    if (!oneRowMode || rowLevel >= ROW_LEVEL_MAX) return
+    const clipped = (el) => !!el && el.scrollWidth > el.clientWidth + 1
+    const row = identityRef.current
+    const partClipped = !!row && [...row.children].some(clipped)
+    if (clipped(row) || partClipped || clipped(tfBarRef.current)) setRowLevel((l) => Math.min(ROW_LEVEL_MAX, l + 1))
+  })
 
   // Chart-settings modal (opened by the gear, by StockChart's own settings entry
   // point, or imperatively by the host through the ref).
@@ -628,6 +723,60 @@ function ChartPane({
     setSettingsTarget(typeof target === 'string' ? target : null)
     setSettingsOpen(true)
   }, [])
+
+  // ── Clickable header stats (owner 11-17) ─────────────────────────────────────────────────────────────────────────
+  // A click on a stat opens HeaderStatMenu: rename, value / label color, shaded box, size, remove, "+ Add a stat…",
+  // "Header settings…". Every write goes through `patchHeader` into the SAME keys Chart Settings → Header & legend
+  // edits (statLabels, colors, statStyle, fields). Only where this pane's settings are editable (the gear's rule).
+  const statsEditable = !mini && !compact && !isOwnChartSurface && !isEcon
+  const [statMenu, setStatMenu] = useState(null)   // { key, el }
+  const closeStatMenu = useCallback(() => setStatMenu(null), [])
+  const onStatClick = useCallback((key, el) => setStatMenu((m) => (m && m.key === key ? null : { key, el })), [])
+  const statMenuStat = useMemo(() => {
+    if (!statMenu) return null
+    const it = metaItems.find((i) => i.key === statMenu.key)
+    if (!it) return null
+    const cat = HEADER_STAT_BY_KEY[statMenu.key]
+    const custom = isCustomStatKey(statMenu.key)
+    const own = custom ? ((customValues && customValues[statMenu.key]?.label) || customStatFor(hdr, statMenu.key)?.name || 'Custom stat') : cat?.label
+    const signed = custom ? !!customValues?.[statMenu.key]?.signed : !!cat?.signed
+    const colorKey = custom ? statMenu.key : (cat?.colorKey || statMenu.key)
+    const colors = hdr.colors || {}
+    return {
+      key: statMenu.key, label: own || it.label, rename: statLabels[statMenu.key] || null, value: it.value,
+      signed, colorKey,
+      valueColor: colors[colorKey] || null, defaultColor: (cat && cat.dflt) || it.color || null,
+      valueColors: { pos: colors[`${colorKey}:pos`] || null, neg: colors[`${colorKey}:neg`] || null },
+      defaultColors: { pos: SIGN_POS, neg: SIGN_NEG },
+    }
+  }, [statMenu, metaItems, customValues, hdr, statLabels])
+  const statMenuLook = useMemo(() => (statMenu ? (statStylesFor(hdr)[statMenu.key] || {}) : {}), [statMenu, hdr])
+  const statMenuKey = statMenu?.key
+  const renameStat = useCallback((label) => {
+    if (!statMenuKey) return
+    patchHeader({ statLabels: withStatLabel(hdr, statMenuKey, label) })
+  }, [statMenuKey, hdr, patchHeader])
+  const colorStat = useCallback((colorKey, hex) => {
+    const next = { ...(hdr.colors || {}) }
+    if (hex) next[colorKey] = hex
+    else delete next[colorKey]
+    patchHeader({ colors: next })
+  }, [hdr, patchHeader])
+  const styleStat = useCallback((patch) => {
+    if (!statMenuKey) return
+    patchHeader({ statStyle: withHeaderStatStyle(hdr, statMenuKey, patch) })
+  }, [statMenuKey, hdr, patchHeader])
+  const removeStat = useCallback(() => {
+    if (!statMenuKey) return
+    const patch = headerStatTogglePatch(hdr, statMenuKey)
+    if (Object.keys(patch).length) patchHeader(patch)
+  }, [statMenuKey, hdr, patchHeader])
+  // ⭐ UCT Agent (C1-127): read through refs by the imperative handle, so the Agent's door never goes stale:
+  // is the dialog open NOW (the read-back), and does this pane show the gear at all (not mini, not the own-chart surface)
+  const settingsOpenRef = useRef(false)
+  settingsOpenRef.current = settingsOpen
+  const settingsDoorRef = useRef(false)
+  settingsDoorRef.current = !mini && !isOwnChartSurface
   // ⭐ A1.2 — the indicator Undo stack this pane's chart shares (StockChart toasts from it).
   // ONLY the Chart Settings modal's own edits are recorded here (and template applies, via
   // `applySettingsRecorded`); `applySettings` stays unrecorded. The Agent writes through
@@ -688,16 +837,32 @@ function ChartPane({
    *  same hazard, and the same answer, as the library dialog closing itself
    *  before it opens the builder. The builder is a full authoring surface with
    *  seven tabs; it wants the room anyway. */
-  const openFormulaBuilder = useCallback(() => {
+  // ⭐ UCT SIGNATURE R2 — `opts.description` (Indicators → "Build “…” with the UCT Agent") is
+  // pre-filled into the builder's start view, never sent.
+  const openFormulaBuilder = useCallback((opts = null) => {
     setSettingsOpen(false)
-    try { paneToolbarApi.current?.openFormulaBuilder?.() } catch { /* noop */ }
+    try { paneToolbarApi.current?.openFormulaBuilder?.(opts && typeof opts.description === 'string' ? { description: opts.description } : undefined) } catch { /* noop */ }
+  }, [])
+  /** Chart Settings → Indicators → "Or  Paste a TradingView script · Start from a picture · Write a
+   *  formula": the builder opened on that door ('pine' | 'image' | 'formula'). The modal closes first. */
+  const openBuilderDoor = useCallback((door) => {
+    setSettingsOpen(false)
+    try { paneToolbarApi.current?.openIndicatorDoor?.(door) } catch { /* noop */ }
   }, [])
   /** Chart Settings → Indicators → "+ Create Indicator" (P2 Track B). The modal
    *  closes first — the studio docks beside the chart, and two surfaces holding
    *  Escape would be the same hazard `openFormulaBuilder` describes. */
-  const openCreateIndicator = useCallback(() => {
+  const openCreateIndicator = useCallback((opts = null) => {
     setSettingsOpen(false)
-    try { paneToolbarApi.current?.openCreateIndicator?.() } catch { /* noop */ }
+    // The Indicators window's plain-words box hands over what was typed: it opens the studio
+    // with the request PREFILLED. ⭐ 2026-11-16: when the member submitted the box itself (Enter,
+    // or one of its examples) the words are SENT as the first turn; a search's words handed over
+    // by "Describe it instead" are only placed in the box.
+    const seed = opts && typeof opts.seed === 'string' ? opts.seed : ''
+    try {
+      if (seed) paneToolbarApi.current?.openCreateIndicatorFor?.(sendSeedFrom(opts) ? { seed, send: true } : { seed })
+      else paneToolbarApi.current?.openCreateIndicator?.()
+    } catch { /* noop */ }
   }, [])
   /** ⭐ PHASE 4 — THE DEFINITION'S OWN DOORS for Chart Settings → Indicators: the
    *  same toolbar calls the legend menu makes. The modal closes first (one surface
@@ -761,6 +926,29 @@ function ChartPane({
 
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
+  // ⭐ 2026-11-18 — WHEN THE STAT MENU CLOSES, FOCUS RETURNS TO THE CHART, the rule this pane keeps for
+  // every chart menu ("so type-to-search works immediately — else the first keypress hits a global
+  // drawing-tool hotkey, not the search"). A stat is a focusable button since 11-17, and the menu
+  // hands focus back to its stat on Escape. Measured on production: with focus left there, `t` armed
+  // the trendline tool and `a` the arrow tool (a crosshair on the chart), where the same key on the
+  // chart opens ticker search. So a member who restyled a stat and then typed a ticker got drawing
+  // tools. Runs AFTER the menu's own focus return (this effect commits later than its handler).
+  // ⛔ Only when focus was left on the stat, inside the menu that just went away, or nowhere: a
+  // control the member pressed elsewhere keeps it, and so does Chart Settings when "Add a stat…" or
+  // "Header settings…" opened it in the same step (it holds the focus by then; the rail checks the
+  // chart is never even asked).
+  const statMenuAnchorRef = useRef(null)
+  useEffect(() => {
+    if (statMenu) { statMenuAnchorRef.current = statMenu.el; return }
+    const stat = statMenuAnchorRef.current
+    statMenuAnchorRef.current = null
+    if (!stat) return
+    const doc = stat.ownerDocument || document
+    const at = doc.activeElement
+    if (!at || at === doc.body || !at.isConnected || at === stat || stat.contains(at)) {
+      focusableRef.current?.focus({ preventScroll: true })
+    }
+  }, [statMenu])
   // ResizeObserver wiring for the responsive header fit (paneRef/paneWidth are
   // declared higher up — before the header computation that reads paneWidth).
   useEffect(() => {
@@ -807,6 +995,10 @@ function ChartPane({
       focusableRef.current?.focus({ preventScroll: true })
     })
   }, [onSymbolChange])
+  // Type-to-search: start fetching the typed D/W/M symbol before Enter (warmTypedSymbol).
+  // P3-S1: the chart's own source warms (chart/barStoreSwitch.js). The store's typed warm never
+  // answers 'stale-answer' (a late answer is merged by the reducer) — and nothing here reads it.
+  const handleTypedIntent = useCallback((s) => { (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf) }, [effectiveTf])
 
   const handleChartClick = useCallback((e) => {
     // ⛔ A PORTAL CLICK IS NOT A CHART CLICK (a11y gate §12.2, 2026-11-08). React
@@ -864,6 +1056,9 @@ function ChartPane({
 
   useImperativeHandle(ref, () => ({
     openSettings,
+    // ⭐ UCT Agent (C1-127): the gear's own predicate, and the dialog's open state (ChartWidget's adapter)
+    canOpenSettings: () => settingsDoorRef.current,
+    isSettingsOpen: () => settingsOpenRef.current,
     // Apply a whole settings blob to THIS chart — same path the settings modal's
     // onChange uses. Lets the right-click "Chart template" menu drop a saved
     // template straight onto the chart without opening the modal.
@@ -891,9 +1086,11 @@ function ChartPane({
     stepBar: (dir) => dateNavApiRef.current?.stepBar?.(dir),
     ensureFullHistory: () => dateNavApiRef.current?.ensureFullHistory?.(),
     getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
-    // ⭐ UCT Agent: the range bar (and its Undo), Reset view and hide-all-indicators, read back through getDateMeta. A VIEW; nothing saved here.
+    // ⭐ UCT Agent: the range bar (and its Undo), Reset view, hide-all-indicators, the ◀ / ▶ step, Auto-scale and the + / - zoom, read back through getDateMeta. A VIEW; nothing saved here.
     viewDo: (op, arg) => {
-      const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden'].includes(op) ? dateNavApiRef.current?.[op] : null
+      const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden', 'stepBar', 'autoScale', 'zoom', 'positionCalc'].includes(op) ? dateNavApiRef.current?.[op]
+        // chartReplay.playback: the Replay / Time Machine bar's own handlers (StockChart replayDo), read back via getDateMeta().replay
+        : op === 'replay' ? dateNavApiRef.current?.replay : null
       if (!fn) return false
       fn(arg)
       return true
@@ -904,7 +1101,8 @@ function ChartPane({
     openCreateIndicatorFor: (opts = null) => {
       const no = { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false }
       let res = no
-      try { res = paneToolbarApi.current?.openCreateIndicatorFor?.(opts) ?? no } catch { res = no }
+      // ⛔ UCT Agent's seed is never sent: `send` cannot pass this door (`agentOpenOpts`)
+      try { res = paneToolbarApi.current?.openCreateIndicatorFor?.(agentOpenOpts(opts)) ?? no } catch { res = no }
       // ⭐ only an open that HAPPENED closes Chart Settings (Agent team finding, 10-09):
       // a refused one ('access' / 'readonly' / 'unknown-definition') leaves the screen as it was
       if (res && res.ok) setSettingsOpen(false)
@@ -922,6 +1120,8 @@ function ChartPane({
     // shown / hidden?" (the Indicators button's own predicate). Agent passes it as
     // `ctx.canManage` to `builder/agentMutations.js` at plan, at apply and at every Undo.
     canManageIndicators: () => { try { return !!paneToolbarApi.current?.canManageIndicators?.() } catch { return false } },
+    // UCT Agent (uctIntelligence.set): the UCT Intelligence row/panel gates StockChart computes (null = not published yet)
+    uctIntelligence: () => { try { return paneToolbarApi.current?.uctIntelligence?.() ?? null } catch { return null } },
     // ⭐ AGENT M3 (S3) — the tab's ONE live authoring preview on this chart (`previewChannel`):
     // `{ok, movedFrom}` | `{ok:false, reason:'readonly'|'busy'|'invalid'}`; never persisted.
     showAuthoringPreview: (definition, opts = {}) => { try { return paneToolbarApi.current?.showAuthoringPreview?.(definition, opts) ?? { ok: false, reason: 'readonly' } } catch { return { ok: false, reason: 'readonly' } } },
@@ -933,6 +1133,103 @@ function ChartPane({
   // dock OVERLAYS the right edge instead (the narrow fallback) — still no backdrop.
   const studioDockW = studioDockWidth(paneOuterWidth)
   const studioDocked = studioOpen && (paneOuterWidth == null || paneOuterWidth >= STUDIO_DOCK_W_MIN + STUDIO_DOCK_MIN_CHART_W)
+  // ── /charts integrated header (WidgetHost → ChartWidget slots.identityDragClass) ──
+  // The session switch is always the short RTH|EXT form (left of the clock), the settings
+  // gear sits with the window buttons on the right, and when the pane is wide
+  // enough the whole timeframe row moves INTO the title row (one header row). Narrow
+  // panes keep two rows. Every other surface: unchanged (session in the identity row).
+  const integratedHeader = !!slots?.identityDragClass
+  // Owner 11-14: ONE row at every width (the ladder above fits it), never a second row.
+  const oneRowHeader = oneRowMode
+  const sessionCfg = (compact || isEcon) ? null : (isDWMtf
+    ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: integratedHeader || sessionForceAbbrev }
+    : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: integratedHeader || sessionForceAbbrev })
+  // The chart widget's symbol menu (▾ after the company name): leverage + holdings.
+  const symbolMenuEl = (integratedHeader && slots?.symbolActions && !rowHideSymMenu) ? (
+    <SymbolActionsMenu styles={styles} themeVars={menuVars}>{slots.symbolActions}</SymbolActionsMenu>
+  ) : null
+  const tfBarEl = showTfBar ? (
+    <ChartTfBar
+      rootRef={tfBarRef}
+      tf={(isBreadthLike || isEcon) ? breadthTf : tf}
+      visibleTfs={responsiveTfs}
+      onTf={handleTf}
+      /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
+         with it — otherwise the host restricts the row and the user reaches
+         right past it into the full TF_MENU. */
+      showMenu={!Array.isArray(effTfCodes)}
+      menu={{
+        favorites: Array.isArray(hdr.timeframes) ? hdr.timeframes : [],
+        customCodes: customTfs,
+        onToggleFav: toggleTfFav,
+        onAddCustom: addCustomTf,
+        onRemoveCustom: removeCustomTf,
+        themeVars: menuVars,
+      }}
+      styles={styles}
+    >
+      {/* Host slot injected AFTER the timeframe buttons and BEFORE the meta
+          fields (MARKET CAP / NEXT EARNINGS / …) — the Time Navigator seat. */}
+      {/* Chart type (owner 11-15): the current type's icon after the timeframes; its menu is
+          Chart Settings → Price style's list, written through the same settings writer. */}
+      {!compact && !mini && !isBreadthLike && !isEcon && !rowHideChartType && (
+        <ChartTypeMenu value={chartCs.chartType || 'candles'}
+          onPick={(t) => updateFromSettingsModal({ ...chartCs, chartType: t, preset: 'custom' })} />
+      )}
+      {!rowHideDateNav && slots?.tfBarAfterTf}
+      {!compact && !mini && !rowHideMeta && (
+        /* tight: when the Time Navigator sits before the fields, drop the wide
+           left margin so MARKET CAP hugs the box's divider (matches its left gap). */
+        <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles}
+          onItemClick={statsEditable ? onStatClick : null} openKey={statMenu?.key || null} />
+      )}
+      <div className={styles.tfBarRight}>
+        {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
+            to a clean canvas-contrasting line and back; a regular ticker on this
+            surface is unaffected and keeps the user's saved chart type. The
+            button shows the view you'll GET (Line when on candles, and vice-versa).
+            Placed FIRST — before the shared right-cluster slots — so on a breadth
+            chart (where the leverage pill is absent) it inherits the leverage
+            pill's exact seat: the same margin-right + the same trailing
+            [+ / gear / share], so its right edge lands on the leverage pill's
+            right edge, and the + (new chart tab) sits after it next to the gear. */}
+        {isBreadthLike && !mini && (
+          <button
+            type="button"
+            className={styles.breadthLineBtn}
+            onClick={toggleBreadthLine}
+            title={breadthIsLine ? 'Switch to candlesticks' : 'Switch to line chart'}
+            aria-pressed={breadthIsLine}
+          >
+            <UIcon name={breadthIsLine ? 'chart' : 'wave'} size={12} gold={false} />
+            {breadthIsLine ? 'Candles' : 'Line'}
+          </button>
+        )}
+        {slots?.tfBarRight}
+        {/* Chart settings gear — omitted for mini (no room, no chrome) and
+            for a surface that IS the user's one chart (stored=null, no
+            onStore): its settings read now resolves from the /charts
+            workspace, so an edit made HERE would write the global
+            chart_settings pref — a layer that read now outranks — and
+            appear to silently do nothing. Settings stay editable on
+            /charts, where they're edited anyway. */}
+        {!mini && !isOwnChartSurface && !integratedHeader && (
+          <button
+            type="button"
+            className={styles.chartSettingsBtn}
+            data-guide="chart.settings"
+            onClick={openSettings}
+            title="Chart settings"
+            aria-label="Chart settings"
+          >
+            <UIcon name="gear" size={15} />
+          </button>
+        )}
+        {slots?.tfBarEnd}
+      </div>
+    </ChartTfBar>
+  ) : null
+
   const paneClass = styles.chartWidget
     + (studioOpen ? ` ${styles.studioOpen}` : '')
     + (studioDocked ? ` ${styles.studioDocked}` : '')
@@ -952,101 +1249,51 @@ function ChartPane({
           sym={sym}
           displayLabel={effHeaderLabel}
           labelColor={hdrColors.title || null}
+          defaultLabelColor={_hdrInk.title}
           logoSym={(_themeViewLabel || synthDailyOnly || exhibit) ? null : sym}
           brandLogo={themeIdx.isIndex || isBreadthLike}
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
+          onTypedIntent={onSymbolChange ? handleTypedIntent : null}
           economic={allowEconomic}
-          showChange={!exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
+          showChange={!rowHideChange && !exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
           dayGainColors={{
-            up: hdrColors.dayChangeUp || (resolvedTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
-            down: hdrColors.dayChangeDown || (resolvedTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
+            up: _hdrInk.dayChangeUp,
+            down: _hdrInk.dayChangeDown,
           }}
-          session={(compact || isEcon) ? null : (isDWMtf
-            ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: sessionForceAbbrev }
-            : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: sessionForceAbbrev })}
-          showClock={!compact}
-          rightSlot={slots?.headerRight}
+          session={rowHideSession ? null : sessionCfg}
+          middleSlot={oneRowHeader ? tfBarEl : null}
+          afterNameSlot={symbolMenuEl}
+          showClock={!compact && !rowHideClock}
+          rightSlot={integratedHeader
+            ? (
+              <>
+                {/* Integrated /charts header: the settings gear sits with the window buttons. */}
+                {!mini && !isOwnChartSurface && (
+                  <button
+                    type="button"
+                    className={styles.chartSettingsBtn}
+                    data-guide="chart.settings"
+                    onClick={openSettings}
+                    title="Chart settings"
+                    aria-label="Chart settings"
+                  >
+                    <UIcon name="gear" size={15} gold={false} />
+                  </button>
+                )}
+                {slots?.headerRight}
+              </>
+            )
+            : slots?.headerRight}
+          leftSlot={slots?.headerLeft ?? null}
+          dragHandleClass={slots?.identityDragClass ?? null}
           styles={styles}
         />
       )}
-      {showTfBar && (
-        <ChartTfBar
-          rootRef={tfBarRef}
-          tf={(isBreadthLike || isEcon) ? breadthTf : tf}
-          visibleTfs={responsiveTfs}
-          onTf={handleTf}
-          /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
-             with it — otherwise the host restricts the row and the user reaches
-             right past it into the full TF_MENU. */
-          showMenu={!Array.isArray(effTfCodes)}
-          menu={{
-            favorites: Array.isArray(hdr.timeframes) ? hdr.timeframes : [],
-            customCodes: customTfs,
-            onToggleFav: toggleTfFav,
-            onAddCustom: addCustomTf,
-            onRemoveCustom: removeCustomTf,
-            themeVars: menuVars,
-          }}
-          styles={styles}
-        >
-          {/* Host slot injected AFTER the timeframe buttons and BEFORE the meta
-              fields (MARKET CAP / NEXT EARNINGS / …) — the Time Navigator seat. */}
-          {slots?.tfBarAfterTf}
-          {!compact && !mini && (
-            /* tight: when the Time Navigator sits before the fields, drop the wide
-               left margin so MARKET CAP hugs the box's divider (matches its left gap). */
-            <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles} />
-          )}
-          <div className={styles.tfBarRight}>
-            {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
-                to a clean canvas-contrasting line and back; a regular ticker on this
-                surface is unaffected and keeps the user's saved chart type. The
-                button shows the view you'll GET (Line when on candles, and vice-versa).
-                Placed FIRST — before the shared right-cluster slots — so on a breadth
-                chart (where the leverage pill is absent) it inherits the leverage
-                pill's exact seat: the same margin-right + the same trailing
-                [+ / gear / share], so its right edge lands on the leverage pill's
-                right edge, and the + (new chart tab) sits after it next to the gear. */}
-            {isBreadthLike && !mini && (
-              <button
-                type="button"
-                className={styles.breadthLineBtn}
-                onClick={toggleBreadthLine}
-                title={breadthIsLine ? 'Switch to candlesticks' : 'Switch to line chart'}
-                aria-pressed={breadthIsLine}
-              >
-                <UIcon name={breadthIsLine ? 'chart' : 'wave'} size={12} gold={false} />
-                {breadthIsLine ? 'Candles' : 'Line'}
-              </button>
-            )}
-            {slots?.tfBarRight}
-            {/* Chart settings gear — omitted for mini (no room, no chrome) and
-                for a surface that IS the user's one chart (stored=null, no
-                onStore): its settings read now resolves from the /charts
-                workspace, so an edit made HERE would write the global
-                chart_settings pref — a layer that read now outranks — and
-                appear to silently do nothing. Settings stay editable on
-                /charts, where they're edited anyway. */}
-            {!mini && !isOwnChartSurface && (
-              <button
-                type="button"
-                className={styles.chartSettingsBtn}
-                data-guide="chart.settings"
-                onClick={openSettings}
-                title="Chart settings"
-                aria-label="Chart settings"
-              >
-                <UIcon name="gear" size={15} />
-              </button>
-            )}
-            {slots?.tfBarEnd}
-          </div>
-        </ChartTfBar>
-      )}
+      {!oneRowHeader && tfBarEl}
       <div
         ref={focusableRef}
         className={styles.chartFill}
@@ -1063,6 +1310,9 @@ function ChartPane({
       >
         <StockChart
           sym={sym}
+          nextEarningsHint={nextEarningsHintDate}
+          headerCustomStats={shownCustomStats}
+          onHeaderCustomStats={shownCustomStats ? onHeaderCustomStats : null}
           studioDockHost={studioDockHost}
           onStudioDockChange={setStudioOpen}
           tf={effectiveTf}
@@ -1070,6 +1320,8 @@ function ChartPane({
              managed by the /charts Tools → Compare Symbols panel now (rendering via
              cs.comparisonSymbols is unchanged). */
           hideCompare
+          /* /charts chart widget: a tighter price-axis floor (less empty space at the right). */
+          axisFloor={integratedHeader ? 60 : null}
           {...(isBreadthLike ? {
             // UCT BREADTH: /api/bars serves the synthetic candles, so NO barsOverride —
             // just freeze the live paths. Watermark = the SYMBOL on top (e.g. UCTA50)
@@ -1213,6 +1465,28 @@ function ChartPane({
           and `null` when nothing attached raises anything, which is every chart
           in the app today. */}
       <AttachedPineDisclosures settings={chartCs} barsLoaded={drawnBars} noticeScope={noticeScope} />
+      {/* ⭐ W9-T13b — a drawn strategy's report. null unless the broker gate is on AND a run
+          published a record; the gate is read INSIDE (one reader, strategyBrokerGate.js). */}
+      <AttachedStrategyReports settings={chartCs} noticeScope={noticeScope} />
+      {statsEditable && statMenu && statMenuStat && (
+        <Suspense fallback={null}>
+          <HeaderStatMenu
+            anchor={statMenu.el}
+            stat={statMenuStat}
+            look={statMenuLook}
+            onRename={renameStat}
+            onValueColor={colorStat}
+            onStyle={styleStat}
+            onRemove={removeStat}
+            onAddStat={(what) => openSettings(what === 'custom' ? 'header:custom' : 'header:add')}
+            onOpenSettings={() => openSettings('header')}
+            onClose={closeStatMenu}
+            savedColors={savedColors}
+            onSaveColor={saveColor}
+            onDeleteColor={deleteColor}
+          />
+        </Suspense>
+      )}
       <ChartSettingsModal
         open={settingsOpen}
         chartTf={effectiveTf}
@@ -1221,17 +1495,18 @@ function ChartPane({
         scrollTo={settingsOpen ? settingsTarget : null}
         settings={isBreadthLike ? { ...chartCs, chartType: breadthChartType } : chartCs}
         /* ⭐ THE SAME VOLUME TRUTH THE CHART GETS. This pane passes
-           `volumeSeparatePane` to `StockChart` unconditionally, so on the main
-           chart the renderer allocates a real volume pane; without these inputs
-           Chart Data asked the settings-only question, answered BAND, and listed
-           Volume inside PRICE while the chart drew it below — which also left
-           `movePane` resolving an order with no `volume` key to cross. */
-        volumeOpts={{ volumeSeparatePane: true, blankVolume: false }}
+           `volumePaneByDefault` to `StockChart` (paneLook.js): Volume is in its own
+           pane unless the member chose Overlay on price (`cs.volume.displayIn`).
+           Without these inputs Chart Data asked the settings-only question, which
+           reads the long-inert `separatePane: false`, answered BAND, and listed
+           Volume inside PRICE while the chart drew it below. */
+        volumeOpts={{ volumeSeparatePane: stockChartProps?.volumeSeparatePane === true, volumePaneByDefault: true, blankVolume: false }}
         onChange={updateFromSettingsModal}
         historyKey={indicatorHistoryKey}
         historyUserId={historyUserId}
         onApplyThemeAll={onApplyThemeAll}
         onApplyThemeAllWidgets={onApplyThemeAllWidgets}
+        applyToAllCharts={applyToAllCharts}
         onAdjustWatermark={onAdjustWatermark ? () => { onAdjustWatermark(); setSettingsOpen(false) } : null}
         onResetWatermark={onResetWatermark}
         watermarkCustomized={watermarkCustomized}
@@ -1239,17 +1514,17 @@ function ChartPane({
         onSaveColor={saveColor}
         onDeleteColor={deleteColor}
         themeVars={menuVars}
-        /* The pane passes volumeSeparatePane + volumePaneHeightPct above, and
-           StockChart lets those props WIN over volume.separatePane /
-           volume.paneHeightPct. Tell the modal so those two settings render inert
-           here instead of looking live and doing nothing. */
-        volumePaneFixed={VOLUME_PANE_SURFACE_FIXED}
+        /* Volume's placement is the MEMBER'S choice here (owner 11-16 — Display in:
+           Own pane / Overlay on price), so the Separate pane toggle is live. Only a
+           host that forces the pane through stockChartProps fixes it. */
+        volumePaneFixed={stockChartProps?.volumeSeparatePane === true ? VOLUME_PANE_SURFACE_FIXED : null}
         /* ⭐ THE AUTHORING DOOR, ON THE ONE SURFACE A CHARTING MEMBER LIVES ON.
            The Indicators tab renders "+ New Formula" only when it is handed one
            (absent prop ⇒ absent door), and this is the handler that reaches the
            single mounted `BuilderSheet`. */
         onCreateFormula={openFormulaBuilder}
         onCreateIndicator={openCreateIndicator}
+        onOpenBuilderDoor={openBuilderDoor}
         definitionDoors={definitionDoors}
         chartFeatures={chartFeatures}
         onIndicatorFirstAdd={onSettingsFirstAdd}

@@ -43,7 +43,7 @@
  *  ⛔ A STYLE WE DO NOT KNOW DRAWS A PLAIN BOX AT THE ANCHOR rather than
  *  guessing a direction: an arrow pointing the wrong way is a worse error than
  *  no arrow. */
-const LABEL_ANCHOR = Object.freeze({
+export const LABEL_ANCHOR = Object.freeze({
   label_down: { dx: 0, dy: -1 },
   label_up: { dx: 0, dy: 1 },
   label_left: { dx: 1, dy: 0 },
@@ -71,10 +71,30 @@ const LABEL_ANCHOR = Object.freeze({
   *  adapter reads the SAME vocabulary — a `size = size.small` label on the
   *  canvas and a `text_size = size.small` cell in the table must mean one
   *  number, and two private copies is how they stop meaning one number. */
+import { POINT_SIZE_ANCHORS, pointSizeWord } from './objectPointSizes.js'
+
+/** ⭐⭐ A BOX's TEXT and a TABLE cell, MEASURED ON TRADINGVIEW (queue row Q-LB3, 2026-11-17): probe
+ *  `tools/visual_conformance/probes/vw-lb3-box-table-sizes.pine` on NYSE:RDDT 1D, TradingView's own
+ *  `fillText` traced read-only: tiny 8, small 10, normal 14, large 20, huge 36 px, the same for a box and a
+ *  cell, and the very numbers the Pine reference equates the words with (`POINT_SIZE_ANCHORS.boxTable`).
+ *  ⚰️ They were the engine's own 8 / 10 / 12 / 16 / 22. `auto` is not measured and keeps 12.
+ *  ⛔ A LABEL's font is its own (`LABEL_GEOMETRY`, Q-LB2), not this table. */
 export const TEXT_SIZE_PX = Object.freeze({
-  tiny: 8, small: 10, normal: 12, large: 16, huge: 22, auto: 12,
+  tiny: 8, small: 10, normal: 14, large: 20, huge: 36, auto: 12,
 })
-const LABEL_FONT_PX = TEXT_SIZE_PX
+
+/** ⭐⭐ ENGINE 52 — a drawing's text size: a `size.*` word, or a v6 int in points that the
+ *  reference equates with a word (`objectPointSizes.js`), drawn exactly as that word. Both lanes
+ *  withhold any other int by name, so none reaches here; were one to, it is the word table's
+ *  `normal` only because nothing else is witnessed (and a rail pins that both lanes withhold). */
+export function textSizePx(size, kind = 'label', table = TEXT_SIZE_PX) {
+  if (typeof size === 'number') {
+    const w = pointSizeWord(size, kind)
+    return w ? table[w] : table.normal
+  }
+  return table[size] || table.normal
+}
+export { POINT_SIZE_ANCHORS }
 /** ⭐ P2 — a label's or a box's `text_formatting` → the canvas font's style/weight
  *  prefix (two independent axes, as `objectTableDom.js` reads a cell's). */
 export const fontStyleOf = (fmt) => {
@@ -92,16 +112,112 @@ const DASH = Object.freeze({
 // are two different things: the `label_*` ones are a BODY with a POINTER at the anchor,
 // and the shape ones (`circle`, `triangleup`, `xcross`, …) are a GLYPH at the anchor with
 // the text beside it; `none` is text alone, `text_outline` outlined text.
-// ⚠️ THE GEOMETRY IS THIS ENGINE'S, NOT A MEASURED TRADINGVIEW ONE: no capture in the
-// repo pins a glyph's pixel size or the gap to its text, so these are drawn the way the
-// style names them, and graded only on what the harness compares (count, text, colour).
 const SHAPE_STYLES = new Set(['circle', 'square', 'diamond', 'triangleup', 'triangledown', 'arrowup',
   'arrowdown', 'xcross', 'cross', 'flag'])
 const POINTER_STYLES = new Set(['label_down', 'label_up', 'label_left', 'label_right', 'label_lower_left',
   'label_lower_right', 'label_upper_left', 'label_upper_right'])
-/** A shape glyph's side in pixels, by Pine's size word. */
+/** A shape glyph's side in pixels, by Pine's size word: ONLY for the glyphs no capture measured
+ *  (`arrowup`, `arrowdown`, `xcross`, `cross`), which keep the size and place they had. */
 const SHAPE_PX = Object.freeze({ tiny: 6, small: 9, normal: 13, large: 19, huge: 27, auto: 13 })
-const POINTER_PX = 6
+
+/**
+ * ⭐⭐ A LABEL'S GEOMETRY, MEASURED ON TRADINGVIEW (queue rows Q-LB1 / Q-LB2, 2026-11-17).
+ *
+ * Probe `tools/visual_conformance/probes/vw-lb2-label-geometry.pine` on NYSE:RDDT 1D, one capture
+ * per size word, with TradingView's own canvas calls traced read-only. The numbers, and only the
+ * numbers, are in `__tests__/__fixtures__/labelGeometry.tradingview.json`; the rails hold the
+ * painter to them. Pixel offsets are from the label's anchor, and screen y grows downward.
+ *
+ * ⚰️ Until then the geometry was this engine's own (a 12 / 16 px font, a body `px + 6` tall and
+ * `text + 8` wide, a 6 px pointer, a 13 px glyph with its text beside it). TradingView draws
+ * `size.large` at 18 px, a one-line body twice the font tall, a 30 px circle at `size.normal`,
+ * `style_none` text ABOVE its anchor, and a glyph's text ABOVE the glyph whichever way it points.
+ *
+ *   px          the font
+ *   pitch       one line to the next
+ *   bodyH       a one-line body's height (each further line adds a pitch)
+ *   padW        a body's width beyond its widest line; minW, the narrowest body (a short text's)
+ *   pointerV    an up / down pointer's length; pointerH, a left / right one's
+ *   noneTop     `style_none`: the LAST line's top (the block ends at the anchor)
+ *   centredTop  a CENTRED one-line text's top from the centre: `style_text_outline`'s from its anchor,
+ *               a body's from the body's middle (a block of lines is centred there by its pitch)
+ *   glyphTop    a glyph style: the LAST line's top, above the glyph (the block grows upward)
+ * `auto` reads `normal`. Text is placed by its TOP (`textBaseline = 'top'`), as TradingView's is.
+ */
+export const LABEL_GEOMETRY = Object.freeze({
+  tiny: Object.freeze({ px: 7.2, pitch: 8.2, bodyH: 14, padW: 10.97, pointerV: 5, pointerH: 4, minW: 18, noneTop: -7, centredTop: -3, glyphTop: -22 }),
+  small: Object.freeze({ px: 9.6, pitch: 11.6, bodyH: 18, padW: 12.63, pointerV: 7, pointerH: 5, minW: 22, noneTop: -10, centredTop: -4, glyphTop: -29 }),
+  normal: Object.freeze({ px: 12, pitch: 14, bodyH: 24, padW: 17.29, pointerV: 8, pointerH: 6, minW: 29, noneTop: -12, centredTop: -5, glyphTop: -37 }),
+  large: Object.freeze({ px: 18, pitch: 21, bodyH: 37, padW: 24.43, pointerV: 12, pointerH: 9, minW: 42, noneTop: -18, centredTop: -7, glyphTop: -55 }),
+  huge: Object.freeze({ px: 24, pitch: 28, bodyH: 50, padW: 32.57, pointerV: 16, pointerH: 12, minW: 56, noneTop: -24, centredTop: -10, glyphTop: -74 }),
+})
+/** ⭐ A LABEL's font, read off `LABEL_GEOMETRY` (one authority). A box's text and a table cell keep
+ *  `TEXT_SIZE_PX`, which no capture has measured for them (queue row Q-LB3). */
+const LABEL_FONT_PX = Object.freeze({
+  ...Object.fromEntries(Object.entries(LABEL_GEOMETRY).map(([w, g]) => [w, g.px])), auto: LABEL_GEOMETRY.normal.px,
+})
+/** The measured glyphs' boxes, `[width, height, top]` (top from the anchor), by size word. */
+export const GLYPH_BOX = Object.freeze({
+  circle: Object.freeze({ tiny: [18, 18, -8.87], small: [24, 24, -11.87], normal: [30, 30, -14.87], large: [45, 45, -22.37], huge: [60, 60, -29.87] }),
+  square: Object.freeze({ tiny: [16, 16, -7.5], small: [20, 20, -9.5], normal: [26, 26, -12.5], large: [38, 38, -18.5], huge: [50, 50, -24.5] }),
+  diamond: Object.freeze({ tiny: [16, 16, -7.87], small: [20, 20, -9.87], normal: [26, 26, -12.87], large: [38, 38, -18.87], huge: [50, 50, -24.87] }),
+  triangleup: Object.freeze({ tiny: [19, 15.5, -10], small: [25, 20.5, -14], normal: [31, 25.5, -16], large: [45, 38.5, -26], huge: [61, 50.5, -34] }),
+  triangledown: Object.freeze({ tiny: [19, 14.5, -4.5], small: [25, 19.5, -6.5], normal: [31, 24.5, -7.5], large: [45, 37.5, -12.5], huge: [61, 49.5, -16.5] }),
+  flag: Object.freeze({ tiny: [18, 15, -7.37], small: [24, 20, -9.87], normal: [30, 25, -12.37], large: [45, 37.5, -18.62], huge: [60, 50, -24.87] }),
+})
+/** A label's size word (`auto`, an unknown word and an unmapped point size read `normal`). */
+export function labelSizeWord(size) {
+  const w = typeof size === 'number' ? pointSizeWord(size, 'label') : size
+  return Object.prototype.hasOwnProperty.call(LABEL_GEOMETRY, w) ? w : 'normal'
+}
+/**
+ * ⭐⭐ A LABEL'S TEXT IS ONE LINE PER `\n` (2026-11-17), as Pine draws it and as a box's text is here.
+ * ⚰️ It was ONE `fillText`, and a canvas ignores `\n`, so RS Rating's rating (`'\n\n       ' + rating`,
+ * written to sit two lines below "RS Rating") was drawn ON the "RS Rating" line. An EMPTY line keeps
+ * its height (a pitch) and paints nothing.
+ */
+const labelLines = (text) => String(text).split('\n')
+
+/** ⭐ A MEASURED glyph (`GLYPH_BOX`), drawn to fill its measured box: `x` the anchor's x, `[w, h, top]`
+ *  the box (top from the anchor's y). A triangle's apex is the box's far edge; a flag is a pennant on
+ *  a pole down its left side. */
+function drawGlyphBox(ctx, style, x, y, [w, h, top], c) {
+  const x0 = x - w / 2
+  const y0 = y + top
+  ctx.fillStyle = c
+  ctx.strokeStyle = c
+  ctx.beginPath()
+  switch (style) {
+    case 'circle':
+      if (typeof ctx.arc === 'function') ctx.arc(x, y0 + h / 2, w / 2, 0, Math.PI * 2)
+      ctx.fill()
+      return
+    case 'square':
+      ctx.fillRect(x0, y0, w, h)
+      return
+    case 'diamond':
+      ctx.moveTo(x, y0); ctx.lineTo(x0 + w, y0 + h / 2); ctx.lineTo(x, y0 + h); ctx.lineTo(x0, y0 + h / 2)
+      ctx.closePath(); ctx.fill()
+      return
+    case 'triangleup':
+      ctx.moveTo(x, y0); ctx.lineTo(x0 + w, y0 + h); ctx.lineTo(x0, y0 + h)
+      ctx.closePath(); ctx.fill()
+      return
+    case 'triangledown':
+      ctx.moveTo(x, y0 + h); ctx.lineTo(x0 + w, y0); ctx.lineTo(x0, y0)
+      ctx.closePath(); ctx.fill()
+      return
+    case 'flag':
+      ctx.lineWidth = 1
+      ctx.moveTo(x0, y0 + h); ctx.lineTo(x0, y0)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(x0, y0); ctx.lineTo(x0 + w, y0 + h / 2); ctx.lineTo(x0, y0 + h)
+      ctx.closePath(); ctx.fill()
+      return
+    default:
+  }
+}
 
 /** One glyph centred at (cx, cy), filled (and stroked, for the line glyphs) in `c`. */
 function drawShape(ctx, style, cx, cy, s, c) {
@@ -295,7 +411,7 @@ export function paintObjects(ctx, state, m) {
     // `text_valign`, centred unless said), one line per `\n`. It was carried into the
     // render state and never painted.
     if (b.text) {
-      const px = TEXT_SIZE_PX[b.text_size] || 12
+      const px = textSizePx(b.text_size, 'boxTable')
       const lines = String(b.text).split('\n')
       const left = Math.min(x1, x2)
       const right = Math.max(x1, x2)
@@ -381,71 +497,97 @@ export function paintObjects(ctx, state, m) {
     // ⭐ A BAR-ANCHORED LABEL WITH NO PRICE sits at the pane edge it names.
     const y = p.y !== null ? p.y
       : (lb.yloc === 'abovebar' ? height * 0.12 : height * 0.88)
-    const px = LABEL_FONT_PX[lb.size] || 12
+    const px = textSizePx(lb.size, 'label', LABEL_FONT_PX)
+    const word = labelSizeWord(lb.size)
+    const g = LABEL_GEOMETRY[word]
     ctx.save()
     ctx.font = `${fontStyleOf(lb.text_formatting)}${px}px -apple-system, Segoe UI, sans-serif`
-    ctx.textBaseline = 'middle'
+    // ⭐ text is placed by its TOP, as TradingView places it (every measured offset is a top)
+    ctx.textBaseline = 'top'
     ctx.textAlign = lb.textalign === 'left' ? 'left' : lb.textalign === 'right' ? 'right' : 'center'
     const text = lb.text || ''
+    const lines = text ? labelLines(text) : []
+    const n = lines.length
     const anchor = LABEL_ANCHOR[lb.style] || LABEL_ANCHOR.label_center
     // ⭐⭐ UIE PHASE 2 (M5) — `dy` IS PINE'S SENSE (+1 = the body sits BELOW the anchor,
     // `label_up`'s pointer pointing up at it), and SCREEN y GROWS DOWNWARD, so the body's
     // y moves by +dy. ⚰️ It moved by −dy: every `label_down` (the "sell" callout above a
     // bar) was drawn BELOW its anchor, over the candle it names.
     if (SHAPE_STYLES.has(lb.style)) {
-      // a GLYPH at the anchor, the text beyond it on the side the style faces
-      const s = SHAPE_PX[lb.size] || SHAPE_PX.normal
-      const cx = p.x + (anchor.dx * s) / 2
-      const cy = y + (anchor.dy * s) / 2
-      drawShape(ctx, lb.style, cx, cy, s, lb.color || '#2962FF')
+      // a GLYPH on the anchor; its text ABOVE it, whichever way it points (measured: every glyph
+      // style's text top is the same), the last line's top at `glyphTop`, the block growing upward
+      const box = GLYPH_BOX[lb.style] ? GLYPH_BOX[lb.style][word] : null
+      let gx0, gy0, gx1, gy1
+      if (box) {
+        drawGlyphBox(ctx, lb.style, p.x, y, box, lb.color || '#2962FF')
+        gx0 = p.x - box[0] / 2; gx1 = p.x + box[0] / 2; gy0 = y + box[2]; gy1 = y + box[2] + box[1]
+      } else {
+        // ⚠️ NOT MEASURED (arrowup / arrowdown / xcross / cross: TradingView strokes them, and the
+        // trace read fills): the size and place they had
+        const s = textSizePx(lb.size, 'label', SHAPE_PX)
+        const cx = p.x + (anchor.dx * s) / 2
+        const cy = y + (anchor.dy * s) / 2
+        drawShape(ctx, lb.style, cx, cy, s, lb.color || '#2962FF')
+        gx0 = cx - s / 2; gx1 = cx + s / 2; gy0 = cy - s / 2; gy1 = cy + s / 2
+      }
       if (text) {
         ctx.fillStyle = lb.textcolor || lb.color || '#2962FF'
-        const side = anchor.dy < 0 ? -1 : 1
-        ctx.fillText(text, cx, cy + side * (s / 2 + px / 2 + 2))
+        lines.forEach((t, i) => { if (t) ctx.fillText(t, p.x, y + g.glyphTop - (n - 1 - i) * g.pitch) })
       }
       ctx.restore()
-      seen(cx - s / 2, cy - s / 2); seen(cx + s / 2, cy + s / 2)
+      seen(gx0, gy0); seen(gx1, gy1)
       drawn.label += 1
       continue
     }
     if (lb.style === 'none' || lb.style === 'text_outline') {
-      // TEXT ALONE at the anchor — no body (a `none` label's colour is its shape's,
-      // and it has none); `text_outline` rings the text in the label's colour
+      // TEXT ALONE — no body (a `none` label's colour is its shape's, and it has none).
+      // `none`: the block ENDS at the anchor (its last line's top at `noneTop`);
+      // `text_outline`: the block is CENTRED on the anchor (a one-line text's top at `centredTop`)
       if (text) {
+        const lineTop = lb.style === 'none'
+          ? (i) => y + g.noneTop - (n - 1 - i) * g.pitch
+          : (i) => y + g.centredTop + (i - (n - 1) / 2) * g.pitch
         if (lb.style === 'text_outline' && lb.color && typeof ctx.strokeText === 'function') {
           ctx.strokeStyle = lb.color
           ctx.lineWidth = 3
-          ctx.strokeText(text, p.x, y)
+          lines.forEach((t, i) => { if (t) ctx.strokeText(t, p.x, lineTop(i)) })
         }
         ctx.fillStyle = lb.textcolor || '#FFFFFF'
-        ctx.fillText(text, p.x, y)
+        lines.forEach((t, i) => { if (t) ctx.fillText(t, p.x, lineTop(i)) })
       }
       ctx.restore()
       seen(p.x, y)
       drawn.label += 1
       continue
     }
-    const w = text ? ctx.measureText(text).width + 8 : 10
-    const h = px + 6
-    const pointer = POINTER_STYLES.has(lb.style) ? POINTER_PX : 0
-    const bx = p.x - (w / 2) + anchor.dx * (w / 2 + pointer)
-    const by = y - (h / 2) + anchor.dy * (h / 2 + pointer)
+    // a BODY: `padW` wider than its widest line and never narrower than `minW`, `bodyH` tall plus a
+    // pitch per further line, the text block centred in it as `text_outline`'s is on its anchor; a
+    // pointer of `pointerV` (up / down) or `pointerH` (left / right) to the anchor
+    const textW = text ? Math.max(...lines.map((t) => (t ? ctx.measureText(t).width : 0))) : 0
+    const w = Math.max(textW + g.padW, g.minW)
+    const h = g.bodyH + (n > 1 ? (n - 1) * g.pitch : 0)
+    const pointed = POINTER_STYLES.has(lb.style)
+    const pv = pointed ? g.pointerV : 0
+    const ph = pointed ? g.pointerH : 0
+    const bx = p.x - (w / 2) + anchor.dx * (w / 2 + ph)
+    const by = y - (h / 2) + anchor.dy * (h / 2 + pv)
     if (lb.color) {
       ctx.fillStyle = lb.color
       ctx.fillRect(bx, by, w, h)
-      if (pointer) {
+      if (pointed) {
         // the POINTER: its tip on the anchor, its base on the body's near edge
         ctx.beginPath()
         ctx.moveTo(p.x, y)
         if (anchor.dx === 0) {
-          ctx.lineTo(p.x - pointer, y + anchor.dy * pointer)
-          ctx.lineTo(p.x + pointer, y + anchor.dy * pointer)
+          ctx.lineTo(p.x - pv, y + anchor.dy * pv)
+          ctx.lineTo(p.x + pv, y + anchor.dy * pv)
         } else if (anchor.dy === 0) {
-          ctx.lineTo(p.x + anchor.dx * pointer, y - pointer)
-          ctx.lineTo(p.x + anchor.dx * pointer, y + pointer)
+          ctx.lineTo(p.x + anchor.dx * ph, y - ph)
+          ctx.lineTo(p.x + anchor.dx * ph, y + ph)
         } else {
-          ctx.lineTo(p.x + anchor.dx * pointer * 2, y + anchor.dy * pointer)
-          ctx.lineTo(p.x + anchor.dx * pointer, y + anchor.dy * pointer * 2)
+          // ⚠️ a diagonal pointer is not measured: the two lengths, as for the straight ones
+          ctx.lineTo(p.x + anchor.dx * ph * 2, y + anchor.dy * pv)
+          ctx.lineTo(p.x + anchor.dx * ph, y + anchor.dy * pv * 2)
         }
         ctx.closePath()
         ctx.fill()
@@ -453,8 +595,10 @@ export function paintObjects(ctx, state, m) {
     }
     if (text) {
       ctx.fillStyle = lb.textcolor || '#FFFFFF'
-      const tx = ctx.textAlign === 'left' ? bx + 4 : ctx.textAlign === 'right' ? bx + w - 4 : bx + w / 2
-      ctx.fillText(text, tx, by + h / 2)
+      const inset = g.padW / 2
+      const tx = ctx.textAlign === 'left' ? bx + inset : ctx.textAlign === 'right' ? bx + w - inset : bx + w / 2
+      const lineTop = (i) => by + h / 2 + g.centredTop + (i - (n - 1) / 2) * g.pitch
+      lines.forEach((t, i) => { if (t) ctx.fillText(t, tx, lineTop(i)) })
     }
     ctx.restore()
     seen(bx, by); seen(bx + w, by + h)

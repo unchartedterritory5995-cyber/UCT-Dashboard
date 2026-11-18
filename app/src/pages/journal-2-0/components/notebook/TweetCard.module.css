@@ -1,0 +1,232 @@
+.card {
+  position: relative;
+  border: 1px solid var(--border-accent);
+  background: var(--bg-surface);
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 740px;
+  /* The note's body is serif; a post is someone else's words, set in the app's own face. */
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  user-select: text;
+  animation: tweetCardIn 0.28s ease both;
+}
+
+@keyframes tweetCardIn {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+}
+
+.cmain { padding: 12px 16px; }
+
+.chead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  /* The author's colour is the ring (set inline); the initials sit on a token surface so they
+     read in every theme, the light one included. */
+  border: 2px solid var(--border-accent);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-bright);
+  object-fit: cover;
+}
+
+.name {
+  font-weight: 600;
+  color: var(--text-bright);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.handle {
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.xmark {
+  margin-left: auto;
+  color: var(--text-faint);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.rm {
+  position: absolute;
+  top: 10px;
+  right: 32px;
+  opacity: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.card:hover .rm,
+.rm:focus-visible { opacity: 1; }
+
+.rm:hover {
+  background: var(--bg-hover);
+  color: var(--danger-ink);
+}
+
+.ctext {
+  color: var(--text-bright);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.gone { color: var(--text-faint); }
+
+.cash {
+  color: var(--ut-gold);
+  font-weight: 500;
+}
+
+.cimg {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.cimg img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.cfoot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.cfoot a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.cfoot a:hover { color: var(--ut-gold); }
+
+.stamp {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.stamp b {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+.up {
+  color: var(--ut-green-bright);
+  font-weight: 600;
+}
+
+.down {
+  color: var(--ut-red-bright);
+  font-weight: 600;
+}
+
+.take {
+  border-top: 1px solid var(--border);
+  padding: 8px 16px 12px;
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.take label {
+  flex: none;
+  color: var(--ut-gold);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.ttext {
+  flex: 1;
+  min-width: 0;
+  min-height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+/* The field has no border to recolour, so a ring outside it is the focus cue. */
+.ttext:focus { outline: none; box-shadow: 0 0 0 2px var(--ut-gold); }
+
+.ttext::placeholder { color: var(--text-faint); }
+
+.saveError {
+  margin: 0;
+  padding: 0 16px 8px;
+  color: var(--ut-red-bright);
+  font-size: 12px;
+}
+
+@media (max-width: 1024px) {
+  .rm {
+    opacity: 1;
+    top: 2px;
+    right: 26px;
+    width: var(--tap-min);
+    height: var(--tap-min);
+  }
+
+  .cfoot a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-min);
+  }
+
+  .ttext {
+    min-height: var(--tap-min);
+    font-size: 17px;
+  }
+}

@@ -38,7 +38,11 @@ def test_5m_is_covered_only_after_backfill_and_while_the_stream_is_alive(live, m
     assert live.covered("AAA", "5") is False          # not backfilled yet
     live._covered5.add("AAA")
     assert live.covered("AAA", "5") is True
-    assert bars_fetch._needs_fresh(1, "5", "AAA") is False
+    # Fresh by the STREAM's proof: its newest delivered minute vouches for the tail
+    # (#1051 F1 — covered alone is not proof). A 1970 tail is proven by nothing.
+    now = int(time.time())
+    live._state["watermark_ms"] = (now // 60) * 60_000
+    assert bars_fetch._needs_fresh((now // 300) * 300 - 300, "5", "AAA") is False
     monkeypatch.setattr(live, "STREAM_ALIVE_S", -1)   # the feed went quiet
     assert live.covered("AAA", "5") is False
 

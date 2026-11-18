@@ -12,7 +12,7 @@
 //   · two charts on one page (one blob) count one member action once.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
-  logRsEvent, noteRsPreset, noteRsCard, noteRsLearn, createRsInstanceTracker, rsTelemetryEnabled,
+  logRsEvent, noteRsCard, noteRsLearn, createRsInstanceTracker, rsTelemetryEnabled,
   __setRsTelemetrySink, __setRsTelemetryOffForTests, RS_TELEMETRY_EVENTS, RS_QUICK_OFF_MS, SYMBOL_RE,
 } from './rsTelemetry'
 
@@ -41,7 +41,7 @@ describe('on by default, with a build kill switch', () => {
     vi.stubGlobal('fetch', fetchSpy)
     vi.stubEnv('VITE_RS_TELEMETRY_ENABLED', undefined)
     expect(rsTelemetryEnabled()).toBe(true)
-    expect(noteRsPreset({ id: 'rsLine' }, { id: 'classic' })).toBe(true)
+    expect(noteRsCard({ id: 'rsLine' }, 'checks')).toBe(true)
     expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
   it('VITE_RS_TELEMETRY_ENABLED=0 sends nothing and makes no request', () => {
@@ -50,7 +50,7 @@ describe('on by default, with a build kill switch', () => {
     vi.stubEnv('VITE_RS_TELEMETRY_ENABLED', '0')
     expect(rsTelemetryEnabled()).toBe(false)
     expect(logRsEvent('rs_on', { symbol: 'NVDA' })).toBe(false)
-    expect(noteRsPreset({ id: 'rsLine' }, { id: 'classic' })).toBe(false)
+    expect(noteRsCard({ id: 'rsLine' }, 'checks')).toBe(false)
     const t = createRsInstanceTracker()
     t.observe([])
     t.observe([rs('a')])
@@ -70,21 +70,24 @@ describe('on by default, with a build kill switch', () => {
   })
 })
 
-describe('the six events and their props', () => {
-  it('are exactly the plan\'s six', () => {
+describe('the five events and their props', () => {
+  // U9 (RS split): `rs_preset` retired with the presets; the server refuses it too
+  it('are exactly the plan\'s six less the retired rs_preset', () => {
     expect(Object.keys(RS_TELEMETRY_EVENTS).sort()).toEqual(
-      ['rs_benchmark', 'rs_learn', 'rs_marker_card', 'rs_off_within_60s', 'rs_on', 'rs_preset'])
+      ['rs_benchmark', 'rs_learn', 'rs_marker_card', 'rs_off_within_60s', 'rs_on'])
+    expect('rs_preset' in RS_TELEMETRY_EVENTS).toBe(false)
   })
   it('an unknown event is refused; props outside each event\'s one field, or not an identifier, are dropped', () => {
     sink()
     expect(logRsEvent('rs_whatever', {})).toBe(false)
-    logRsEvent('rs_preset', { name: 'classic', email: 'a@b.c' })
+    expect(logRsEvent('rs_preset', { name: 'classic' }), 'retired event (U9)').toBe(false)
+    logRsEvent('rs_marker_card', { kind: 'checks', email: 'a@b.c' })
     logRsEvent('rs_on', { symbol: 'BRK.B', name: 'x' })
     logRsEvent('rs_learn', { target: 'not an identifier!' })
     // a symbol the server's ticker rule refuses is dropped, and the count still lands
     logRsEvent('rs_off_within_60s', { symbol: 'nvda' })
     expect(sent).toEqual([
-      ['rs_preset', { name: 'classic' }],
+      ['rs_marker_card', { kind: 'checks' }],
       ['rs_on', { symbol: 'BRK.B' }],
       ['rs_learn', {}],
       ['rs_off_within_60s', {}],
@@ -96,13 +99,11 @@ describe('the six events and their props', () => {
   })
   it('the door helpers fire for UCT RS only', () => {
     sink()
-    noteRsPreset({ id: 'rsi' }, { id: 'fast' })
-    noteRsPreset({ id: 'rsLine' }, { id: 'stress' })
     noteRsCard('rsLine', 'beforePrice')
     noteRsCard('u_fixture', 'benchmark')
+    noteRsLearn({ id: 'rsi' }, 'rsLine')
     noteRsLearn({ id: 'rsLine' }, 'redDay')
     expect(sent).toEqual([
-      ['rs_preset', { name: 'stress' }],
       ['rs_marker_card', { kind: 'beforePrice' }],
       ['rs_learn', { target: 'redDay' }],
     ])
@@ -113,12 +114,12 @@ describe('the six events and their props', () => {
     vi.stubEnv('VITE_RS_TELEMETRY_ENABLED', '1')
     try {
       expect(rsTelemetryEnabled()).toBe(true)
-      logRsEvent('rs_preset', { name: 'trend' })
+      logRsEvent('rs_learn', { target: 'fourChecks' })
       expect(fetchSpy).toHaveBeenCalledTimes(1)
       const [url, init] = fetchSpy.mock.calls[0]
       expect(url).toBe('/api/indicator-telemetry/event')
       const body = JSON.parse(init.body)
-      expect(body).toMatchObject({ event: 'rs_preset', props: { name: 'trend' } })
+      expect(body).toMatchObject({ event: 'rs_learn', props: { target: 'fourChecks' } })
       expect(typeof body.import_id).toBe('string')
     } finally {
       vi.unstubAllEnvs()

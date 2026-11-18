@@ -2,7 +2,7 @@
 // S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
 // Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 /**
@@ -26,7 +26,13 @@ import { contractBody } from '../../__fixtures__/contract'
 
 const LIST = { kinds: BUILTIN_NOTE_KINDS.map((k) => ({ ...k, builtin: true })), styles: [], blockKinds: [] }
 const NOTE = { id: 'n1', title: 'NVDA plan', kindId: 'trade_plan' }
-const BTN = { name: "Save as template with blocks" }
+// Notebook simplify, Task 4: ONE "Save as template" entry; its form offers Plain (the default) or "Keep live blocks",
+// and choosing the second is this door. `openBlocks` is that walk: open the entry, choose "Keep live blocks".
+const BTN = { name: 'Keep live blocks' }
+async function openBlocks() {
+  fireEvent.click(screen.getByRole('button', { name: 'Save as template' }))
+  fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+}
 
 function renderMenu(props = {}) {
   return render(
@@ -50,7 +56,7 @@ describe('Save this note\'s setup as a style', () => {
     const onBeforeTemplate = vi.fn(async () => { order.push('flush'); return true })
     createJournalStyle.mockImplementation(async (body) => { order.push('create'); return { style: { id: 's9', name: body.name } } })
     renderMenu({ onBeforeTemplate })
-    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await openBlocks()
     const name = await screen.findByRole('textbox', { name: 'Template name' })
     expect(name).toHaveValue('NVDA plan')
     const kind = await screen.findByRole('combobox', { name: 'Note type' })
@@ -69,7 +75,7 @@ describe('Save this note\'s setup as a style', () => {
   describe('Note type', () => {
     const save = async (note) => {
       renderMenu({ note })
-      fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+      await openBlocks()
       const kind = await screen.findByRole('combobox', { name: 'Note type' })
       await waitFor(() => expect(kind.querySelectorAll('option').length).toBeGreaterThan(1))
       return kind
@@ -94,6 +100,8 @@ describe('Save this note\'s setup as a style', () => {
     it('with no kind at all nothing is guessed: Save waits for a choice, then sends it', async () => {
       const kind = await save({ id: 'n1', title: 'NVDA plan' })
       expect(kind).toHaveValue('')
+      // Simplify pass 2 (A4): the empty choice is worded with the field's own name.
+      expect(within(kind).getByRole('option', { name: 'Choose a note type' })).toHaveValue('')
       expect(screen.getByRole('button', { name: 'Save template' })).toBeDisabled()
       fireEvent.change(kind, { target: { value: 'daily_prep' } })
       expect(screen.getByRole('button', { name: 'Save template' })).not.toBeDisabled()
@@ -113,7 +121,7 @@ describe('Save this note\'s setup as a style', () => {
     let release
     fetchJournalStyles.mockReturnValue(new Promise((r) => { release = r }))
     renderMenu()
-    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await openBlocks()
     await screen.findByRole('textbox', { name: 'Template name' })
     expect(screen.getByRole('button', { name: 'Save template' })).toBeDisabled()
     release(LIST)
@@ -122,7 +130,7 @@ describe('Save this note\'s setup as a style', () => {
 
   it('when words are still unsent it says so, shows no form and creates nothing', async () => {
     renderMenu({ onBeforeTemplate: async () => false })
-    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await openBlocks()
     expect(await screen.findByText('Some words are still saving. Try again in a moment.')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Template name' })).toBeNull()
     expect(createJournalStyle).not.toHaveBeenCalled()
@@ -131,7 +139,7 @@ describe('Save this note\'s setup as a style', () => {
   it('words that go unsent while the member is naming it stop the save', async () => {
     const flush = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false)
     renderMenu({ onBeforeTemplate: flush })
-    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await openBlocks()
     await screen.findByRole('textbox', { name: 'Template name' })
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     expect(await screen.findByText('Some words are still saving. Try again in a moment.')).toBeInTheDocument()
@@ -141,7 +149,7 @@ describe('Save this note\'s setup as a style', () => {
   it('a refused create says nothing was saved', async () => {
     createJournalStyle.mockRejectedValue(Object.assign(new Error('Journal styles require a paid plan'), { status: 402 }))
     renderMenu()
-    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await openBlocks()
     await screen.findByRole('textbox', { name: 'Template name' })
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     expect((await screen.findByRole('alert')).textContent).toContain('Journal styles require a paid plan')
@@ -151,7 +159,7 @@ describe('Save this note\'s setup as a style', () => {
   it('a 5xx with no sentence never shows a bare status code', async () => {
     createJournalStyle.mockRejectedValue(Object.assign(new Error('500'), { status: 500 }))
     renderMenu()
-    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await openBlocks()
     await screen.findByRole('textbox', { name: 'Template name' })
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     const alert = await screen.findByRole('alert')
@@ -165,7 +173,7 @@ describe('Save this note\'s setup as a style', () => {
     expect(answer.leftOut.length).toBeGreaterThan(0)                    // non-vacuity: the fixture leaves things out
     createJournalStyle.mockResolvedValue(answer)
     renderMenu()
-    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await openBlocks()
     await screen.findByRole('textbox', { name: 'Template name' })
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     expect(await screen.findByText(
@@ -176,7 +184,7 @@ describe('Save this note\'s setup as a style', () => {
   it('says nothing about leaving out when nothing was', async () => {
     createJournalStyle.mockResolvedValue({ style: { id: 's9', name: 'Mine' }, leftOut: [] })
     renderMenu()
-    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await openBlocks()
     await screen.findByRole('textbox', { name: 'Template name' })
     fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     expect(await screen.findByText('Saved as the template “Mine”.')).toBeInTheDocument()
@@ -186,7 +194,7 @@ describe('Save this note\'s setup as a style', () => {
   it('a title longer than the server allows is cut to the cap when it seeds the name', async () => {
     const title = 'A'.repeat(MAX_STYLE_NAME_CHARS + 25)
     renderMenu({ note: { ...NOTE, title } })
-    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await openBlocks()
     const name = await screen.findByRole('textbox', { name: 'Template name' })
     expect(name).toHaveValue('A'.repeat(MAX_STYLE_NAME_CHARS))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save template' })).not.toBeDisabled())
@@ -197,7 +205,7 @@ describe('Save this note\'s setup as a style', () => {
 
   it('Cancel closes the form without creating anything', async () => {
     renderMenu()
-    fireEvent.click(await screen.findByRole('button', BTN, { timeout: 5000 }))
+    await openBlocks()
     await screen.findByRole('textbox', { name: 'Template name' })
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Template name' })).toBeNull())
@@ -206,11 +214,12 @@ describe('Save this note\'s setup as a style', () => {
 
   // Needs nothing from an earlier test (no lazy chunk has to be warm): the door is a plain button the moment the
   // menu renders, so a removed gate shows it at once. Run alone: `-t "switch off"`.
-  it('with the switch off the button is absent (and the list is never read)', () => {
+  it('with the switch off the choice is absent: the plain form only (and the list is never read)', () => {
     __resetNotebookFlags()
     renderMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'Save as template' }))
+    expect(screen.getByRole('textbox', { name: 'Template name' })).toBeInTheDocument()
     expect(screen.queryByRole('button', BTN)).toBeNull()
-    expect(screen.getByRole('button', { name: /Save as template/ })).toBeInTheDocument()
     expect(fetchJournalStyles).not.toHaveBeenCalled()
   })
 })

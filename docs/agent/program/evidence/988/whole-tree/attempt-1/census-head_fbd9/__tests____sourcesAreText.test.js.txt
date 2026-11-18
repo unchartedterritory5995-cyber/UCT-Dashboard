@@ -1,0 +1,6 @@
+rail src/__tests__/sourcesAreText.test.js
+## every JS/JSX source under app/src is TEXT > contains no NUL or other C0 control byte
++   "app/src/components/chart/engine/ast/pineRuntimeFrontend.js:10657 ΓÇö 0x00 at byte 615904",
++   "app/src/components/chart/engine/ast/pineRuntimeFrontend.js:10657 ΓÇö 0x02 at byte 615898",
++   "app/src/components/chart/engine/ast/pineRuntimeFrontend.js:10668 ΓÇö 0x03 at byte 616302",
++ Received

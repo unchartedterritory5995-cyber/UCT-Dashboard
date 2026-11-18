@@ -32,18 +32,15 @@ describe('the Today home reserves height on its skeletons only (R1-A)', () => {
     expect(offenders).toEqual([])
   })
 
-  it('every skeleton reserves its card, at the typical filled height (plan 220 px, half cards 240 px)', () => {
-    for (const id of CARDS) expect(reserveOf(id), id).toBeTruthy()
-    const halves = ['setups', 'names', 'yesterday', 'onThisDay'].map(reserveOf)
-    expect(new Set(halves).size).toBe(1)                         // one height, so any order fills the same space
-    expect(px(halves[0])).toBe(240)
+  // Simplify pass 2, fix round 1: B2 hides empty cards, so the answer's card count is unknown before it lands. ONE
+  // skeleton is drawn (the plan card's), and nothing below the grid until the answer (TodayHome.test.jsx rails that).
+  it('the one skeleton is the plan card, reserved at its typical filled height (220 px); no other skeleton reserves', () => {
+    expect([...SKELETON_ORDER]).toEqual(['plan'])
     expect(px(reserveOf('plan'))).toBe(220)
-    expect(px(reserveOf('recap'))).toBe(130)
+    for (const id of CARDS.filter((c) => c !== 'plan')) expect(reserveOf(id), id).toBeNull()
   })
 
-  it('every session order holds the same cards as the skeleton', () => {
-    for (const order of Object.values(CARD_ORDER)) {
-      expect(order.filter((c) => c !== 'recap').sort()).toEqual([...SKELETON_ORDER].sort())
-    }
+  it('every session order holds the plan card the skeleton stands for', () => {
+    for (const order of Object.values(CARD_ORDER)) expect(order).toContain('plan')
   })
 })

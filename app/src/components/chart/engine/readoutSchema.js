@@ -30,7 +30,9 @@
 //     when?:    'scalar:benchmark.fallback', // same grammar; falsy ⇒ row omitted; or the
 //                                            // equals form 'input:view=rotation' (below)
 //     fallback?: 'not yet rated',            // shown, muted, when the source is missing
-//     chip?:    true,                        // feeds the chip/pane suffix (at most MAX_CHIP_ROWS)
+//     chip?:    true,                        // feeds the chip/pane suffix (at most MAX_CHIP_ROWS);
+//                                            // `false` = named and NOT a chip (F3: a definition
+//                                            // that writes `chip` anywhere names its chip rows)
 //     words?:   ['above', 'below'],          // `bool` only: the true / false words
 //     card?:    { what, origin, evidence?, learn?, evidenceSource? }
 //                                            // the three-line explanation (About page);
@@ -532,8 +534,17 @@ export function isGlanceRow(entryOrRow) {
 
 /**
  * The rows that feed the chip / pane suffix: the entries flagged `chip: true`
- * when any are, else the first rows — never more than MAX_CHIP_ROWS, and never
- * a muted fallback (a pane label is not the place for "not yet rated").
+ * when the definition NAMES its chip rows, else the first rows — never more than
+ * MAX_CHIP_ROWS, and never a muted fallback (a pane label is not the place for
+ * "not yet rated").
+ *
+ * ⭐ F3 (2026-11-10) — A DEFINITION NAMES ITS CHIP ROWS BY WRITING `chip` ON ANY
+ * ROW, `true` or `false`. `chip: false` is "this row is not a chip, and none
+ * is": UCT RS Rating's pane label is the rating line's own number (and the
+ * summary that leads with it as the fallback), so a chip number printed it
+ * twice — and with no `chip: true` row left, "the first rows" would have put the
+ * summary sentence into the suffix instead. A definition that writes no `chip`
+ * at all keeps the first-rows rule byte for byte.
  *
  * @param {object} def the definition (reads `def.readout[].chip`)
  * @param {object[]} rows `readoutRows`' answer
@@ -542,11 +553,12 @@ export function isGlanceRow(entryOrRow) {
 export function readoutChipRows(def, rows) {
   const entries = def && Array.isArray(def.readout) ? def.readout : []
   const list = Array.isArray(rows) ? rows.filter((r) => r && r.muted !== true && typeof r.text === 'string' && r.text) : []
+  const named = entries.some((e) => isPlainObject(e) && typeof e.chip === 'boolean')
   const flagged = new Set(entries.filter((e) => isPlainObject(e) && e.chip === true).map((e) => e.key))
   // ⭐ VA2 — a flagged row whose `chipWhen` is false (`chipOff`) is left out, and
   // the definition still counts as one that flags its chip rows: switching the
   // rating off must never promote "the first rows" into the pane label.
-  const picked = flagged.size ? list.filter((r) => flagged.has(r.key) && r.chipOff !== true) : list
+  const picked = named ? list.filter((r) => flagged.has(r.key) && r.chipOff !== true) : list
   return picked.slice(0, MAX_CHIP_ROWS)
 }
 

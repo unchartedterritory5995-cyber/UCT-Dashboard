@@ -82,7 +82,16 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(wls, "add_alert", spy_add_alert)
     monkeypatch.setattr(wls, "send_email", spy_email)
     monkeypatch.setattr(wls, "_get_user_email", lambda uid: "member@test")
-    return {"user": user_id, "at_path": at_path, "calls": calls, "mp": monkeypatch}
+    # ⛔ THE BELL IS BROADCAST + PRIVATE, AND THE BROADCAST LIST IS PROCESS STATE (`alerts.cache`).
+    # ⚰️ 2026-11-18, the first full backend run (PR #1855): both bell rails below read 2 price_alert
+    # entries for one crossing. The second was not this member's: it was the synthetic BROADCAST
+    # "NVDA crossed above $900.00" that tests/test_term011_rows1_3_4_5_step7_alerts_gate.py leaves in
+    # the shared list (production never broadcasts a price_alert), read here because term011 runs
+    # first. Alone, or without term011 in the process, the rails were green. So the feed starts and
+    # ends empty here: anything this test's own path broadcasts still counts.
+    alerts_svc.cache.invalidate(alerts_svc._BROADCAST_KEY)
+    yield {"user": user_id, "at_path": at_path, "calls": calls, "mp": monkeypatch}
+    alerts_svc.cache.invalidate(alerts_svc._BROADCAST_KEY)
 
 
 def _flag_on(env):

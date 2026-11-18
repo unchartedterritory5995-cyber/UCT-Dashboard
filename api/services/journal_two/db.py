@@ -1478,6 +1478,36 @@ CREATE TRIGGER IF NOT EXISTS j2_note_documents_excerpts_ad AFTER DELETE ON j2_no
     DELETE FROM j2_note_excerpts WHERE document_id = old.id;
 END;
 
+-- Import a tweet: what an excerpt cannot hold about a saved X post (author, permalink, copied
+-- images, price at post). One row per document, written in the document's own transaction.
+-- Declared ONCE, here: `_J2_SCHEMA` runs on every `ensure_schema`, so an existing database
+-- gets it on boot. The document's AFTER DELETE trigger below is what removes a member's rows
+-- at account purge (the purge deletes `j2_note_documents`).
+CREATE TABLE IF NOT EXISTS j2_note_tweet_captures (
+    document_id          TEXT PRIMARY KEY,
+    user_id              TEXT NOT NULL,
+    note_id              TEXT NOT NULL,
+    tweet_id             TEXT NOT NULL,
+    author_handle        TEXT,
+    author_name          TEXT,
+    avatar_url           TEXT,
+    permalink            TEXT,
+    posted_at            INTEGER,
+    media_json           TEXT NOT NULL DEFAULT '[]',
+    price_symbol         TEXT,
+    price_at_post        REAL,
+    price_label          TEXT,
+    price_session_date   TEXT,
+    gone_first_missed_at TEXT,
+    removed_at           TEXT,
+    created_at           TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_tweet_captures_tweet
+    ON j2_note_tweet_captures(tweet_id);
+CREATE TRIGGER IF NOT EXISTS j2_note_documents_tweet_captures_ad AFTER DELETE ON j2_note_documents BEGIN
+    DELETE FROM j2_note_tweet_captures WHERE document_id = old.id;
+END;
+
 -- Standalone FTS5 mirror over captured_text + annotation, same rowid-map
 -- pattern j2_notes_fts_map/j2_note_document_pages_fts_map already establish
 -- for a TEXT-primary-keyed source table (an excerpt id has no stable

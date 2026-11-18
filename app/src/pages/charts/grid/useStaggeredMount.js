@@ -14,27 +14,49 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000 } = {}) {
+export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000, slotTimeoutFor = null, minAdmitIntervalMs = 0 } = {}) {
   const [mountedIds, setMountedIds] = useState(() => new Set(ids.slice(0, limit)))
   const mountedRef = useRef(null)
   const pendingRef = useRef(null)   // mounted but not yet released (holds a slot)
   const queueRef = useRef(null)
   const timersRef = useRef(new Map())
+  const lastAdmitRef = useRef(0)     // when the last admission (or the seeded batch) happened
+  const paceTimerRef = useRef(null)  // the one pending paced admission
   if (mountedRef.current === null) {
     mountedRef.current = new Set(ids.slice(0, limit))
     pendingRef.current = new Set(ids.slice(0, limit))
     queueRef.current = ids.slice(limit)
+    lastAdmitRef.current = Date.now()
   }
 
   const releaseRef = useRef(null)
+  const admitRef = useRef(null)
+  // A per-id safety timeout, consulted when each slot is armed (a ref, so its identity can never
+  // change armTimer or admit). Undefined falls back to `slotTimeoutMs`. It only shortens a timer
+  // that already exists: admissions, and so commits, stay one per panel.
+  const slotTimeoutForRef = useRef(slotTimeoutFor)
+  slotTimeoutForRef.current = slotTimeoutFor
 
   const armTimer = useCallback((id) => {
-    if (!(slotTimeoutMs > 0)) return
-    const t = setTimeout(() => releaseRef.current?.(id), slotTimeoutMs)
+    const ms = slotTimeoutForRef.current?.(id) ?? slotTimeoutMs
+    if (!(ms > 0)) return
+    const t = setTimeout(() => releaseRef.current?.(id), ms)
     timersRef.current.set(id, t)
   }, [slotTimeoutMs])
 
+  // `minAdmitIntervalMs` paces admissions on top of the slot limit: a panel can report ready the
+  // moment its cache answers, with its network reads still to come, so a free slot alone says
+  // nothing about the load already started. Off (0) for every caller that does not pass it.
   const admit = useCallback(() => {
+    if (minAdmitIntervalMs > 0) {
+      if (paceTimerRef.current !== null) return
+      if (!(pendingRef.current.size < limit && queueRef.current.length > 0)) return
+      const wait = Math.min(minAdmitIntervalMs, minAdmitIntervalMs - (Date.now() - lastAdmitRef.current))
+      if (wait > 0) {
+        paceTimerRef.current = setTimeout(() => { paceTimerRef.current = null; admitRef.current?.() }, wait)
+        return
+      }
+    }
     let changed = false
     while (pendingRef.current.size < limit && queueRef.current.length > 0) {
       const id = queueRef.current.shift()
@@ -43,9 +65,15 @@ export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000
       pendingRef.current.add(id)
       armTimer(id)
       changed = true
+      if (minAdmitIntervalMs > 0) {
+        lastAdmitRef.current = Date.now()
+        break
+      }
     }
     if (changed) setMountedIds(new Set(mountedRef.current))
-  }, [limit, armTimer])
+    if (changed && minAdmitIntervalMs > 0) admitRef.current?.()   // arms the next paced admission
+  }, [limit, armTimer, minAdmitIntervalMs])
+  admitRef.current = admit
 
   const release = useCallback((id) => {
     const timer = timersRef.current.get(id)
@@ -64,6 +92,8 @@ export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000
     return () => {
       for (const t of timers.values()) clearTimeout(t)
       timers.clear()
+      clearTimeout(paceTimerRef.current)
+      paceTimerRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

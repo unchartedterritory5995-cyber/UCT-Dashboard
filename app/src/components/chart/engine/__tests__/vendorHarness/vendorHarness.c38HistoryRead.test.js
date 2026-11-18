@@ -46,13 +46,11 @@ describe('C38 — the two probes, as captured (300 bars)', () => {
     // value that depends on the absolute index is withheld now, by name; the rule
     // itself is graded on TradingView's whole history below (MATCH, 6 of 6).
     expect(vendorColumn(parent(OFFSET_NA), 'E00_bar_index_CONTROL')[0] % 3).toBe(0)
-    expect(notMatch(verdict)).toEqual([
-      'E00_bar_index_CONTROL: INCONCLUSIVE', 'E01_e_is_na: INCONCLUSIVE', 'E02_close_at_e: INCONCLUSIVE',
-      'E03_close_at_e_is_na: INCONCLUSIVE', 'E05_close_at_e_eq_close: INCONCLUSIVE',
-    ])
-    for (const t of ['E00_bar_index_CONTROL', 'E01_e_is_na', 'E02_close_at_e', 'E03_close_at_e_is_na', 'E05_close_at_e_eq_close']) {
-      expect(plotOf(verdict, t).reason, t).toMatch(/withheld on this chart on every bar, by name \(bar-index:window\)/)
-    }
+    // ⭐ DIV-1 RE-PIN (2026-11-09): was the five index rows "INCONCLUSIVE, withheld by name
+    // (bar-index:window)". The harness now replays SPY's proved history from its 1993
+    // listing before the window (as the member's daily chart computes it), so the count
+    // IS TradingView's and every row is served — and agrees.
+    expect(notMatch(verdict)).toEqual([])
     // the one row that reads no index — `close[1]` — is served and MATCHES
     expect(plotOf(verdict, 'E04_close_1_CONTROL').verdict).toBe('MATCH')
   })
@@ -79,13 +77,9 @@ describe('C38 — the two probes, as captured (300 bars)', () => {
     // rows INCONCLUSIVE inside a 400-bar reach). All four depend on the absolute
     // index and are withheld by name off the listing; on TradingView's whole
     // history they MATCH (below).
-    expect(notMatch(verdict)).toEqual([
-      'M00_bar_index_CONTROL: INCONCLUSIVE', 'M01_k: INCONCLUSIVE',
-      'M02_close_at_k: INCONCLUSIVE', 'M03_close_at_k_is_na: INCONCLUSIVE',
-    ])
-    for (const p of verdict.plots) {
-      expect(p.reason, p.title).toMatch(/withheld on this chart on every bar, by name \(bar-index:window\)/)
-    }
+    // ⭐ DIV-1 RE-PIN (2026-11-09): was the four index rows "INCONCLUSIVE, withheld by name
+    // (bar-index:window)". Replayed from SPY's listing (DIV-1) they are served and agree.
+    expect(notMatch(verdict)).toEqual([])
   })
 })
 

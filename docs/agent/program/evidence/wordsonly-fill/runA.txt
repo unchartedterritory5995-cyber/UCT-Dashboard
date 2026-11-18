@@ -1,0 +1,18 @@
+ ✓ src/noRegexLookbehind.test.js (6 tests) 2212ms
+ ✓ src/agent/agentRouting.test.jsx (23 tests) 325ms
+ ✓ src/agent/qa/capabilityRegression/corpus.routing.test.js (657 tests) 593ms
+ ✓ src/agent/nlm1/nlm1Routing.test.js (62 tests) 1022ms
+ ✓ src/agent/qa/capabilityRegression/corpus.routingV2.test.js (657 tests) 1841ms
+ ✓ src/agent/nlm1/routingV1Identity.test.js (5 tests) 2198ms
+ ✓ src/agent/qa/capabilityRegression/routeReachability.test.js (8 tests) 1642ms
+ ✓ src/agent/qa/capabilityRegression/routingCollisionV2.test.js (35 tests) 94ms
+ ✓ src/agent/agentScreener.test.jsx (13 tests) 201ms
+ ✓ src/agent/nlm1/devMetrics.test.js (2 tests) 3493ms
+ ✓ src/agent/qa/capabilityRegression/inventory.test.js (691 tests) 242ms
+ ✓ src/agent/qa/capabilityRegression/routingCollision.test.js (35 tests) 34ms
+ ✓ src/agent/agentContracts.test.js (14 tests) 41ms
+ ✓ src/agent/agentNl1Selection.test.js (13 tests) 36ms
+ ✓ src/agent/agentNoLookbehindEquivalence.test.js (6 tests) 21ms
+ ✓ src/agent/agentIndicatorsM2.test.jsx (28 tests) 7357ms
+ Test Files  16 passed (16)
+      Tests  2255 passed (2255)

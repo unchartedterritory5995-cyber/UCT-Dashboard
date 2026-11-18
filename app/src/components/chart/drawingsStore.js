@@ -26,8 +26,10 @@
 
 import { uid } from '../../utils/uid'
 import { normalizeDrawing, normalizeDrawings } from './drawingSchema'
+import { DRAWINGS_STORAGE_KEY, registerLiveDrawingsPeek } from './drawingsPeek'
 
-const STORAGE_KEY = 'uct-chart-drawings'
+// The key lives in drawingsPeek.js (the Notebook reads drawings through it without loading this store).
+const STORAGE_KEY = DRAWINGS_STORAGE_KEY
 const MAX_HISTORY = 100   // undo/redo depth per symbol (mirrors the legacy hook)
 
 export const EMPTY_SNAPSHOT = Object.freeze({
@@ -190,6 +192,8 @@ export function peekDrawings(sym) {
     return []
   }
 }
+// The Notebook's peek (drawingsPeek.js) answers from this live store once it has loaded.
+registerLiveDrawingsPeek(peekDrawings)
 
 // ── Mutations (all keyed by sym; falsy sym = no-op, mirroring the legacy guard) ─
 export function addDrawing(sym, d) {

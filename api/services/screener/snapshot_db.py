@@ -8,6 +8,7 @@ import json
 import os
 import sqlite3
 import threading
+import time
 
 _WRITE_LOCK = threading.Lock()
 
@@ -176,7 +177,10 @@ COLUMNS = [
     "run_ema9_ema20", "run_sma20_sma50", "run_sma50_sma200", "sma20_rising", "sma50_rising",
     "sma200_rising", "avg_volume_10d", "avg_volume_50d", "vol_trend_pct", "vol_up_run",
     "vol_down_run", "new_high_lookback", "new_low_lookback", "breakout_20d_age", "high_52w_age",
-    "low_52w_age",
+    "low_52w_age", "min_volume_3d_prior",
+    # live-tier bases (`technicals.scan_primitives`): not filters, the levels `live_tier` restates the
+    # 5-day/1-month/1-year change and MINV3.1 from during the next session. NULL until the next build.
+    "live_base_close_1w", "live_base_close_1m", "live_base_close_1y", "live_base_min_volume_3d",
     # ⭐ UCT RELATIVE STRENGTH, bar-derived (Phase 2a, unit 2a-05). ONE writer,
     # `rs_columns.collect_one` (the builder's `_step("bars_rs")`), from the same
     # `relative_strength` functions the chart's rsLine draws, so a scan and a
@@ -203,7 +207,7 @@ COLUMNS = [
     # sessions for a delta — never a guessed value. Additive: ALTER-added on
     # init.
     "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
-    "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m",
+    "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m",
     # ⭐ UCT RELATIVE STRENGTH, Phase 3 (unit 3-10, decision D7). ONE writer,
     # `rs_columns.collect_one(..., phase3=True)` inside the same `bars_rs` step,
     # and only while `snapshot_builder.rs_v3_enabled()` (RS_V3_ENABLED, dark by
@@ -215,6 +219,69 @@ COLUMNS = [
     # history is short or the maths has no answer, never a guessed value.
     # Additive: ALTER-added on init.
     "rrg_quadrant", "clenow_score", "vars_state",
+    # ⭐ UCT RS EXIT WARNINGS (2026-11-13; the chart's `rsExit`, PR #1136). ONE
+    # writer, `rs_columns.collect_one` inside the same RS_V2-gated `bars_rs` step
+    # (`rs_columns.EXIT_COLUMNS`): Mike Webster's Quick Break / Quicksand /
+    # Grateful Dead Break on the RS line vs SPY, daily 21 / 50 simple averages.
+    # `rs_exit_last` TEXT names the newest warning (the worse one on a shared
+    # bar), the four ages are INTEGER sessions since a warning (0 = the newest
+    # bar). NULL when no such warning fired inside the window or the window is
+    # under 51 bars. Additive: ALTER-added on init, NULL until the next build.
+    "rs_exit_last", "rs_exit_bars_ago", "rs_quick_break_bars_ago",
+    "rs_quicksand_bars_ago", "rs_dead_break_bars_ago",
+    # ⭐ UCT RS SCREENS (unit U1, 2026-11-14). ONE writer, `rs_post_pass.run`, and it is
+    # NOT the build loop: the pass runs at the end of every build and again after the
+    # 04:15 ET rating job, because the build's INSERT OR REPLACE writes these NULL on
+    # every row it rebuilds (`POST_PASS_COLUMNS` below). Dark behind RS_SCREENS_ENABLED:
+    # NULL on every row until it is armed. `rs_rating_session` TEXT is the stored rating
+    # session the row's `rs_rating_*` columns describe; `rs_rating_score` REAL is the
+    # unrounded score behind `rs_rating_ibd` (`rs_rating_history.score`); the rest are
+    # INTEGER places, 1 = strongest, among the rows on the RS liquid floor
+    # (`rs_post_pass.LIQUID_FLOOR`): overall, the size of that ranking, the 1/3/6/12
+    # month orders, and the overall place 20 stored sessions earlier. NULL off the
+    # floor or where the session holds no value, never a guessed place. Additive:
+    # ALTER-added on init.
+    "rs_rating_session", "rs_rating_score", "rs_rating_pos", "rs_rating_pos_n",
+    "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_rating_pos_prev20",
+    # ⭐ UCT RS SCREENS, the build's own columns (unit U4, 2026-11-14). Written by the
+    # build LOOP, only while RS_SCREENS_ENABLED is on (NULL on every row until then):
+    #   * six last-bar measures of the RS line from `rs_columns.screen_fields`, in the
+    #     RS_V2-gated `bars_rs_screens` step: RS new highs in 20 sessions, the gap
+    #     before the newest one, the age of the newest on a market down day, the age
+    #     of an RS new high price has not followed, the span of today's RS high (all
+    #     INTEGER) and the close against its own 252-session closing high
+    #     (`px_below_high_pct` REAL, a percent, never above 0);
+    #   * the Setup label from `rs_setup.label` over `technicals.setup_inputs`, in
+    #     the `bars_rs_setup` step: `rs_setup` TEXT (one of `rs_setup.SETUPS`),
+    #     `rs_tight` INTEGER 0/1, `rs_flag` TEXT (one of `rs_setup.FLAGS`),
+    #     `rs_near_buy` INTEGER 0/1, and three of the label's own inputs so a row can
+    #     show why it reads as it does: `atr_ext_ema21` REAL (ATRs above the 21-day
+    #     EMA), `pct_vs_ema8` / `pct_vs_ema21` REAL (percent from the 8- and 21-day
+    #     EMAs).
+    # `rs_rating_prev20` INTEGER is the post-pass's (`POST_PASS_COLUMNS`): the RS
+    # Rating 20 stored sessions earlier. NULL where the maths has no answer, never a
+    # guess. Additive: ALTER-added on init.
+    "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago", "px_below_high_pct",
+    "rs_nhbp_age", "rs_nh_span",
+    "rs_setup", "rs_tight", "rs_flag", "rs_near_buy",
+    "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21",
+    "rs_rating_prev20",
+    # ⭐ UCT RS SCREENS, the WEEKLY RS new high (unit U12, 2026-11-14). Written by the
+    # build LOOP's `bars_rs_weekly` step (`rs_columns.weekly_fields`), only while
+    # RS_SCREENS_ENABLED is on and only for a row on the RS liquid floor: INTEGER
+    # 0/1, on completed weeks. `rs_nh_weekly`: the last completed week's RS value
+    # (weekly close / SPY's) is at or above the highest of the prior 52 weeks.
+    # `rs_nhbp_weekly`: that, while the weekly close is more than 3% under its own
+    # highest weekly close of those weeks. NULL under 53 completed weeks and off
+    # the floor, never a guess. Additive: ALTER-added on init.
+    "rs_nh_weekly", "rs_nhbp_weekly",
+    # ⭐ UCT RS SCREENS, the steadier UCT RS Leaders list (unit U12, 2026-11-14). ONE
+    # writer, `rs_leaders_list.run`, inside `rs_post_pass.run` (`POST_PASS_COLUMNS`),
+    # dark behind RS_SCREENS_ENABLED. `rs_leaders_member` INTEGER: 1 on the list, 0 for
+    # every other row the pass answered. `rs_leaders_days` INTEGER: consecutive stored
+    # sessions on the list counting today, NULL off it. Both NULL on a row the build
+    # has rewritten until the pass runs, and when the pass could not compute the list.
+    "rs_leaders_member", "rs_leaders_days",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -223,6 +290,19 @@ COLUMNS = [
 #: them). The build's `empty_columns` receipt does not name these: a column that
 #: is meant to be empty at 03:00 is not a column that "came out 0/N".
 LIVE_ONLY_COLUMNS = frozenset({"rvol_live", "premarket_price", "premarket_chg_pct"})
+
+#: Columns the build LOOP never fills: `rs_post_pass.run` writes them over the whole
+#: table once the loop is done (the `sector_rs_pct` shape). The build's `empty_columns`
+#: receipt does not name them; the pass's own receipt (`stats["rs_post_pass"]`, and
+#: `status()["rs_post_pass"]`) says what happened to them, including the every-night
+#: case where the rating session is not stored yet and they are blank by design.
+POST_PASS_COLUMNS = frozenset({
+    "rs_rating_session", "rs_rating_score", "rs_rating_pos", "rs_rating_pos_n",
+    "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_rating_pos_prev20",
+    # unit U4: the RS Rating 20 stored sessions earlier
+    "rs_rating_prev20",
+    # unit U12: UCT RS Leaders' list, written inside the pass by `rs_leaders_list.run`
+    "rs_leaders_member", "rs_leaders_days"})
 
 _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type", "ma_stack",
          "candle_type", "candle_label", "candle_matches", "candle_trend",
@@ -239,6 +319,12 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type",
          "accdis", "rs_line_trend", "theme",
          # UCT RS Phase 3 (3-10): the two classification names
          "rrg_quadrant", "vars_state",
+         # UCT RS Exit Warnings: the newest warning's name
+         "rs_exit_last",
+         # UCT RS screens (U1): the rating session, a YYYY-MM-DD key
+         "rs_rating_session",
+         # UCT RS screens (U4): the Setup label and the flag, `rs_setup`'s own keys
+         "rs_setup", "rs_flag",
          # Wave 2
          "ipo_date", "country", "next_earnings_date", "earnings_session",
          "earnings_setup_grade", "analyst_consensus", "sponsorship",
@@ -288,7 +374,22 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # UCT RS, history-derived (2a-06): the 1-99 rating, two signed deltas
         # of it, four 1-99 component percentiles. Whole numbers, all seven.
         "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
-        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_12m"}
+        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m",
+        # UCT RS Exit Warnings: four ages in sessions (`rs_exit_last` is TEXT).
+        "rs_exit_bars_ago", "rs_quick_break_bars_ago", "rs_quicksand_bars_ago",
+        "rs_dead_break_bars_ago",
+        # UCT RS screens (U1): seven whole-number places and counts. `rs_rating_score`
+        # is deliberately NOT here: it is the unrounded REAL score.
+        "rs_rating_pos", "rs_rating_pos_n", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m",
+        "rs_pos_12m", "rs_rating_pos_prev20",
+        # UCT RS screens (U4): five whole-number measures of the RS line (a count, three
+        # ages, a span), two 0/1 flags, and the rating 20 stored sessions earlier.
+        # `px_below_high_pct`, `atr_ext_ema21` and the two `pct_vs_ema*` are REAL.
+        "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago", "rs_nhbp_age", "rs_nh_span",
+        "rs_tight", "rs_near_buy", "rs_rating_prev20",
+        # UCT RS screens (U12): the two weekly RS new high flags, 0/1, and UCT RS
+        # Leaders' list: a 0/1 flag and a count of sessions.
+        "rs_nh_weekly", "rs_nhbp_weekly", "rs_leaders_member", "rs_leaders_days"}
 
 
 # ---------------------------------------------------------------------------
@@ -467,14 +568,38 @@ def upsert_live_rows(rows: list, *, busy_timeout_ms: int = 5000) -> int:
         return 0
     from api.services.screener import live_tier
     cols = _live_write_columns()
-    placeholders = ", ".join("?" for _ in cols)
-    sql = (f"INSERT OR REPLACE INTO {live_tier.LIVE_TABLE} "
-           f"({', '.join(cols)}) VALUES ({placeholders})")
     payload = [[_coerce(c, r.get(c)) for c in cols] for r in rows]
+    head = f"INSERT OR REPLACE INTO {live_tier.LIVE_TABLE} ({', '.join(cols)}) VALUES "
+    one = "(" + ", ".join("?" for _ in cols) + ")"
     with _WRITE_LOCK, connect(busy_timeout_ms=busy_timeout_ms) as conn:
-        conn.executemany(sql, payload)
+        # ⛔⛔ MULTI-ROW STATEMENTS, NEVER `executemany`. THE GIL CONVOY (measured 2026-11-10).
+        # `sqlite3` releases the GIL around EVERY `sqlite3_step`, and `executemany` steps once per
+        # row, so ~10,800 rows means ~10,800 GIL hand-offs. With any CPU-bound Python thread
+        # alive in the pod (theme prewarm, pattern scans, catalyst bursts), each hand-off waits
+        # for that thread's switch interval before it gets the GIL back. Production sweeps
+        # spent a median 17 s (p90 34 s, max 93 s) in this write against ~110 ms on an idle box;
+        # locally, ONE busy-looping thread took `executemany` from 107 ms to 307 SECONDS. Packing
+        # the rows into statements of as many rows as SQLite's variable limit allows (~800 at the
+        # 32,766 default) is ~14 hand-offs: 123 ms idle, 1.2 s beside the same busy thread.
+        # ``tests/test_screener_live_write_convoy.py`` pins the statement count.
+        limit = _variable_limit(conn)
+        per = max(1, limit // len(cols))
+        for i in range(0, len(payload), per):
+            part = payload[i:i + per]
+            conn.execute(head + ", ".join([one] * len(part)),
+                         [v for row in part for v in row])
         conn.commit()
     return len(rows)
+
+
+def _variable_limit(conn) -> int:
+    """How many `?` one statement may bind on THIS SQLite build. `Connection.getlimit` is
+    Python 3.11+; without it, 999 (SQLite's pre-3.32 default, the smallest build that exists),
+    which is still ~24 rows per statement instead of one."""
+    try:
+        return int(conn.getlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER))
+    except Exception:  # noqa: BLE001 — older Python or a build without the constant
+        return 999
 
 
 def prune_live_rows(session_ymd: int, *, busy_timeout_ms: int = 5000) -> int:
@@ -516,6 +641,125 @@ def connect(busy_timeout_ms: int = 5000) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute(f"PRAGMA busy_timeout={int(busy_timeout_ms)}")
     return conn
+
+
+# ── A CHART'S READS KEEP THEIR CONNECTION (2026-11-14) ───────────────────────
+#
+# ⚰️ MEASURED ON PRODUCTION 2026-11-14 (Server-Timing on a fast scan of the Nasdaq 100, 79
+# RS answers computed): the answer took a median 408 ms on the server and 185 of them were
+# the `rating` stage, two reads of a handful of rows. `connect()` above is three round trips
+# before the first row (the open, and two PRAGMAs), every statement after it is one or two
+# more, and on the web pod a thread waits to get the GIL back after each one. Measured with
+# the pod's switch interval beside 30 busy threads: 17 ms for the open and its PRAGMAs, 6 to
+# 14 ms for a statement that sqlite answers in 13 microseconds.
+#
+# So the reads a chart makes keep one connection per thread: opened once, used only through
+# `read_on_reader`, never handed out to be closed. It is `query_only` (sqlite itself refuses a
+# write through it, so it can never be left inside a transaction) and autocommit (every
+# statement sees the newest committed data, exactly as a fresh connection does; nothing is
+# remembered between calls). Its page cache is capped at `HOT_CACHE_KB` so forty threads'
+# readers stay small.
+#
+# ⛔ screener.db is updated in place and never replaced by this code. If it ever were (a
+# restore by hand), a kept handle would go on reading the old file: so the file's identity is
+# checked every `HOT_RECHECK_S` and a different file reopens the reader.
+# ⛔ Off under pytest (a kept handle stops Windows deleting a test's temp directory);
+# tests/test_screener_hot_reader.py turns it on and drops it. `SCREENER_KEPT_READER=0` turns
+# it off on a service: every read then opens its own connection, as before.
+_HOT = threading.local()
+HOT_RECHECK_S = 60.0
+HOT_CACHE_KB = 512
+
+
+def hot_readers_on() -> bool:
+    return (os.environ.get("SCREENER_KEPT_READER", "1") != "0"
+            and not os.environ.get("PYTEST_CURRENT_TEST"))
+
+
+def _file_identity(path: str):
+    """``(device, inode)`` of the database file, or None when there is no file."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_dev, st.st_ino)
+
+
+def hot_reader(path: str | None = None):
+    """This thread's read-only connection to screener.db, or None when there is none to have
+    (switched off, under pytest, or no database file yet): the caller then opens its own."""
+    if not hot_readers_on():
+        return None
+    path = path or get_db_path()
+    conn = getattr(_HOT, "conn", None)
+    now = time.monotonic()
+    if conn is not None and getattr(_HOT, "path", None) == path:
+        if 0 <= now - _HOT.checked < HOT_RECHECK_S:
+            return conn
+        if _file_identity(path) == _HOT.identity:
+            _HOT.checked = now
+            return conn
+    drop_hot_reader()
+    identity = _file_identity(path)
+    if identity is None:
+        return None                                  # never create the file from a read
+    conn = None
+    try:
+        conn = sqlite3.connect(path, timeout=5, isolation_level=None)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA query_only=ON")
+        conn.execute(f"PRAGMA cache_size=-{int(HOT_CACHE_KB)}")
+    except sqlite3.Error:
+        if conn is not None:
+            conn.close()
+        return None
+    _HOT.conn, _HOT.path, _HOT.identity, _HOT.checked = conn, path, identity, now
+    return conn
+
+
+def drop_hot_reader() -> None:
+    """Close and forget this thread's reader (the next read opens a new one)."""
+    conn = getattr(_HOT, "conn", None)
+    _HOT.conn = None
+    _HOT.path = None
+    if conn is not None:
+        try:
+            conn.close()
+        except sqlite3.Error:
+            pass
+
+
+def _schema_refusal(e: Exception) -> bool:
+    msg = str(e)
+    return "no such table" in msg or "no such column" in msg
+
+
+def read_on_reader(read):
+    """``read(conn, path)`` on this thread's kept reader when there is one, on a connection of
+    its own (closed after) otherwise. ``read`` must only read.
+
+    What a caller sees is what a fresh connection shows it. A statement the schema refuses (no
+    such table on a pod that never stored one) raises the same error from either, and the
+    reader is kept. Any other ``OperationalError`` (a busy file) is raised as it would have
+    been, never retried (a second five-second wait is how a thread pool starves), and the
+    reader is dropped so the next read starts clean. Anything else wrong with the reader
+    itself drops it and the read is made once more on a fresh connection."""
+    path = get_db_path()
+    reader = hot_reader(path)
+    if reader is not None:
+        try:
+            return read(reader, path)
+        except sqlite3.OperationalError as e:
+            if not _schema_refusal(e):
+                drop_hot_reader()
+            raise
+        except sqlite3.Error:
+            drop_hot_reader()
+    conn = connect()
+    try:
+        return read(conn, path)
+    finally:
+        conn.close()
 
 
 def _coldef(name: str) -> str:
@@ -744,6 +988,23 @@ def count_rows() -> int:
         return conn.execute("SELECT COUNT(*) FROM screener_rows").fetchone()[0]
 
 
+def count_rows_built_before(cutoff_ts) -> int | None:
+    """Rows a build has not reached since ``cutoff_ts`` (epoch seconds): ``built_at``
+    older than it, or never stamped. ``None`` when the table cannot be read, so a
+    caller can tell "nothing is behind" from "I could not look".
+
+    It reads the ROWS, not a build receipt. A build killed partway writes no receipt
+    and a capped run writes one that looks finished, so only the rows can say how
+    much of the table the last nightly actually rebuilt."""
+    try:
+        with connect() as conn:
+            return int(conn.execute(
+                "SELECT COUNT(*) FROM screener_rows WHERE built_at IS NULL OR built_at < ?",
+                (float(cutoff_ts),)).fetchone()[0])
+    except Exception:                                       # noqa: BLE001
+        return None
+
+
 # ---------------------------------------------------------------------------
 # 🔴 WHAT DATE IS THIS DATA? `MAX(snapshot_date)` IS A TRUE NUMBER WITH A FALSE
 # IMPLICATION, AND IT WAS BEING PRINTED OVER THE MEMBER'S RESULTS.
@@ -948,7 +1209,8 @@ def status() -> dict:
     return {**prov, "latest_built_at": built,
             "latest_snapshot_date": prov["newest_snapshot_date"],
             "last_build": last_build_run(),
-            "rs_lists": _rs_lists_last_run()}
+            "rs_lists": _rs_lists_last_run(),
+            "rs_post_pass": _rs_post_pass_last_run()}
 
 
 def _rs_lists_last_run() -> dict | None:
@@ -957,6 +1219,16 @@ def _rs_lists_last_run() -> dict | None:
     try:
         from api.services import rs_lists                    # noqa: PLC0415 - lazy, no cycle
         return rs_lists.last_run()
+    except Exception:                                        # noqa: BLE001
+        return None
+
+
+def _rs_post_pass_last_run() -> dict | None:
+    """The newest `rs_post_pass` receipt (RS screens unit U1), or None. Read-only (a pod
+    whose pass never ran past its flag carries no table) and never raises."""
+    try:
+        from api.services.screener import rs_post_pass       # noqa: PLC0415 - lazy, no cycle
+        return rs_post_pass.last_run()
     except Exception:                                        # noqa: BLE001
         return None
 

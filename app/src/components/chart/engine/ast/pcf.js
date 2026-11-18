@@ -844,13 +844,13 @@ function fillParams(family, firstDigits, dotted, token) {
  *  English and the tokenizer would split them into a pile of unknown identifiers.
  */
 export const PCF_DIALOG_INDICATORS = Object.freeze([
-  {
-    name: 'Price History',
-    re: /\bPrice\s+History\b/i,
-    why: 'this engine has no count of how many bars a symbol has. It is usually not '
-      + 'needed here: a long average refuses outright on a symbol without enough '
-      + 'history, so a `Price History` row can simply be dropped',
-  },
+  // ⚰️ `Price History` WAS LISTED HERE AS "a count of how many bars a symbol has"
+  // and refused with "the row can simply be dropped". THAT WAS A MISREADING OF
+  // TC2000: `Price History` is the name of the PRICE data source itself (TC2000's
+  // own help plots Bollinger Bands "on Price History"), so `Price History > 3` is
+  // a $3 price floor and dropping it silently removed a real filter from the
+  // owner's Anticipation and Inside-Day columns. It is READ now — see
+  // `translatePriceHistory` and the condition-row reader below (2026-11-10).
   {
     name: 'Price as Percent of 52 Week High',
     re: /\bPrice\s+as\s+Percent\s+of\s+52\s+Week\s+High\b/i,
@@ -1499,6 +1499,127 @@ export function parsePcf(source, table = TABLE, nodeTypes = NODE_TYPES) {
       error: `${PCF_REFUSALS['pcf:empty']} — the box is blank`,
     }
   }
+  // ⭐⭐ A COLUMN PASTED FROM TC2000'S EDIT COLUMN DIALOG IS ROWS, NOT ONE FORMULA.
+  // Read it as rows when it looks like one; otherwise this is a no-op and the
+  // source goes to the formula reader exactly as before.
+  const rows = readConditionRows(source)
+  if (rows) {
+    if (!rows.ok) return rows
+    for (const row of rows.rows) {
+      const one = parsePcfFormula(row.expr, table, nodeTypes)
+      if (!one.ok) {
+        // ⭐ NAME THE ROW. An index into the JOINED text points at nothing the
+        // member typed; the row they pasted is what they can find and fix.
+        return {
+          ...one,
+          index: row.start,
+          error: `row ${row.number} (\`${row.original}\`): ${one.error}`,
+        }
+      }
+    }
+    return parsePcfFormula(rows.joined, table, nodeTypes)
+  }
+  return parsePcfFormula(source, table, nodeTypes)
+}
+
+// --------------------------------------------------------------------------- //
+// TC2000 condition rows — the Edit Column dialog, pasted
+// --------------------------------------------------------------------------- //
+
+/** `X Is True` / `X Is False` at the end of a row: TC2000's dialog writes this
+ *  after a Personal Criteria Formula row. */
+const ROW_VERDICT = /\s+Is\s+(True|False)\s*$/i
+/** The connector TC2000 prints at the start of every row after the first. */
+const ROW_CONNECTOR = /^(and|or)\b\s*/i
+const PRICE_HISTORY = /\bPrice\s+History\b/i
+
+/** `Price History` is TC2000's name for the PRICE data source, so it reads as
+ *  `C`, and the dialog's moving-average condition reads as a fused average.
+ *
+ *  ⚠️ `Avg N` is TC2000's SIMPLE average (its default moving-average type, and
+ *  what `AVGC` means in a formula); `Exp Avg N` is the exponential one. ⛔ Any
+ *  OTHER `Price History …` phrase (crossed above, Hull, a different source) is
+ *  NOT guessed at: only the bare name is rewritten, and the leftover words reach
+ *  the formula reader and are refused at their own token. */
+export function translatePriceHistory(text) {
+  return text
+    .replace(
+      /\bPrice\s+History\s+(above|below)\s+(Exp(?:onential)?\s+)?Avg\s+(\d+)\b/gi,
+      (_m, side, exp, n) => `(C ${side.toLowerCase() === 'above' ? '>' : '<'} ${exp ? 'XAVGC' : 'AVGC'}${n})`,
+    )
+    .replace(/\bPrice\s+History\b/gi, 'C')
+}
+
+/** The pasted dialog → one formula, or null when the source is not rows.
+ *
+ *  ⭐⭐ EACH ROW IS PARENTHESISED ON ITS OWN, AND THAT IS THE WHOLE POINT. The
+ *  owner's Anticipation column has a row `(a) or (b) Is True` with NO outer
+ *  parentheses. Joined as plain text, `p and (a) or (b) and m` reads as
+ *  `(p and a) or (b and m)` and the price, volume and cap filters silently stop
+ *  applying to half the scan. In the dialog a row is ONE condition.
+ *
+ *  ⛔ ROW MODE TURNS ON ONLY WHEN THE SOURCE SAYS IT IS ROWS, because a long
+ *  hand-written formula wrapped over lines must keep reading as one formula
+ *  (a newline is whitespace in PCF): any row ending `Is True`/`Is False`, any
+ *  `Price History` phrase, or two or more lines where every line after the
+ *  first opens with the dialog's `and`/`or` connector.
+ *
+ *  ⛔ MIXED `and`/`or` CONNECTORS ARE REFUSED, not guessed. The dialog's own
+ *  grouping for a mixed column is not in the pasted text, and reading it with
+ *  either precedence could invert the scan without a word. */
+export function readConditionRows(source) {
+  const lines = []
+  let offset = 0
+  for (const raw of source.split('\n')) {
+    if (raw.trim() !== '') lines.push({ raw, start: offset + raw.search(/\S/) })
+    offset += raw.length + 1
+  }
+  if (lines.length === 0) return null
+  const anyVerdict = lines.some((l) => ROW_VERDICT.test(l.raw))
+  const anyPriceHistory = PRICE_HISTORY.test(source)
+  const connectorShape = lines.length >= 2
+    && lines.slice(1).every((l) => ROW_CONNECTOR.test(l.raw.trim()))
+  if (!anyVerdict && !anyPriceHistory && !connectorShape) return null
+
+  const rows = []
+  const connectors = new Set()
+  for (const [i, line] of lines.entries()) {
+    let text = line.raw.trim()
+    const original = text
+    const conn = text.match(ROW_CONNECTOR)
+    if (conn) {
+      // The first row has no connector in the dialog; one there is dropped.
+      if (i > 0) connectors.add(conn[1].toUpperCase())
+      text = text.slice(conn[0].length)
+    }
+    let negate = false
+    const verdict = text.match(ROW_VERDICT)
+    if (verdict) {
+      negate = verdict[1].toLowerCase() === 'false'
+      text = text.slice(0, verdict.index)
+    }
+    text = translatePriceHistory(text).trim()
+    if (text === '') {
+      return {
+        ok: false, dialect: 'pcf', guard: 'pcf:syntax', index: line.start, token: original,
+        error: `row ${i + 1} (\`${original}\`) has no condition in it`,
+      }
+    }
+    rows.push({ number: i + 1, original, start: line.start, expr: negate ? `NOT (${text})` : text })
+  }
+  if (connectors.size > 1) {
+    return {
+      ok: false, dialect: 'pcf', guard: 'pcf:syntax', index: 0, token: 'and/or',
+      error: 'these rows mix `and` and `or`, and the pasted text does not say how TC2000 '
+        + 'grouped them — write the grouping out with parentheses, e.g. `(row1 and row2) or row3`',
+    }
+  }
+  const glue = connectors.has('OR') ? ' OR ' : ' AND '
+  return { ok: true, rows, joined: rows.map((r) => `(${r.expr})`).join(glue) }
+}
+
+/** One PCF formula → the canonical tree, or a tagged refusal. NEVER throws. */
+function parsePcfFormula(source, table = TABLE, nodeTypes = NODE_TYPES) {
   // ⭐⭐ TC2000'S DIALOG INDICATORS, NAMED BEFORE THE TOKENIZER SEES THEM.
   //
   // These are picked from TC2000's Indicator dropdown, not typed as formula
@@ -1569,6 +1690,10 @@ const PCF_MARKERS = [
   // refused at `sentence:name` for a spelling the TC2000 reader knows perfectly
   // well. Neither word is a native name, so no native formula can be captured.
   /\b(CAPITALIZATION|MARKETCAP)\b/i,
+  // ⭐ THE EDIT COLUMN DIALOG'S OWN WORDS: `Price History` (the price source) and a
+  // row's `Is True` / `Is False`. Neither can occur in a native formula.
+  /\bPrice\s+History\b/i,
+  /\s+Is\s+(True|False)\s*$/im,
   // The dialog indicators, so a member who pasted one gets the TC2000 reader's
   // named refusal instead of the native reader's "this is several expressions".
   //

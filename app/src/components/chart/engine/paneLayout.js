@@ -75,7 +75,7 @@
 // that restores per-band rounding is in this task's gauntlet for that reason.
 
 import { isInstanceTombstone } from '../chartDefaults'
-import { applyPaneSizes } from './paneSizes'
+import { applyPaneSizes, applyPaneMins } from './paneSizes'
 import { getDefinition, listAllDefinitions, registryGeneration } from './nativeRegistry'
 
 /**
@@ -257,6 +257,21 @@ function instancePaneHeight(inst) {
 function paneHeightFor(defId) {
   const h = getDefinition(defId)?.placement?.pane?.height
   return (typeof h === 'number' && Number.isFinite(h) && h > 0 && h < 1) ? h : DEFAULT_PANE_HEIGHT
+}
+
+/**
+ * A definition's declared MINIMUM pane height in pixels, or null when it declares
+ * none (RS split U3, `placement.pane.minPx`).
+ *
+ * ⛔ A MINIMUM, NOT A DEFAULT. `paneHeightFor` is the share the pane gets when
+ * nobody has dragged anything; this is the floor it keeps once somebody has. It
+ * is applied LAST, after the member's own sizes (`paneStretchPlan`), which is why
+ * it is pixels and not a share: "readable" is a property of the screen, and 64 px
+ * is 64 px on a 450 px cell and on a 1,200 px monitor alike.
+ */
+export function paneMinPxFor(defId) {
+  const m = getDefinition(defId)?.placement?.pane?.minPx
+  return (typeof m === 'number' && Number.isFinite(m) && m > 0) ? m : null
 }
 
 // ─── stack order ─────────────────────────────────────────────────────────────
@@ -608,6 +623,8 @@ function pane0Only(chartHeight, separatorPx, firstPaneIndex, abovePct, mainPaneI
     // path needs the same slot → key identities or their sizes would be the only
     // ones the member could not keep.
     paneSizes: (paneSizes && typeof paneSizes === 'object') ? paneSizes : null,
+    /** No instance pane here, so no pane declares a minimum (U3). */
+    minPxByIndex: new Map(),
     keyByIndex: (() => {
       const m = new Map()
       // ⚰️⚰️ THE OFFSET IS THE PANES *ABOVE THE ARRANGEMENT*, AND NOTHING ELSE.
@@ -973,6 +990,21 @@ export function computePaneLayout(instances, opts) {
       })
       return m
     })(),
+    // ⭐ SLOT → DECLARED MINIMUM PIXELS (RS split U3). Read from the hosting
+    // definition through `defByKey`, the same map the default height comes from,
+    // so a pane's floor and its default are answered from one definition. Only
+    // panes that declare one appear; `paneStretchPlan` applies it after the
+    // member's sizes. Empty on every chart whose definitions declare none, which
+    // is every chart before U3 — the plan is then byte-for-byte unchanged.
+    minPxByIndex: (() => {
+      const m = new Map()
+      keys.forEach((key, i) => {
+        const slot = slotOf(key, firstPaneIndex + i)
+        const min = paneMinPxFor(defByKey.get(key))
+        if (Number.isInteger(slot) && slot >= 0 && min !== null) m.set(slot, min)
+      })
+      return m
+    })(),
     /** Physical panes that must exist before any series is placed at a slot. */
     paneCountRequired: order
       ? idxPaneCount + order.length
@@ -1074,7 +1106,17 @@ export function paneStretchPlan(layout, currentStretch) {
   // finished plan rather than woven into the arithmetic that produced it: the
   // totality proofs above keep measuring the geometry they always did, and a
   // chart with no stored sizes takes the identical path it always took.
-  return applyPaneSizes(out, layout.keyByIndex, layout.paneSizes)
+  const sized = applyPaneSizes(out, layout.keyByIndex, layout.paneSizes)
+  // ⭐ AND A DECLARED MINIMUM IS THE ONE THING THAT OUTRANKS THE DRAG (RS split
+  // U3). A member's share — or a stale Price/Volume partition — may not leave a
+  // pane below the height its definition says it needs to be read. The pixels
+  // come from the tallest pane, never from one that would itself fall under its
+  // own min or the 4 % floor, and only from slots this layout owns, so a pane
+  // below the stack keeps what it has. No declared min → `sized`, unchanged.
+  const mins = layout.minPxByIndex
+  if (!(mins instanceof Map) || !mins.size) return sized
+  const own = layout.keyByIndex instanceof Map ? [...layout.keyByIndex.keys()] : null
+  return applyPaneMins(sized, mins, own)
 }
 
 // ─── reading the renderer back ───────────────────────────────────────────────

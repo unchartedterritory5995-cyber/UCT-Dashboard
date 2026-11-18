@@ -7,7 +7,7 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "reason": null,
         "plots": [
           [
@@ -17,43 +17,28 @@
           ],
           [
             "C01_var_colour",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
           ],
           [
             "C02_new_var_40",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
           ],
           [
             "C03_new_na_base",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
           ],
           [
             "C04_new_na_transp",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
           ],
           [
             "C05_rgb_na",
-            "DIVERGE",
-            0,
-            "color",
-            636,
-            "persistent"
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
           ],
           [
             "C06_cond_or_na",
@@ -65,7 +50,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {
@@ -74,53 +59,38 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "reason": null,
         "plots": [
           [
             "K00_bar_index_CONTROL",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — withheld on this chart on every bar,"
+            "MATCH",
+            1800
           ],
           [
             "C01_var_colour",
-            "DIVERGE",
-            0,
-            "color",
-            1800,
-            "persistent"
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
           ],
           [
             "C02_new_var_40",
-            "DIVERGE",
-            0,
-            "color",
-            1800,
-            "persistent"
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
           ],
           [
             "C03_new_na_base",
-            "DIVERGE",
-            0,
-            "color",
-            1800,
-            "persistent"
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
           ],
           [
             "C04_new_na_transp",
-            "DIVERGE",
-            0,
-            "color",
-            1800,
-            "persistent"
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
           ],
           [
             "C05_rgb_na",
-            "DIVERGE",
-            0,
-            "color",
-            1800,
-            "persistent"
+            "INCONCLUSIVE",
+            "values agree, but the capture records per-bar colour and our side's colour could"
           ],
           [
             "C06_cond_or_na",
@@ -132,7 +102,7 @@
           "MATCH",
           []
         ],
-        "paints": "DIVERGE"
+        "paints": "MATCH"
       }
     },
     {
@@ -212,7 +182,7 @@
       "state": "runtime",
       "library": false,
       "signature": {
-        "verdict": "INCONCLUSIVE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
@@ -222,13 +192,13 @@
           ],
           [
             "Long",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "MATCH",
+            636
           ],
           [
             "Short",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — the member pane did not carry this o"
+            "MATCH",
+            636
           ]
         ],
         "objects": [

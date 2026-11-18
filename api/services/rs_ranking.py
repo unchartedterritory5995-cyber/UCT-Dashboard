@@ -11,6 +11,19 @@ A prose copy of a formula beside the code that owns it is how this repo grew
 two RS returns 15.7% apart in the first place.
 
 Cached for 1 hour (3600s). Universe: cap_universe from wire_data ($300M+).
+
+ONE RS RATING EVERYWHERE (RS split unit U5a, 2026-11-09). The chart's UCT RS prints
+the nightly IBD-style rating (``screener/rs_history``, column ``ibd``); the badge,
+the screener's ``rs_rank`` column and the groups gate read THIS module's hourly
+rank, so one stock read 94 on the chart and 88 on its badge. Behind
+``RS_RANK_IBD_ENABLED`` (read per call, default off) every by-symbol reader here
+(:func:`cached_rank_map`, :func:`get_rs_for_ticker`, :func:`unified_rankings`)
+hands back the nightly ``ibd`` as ``rs_rank`` for the newest stored session and
+falls back to the hourly value ONLY for a name without a row, saying which in
+``rs_rank_source`` (``ibd`` / ``fast``). The field NAME ``rs_rank`` stays: 518
+references in 149 files, a rename is out of proportion. Flag off, every reader
+answers byte for byte what it did before. :func:`fast_rank_map` is the hourly
+rank whatever the flag says, for the one caller that must store it as such.
 """
 
 import json
@@ -185,6 +198,10 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     cached = _rs_cache.get(_CACHE_KEY)
     if cached is not None and not force:
         return cached
+    if not force:
+        seeded = _seed_from_snapshot()
+        if seeded is not None:
+            return seeded
 
     universe = _get_universe()
     if not universe:
@@ -230,6 +247,8 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     ranked.sort(key=lambda x: x["rs_rank"], reverse=True)
 
     _rs_cache.set(_CACHE_KEY, ranked, ttl=_CACHE_TTL)
+    global last_seed_remaining_s
+    last_seed_remaining_s = None
     _write_snapshot(ranked)
     logger.info(f"[rs_ranking] Cached {len(ranked)} RS rankings")
     return ranked
@@ -257,6 +276,40 @@ def _write_snapshot(ranked: list[dict]) -> None:
             os.remove(tmp)
         except OSError:
             pass
+
+
+#: Seconds of life the last boot-seeded ranking had left (None = it was computed, not
+#: seeded). The boot warmer reads it to re-warm BEFORE the seeded entry expires.
+last_seed_remaining_s: float | None = None
+
+
+def _seed_from_snapshot(now: float | None = None) -> list[dict] | None:
+    """⚡ A DEPLOY NO LONGER REBUILDS AN HOUR-OLD ANSWER (2026-11-12).
+
+    `_rs_cache` is this module's own TTLCache, so `cache_snapshot` never carried it
+    across a deploy, and every boot re-fetched six months of daily bars for ~3,685
+    tickers from Massive on 12 threads: boot-probe `pool-work` named
+    `rs_ranking._compute_returns @ massive._get x12` at ~100% of a core from boot+125 s
+    to +175 s, inside the window members reconnect in. The ranking is computed hourly
+    and written to `_SNAPSHOT_PATH` each time; a snapshot younger than `_CACHE_TTL` is
+    the answer this pod would have served anyway. It is seeded with its REMAINING ttl,
+    so a restart never extends an answer's life."""
+    global last_seed_remaining_s
+    try:
+        with open(_SNAPSHOT_PATH, encoding="utf-8") as fh:
+            saved = json.load(fh)
+        age = (now if now is not None else time.time()) - float(saved.get("computed_at") or 0)
+        rows = saved.get("rankings")
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+    remaining = _CACHE_TTL - age
+    if not (0 <= age and remaining > 60 and isinstance(rows, list) and rows):
+        return None
+    _rs_cache.set(_CACHE_KEY, rows, ttl=remaining)
+    last_seed_remaining_s = remaining
+    logger.info("[rs_ranking] seeded %d rankings from the snapshot (%.0f s old, %.0f s left)",
+                len(rows), age, remaining)
+    return rows
 
 
 def snapshot_rankings(now: float | None = None) -> list[dict] | None:
@@ -301,8 +354,9 @@ def kick_background_warm() -> bool:
     return True
 
 
-def cached_rank_map() -> dict:
-    """``{TICKER: {ticker, rs_score, rs_rank, returns}}`` from the CACHE only.
+def fast_rank_map() -> dict:
+    """``{TICKER: {ticker, rs_score, rs_rank, returns}}`` from the CACHE only: the
+    HOURLY rank, whatever ``RS_RANK_IBD_ENABLED`` says.
 
     ⭐ THIS IS THE ONE PLACE THE RANKINGS ARE SHAPED FOR A BY-SYMBOL READER, and
     it exists so a caller with thousands of symbols (the nightly screener build)
@@ -314,6 +368,10 @@ def cached_rank_map() -> dict:
     3,685-symbol fetch herd racing the boot warmers — the `bars_prewarm` failure
     reverted in `68392f4`. Cold cache returns ``{}``, and the caller's job is to
     COUNT that, not to hide it.
+
+    Its one direct caller besides :func:`cached_rank_map` is
+    ``rs_history.default_fast_map``, which STORES this value in the rating
+    table's ``fast`` column and must never be handed the rating back.
     """
     rankings = _rs_cache.get(_CACHE_KEY)
     if not rankings:
@@ -326,6 +384,130 @@ def cached_rank_map() -> dict:
     return out
 
 
+# ── one RS rating everywhere (U5a) ───────────────────────────────────────────
+
+def rs_rank_ibd_enabled() -> bool:
+    """``RS_RANK_IBD_ENABLED``, read PER CALL (only the literal ``1`` arms it), so a
+    flip needs no restart and a rollback is an unset. Ledger: docs/feature_flags.json."""
+    return os.environ.get("RS_RANK_IBD_ENABLED", "0") == "1"
+
+
+_IBD_KEY = "rs_ibd_latest"
+#: The nightly rating changes once a day (04:15 ET); five minutes is how long a
+#: pod may print yesterday's number after the job writes, against ~3,700-row reads
+#: per badge request without it. Its own instance for the same reason as `_rs_cache`.
+_IBD_TTL = 300
+_ibd_cache = TTLCache(max_size=2)
+
+SOURCE_IBD = "ibd"
+SOURCE_FAST = "fast"
+
+
+def invalidate_ibd_cache() -> None:
+    """Drop the memoised nightly ratings (tests, and a rerun of the nightly)."""
+    _ibd_cache.invalidate(_IBD_KEY)
+
+
+def _ibd_latest() -> tuple:
+    """``(session, {TICKER: ibd})`` for the newest stored rating session, memoised
+    for :data:`_IBD_TTL`. Read-only on ``rs_rating_history``: no table, no rows or a
+    failed read is ``(None, {})`` (memoised too, so a dark store is not re-asked
+    on every request), and the caller falls back to the hourly rank."""
+    hit = _ibd_cache.get(_IBD_KEY)
+    if hit is not None:
+        return hit
+    try:
+        from api.services.screener import rs_history
+        session, ratings = rs_history.newest_ibd_ratings()
+    except Exception:                                        # noqa: BLE001 - never costs a reader
+        logger.warning("[rs_ranking] nightly ratings unavailable; serving the fast rank",
+                       exc_info=True)
+        session, ratings = None, {}
+    out = (session, dict(ratings or {}))
+    _ibd_cache.set(_IBD_KEY, out, ttl=_IBD_TTL)
+    return out
+
+
+def _unify(items: list, *, append_missing: bool = True) -> list:
+    """The overlay itself: a NEW list of NEW dicts, never the cached objects.
+
+    An entry with a nightly row gets ``rs_rank = ibd``, ``rs_rank_source = "ibd"``,
+    ``rs_rank_asof = <session>`` and keeps its hourly value as ``rs_rank_fast``;
+    one without gets ``rs_rank_source = "fast"`` and nothing else changes. With
+    ``append_missing`` (the by-symbol MAP, :func:`cached_rank_map`), a name rated
+    in the nightly but absent from the hourly list (an ETF, which the nightly
+    rates by interpolation, or, since 2026-11-12, any stock outside the cap
+    universe the hourly rank covers: the nightly ranks every stock with a recent
+    price, so about 3,200 more names carry a rating) is appended with
+    ``rs_score None`` and empty ``returns``, so the badge and the chart agree on
+    it too. The ranked LIST (:func:`unified_rankings`) passes ``False``: such a
+    row has no score and no returns, so in the RS leaders panel it is a blank
+    line (RS split F3, 2026-11-10). Sorted best first like the hourly list (a
+    stable sort, so equal ratings keep the hourly order).
+    """
+    session, ibd = _ibd_latest()
+    out = []
+    seen = set()
+    for item in items or ():
+        sym = (item.get("ticker") or "").upper()
+        row = dict(item)
+        rating = ibd.get(sym)
+        if rating is None:
+            row["rs_rank_source"] = SOURCE_FAST
+        else:
+            row["rs_rank_fast"] = item.get("rs_rank")
+            row["rs_rank"] = rating
+            row["rs_rank_source"] = SOURCE_IBD
+            row["rs_rank_asof"] = session
+        if sym:
+            seen.add(sym)
+        out.append(row)
+    if append_missing:
+        for sym in sorted(set(ibd) - seen):
+            out.append({"ticker": sym, "rs_score": None, "rs_rank": ibd[sym], "returns": {},
+                        "rs_rank_source": SOURCE_IBD, "rs_rank_asof": session})
+    out.sort(key=lambda r: (r.get("rs_rank") is None, -(r.get("rs_rank") or 0)))
+    return out
+
+
+def unified_rankings(items: list) -> list:
+    """The ranked LIST as the site should show it: ``items`` untouched (the same
+    object) when the flag is off or the list is empty; the overlay otherwise.
+    ``/api/rs-rankings`` and the groups gate's list read go through here.
+
+    ⛔ The hourly list's NAMES ONLY (RS split F3): a nightly-only name (an ETF)
+    is a row with no score and no returns, which the RS leaders panel shows as a
+    blank line. It still answers the single-ticker lookup (the chart's badge)
+    through :func:`cached_rank_map`, where the chart and the badge must agree.
+    """
+    if not items or not rs_rank_ibd_enabled():
+        return items
+    return _unify(items, append_missing=False)
+
+
+def cached_rank_map() -> dict:
+    """``{TICKER: entry}`` from the CACHE only, the shape every by-symbol reader
+    uses (the screener build, the badge route, the groups gate, scatter, the
+    notebook entry context).
+
+    Flag off: :func:`fast_rank_map` itself, the SAME dict objects (a rail pins
+    the identity). Flag on: the hourly map with the nightly rating laid over it
+    (:func:`_unify`). A COLD hourly cache still answers ``{}`` either way: the
+    "cold means count it, never hide it" contract of :func:`fast_rank_map` is
+    what the build's compute-on-cold path keys on, and the boot warmer fills the
+    cache within minutes.
+    """
+    fast = fast_rank_map()
+    if not fast or not rs_rank_ibd_enabled():
+        return fast
+    out = {}
+    for row in _unify(list(fast.values())):
+        sym = (row.get("ticker") or "").upper()
+        if sym:
+            out[sym] = row
+    return out
+
+
 def get_rs_for_ticker(ticker: str) -> dict | None:
     """Return RS data for a single ticker from CACHED rankings only.
 
@@ -335,7 +517,8 @@ def get_rs_for_ticker(ticker: str) -> dict | None:
 
     ⛔ Delegates to `cached_rank_map` rather than re-walking the list: one reader
     of the cache's shape, so a change to that shape cannot leave two lookups
-    disagreeing.
+    disagreeing. That is also how the badge (`/api/rs-rankings/{sym}`) gets the
+    nightly rating under ``RS_RANK_IBD_ENABLED``: the map already carries it.
 
     Dual-class symbols are accepted in either spelling. The universe stores the
     hyphen form (``BRK-B``), and a member typing the dot form (``BRK.B``, which

@@ -216,6 +216,7 @@ const { ENGINE_OWNED } = await import('../flipState')
 const { isIndicatorEnabled } = await import('../instanceControls')
 const { computePaneLayout } = await import('../paneLayout')
 const { stackRank } = await import('../instances')
+const { toggledRow } = await import('../../IndicatorLibraryDialog')
 
 const BARS = bars200.bars
 const SHIPPED = shippedLegendChips()
@@ -1393,7 +1394,10 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
         'donchian::middle', 'mfi::mfi', 'obv::obv', 'vwap::vwap', 'williamsR::williams_r',
         // …and the ten that already shipped, untouched by it.
         'atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd', 'macd::signal',
-        'rsLine::rsLine', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+        'rsLine::rsLine', 'rsPhases::divergence', 'rsRating::ratingLine', 'rsVsEma::dist', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+        // 2026-11-12 (RS Exit Warnings): ONE chip, the RS line (its value is withheld from the label
+        // by `legend.showValue: false`, the slim RS line's rule; the chip row carries the warning).
+        'rsExit::rsLine',
         // ⭐ 2026-10-01 — the Technical library's Tier 1: forty-two chips, decided
         // and written down (`tier1Library.fixture.js`), not grown by accident.
         ...TIER1_CHIPS,
@@ -1605,8 +1609,11 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     const here = byLabel('Own pane')
     expect(here, 'the page does not show where the series is now').toBeTruthy()
     expect(here.disabled, 'the CURRENT target is offered as a destination').toBe(true)
-    expect(here.textContent, 'the refusal reason is not on screen — the user is left '
+    // UCT Signature (owner 11-17, every Display in page): the refusal reason is the row's
+    // tooltip and accessible description, not a second line of text.
+    expect(here.getAttribute('title'), 'the refusal reason is not on the row — the user is left '
       + 'clicking a grey line').toMatch(/already here/)
+    expect(here.getAttribute('aria-description')).toMatch(/already here/)
     // ⛔ …and the control: other rows on this page ARE live, so "disabled" is a
     // property of this one and not of the page.
     expect(rows.filter(b => !b.disabled).map(b => (b.textContent || '').slice(0, 5)),
@@ -2165,7 +2172,7 @@ describe('the volume pane — its legend row and its own strip', () => {
       .toMatch(/^V(ol)?69\.8M$/)
   })
 
-  it('⭐ the pane s own strip IS the door — no control cell, no button', async () => {
+  it('⭐ the pane s own strip IS the door — no control cell; only the indicator hover strip', async () => {
     // ⚰️⚰️ THIS ASSERTED ON A CONTROL: three buttons (`Hide Volume` /
     // `Volume settings` / `Remove Volume`), then one chevron labelled
     // `Volume options`, carried by a `LegendRow` with no label and no value that
@@ -2182,8 +2189,16 @@ describe('the volume pane — its legend row and its own strip', () => {
     expect(box, 'the volume strip did not render').toBeTruthy()
     expect(box.querySelector('[data-legend-ctl]'), 'a control cell is back on the strip')
       .toBeFalsy()
-    expect(box.querySelectorAll('button'), 'a control button is back on the strip')
-      .toHaveLength(0)
+    // ⭐ Owner 11-16 (Option C) — Volume's row now carries the SAME hover strip every
+    // indicator row carries (Hide · Settings · ⋯, `LegendRow`'s `RowActs`), and nothing
+    // else: three buttons, all inside that strip, none of them a tab stop.
+    const buttons = [...box.querySelectorAll('button')]
+    expect(buttons.map((b) => b.getAttribute('aria-label')), 'the strip carries other buttons')
+      .toEqual(['Hide Volume', 'Volume settings', 'More for Volume'])
+    for (const b of buttons) {
+      expect(b.closest('[data-row-acts]'), 'a button outside the hover strip').toBeTruthy()
+      expect(b.getAttribute('tabindex')).toBe('-1')
+    }
     // ⚰️⚰️ THE DOOR MOVED FROM THE BOX TO THE ROWS (2026-09-16). The strip used to
     // be ONE `role="button"` labelled "Volume options" — correct while it held
     // three readings that were all Volume's. It is a PANE-LOCAL LEGEND now: it
@@ -2203,6 +2218,96 @@ describe('the volume pane — its legend row and its own strip', () => {
     // ⛔ NAMED "Volume", NOT "Vol" AND NOT "". This is what a screen reader and
     // the tooltip get; an unnamed trigger announces a button called " options".
     expect(row.getAttribute('aria-label')).toBe('Volume options')
+  })
+
+  // ─── Owner 11-16 (Option C) — VOLUME IS MANAGED LIKE AN INDICATOR ─────────
+  // The strip's Volume row carries the indicator hover strip (Hide · Settings · ⋯) and the
+  // ⋯ menu is the indicator menu. Hide dims and KEEPS the row; Delete takes it away; the
+  // Indicators library brings it back (`toggledRow` flips `removed`, never `visible`).
+  describe('⭐ Option C — the volume strip row hovers like an indicator row', () => {
+    const drawVol = (settings, persist) => render(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={legendAlways(settings)} onSettingsPersist={persist} />)
+    const redraw = (view, settings, persist) => view.rerender(
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+        settingsOverride={legendAlways(settings)} onSettingsPersist={persist} />)
+    const lastVolume = () => {
+      const all = H.addSeriesCalls.filter(c => String(c.ctor) === 'HistogramSeries')
+      const ev = crosshairWith()
+      if (all.length) ev.seriesData.set(all[all.length - 1].series, { value: 69800000 })
+      return ev
+    }
+    const stripRow = (view) => strip(view)?.querySelector('[data-legend-row="volume"]') || null
+    const lastBlob = (persist) => persist.mock.calls[persist.mock.calls.length - 1][0]
+
+    it('the hover strip is Hide · Settings · ⋯, and ⋯ opens the indicator menu', async () => {
+      const persist = vi.fn()
+      const view = drawVol(mergeChartSettings({ volume: { separatePane: true, visible: true } }), persist)
+      await settledLegend(view, lastVolume())
+      const row = stripRow(view)
+      expect(row, 'no Volume row in its pane').toBeTruthy()
+      expect(row.textContent).toContain('Volume')
+      const acts = row.querySelector('[data-row-acts]')
+      expect(acts, 'the Volume row has no hover strip').toBeTruthy()
+      expect([...acts.querySelectorAll('button')].map(b => b.getAttribute('aria-label')))
+        .toEqual(['Hide Volume', 'Volume settings', 'More for Volume'])
+      await act(async () => { fireEvent.click(acts.querySelector('[aria-label="More for Volume"]')) })
+      const labels = [...document.body.querySelectorAll('[role="menu"] button')].map(b => (b.textContent || '').trim())
+      for (const want of ['Hide', 'Display in', 'Edit in Indicators…', 'Value in header', 'Add alert…', 'About Volume', 'Delete']) {
+        expect(labels.some(l => l.startsWith(want)), `the Volume menu has no "${want}" row`).toBe(true)
+      }
+      for (const never of ['Duplicate on chart', 'Create custom copy', 'Preset']) {
+        expect(labels.some(l => l.startsWith(never)), `the Volume menu offers "${never}"`).toBe(false)
+      }
+      const notYet = [...document.body.querySelectorAll('[role="menu"] button')]
+        .filter(b => /^(Value in header|Add alert…)/.test((b.textContent || '').trim()))
+      expect(notYet).toHaveLength(2)
+      for (const b of notYet) {
+        expect(b.disabled, `${b.textContent} is live`).toBe(true)
+        // Owner 11-16 signature menu: greyed rows are one line + a "Soon" chip; the reason is the tooltip.
+        expect(b.textContent).toContain('Soon')
+        expect(`${b.getAttribute('title') || ''} ${b.getAttribute('aria-description') || ''}`).toContain('Not available for Volume yet')
+      }
+    })
+
+    it('Hide dims and keeps the row; Delete removes it; the library adds it back', async () => {
+      const persist = vi.fn()
+      const start = mergeChartSettings({ volume: { separatePane: true, visible: true } })
+      const view = drawVol(start, persist)
+      await settledLegend(view, lastVolume())
+      await act(async () => { fireEvent.click(stripRow(view).querySelector('[aria-label="Hide Volume"]')) })
+      expect(persist).toHaveBeenCalled()
+      const hiddenBlob = lastBlob(persist)
+      expect(hiddenBlob.volume.visible).toBe(false)
+      expect(hiddenBlob.volume.removed).not.toBe(true)
+
+      redraw(view, hiddenBlob, persist)
+      await settledLegend(view, crosshairWith())
+      // a hidden Volume draws no pane, so its row is kept in the legend (the way back)
+      const dimmed = volRow(view)
+      expect(dimmed, 'a hidden Volume left the legend').toBeTruthy()
+      expect(dimmed.getAttribute('data-hidden')).toBe('true')
+
+      // Delete, through the row's own door (the same menu ⋯ opens)
+      await act(async () => { fireEvent.contextMenu(dimmed, { clientX: 40, clientY: 300 }) })
+      const del = [...document.body.querySelectorAll('[role="menu"] button')]
+        .find(b => (b.textContent || '').trim() === 'Delete')
+      expect(del, 'no Delete row').toBeTruthy()
+      persist.mockClear()
+      await act(async () => { del.click() })
+      const removedBlob = lastBlob(persist)
+      expect(removedBlob.volume.removed).toBe(true)
+      redraw(view, removedBlob, persist)
+      await settledLegend(view, lastVolume())
+      expect(volRow(view), 'a deleted Volume kept its row').toBeFalsy()
+
+      // …and the Indicators library brings it back (it flips `removed`, never `visible`)
+      const back = toggledRow({ builtIn: 'volume' }, removedBlob, registry)
+      expect(back.volume.removed).toBe(false)
+      redraw(view, { ...back, volume: { ...back.volume, visible: true } }, persist)
+      await settledLegend(view, lastVolume())
+      expect(stripRow(view), 'the library did not bring Volume back').toBeTruthy()
+    })
   })
 
   it('⭐⭐ A SEPARATE VOLUME PANE OWNS ITS OWN ROW, AND A BAND HAS NO PANE TO OWN IT', async () => {

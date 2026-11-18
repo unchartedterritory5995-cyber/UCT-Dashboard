@@ -160,7 +160,19 @@ export function pairObjects(capture, objects) {
     const p = o.props || {}
     undrawn = false
     if (o.family === 'line') {
-      const v = take(R.lines || [], used, o.id, (x) => near(p.y1, x.y1) && near(p.y2, x.y2))
+      // ⭐ 2026-11-09 — AMONG LINES AT THE SAME PRICES, THE ONE OF THE SAME WIDTH.
+      // ⚰️ vdubus-pattern-gen draws each leg twice on one pair of prices: the visible
+      // line (`color = col`, width 1 or 2) and a fill helper (`color.new(col, 100)`,
+      // width 0). Paired by prices alone, our helper (alpha 00, correctly) met
+      // TradingView's visible leg (alpha ff) on 2 of 272 slots of
+      // `vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03`, and read as a
+      // colour bug that was never in the colour. Width is the drawing's own
+      // geometry, not the graded slot, so preferring it cannot hide a wrong colour;
+      // with no width match the pairing falls back to prices alone, as before.
+      const samePrices = (x) => near(p.y1, x.y1) && near(p.y2, x.y2)
+      // (an unwritten width is not guessed: that line pairs by prices alone)
+      const v = (Number.isFinite(p.width) ? take(R.lines || [], used, o.id, (x) => samePrices(x) && x.w === p.width) : null)
+        || take(R.lines || [], used, o.id, samePrices)
       if (!v) { unpaired.ours += 1; continue }
       undrawn = pairUndrawn('line', p, v)
       rows.push(slotRow('line', 'color', p.color, D.line.color, v.ci, `line #${o.id}`))

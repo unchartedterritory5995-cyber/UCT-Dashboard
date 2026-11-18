@@ -10,6 +10,7 @@ real, company-specific catalysts behind them → snap each returned date to a re
 trading day. Returns generic dicts; callers map to their own storage shape.
 """
 from __future__ import annotations
+from api.services import llm_models
 import re
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -30,7 +31,7 @@ def _is_uncertain(title, description) -> bool:
 
 # Default model mirrors the Model Book generator (MODELBOOK_LLM_MODEL).
 import os as _os
-_DEFAULT_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_DEFAULT_MODEL = _os.environ.get("MODELBOOK_LLM_MODEL", llm_models.SONNET)
 
 
 def rank_big_move_days(bars: list, top_n: int = 12, direction: str = "up") -> list:
@@ -218,7 +219,8 @@ def generate(symbol, company, bars, period_label, *, direction="up", gain_pct=No
             return None
         system, prompt = _build_prompt(symbol, company, period_label, gain_pct, movers, direction, max_items, grounding)
         msg = client.messages.create(
-            model=model or _DEFAULT_MODEL, max_tokens=900, temperature=0.5,
+            model=model or _DEFAULT_MODEL, max_tokens=900,
+            **llm_models.plain(model or _DEFAULT_MODEL, temperature=0.5),
             system=system, messages=[{"role": "user", "content": prompt}],
         )
         text = "".join(getattr(b, "text", "") for b in msg.content).strip()

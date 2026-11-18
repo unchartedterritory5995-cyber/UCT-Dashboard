@@ -57,7 +57,7 @@ from api.services import watchlist_alert_service as wls            # noqa: E402
 # entire per-plot assertion checking nothing while staying green. `len(...) == 28`
 # survives `rsi` being renamed to `rsi2`; the list does not.
 BASELINE_INDICATOR_FUNCS = 28
-BASELINE_CATALOG_GROUPS = 18  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+BASELINE_CATALOG_GROUPS = 21  # 2026-11-12 (RS Exit Warnings): 20 -> 21, +rs_exit; 2026-11-10 (RS split, S2): 18 -> 20, +rs_phases +rs_vs_ema; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
 #: Every address the GLOBAL space holds, in catalog order — the order the
 #: dropdown renders and the order `build_alert_grid` iterates.
@@ -76,6 +76,10 @@ BASELINE_ADDRESSES = [
     "rs_line.mansfieldCrossUp", "rs_line.mansfieldCrossDown",
     # 2026-11-07 (RS 2b-06): +rs_line.rating — the twelfth RS address, appended last.
     "rs_line.rating",
+    # 2026-11-10 (RS split, S2): +4 split addresses, appended after the rating.
+    "rs_phases.flipBlue", "rs_phases.flipRed", "rs_vs_ema.crossUp", "rs_vs_ema.crossDown",
+    # 2026-11-12 (RS Exit Warnings): +3 warning addresses, appended after the split four.
+    "rs_exit.quickBreak", "rs_exit.quicksand", "rs_exit.deadBreak",
 ]
 
 USER_A = "user-a"
@@ -95,6 +99,8 @@ ADDRESS = f"{DEF_ID}.value"
 def _rs_alert_flags_lit(monkeypatch):
     from api.services.signature import registry_defs as _rs_flag_defs
     monkeypatch.setattr(_rs_flag_defs, "RS_V2_ENABLED", True)
+    import api.main  # noqa: F401 -- import BEFORE lighting RS_SPLIT_ENABLED: api.main registers providers for the split rows, which registry_defs only built if the flag was on at ITS import
+    monkeypatch.setattr(_rs_flag_defs, "RS_SPLIT_ENABLED", True)  # 2026-11-10 (RS split, S2): the lit shape includes the split alerts
     monkeypatch.setenv("RS_HISTORY_ENABLED", "1")
 
 
@@ -799,6 +805,14 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
 
     save("user-d", defn(budget={"maxNodes": 1}))
     capture("budget", lambda: aus.admit_user_definition("user-d", DEF_ID, bars=real_bars))
+
+    # ⭐⭐ CBC-FMT -- a document stamped with a `calc_bars_count` window (`meta.calcBarsCount`):
+    # the chart computes its last N bars only, this lane every bar it reads. The product-path
+    # drives (admit, the value door, the catalog, the backtest) are in
+    # `tests/test_cbcfmt_calc_bars_server.py`.
+    save("user-f", defn(meta_extra={"calcBarsCount": 100}))
+    capture("calc-bars-window",
+            lambda: aus.admit_user_definition("user-f", DEF_ID, bars=real_bars))
 
     # ⛔ THE TAG IS READ OFF THE MANIFEST, NEVER TYPED. A literal
     # `["window_dependent"]` here would go stale the day the tag is renamed and

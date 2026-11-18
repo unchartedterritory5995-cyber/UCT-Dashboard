@@ -78,7 +78,7 @@ import { applyHouseLook } from '../components/chart/houseLook'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
 import { paneHeightAlerts } from '../components/chart/engine/binder'
 import { installUserDefinitions } from '../components/chart/engine/nativeRegistry'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
 
 import { renderTokenOk } from '../lib/renderToken'
@@ -998,7 +998,9 @@ export default function ChartRender() {
           </span>
         </div>
         {statsParam && <StatsStrip stats={statsParam} bg={chromeBg} text={chromeText} />}
-        {/* volInSeparatePane = volumeSeparatePane || cs.volume.separatePane.
+        {/* (11-16: the prop is now `volumePaneByDefault` — the member's Display in
+            choice, own pane when unset — so the export matches the live chart.)
+            volInSeparatePane = volumeSeparatePane || cs.volume.separatePane.
             His SAVED separatePane is false, but the workspace widget passes the
             PROP, so his live chart — and every chart he exports by hand — puts
             volume in its own pane. This page passed neither and drew it overlaid
@@ -1038,7 +1040,9 @@ export default function ChartRender() {
             hidePriceLine={hidePriceLine}
             colorByNetChange={colorByNetChange}
             darkPoolBars={dpZones.length ? dpZones : null}
-            volumeSeparatePane
+            // Same placement rule as the live /charts pane (paneLook.js): own pane
+            // unless the member chose Overlay on price (`cs.volume.displayIn`).
+            volumePaneByDefault
             // MAs never stretch the price scale (TC2000-style): a 200-day line far
             // below price used to squash every candle into the top third.
             fitPriceToCandles={!fixedBars}

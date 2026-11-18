@@ -40,12 +40,12 @@ Where the reference and the manual disagree, the rule is **unsettled** (both quo
 | **B-FIFO** | Exits close the **oldest** open trades first (`close_entries_rule = "FIFO"`, the default). Served when the targeted trades ARE the oldest; any other case refuses (Q-S1h). | R5 `strategy.close` remarks: "a strategy.close call exits from the position starting with the first open trade. This behavior applies even if the id value is the entry ID of different open trades." M "Closing a market position". |
 | **B-QTY** | An order's size is its `qty`; `qty = na` takes the declaration's default. Fixed: the declared or documented value (v4's unstated value is taken as 1, a hypothesis). **W9-T4:** cash and percent-of-equity are sized when the order is placed, from the signal bar's close: cash `floor(value / (close x pointvalue))`, percent `floor(equity x value / 100 / (close x pointvalue))`, `equity` = `strategy.equity` at that close. This is a HYPOTHESIS (no text states the price or the rounding), unpinned until Q-S1a MATCHes; a price entry, a percent order with trades open, a percent above 100 and a size under one unit refuse (Q-S1a). | R5 `strategy.entry` `qty`: "The default is na, which means that the command uses the default_qty_type and default_qty_value parameters". M "Position sizing". |
 | **B-DEFAULTS** | Declaration defaults **per Pine version, from that version's reference**: v4 - `default_qty_type` fixed ("fixed quantity by default", no value stated), `initial_capital` 100000, `margin_long/short` 100; v5 - fixed, `default_qty_value` 1, `initial_capital` 1000000, margin 0; v6 - percent_of_equity, value 100, `initial_capital` 100000, margin 100. Commission, slippage 0 everywhere; `process_orders_on_close` false; `close_entries_rule` "FIFO". | R4/R5/R6 `strategy()` argument texts (e.g. R5 `initial_capital`: "The default is 1000000."; R6: "The default is 100000."; R5 `margin_long`: "The default is 0"; R6: "The default is 100"). M "Commission": "If not specified, the strategy applies no commission". The version split is the reference's; Q-S1b confirms it on the chart. |
-| **B-DECL** | A declaration property is served only at a value whose effect is settled: `pyramiding`, fixed `default_qty_*`, `initial_capital`, `margin_*`, `calc_on_every_tick` (history), and the defaults of `process_orders_on_close` (false), `calc_on_order_fills` (false), `use_bar_magnifier` (false), `slippage` 0, `commission_value` 0, `backtest_fill_limits_assumption` 0, `calc_bars_count` 0, `close_entries_rule` "FIFO", `currency` NONE. Presentation properties are read past. Anything else refuses `runtime:strategy-option`. | R4/R5/R6 `strategy()`. |
+| **B-DECL** | A declaration property is served only at a value whose effect is settled: `pyramiding`, fixed `default_qty_*`, `initial_capital`, `margin_*`, `calc_on_every_tick` (history), and the defaults of `process_orders_on_close` (false), `calc_on_order_fills` (false), `use_bar_magnifier` (false), `backtest_fill_limits_assumption` 0, `calc_bars_count` 0, `close_entries_rule` "FIFO", `currency` NONE. Presentation properties are read past. Anything else refuses `runtime:strategy-option`. W9-T5: `commission_type`, `commission_value` (a non-negative literal) and `slippage` (a non-negative whole number of ticks) are READ; a non-zero cost asks its own rule when a fill pays it (section "W9-T5"). | R4/R5/R6 `strategy()`. |
 | **B-SIG** | Positional order arguments follow the version's own signature (v4 `strategy.entry(id, long, qty, limit, stop, oca_name, oca_type, comment, when, alert_message)`; v5/v6 `strategy.entry(id, direction, qty, limit, stop, oca_name, oca_type, comment, alert_message, disable_alert)`, and likewise for exit / close / close_all / cancel / cancel_all). Labels (`comment*`, `alert*`, `disable_alert`) change no value. | R4/R5/R6 `syntax` lines. |
 | **B-WHEN** | `when` (v4, and still compiled by v5): "The order is placed if condition is 'true'. If condition is 'false', nothing happens (the previously placed order with the same ID is not cancelled)." v6 has no `when` (refused). | R4 `strategy.entry/exit/close` `when`. The v5 reference no longer lists it; Q-S1p confirms v5. |
 | **B-DIR** | v4 `long` takes `true` / `strategy.long` for long and `false` / `strategy.short` for short; v5/v6 `direction` takes `strategy.long` / `strategy.short`. | R4 `strategy.entry` `long`; R5 `direction`. |
 | **B-VAL** | `position_size` = signed sum of open sizes; `position_avg_price` = size-weighted entry price, `na` when flat; `opentrades` / `closedtrades` counts; `wintrades` / `losstrades` / `eventrades` = closed trades with profit > / < / = 0; `netprofit` = sum of closed profits; `grossprofit` / `grossloss` = sums of the winning / losing closed profits (`grossloss` as a positive amount, the manual's profit factor `grossprofit / grossloss`); `openprofit` = unrealised P/L at the bar's close; `equity` = `initial_capital + netprofit + openprofit`; `netprofit_percent` = netprofit / initial_capital × 100. Currency values are price × size × `syminfo.pointvalue`. `opentrades.size(i)` / `closedtrades.size(i)` are signed. | R6 variable texts (e.g. `strategy.position_avg_price`: "Average entry price of current market position. If the market position is flat, 'NaN' is returned."; `strategy.equity`: "Current equity (strategy.initial_capital + strategy.netprofit + strategy.openprofit)."; `strategy.netprofit_percent`: "...expressed as a percentage of the initial capital"). M "Using strategy information in scripts" (page "Strategies", `https://www.tradingview.com/pine-script-docs/concepts/strategies/`), profit factor verbatim: "the profit factor (the ratio of the gross profit to the gross loss)", computed there as `strategy.grossprofit / strategy.grossloss` (quoted from the live page by the W9-T13a review, 2026-11-08; it is the script-side ratio, equal to the Tester's when commission is 0). |
-| **B-MARGIN** | The emulator margin-calls (or cannot fund) a position when Available Funds = Equity − MVS × Margin Ratio falls below zero. Not modelled: any bar where it **could** happen (checked at the bar's worst price for the position, and at every entry fill) refuses (Q-S1i). | M "Margin and leverage" (the algorithm, verbatim steps). R6 `margin_short`: "even with no margin used, short positions *can* be margin called if the loss exceeds available funds." |
+| **B-MARGIN** | The emulator margin-calls (or cannot fund) a position when Available Funds = Equity − MVS × Margin Ratio falls below zero. Served only on the witnessed shapes (2026-11-17): **B-MARGIN-CALL** (one open short trade at margin 100: the manual's liquidation, on each tick of the path, filled at the tick rounded to the nearest tick) and **B-FUNDS** / **B-FUNDS-SHORT** (a flat entry at the v6 default the funds cannot carry is rejected). Any other shape where it **could** happen (checked at the bar's worst price for the position, and at every entry fill) refuses (Q-S1i). Evidence: `docs/pine/evidence/2026-11-17-strategy-margin-call/EVIDENCE.md`. | M "Margin and leverage" (the algorithm, verbatim steps). R6 `margin_short`: "even with no margin used, short positions *can* be margin called if the loss exceeds available funds." |
 | **B-START** | A backtest is path dependent; TradingView runs it from the first bar it loaded. Served only on a run that starts at the symbol's listing (the member door already demands this of every runtime FALLBACK document, `runtimeHistory: 'listing'`); otherwise refused (Q-S1n). | M "Strategy report" / "Broker emulator" (fills on "the available chart data"); RT1's R-W ruling for this lane. |
 
 ## Unsettled (refused by name; probe queued)
@@ -58,12 +58,12 @@ it stop), or a `runtime:strategy-option` / `runtime:strategy-value` refusal at b
 | Q-S1a | default size other than a stated fixed one: v4 `default_qty_value` unstated; v6 / explicit `strategy.percent_of_equity`, `strategy.cash` (which price sizes it, what rounding) | the references state no value / no formula |
 | Q-S1b | the per-version defaults of B-DEFAULTS on the chart (v5's 1,000,000 vs v4/v6's 100,000; v5 margin 0) | reference only, never witnessed |
 | Q-S1c | a bar whose open is exactly half-way between high and low, with a price order in range | M names "closer to the high" / "closer to the low" only |
-| Q-S1d | two or more orders filling on one tick (a close and an entry placed on one bar; two price orders at one level) | the fill order is not stated |
+| Q-S1d | two or more orders filling on one tick (a close and an entry placed on one bar; two price orders at one level) | the fill order is not stated; market entries alone on one opening tick are answered (B-ENTRY-ORDER, 2026-11-17) while every one before the last fills nothing |
 | Q-S1e | an exit that becomes live already past its level; an immediate order whose next open moved back | "next available tick" for a price already past is not stated |
 | Q-S1f | does a reversal end an exit with no `from_entry` ("until the position closes")? | not stated |
 | Q-S1g | a price entry triggered at the pyramiding limit: cancelled or kept? | not stated |
 | Q-S1h | an exit whose targets are not the oldest trades (FIFO split) | the split is described, not specified |
-| Q-S1i | margin call / insufficient funds | liquidation is specified but not modelled here |
+| Q-S1i | margin call / insufficient funds, outside the witnessed shapes (a long, a margin other than 100, beside a commission / exit / pyramid) | the short at margin 100 is answered (B-MARGIN-CALL, B-FUNDS-SHORT, w9-q-s1i-short-v6); the rest is not witnessed |
 | Q-S1j | stop-limit entries | not served |
 | Q-S1k | `strategy.exit` with both `profit` and `limit` (or `loss` and `stop`); a tick distance that is not a whole number; an exit re-called with every level `na` while waiting; re-bound to another `from_entry` | R5: "The command ignores this parameter if the limit value is not na" vs M: "it creates orders only at the levels expected to trigger exits first" |
 | Q-S1l | a fill at a price off the tick grid (an absolute level like `close * 0.97`): rounded or not? | not stated; served values that do not depend on such a fill are still served |
@@ -73,12 +73,12 @@ it stop), or a `runtime:strategy-option` / `runtime:strategy-value` refusal at b
 | Q-S1p | v5 `when`; a strategy's outputs on the forming bar | B-WHEN carried from R4; B-EXEC from M only |
 
 Not served at all (refused by name at build, `runtime:strategy-option` / `runtime:strategy-value`):
-`strategy.risk.*`, a `strategy.exit` `oca_name` (W9-X3), commission, slippage,
+`strategy.risk.max_intraday_loss` / `max_cons_loss_days` / `max_position_size` and every `strategy.risk.*` call that is not v6, top-level and literal (W9-T8 reads the other three, section "W9-T8"), a `strategy.exit` `oca_name` (W9-X3),
 bar magnifier, `calc_on_every_history_tick = true`, `backtest_fill_limits_assumption` other than 0 (W9-T6 made `process_orders_on_close` and `calc_on_order_fills` READ: each refuses at run time by its rule until pinned; W9-T7 made `strategy.order`, `trail_*`, partial `qty` / `qty_percent`, entry / order OCA groups and `immediately` READ the same way), `close_entries_rule = "ANY"`,
 an account currency, and every `strategy.*` value outside B-VAL (`max_drawdown`, `*_percent` but
 `netprofit_percent`, `position_entry_name`, `avg_*`, `max_contracts_held_*`, the per-trade functions
 other than `opentrades.entry_price / entry_bar_index / size` and `closedtrades.entry_price / exit_price
-/ entry_bar_index / exit_bar_index / size / profit`).
+/ entry_bar_index / exit_bar_index / size / profit` and (W9-T5) `opentrades.commission` / `closedtrades.commission`).
 
 ## Pinned by (W9-T1; vocabulary: `runtime/brokerRules.js`, truth: `runtime/brokerPins.resolved.json`)
 
@@ -95,13 +95,21 @@ Every rule above serves only when `pinned(rule)` is true, asked when a run REACH
 | B-PYR | Q-S1-core | pyramiding limits same-direction entries |
 | B-REVERSE | Q-S1-core | an entry against the position closes it and opens the new size on one fill |
 | B-MODIFY | Q-S1-core | an unfilled order with the same id is modified |
-| B-CANCEL | none queued | strategy.cancel / cancel_all remove unfilled orders (no probe queued) |
+| B-CANCEL | W9-X5 | strategy.cancel / cancel_all remove unfilled orders (row W9-X5, `w9-x5-cancel.pine`, queued on origin/fix/pine-capture-queue-hygiene d1a6cb9fb3) |
 | B-CLOSE | Q-S1-core | strategy.close / close_all |
 | B-EXIT-BIND | Q-S1-core | strategy.exit binds a bracket to the trades of from_entry |
 | B-EXIT-LIFE | Q-S1-core | how long an exit lives |
 | B-EXIT-NA | Q-S1-core | an exit with every level na places nothing |
 | B-FIFO | Q-S1-core | exits close the oldest trades first |
-| B-MARGIN | Q-S1i | the margin check (a margin call is never modelled) |
+| B-MARGIN | Q-S1i | the margin check (a margin call is served only on the shape B-MARGIN-CALL names) |
+| B-FUNDS-SHORT | Q-S1i | (2026-11-17) a flat short market entry at the v6 default size and margin 100 the funds cannot carry at its fill is rejected (w9-q-s1i-short-v6) |
+| B-MARGIN-CALL | Q-S1i | (2026-11-17) TradingView's margin call on one open short trade at margin 100: User Manual "Margin and leverage" size (TRUNCATE(Available Funds / Margin Ratio / price) x 4) on each tick of the path, filled at the tick rounded to the nearest tick; exit id `Close position order`, comment `Margin call` (w9-q-s1i-short-v6) |
+| B-QTY-REVERSE | Q-S1a | (2026-11-17) a reversal (market strategy.entry against every open trade) at the percent default 100, margins 100: new size floor(equity at the signal close, open profit included, / close); fills the open size plus it (w9-q-s1b-defaults-v6) |
+| B-FUNDS-REVERSE | Q-S1i | (2026-11-17) such a reversal whose new size x fill price exceeds the equity it was sized from is rejected whole (w9-q-s1b-defaults-v6) |
+| B-MARGIN-CALL-ALL | Q-S1i | (2026-11-17) a margin call whose size exceeds the trade closes the whole trade (w9-q-s1b-defaults-v6, bar 154) |
+| B-ENTRY-ORDER | Q-S1d | (2026-11-17) several market strategy.entry orders on one opening tick are taken in placement order, served while every one before the last fills nothing (w9-q-s1b-defaults-v5 / -v6) |
+| B-V4-MARGIN0 | Q-S1b | (2026-11-17, ruling D12b) a Pine v4 strategy whose strategy() states exactly a title and overlay runs at margin 0 (long and short), the value TradingView read back on w9-q-s1a-size-v4 and w9-q-s1b-defaults-v4; the v4 reference's "The default is 100" is overruled for that shape only, every other v4 shape with no margin keeps D12's refusal |
+| B-V3 | W9-G1 | (2026-11-17) a Pine v2 / v3 strategy: entry(id, direction) / close(id) by position with a named `when`, at the Properties read back for those versions (fixed 1, capital 100,000, pyramiding 1, no cost, no margin input: a position past the equity refuses) (w9-q-s1a-size-v2, w9-g1-v3-properties) |
 | B-SIG | Q-S1-core | positional order arguments follow the Pine version's signature |
 | B-WHEN | Q-S1p | the `when` argument (v4, and v5) |
 | B-DIR | Q-S1-core | strategy.long / strategy.short (v4 `long`) as directions |
@@ -125,6 +133,14 @@ W9-T6 r1: the July-2026 Properties defaults (W9-J1) are not a rule. They are par
 | B-IMMEDIATELY | W9-X4 | (W9-T7) `close` / `close_all` `immediately = true`: filled at the bar close it is placed on |
 | B-STOP-LIMIT | Q-S1j | (W9-T7) stop-limit entry / order: the stop places a limit at `limit` |
 | B-EXIT-LEVELS | Q-S1k | (W9-T7) `profit` + `limit` (or `loss` + `stop`): v5 keeps the price, v6 the level reached first |
+| B-COMM-PCT | W9-K1 | (W9-T5) `strategy.commission.percent`: each fill pays `commission_value` percent of its cash volume |
+| B-COMM-CONTRACT | W9-K2 | (W9-T5) `strategy.commission.cash_per_contract`: each fill pays `commission_value` per contract |
+| B-COMM-ORDER | W9-K3 | (W9-T5) `strategy.commission.cash_per_order`: each filled order pays `commission_value` |
+| B-SLIPPAGE | W9-K4 | (W9-T5) `slippage` ticks: a market order fills that many ticks less favourably |
+| B-POC-COST | W9-P1 | (W9-T5) under `process_orders_on_close`: a fill at the close pays its costs there, from the close |
+| B-RISK-ALLOW | W9-R1 | (W9-T8) `strategy.risk.allow_entry_in`: a forbidden market `strategy.entry` closes the open position at its fill and opens nothing; flat, it fills nothing |
+| B-RISK-DDOWN | W9-R1 | (W9-T8) `strategy.risk.max_drawdown` below its limit changes nothing (the limit possibly reached is a named refusal, not this rule) |
+| B-RISK-INTRADAY-ORDERS | W9-R1i | (W9-T8) `strategy.risk.max_intraday_filled_orders` below its limit on every trading day changes nothing (the limit reached is a named refusal) |
 
 ## W9-T7: the exit family and the other order kinds (all unpinned)
 
@@ -157,7 +173,165 @@ pinned) or a named refusal.**
 Left as they were (named refusals; their capture rows gate T7 per the design): Q-S1d (several orders on
 one tick, now also an activation or a stop-limit trigger beside another order), Q-S1f (an exit with no
 `from_entry` after a reversal), Q-S1g (a price entry at the pyramiding limit), Q-S1h (the FIFO split).
-`B-CANCEL` now also cancels `strategy.order` orders and releases exits waiting on them; it still has
-no capture row queued.
+`B-CANCEL` now also cancels `strategy.order` orders and releases exits waiting on them. Its capture row is
+W9-X5 (`w9-x5-cancel.pine`), queued on origin/fix/pine-capture-queue-hygiene d1a6cb9fb3 (W9-T5 r1 set the id).
 
 B-START is not a pin rule: Q-S1n is a fact capture that pins nothing. A run is refused `runtime:strategy-start` unless it is told the history window (`bars_window.HISTORY_WINDOW_BARS`, via the run context) and holds no more bars than it.
+
+## W9-T5: costs (all unpinned)
+
+Design section 4 T5 ("the three commission types, slippage, and both at the close under
+`process_orders_on_close`"), gated by capture rows W9-K1..K4 and W9-P1. One rule per capture row; the
+probes are `tools/visual_conformance/probes/w9-k1-commission-pct.pine`, `-k2-commission-contract`,
+`-k3-commission-order`, `-k4-slippage` and `w9-p1-on-close.pine`. Text quoted from the v6 Language
+Reference (R6, `_w0-2026-11-02/ref/pine_v6_reference.json`) unless named. **Everything the text leaves open
+is either a HYPOTHESIS behind its rule (served only once that rule is pinned) or a named refusal.** A zero
+commission and a zero slippage change nothing: every figure keeps its pre-T5 expression (`costOn` /
+`slipTicks` false), the census below shows it.
+
+**One commission authority.** `brokerRules.js` `commissionRulesOf(commission)` decides what a figure that
+reads a commission rests on: a zero commission, `[COMMISSION_RULE]` (B-DEFAULTS) exactly as before; a
+non-zero one, its type's rule (`COMMISSION_TYPE_RULES`), plus B-DEFAULTS when `commission_type` is not
+declared (R6 `commission_type`: "The default is strategy.commission.percent"). `broker.js` (the values, the
+margin check, equity) and `brokerReport.js` (the report, from the record's `settings.commission`) both ask it.
+`COMMISSION_NET_VALUES` gains `strategy.closedtrades.commission` and `strategy.opentrades.commission`.
+
+| rule | the reference says | HYPOTHESIS built (graded by the capture row) | refused by name |
+|---|---|---|---|
+| B-COMM-PCT | `commission_type`: "strategy.commission.percent for a percentage of the cash volume of the order"; `strategy.commission.percent`: "A percentage of the cash volume of order"; `strategy.closedtrades.commission`: "Returns the sum of entry and exit fees paid in the closed trade"; `strategy.closedtrades.profit`: "reduced by the trade's commissions"; M "Commission" (the live page, 2026-11-08): "With this change, the broker emulator now applies a commission of 1% of the transaction size to each filled order by default." | the fee of a fill is size x fill price x pointvalue x value / 100, charged at the entry fill and at the exit fill, NOT rounded; with a commission, `grossprofit` / `grossloss` and win / loss / even classify and sum NET profits; an open trade's entry fee is paid, so it comes off `netprofit` and `equity` at once and is NOT in `openprofit` (WITNESSED by the W9-K1..K3 plots, value read-backs 2026-11-15; W9-T5's hypothesis took it off `openprofit` and the captures refuted it); its exit fee is not counted until it fills; `grossprofit` / `grossloss` refuse by name while an open trade has paid a fee (not plotted by the K probes); a reversal's one fill charges each trade its own share (the fee is linear in size) | a cash or percent default size under a commission (whether the size allows for the fee); a T7 kind (partial size, `strategy.order`, OCA, trail, stop-limit, `immediately`) under a commission; a fee on a `calc_on_order_fills` extra execution's fill (W9-P2). All W9-K1 unless named |
+| B-COMM-CONTRACT | `commission_type`: "strategy.commission.cash_per_contract for currency per contract" | the fee of a fill is size x value, at entry and at exit; the same net-profit readings as B-COMM-PCT | as B-COMM-PCT, row W9-K2 |
+| B-COMM-ORDER | `commission_type`: "strategy.commission.cash_per_order for currency per order" | each filled order pays value once, at entry and at exit | ONE order that fills more than one trade (a reversal; a close of several open trades): how the one fee is divided is not stated, W9-K3; as B-COMM-PCT otherwise |
+| B-SLIPPAGE | R6 `slippage`: "Slippage expressed in ticks. This value is added to or subtracted from the fill price of market/stop orders to make the fill price less favorable for the strategy. E.g., if syminfo.mintick is 0.01 and `slippage` is set to 5, a long market order will enter at 5 * 0.01 = 0.05 points above the actual price. This setting can also be changed in the strategy's "Settings/Properties" tab. Optional. The default is 0." M "Slippage" (the live page, 2026-11-08): "Because the strategy applies constant slippage to _all_ order fills, some orders can fill _outside_ the candle range in the simulation." | a MARKET fill (entry, close, close_all, a reversal) at an on-grid price moves `slippage` whole ticks against the strategy, a buy up and a sell down; the reversal's close and new trade share the one slipped price; a slipped price may lie outside the bar (the manual) | a STOP order's slippage (a stop entry, a stop-loss): R6 covers it but the W9-K4 probe fills market orders only; a LIMIT order's (a limit entry, a take-profit): R6 says "market/stop orders", the manual "_all_ order fills", so by this spec's own rule (the two disagree) it is unsettled (review W9-T5 B1); a market fill at a price off the tick grid (slipped before or after rounding?); a cash or percent default size under a slippage; a T7 kind under a slippage; a slippage on a `calc_on_order_fills` extra execution's fill (W9-P2). All W9-K4 unless named |
+| B-POC-COST | (design T6: "costs are taken at the close") | under `process_orders_on_close` a fill at the close pays its fee and takes its slippage there, from the close price | as above |
+
+Commission paid (the report, `brokerReport.js`): the sum of the closed trades' fees (each one the R6
+`strategy.closedtrades.commission`). Served only while no open trade has paid a fee; otherwise refused by name
+(`runtime:strategy-report-unstated`, W9-S1): whether the Strategy Tester counts an open trade's entry fee is
+not stated. The record (`strategyRecord.js`) now carries `settings.commission` (`{ type, value,
+typeDefaulted }`), `settings.slippage` and each trade's `commission` (closed: entry + exit; open: entry so far).
+
+Evidence: `docs/pine/evidence/2026-11-08-w9-t5/` (the census harness; base `30e85eb877` against this lane).
+
+## W9-T8: strategy.risk.* (all unpinned)
+
+Design section 4 T8, gated by capture rows W9-R1 (`w9-r1-risk-allow.pine`, `w9-r1-risk-ddown.pine`, NYSE:RDDT 1D) and
+W9-R1i (`w9-r1-risk-intraday.pine`, AMEX:SPY 15, schedulable only after the 15-minute depth read; D4 is not decided).
+One rule per probe that CALLS its command. Text quoted from the v6 Language Reference (R6,
+`_w0-2026-11-02/ref/pine_v6_reference.json`) and the User Manual (M, "Risk management", the live page
+https://www.tradingview.com/pine-script-docs/concepts/strategies/#risk-management, fetched 2026-11-08, HTTP 200, the
+section read verbatim from the HTML). **Everything the texts leave open is either a HYPOTHESIS behind its rule (served only
+once that rule is pinned) or a named refusal. No halt (a limit reached: cancel, close, stop trading) is served anywhere:
+no queued capture is known to reach one.**
+
+**Read like the declaration, not run like an order** (`ast/strategyBroker.js` `readRiskCall`, into `program.broker.risk`).
+M: "Strategies can incorporate any number of risk management criteria in any combination. All risk management commands
+execute on every tick and order execution event, regardless of any changes to the strategy's calculation behavior. There is
+no way to deactivate any of these commands on specific script executions. Irrespective of a risk management command's
+location, the command always applies to the strategy unless the programmer removes the call from the code." R6 types every
+argument `simple`. Served only in the shape every probe has: Pine v6, at the top level of the script, literal arguments,
+one call per command (otherwise `runtime:strategy-option` at build, by name). Beside a risk command, `process_orders_on_close`,
+`calc_on_order_fills`, a commission, a slippage and every T7 kind (`strategy.order` included) stop the run by name: no
+capture combines them.
+
+| rule | the texts say | HYPOTHESIS built (graded by the capture row) | refused by name |
+|---|---|---|---|
+| B-RISK-ALLOW | R6: "This function can be used to specify in which market direction the strategy.entry() function is allowed to open positions." R6 example: "Instead of opening a short position with 10 contracts, this command will close long entries." M: "This command overrides the market direction allowed for all calls to the strategy.entry() command. If a user specifies the trade direction with the strategy.risk.allow_entry_in() function (e.g., strategy.direction.long), the strategy enters trades only in that direction. If the script calls an entry command in the opposite direction of an open market position, the strategy generates a market order to close the position without entering a new trade in that direction." | the close is the forbidden entry's own market order, filled where and when the entry would have (the next open), closing every open trade (oldest first), labelled `B-RISK-ALLOW`; a forbidden entry with no position fills nothing; an allowed entry, and `strategy.direction.all`, change nothing | a forbidden PRICE entry (the probe places market entries only); `strategy.order` (both texts name strategy.entry only). All W9-R1 |
+| B-RISK-DDOWN | R6: "The purpose of this rule is to determine maximum drawdown. The rule affects the whole strategy. Once the maximum drawdown value is reached, all pending orders are cancelled, all open positions are closed and no new orders can be placed." `value`: "The maximum drawdown value. It is specified either in money (base currency), or in percentage of maximum equity. For % of equity the range of allowed values is from 0 to 100." `type`: "Note: if equity drops down to zero or to a negative and the 'strategy.percent_of_equity' is specified, all pending orders are cancelled, all open positions are closed and no new orders can be placed for good." M: "This command cancels all pending orders, closes any open market position, and stops all additional trade actions after the strategy's drawdown reaches the amount specified in the function call." | below the limit the run is the run without the call | the limit possibly reached, by the WIDEST reading of the texts: equity with open profit at every extreme the path makes (each vertex, each fill level on the path), the peak from the initial capital, a percent taken of the initial capital (smaller than the maximum equity R6 names), reached at `>=`. The halt is never served. W9-R1 |
+| B-RISK-INTRADAY-ORDERS | R6: "The purpose of this rule is to determine maximum number of filled orders per 1 day (per 1 bar, if chart resolution is higher than 1 day). The rule affects the whole strategy. Once the maximum number of filled orders is reached, all pending orders are cancelled, all open positions are closed and no new orders can be placed till the end of the current trading session." R6 example comment: "After 10 orders are filled, no more strategy orders will be placed (except for a market order to exit current open market position, if there is any)." M: "This command specifies the maximum number of filled orders per trading day (or per chart bar if the chart's timeframe is higher than "1D"). If the strategy fills more orders than the specified limit, the command cancels all pending orders, closes any open market position, and halts trading activity until the end of the current session." | below the limit on every trading day the run is the run without the call; the trading day of each bar is what the run context states (`ctx.tradingDays`) | a run not told each bar's trading day (the session and exchange time zone: no product caller states it, so on the member door it always refuses); a day whose count REACHES the limit (R6 "is reached" and M "fills more orders than the specified limit" disagree), each trade a fill opens or closes counted once (an upper bound: whether one order filling several trades counts once is not stated). W9-R1i |
+
+Refused at build, not rules (no queued capture calls them; a pure hypothesis is not a rule):
+- `strategy.risk.max_intraday_loss`: R6 "The maximum loss value allowed during a day. It is specified either in money (base
+  currency), or in percentage of maximum intraday equity (0 -100)." The design names W9-R1i for "the intraday risk
+  functions", but its probe calls only `max_intraday_filled_orders`. Follow-up: a probe that calls it (T3b).
+- `strategy.risk.max_cons_loss_days`: R6 "The purpose of this rule is to cancel all pending orders, close all open positions
+  and stop placing orders after a specified number of consecutive days with losses. The rule affects the whole strategy."
+  No capture row (follow-up: a row and a probe, design 5.2).
+- `strategy.risk.max_position_size`: R6 "The purpose of this rule is to determine maximum size of a market position. The rule
+  affects the following function: strategy.entry(). The 'entry' quantity can be reduced (if needed) to such number of
+  contracts/shares/lots/units, so the total position size doesn't exceed the value specified in
+  'strategy.risk.max_position_size'. If minimum possible quantity still violates the rule, the order will not be placed."
+  No capture row (follow-up as above).
+
+Note on the W9-R1 drawdown probe (`max_drawdown(2, strategy.percent_of_equity)`, fixed size 1, v6 capital 100,000 on RDDT):
+a 2% drawdown is 2,000, more than one share of RDDT can lose, so the capture can witness only the below-the-limit branch,
+which is all B-RISK-DDOWN serves. A probe that reaches a limit is needed before any halt can be built.
+
+Evidence: `docs/pine/evidence/2026-11-08-w9-t8/` (census; base `6b75450c5e` against this lane; mutants).
+
+## W9-T7-F1: the order log and a trade's exit id (no new rule)
+
+Coordinator ruling (2026-11-08, `strategyRecord.js` `STRATEGY_RECORD_UNSERVED`): T7 built the order kinds, not a log of
+them. **F1 adds no emulator semantics and no rule.** The broker (`broker.js`, "THE ORDER LOG") now writes down what it
+already does, after it decides: every log line asks no rule and cannot throw, and nothing a fill, a size, a price, a
+refusal or a number value reads comes from the log. The census holds that (every lane byte-identical to the base,
+`docs/pine/evidence/2026-11-09-w9-t7f1/`).
+
+**The rows** (`record.orders`, one per order the broker held, in placement order, `n` from 1):
+`{ n, kind, id, from, side, type, qty, qtyPercent, limit, stop, legs, oca, comment, commentRecorded, legComments,
+placedTime, modifiedTime, triggerTime, status, why, endTime, fillTime, fillPrice, fillQty, rule, leg, opened, closed }`.
+- `kind`: `entry` / `order` (one per order object; a [B-MODIFY] modification is the same row, `modifiedTime`); `close` /
+  `close_all` (one per market close queued, or filled at once under `immediately`); `exit` (one per exit command AND trade
+  it is bound to: the bracket it places for that trade, `type: 'bracket'`, `legs: { profit, loss, trailing }` as the levels
+  stand). An exit waiting on an unfilled entry has no row yet (R6 `strategy.exit`: "the strategy waits and does not create the
+  exit orders until after the entry order executes"); one that MAY cover the trade a reversal opened (Q-S1f) has none.
+- `status`: `placed` (still live at `asOfBar`), `filled`, `cancelled` (`why`: `strategy.cancel`, `strategy.cancel_all`,
+  `oca-cancel`, `oca-reduce`, `trade-closed`, `nothing-to-close`), `rejected` (`why`: `pyramiding`, [B-PYR] "does not
+  execute"; `risk-allow-entry-in`, a forbidden entry with no position to close; `funds`, [B-FUNDS] Q-S1i, a flat long
+  market entry at the percent-of-equity default of 100 and margin 100% that needs more than the equity at its fill price,
+  witnessed by w9-q-s1a-size-v6). `rule`: the fill's rule, as the trade's.
+- `opened` / `closed`: the trade numbers the fill opened / closed. **One authority per link**: the broker stamps each trade
+  with the row that opened it and each closed trade with the row that closed it; the rows' lists are derived from those.
+
+**A trade's `exitId`** (`strategyRecord.js::exitIdOf`, the one rule the record and `strategy.closedtrades.exit_id` share):
+the closing order's id where R6 states it is the exit id: an exit command (`strategy.exit` `id`: "corresponds to an exit ID
+in the strategy's trades after an order fills") and `strategy.order` (`id`: "corresponds to an entry or exit ID"). Every
+other closing order is named by TradingView itself and no text states the name (`strategy.close` / `close_all` `comment`:
+"instead of the automatically generated exit identifier"; a reversing `strategy.entry` id is stated only as an ENTRY id;
+the allow_entry_in close): `exitId` is `null`, and reading it refuses by name (W9-V1).
+
+**Comments.** The front end (`ast/strategyBroker.js` `orderArgsOf`) hands the broker a `comment*` label only as a LITERAL
+text; a computed one is not lowered (with the broker on, labels were never evaluated, and lowering one could refuse or charge
+the run for a value no fill reads): it arrives as `na` and the row says `commentRecorded: false`. `''` is no comment (R6: "If
+the value is not an empty string ..."). An exit's filled leg takes its `comment_profit` / `_loss` / `_trailing` when the call
+passed one (R6 `comment`: "The command ignores this value if the call includes an argument for a `comment_*` parameter that
+applies to the order"), else `comment`.
+
+**The text values** (`BROKER_OPS`, `returns: 'string'`, each asking B-VAL like every per-trade read):
+`strategy.opentrades.entry_id`, `.entry_comment`, `strategy.closedtrades.entry_id`, `.entry_comment`, `.exit_id`,
+`.exit_comment`, all read off the log. (Value read-backs, 2026-11-15: the exit ids and the comment-less exit comment the captures WITNESS are served behind their own rules, section "Value read-backs" below; what follows is what still refuses.) Refused by name: an exit id TradingView generates that no capture witnesses (above, W9-V1); an order without a
+comment (R6 returns `na` only "if there is no entry with this `trade_num`", so whether a missing comment reads `na` or `""`
+is not stated, W9-V1); the exit comment of a reversed trade (whether the reversing entry's comment is it is not stated,
+W9-V1, the ONE rule `strategyRecord.js::exitLabelUnstated`, which the report's exit signal and the marker label ask too:
+r1, review N1); a computed comment (not kept).
+
+**The label a fill shows** (`strategyRecord.js::orderLabelOf`, read by the markers (T12) and the report's trade list
+(T13a/T13b)): the order's comment, else its id (R6, every command's `comment`: "the Strategy Tester and the chart show this
+text for the order instead of" the id); `null`, and a named refusal, where the record does not know it. The markers still
+refuse first by MK-LOOK (W9-MK1) on the member door.
+
+Evidence: `docs/pine/evidence/2026-11-09-w9-t7f1/`.
+
+## Value read-backs (2026-11-15)
+
+What the 33 committed strategy captures of 2026-11-15 WITNESS and no TradingView text states. Each is a rule of its
+own in `runtime/brokerRules.js`, asked only when a run reaches the case, unpinned like every rule (ruling D1). The
+witness tables, capture by capture: `docs/pine/evidence/2026-11-15-strategy-readbacks/EVIDENCE.md`; the rail that
+re-derives them from the captures alone: `__tests__/vendorHarness/strategyReadbackWitness.test.js`; the broker rails:
+`runtime/__tests__/w9ValueReadbacks.test.js`.
+
+| rule | capture row | what is served | witness | still refused by name |
+|---|---|---|---|---|
+| B-VAL (extended) | Q-S1-core | `strategy.closedtrades.entry_time(i)` / `exit_time(i)`, `strategy.opentrades.entry_time(i)`: the fill bar's `time`, in milliseconds (R6 states the unit) | S10 / S11 of 29 captures, every bar; AMEX:SPY 15 separates a bar's time from its session's | a run handed no bar times |
+| B-ROUND | Q-S1l | a market order (an entry, `strategy.order`, `strategy.close`, `strategy.close_all`) or a stop order the open reached that fills on a bar OPEN off the tick grid fills at that open rounded to the nearest tick, a tie up | 96 reported fills on 18 bars of 23 captures, 0 counterexamples; W9-K4's four slipped fills | a LIMIT order at an off-grid open (an entry, a take-profit, a limit entry beyond the market), a trailing stop, a trailing activation, a stop-limit trigger; any fill on the closing tick or on a path vertex at an off-grid price (Q-S1l) |
+| B-ROUND-MARK | W9-R1i | `strategy.openprofit` (and so `strategy.equity`) marks open trades at the bar close rounded to the nearest tick, a tie up, when that close is off the grid | 47 bars of w9-r1-risk-intraday-range-spy-15 (the raw close explains none) | (unpinned: our run cannot bind AMEX:SPY yet) |
+| B-TXT-CLOSE-ID | Q-S1p | `exit_id` of a trade `strategy.close(id)` closed: `Close entry(s) order <id>` | the std set's labels | |
+| B-TXT-CLOSE-ALL-ID | Q-S1-core | `exit_id` of a trade `strategy.close_all()` closed: `Close position order` | the std set's labels | a margin call's and a risk halt's exit (never modelled) |
+| B-TXT-ENTRY-CLOSE-ID | Q-S1b | `exit_id` of a trade a `strategy.entry` fill closed (a reversal, an allow_entry_in close), the entry placed with no comment: that entry's id | the std set's labels | the same with a comment on the entry (W9-V1) |
+| B-TXT-NO-COMMENT | Q-S1k | `exit_comment` of a trade whose closing order carries no comment: the trade's exit id | every std-set label | `entry_comment` with no comment (W9-V1) |
+
+The record's own `exitId` (`strategyRecord.js::exitIdOf`), the report's exit signal and the marker label are
+unchanged: they stay `null` / refused where R6 states no id. Carrying the witnessed texts to them is a follow-up.
+
+The Strategy Tester's money figures (`brokerReport.js`: net profit, gross profit, gross loss, net profit %, profit
+factor, commission paid) refuse by name (W9-S1) while an open trade has paid an entry fee: the script's
+`strategy.netprofit` takes the fee off at once, and whether the Tester's own figures do is not witnessed.

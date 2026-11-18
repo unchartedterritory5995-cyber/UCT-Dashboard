@@ -1,0 +1,1739 @@
+{
+ "unit": "F6.01",
+ "track": "F6",
+ "title": "Calls and puts: the right, not the obligation",
+ "teaches": "A call is the right to buy, and a put the right to sell, 100 shares at the strike until expiry; the buyer pays for the right and can walk away, while the seller takes on the obligation.",
+ "skills": [
+  {
+   "id": "options.calls_puts",
+   "title": "Calls and puts: the right, not the obligation"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "An Introduction to Options, Investor Bulletin (March 18, 2015, updated July 16, 2026)",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-63",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "What is an Option?",
+   "url": "https://www.optionseducation.org/optionsoverview/what-is-an-option",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: Basics",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/basics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Basics",
+   "url": "https://www.optionseducation.org/optionsoverview/options-basics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Leverage & Risk",
+   "url": "https://www.optionseducation.org/optionsoverview/leverage-risk",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "What are the Benefits & Risks?",
+   "url": "https://www.optionseducation.org/optionsoverview/what-are-the-benefits-risks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Exercising Options",
+   "url": "https://www.optionseducation.org/optionsoverview/exercising-options",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Options (Investment Products)",
+   "url": "https://www.finra.org/investors/investing/investment-products/options",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "The Options Clearing Corporation and the US options exchanges",
+   "title": "Characteristics and Risks of Standardized Options (June 2024 edition)",
+   "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "The official options disclosure document every options customer must receive (June 2024 edition; cover dated June 2024, copyright the options exchanges and OCC). theocc.com refuses plain clients (403), so this cites the copy Robinhood distributes to its customers, the same copy unit F6.03 cites."
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "Cboe Global Markets",
+   "title": "S&P 500 Index Options (SPX)",
+   "url": "https://www.cboe.com/tradable_products/sp_500/spx_options/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-17"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s3",
+   "quote": "A stock option is a contract that gives the owner the right, but not the obligation, to buy or sell a particular stock at a fixed price (the strike price) for a specific period (until expiration).",
+   "claim": "A stock option gives its owner the right, not the obligation, to buy or sell a stock at the strike price until expiration."
+  },
+  {
+   "id": "f2",
+   "source": "s3",
+   "quote": "The contract also obligates the seller or writer to meet the terms of delivery if the owner exercises the contract right.",
+   "claim": "The seller, or writer, must deliver on the contract if the owner exercises."
+  },
+  {
+   "id": "f3",
+   "source": "s2",
+   "quote": "If you buy a call, you have the right to buy the underlying instrument at the strike price on or before expiration.",
+   "claim": "Buying a call gives you the right to buy the stock at the strike, on or before expiry."
+  },
+  {
+   "id": "f4",
+   "source": "s2",
+   "quote": "If you buy a put, you have the right to sell the underlying instrument on or before expiration.",
+   "claim": "Buying a put gives you the right to sell the stock, on or before expiry."
+  },
+  {
+   "id": "f5",
+   "source": "s2",
+   "quote": "In either case, the option holder has the right to sell the option to another buyer during its term or to let it expire worthless.",
+   "claim": "A buyer can sell the option to someone else before expiry, or let it expire."
+  },
+  {
+   "id": "f6",
+   "source": "s2",
+   "quote": "When you sell a call as an opening transaction, you're obligated to sell the underlying security at the strike price, if assigned.",
+   "claim": "Selling a call to open obligates you to sell the shares at the strike if you're assigned."
+  },
+  {
+   "id": "f7",
+   "source": "s2",
+   "quote": "When you sell a put as an opening transaction, you're obligated to buy the underlying security, if assigned.",
+   "claim": "Selling a put to open obligates you to buy the shares if you're assigned."
+  },
+  {
+   "id": "f8",
+   "source": "s2",
+   "quote": "As a writer, you have no control over whether or not a contract is exercised, and you must recognize that exercise is possible at any time before expiration.",
+   "claim": "A writer has no say over exercise, and exercise can come any time before expiry."
+  },
+  {
+   "id": "f9",
+   "source": "s2",
+   "quote": "As a seller, you begin with a net credit because you collect the premium. If the option is never exercised, you keep the money.",
+   "claim": "The seller collects the premium up front and keeps it if the option is never exercised."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "If the option is exercised, you still keep the premium but are obligated to buy or sell the underlying stock if assigned.",
+   "claim": "Even when the option is exercised, the seller keeps the premium, and must buy or sell the shares."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "When an option expires, it no longer exists.",
+   "claim": "An expired option no longer exists."
+  },
+  {
+   "id": "f12",
+   "source": "s1",
+   "quote": "Conversely, the seller of the call option is obligated to sell those shares to the buyer of the call option who exercises his or her option to buy on or before the expiration date.",
+   "claim": "The seller of a call must sell the shares to a buyer who exercises, on or before expiry."
+  },
+  {
+   "id": "f13",
+   "source": "s1",
+   "quote": "Conversely, the seller of the put option is obligated to buy those shares from the buyer of the put option who exercises his or her option to sell on or before the expiration date.",
+   "claim": "The seller of a put must buy the shares from a buyer who exercises, on or before expiry."
+  },
+  {
+   "id": "f14",
+   "source": "s1",
+   "quote": "This options quote contains five terms: “ABC,” “December,” “70,” “Call,” and “$2.20.”",
+   "claim": "The quote ABC December 70 Call $2.20 holds five terms: the stock, the expiry month, the strike, the type and the premium."
+  },
+  {
+   "id": "f15",
+   "source": "s1",
+   "quote": "This is the price at which the buyer of the option contract may buy the underlying stock, if the option contract is a call, or sell the underlying stock, if the option contract is a put.",
+   "claim": "The strike is the price the buyer may buy the stock at with a call, or sell it at with a put."
+  },
+  {
+   "id": "f16",
+   "source": "s1",
+   "quote": "The number appearing in this part of the options quote is the premium or the price per share you pay to purchase the option contract.",
+   "claim": "The dollar figure at the end of the quote is the premium, quoted per share."
+  },
+  {
+   "id": "f17",
+   "source": "s1",
+   "quote": "An option contract generally represents 100 shares of the underlying stock.",
+   "claim": "An option contract generally covers 100 shares."
+  },
+  {
+   "id": "f18",
+   "source": "s1",
+   "quote": "A buyer of an options contract can also be referred to as a “holder” of that options contract. A seller of an options contract can also be referred to as the “writer” of that options contract.",
+   "claim": "The buyer is called the holder and the seller is called the writer."
+  },
+  {
+   "id": "f19",
+   "source": "s1",
+   "quote": "The premium is paid up front to the seller of the option contract and is non-refundable.",
+   "claim": "The premium goes to the seller up front and is not refunded."
+  },
+  {
+   "id": "f20",
+   "source": "s1",
+   "quote": "Since this is less than the $70 strike price, the option is out-of-the-money and expires worthless. This means you will have lost the initial $220 premium you paid for the options contract.",
+   "claim": "In the SEC's example the stock ends below the call's strike on expiry, so the call expires worthless and the buyer loses the whole premium."
+  },
+  {
+   "id": "f21",
+   "source": "s1",
+   "quote": "Option holders risk the entire amount of the premium paid to purchase the option. If a holder’s option expires “out-of-the-money” the entire premium will be lost.",
+   "claim": "A buyer risks the whole premium, and loses all of it if the option expires out of the money."
+  },
+  {
+   "id": "f22",
+   "source": "s1",
+   "quote": "you can close your position, which means either selling the same option you bought (if you are a holder), or buying the same option contract you sold (if you are a writer).",
+   "claim": "To get out, a holder sells the same option and a writer buys the same option back."
+  },
+  {
+   "id": "f23",
+   "source": "s3",
+   "quote": "For a call option writer or seller, the contract represents an obligation to sell the underlying stock if the option is assigned.",
+   "claim": "A call writer is obligated to sell the stock if assigned."
+  },
+  {
+   "id": "f24",
+   "source": "s3",
+   "quote": "For the writer or seller of a put option, the contract represents an obligation to buy the underlying stock from the option owner if the option is assigned.",
+   "claim": "A put writer is obligated to buy the stock if assigned."
+  },
+  {
+   "id": "f25",
+   "source": "s3",
+   "quote": "An option holder may exercise an American-style option any time on or before expiration. An option holder may exercise a European-style option only on its expiration date.",
+   "claim": "American-style options can be exercised any time up to expiry; European-style only on the expiration date."
+  },
+  {
+   "id": "f26",
+   "source": "s3",
+   "quote": "All exchange-traded equity options are American-style. Most index options are European-style.",
+   "claim": "Exchange-traded stock options are American-style; most index options are European-style."
+  },
+  {
+   "id": "f27",
+   "source": "s4",
+   "quote": "Equity option contracts usually represent 100 shares of the underlying stock.",
+   "claim": "A stock option contract usually covers 100 shares."
+  },
+  {
+   "id": "f28",
+   "source": "s4",
+   "quote": "Adjustments to an equity option contract's size, deliverable and/or strike price may be made to account for stock splits or mergers.",
+   "claim": "Splits and mergers can change a contract's size, what it delivers, or its strike."
+  },
+  {
+   "id": "f29",
+   "source": "s4",
+   "quote": "Equity option holders do not enjoy the rights due stockholders (e.g., voting rights, regular cash or special dividends). A call holder must exercise the option and take ownership of underlying shares to be eligible for these rights.",
+   "claim": "Option holders get no vote and no dividends; a call holder must exercise and own the shares to get them."
+  },
+  {
+   "id": "f30",
+   "source": "s4",
+   "quote": "The option holder’s potential loss is limited to the initial premium paid for the contract. Alternately, the writer collects the premium and has theoretically unlimited loss potential for a call option and substantial loss potential for a put option.",
+   "claim": "A buyer can lose only the premium; a writer can lose without limit on a call and a lot on a put."
+  },
+  {
+   "id": "f31",
+   "source": "s4",
+   "quote": "Investors can purchase a put as insurance to protect a stock holding against an unfavorable market move while maintaining stock ownership",
+   "claim": "You can buy a put as insurance on shares you own and keep the shares."
+  },
+  {
+   "id": "f32",
+   "source": "s4",
+   "quote": "Most equity options that expire in a given month usually expire on the third Friday of the month. Therefore, this third Friday is the last trading day for all standard expiring equity options.",
+   "claim": "Standard monthly stock options expire on the third Friday, which is also their last trading day."
+  },
+  {
+   "id": "f33",
+   "source": "s4",
+   "quote": "If there is an exchange holiday that falls on a Friday, expiration is then moved to the Thursday immediately preceding this holiday.",
+   "claim": "If that Friday is an exchange holiday, expiry moves to the Thursday before."
+  },
+  {
+   "id": "f34",
+   "source": "s4",
+   "quote": "Many products now offer short-term options with weekly expirations, so investors should know the exact contract terms, including expiration dates, for all contracts they trade.",
+   "claim": "Weekly expirations exist too, so check the exact expiry of every contract you trade."
+  },
+  {
+   "id": "f35",
+   "source": "s5",
+   "quote": "Note: An investor does not close out a long call position by purchasing a put or vice versa.",
+   "claim": "Buying a put does not close a call you own, and buying a call does not close a put."
+  },
+  {
+   "id": "f36",
+   "source": "s5",
+   "quote": "A closing sale or sell to close is a transaction in which the seller's intent is to reduce or eliminate a long position.",
+   "claim": "You get out of an option you own with a sell to close."
+  },
+  {
+   "id": "f37",
+   "source": "s5",
+   "quote": "If you have sold the right to buy 100 shares of a stock, you are short a call contract. If you have sold the right to sell 100 shares of a stock, you are short a put contract.",
+   "claim": "Selling a call makes you short a call; selling a put makes you short a put."
+  },
+  {
+   "id": "f38",
+   "source": "s5",
+   "quote": "You can be assigned an exercise notice at any time during the life of the option contract. You should be aware that assignment prior to expiration is a distinct possibility.",
+   "claim": "A writer can be assigned any time the option is alive; assignment before expiry is a real possibility."
+  },
+  {
+   "id": "f39",
+   "source": "s6",
+   "quote": "they can purchase puts that give the right to sell the stock at the strike price, no matter how low the market price drops before expiration.",
+   "claim": "A put gives the right to sell at the strike however low the stock falls before expiry."
+  },
+  {
+   "id": "f40",
+   "source": "s6",
+   "quote": "At the cost of the option's premium, the investor has insured themselves against losses below the strike price.",
+   "claim": "For the premium, a put insures you against losses below its strike."
+  },
+  {
+   "id": "f41",
+   "source": "s6",
+   "quote": "if you write an uncovered call, you face unlimited potential loss, since there is no cap on how high a stock price can rise.",
+   "claim": "Writing an uncovered call has unlimited loss because a stock has no price ceiling."
+  },
+  {
+   "id": "f42",
+   "source": "s7",
+   "quote": "The holder of an American-style option contract can exercise the option at any time before expiration. Therefore, an option writer may be assigned an exercise notice on a short option position at any time before expiration.",
+   "claim": "Because American-style options can be exercised any time, a writer can be assigned any time before expiry."
+  },
+  {
+   "id": "f43",
+   "source": "s7",
+   "quote": "Once assignment is received, an investor has no alternative but to fulfill assignment obligations per the terms of the contract.",
+   "claim": "Once assigned, the writer has to fulfill the contract."
+  },
+  {
+   "id": "f44",
+   "source": "s7",
+   "quote": "There is generally no exercise or assignment activity on options that expire out-of-the-money. Owners usually let them expire with no value.",
+   "claim": "Options that expire out of the money are generally not exercised; owners let them expire worthless."
+  },
+  {
+   "id": "f45",
+   "source": "s8",
+   "quote": "Calls convey to the purchaser the right, but not the obligation, to buy shares. They convey to the seller the obligation to sell shares if the contract is assigned.",
+   "claim": "A call gives the buyer the right to buy, and the seller the obligation to sell if assigned."
+  },
+  {
+   "id": "f46",
+   "source": "s8",
+   "quote": "Puts convey to the purchaser the right, but not the obligation, to sell shares. They convey to the seller the obligation to buy shares if the contract is assigned.",
+   "claim": "A put gives the buyer the right to sell, and the seller the obligation to buy if assigned."
+  },
+  {
+   "id": "f47",
+   "source": "s8",
+   "quote": "Monthly Options: Options are traditionally structured on a monthly basis, with contracts for each month of the year expiring on the third Friday of every month.",
+   "claim": "Monthly options expire on the third Friday of the month."
+  },
+  {
+   "id": "f48",
+   "source": "s8",
+   "quote": "A standard-size options contract is equal to 100 shares of the underlying security.",
+   "claim": "A standard-size options contract is 100 shares."
+  },
+  {
+   "id": "f49",
+   "source": "s8",
+   "quote": "For the purchaser of an option, the premium paid is your maximum loss. For the seller of an option, the premium you receive at the time of the sale is your maximum profit.",
+   "claim": "A buyer's maximum loss is the premium paid; a seller's maximum profit is the premium received."
+  },
+  {
+   "id": "f50",
+   "source": "s8",
+   "quote": "In the case of an uncovered, or naked, call, where an investor sells a call option without owning the underlying stock, the maximum loss is theoretically unlimited.",
+   "claim": "Selling a call without owning the stock has theoretically unlimited loss."
+  },
+  {
+   "id": "f51",
+   "source": "s8",
+   "quote": "In-the-money options contracts are generally automatically exercised at expiration. But to exercise a call option, the owner of the contract should have the funds to do so.",
+   "claim": "In-the-money options are generally exercised automatically at expiry, so a call owner needs the cash for the shares."
+  },
+  {
+   "id": "f52",
+   "source": "s8",
+   "quote": "For call options, that means the cost associated with doing so (in other words, the money to buy 100 shares of the underlying stock) will be due at that time.",
+   "claim": "When a call is exercised at expiry, the money to buy 100 shares per contract comes due."
+  },
+  {
+   "id": "f53",
+   "source": "s8",
+   "quote": "Because one options contract is tied to 100 shares of stock, exercising a call can require substantial funds. For a contract with a strike price of $100, the owner of a call would need $10,000 to exercise.",
+   "claim": "Exercising a call costs the strike times 100 shares per contract."
+  },
+  {
+   "id": "f54",
+   "source": "s8",
+   "quote": "An investor who previously purchased an option can exit the trade with a closing sale of the same contract series.",
+   "claim": "A buyer exits by selling the same contract."
+  },
+  {
+   "id": "f55",
+   "source": "s8",
+   "quote": "SPDR S&P 500 options, or SPY options, which are options tied to an ETF that tracks the S&P 500, are American-style options that settle in shares of SPY",
+   "claim": "SPY options are American-style and settle in SPY shares."
+  },
+  {
+   "id": "f56",
+   "source": "s9",
+   "quote": "Calls and puts are distinct types of options, and buying or selling of one type does not involve the other.",
+   "claim": "Calls and puts are separate contracts; trading one doesn't involve the other."
+  },
+  {
+   "id": "f57",
+   "source": "s9",
+   "quote": "The word long refers to a person’s position as the holder of an option, and the word short refers to a person’s position as the writer of an option.",
+   "claim": "Long means you hold an option; short means you wrote one."
+  },
+  {
+   "id": "f58",
+   "source": "s9",
+   "quote": "If a physical delivery put option is exercised, the assigned writer must purchase the required number of shares at the specified exercise price regardless of their current market price.",
+   "claim": "An assigned put writer must buy the shares at the strike, whatever they trade at."
+  },
+  {
+   "id": "f59",
+   "source": "s9",
+   "quote": "Once an exercise has been assigned to a writer, the writer may no longer close out the assigned position in a closing purchase transaction, whether or not she has received notice of the assignment.",
+   "claim": "Once assigned, a writer can no longer close the position by buying the option back."
+  },
+  {
+   "id": "f60",
+   "source": "s9",
+   "quote": "For example, the unit of trading for most options on equity securities is 100 shares.",
+   "claim": "Most stock options trade in units of 100 shares."
+  },
+  {
+   "id": "f61",
+   "source": "s9",
+   "quote": "An XYZ 40 call gives the buyer the right to purchase 100 shares of XYZ stock at a price of $40 per share, or a total price of $4,000.",
+   "claim": "The XYZ 40 call is the right to buy 100 shares at 40 each, 4,000 in all."
+  },
+  {
+   "id": "f62",
+   "source": "s9",
+   "quote": "as a general rule the number of underlying shares will not be adjusted. Instead, the number of outstanding options will be proportionately increased and the exercise price will be proportionately decreased.",
+   "claim": "After a whole-share split (like 2-for-1), the general rule is more contracts at a lower strike, each still on the same number of shares."
+  },
+  {
+   "id": "f63",
+   "source": "s9",
+   "quote": "Before a 2-for-1 stock split, an investor holds an option on 100 shares of XYZ stock with an exercise price of $60.",
+   "claim": "The document's example starts with one option on 100 shares at a 60 strike, before a 2-for-1 split."
+  },
+  {
+   "id": "f64",
+   "source": "s9",
+   "quote": "If the writer of a physical delivery call option owns or acquires the amount of the underlying interest that is deliverable upon exercise of the call, she is said to be a covered call writer.",
+   "claim": "A call writer who owns the shares the call delivers is a covered call writer."
+  },
+  {
+   "id": "f65",
+   "source": "s9",
+   "quote": "If she writes two such XYZ calls, one would be covered and one would be uncovered.",
+   "claim": "In the document's example, an owner of 100 shares who writes two calls has one covered and one uncovered."
+  },
+  {
+   "id": "f66",
+   "source": "s9",
+   "quote": "For the writer of an uncovered call (other than a binary call), the potential loss is unlimited.",
+   "claim": "An uncovered call writer's potential loss is unlimited."
+  },
+  {
+   "id": "f69",
+   "source": "s9",
+   "quote": "After adjustment for the split, he will hold two XYZ options, each on 100 shares and each with an exercise price of $30.",
+   "claim": "After the 2-for-1 split, that holder has two options, each on 100 shares at a 30 strike."
+  },
+  {
+   "id": "f70",
+   "source": "s3",
+   "quote": "For example, an OICX Corp. July 60 put entitles the owner to sell 100 shares of OICX Corp. common stock at $60 per share before the option's July expiration.",
+   "claim": "A 60 put is the right to sell 100 shares at 60 each."
+  },
+  {
+   "id": "f67",
+   "source": "s10",
+   "quote": "Index (SPX®) options offer broad exposure to 500 leading U.S. companies with cash settlement, European exercise",
+   "claim": "SPX options are cash-settled with European exercise."
+  },
+  {
+   "id": "f68",
+   "source": "s10",
+   "quote": "Options can only be exercised at expiration, providing certainty and eliminating early assignment risk.",
+   "claim": "With European exercise, SPX options can only be exercised at expiration, so there is no early assignment."
+  },
+  {
+   "id": "f71",
+   "source": "s8",
+   "quote": "In-the-money is a term used to describe when the market price of the underlying security is above the strike price of a call option or below the strike price of a put, giving the contract intrinsic value.",
+   "claim": "A call is in the money when the stock is above its strike; a put when the stock is below its strike."
+  },
+  {
+   "id": "h01",
+   "source": "s11",
+   "quote": "Options occasionally; no further rules. The premium paid is the stop.",
+   "claim": "Rule B25: we use options occasionally, and on an option we buy the premium paid is the stop."
+  },
+  {
+   "id": "h02",
+   "source": "s11",
+   "quote": "Trade shares; options are only a defined-risk alternative.",
+   "claim": "Rule A6: we trade shares, and we use options only as a defined-risk alternative."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "The right, not the obligation",
+   "steps": [
+    "Buy an option and you own a right, not an obligation. Nothing forces you to use it.",
+    "The right to buy or sell a stock at a fixed price, the strike, until the option expires.",
+    "A call is the right to buy. A put is the right to sell. That's the whole difference.",
+    "As the buyer you've got three outs. Exercise it, sell it to another buyer, or let it expire."
+   ],
+   "facts": [
+    "f1",
+    "f3",
+    "f4",
+    "f5"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "The seller takes the obligation",
+   "steps": [
+    "Somebody sold you that option. They're the writer. You, the buyer, are the holder.",
+    "The writer collects your premium and takes on the obligation. That's the seller's side, not ours.",
+    "Assigned on a call, the writer must sell the shares at the strike. Assigned on a put, they must buy them.",
+    "And they don't pick the day. On a stock option, assignment can come any time before expiry."
+   ],
+   "facts": [
+    "f18",
+    "f9",
+    "f6",
+    "f7",
+    "f42",
+    "f26"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "One contract, 100 shares",
+   "steps": [
+    "One standard stock option contract covers 100 shares. Do that math before anything else.",
+    "So a ZQRT 40 call is the right to buy 100 shares at $40 each. That's $4,000 of stock.",
+    "Standard monthly options expire on the third Friday. After that, the contract's just gone."
+   ],
+   "facts": [
+    "f48",
+    "f61",
+    "f47",
+    "f11"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.calls_puts",
+   "rung": 1,
+   "format": "mcq",
+   "q": "You like how NVDA is setting up, so you buy one NVDA call instead of the shares. What did you actually buy?",
+   "choices": [
+    "The right to buy at the strike",
+    "An obligation to buy at the strike",
+    "The right to sell at the strike",
+    "100 shares of NVDA, owned outright"
+   ],
+   "answer": "The right to buy at the strike",
+   "term": "Call",
+   "why": "The right to buy NVDA at the strike, and that's it. You don't own a single share. You own a contract, good until expiry, and nothing forces you to use it. The obligation sits with whoever sold you the call. If you exercise, they have to sell. That's what makes a bought call defined risk. The premium you paid is the most you can lose, so the premium is your stop. We trade shares most of the time. A call is the occasional defined-risk alternative, not the default.",
+   "lesson_line": "A call is a right to buy. Whether you use it is up to you.",
+   "facts": [
+    "f3",
+    "f1",
+    "f45",
+    "f29",
+    "f48",
+    "f49"
+   ],
+   "wrong": {
+    "An obligation to buy at the strike": "That's backwards. You bought a right. The obligation belongs to the seller, who has to sell if you exercise.",
+    "The right to sell at the strike": "That's a put. A call is the right to buy.",
+    "100 shares of NVDA, owned outright": "You own a contract, not the stock. You'd have to exercise it to own the shares."
+   },
+   "simple": "A call is the right to buy the stock at the strike. You never have to use it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "options.calls_puts",
+   "rung": 1,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "Buy a put and you get the right to ___ the stock at the strike price.",
+   "bank": [
+    "sell",
+    "buy",
+    "borrow",
+    "hold"
+   ],
+   "answer": "sell",
+   "why": "Sell. A put gives its buyer the right, not the obligation, to sell the stock at the strike. That right lasts until expiration. Buy is the call's word. A put buyer is not obliged to sell. It is the put's seller who must buy the shares if assigned.",
+   "lesson_line": "Calls are the right to buy. Puts are the right to sell.",
+   "facts": [
+    "f4",
+    "f46",
+    "f1"
+   ],
+   "simple": "Sell, because a put gives the buyer the right to sell the stock at the strike.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q03",
+   "skill": "options.calls_puts",
+   "rung": 1,
+   "format": "tf",
+   "q": "You own a ZQRT 40 call and the stock runs to 46. Now you're on the hook to buy the shares at 40.",
+   "answer": "False",
+   "why": "False. As the buyer you're never on the hook. With ZQRT at 46, your 40 call is worth something, and what you do with it is your choice. You can exercise and buy 100 shares at 40. That takes real cash, $4,000 a contract. Or you sell the call to another buyer and take what it's worth, without touching the shares. The only one on the hook is the person who sold you the call.",
+   "lesson_line": "The buyer holds the choice. The obligation sits with the seller.",
+   "facts": [
+    "f1",
+    "f45",
+    "f5",
+    "f54",
+    "f61",
+    "f53"
+   ],
+   "simple": "False. A call buyer has a right, not a duty, so you can exercise it or just sell the call.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q04",
+   "skill": "options.calls_puts",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You buy a call, and somebody on the other side sells it to you. Which of you is on the hook if it's exercised?",
+   "choices": [
+    "The seller who wrote it",
+    "You, the buyer or holder",
+    "Both of you, equally",
+    "Neither, both can walk away"
+   ],
+   "answer": "The seller who wrote it",
+   "why": "The seller. They took your premium, and in exchange they're on the hook. If you exercise, they have to deliver, like it or not. In options talk they're the writer. You're the holder. You paid for a right, so you can use it, sell it or let it go. A writer can't walk away once assigned. Keep it straight: buyers hold rights, writers hold obligations.",
+   "lesson_line": "Buyers hold rights. Writers hold obligations.",
+   "facts": [
+    "f18",
+    "f2",
+    "f9",
+    "f1",
+    "f43"
+   ],
+   "wrong": {
+    "Neither, both can walk away": "The writer can't. Once assigned, they have to fulfill the contract.",
+    "You, the buyer or holder": "You paid for a right. Nothing forces you to act, and you can let it go.",
+    "Both of you, equally": "Only one side is bound. You hold the right, and the writer holds the obligation."
+   },
+   "simple": "The seller is on the hook. The buyer paid for a right and can walk away.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q05",
+   "skill": "options.calls_puts",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Your broker shows \"ABC December 70 Call $2.20\". What's the 70?",
+   "choices": [
+    "The strike price",
+    "The premium per share",
+    "The stock's price today",
+    "Days left to expiry"
+   ],
+   "answer": "The strike price",
+   "why": "It's the strike. Read the quote left to right: ABC is the stock, December the expiry month, 70 the strike, Call the type. The $2.20 on the end is the premium, per share. One contract covers 100 shares, so this one costs $220. Put together, it's the right to buy ABC at 70 until it expires in December. Notice what's missing: where ABC trades today. Pull up the stock's own quote for that.",
+   "lesson_line": "Read a quote as stock, expiry, strike, type, then premium.",
+   "facts": [
+    "f14",
+    "f15",
+    "f16",
+    "f20",
+    "f48"
+   ],
+   "wrong": {
+    "The premium per share": "The premium is the $2.20 on the end. That's the price per share.",
+    "The stock's price today": "The quote doesn't show where ABC trades. The 70 is fixed in the contract.",
+    "Days left to expiry": "December is the expiry. The 70 is the strike."
+   },
+   "simple": "The 70 is the strike, the price this call lets you buy ABC at.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source only: every cited fact is the SEC bulletin, which refused WebFetch (403) on 2026-11-12, so it was not re-read this run"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "options.calls_puts",
+   "rung": 2,
+   "format": "tf",
+   "q": "A call is quoted at $3.00 and you buy one standard contract. That costs you $300.",
+   "answer": "True",
+   "why": "True. The quote is per share, and one standard contract covers 100 shares. So $3.00 times 100 is $300 out of your account, plus any fees. This trips people up on their first option trade. They see $3.00, think it's cheap, and buy far too many. Do your option math in hundreds, every time. One catch: a split or a merger can change a contract's terms, so check an adjusted contract before you trade it.",
+   "lesson_line": "One contract, 100 shares. Do your option math in hundreds.",
+   "facts": [
+    "f48",
+    "f16",
+    "f27",
+    "f28"
+   ],
+   "simple": "True. The quote is per share, and one contract covers 100 shares, so you pay the quote times 100.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a contract term that can be adjusted (splits, mergers), asked as the standard"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q07",
+   "skill": "options.calls_puts",
+   "rung": 3,
+   "format": "tf",
+   "q": "You bought a call last week. To get out, you either exercise it or hold it until it expires.",
+   "answer": "False",
+   "why": "False. You can just sell it. Same strike, same expiry, sell to close, any time before it expires. Exercising means coming up with the cash for the shares. Holding to expiry risks the whole premium if it finishes out of the money. Selling gets you out at what the call is worth right now, gain or loss. So you've got three ways out, not two, and selling is the clean one.",
+   "lesson_line": "You can sell an option you own any time before expiry. You don't have to exercise it.",
+   "facts": [
+    "f5",
+    "f22",
+    "f54",
+    "f36",
+    "f21",
+    "f53"
+   ],
+   "simple": "False. You can sell the same option to another buyer any time before it expires.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q08",
+   "skill": "options.calls_puts",
+   "rung": 3,
+   "format": "mcq",
+   "q": "When do standard monthly stock options expire?",
+   "choices": [
+    "The third Friday of the month",
+    "The last Friday of the month",
+    "The last trading day of the month"
+   ],
+   "answer": "The third Friday of the month",
+   "why": "The third Friday of the month. If that Friday is an exchange holiday, expiry moves to the Thursday before.",
+   "lesson_line": "Monthlies expire on the third Friday. Weeklies and other dates exist, so check every contract's exact expiry.",
+   "facts": [
+    "f47",
+    "f32",
+    "f33",
+    "f34"
+   ],
+   "wrong": {
+    "The last Friday of the month": "Not the last one. Standard monthly options expire on the third Friday.",
+    "The last trading day of the month": "Month-end isn't the date. Standard monthly stock options use the third Friday."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "options.calls_puts",
+   "rung": 3,
+   "format": "mcq",
+   "q": "You place a \"sell to open\" order on one ZQRT 50 call and it fills. What's your position now?",
+   "choices": [
+    "Short one call",
+    "Long one call",
+    "Long one put",
+    "Short 100 shares"
+   ],
+   "answer": "Short one call",
+   "why": "Short one call. Long means you hold an option. Short means you wrote one. You sold the right to buy 100 shares, so you're the writer. That's not the same as shorting the stock. You haven't sold any shares. But if you're assigned, you'll have to sell 100 at 50, wherever ZQRT trades. Know which side you're on before you click.",
+   "lesson_line": "Buy an option and you're long it. Write one and you're short it.",
+   "facts": [
+    "f57",
+    "f37",
+    "f56",
+    "f6"
+   ],
+   "wrong": {
+    "Long one call": "Long is the buyer's side. You sold the call, so you're the writer.",
+    "Long one put": "Calls and puts are separate contracts. Selling a call never puts a put in your account.",
+    "Short 100 shares": "You haven't sold any shares. You sold a contract that can make you sell them if you're assigned."
+   },
+   "simple": "You're short one call. Selling an option to open makes you its writer.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q10",
+   "skill": "options.calls_puts",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You buy 3 standard AMD calls. If you exercise all three, how many AMD shares are you buying?",
+   "answer": "300 shares",
+   "suffix": "shares",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "contracts * shares_per_contract",
+     "contracts": 3,
+     "shares_per_contract": 100
+    }
+   },
+   "why": "300 shares. Each standard contract covers 100 shares, so 3 contracts times 100 is 300. Know that number before you buy, not after. Exercise all three and you need the cash for 300 AMD shares at the strike. One catch: a contract adjusted after a split or a merger can cover a different count. Check the terms on anything that isn't standard.",
+   "lesson_line": "Contracts times 100 is your share count. Know it before you buy.",
+   "facts": [
+    "f48",
+    "f17",
+    "f28",
+    "f53"
+   ],
+   "simple": "300 shares. Each contract is 100 shares, and you have 3 of them.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc)",
+     "fixed before (checker added 'standard')"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "300 shares",
+    "3 shares",
+    "30 shares",
+    "3,000 shares"
+   ],
+   "wrong": {
+    "3,000 shares": "Ten times too many. 3 contracts at 100 shares each is 300.",
+    "3 shares": "That's the contract count. Each contract covers 100 shares.",
+    "30 shares": "Ten times too few. Each contract covers 100 shares, so 3 contracts is 300."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "options.calls_puts",
+   "rung": 4,
+   "format": "tf",
+   "q": "To get out of a call you own, you buy a put on the same stock.",
+   "answer": "False",
+   "why": "False. Buying a put doesn't close a call; it opens a second position. You get out by selling the same call.",
+   "lesson_line": "Exit an option the opposite way you entered. Bought a call, sell that same call.",
+   "facts": [
+    "f35",
+    "f36",
+    "f54",
+    "f22",
+    "f56"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "options.calls_puts",
+   "rung": 4,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "Exercised or not, the seller of an option ___ the premium.",
+   "bank": [
+    "keeps",
+    "refunds",
+    "forfeits",
+    "owes"
+   ],
+   "answer": "keeps",
+   "why": "Keeps. The premium is paid up front to the seller and is non-refundable. If the option is never exercised, the seller keeps it. If it is exercised, the seller still keeps it but must buy or sell the shares. Keeping the premium does not cap the seller's loss.",
+   "lesson_line": "The premium is the writer's to keep, exercised or not. It doesn't cap what the writer can lose.",
+   "facts": [
+    "f19",
+    "f9",
+    "f10",
+    "f30",
+    "f49"
+   ],
+   "simple": "The seller keeps the premium, because it is paid up front and is never refunded.",
+   "deeper": {
+    "trap": "Keeping the premium can feel like the whole story. It is only the most a seller can make: FINRA calls the premium received the seller's maximum profit. The loss is not capped at the premium. OIC says a call writer has theoretically unlimited loss potential, and a put writer substantial loss potential."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (bank word and lesson line)"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q13",
+   "skill": "options.calls_puts",
+   "rung": 5,
+   "format": "mcq",
+   "q": "ZQRT trades near 60. Which of these trades could force you to sell 100 shares at 60, like it or not?",
+   "choices": [
+    "Selling a 60 call",
+    "Buying a 60 put",
+    "Selling a 60 put",
+    "Buying a 60 call"
+   ],
+   "answer": "Selling a 60 call",
+   "why": "Selling the 60 call. Write a call and you've promised to sell 100 shares at 60 if you're assigned. You don't get a say in when, or whether. The buyer of a 60 put can sell at 60 too, but only if they choose to. A put writer is the mirror image: they can be forced to buy at 60, not sell. Before you write anything, ask what you could be forced to do.",
+   "lesson_line": "Short a call, you may have to sell. Short a put, you may have to buy.",
+   "facts": [
+    "f6",
+    "f23",
+    "f12",
+    "f46",
+    "f7",
+    "f3",
+    "f8"
+   ],
+   "wrong": {
+    "Buying a 60 put": "That's a right to sell at 60. You choose whether to use it.",
+    "Selling a 60 put": "A put writer can be forced to buy at 60, not sell.",
+    "Buying a 60 call": "That's a right to buy at 60. Nothing in it makes you act."
+   },
+   "simple": "Selling the 60 call. If the buyer uses it, you must sell 100 shares at 60.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q14",
+   "skill": "options.calls_puts",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You own 200 shares of ZQRT and two standard 30 puts. ZQRT has dropped to 22. Exercise both puts: how much cash do you get?",
+   "answer": "$6,000",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "strike * shares_per_contract * contracts",
+     "strike": 30,
+     "shares_per_contract": 100,
+     "contracts": 2
+    }
+   },
+   "why": "$6,000. Each put lets you sell 100 shares at 30, no matter where ZQRT trades. Two puts cover your 200 shares. So it's 30 times 100 times 2, which is $6,000. Sell the same shares at the market and you'd get 22 times 200, only $4,400. That gap is exactly what you bought the puts for. They put a floor under your shares.",
+   "lesson_line": "Exercising a put sells 100 shares per contract at the strike. Cash in is strike times 100 per contract.",
+   "facts": [
+    "f70",
+    "f4",
+    "f61",
+    "f39",
+    "f40"
+   ],
+   "simple": "$6,000. Each put sells 100 shares at 30, and you have two of them.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc)",
+     "fixed before (checker added 'standard' and fixed the lesson line)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$6,000",
+    "$3,000",
+    "$12,000",
+    "$4,400"
+   ],
+   "wrong": {
+    "$3,000": "That's one put. You have two, and each sells 100 shares at 30.",
+    "$12,000": "That multiplies 30 by your 200 shares and then by 2 puts again. Count the shares once.",
+    "$4,400": "That's selling at the market price of 22. Your puts let you sell at the 30 strike."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The put exercise",
+    "rows": [
+     {
+      "key": "shares_we_own",
+      "label": "Shares we own",
+      "value": 200.0,
+      "fmt": "shares"
+     },
+     {
+      "key": "puts_we_exercise",
+      "label": "Puts we exercise",
+      "value": 2.0,
+      "fmt": "count"
+     },
+     {
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 30.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Cash we receive",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "options.calls_puts",
+   "rung": 5,
+   "format": "scenario",
+   "story": "A friend sold one ZQRT 45 call to open. A month before expiry, ZQRT trades at 52.",
+   "q": "Could he get assigned today, weeks before expiry?",
+   "choices": [
+    "Yes, on any day before expiry",
+    "No, only on the expiry day",
+    "No, the writer picks the day",
+    "Yes, but only in the last week"
+   ],
+   "answer": "Yes, on any day before expiry",
+   "why": "Yes, any day. Stock options are American-style, so the holder can exercise any time before expiry. ZQRT at 52 puts his 45 call in the money. The holder can buy at 45 today, and your friend gets no say on when. If he's assigned, he sells 100 shares at 45 and keeps the premium. That's his trade, not ours. When we use a call, we're the holder, and the timing is ours.",
+   "lesson_line": "A stock option's writer can be assigned any day until expiry, not just at the end.",
+   "facts": [
+    "f42",
+    "f38",
+    "f26",
+    "f8",
+    "f25",
+    "f10",
+    "f6",
+    "f3",
+    "f71",
+    "f48",
+    "h02"
+   ],
+   "wrong": {
+    "No, the writer picks the day": "The writer has no say. The holder decides when to exercise.",
+    "No, only on the expiry day": "That's European-style, like most index options. Stock options are American-style.",
+    "Yes, but only in the last week": "Assignment isn't saved for the last days. It can come any time in the option's life."
+   },
+   "simple": "Yes. A stock option can be used any day before expiry, so he can be assigned any day.",
+   "deeper": {
+    "counter": "The stock at 52 is above his 45 strike, so the holder could buy at 45 today. OIC calls assignment before expiration a distinct possibility. Being assigned does not take back the premium he collected. He keeps it, and he sells the shares at 45."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-seller-2026-11-17"
+  },
+  {
+   "key": "q16",
+   "skill": "options.calls_puts",
+   "rung": 6,
+   "format": "tf",
+   "q": "You own calls on a stock, not the shares. The company pays a dividend this week, and none of it comes to you.",
+   "answer": "True",
+   "why": "True. A call is a contract on the stock, not the stock. Dividends and votes go to the people who own shares. To get them, you'd have to exercise and own the shares first. So when you pick calls over shares, know what you're buying. You're paying for the move, and nothing else comes with it.",
+   "lesson_line": "A call is not the stock. No vote and no dividend until you own the shares.",
+   "facts": [
+    "f29"
+   ],
+   "simple": "True. A call isn't the stock, so dividends and votes go only to the people who own shares.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only (f29, OIC Options Basics)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q17",
+   "skill": "options.calls_puts",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You sold one standard ZQRT 30 put to open and collected the premium. ZQRT drops to 24, and you're assigned.",
+   "q": "So what happens now?",
+   "choices": [
+    "You buy 100 shares at 30",
+    "You buy 100 shares at 24",
+    "You buy the put back instead",
+    "You sell 100 shares at 30"
+   ],
+   "answer": "You buy 100 shares at 30",
+   "why": "You buy 100 shares at 30. That's the deal you signed up for when you wrote the put. The stock at 24 doesn't lower your price. You're paying 30 for a stock that trades at 24. The premium you collected is yours to keep, and it takes a little off that hit. And once you're assigned, it's too late to buy the put back. We don't write puts. If I want ZQRT, I buy the shares myself, at a price I pick.",
+   "lesson_line": "A short put can make you buy at the strike, even with the stock far below it.",
+   "facts": [
+    "f7",
+    "f13",
+    "f58",
+    "f59",
+    "f43",
+    "f24",
+    "f10",
+    "f48",
+    "h02"
+   ],
+   "wrong": {
+    "You buy 100 shares at 24": "The market price doesn't set your cost. You pay the 30 strike, wherever the stock trades.",
+    "You buy the put back instead": "Too late. Once you're assigned, you can't close by buying the put back.",
+    "You sell 100 shares at 30": "That's an assigned call writer. A put writer buys the shares."
+   },
+   "simple": "You buy 100 shares at 30. An assigned put seller pays the strike, not the market price.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-seller-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "options.calls_puts",
+   "rung": 7,
+   "format": "scenario",
+   "story": "ZQRT trades at 50. You buy the 55 call for 1.50. On expiry day the stock closes at 52.",
+   "q": "Where does that leave your call?",
+   "choices": [
+    "It expires worth nothing",
+    "You must buy at 55",
+    "It turns into shares at 52",
+    "It rolls to next month"
+   ],
+   "answer": "It expires worth nothing",
+   "why": "It expires worthless. ZQRT closed at 52, under your 55 strike, so the right to buy at 55 is worth nothing. Nobody pays 55 for a stock they can buy at 52. You lose the whole premium, 1.50 a share. Here's the hard part: you were right on direction. The stock went from 50 to 52 and you still lost. With a call, the stock has to get past your strike before expiry.",
+   "lesson_line": "Below the strike at expiry, a call dies. The premium is the whole loss.",
+   "facts": [
+    "f20",
+    "f21",
+    "f44",
+    "f1",
+    "f11",
+    "f71"
+   ],
+   "wrong": {
+    "It rolls to next month": "Options don't carry over. After expiry the contract no longer exists.",
+    "You must buy at 55": "You hold a right, never a duty. Nobody makes you pay 55 for a stock at 52.",
+    "It turns into shares at 52": "Out-of-the-money calls almost never get exercised. Owners just let them expire."
+   },
+   "simple": "It expires worthless, because the stock closed under the 55 strike. You lose the 1.50 you paid.",
+   "deeper": {
+    "trap": "The stock went your way, from 50 to 52, and the call still expired worthless. The right to buy at 55 is worth nothing with the stock at 52. Being right on direction is not enough for a call buyer. The stock had to finish above the strike for the call to be worth anything at expiry."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "options.calls_puts",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You own 500 shares of MU going into earnings. You want puts that cover every share.",
+   "q": "How many standard puts do you buy?",
+   "choices": [
+    "5 contracts",
+    "500 contracts",
+    "50 contracts",
+    "1 contract"
+   ],
+   "answer": "5 contracts",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "shares / shares_per_contract",
+     "shares": 500,
+     "shares_per_contract": 100
+    }
+   },
+   "why": "5 contracts. Each standard put covers 100 shares, so 500 divided by 100 is 5. Buy just 1 and only 100 of your shares have a floor. The rest ride through the report with nothing under them. Think of the puts as insurance. You keep the shares, and the puts let you sell at the strike if MU gaps down. Remember the quote is per share, so each put costs the premium times 100.",
+   "lesson_line": "Shares divided by 100 is your contract count. Size a hedge in hundreds.",
+   "facts": [
+    "f48",
+    "f27",
+    "f31",
+    "f16"
+   ],
+   "wrong": {
+    "500 contracts": "That's one contract per share. Each contract already covers 100 shares, so it's a hundred times too many.",
+    "50 contracts": "That treats a contract as ten shares. It's 100, so this is ten times too many.",
+    "1 contract": "One contract covers only 100 of your shares. The rest have no protection."
+   },
+   "simple": "5 puts. Each one covers 100 shares, and you own 500.",
+   "deeper": {
+    "trap": "Watch the units. A quoted premium is per share, so one put costs the premium times 100, and 5 puts cost the premium times 500. Size the hedge in contracts, and price it in shares."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc)",
+     "fixed before (checker added 'standard')"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "options.calls_puts",
+   "rung": 8,
+   "format": "tf",
+   "q": "You hold one ZQRT 100 call into expiry, and ZQRT closes at 104. Do nothing and the call just expires.",
+   "answer": "False",
+   "why": "False, and this one can cost you. At 104, your 100 call is in the money. In-the-money options get exercised automatically at expiry in most cases. That means you're buying 100 shares at 100, so $10,000 comes due for one contract. If you don't want the shares, sell the call before it expires and take the cash. Never let an in-the-money option drift into the close by accident.",
+   "lesson_line": "If you don't want the shares, sell the call before it expires.",
+   "facts": [
+    "f71",
+    "f51",
+    "f52",
+    "f53",
+    "f54"
+   ],
+   "simple": "False. A call that's in the money at expiry is exercised for you in most cases, and the cash for the shares comes due.",
+   "deeper": {
+    "trap": "The trap is treating expiry as the end of the trade. An in-the-money call is generally exercised for you. Doing nothing can leave you buying 100 shares per contract at the strike, with the cash due. If you don't want the shares, exit before expiry with a closing sale of the same call."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "an expiry-processing rule that can change (auto-exercise; OCC's threshold page not reachable)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q21",
+   "skill": "options.calls_puts",
+   "rung": 8,
+   "format": "scenario",
+   "story": "ZQRT trades at 80, and you think it's headed lower. You could buy a put, or sell a call without owning the stock.",
+   "q": "Which one caps what you can lose?",
+   "choices": [
+    "Buying the put",
+    "Selling the call",
+    "Both about equally",
+    "Neither of them"
+   ],
+   "answer": "Buying the put",
+   "why": "Buying the put. When you buy an option, the premium is the most you can lose. That's your stop, set the day you buy it. Sell a call without owning ZQRT and you get the opposite. The loss is theoretically unlimited, because there's no cap on how high a stock can go. If ZQRT rips instead of falling, that loss keeps growing. I'll take the known worst case.",
+   "lesson_line": "A bought option's worst case is the premium. A call sold without the stock has no cap.",
+   "facts": [
+    "f49",
+    "f50",
+    "f30",
+    "f41",
+    "f56"
+   ],
+   "wrong": {
+    "Selling the call": "It pays you up front, but there's no cap on how high the stock can go, so there's none on your loss.",
+    "Both about equally": "Not close. The put buyer's loss stops at the premium. The uncovered call's loss has no cap.",
+    "Neither of them": "The put buyer's ceiling is the premium paid. That's the most you can lose."
+   },
+   "simple": "Buying the put. A buyer can lose only the premium, while a call sold without the stock has no cap.",
+   "deeper": {
+    "trap": "Selling the call can look safer because the premium is paid to you up front. That premium is the seller's maximum profit, not a limit on the loss. If the stock rises instead of falling, an uncovered call's loss keeps growing, because a stock has no price ceiling."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q22",
+   "skill": "options.calls_puts",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You own 100 shares of ZQRT, now at 48. You're worried about a gap down on bad news, so you buy one 45 put.",
+   "q": "What does that put actually give you?",
+   "choices": [
+    "The right to sell at 45",
+    "An order to sell if it hits 45",
+    "A duty to buy more at 45",
+    "Cover for any drop below 48"
+   ],
+   "answer": "The right to sell at 45",
+   "why": "Just the right to sell at 45, however low ZQRT goes before expiry. If it gaps way down, your 100 shares can still go out at 45. Now look at what's still yours. The drop from 48 to 45 is on you, and so is the premium you paid. And a put isn't a stop order. It doesn't fire when ZQRT hits 45. You decide when to use it.",
+   "lesson_line": "A put sets a floor at the strike. The drop to the strike and the premium are still yours.",
+   "facts": [
+    "f39",
+    "f40",
+    "f31",
+    "f26",
+    "f19",
+    "f25"
+   ],
+   "wrong": {
+    "An order to sell if it hits 45": "A put isn't a stop order, and nothing fires at 45. It's a right to sell at 45 that you use when you choose, before expiry.",
+    "A duty to buy more at 45": "That's what a put seller takes on. You bought the put, so you hold a right.",
+    "Cover for any drop below 48": "The put only covers below its 45 strike. The drop from 48 to 45 is still yours, plus the premium."
+   },
+   "simple": "The right to sell at 45, however low the stock falls before the put expires.",
+   "deeper": {
+    "counter": "The put costs money up front. The premium is paid to the seller and is non-refundable, so it is spent whether or not the stock drops. That cost is part of what you can lose."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q23",
+   "skill": "options.calls_puts",
+   "rung": 9,
+   "format": "mcq",
+   "q": "ZQRT splits 2-for-1 while you hold one standard ZQRT 60 call. What should you expect to hold after?",
+   "choices": [
+    "Two 30 calls, 100 shares each",
+    "One 30 call on 100 shares",
+    "One 60 call on 100 shares",
+    "Two 60 calls, 100 shares each"
+   ],
+   "answer": "Two 30 calls, 100 shares each",
+   "why": "Two 30 calls, each still on 100 shares. A 2-for-1 split turns every share into two at half the price, and your call follows. As a general rule, each contract still covers 100 shares. You get more contracts, and the strike comes down in proportion. So one 60 call becomes two 30 calls. Don't assume it, though. After any split, pull up the position in your broker and check the new terms. Splits and mergers can change a contract in other ways too.",
+   "lesson_line": "A whole-share split multiplies your contracts and cuts the strike in proportion. Check the new terms after any split.",
+   "facts": [
+    "f62",
+    "f63",
+    "f69",
+    "f28",
+    "f48"
+   ],
+   "wrong": {
+    "One 30 call on 100 shares": "The strike does drop to 30, but the contracts go up in proportion too. You'd hold two.",
+    "One 60 call on 100 shares": "The terms don't stay put. The strike is cut in proportion and the contracts multiply.",
+    "Two 60 calls, 100 shares each": "The contracts double, but the strike drops in proportion too, to 30."
+   },
+   "simple": "Two 30 calls on 100 shares each. A 2-for-1 split doubles the contracts and halves the strike.",
+   "deeper": {
+    "trap": "The trap is changing only one term. Raise the contracts without cutting the strike, or cut the strike without raising the contracts, and the new terms no longer match the old ones. As a general rule both change, in proportion."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the key is a proportional adjustment (one 60 call becomes two 30 calls)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q24",
+   "skill": "options.calls_puts",
+   "rung": 9,
+   "format": "mcq",
+   "q": "You own 100 shares of AMD and sell two standard AMD calls against them. What did you just set up?",
+   "choices": [
+    "One covered, one not",
+    "Both calls are covered",
+    "Both calls are uncovered",
+    "Each is half covered"
+   ],
+   "answer": "One covered, one not",
+   "why": "One covered call and one naked one. A call is covered when you own the shares it delivers. One contract delivers 100 shares, and you own 100, so your shares back the first call only. The second has nothing behind it. If AMD rips, that second call's loss has no cap. Shares don't cover half of each call. They cover calls 100 at a time.",
+   "lesson_line": "Shares cover calls 100 at a time. Anything past that is a naked call.",
+   "facts": [
+    "f64",
+    "f65",
+    "f66",
+    "f50",
+    "f48"
+   ],
+   "wrong": {
+    "Both calls are covered": "Each call delivers 100 shares, and you own 100. They cover the first call, not the second.",
+    "Both calls are uncovered": "Owning the shares a call delivers makes it covered. Your 100 shares cover the first call.",
+    "Each is half covered": "Coverage isn't split between calls. A call is covered when you own all the shares it delivers."
+   },
+   "simple": "One is covered and one is not. Your 100 shares can back only one contract.",
+   "deeper": {
+    "trap": "Writing more calls than your shares cover turns part of a covered call trade into a naked one. If the stock rises far, the first call is backed by your shares. The second call's loss has no cap."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q25",
+   "skill": "options.calls_puts",
+   "rung": 9,
+   "format": "mcq",
+   "q": "You're weighing an SPY call against an SPX call. Which one can be exercised before its expiry day?",
+   "choices": [
+    "An SPY call",
+    "An SPX call",
+    "Both of them",
+    "Neither of them"
+   ],
+   "answer": "An SPY call",
+   "why": "The SPY call. SPY options are American-style, so you can exercise one any day before expiry, and it settles in SPY shares. SPX options use European exercise and settle in cash. They can only be exercised at expiration. Both follow the S&P 500, but they're different contracts. If you ever write one, it matters: an SPY writer can be assigned early, and an SPX writer can't.",
+   "lesson_line": "Both track the S&P 500. SPY options can be exercised any day and settle in shares. SPX only at expiry, in cash.",
+   "facts": [
+    "f55",
+    "f67",
+    "f68",
+    "f25",
+    "f42"
+   ],
+   "wrong": {
+    "An SPX call": "SPX options use European exercise. They can only be exercised at expiration.",
+    "Both of them": "Only the SPY call. SPX options can't be exercised before expiration.",
+    "Neither of them": "SPY options are American-style. You can exercise one any day before expiry."
+   },
+   "simple": "Only the SPY call. SPY options can be used any day, while SPX options can be used only at expiry.",
+   "deeper": {
+    "trap": "The names look alike and both follow the S&P 500. The difference is the contract, not the index. For a writer, American-style means assignment can come on any day before expiry. SPX options can only be exercised at expiration, which removes that early assignment risk."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "product specs that an exchange can change (SPX exercise style, SPY settlement)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q97",
+   "skill": "options.calls_puts",
+   "rung": 4,
+   "format": "mcq",
+   "q": "A trader you know wrote a ZQRT call and collected the premium. Now the buyer exercises it. What happens to that premium?",
+   "choices": [
+    "He keeps it and still delivers shares",
+    "He refunds it, since it was used",
+    "He keeps it only if it expires unused",
+    "It lowers the buyer's share price"
+   ],
+   "answer": "He keeps it and still delivers shares",
+   "why": "He keeps it, and he still delivers the shares. The premium was paid up front, and it's never refunded. Exercise doesn't change that. It just means he sells 100 shares at the strike. Here's what people miss. That premium is the most a seller can make on the trade. It's not a limit on what he can lose. We sit on the other side. We buy an option now and then, and the premium we pay is the stop.",
+   "lesson_line": "The seller keeps the premium, exercised or not. It doesn't cap what the seller can lose.",
+   "facts": [
+    "f19",
+    "f9",
+    "f10",
+    "f30",
+    "f49",
+    "f48",
+    "h01",
+    "h02"
+   ],
+   "wrong": {
+    "It lowers the buyer's share price": "The strike sets what the buyer pays. The premium was paid earlier and stays with him.",
+    "He refunds it, since it was used": "The premium is paid up front and never refunded, used or not.",
+    "He keeps it only if it expires unused": "He keeps it either way. Exercise just adds the duty to deliver the shares."
+   },
+   "simple": "He keeps the premium and still delivers the shares. It was paid up front and is never refunded.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable rule: FINRA and OIC agree"
+    ]
+   },
+   "batch": "voice-8-seller-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "When monthly options expire: the SEC's Investor Bulletin (updated July 16, 2026) still says monthly options generally expire 'the Saturday after the third Friday', while its own worked example, FINRA's current Options page (f47) and OIC's Options Basics (f32) put expiry on the third Friday. The file teaches the third Friday in w3 (q08 asked it too; track audit 2026-11-09 cut it as a duplicate of F6.10 q01) and cites nothing from that bulletin line.",
+  "FINRA's Options page describes SPX options as 'tied to S&P 500 futures contracts'; Cboe's own SPX page describes options on the S&P 500 index with cash settlement and European exercise. q25 cites only FINRA's SPY half (f55) and Cboe for SPX (f67, f68).",
+  "FINRA's Options page says daily options are 'currently only offered for index options' and that LEAPS run 'up to two years and eight months'; OIC's FAQ says LEAPS run from nine months up to three years. Neither point is used in this unit.",
+  "Contract size is hedged differently by each source: SEC 'generally' (f17), OIC 'usually' (f27), the ODD 'most' (f60), FINRA 'standard-size' (f48). The file asks it as the standard (q06, q10, q14, q19). On splits it keys the ODD's general rule for whole-share splits (q23: more contracts, lower strike, still 100 shares each); a contract can also end up on a different number of shares after other splits or mergers (ODD 3-for-2 example), which no F6 unit quizzes (F6.02 computes every premium on a standard 100-share contract; F6.02 q25 is about the last-trade price). Track audit 2026-11-09: corrected a wrong cross-reference.",
+  "Automatic exercise at expiry: FINRA says in-the-money options are 'generally' exercised automatically (f51). OCC's own threshold rule is not cited because theocc.com refuses plain clients (403, also to WebFetch on 2026-11-09). q20 keys 'generally' and gives no threshold.",
+  "Investopedia's call option page (not cited) says strike and expiry 'are set by the contract seller'; for listed options the ODD says the options market sets the exercise prices. Nothing in this file relies on Investopedia."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 70/70 found) and every quote read in context; OCC's own ODD page refuses clients (403), the Robinhood copy is the June 2024 edition. f1 (OIC FAQ), f3, f4, f5 (OIC What is an Option) say each step. 'Let it expire' is f5's own wording; q20 covers the in-the-money auto-exercise case.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 70/70 found) and every quote read in context; OCC's own ODD page refuses clients (403), the Robinhood copy is the June 2024 edition. f18 (SEC), f9, f6, f7 (OIC), f42 (OIC Exercising) support the steps. Added f26 (all exchange-traded equity options are American-style), which step 4's 'on a stock option' relies on.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 70/70 found) and every quote read in context; OCC's own ODD page refuses clients (403), the Robinhood copy is the June 2024 edition. f48 (FINRA standard-size = 100 shares), f61 (ODD XYZ 40 call, $4,000 is the document's own number), f47 (FINRA third Friday), f11 (OIC). The SEC bulletin's old 'Saturday after the third Friday' line is not used (conflicts).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth fine (f3, f45, f49; premium is the stop is his B25). Added the line that we trade shares and a call is the occasional defined-risk alternative, his A6/B25, so the reason sounds like us."
+  },
+  "q02": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: 'take the gain' assumed a profit the stem never gives (the premium is unknown). Now 'take what it's worth'. $4,000 = 40 x 100 (f61)."
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answer choice 'The seller, the writer' read like a glossary; now 'The seller who wrote it'. Why tightened, still teaches writer/holder."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. ABC is the SEC's own quote (f14). $2.20 x 100 = $220 (f20). Reads the quote left to right, says where to get the stock price."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. $3.00 x 100 = $300. Still tests the 100-share contract."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "'Options trade like anything else' was filler. Rewritten: what each of the three exits costs you, in plain words."
+  },
+  "q08": {
+   "status": "cut",
+   "notes": "duplicate of F6.10#q01. Track audit 2026-11-09: Same fact (standard monthly stock options expire on the third Friday) asked as the same MCQ with the same distractors. F6.10 owns expiry and its version has four choices. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 70/70 found) and every quote read in context; OCC's own ODD page refuses clients (403), the Robinhood copy is the June 2024 edition. f47 (FINRA) and f32 (OIC) put standard monthly expiry on the third Friday; f33 holiday rule; f34 weeklies. SEC bulletin's outdated Saturday line not cited (conflicts). Current as of the pages read today.",
+    "fixed": false,
+    "by": "checker"
+   }
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. Short one call (f37, f57); 'sell 100 at 50' is f6."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "'That's why the question says standard' was meta. Rewritten as a trader's catch. 3 x 100 = 300."
+  },
+  "q11": {
+   "status": "cut",
+   "notes": "duplicate of F6.17#q01. Track audit 2026-11-09: Same fact (you exit a call you own by selling that call; buying a put opens a second position) with the same 'buy a put' trap. F6.17 owns exits and asks it with all four exit choices. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "Sources re-fetched 2026-11-09 by the quote checker's client (all 200, 70/70 found) and every quote read in context; OCC's own ODD page refuses clients (403), the Robinhood copy is the June 2024 edition. f35 is OIC word for word: a long call is not closed by purchasing a put. f36/f54/f22 give the right exit (sell to close the same contract).",
+    "fixed": false,
+    "by": "checker"
+   }
+  },
+  "q12": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. f6, f7, f8, f46."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. 30 x 100 x 2 = 6,000; 22 x 200 = 4,400 is the market-sale distractor, shown."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "seller framing reframed; answer unchanged"
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. f29."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "seller framing reframed; answer unchanged"
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. 52 < 55, lose 1.50 a share (f21, f44). The 'right on direction, still lost' line is a real mentor point."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. 500 / 100 = 5; 50 and 500 distractors explained correctly."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. 100 x 100 = $10,000 (f53); 'in most cases' matches f51's 'generally'."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. Premium is the stop (his B25), uncovered call unlimited (f41, f50). Not a short lesson by title; the test does not cover it."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth catch: 'Nothing fires on its own' contradicts q20 (an in-the-money option is generally exercised automatically at expiry, f51). Now 'a put isn't a stop order, it doesn't fire when ZQRT hits 45'. Same fix in the wrong note."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Why was textbook ('the general rule is that the shares per contract don't change'). Rewritten plainly, with the how (check the new terms in your broker). f62, f69, f28."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Pass. f64, f65, f66."
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "'Same index underneath' is loose (SPY is an ETF that tracks the S&P 500, f55). Now 'Both follow the S&P 500, but they're different contracts'."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "seller framing reframed; answer unchanged"
+  }
+ }
+}

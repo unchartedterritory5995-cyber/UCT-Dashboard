@@ -351,6 +351,8 @@ def _make_attachment_resolver(user_id: str, note_folder: str, note_id: str,
 
 
 _NOTE_LINK_MARKER = "internal-note-link://"
+# An excerpt's words are empty only once its post has left X (`tweet_capture_sync`).
+POST_GONE_TEXT = "This post is no longer on X."
 _DOCUMENT_EXCERPT_MARKER = "document-excerpt://"
 
 
@@ -413,7 +415,7 @@ def _make_note_link_aware_resolver(
                     citation = f"{citation} — {url}"
             else:
                 citation = f"{name}, p.{row['page_number']}"
-            return row["captured_text"], citation, row["annotation"]
+            return row["captured_text"] or POST_GONE_TEXT, citation, row["annotation"]
         if not url or not url.startswith(_NOTE_LINK_MARKER):
             return base_resolver(url) if base_resolver else None
         note_id = url[len(_NOTE_LINK_MARKER):]
@@ -1880,7 +1882,7 @@ def _resolve_thesis_evidence_by_note(
             # publisher's words. Merging any two of them is how a member's
             # opinion becomes a quotation.
             excerpt_detail[r["id"]] = {
-                "passage": r["captured_text"] or "",
+                "passage": r["captured_text"] or POST_GONE_TEXT,
                 "passage_note": r["annotation"] or None,
                 "source_url": (r["source_url"] or None) if is_web else None,
                 # The corpus boundary travels with the evidence, exactly as it

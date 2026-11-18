@@ -534,7 +534,10 @@ _WINDOW_BARS = {
     "run_close_ema20": 10 ** 9, "run_close_sma50": 10 ** 9, "run_close_sma200": 10 ** 9,
     "run_ema9_ema20": 10 ** 9, "run_sma20_sma50": 10 ** 9, "run_sma50_sma200": 10 ** 9,
     "sma20_rising": 40, "sma50_rising": 70, "sma200_rising": 220,
-    "avg_volume_10d": 10, "avg_volume_50d": 50, "vol_trend_pct": 20,
+    "avg_volume_10d": 10, "avg_volume_50d": 50, "vol_trend_pct": 20, "min_volume_3d_prior": 4,
+    # live-tier bases (see `scan_primitives`): each READS the bars from its base to the newest.
+    "live_base_close_1w": 5, "live_base_close_1m": 21, "live_base_close_1y": 252,
+    "live_base_min_volume_3d": 3,
     "vol_up_run": 10 ** 9, "vol_down_run": 10 ** 9,
     "new_high_lookback": 253, "new_low_lookback": 253, "breakout_20d_age": 83,
     "high_52w_age": 252, "low_52w_age": 252,
@@ -563,8 +566,12 @@ SCAN_PRIMITIVE_COLUMNS = (
     "pct_vs_ema9", "pct_vs_ema10", "run_close_ema20", "run_close_sma50", "run_close_sma200",
     "run_ema9_ema20", "run_sma20_sma50", "run_sma50_sma200", "sma20_rising", "sma50_rising", "sma200_rising",
     "avg_volume_10d", "avg_volume_50d", "vol_trend_pct", "vol_up_run", "vol_down_run",
+    "min_volume_3d_prior",
     "new_high_lookback", "new_low_lookback", "breakout_20d_age", "high_52w_age", "low_52w_age",
 )
+#: Also written by `scan_primitives`, but NOT filters: the session-shifted levels `live_tier` restates
+#: the 5-day/1-month/1-year change and MINV3.1 from during the next session (see the comment there).
+LIVE_BASE_COLUMNS = ("live_base_close_1w", "live_base_close_1m", "live_base_close_1y", "live_base_min_volume_3d")
 #: The longest "N-day high" `new_high_lookback` can state: a trading year.
 LOOKBACK_CAP = 252
 #: `breakout_20d_age` looks this many sessions back (a quarter) and is blank past it.
@@ -655,6 +662,26 @@ def scan_primitives(bars, closes, ipo_date=None) -> dict:
     out["vol_trend_pct"] = round((a5 / a20 - 1) * 100, 2) if (a5 is not None and a20) else None
     out["vol_up_run"] = _volume_run(vols, True)
     out["vol_down_run"] = _volume_run(vols, False)
+    # TC2000's `MINV3.1`: the lowest volume of the three sessions BEFORE the newest one (the
+    # newest is left out, so a heavy day today cannot lift it). Blank when any of the three has
+    # no volume: an absent session is never read as zero, which would fail every floor.
+    prior3 = vols[-4:-1]
+    out["min_volume_3d_prior"] = (min(prior3) if len(prior3) == 3 and all(v is not None for v in prior3)
+                                  else None)
+
+    # LIVE-TIER BASES. Not filters: the levels `live_tier` needs to restate four columns DURING the next
+    # session, when today's developing bar is "bar 0" and every lookback shifts one session later than it
+    # did at this build. Recovering them from the stored columns would give the wrong day:
+    #   chg_pct_1w at 03:00 is close / close 5 sessions back; at 10:42 tomorrow TC2000's c/c5 is the live
+    #   price / the close 4 sessions before the newest completed one, which is `closes[-5]` here.
+    # Same for 1m (`closes[-22]` -> `closes[-21]`) and 1y (`closes[-253]` -> `closes[-252]`), and for MINV3.1:
+    # tomorrow "the 3 sessions ending 1 bar ago" are the 3 newest COMPLETED sessions, `vols[-3:]`.
+    for name, back in (("live_base_close_1w", 5), ("live_base_close_1m", 21), ("live_base_close_1y", 252)):
+        base = closes[-back] if len(closes) >= back else None
+        out[name] = base if (base is not None and base > 0) else None
+    last3 = vols[-3:]
+    out["live_base_min_volume_3d"] = (min(last3) if len(last3) == 3 and all(v is not None for v in last3)
+                                      else None)
 
     out["new_high_lookback"] = out["new_low_lookback"] = None
     if len(bars) >= 2:
@@ -688,7 +715,7 @@ def compute_technicals(bars: list[dict], ipo_date=None) -> dict:
         "chg_pct_1y", "chg_pct_ytd", "chg_from_open_pct", "adr_pct_1w",
         "dist_20d_high_pct", "dist_20d_low_pct", "pole_pct", "atr_ext_sma50",
         "prev_day_open", "prev_day_high", "prev_day_low", "prev_day_close", "dollar_vol_1d",
-        *SCAN_PRIMITIVE_COLUMNS)}
+        *SCAN_PRIMITIVE_COLUMNS, *LIVE_BASE_COLUMNS)}
     out["ma_stack"] = None
     out["above_50sma"] = None
     out["new_52w_high"] = False
@@ -874,4 +901,90 @@ def compute_technicals(bars: list[dict], ipo_date=None) -> dict:
         out["prev_day_open"], out["prev_day_high"] = p["o"], p["h"]
         out["prev_day_low"], out["prev_day_close"] = p["l"], p["c"]
     out.update(scan_primitives(bars, closes, ipo_date))
+    return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Setup-label inputs (RS screens, plan 2026-11-14 v2, section 3)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# The Setup label ("Extended", "Pullback to the 8-day", ...) is decided in
+# `rs_setup.label`; this is the one place its moving-average measures are read
+# off the bars, so the label and the columns beside it (`atr_ext_sma50`,
+# `pct_vs_sma50`) come from the same sanitized series and the same kernels.
+# NOT screener columns: `compute_technicals` is untouched and returns exactly
+# what it did.
+
+#: The keys `setup_inputs` returns, in order.
+SETUP_INPUT_KEYS = (
+    "ema8", "ema21", "ema8_rising", "ema21_rising", "atr14", "atr_ext_ema21",
+    "atr_ext_sma50", "high20_age", "high20", "sma50", "low", "close", "bars",
+)
+#: An 8-day or 21-day EMA "rises" when it stands above its own value this many
+#: sessions ago (plan section 3). A week, where `RISING_SPAN` gives the 20, 50
+#: and 200-day lines a month: a pullback is judged against a fast average.
+EMA_RISING_SPAN = 5
+#: `high20_age` reads the highest CLOSE of this many sessions, today included.
+HIGH20_WINDOW = 20
+
+
+def setup_inputs(bars) -> dict:
+    """The measures `rs_setup.label` reads, for the newest bar of ``bars``.
+
+    ``ema8`` / ``ema21`` / ``sma50`` / ``atr14`` are unrounded values (the label
+    compares against them); the two ATR extensions are rounded to two places,
+    as the `atr_ext_sma50` column is, so a row reading 4.0 is labelled the way
+    it reads. Each key is ``None`` until the series is long enough for it and
+    for nothing else: ``bars`` (the count of usable bars) is always an int.
+
+    * ``ema8_rising`` / ``ema21_rising``: today's EMA strictly above its value
+      :data:`EMA_RISING_SPAN` sessions ago.
+    * ``atr14``: Wilder's ATR(14) through `indicator_compute.compute_atr_raw`,
+      the chokepoint `_atr_pct` and `_atr_ext_sma50` use. ``None`` when it is
+      not above zero: a tape with no range has no unit to measure extension in
+      (`_atr_ext_sma50`'s own rule).
+    * ``atr_ext_ema21``: ``(close - ema21) / atr14``.
+    * ``atr_ext_sma50``: `_atr_ext_sma50`, the stored column's calculation.
+    * ``high20_age``: sessions since the highest close of the last
+      :data:`HIGH20_WINDOW` sessions (0 = today; a tie reads as the newest).
+    * ``high20``: that highest close itself, unrounded (the label measures how far
+      under it today's close is).
+
+    Hand it the SAME 400-bar window `compute_technicals` gets: the EMAs and
+    the ATR are seeded-and-smoothed over the bars they are given, and
+    ``atr_ext_sma50`` here equals the stored column only on the same window.
+    """
+    from api.services import indicator_compute
+    out = {k: None for k in SETUP_INPUT_KEYS}
+    bars = usable_bars(bars)
+    out["bars"] = len(bars)
+    if not bars:
+        return out
+
+    closes = [b["c"] for b in bars]
+    close = closes[-1]
+    out["close"] = close
+    out["low"] = bars[-1]["l"]
+
+    for name, length in (("ema8", 8), ("ema21", 21)):
+        ema = indicator_compute.compute_ema(closes, length)
+        now = ema[-1]
+        then = ema[-1 - EMA_RISING_SPAN] if len(ema) > EMA_RISING_SPAN else None
+        out[name] = now
+        out[name + "_rising"] = (now > then) if (now is not None and then is not None) else None
+
+    s50 = _sma(closes, 50)
+    out["sma50"] = s50
+    atr = (indicator_compute.compute_atr_raw(bars, 14)[-1]
+           if len(bars) >= 15 else None)
+    if atr is not None and atr > 0:
+        out["atr14"] = atr
+        if out["ema21"] is not None:
+            out["atr_ext_ema21"] = round((close - out["ema21"]) / atr, 2)
+    out["atr_ext_sma50"] = _atr_ext_sma50(bars, closes, s50)
+
+    if len(closes) >= HIGH20_WINDOW:
+        recent = closes[-HIGH20_WINDOW:]
+        out["high20"] = max(recent)
+        out["high20_age"] = _age_of(recent, out["high20"])
     return out

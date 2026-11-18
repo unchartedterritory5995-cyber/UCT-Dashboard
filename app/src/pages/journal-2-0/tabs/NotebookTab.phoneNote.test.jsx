@@ -32,9 +32,11 @@ vi.mock('../hooks/useJ2Notes', () => ({
 }))
 vi.mock('../components/notebook/FolderSidebar', () => ({
   // A folder choice goes through the tab's own `onSelectFolder` -- the same door the real panel uses.
-  default: ({ onSelectFolder }) => (
+  default: ({ onSelectFolder, onSelectToday }) => (
     <div data-testid="folder-sidebar">
       <button type="button" onClick={() => onSelectFolder?.('f-swing')}>Pick Swing ideas</button>
+      {/* follow-up B, item 1d: the real panel's "Daily brief" row calls `onSelectToday` */}
+      <button type="button" onClick={() => onSelectToday?.()}>Pick Daily brief</button>
       {/* the real panel's search anchor (FolderSidebar.jsx data-tour="search") */}
       <input aria-label="Search notes" data-tour="search" />
     </div>
@@ -69,9 +71,6 @@ vi.mock('../components/notebook/NoteEditorPage', async () => {
 })
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({
-  default: () => <div data-testid="research-home">Research Home</div>,
-}))
 // D-7's own tests below switch view mode -- NotesTableView (an icon-row mode) and
 // NoteTasksView (reached by its own `?view=tasks` URL too) stand in for the six
 // content-first modes so switching doesn't try to lazy-load and render the real
@@ -81,6 +80,14 @@ vi.mock('../components/notebook/NotesTableView', () => ({
 }))
 vi.mock('../components/notebook/NoteTasksView', () => ({
   default: () => <div data-testid="note-tasks" />,
+}))
+// Follow-up B, item 1d: the Daily brief stands in as a page whose one control opens a note (the tab's own `onOpenNote`).
+vi.mock('../components/notebook/TodayHome', () => ({
+  default: ({ onOpenNote }) => (
+    <div data-testid="today-home">
+      <button type="button" onClick={() => onOpenNote?.({ id: 'n2' })}>Open a note from the brief</button>
+    </div>
+  ),
 }))
 
 import NotebookTab from './NotebookTab'
@@ -158,7 +165,6 @@ describe('D-1 -- a ?note= link opens the note (rendered)', () => {
     fireEvent.click(backButton())
     await waitFor(() => expect(screen.queryByTestId('note-editor')).toBeNull())
     expect(search()).toBe('?view=all')
-    expect(screen.queryByTestId('research-home')).toBeNull()
     expect(screen.getByRole('button', { name: 'Beta review' })).toBeInTheDocument()
   })
 
@@ -171,7 +177,6 @@ describe('D-1 -- a ?note= link opens the note (rendered)', () => {
     fireEvent.click(backButton())
     await waitFor(() => expect(screen.queryByTestId('note-editor')).toBeNull())
     expect(search()).toBe('?view=all')
-    expect(screen.queryByTestId('research-home')).toBeNull()
     expect(screen.getByRole('button', { name: 'Beta review' })).toBeInTheDocument()
   })
 
@@ -231,10 +236,11 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
     expect(showFoldersBtn()).not.toBeNull()
   })
 
-  it('Research Home (no folder chosen) folds the panel at phone width', async () => {
+  // Notebook simplify, Task 5: the bare Notebook (no folder chosen) is the list now; it was Research Home.
+  it('the bare Notebook (no folder chosen) folds the panel at phone width', async () => {
     setWidth(390)
     renderAt('/journal/notebook')
-    await screen.findByTestId('research-home')
+    await screen.findByRole('toolbar', { name: 'Notes list tools' })
     expect(showFoldersBtn()).not.toBeNull()
   })
 
@@ -278,6 +284,30 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
     expect(showFoldersBtn()).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Pick Swing ideas' }))
     await waitFor(() => expect(showFoldersBtn()).not.toBeNull())
+  })
+
+  // Follow-up B, item 1d: the Daily brief row is a view choice like a folder; the drawer folds over it.
+  it('a drawer: opened, then "Daily brief" chosen, it folds again so the brief is what the member sees', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all')
+    fireEvent.click(showFoldersBtn())
+    expect(showFoldersBtn()).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Pick Daily brief' }))
+    await waitFor(() => expect(search()).toBe('?view=today'))
+    await waitFor(() => expect(showFoldersBtn()).not.toBeNull())
+  })
+
+  it('in a note, the folders sheet closes when "Daily brief" is chosen in it, and stays closed on the next note', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?note=n1')
+    fireEvent.click(screen.getByRole('button', { name: 'Show folders' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Folders' })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Pick Daily brief' }))
+    await waitFor(() => expect(search()).toBe('?view=today'))
+    expect(screen.queryByRole('dialog', { name: 'Folders' })).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: 'Open a note from the brief' }))
+    await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'n2'))
+    expect(screen.queryByRole('dialog', { name: 'Folders' })).toBeNull()
   })
 
   it('the reopen control says what it opens on a phone ("Folders"), keeping its accessible name', () => {

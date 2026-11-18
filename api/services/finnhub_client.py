@@ -79,6 +79,7 @@ import time as _time
 import requests
 
 from api.services.cache import cache
+from api.services.log_redaction import safe_exc as _safe_exc
 
 _logger = logging.getLogger(__name__)
 
@@ -271,5 +272,5 @@ def fh_get(path: str, params: dict, timeout: int | None = None, base_url: str = 
         resp.raise_for_status()
         return resp.json()
     except Exception as exc:
-        _logger.warning("Finnhub %s failed for %s: %s", path, params.get("symbol", "?"), exc)
+        _logger.warning("Finnhub %s failed for %s: %s", path, params.get("symbol", "?"), _safe_exc(exc))
         return None

@@ -30,6 +30,9 @@
 //   carries one action: it adds the sample notebook through sampleNotebook.js and asks the gate to
 //   run THIS tour again. A member who has notes gets the `/chart` card with no such action: the
 //   server refuses the sample to anyone who has a note, D-C6.)
+//   (Go-live wave 1) TIERS. A step may name the screen tier it belongs to (`tier`: phone, wide, touch, desktop;
+//      tourTiers.js). The engine drops the steps of other tiers when the tour loads, so a control that lives in a
+//      different place on a phone than on a desktop gets one step per place, and each screen counts only its own.
 //   5. PASSIVE. A `replayable: false` entry (a 1-2 step explainer) renders as a light,
 //      non-modal note that never takes focus, shown once per member (any row in
 //      `notebook_tours` means it was seen).
@@ -50,6 +53,7 @@ import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourS
 import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
 import { SAMPLE_COPY, addSampleNotebook, isNotebookKey } from './sampleNotebook'
 import { cardIsTopmost, dialogHost } from './tourLayers'
+import { stepsForScreen } from './tourTiers'
 import { carryRegistryTourOpen, stripTourState } from './tourRegistryControl'
 import { importWithOneRetry } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
@@ -57,6 +61,7 @@ import { registerShortcuts } from '../../../../command/shortcutRegistry'
 import styles from './NotebookTour.module.css'
 import own from './GenericTourEngine.module.css'
 import PoliteStatus from '../PoliteStatus'
+import { TOUR_NAV } from '../../../lib/notebookUsage'
 
 export { atStart }
 
@@ -147,7 +152,8 @@ export default function GenericTourEngine({
   useEffect(() => {
     let cancelled = false
     loadTourContent(entry)
-      .then((c) => { if (!cancelled) setContent(c) })
+      // Go-live wave 1: a step for another screen tier (`tier`, tourTiers.js) is not in the tour on this one.
+      .then((c) => { if (!cancelled) setContent({ ...c, steps: stepsForScreen(c.steps) }) })
       .catch((err) => {
         // A stale step file after a deploy: close and say so, never hold the one tour slot.
         if (cancelled) return
@@ -221,7 +227,9 @@ export default function GenericTourEngine({
         // pathname), and this engine with it: carry the request so the new gate goes on
         // with this tour instead of dropping it silently (W14-Q2: trade starts never opened).
         if (new URL(r.path, 'http://tour.invalid').pathname !== location.pathname) carryRegistryTourOpen(entry.id)
-        navigate(r.path, { state: stripTourState(location.state) })
+        // Follow-up A fix round 1 (I2): marked as the walkthrough's own move, so the Notebook does not count it as a
+        // link the member followed (`view_used`, lib/notebookUsage.js `linkOpened`).
+        navigate(r.path, { state: { ...(stripTourState(location.state) || {}), [TOUR_NAV]: true } })
       }
       setPhase('waiting')
     })
@@ -328,6 +336,7 @@ export default function GenericTourEngine({
 
   const goBack = useCallback(() => {
     if (!steps || moving) return
+    if (steps[index]?.noBack) return
     const prev = presentFrom(steps, index - 1, -1)
     if (prev >= 0) goTo(prev)
   }, [steps, moving, index, goTo])
@@ -520,6 +529,8 @@ export default function GenericTourEngine({
   }
 
   const isFirst = presentFrom(steps, index - 1, -1) < 0
+  // Follow-up B fix round 1: a step that lives inside a view a previous step opened (a menu's second view) draws no
+  // Back: going back would name a control that is no longer on screen (`noBack`, tours/index.js contract).
   const isLast = index === steps.length - 1
   // FIN-A11Y (I-8): the step count and the "do this" hint are part of what is SAID. The
   // dialog is described by them, and so is the heading that takes focus on every step
@@ -552,9 +563,11 @@ export default function GenericTourEngine({
           Skip tour
         </button>
         <span className={styles.nav}>
-          <button type="button" className="btn btn-secondary" onClick={goBack} disabled={isFirst || moving}>
-            Back
-          </button>
+          {!step.noBack && (
+            <button type="button" className="btn btn-secondary" onClick={goBack} disabled={isFirst || moving}>
+              Back
+            </button>
+          )}
           {isLast ? (
             <button type="button" className="btn btn-primary" onClick={() => close(TOUR_STATES.done)}>
               Done

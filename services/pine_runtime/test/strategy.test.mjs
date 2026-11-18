@@ -19,6 +19,7 @@ import {
   RUNTIME_STRATEGY_KEY, STRATEGY_WINDOW_HISTORY, strategyRecordOf, strategyRecordShapeErrors, runtimeStrategyOf,
 } from '../../../app/src/components/chart/engine/runtime/strategyRecord.js'
 import { CODEC, DOOR, IDENTITY, f64b64, validRequest } from './helpers.mjs'
+import { orderLogFor } from '../../../app/src/components/chart/engine/runtime/__tests__/orderLogFixture.js'
 import { buildRealBundle, docOf, parsedJob } from './poolFixtures.mjs'
 
 const SCODEC = Object.freeze({ ...CODEC, strategyRecordShapeErrors })
@@ -28,7 +29,8 @@ const TIMES = [1700000000, 1700086400, 1700172800, 1700259200, 1700345600]
 /** A v1 record built by the record's own builder (never a hand-typed shape). */
 function record({ trades = [{ id: 'L', dir: 1, qty: 3, entry: { time: TIMES[1], price: 101.5, rule: 'B-MARKET' },
   exit: { time: TIMES[3], price: 103.25, rule: 'B-CLOSE' } }] } = {}) {
-  return strategyRecordOf({ summary: { record: { trades, rulesUsed: ['B-MARKET', 'B-CLOSE'] } },
+  // W9-T7-F1: a broker summary carries its order log (`broker.js`); the fixture states the one these trades imply
+  return strategyRecordOf({ summary: { record: { trades, orders: orderLogFor(trades), rulesUsed: ['B-MARKET', 'B-CLOSE'] } },
     decl: { version: 5, fromListing: true, initialCapital: 100000, defaultQty: 1, pyramiding: 0, defaulted: { pyramiding: true } },
     barTimes: TIMES, historyWindowBars: 10, confirmed: true })
 }
@@ -102,7 +104,9 @@ test('the seal refuses every record it cannot vouch for, by what is wrong', () =
   refused(okResult({ strategy: JSON.parse(text) }), /must be the record's JSON text/)
   refused(okResult({ strategy: '{"schema":' }), /is not JSON/)
   refused(okResult({ strategy: '[1]' }), /must be a JSON object/)
-  refused(okResult({ strategy: JSON.stringify({ ...record(), orders: [] }) }), /is not a strategy record \(orders is unserved and must be null/)
+  refused(okResult({ strategy: JSON.stringify({ ...record(), equity: [] }) }), /is not a strategy record \(equity is unserved and must be null/)
+  // W9-T7-F1: the order log is checked by the same one shape check (a trade no order opened)
+  refused(okResult({ strategy: JSON.stringify({ ...record(), orders: [] }) }), /is not a strategy record \(trades\[0\] has no opening order/)
   refused(okResult({ strategy: JSON.stringify({ ...record(), schema: 'uct.strategy-record/v0' }) }), /is not a strategy record \(schema/)
   refused(okResult({ strategy: `{"x":"\ud800"}` }), /lone surrogate/)
   refused(okResult({ strategy: text }), /exports no strategyRecordShapeErrors/, wantJob(), CODEC)

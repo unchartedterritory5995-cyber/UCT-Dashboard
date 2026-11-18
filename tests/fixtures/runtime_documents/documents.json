@@ -217,7 +217,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -497,7 +498,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -815,63 +817,8 @@
         "style": {
          "v": "text",
          "node": {
-          "t": "if",
-          "cond": {
-           "v": "tree",
-           "tree": 5
-          },
-          "then": {
-           "t": "lit",
-           "s": "dotted"
-          },
-          "else": {
-           "t": "if",
-           "cond": {
-            "v": "tree",
-            "tree": 5
-           },
-           "then": {
-            "t": "lit",
-            "s": "dashed"
-           },
-           "else": {
-            "t": "if",
-            "cond": {
-             "v": "tree",
-             "tree": 5
-            },
-            "then": {
-             "t": "lit",
-             "s": "arrow_left"
-            },
-            "else": {
-             "t": "if",
-             "cond": {
-              "v": "tree",
-              "tree": 5
-             },
-             "then": {
-              "t": "lit",
-              "s": "arrow_right"
-             },
-             "else": {
-              "t": "if",
-              "cond": {
-               "v": "tree",
-               "tree": 5
-              },
-              "then": {
-               "t": "lit",
-               "s": "arrow_both"
-              },
-              "else": {
-               "t": "lit",
-               "s": "solid"
-              }
-             }
-            }
-           }
-          }
+          "t": "lit",
+          "s": "solid"
          }
         }
        }
@@ -892,7 +839,7 @@
         },
         "y1": {
          "v": "tree",
-         "tree": 6
+         "tree": 5
         },
         "x2": {
          "v": "tree",
@@ -900,7 +847,7 @@
         },
         "y2": {
          "v": "tree",
-         "tree": 6
+         "tree": 5
         },
         "color": {
          "v": "color",
@@ -916,63 +863,8 @@
         "style": {
          "v": "text",
          "node": {
-          "t": "if",
-          "cond": {
-           "v": "tree",
-           "tree": 5
-          },
-          "then": {
-           "t": "lit",
-           "s": "dotted"
-          },
-          "else": {
-           "t": "if",
-           "cond": {
-            "v": "tree",
-            "tree": 5
-           },
-           "then": {
-            "t": "lit",
-            "s": "dashed"
-           },
-           "else": {
-            "t": "if",
-            "cond": {
-             "v": "tree",
-             "tree": 5
-            },
-            "then": {
-             "t": "lit",
-             "s": "arrow_left"
-            },
-            "else": {
-             "t": "if",
-             "cond": {
-              "v": "tree",
-              "tree": 5
-             },
-             "then": {
-              "t": "lit",
-              "s": "arrow_right"
-             },
-             "else": {
-              "t": "if",
-              "cond": {
-               "v": "tree",
-               "tree": 5
-              },
-              "then": {
-               "t": "lit",
-               "s": "arrow_both"
-              },
-              "else": {
-               "t": "lit",
-               "s": "solid"
-              }
-             }
-            }
-           }
-          }
+          "t": "lit",
+          "s": "solid"
          }
         }
        }
@@ -1064,10 +956,6 @@
        "value": 2
       },
       {
-       "type": "num",
-       "value": 0
-      },
-      {
        "type": "offset",
        "value": 1,
        "args": [
@@ -1103,6 +991,10 @@
      "repaint": "non-repainting",
      "freshness": "live",
      "lane": "runtime",
+     "recurrenceOrigin": "pine",
+     "pineVersion": 5,
+     "doorVersion": 1,
+     "naConditionFalse": true,
      "runtimeSourceHash": "e7a7781eacad676ec436c0a778f1e0223e7ad5ad47bac2c2b38569f81b5d2187",
      "runtimeLanguage": "pine",
      "runtimeFrontend": 1,
@@ -1122,13 +1014,14 @@
       },
       {
        "name": "Settings",
-       "note": "Kept at the author's default: `lineColor` (its default is not a literal value)."
+       "note": "Kept at the author's default: `lineColor` (it colours nothing this pane draws from its own run, so a colour picked here would change nothing)."
       }
      ],
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -11610,6 +11503,10 @@
      "repaint": "non-repainting",
      "freshness": "live",
      "lane": "runtime",
+     "recurrenceOrigin": "pine",
+     "pineVersion": 6,
+     "doorVersion": 1,
+     "naConditionFalse": true,
      "runtimeSourceHash": "08ed07e699888fe78aee08d3bba984d2e65e42d3518a4f9581fa790dbaf124cb",
      "runtimeHistory": "listing",
      "runtimeLanguage": "pine",
@@ -11644,7 +11541,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -11681,7 +11579,7 @@
       "key": "out3Color",
       "type": "color",
       "label": "Baseline colour",
-      "default": "#c9a84c"
+      "default": "#00000000"
      },
      {
       "key": "out3Width",
@@ -11894,7 +11792,12 @@
       },
       "forward": 0,
       "colorMode": "column:out6",
-      "colorPacked": {}
+      "colorPacked": {},
+      "colorWithheld": {
+       "code": "pine:colour-unread",
+       "reason": "on a bar where its colour rule gives no colour, nothing is drawn",
+       "points": true
+      }
      },
      {
       "key": "out4",
@@ -12031,6 +11934,7 @@
       "colour",
       "colour"
      ],
+     "calcBarsCount": 1000,
      "disclosures": [
       {
        "name": "Drawn bar by bar",
@@ -12048,7 +11952,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {

@@ -11,7 +11,7 @@
 // exactly like walking the right one. Nothing here is a phrase rule: it only reads which chart, once a walkthrough is chosen.
 // ⭐ ONE CHART IS THE EXCEPTION: there is nothing to choose, so it walks there, and says so when the words named another.
 
-import { ordinalChart } from '../deixis'
+import { ordinalChart, relativeChart, negatedPointer, saysOtherChart } from '../deixis'
 import { readIndicator } from './slots'
 
 const POSITION = /\b(?:the\s+)?((?:top|bottom|upper|lower)[- ]?(?:left|right)|left|right|top|bottom|upper|lower)(?:[- ]hand)?(?:[- ]side)?\s+(?:chart|cell|one)\b/i
@@ -20,6 +20,10 @@ const TF_CHART = /\b(?:the|my|this|that)\s+(\d{1,3}[- ]?(?:m|min|mins|minute|min
 // nor is a chart's own feature ("the UCT chart theme")
 const WORD_CHART = /\b(?:the|my|this|that)\s+([a-z0-9][a-z0-9.-]*)\s+chart\b(?!\s+(?:themes?|templates?|settings?|types?|grid|tabs?))/gi
 const BARE_TICKER = /\b(?:to|on|for|in)\s+(?:the\s+)?([A-Z][A-Z.-]{0,6})\b(?!\s+charts?\b)/g
+// "add rsi to nvda": the same place, typed in lowercase. Three letters or more, and only ever a question
+const BARE_LOWER = /\b(?:to|on|for|in)\s+(?:the\s+)?([a-z][a-z.-]{2,6})\b(?!\s+charts?\b)/g
+// a length of time, as a member says it or as a range button reads: unless a chart here is on it, it is the range buttons'
+const SPAN = /^\d+[- ]?(?:days?|weeks?|months?)$|^(?:3|6|12)M$/i
 // what comes between "the" and "chart" without naming one, by class. Add a class or a word here: never a sentence
 const NOT_A_NAME = new Set([
   // how it is drawn
@@ -33,13 +37,21 @@ const NOT_A_NAME = new Set([
   // the product's own words
   'uct multi grid price stock ticker symbol volume breadth market time timeframe trading own drawing indicator watchlist news dark light fullscreen full-screen',
   // keys and files: "set it to ALT", "export to CSV"
-  'alt ctrl shift esc enter tab pdf csv png',
+  'key keys file files alt ctrl shift esc enter tab pdf csv png',
+  // words of a market or a sentence that are also tickers: "on ALL my charts", "set alerts for EOD"
+  'all any low high now open close here am pm et est eod etf eps ipo usd us ai',
+  // an exchange, a clock or a report in capitals: "switch to NYSE", "set it to UTC", "show me CPI on the calendar"
+  'nyse nasdaq amex otc utc gmt cst pst mst fomc cpi ppi pce gdp',
   // an order or a place: an ordinal and a position are read on their own
   'first second third fourth fifth sixth last middle center centre left right top bottom upper lower',
 ].join(' ').split(' '))
 const isNotAName = (word) => { const w = word.toLowerCase(); return NOT_A_NAME.has(w) || NOT_A_NAME.has(w.replace(/s$/, '')) }
 // could this word be a chart's name at all? Tickers have letters; a timeframe or an indicator between "the" and "chart" is neither
 const couldName = (word) => /[a-z]/i.test(word) && !isNotAName(word) && !tfCode(word) && !readIndicator(word)
+// ⛔ a bare word carries no "chart" to say it means one, so only a ticker's shape counts: capitals, up to five letters, perhaps
+// dotted (BRK.B). "switch to Renko" and "on MONDAY" are not that shape. One letter alone is a key or a scale more often than not
+const TICKER_SHAPE = /^[A-Z]{2,5}(?:\.[A-Z]{1,2})?$/
+const bareName = (word) => TICKER_SHAPE.test(word) && couldName(word)
 const listOf = (charts) => charts.map(c => c.label).join(', ')
 
 const TF_WORDS = { hourly: '60', daily: 'D', day: 'D', weekly: 'W', week: 'W', monthly: 'M', month: 'M' }
@@ -47,6 +59,7 @@ const TF_WORDS = { hourly: '60', daily: 'D', day: 'D', weekly: 'W', week: 'W', m
 function tfCode(word) {
   const raw = String(word)
   if (/^1?M$/.test(raw)) return 'M'
+  if (/^(?:3|6|12)M$/.test(raw)) return raw
   if (/^1?d$/i.test(raw)) return 'D'
   if (/^1?w$/i.test(raw)) return 'W'
   const w = raw.toLowerCase().replace('-', ' ')
@@ -72,18 +85,42 @@ function namesAnother(s, only) {
   if (ord?.ask && /chart/i.test(ord.match[0]) && !/middle|cent(?:er|re)/i.test(ord.match[0])) return true
   const other = (word) => !sameSymbol(only, word) && couldName(word)
   for (const m of s.matchAll(WORD_CHART)) if (other(m[1])) return true
-  for (const m of s.matchAll(BARE_TICKER)) if (m[1].length > 1 && other(m[1])) return true
+  for (const m of s.matchAll(BARE_TICKER)) if (!sameSymbol(only, m[1]) && bareName(m[1])) return true
   return false
 }
+const absent = (word, charts) => `There’s no ${word} chart on this board, so I can’t show that on it. Your charts are: ${listOf(charts)}.`
 const onlyNote = (c) => `This board only has ${c.symbol || 'one chart'}, so I’ll show it there.`
 
-/** → { chart, note? } | { say } | null (the words name no chart: the clicked one stands). */
-export function namedChart(words, charts = []) {
+/** → { chart, note? } | { say } | null (the words name no chart: the clicked one stands). `sel`: the clicked chart's ref. */
+export function namedChart(words, charts = [], sel = null) {
   const s = String(words || '')
   if (!s || !charts.length) return null
   // one chart: nothing to choose between, and nothing to refuse
   if (charts.length === 1) return namesAnother(s, charts[0]) ? { chart: charts[0], note: onlyNote(charts[0]) } : null
   const names = new Set()
+  // ⭐ AUDIT T1 (2026-11-07): a chart named RELATIVE to the clicked one ("the chart below this one"), or the click NEGATED ("every
+  // chart except this one"). Read by deixis.js's own detector, the one execution uses: ONE authority over which chart the words
+  // mean (agentGuideRelational.test.jsx proves they agree). The click is the anchor there, never the chart meant.
+  const clicked = sel ? charts.find(c => c.ref === sel) : null
+  const others = clicked ? charts.filter(c => c !== clicked) : charts
+  const rel = relativeChart(s, charts, sel)
+  if (rel) {
+    const where = rel.match[0].trim()
+    if (rel.negated) return { say: `A walkthrough shows one chart at a time, and you asked to leave out the chart ${where}. Which one do you mean: ${listOf(charts.filter(c => !rel.excluded.includes(c)))}?` }
+    if (rel.alsoClick) return { say: `You named this chart and the one ${where}. Which one do you mean: ${listOf(charts)}?` }
+    if (!clicked) return { say: `Which chart is it relative to? Click that chart first, or ask about one by name: ${listOf(charts)}.` }
+    if (!rel.hits.length) return { say: `There’s no chart ${where} here. Your charts are: ${listOf(charts)}.` }
+    if (rel.hits.length > 1) return { say: `More than one chart is ${where}. Which one do you mean: ${listOf(rel.hits)}?` }
+    names.add(rel.hits[0].ref)
+  } else if (saysOtherChart(s)) {
+    // "the other chart": one chart only on a board of two (the one not clicked); with more, it fits several — asked
+    if (charts.length === 2 && clicked) names.add(others[0].ref)
+    else return { say: `Which other chart do you mean: ${listOf(others)}?` }
+  } else if (negatedPointer(s)) {
+    // never the click: the walkthrough is about one chart, and the member left this one out. Exactly one left → that one
+    if (clicked && others.length === 1) names.add(others[0].ref)
+    else return { say: `A walkthrough shows one chart at a time, and you left out the one you clicked. Which one do you mean: ${listOf(others)}?` }
+  }
   const ord = ordinalChart(s, charts)
   if (ord && /chart/i.test(ord.match[0])) {
     if (ord.ask) return { say: `${ord.ask.text} ${listOf(charts)}.` }
@@ -97,8 +134,9 @@ export function namedChart(words, charts = []) {
   }
   const tf = TF_CHART.exec(s)
   const code = tf && !onBoard(tf[1], charts) ? tfCode(tf[1]) : null
-  if (code) {
-    const hits = charts.filter(c => chartTf(c) === String(code).toUpperCase())
+  // 3M is three months on a board that reads it so, and three minutes on one that reads 3
+  const hits = code ? charts.filter(c => [code.toUpperCase(), /^(\d+)M$/.exec(code)?.[1]].includes(chartTf(c))) : []
+  if (code && (hits.length || !SPAN.test(tf[1]))) {
     if (hits.length > 1) return { say: `More than one chart fits ${tf[1]}. Which one do you mean: ${listOf(hits)}?` }
     if (!hits.length) return { say: `No chart on this board is on ${tf[1]}, so I can’t show that on it. Your charts are: ${listOf(charts)}.` }
     names.add(hits[0].ref)
@@ -110,7 +148,7 @@ export function namedChart(words, charts = []) {
     if (hits.length > 1) return { say: `More than one chart shows ${word.toUpperCase()}. Which one do you mean: ${listOf(hits)}?` }
     if (!hits.length) {
       return { say: word === word.toUpperCase()
-        ? `There’s no ${word} chart on this board, so I can’t show that on it. Your charts are: ${listOf(charts)}.`
+        ? absent(word, charts)
         : `I can’t match “${word}” to a chart on this board. Your charts are: ${listOf(charts)}. Ask again with its ticker or its position.` }
     }
     names.add(hits[0].ref)
@@ -119,9 +157,19 @@ export function namedChart(words, charts = []) {
     const hits = charts.filter(c => sameSymbol(c, m[1]))
     if (hits.length === 1) names.add(hits[0].ref)
   }
+  // nothing on this board answers: a bare name is said too, never walked on the clicked chart
+  if (!names.size) {
+    for (const m of s.matchAll(BARE_TICKER)) {
+      if (!charts.some(c => sameSymbol(c, m[1])) && bareName(m[1])) return { say: absent(m[1], charts) }
+    }
+    for (const m of s.matchAll(BARE_LOWER)) {
+      const hit = charts.find(c => sameSymbol(c, m[1]))
+      if (hit && couldName(m[1])) return { say: `Did you mean the ${String(hit.symbol).toUpperCase()} chart?` }
+    }
+  }
   if (names.size > 1) return { say: `You named more than one chart. Ask about one of them: ${listOf(charts.filter(c => names.has(c.ref)))}.` }
   return names.size ? { chart: charts.find(c => names.has(c.ref)) } : null
 }
 
 /** Do these words name a chart at all (so they must reach `namedChart`)? */
-export const namesAChart = (words, charts = []) => !!namedChart(words, charts)
+export const namesAChart = (words, charts = [], sel = null) => !!namedChart(words, charts, sel)

@@ -11,11 +11,15 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import * as defSchema from '../../components/chart/engine/defSchema.js'
-import { getDefinition } from '../../components/chart/engine/nativeRegistry.js'
+import { RS_LINE_SLIM_RAW, RS_LINE_V5_RAW, rsSplitEnabled } from '../../components/chart/engine/nativeRegistry.js'
 import {
   CARD_FIELDS, CARD_KEYS, CARDS, GLOSSARY, MISCONCEPTIONS, RS_DEF_ID, TAGLINE, TEACHING_VERSION, TOUR,
-  buildTeachingExport, cardsFromReadout, serializeTeachingExport,
+  buildTeachingExport, cardsFromReadout, rsTeachingReadout, serializeTeachingExport,
 } from './teaching.js'
+
+// U9: 15 terms of 04 §c + the three RS indicators the split added (teachingData.js);
+// 2026-11-12: + UCT RS Exit Warnings and its three warnings (Quick Break, Quicksand, Grateful Dead Break).
+const GLOSSARY_COUNT = 22
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const EXPORT_PATH = path.resolve(HERE, '..', '..', '..', '..', 'api', 'data', 'rs_teaching.json')
@@ -68,7 +72,7 @@ describe('rs teaching export', () => {
   it('has the shape {version, glossary, misconceptions, tour, cards}', () => {
     const obj = buildTeachingExport()
     expect(obj.version).toBe(TEACHING_VERSION)
-    expect(obj.glossary).toHaveLength(15)
+    expect(obj.glossary).toHaveLength(GLOSSARY_COUNT)
     expect(obj.misconceptions).toHaveLength(8)
     expect(obj.tour).toHaveLength(5)
     expect(Object.keys(obj.cards)).toEqual([...CARD_KEYS])
@@ -76,9 +80,9 @@ describe('rs teaching export', () => {
 })
 
 describe('glossary', () => {
-  it('15 unique keys and terms, each with a definition and optional string aliases', () => {
-    expect(new Set(GLOSSARY.map((t) => t.key)).size).toBe(15)
-    expect(new Set(GLOSSARY.map((t) => t.term.toLowerCase())).size).toBe(15)
+  it('18 unique keys and terms, each with a definition and optional string aliases', () => {
+    expect(new Set(GLOSSARY.map((t) => t.key)).size).toBe(GLOSSARY_COUNT)
+    expect(new Set(GLOSSARY.map((t) => t.term.toLowerCase())).size).toBe(GLOSSARY_COUNT)
     for (const t of GLOSSARY) {
       expect(Object.keys(t).every((k) => ['key', 'term', 'definition', 'aliases'].includes(k)), t.key).toBe(true)
       expect(typeof t.term).toBe('string')
@@ -103,12 +107,16 @@ describe('glossary', () => {
     expect(sentenceCount('Read as "beat X% of the group". Then this.')).toBe(2)
   })
 
-  it('the RS Rating carries the MEASURED Deepvue comparison (2026-11-08), not the 3 to 5 point MarketSurge figure', () => {
+  it('the RS Rating carries the MEASURED Deepvue comparison (2026-11-12), not the 3 to 5 point MarketSurge figure', () => {
     const rating = GLOSSARY.find((t) => t.key === 'rsRating')
-    // the measurement `tests/test_rs_parity_deepvue.py` rails, in plain words
-    expect(rating.definition).toContain('in the same order as Deepvue\'s RS rating')
-    expect(rating.definition).toContain('at 75 and above it reads within about a point')
-    expect(rating.definition).toContain('about 11 points lower, because UCT ranks against a liquid universe rather than every listed stock')
+    // the measurement `tests/test_rs_parity_reference.py` rails, in plain words: the wide-universe
+    // fit of 2026-11-12 (the 2026-11-08 record, "about 11 points lower against a liquid
+    // universe", described the cap universe the rating no longer ranks against)
+    expect(rating.definition).toContain('ranked against every stock we hold a recent price for, the way Deepvue\'s is')
+    expect(rating.definition).toContain('across 61 of its readings at 1, 3, 6, 9 and 12 months')
+    expect(rating.definition).toContain('ours sit about 3 points away on average with no lean either way')
+    expect(rating.definition).not.toContain('liquid universe')
+    expect(rating.definition).not.toContain('11 points')
     expect(rating.definition).toContain('it has not been measured against MarketSurge')
     expect(rating.definition).not.toContain('has not been measured yet')
     expect(ALL_TEXT.join('\n')).not.toMatch(/3\s*[–-]\s*5 points|±/)
@@ -166,11 +174,32 @@ describe('tour (D12)', () => {
 })
 
 describe('readout cards (read from the definition, never retyped)', () => {
-  const readout = getDefinition(RS_DEF_ID).readout
+  const readout = rsTeachingReadout()
 
   it('CARD_KEYS are the readout rows that carry a card, in reading order', () => {
     expect(CARD_KEYS.length).toBeGreaterThan(0)
     expect([...CARD_KEYS]).toEqual(readout.filter((r) => r.card).map((r) => r.key))
+  })
+
+  // U9: the export does not depend on which `rsLine` the build registered. The suite runs
+  // with the flag OFF (test-setup.js), where the registered definition is V5 with its eight
+  // extra cards; the export still carries the slim RS Line's seven, so the committed JSON is
+  // the same file under either flag and names no Reading the slim chart does not draw.
+  it('reads the SLIM UCT RS Line readout whichever rsLine the build registered (U9)', () => {
+    expect(rsSplitEnabled()).toBe(false)
+    expect(readout).toBe(RS_LINE_SLIM_RAW.readout)
+    expect(RS_LINE_SLIM_RAW.id).toBe(RS_DEF_ID)
+    const v5Cards = RS_LINE_V5_RAW.readout.filter((r) => r.card).map((r) => r.key)
+    expect(v5Cards).toEqual(expect.arrayContaining([...CARD_KEYS]))
+    for (const gone of ['mansfield', 'rotation', 'quality', 'vars', 'sensitivity', 'regime', 'fastRating', 'ratingView']) {
+      expect(v5Cards, `${gone} is a V5 card`).toContain(gone)
+      expect(CARD_KEYS, `${gone} must not be exported`).not.toContain(gone)
+    }
+    const text = serializeTeachingExport()
+    for (const word of ['Mansfield Relative Strength', 'Clenow', 'UCT fast', 'RS-Ratio', 'Regime', 'Agreement']) {
+      expect(JSON.stringify(buildTeachingExport().cards), word).not.toContain(word)
+    }
+    expect(text).toContain('"checks"')
   })
 
   it('each card is {label, what, origin, evidence} straight from its row', () => {

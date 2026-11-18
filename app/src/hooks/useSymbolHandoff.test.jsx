@@ -18,12 +18,14 @@ const prefetchMock = vi.fn()
 // `prepareForDisplay` resolves with the OUTCOME; tests drive it per case so a
 // degraded commit ('nodata'/'error') can be told apart from a successful one.
 const prepareMock = vi.fn(async () => new Promise(() => {}))   // pending by default
+const prepareDailyMock = vi.fn(async () => new Promise(() => {}))
 vi.mock('../utils/prefetchBars', () => ({
   prefetchBarsToIDB: (...a) => prefetchMock(...a),
   prepareForDisplay: (...a) => prepareMock(...a),
+  prepareDailyForDisplay: (...a) => prepareDailyMock(...a),
 }))
 
-import useSymbolHandoff, { peekDisplayable } from './useSymbolHandoff'
+import useSymbolHandoff, { peekDisplayable, DAILY_HOLD_MAX_MS } from './useSymbolHandoff'
 
 // Mid-session Wednesday, so there IS a frontier to be behind.
 const NOW = new Date('2026-09-16T15:55:00-04:00').getTime()
@@ -39,6 +41,7 @@ beforeEach(() => {
   memState.clear(); idbState.clear()
   idbGetMock.mockClear(); prefetchMock.mockClear()
   prepareMock.mockReset(); prepareMock.mockImplementation(() => new Promise(() => {}))
+  prepareDailyMock.mockReset(); prepareDailyMock.mockImplementation(() => new Promise(() => {}))
   vi.useFakeTimers()
   vi.setSystemTime(NOW)
 })
@@ -206,22 +209,77 @@ describe('scope — what the handoff must NOT hold back', () => {
     expect(result.current).toBe('AAPL')
   })
 
-  it('DAILY commits immediately EVEN WITH A COLD CACHE — daily speed is protected', () => {
-    // No mem entry at all. Daily must not start waiting on this coordinator:
-    // the defect is intraday, daily already paints from the pack, and "do not
-    // regress global daily chart speed" is an explicit constraint.
+  it('DAILY held in mem commits immediately and asks nothing of the coordinator', () => {
+    memState.set('B_D', [{ t: '2026-09-15', c: 1 }])
     const { result, rerender } = renderHook(
       ({ s }) => useSymbolHandoff(s, 'D'), { initialProps: { s: 'A' } })
     act(() => { rerender({ s: 'B' }) })
     expect(result.current).toBe('B')
-    expect(prefetchMock).not.toHaveBeenCalled()
+    expect(prepareDailyMock).not.toHaveBeenCalled()
   })
 
-  it('W and M pass straight through too', () => {
+  it('DAILY not in mem keeps A whole while the cached set is promoted, then B commits', async () => {
+    let done
+    prepareDailyMock.mockImplementation(() => new Promise(r => { done = r }))
+    const { result, rerender } = renderHook(
+      ({ s }) => useSymbolHandoff(s, 'D'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'B' }) })
+    expect(prepareDailyMock).toHaveBeenCalledWith('B', 'D', { signal: expect.any(AbortSignal) })
+    expect(result.current).toBe('A')          // never B over a blank canvas
+    await act(async () => { done('current'); await vi.advanceTimersByTimeAsync(1) })
+    expect(result.current).toBe('B')
+  })
+
+  it('DAILY never holds past the bound: a slow network gets the chart its loading state', async () => {
+    prepareDailyMock.mockImplementation(() => new Promise(() => {}))
+    const { result, rerender } = renderHook(
+      ({ s }) => useSymbolHandoff(s, 'D'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'B' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(DAILY_HOLD_MAX_MS - 1) })
+    expect(result.current).toBe('A')
+    await act(async () => { await vi.advanceTimersByTimeAsync(2) })
+    expect(result.current).toBe('B')
+  })
+
+  it('a daily prepare for an earlier symbol never commits it over a newer request', async () => {
+    const resolvers = {}
+    prepareDailyMock.mockImplementation((s) => new Promise(r => { resolvers[s] = r }))
+    const { result, rerender } = renderHook(
+      ({ s }) => useSymbolHandoff(s, 'D'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'B' }) })
+    act(() => { rerender({ s: 'C' }) })
+    await act(async () => { resolvers.B('current'); await vi.advanceTimersByTimeAsync(5) })
+    expect(result.current).toBe('A')
+    await act(async () => { resolvers.C('current'); await vi.advanceTimersByTimeAsync(5) })
+    expect(result.current).toBe('C')
+  })
+
+  it('a superseded daily prepare is aborted, so a walk leaves no request behind', () => {
+    const { rerender } = renderHook(
+      ({ s }) => useSymbolHandoff(s, 'D'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'B' }) })
+    const first = prepareDailyMock.mock.calls[0][2].signal
+    expect(first.aborted).toBe(false)
+    act(() => { rerender({ s: 'C' }) })
+    expect(first.aborted).toBe(true)
+    expect(prepareDailyMock.mock.calls[1][2].signal.aborted).toBe(false)
+  })
+
+  it('past the bound the prepare is aborted too: the chart owns the fetch from there', async () => {
+    const { rerender } = renderHook(
+      ({ s }) => useSymbolHandoff(s, 'D'), { initialProps: { s: 'A' } })
+    act(() => { rerender({ s: 'B' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(DAILY_HOLD_MAX_MS + 1) })
+    expect(prepareDailyMock.mock.calls[0][2].signal.aborted).toBe(true)
+  })
+
+  it('W and M take the same bounded path', async () => {
     for (const tf of ['W', 'M']) {
+      prepareDailyMock.mockImplementation(async () => 'current')
       const { result, rerender } = renderHook(
         ({ s }) => useSymbolHandoff(s, tf), { initialProps: { s: 'A' } })
       act(() => { rerender({ s: 'B' }) })
+      await act(async () => { await vi.advanceTimersByTimeAsync(1) })
       expect(result.current).toBe('B')
     }
   })

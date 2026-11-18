@@ -27,6 +27,15 @@ function walk(node, visit) {
   }
 }
 const find = (root, pred) => { const out = []; walk(root, (n) => { if (pred(n)) out.push(n) }); return out }
+/** RS RATING L3: bind.js::BIND_SYMBOL_FIELDS, read off its source by the same parse (bind.js imports
+ *  JSON, so node cannot load it bare): the projection's own list, never restated here. */
+const BIND_SYMBOL_FIELDS = (() => {
+  const text = read(new URL('../ast/bind.js', RT))
+  const [d] = find(ast(text), (n) => n.type === 'VariableDeclarator' && n.id.type === 'Identifier' && n.id.name === 'BIND_SYMBOL_FIELDS')
+  const arr = d && d.init.type === 'CallExpression' ? d.init.arguments[0] : null
+  assert.ok(arr && arr.type === 'ArrayExpression' && arr.elements.length, 'bind.js declares BIND_SYMBOL_FIELDS as a frozen list')
+  return arr.elements.map((e) => e.value)
+})()
 const keyName = (p) => (p.key.type === 'Identifier' ? p.key.name : String(p.key.value))
 
 /** A value as "what it reads": a constant by its name (`X` or `rt.X`), a literal, or an argument. */
@@ -48,6 +57,12 @@ function shapeOf(node, text) {
       Object.assign(out, shapeOf(p.argument.consequent, text))
     } else if (p.type === 'SpreadElement' && p.argument.type === 'MemberExpression') {
       out['...'] = 'copy' // `{ ...ctx.runtimeInputs }`: a copy of the caller's map
+    } else if (p.type === 'SpreadElement' && p.argument.type === 'CallExpression'
+      && p.argument.callee.type === 'Identifier' && p.argument.callee.name === 'bindSymbolOf') {
+      // RS RATING L3: `...bindSymbolOf(x)` carries every field of bind.js::BIND_SYMBOL_FIELDS (the
+      // projection's own list, read from the module, never restated here)
+      const from = text.slice(p.argument.arguments[0].start, p.argument.arguments[0].end)
+      for (const f of BIND_SYMBOL_FIELDS) out[f] = `expr:${from}.${f}`
     } else {
       throw new Error(`an object part the HP-7 parse does not read: ${text.slice(p.start, p.end)}`)
     }
@@ -111,10 +126,15 @@ function drift(b, s) {
   if (JSON.stringify(Object.keys(b.def)) !== JSON.stringify(Object.keys(s.def))) out.push(`def keys ${Object.keys(b.def)} vs ${Object.keys(s.def)}`)
   if (s.def.meta !== `expr:${DECLARED_DIFFERENCES.defMeta}`) out.push(`def.meta is ${JSON.stringify(s.def.meta)}`)
   const bc = without(b.ctx, DECLARED_DIFFERENCES.ctxBrowserOnly)
-  if (JSON.stringify(Object.keys(bc)) !== JSON.stringify(Object.keys(s.ctx))) out.push(`ctx keys ${Object.keys(bc)} vs ${Object.keys(s.ctx)}`)
-  if (JSON.stringify(bc.symbol) !== JSON.stringify(s.ctx.symbol && Object.fromEntries(Object.keys(s.ctx.symbol).map((k) => [k, bc.symbol && bc.symbol[k]])))) {
-    out.push('ctx.symbol shape')
+  const serverCtx = Object.keys(DECLARED_DIFFERENCES.ctxServerOnly)
+  const sc = without(s.ctx, serverCtx)
+  if (JSON.stringify(Object.keys(bc)) !== JSON.stringify(Object.keys(sc))) out.push(`ctx keys ${Object.keys(bc)} vs ${Object.keys(sc)}`)
+  for (const k of serverCtx) {
+    if (s.ctx[k] !== `literal:${JSON.stringify(DECLARED_DIFFERENCES.ctxServerOnly[k])}`) out.push(`server-only ctx ${k} is ${s.ctx[k]}`)
   }
+  const bs = Object.keys(without(bc.symbol || {}, DECLARED_DIFFERENCES.ctxSymbolBrowserOnly))
+  const ss = Object.keys(s.ctx.symbol || {})
+  if (JSON.stringify(bs) !== JSON.stringify(ss)) out.push(`ctx.symbol shape ${bs} vs ${ss}`)
   if (JSON.stringify(b.row) !== JSON.stringify(s.row)) out.push(`row keys ${b.row} vs ${s.row}`)
   return out
 }
@@ -127,7 +147,12 @@ test('HP-7: the service adapter builds the browser worker\'s (def, rows, ctx, op
   assert.deepEqual(b.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS' })
   assert.deepEqual(s.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS', incremental: 'literal:false' })
   assert.deepEqual(b.row, ['t', 'o', 'h', 'l', 'c', 'v'])
-  assert.deepEqual(Object.keys(s.ctx), ['tf', 'newestBarIsForming', 'historyFromListing', 'runtimeInputs', 'symbol', 'historyWindowBars'])
+  assert.deepEqual(Object.keys(s.ctx), ['tf', 'newestBarIsForming', 'historyFromListing', 'runtimeInputs', 'symbol', 'otherSymbolSupply', 'historyWindowBars'])
+  // RS RATING L3 / L5: the browser ships every bind field and the other-symbol cache; the server
+  // ships neither, and says so (DECLARED_DIFFERENCES), so the parse read them rather than skipped them
+  assert.deepEqual(Object.keys(b.ctx.symbol), [...BIND_SYMBOL_FIELDS])
+  assert.ok('secondaryEntries' in b.ctx)
+  assert.deepEqual(Object.keys(s.ctx.symbol), ['ticker', 'exchange'])
   // W9-T11: both hosts forward the window from their own ctx, never from a literal
   assert.equal(b.ctx.historyWindowBars, 'expr:ctx.historyWindowBars')
   assert.equal(s.ctx.historyWindowBars, 'expr:job.ctx.historyWindowBars')
@@ -138,6 +163,8 @@ test('HP-7: every declared difference is still a real one (no stale declaration)
   assert.deepEqual(SERVER_ONLY_OPTS, { incremental: false })
   for (const k of Object.keys(SERVER_ONLY_OPTS)) assert.ok(!(k in b.opts), `the browser does not pass ${k}`)
   for (const k of DECLARED_DIFFERENCES.ctxBrowserOnly) assert.ok(k in b.ctx, `the browser still ships ctx.${k}`)
+  for (const k of DECLARED_DIFFERENCES.ctxSymbolBrowserOnly) assert.ok(k in b.ctx.symbol, `the browser still ships ctx.symbol.${k}`)
+  for (const k of Object.keys(DECLARED_DIFFERENCES.ctxServerOnly)) assert.ok(!(k in b.ctx), `the browser does not ship ctx.${k}`)
   assert.notEqual(b.def.meta, `expr:${DECLARED_DIFFERENCES.defMeta}`, 'the browser meta still differs')
 })
 
@@ -150,6 +177,10 @@ test('HP-7 can fail: drift in any argument of the server adapter is named', () =
     ['a ctx key added', '    tf: job.tf,\n', '    tf: job.tf,\n    framed: true,\n', /ctx keys/],
     ['a row key dropped', ', v: v[i] }', ' }', /row keys/],
     ['def meta projected', 'meta: doc.meta }', 'meta: {} }', /def\.meta/],
+    ['a declared symbol field mirrored', 'exchange: job.symbol.exchange },', 'exchange: job.symbol.exchange, industry: job.symbol.industry },', /ctx\.symbol shape/],
+    ['a symbol field dropped', '{ ticker: job.symbol.ticker, exchange: job.symbol.exchange },', '{ ticker: job.symbol.ticker },', /ctx\.symbol shape/],
+    ['the server-only ctx flipped', '    otherSymbolSupply: false,\n', '    otherSymbolSupply: true,\n', /server-only ctx otherSymbolSupply/],
+    ['the server-only ctx dropped', '    otherSymbolSupply: false,\n', '', /server-only ctx otherSymbolSupply/],
   ]
   const text = files.job.replace(/\r\n/g, '\n')
   for (const [name, from, to, expect] of edits) {

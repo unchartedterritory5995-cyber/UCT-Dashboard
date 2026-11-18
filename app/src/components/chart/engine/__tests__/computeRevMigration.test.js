@@ -61,6 +61,18 @@ describe('compute.rev — the revision a stored binding migrates on', () => {
     // server lane writes one) is the default spelled out and must not be read as
     // a bump. Both sides filter identically.
     // rsLine 5 since Deepvue round 2 (2026-11-08), with ADDRESS_REVS beside it
-    expect(parsed.filter(([, rev]) => rev !== 1)).toEqual([['vwap', 2], ['rsLine', 5]])
+    // ⭐ UCT RS split, U7 (2026-11-09): the source authors TWO `rsLine` definitions
+    // (v5 and the slim one; `VITE_RS_SPLIT_ENABLED` registers one), both at rev 5,
+    // so the regex meets the pair twice. Read per id, and what must hold is
+    // stronger than before: ONE id never carries two revisions in the source — a
+    // second definition authored at a different rev would be a migration nobody
+    // ran, and that is the event this rail watches for.
+    const byId = new Map()
+    for (const [id, rev] of parsed.filter(([, r]) => r !== 1)) {
+      expect(byId.has(id) ? byId.get(id) : rev, `${id} is authored at two revisions`).toBe(rev)
+      byId.set(id, rev)
+    }
+    expect([...byId]).toEqual([['vwap', 2], ['rsLine', 5]])
+    expect(parsed.filter(([id]) => id === 'rsLine').length, 'the two rsLine definitions, both read').toBe(2)
   })
 })

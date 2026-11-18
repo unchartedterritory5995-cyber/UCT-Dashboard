@@ -21,6 +21,8 @@ function snap(host) {
 
 export const breadthPageKind = {
   name: 'breadthPage',
+  source: 'breadthPage',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "The breadth sheet isn't available on this page — open Breadth to use it.",
   boardScoped: false,
   selfDescribing: true,
   list: (host) => { const s = snap(host); return s ? [s] : [] },

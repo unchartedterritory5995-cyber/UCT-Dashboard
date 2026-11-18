@@ -76,6 +76,29 @@ export function displaySubmenu(options, current, onMove, instanceId) {
   })
 }
 
+/** UCT Signature — the dimmed "where it draws now" words on the Display in row. */
+const DISPLAY_DETAIL = Object.freeze({ price: 'Price pane', volume: 'Volume pane', pane: 'Own pane' })
+
+/**
+ * The words for the CURRENT display target, for the Display in row's dimmed right side.
+ * The shared three have fixed words; a pane hosted by another series reads `<its label> pane`
+ * (the label `displayTargetOptions` gave it); an orphan reads that helper's own words.
+ * `undefined` when nothing is known — the row then shows no detail rather than a guess.
+ */
+export function displayDetailOf(options, current) {
+  if (typeof current !== 'string' || !current) return undefined
+  if (DISPLAY_DETAIL[current]) return DISPLAY_DETAIL[current]
+  const list = Array.isArray(options) ? options : NO_OPTIONS
+  const hit = list.find((o) => o && o.value === current)
+  if (!hit || typeof hit.label !== 'string' || !hit.label) return undefined
+  return hit.missing ? hit.label : `${hit.label} pane`
+}
+
+/** UCT Signature — the menu's group labels, sentence case (docs/uct-signature-style.md). */
+export const CHIP_MENU_GROUPS = Object.freeze({
+  line: 'This line', settings: 'Settings', copies: 'Copies', more: 'More',
+})
+
 /** The member's word for "no preset matches". Not a preset id, never written. */
 export const CUSTOM_PRESET_LABEL = 'Custom'
 
@@ -131,8 +154,17 @@ export function presetSubmenu(presets, currentId, onPreset, instanceId) {
 /**
  * Track B V1's rows, in the declared order, from ONE source.
  *
- *   Hide/Show · Display in ▸ · ——— · Edit in Indicators · Duplicate · Alert ·
- *   About · ——— · Delete
+ *   This line: Hide/Show · Display in ▸ · (Reset pane height) · (Preset ▸)
+ *   Settings:  Edit in Indicators · Value in header ✓ · (Modify · Edit formula · upgrade)
+ *   Copies:    Duplicate on chart · (Create custom copy)
+ *   More:      (Doesn't match TradingView?) · Add alert · About
+ *   ———
+ *   Delete
+ *
+ * ⭐ UCT SIGNATURE (owner, 2026-11-15): small grey `{ groupLabel }` rows name each group
+ * where the old dividers sat (a group with no rows gets no label); Delete stays alone below
+ * the one rule. A group label has no `key` and no handler — `paneMenuItems` and every caller
+ * that finds rows by key never see it.
  *
  * ⭐ THE ORDER IS THE HIERARCHY THE OWNER APPROVED: visibility and placement are
  * the high-frequency verbs and sit at the top; the full editor and the additive
@@ -158,6 +190,8 @@ export function presetSubmenu(presets, currentId, onPreset, instanceId) {
  * @param {object} [caps] what the CALLER knows and this file cannot:
  *   `{alertsRefusal, displayOptions, displayCurrent, canDuplicate}`
  *   ⭐ PHASE 4 — `{definitionKind: 'user'|'builtin'|'other', canModify, copyRefusal}`
+ *   ⭐ RS split U3 — `paneSizeStored: true` when the instance's host pane carries a
+ *   stored member size; with `h.onResetPaneSize` it offers "Reset pane height"
  * @returns {Array} rows for `mobile/ContextPopover`
  */
 export function chipMenuItems(chip, def, h, caps = {}) {
@@ -182,6 +216,7 @@ export function chipMenuItems(chip, def, h, caps = {}) {
   const name = (namesItsSource && chip.label)
     || (def && def.meta && def.meta.name) || chip.defId
   const rows = [
+    { groupLabel: CHIP_MENU_GROUPS.line },
     {
       // ⛔ THE ROW STATES WHICH WAY IT GOES. A toggle labelled "Hide" on a label
       // that is ALREADY hidden is a lie, and `data-hidden` is the only other
@@ -200,12 +235,29 @@ export function chipMenuItems(chip, def, h, caps = {}) {
       key: 'move',
       label: 'Display in',
       icon: 'expand',
+      // UCT Signature: where it draws now, dimmed on the right.
+      detail: displayDetailOf(caps.displayOptions, caps.displayCurrent),
       disabled: movable ? undefined : (submenu.length
         ? 'this series is already in the only pane it can draw in'
         : 'this indicator draws on the candles’ scale and has nowhere else it can be placed'),
       submenu,
     },
   ]
+  // ⭐ RS split U3 — RESET PANE HEIGHT, right under Display in (the other
+  // placement verb). Offered ONLY when the caller says this instance's host pane
+  // carries a stored member size (`caps.paneSizeStored`) and wires the handler:
+  // a pane on its computed default has nothing to reset, and a row that does
+  // nothing is the control this file refuses to offer. The caller resolves the
+  // host pane key and calls `paneSizes.clearPaneSize` — "return to automatic";
+  // this file reads no settings and names no pane.
+  if (caps.paneSizeStored === true && typeof h.onResetPaneSize === 'function') {
+    rows.push({
+      key: 'pane-size-reset',
+      label: 'Reset pane height',
+      icon: 'refresh',
+      onClick: () => h.onResetPaneSize(chip.instanceId),
+    })
+  }
   // ⭐ PHASE 2a (A6) — PRESET ▸, right after Display in, for a definition that
   // declares `meta.presets`. Offered only when the caller wires `h.onPreset` and
   // hands the presets in (`caps.presets`, the `presetsOf(def)` list) — this file
@@ -223,7 +275,7 @@ export function chipMenuItems(chip, def, h, caps = {}) {
     })
   }
   rows.push(
-    { separator: true },
+    { groupLabel: CHIP_MENU_GROUPS.settings },
     {
       // ⭐ THE FULL EDITOR. One channel — see `StockChart.handleChipSettings`.
       key: 'settings',
@@ -236,11 +288,16 @@ export function chipMenuItems(chip, def, h, caps = {}) {
   // REFERENCE `{instanceId, plotKey}` (`engine/infoValues.js`) and nothing else:
   // the output keeps its type and its compute. Offered only when the caller wires
   // it; a refusal (an output that cannot be referenced) is shown, never hidden.
+  // ⭐ UCT SIGNATURE — ONE ROW, "Value in header", with a gold ✓ while it is on (`checked`);
+  // the same key and the same handler as the two-label toggle it replaced.
   if (typeof h.onInfoValue === 'function') {
     const on = caps.infoValueOn === true
     rows.push({
       key: 'info-value',
-      label: on ? 'Remove value from header' : 'Show latest value in header',
+      label: 'Value in header',
+      checked: on,
+      hint: on ? 'Remove this line’s latest value from the chart’s header'
+        : 'Show this line’s latest value in the chart’s header',
       icon: 'info',
       disabled: on ? undefined : (caps.infoValueRefusal || undefined),
       onClick: (!on && caps.infoValueRefusal) ? undefined : () => h.onInfoValue(chip.instanceId, chip.plotKey, on),
@@ -254,12 +311,19 @@ export function chipMenuItems(chip, def, h, caps = {}) {
   // with Create Indicator access (the caller asks the same gate the studio uses).
   const userDef = caps.definitionKind === 'user'
   if (userDef && caps.canModify && typeof h.onModify === 'function') {
-    rows.push({ key: 'modify', label: 'Modify with UCT Intelligence', icon: 'sparkle',
+    // goldIcon: the UCT Agent's ✦ is always gold (§2b.5).
+    rows.push({ key: 'modify', label: 'Modify with the UCT Agent', icon: 'sparkle', goldIcon: true,
       onClick: () => h.onModify(chip.instanceId) })
   }
   if (userDef && typeof h.onEditFormula === 'function') {
     rows.push({ key: 'edit-formula', label: 'Edit formula', icon: 'edit',
       onClick: () => h.onEditFormula(chip.instanceId) })
+  }
+  // ⭐ R1 (Studio plan) — RUN IT OVER A LIST, from the indicator itself. Opens the Screener's existing
+  // run flow on this indicator (`screener/scanLink`); the Screener says whether it can scan and why not.
+  if (userDef && typeof h.onRunOverList === 'function') {
+    rows.push({ key: 'run-list', label: 'Run over a list', icon: 'search',
+      onClick: () => h.onRunOverList(chip.instanceId) })
   }
   // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — ONE quiet row, only for the member's own Pine
   // script saved before its source was kept (`savedScriptUpgrade.needsScriptForUpgrade`):
@@ -270,6 +334,8 @@ export function chipMenuItems(chip, def, h, caps = {}) {
     rows.push({ key: 'script-upgrade', label: caps.scriptUpgradeLabel || 'Updated accuracy available',
       icon: 'info', onClick: () => h.onScriptUpgrade(chip.instanceId) })
   }
+  const canCopy = (caps.definitionKind === 'user' || caps.definitionKind === 'builtin') && typeof h.onCustomCopy === 'function'
+  if (caps.canDuplicate !== false || canCopy) rows.push({ groupLabel: CHIP_MENU_GROUPS.copies })
   if (caps.canDuplicate !== false) {
     rows.push({
       key: 'duplicate',
@@ -281,7 +347,7 @@ export function chipMenuItems(chip, def, h, caps = {}) {
       onClick: () => h.onDuplicate(chip.instanceId),
     })
   }
-  if ((caps.definitionKind === 'user' || caps.definitionKind === 'builtin') && typeof h.onCustomCopy === 'function') {
+  if (canCopy) {
     rows.push({
       key: 'custom-copy',
       // A NEW, independent definition the member owns — the built-in (or the source
@@ -297,6 +363,7 @@ export function chipMenuItems(chip, def, h, caps = {}) {
   // TradingView?" for an imported Pine script that translated fully and still looks
   // different. The CALLER decides (`caps.reportMismatch`: the document is a Pine
   // translation AND the server's report flag is on); this file only places the row.
+  rows.push({ groupLabel: CHIP_MENU_GROUPS.more })
   if (caps.reportMismatch === true && typeof h.onReportMismatch === 'function') {
     rows.push({
       key: 'report-mismatch',

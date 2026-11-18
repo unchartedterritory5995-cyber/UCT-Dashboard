@@ -28,11 +28,16 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCREEN_GROUPS_JS = ROOT / "app" / "src" / "pages" / "screener" / "focus" / "screenGroups.js"
 COLUMN_DEFS_JS = ROOT / "app" / "src" / "pages" / "screener" / "columnDefs.js"
 
-BARS = frozenset(rs_columns.COLUMNS)
+# the RS_V2 bar family: the ten plus the five RS Exit Warning columns (2026-11-13), one writer, one gate
+BARS = frozenset(rs_columns.COLUMNS) | frozenset(rs_columns.EXIT_COLUMNS)
 RATINGS = frozenset(snapshot_builder._RS_HISTORY_COLUMNS)
 #: Unit 3-11 (2026-11-07): the third family, written by the same step only while
 #: RS_V3 is armed too (`filters.rs_dark_keys`).
 PHASE3 = frozenset(rs_columns.PHASE3_COLUMNS)
+#: RS screens unit U1 (2026-11-14): the fourth family, written by `rs_post_pass.run` only
+#: while RS_SCREENS_ENABLED is on. Its own rails are tests/test_rs_screens_u1_registration.py;
+#: here it is DARK (the flag is unset), so `meta()` serves none of it in any test below.
+SCREENS = frozenset(filters.RS_SCREENS_KEYS)
 
 
 def _main_stub(history):
@@ -109,7 +114,7 @@ def test_every_starter_group_resolves_to_its_own_GROUPS_key(tmp_path, monkeypatc
     unresolved = sorted(lab for lab in labels if _client_group_of(lab, groups) is None)
     assert not unresolved, f"starter groups with no GROUPS row (fall back to momentum): {unresolved}"
     rs = [s for s in starters if s.get("group") == ss.RS_STARTER_GROUP]
-    assert len(rs) == 7
+    assert len(rs) == 9      # 7 -> 9 on 2026-11-13: the two RS Exit Warning starters
     assert {_client_group_of(s["group"], groups) for s in rs} == {"relative_strength"}
     # and only Momentum-labelled starters land in momentum
     for s in starters:
@@ -134,7 +139,7 @@ def test_rs_starters_ship_when_RS_V2_is_on(tmp_path, monkeypatch):
     ss = _svc(tmp_path, monkeypatch)
     monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
     rs = [s for s in ss.starters() if s["id"].startswith("starter_rs_")]
-    assert len(rs) == 7
+    assert len(rs) == 9      # 7 -> 9 on 2026-11-13: the two RS Exit Warning starters
     assert {s["group"] for s in rs} == {ss.RS_STARTER_GROUP}
 
 
@@ -154,15 +159,21 @@ def _served(m):
 
 
 def test_the_two_families_are_the_writers_and_the_category_split_matches():
-    assert len(BARS) == 10 and len(RATINGS) == 7 and len(PHASE3) == 3
+    assert len(BARS) == 15 and len(RATINGS) == 8 and len(PHASE3) == 3
     assert not (BARS & RATINGS) and not (PHASE3 & (BARS | RATINGS))
     family = {k for k, f in filters.FILTERS.items() if f["category"] == "relative_strength"}
-    assert family == BARS | RATINGS | PHASE3
-    assert filters.rs_dark_keys(v2_on=False, history_on=True, v3_on=True) == BARS | PHASE3
-    assert filters.rs_dark_keys(v2_on=True, history_on=False, v3_on=True) == RATINGS
-    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=True) == frozenset()
+    # Pins moved 2026-11-14 (RS screens U1): a fourth family joined the category. It is switched
+    # on here (`screens_on=True`) so each line still reads one of the first three flags alone.
+    assert len(SCREENS) >= 9 and not (SCREENS & (BARS | RATINGS | PHASE3))
+    assert family == BARS | RATINGS | PHASE3 | SCREENS
+    on = {"screens_on": True}
+    assert filters.rs_dark_keys(v2_on=False, history_on=True, v3_on=True, **on) == BARS | PHASE3
+    assert filters.rs_dark_keys(v2_on=True, history_on=False, v3_on=True, **on) == RATINGS
+    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=True, **on) == frozenset()
     # Phase 3 needs BOTH flags: its writer runs inside the RS_V2 step
-    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=False) == PHASE3
+    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=False, **on) == PHASE3
+    # ... and with its own flag off, the fourth family is the only thing dark
+    assert filters.rs_dark_keys(v2_on=True, history_on=True, v3_on=True, screens_on=False) == SCREENS
 
 
 def test_both_flags_off_no_rs_control_seat_view_or_category(monkeypatch):
@@ -189,7 +200,7 @@ def test_history_off_hides_the_rating_columns_and_their_presets(monkeypatch):
     assert "rs_rating_ibd" not in views["momentum"]
     assert {"rs_new_high", "rs_nh_before_price"} <= set(views["momentum"])
     assert not (set(views["relative_strength"]) & RATINGS), views["relative_strength"]
-    assert BARS <= set(views["relative_strength"])
+    assert BARS - filters.picker_hidden_keys() <= set(views["relative_strength"])  # S1: agree is picker-hidden
     assert not (comparable & RATINGS)
 
 
@@ -206,7 +217,15 @@ def test_both_flags_on_serves_the_whole_family_exactly_as_registered(monkeypatch
     m = _meta(monkeypatch, v2=True, history=True, v3=True)
     keys, views, cats, _comparable = _served(m)
     assert (BARS | RATINGS | PHASE3) <= keys
-    assert views == {k: v["columns"] for k, v in filters.VIEWS.items()}
+    # S1: the RS view drops only the picker-hidden keys; every other view is as registered.
+    hid = filters.picker_hidden_keys()
+    # Pin moved 2026-11-14 (RS screens U1): the dark fourth family has no seat in any view.
+    # Pin moved 2026-11-14 (RS screens U4): the four views that exist only for the RS screens
+    # (`filters.RS_SCREENS_VIEWS`) are served with the screens, so not here (the flag is off).
+    assert views == {k: [c for c in v["columns"]
+                         if c not in SCREENS and not (k == "relative_strength" and c in hid)]
+                     for k, v in filters.VIEWS.items() if k not in filters.RS_SCREENS_VIEWS}
+    assert not (keys & SCREENS), "RS_SCREENS_ENABLED is off: none of its controls is served"
     assert "relative_strength" in cats
     ibd = next(f for f in m["filters"] if f["key"] == "rs_rating_ibd")
     assert [p["label"] for p in ibd["presets"]] == ["Any", "Over 80", "Over 90"]
@@ -270,8 +289,17 @@ def test_rank_1m_does_not_claim_the_rating_weights_21_sessions():
     d = _desc("rs_rating_1m")
     assert "one of the four windows" not in d
     assert "does not weight" in d
-    # the 6M and 12M windows ARE weighted, and keep saying so
-    assert "one of the four windows" in _desc("rs_rating_6m")
+    # 6M, 9M and 12M ARE recency-weighted blends (2026-11-11), and say so in the rating's own words
+    for col in ("rs_rating_6m", "rs_rating_9m", "rs_rating_12m"):
+        assert "recency-weighted" in _desc(col), col
+        assert "63-session close ratio counts double" in _desc(col), col
+    assert "recency-weighted" not in d and "counts double" not in d, "1M stays a plain return"
+    # 3M is the equal-weighted average of the 1-, 2- and 3-month returns (2026-11-12): said in words, and not
+    # dressed as the recency-weighted blend or as the plain 63-session return it used to be
+    d3 = _desc("rs_rating_3m")
+    assert "equal-weighted average of the 1-, 2- and 3-month returns" in d3
+    assert "21-, 42- and 63-session" in d3
+    assert "recency-weighted" not in d3 and "counts double" not in d3 and "plain 63-session" not in d3
 
 
 def test_no_unmeasured_frequency_claims_on_the_rs_highs():

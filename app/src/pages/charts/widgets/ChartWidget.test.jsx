@@ -7,10 +7,12 @@ import { WorkspaceContext } from '../WorkspaceContext'
 // Mock StockChart to surface the symbol + the change callback; mock the
 // auth-dependent hooks (useWatchlistAlerts/useFlagged need an AuthProvider)
 // and the presentational children the widget header renders.
+import { PanelSlotContext } from '../panelSlot'
 vi.mock('../../../components/StockChart', () => ({
-  default: ({ sym, onSymbolChange }) => (
+  default: ({ sym, onSymbolChange, onBarsReady }) => (
     <div>
-      <span data-testid="chart-sym">{sym}</span>
+      <span data-testid="chart-sym" data-has-ready={String(typeof onBarsReady === 'function')}>{sym}</span>
+      {onBarsReady && <button onClick={onBarsReady}>bars-ready</button>}
       <button onClick={() => onSymbolChange && onSymbolChange('AAPL')}>change</button>
     </div>
   ),
@@ -67,6 +69,18 @@ function Wrap({ color, initialGroups = { A: null, B: null, C: null, D: null } })
   )
 }
 
+// Speed pass 2026-11-09: the main board releases this panel's mount slot on first bars.
+test('a chart on the main board reports its first bars to the mount queue', () => {
+  const ready = vi.fn()
+  render(<PanelSlotContext.Provider value={ready}><Wrap color="A" /></PanelSlotContext.Provider>)
+  fireEvent.click(screen.getByText('bars-ready'))
+  expect(ready).toHaveBeenCalledTimes(1)
+})
+test('CONTROL: outside the main board the chart reports to nobody', () => {
+  render(<Wrap color="A" />)
+  expect(screen.getByTestId('chart-sym').dataset.hasReady).toBe('false')
+})
+
 test('defaults to SPY when its color group is empty', () => {
   render(<Wrap color="A" />)
   expect(screen.getByTestId('chart-sym').textContent).toBe('SPY')
@@ -84,13 +98,32 @@ test('symbol changes write back to the widgets color group only', () => {
   expect(screen.getByTestId('groupB').textContent).toBe('AAPL')
 })
 
-// The chart container is the focusable element that owns type-to-search.
-// It is the only element in the widget with tabIndex=0.
+// The chart REGION is the focusable element that owns type-to-search: the pane's
+// `role="region"` named "<symbol> <timeframe> price chart" (ChartPane.jsx).
+// ⚰️ This helper took "the only element in the widget with tabIndex=0". On 2026-11-17 every
+// header stat became a focusable button (fa3aeb2af7, ChartMetaRow's `tabIndex: 0`), a stat came
+// first in the document, and three tests below pressed their keys on a HEADER STAT: the key
+// never reached the chart, `openWith` was never called, and the tests went red on master while
+// the product still worked (checked on production: a letter typed on a focused chart opens the
+// ticker search). The "does NOT open" tests beside them kept passing for the wrong reason.
+// So the region is asked for by what it IS, and the helper refuses anything else.
 function chartSurface(container) {
-  const el = container.querySelector('[tabindex="0"]')
+  const el = container.querySelector('[role="region"][tabindex="0"]')
   if (!el) throw new Error('chart surface not found')
+  if (!/ price chart$/.test(el.getAttribute('aria-label') || '')) throw new Error(`not the chart region: ${el.getAttribute('aria-label')}`)
   return el
 }
+
+test('the chart region is not the first focusable element any more, and the helper still finds it', () => {
+  const { container } = render(<Wrap color="A" />)
+  const surface = chartSurface(container)
+  expect(surface.getAttribute('aria-label')).toMatch(/^SPY .*price chart$/)
+  // the premise of the note above: were the region first again, the old helper would be right
+  // again and this line is the one to delete
+  const first = container.querySelector('[tabindex="0"]')
+  expect(first).not.toBe(surface)
+  expect(first.getAttribute('data-stat-item')).toBeTruthy()
+})
 
 test('typing a letter opens ticker search', () => {
   openWithSpy.mockClear()
@@ -151,4 +184,41 @@ test('a bare letter bound to a drawing tool still opens ticker search', () => {
   expect(openWithSpy).toHaveBeenCalledWith('t')
   fireEvent.keyDown(surface, { key: 'a' })
   expect(openWithSpy).toHaveBeenCalledWith('a')
+})
+
+// 2026-11-13: the Leverage/Inverse control appeared 0.85 s after the candles at the median on
+// production (its lookup started when the chart reached the symbol). The widget now holds that
+// lookup for the rows ahead (lib/symbolResourceWarm.js), under the control's own key.
+test('the widget holds the leverage lookup for the rows a member is about to reach, and releases it', async () => {
+  const { warmSymbolResources, __resetSymbolResourceWarm } = await import('../../../lib/symbolResourceWarm')
+  __resetSymbolResourceWarm({ painted: true })
+  const urls = []
+  vi.stubGlobal('fetch', vi.fn(async (url) => {
+    urls.push(String(url))
+    return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ long: [], short: [] }) }
+  }))
+  try {
+    const { WidgetChromeContext } = await import('../widgetChromeContext')
+    const groups = { A: 'NVDA', B: null, C: null, D: null }
+    // CONTROL: a chart with no widget frame shows no control, makes no lookup, holds none
+    const bare = render(<Wrap color="A" initialGroups={groups} />)
+    urls.length = 0
+    warmSymbolResources(['AMD'], 'D', { priority: true })
+    await new Promise((r) => setTimeout(r, 60))
+    expect(urls.filter((u) => u.includes('single-stock-etfs'))).toEqual([])
+    bare.unmount()
+    __resetSymbolResourceWarm({ painted: true })
+    const view = render(<WidgetChromeContext.Provider value={{}}><Wrap color="A" initialGroups={groups} /></WidgetChromeContext.Provider>)
+    urls.length = 0
+    warmSymbolResources(['AAPL'], 'D', { priority: true })
+    // (a few asks go out at a time: the header's own reads may be ahead of it in the queue)
+    const { waitFor } = await import('@testing-library/react')
+    await waitFor(() => expect(urls).toContain('/api/single-stock-etfs/AAPL'))
+    view.unmount()
+    urls.length = 0
+    expect(warmSymbolResources(['MSFT'], 'D', { priority: true }), 'nothing is held once the widget is gone').toBe(0)
+    expect(urls).toEqual([])
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })

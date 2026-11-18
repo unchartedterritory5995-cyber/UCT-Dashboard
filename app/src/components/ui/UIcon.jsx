@@ -291,6 +291,8 @@ const ICONS = {
   flag: <path d="M5.5 21V3.8M5.5 3.8h10.5l-2 4 2 4H5.5" />,
   check: <path d="M5 12.5l4.5 4.5L19 6.5" />,
   x: <path d="M6 6l12 12M18 6L6 18" />,
+  /** The X (Twitter) mark: a filled logo, unlike its stroked neighbour `x`. */
+  xLogo: <path d="M17.7 3h3.1l-6.8 7.8L22 21h-6.3l-4.9-6.4L5.2 21H2.1l7.3-8.3L1.8 3h6.4l4.4 5.9zm-1.1 16.2h1.7L7.4 4.7H5.6z" fill="currentColor" stroke="none" />,
   expand: (
     <>
       <path d="M14 4h6v6" />

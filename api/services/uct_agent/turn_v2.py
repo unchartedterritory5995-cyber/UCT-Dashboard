@@ -25,6 +25,7 @@ import secrets
 import time
 from typing import Any, Callable
 
+from api.services import call_deadline
 from api.services.uct_agent import turn as t1
 
 log = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ ROUNDS_ENV = "UCT_AGENT_PLANNER_ROUNDS"
 TURN_USD_ENV = "UCT_AGENT_TURN_USD"
 DEFAULT_ROUNDS = 6
 DEFAULT_TURN_USD = 0.25
-MAX_CAPABILITIES_V2 = 200
+MAX_CAPABILITIES_V2 = 300                   # == manifest.contract.json catalog.maxRegistered (tests/test_uct_agent_contract.py parity)
 MAX_STEPS_PER_TURN = 12                     # the same ceiling as v1's MAX_OPS, per turn
 MAX_RESULT_CHARS = 2000
 PAUSE_TTL_S = 600
@@ -69,16 +70,27 @@ DOMAIN_TOOLS = ("chart", "board", "watchlist", "layout", "indicator", "drawing",
 #: capability prefix → domain tool (STEP-1); anything unlisted → history
 _DOMAIN_OF = {
     "chart": "chart", "chartSetup": "chart", "chartGrid": "chart", "volume": "chart", "pane": "chart",
+    "chartMenu": "chart",                                 # the chart's right-click menu: Ask AI about its stock, watermark Reset (#1106)
+    "chartFeatures": "chart",                             # a chart widget's Company Info panel + Earnings Strip (opts.dock)
+    "chartReplay": "chart",                               # ONE chart's bar replay playback (the toolbar's Replay / Time Machine bar)
     "board": "board", "widget": "board", "app": "board", "settings": "board", "guide": "board", "agent": "board",
+    "periodSort": "board",                                # C3-205..207: Tools → Custom-Period Sort (a workspace tool)
+    "compare": "board",                                   # Tools → Compare Symbols: the panel's Rotation / Overlay view (a workspace tool)
     "watchlist": "watchlist", "layout": "layout",
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
+    "volumeProfile": "indicator",                       # a chart's Volume Profile overlay (Chart Settings → Indicators; the carved-out key)
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
+    "newsLibrary": "news",                                # the member's UCT News library: saved headlines, notes, collections
     "playbook": "data",                                   # KN-1 knowledge capabilities
+    "cot": "data",                                        # Phase 2: CFTC Commitments of Traders positioning (cot.positioning)
+    "rs": "data",                                         # Phase 2: relative strength + sector / industry leadership (rs.compare)
+    "uctIntelligence": "chart",                           # the UCT Intelligence chart indicator: add / remove it, its layers on / off
+    "multiChart": "board",                                # the Multi Chart grid: the workspace as a whole (#1030)
 }
 _DOMAIN_TITLE = {
-    "chart": "a chart's symbol, timeframe, type, scale, session, theme, colours, display settings, volume, templates, panes",
-    "board": "the Charts workspace: widgets, tabs, arrangement, app settings, guides",
+    "chart": "a chart's symbol, timeframe, type, scale, session, theme, colors, display settings, volume, templates, panes",
+    "board": "the Charts workspace: widgets, tabs, arrangement, the Multi Chart grid, app settings, guides",
     "watchlist": "the member's saved watchlists and watchlist widgets",
     "layout": "saved layouts (open, create, save, rename, delete)",
     "indicator": "indicators on charts: add, remove, style, copy, drafts and saved definitions",
@@ -101,6 +113,7 @@ _UNDO_WEAK = re.compile(r"\b(?:restored|restoring|reversed|put (?:it|that|them|t
 ROUND_LIMIT = "I stopped there: that request needed more steps than one turn allows. What is done is shown above; ask for the rest on its own."
 TURN_CAP = "I stopped there: that request reached one turn's AI budget. What is done is shown above; ask for the rest on its own."
 STEP_TIMEOUT = "I stopped there: a step did not report back in time. What is done is shown above."
+TURN_DEADLINE = "I stopped there: that request ran too long. What is done is shown above; ask for the rest on its own."
 TRUNCATED = "That reply ran long and was cut off; what is done is shown above."
 NO_CHANGE_AFTER_RESEARCH = "no changes after a web lookup in the same turn: ask for the change on its own"
 ISOLATED_NOTE = ("[UCT showed the member this result on their screen. Its values are shown ONLY to the member and are "
@@ -569,6 +582,8 @@ def _rounds(state: dict, caller, meter, on_event, wait_step) -> dict:
         try:
             resp = t1._paid(meter, "v2_round", caller, **kwargs)
         except budget.BudgetRefused as e:
+            if e.reason == "turn_deadline":
+                return _final(state, TURN_DEADLINE, "turn_deadline")
             if e.reason != "turn_cap":
                 raise
             return _final(state, TURN_CAP, "turn_cap")   # the ledger's sum includes what this loop did not spend itself
@@ -712,6 +727,8 @@ def _send_group(state: dict, group: list, on_event, wait_step) -> dict | None:
         state["usage"]["stages"]["steps"].append(t1._ms(t0))
         if res is None:
             step["status"] = "timeout"
+            if call_deadline.expired():                  # the wait ended because the turn did
+                return _final(state, TURN_DEADLINE, "turn_deadline")
             return _final(state, STEP_TIMEOUT, "step_timeout")
         results.append(dict(res))
     if any(r.get("status") == "proposed" for r in results):
@@ -729,6 +746,8 @@ def _send_group(state: dict, group: list, on_event, wait_step) -> dict | None:
         state["awaiting"] = {"tool_use_id": uid, "step": step, "cap": cap,
                              "others": [{"tool_use_id": u, "step": st} for u, c, st in waiting[:-1]]}
         state["expires"] = time.time() + PAUSE_TTL_S
+        # active time so far: the resume's clock starts from it, and time on the card is not counted
+        state["active_s"] = float(state.get("active_s") or 0.0) + time.monotonic() - state["started"]
         _rails(state)["paused"] += 1
         if on_event is not None:
             on_event({"t": "paused", "turnId": state["token"], "id": step["id"]})

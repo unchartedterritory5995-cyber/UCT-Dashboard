@@ -18,15 +18,13 @@ import { pinWallClock } from '../testing/pinnedWallClock'
 //
 // /api/bars never answers in this file, so a draw can only come from the cache.
 
-// Every CANDLE set the chart hands LWC: when, and the first bar's open. The walk below
-// gives each ticker its own open, so a draw names the ticker it is of.
-const draws = vi.hoisted(() => [])
+// Candle draws, so the walk can see WHICH symbol's bars were drawn and when (each walk symbol's
+// bars open at its own price, `walkBase`).
+const draws = vi.hoisted(() => ({ list: [] }))
 vi.mock('lightweight-charts', async (importOriginal) => {
   const real = await importOriginal()
   const series = {
-    setData: (d) => {
-      if (Array.isArray(d) && d.length && d[0] && d[0].open !== undefined) draws.push({ at: Date.now(), open: d[0].open })
-    },
+    setData: (d) => { if (Array.isArray(d) && d.length && d[0]?.open != null) draws.list.push({ at: Date.now(), open0: d[0].open }) },
     update: () => {}, applyOptions: () => {}, priceScale: () => ({ applyOptions: () => {} }),
     createPriceLine: () => ({}), removePriceLine: () => {}, setMarkers: () => {}, attachPrimitive: () => {},
     detachPrimitive: () => {}, priceToCoordinate: () => 0, coordinateToPrice: () => 0, options: () => ({}),
@@ -95,6 +93,8 @@ function dailyEndingAt(endISO, n = 60, base = 100) {
   }
   return out.map((t, i) => ({ t, o: base + i, h: base + 2 + i, l: base - 1 + i, c: base + 1 + i, v: 1000 + i }))
 }
+/** Walk symbol Qn's bars open at their own price, so a candle draw names its symbol. */
+const walkBase = (sym) => 1000 * (Number(String(sym).slice(1)) + 1)
 
 let netCalls
 beforeEach(() => {
@@ -151,30 +151,23 @@ describe('a warmed daily neighbour draws from the cache on the first frame', () 
 // cache draw only if the pane is ready, naming the new ticker, well inside NET_MS.
 // Production (2026-10-16, after the close) measured odd steps fast and even steps
 // slow; this rail asserts EVERY step of an 8-step walk is fast.
-//
-// ⚠️ NET_MS 400 -> 1000, CACHE_MS 150 -> 500 (2026-11-08), THE RATIO KEPT. Since
-// 7f80af2a4 the pane hosts the whole /charts Chart widget, and jsdom takes 140-200 ms
-// to hand it a CACHED candle set (measured on this rail, every step under NET_MS, so
-// none came off the network). The bar separates a cache draw from a network one; it
-// was never a jsdom render budget. Mutation-proved: with the mem cache emptied every
-// step lands only after NET_MS and this rail goes red.
 describe('a Focus walk draws every step from the cache', () => {
   it('8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land', async () => {
-    const NET_MS = 1000, PAUSE_MS = 1300, CACHE_MS = 500
+    // The pane's chart is the full /charts Chart widget since 2026-10-18, and mounting it in jsdom
+    // takes 120-200 ms of a step whatever the cache holds. So the network is slow here (1 s) and
+    // a cache draw is anything inside 400 ms: the two are 2.5x apart, not 150 vs 400.
+    const NET_MS = 1000, PAUSE_MS = 1400, CACHE_MS = 400
     idbh.on = true; idbh.store.clear()
     try { localStorage.setItem('barspack.version', 'v1') } catch { /* ignore */ }
     const { default: useFocusSelection } = await import('../pages/screener/focus/useFocusSelection')
     const { default: ChartPane } = await import('../pages/screener/focus/ChartPane')
     const { act } = await import('@testing-library/react')
-    const { MemoryRouter } = await import('react-router-dom')
     const syms = Array.from({ length: 14 }, (_, i) => `Q${i}`)
     const rows = syms.map(t => ({ ticker: t }))
-    // Each ticker's bars open at its own price, so a candle set names its ticker.
-    const baseOf = (s) => 100 + 1000 * Number(String(s).slice(1))
     vi.stubGlobal('fetch', vi.fn((url) => {
       netCalls.push(String(url))
       const m = String(url).match(/\/api\/bars\/(Q\d+)\?/)
-      if (m) return new Promise(r => setTimeout(() => r({ ok: true, status: 200, json: () => Promise.resolve({ ticker: m[1], bars: dailyEndingAt('2026-09-22', 60, baseOf(m[1])) }) }), NET_MS))
+      if (m) return new Promise(r => setTimeout(() => r({ ok: true, status: 200, json: () => Promise.resolve({ ticker: m[1], bars: dailyEndingAt('2026-09-22', 60, walkBase(m[1])) }) }), NET_MS))
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
     }))
     let api
@@ -183,29 +176,25 @@ describe('a Focus walk draws every step from the cache', () => {
       api = sel
       return <ChartPane row={sel.selected} why={{ items: [], more: 0 }} onFlag={() => {}} onWatch={() => {}} />
     }
+    const { MemoryRouter } = await import('react-router-dom')
     try {
-      // The pane hosts the /charts Chart widget (7f80af2a4), which navigates; it needs a router.
-      render(<MemoryRouter><Focus /></MemoryRouter>)
-      await new Promise(r => setTimeout(r, 1500))           // first row loads; the warm runs
-      // ⛔ READY = THE PANE NAMES THE TICKER **AND** THE CHART HAS BEEN HANDED THAT TICKER'S
-      // CANDLES since the keypress. Not a DOM state flag: the pane's own chart and its
-      // `data-chart-state` were removed when the pane began hosting the /charts Chart widget
-      // (7f80af2a4, 2026-10-18), and a selector that matches nothing made every step "never
-      // ready". The candle set is what the member sees, whichever chart draws it.
-      // `ready` answers WHEN: the time of that candle set, not of the poll that saw it.
-      const ready = (s, t0) => {
-        if (document.querySelector('[data-testid="focus-chart-pane"]')?.getAttribute('aria-label') !== `${s} chart`) return null
-        const d = draws.find(x => x.at >= t0 && x.open === baseOf(s))
-        return d ? d.at - t0 : null
-      }
+      render(<MemoryRouter><Focus /></MemoryRouter>)   // the pane's chart widget links into the app
+      await new Promise(r => setTimeout(r, 2500))           // first row loads (NET_MS); the warm runs
+      // READY = the pane names the new symbol AND that symbol's candles were drawn after the key.
+      // ⚰️ This read `[data-chart-state="ready"]`, an attribute the pane lost on 2026-10-18
+      // (7f80af2a45: the pane's chart became the /charts Chart widget), so no step could ever
+      // be ready and the rail was red for a reason that said nothing about the cache.
+      let t0 = 0
+      const ready = (s) => document.querySelector('[data-testid="focus-chart-pane"]')?.getAttribute('aria-label') === `${s} chart`
+        && draws.list.some(d => d.at >= t0 && d.open0 === walkBase(s))
       const steps = []
       for (let k = 0; k < 8; k++) {
-        const t0 = Date.now()
+        t0 = Date.now()
         act(() => api.onKeyDown({ key: 'ArrowDown', preventDefault() {}, target: document.body }))
         const s = api.selected.ticker
         let at = null
         while (Date.now() - t0 < PAUSE_MS) {
-          if (at == null) at = ready(s, t0)
+          if (at == null && ready(s)) at = Date.now() - t0
           await new Promise(r => setTimeout(r, 5))
         }
         steps.push({ s, at })

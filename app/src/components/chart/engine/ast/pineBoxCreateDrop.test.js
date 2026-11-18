@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import fs from 'node:fs'
-import path from 'node:path'
 import { translatePine } from './pine'
+import { pineFixtureDir } from './__tests__/licenceHeld'
+
+const PARITY = pineFixtureDir('tools/c0_parity_fixtures')
 
 // ─── TASK 4 — DIAGNOSED HERE, FIXED 2026-09-26 (`objectFnInline.js`) ────────
 // ⚰️ The paragraphs below are the ORIGINAL diagnosis and are kept as written:
@@ -15,10 +16,11 @@ import { translatePine } from './pine'
 // Confirmed against `mid_engagement__01-zeiierman-trend-pressure.pine`
 // (`tools/c0_parity_fixtures/…`, sha256 `5c6d87f8e3c8a29f173a68f3d2081f246a41ec9b33c8d2935d0642c41663c8cb`
 // — the exact fixture Global Constraint 2 names; it was already present
-// locally in two tool fixture directories, so no re-fetch was needed). Its
-// `ut:=high; ub:=low; ubx:=mkbox(ut,ub,hc,hm)` where
-// `mkbox(float t,float b,color c,color br)=>box.new(bar_index-1,t,bar_index,b,…)`
-// is the real trigger for its one `create:box` drop.
+// locally in two tool fixture directories, so no re-fetch was needed; it is
+// licence-held and left the tree on 2026-11-15, docs/pine/LICENSING.md §2d, so
+// it is described here and not quoted). Its one `create:box` drop came from a
+// user function `mkbox` whose parameters (top, bottom and two colours) feed a
+// `box.new` directly, called with `var` levels the script reassigns.
 //
 // ⛔ ROOT CAUSE, TRACED THROUGH THE SWALLOWED EXCEPTION (temporarily
 // unswallowed at `pine.js`'s `canonicalOf` catch block, then reverted — the
@@ -86,11 +88,10 @@ plot(close)
     expect(copy.value.id).toBe(create.site)
   })
 
-  it('the real fixture: the create:box drop is GONE, and what remains is the value lane guard walls', () => {
-    const fixturePath = path.resolve(
-      __dirname, '../../../../../../tools/c0_parity_fixtures/mid_engagement__01-zeiierman-trend-pressure.pine',
-    )
-    const src = fs.readFileSync(fixturePath, 'utf8')
+  // ⛔ LICENCE-HELD (2026-11-15, CC BY-NC-SA; docs/pine/vendor-harness/licence-held.json): read
+  // from the local store when present, SKIPPED BY NAME when not.
+  PARITY.it(['mid_engagement__01-zeiierman-trend-pressure'], 'the real fixture: the create:box drop is GONE, and what remains is the value lane guard walls', () => {
+    const src = PARITY.read('mid_engagement__01-zeiierman-trend-pressure')
     const t = translatePine(src, { strict: true })
     // ⚠️ The script does not translate at all today, for an UNRELATED reason
     // (a user type) — the object lane still runs, so its diagnostics are readable.

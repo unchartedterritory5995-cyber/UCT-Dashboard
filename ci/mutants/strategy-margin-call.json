@@ -1,0 +1,84 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "MC1",
+   "mutant": "B-MARGIN-CALL off: the witnessed shape is never served, every short past the funds stops at the margin check again (the margin-call capture DIVERGEs)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "  const marginCallServes = () => open.length > 0 && marginCallUnwitnessed() === null",
+   "to": "  const marginCallServes = () => false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1i-short-v6\"",
+   "expectRed": "w9-q-s1i-short-v6"
+  },
+  {
+   "id": "MC1b",
+   "mutant": "B-MARGIN-CALL off, read by the hand-built rails",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "  const marginCallServes = () => open.length > 0 && marginCallUnwitnessed() === null",
+   "to": "  const marginCallServes = () => false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9MarginCall.test.js"
+  },
+  {
+   "id": "MC2",
+   "mutant": "the margin call liquidates three times the cover, not the manual's four",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    return { due: true, units: Math.abs(Math.trunc(k)) * 4, whole: Math.abs(k - Math.round(k)) < 1e-9 }",
+   "to": "    return { due: true, units: Math.abs(Math.trunc(k)) * 3, whole: Math.abs(k - Math.round(k)) < 1e-9 }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1i-short-v6\"",
+   "expectRed": "w9-q-s1i-short-v6"
+  },
+  {
+   "id": "MC3",
+   "mutant": "the margin call fills at the tick's raw price, not rounded to the nearest tick",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    const fill = onTick(px) ? px : roundToTick(px)",
+   "to": "    const fill = px",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1i-short-v6\"",
+   "expectRed": "w9-q-s1i-short-v6"
+  },
+  {
+   "id": "MC4",
+   "mutant": "the path vertices take no margin check (only the open does): the calls at the highs are missed",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "      if (marginCallServes()) marginTick(target, bar, filledAtVertex)",
+   "to": "      if (false && marginCallServes()) marginTick(target, bar, filledAtVertex)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1i-short-v6\"",
+   "expectRed": "w9-q-s1i-short-v6"
+  },
+  {
+   "id": "MC5",
+   "mutant": "B-FUNDS-SHORT off: a flat short past the funds is no longer rejected",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    && (o.dir > 0 ? cfg.marginLong === 100 : cfg.marginShort === 100)",
+   "to": "    && (o.dir > 0 ? cfg.marginLong === 100 : false)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1i-short-v6\"",
+   "expectRed": "w9-q-s1i-short-v6"
+  },
+  {
+   "id": "MC6",
+   "mutant": "the margin call's trade reads the exit id of a margin call as its comment",
+   "file": "app/src/components/chart/engine/runtime/strategyRecord.js",
+   "from": "  if (row.kind === 'margin_call') return { text: 'Close position order', rule: WITNESSED_EXIT_ID_RULES.margin_call }",
+   "to": "  if (row.kind === 'margin_call') return { text: 'Margin call', rule: WITNESSED_EXIT_ID_RULES.margin_call }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1i-short-v6\"",
+   "expectRed": "w9-q-s1i-short-v6"
+  },
+  {
+   "id": "MC7",
+   "mutant": "the grade joins one trade per entry bar again (the last wins), as before 2026-11-17",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    const ourGroup = byEntry.get(entryTime) || []",
+   "to": "    const ourGroup = (byEntry.get(entryTime) || []).slice(-1)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1i-short-v6\"",
+   "expectRed": "w9-q-s1i-short-v6"
+  },
+  {
+   "id": "MC8",
+   "mutant": "the pin resolver reads the indicator harness's per-lane ledger row as a (non-MATCH) broker verdict again",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "        if r.get(\"schema\") == LEDGER_SCHEMA and \"verdict\" not in r:",
+   "to": "        if False:",
+   "rail": "python -m pytest tests/test_broker_pins_resolve.py -q -p no:cacheprovider -k indicator_harness_ledger_row"
+  }
+ ]
+}

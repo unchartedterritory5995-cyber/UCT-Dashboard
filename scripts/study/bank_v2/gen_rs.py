@@ -20,7 +20,8 @@ one review sitting, every one a draft until the owner rules on it.
 
 THE RS PANE IS PRECOMPUTED (map F51: a drill chart's `sym` is the item id, so a drill cannot fetch the server columns).
 Every chart item carries `prompt_json.chart.rs = {columns: {rsLine, rsMa, dotNH, dotNHbeforePx}, times, inputs}`, the
-exact output of `api.services.relative_strength.compute_phase1_columns` (Classic inputs: 21 EMA, 252-bar lookback),
+exact output of `api.services.relative_strength.compute_phase1_columns` (the RS Line's own defaults: 21 EMA, 252-bar
+lookback; `nativeRegistry.RS_CLASSIC_INPUTS`, the one object the Study overlay stamps on its instances, RS split U8),
 rounded to six places as the server's provider rounds a ratio, aligned to the visible bars (`times` = the bars' own
 YYYYMMDD keys). Unit 4-09 primes the real `rsLine` instance from it.
 
@@ -68,7 +69,7 @@ SEGMENT = "rs.drills"
 SKILL = "read.rs"
 MODULE = "F2"
 WINDOW, FORWARD = 120, 20
-INPUTS = RS.resolve_phase1_inputs({})              # Classic (O'Neil): 21 EMA, 252-bar lookback, 2% price tolerance
+INPUTS = RS.resolve_phase1_inputs({})              # the RS Line's defaults (O'Neil): 21 EMA, 252-bar lookback, 2% price tolerance
 LOOKBACK = INPUTS["lookback"]
 SLICE = LOOKBACK + WINDOW                          # the bars one item's columns are computed over
 RS_KEYS = ("rsLine", "rsMa", "dotNH", "dotNHbeforePx")
@@ -324,7 +325,9 @@ def tap_item(c, stock, bench, bench_by_t):
     lesson += f" A tap counts within {key['bar_tol']} bar of it."
     ref = f"relative_strength.compute_phase1_columns#tap-rs-high#{sym}#{asof}"
     q = TAP_Q[kind]
-    reveal = {"system": "UCT Relative Strength, Classic (21 EMA, 52-week new highs)",
+    # ⭐ RS split, U8 (2026-11-09): the indicator ships as "UCT RS Line" (the slim definition's `meta.name`); the
+    # Classic preset it used to name is gone, and these defaults ARE the line. Reveal copy, never a prompt string.
+    reveal = {"system": "UCT RS Line (21 EMA, 52-week new highs)",
               "detector": "relative_strength.compute_phase1_columns", "label": "The RS new high",
               "answer": key, "facts": facts, "source": ref, "window_bars": WINDOW, "forward_bars": FORWARD,
               "rs": {"columns": rs_block(cols, lo, SLICE), "times": [x["t"] for x in s[lo:]], "inputs": INPUTS},
@@ -426,7 +429,7 @@ def leader_items(data, bench, bench_by_t, n):
             choices=["Line A", "Line B"],
             prompt_extra={"subject": f"rs-leader {asof}", "framing": LEADER_FRAMING,
                           "chart": {"window_bars": WINDOW, "tf": "D", "rs_pair": pair}},
-            reveal={"system": "UCT Relative Strength, Classic, two stocks against SPY",
+            reveal={"system": "UCT RS Line, two stocks against SPY",
                     "detector": "relative_strength.compute_phase1_columns", "label": lead_label, "facts": facts,
                     "source": ref, "window_bars": WINDOW, "forward_bars": FORWARD, "rs_pair": pair_of(False),
                     "teaches": dict(CARDS["leader"], source="research 04 §d tour card 1"),
@@ -500,7 +503,7 @@ def redday_item(c, stock, bench, bench_by_t):
                                 "mark": {"bar_index": WINDOW - 1, "time": bar["t"], "label": f"SPY {spy_day}%"},
                                 "rs": {"columns": rs_block(cols, lo, SLICE, blank_dots=True),
                                        "times": [x["t"] for x in s[lo:]], "inputs": INPUTS}}},
-        reveal={"system": "UCT Relative Strength, green on a red market day (gor)",
+        reveal={"system": "UCT RS Line, green on a red market day (gor)",
                 "detector": "relative_strength.compute_phase1_columns", "label": c["kind"].capitalize(),
                 "facts": facts, "source": ref, "window_bars": WINDOW, "forward_bars": FORWARD,
                 "rs": {"columns": rs_block(cols, lo, SLICE), "times": [x["t"] for x in s[lo:]], "inputs": INPUTS},
@@ -548,10 +551,12 @@ RSI_ITEMS = (
      "Relative Strength analysis compares the performance of different assets.", "TrendSpider, research 04 §6",
      "Yes. The RS line rising means the stock is still beating the market. RSI cooling off is the stock against "
      "itself."),
+    # RS split, U8: the indicator is "UCT RS Line" now (the split's slim definition); the key and the lesson name it.
+    # The item id hashes source_ref + question + subject, never the key, so the owner's verdict (if any) stays bound.
     ("rs-vs-rsi search", "You want strength against the market on your chart. Which indicator do you add?",
-     "UCT Relative Strength", ("RSI", "Stochastic RSI", "MACD"),
+     "UCT RS Line", ("RSI", "Stochastic RSI", "MACD"),
      "Calling RSI 'relative strength' is the first mistake.", "The Right Trader, research 04 §8",
-     "UCT Relative Strength. RSI sits right next to it in the search and answers a different question."),
+     "UCT RS Line. RSI sits right next to it in the search and answers a different question."),
     ("rs-vs-rsi meaning", "What does a rising RS line tell you?",
      "The stock is beating the market", ("The price is going up", "The stock is overbought", "Buy it now"),
      "RS compares a stock to a benchmark and has no bounds; RSI measures the stock's own momentum on a 0-100 scale.",

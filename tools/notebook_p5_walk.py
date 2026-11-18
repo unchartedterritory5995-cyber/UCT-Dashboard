@@ -9,7 +9,7 @@ PRECONDITIONS (the run refuses or records NOT RUN without each; it never assumes
     shared root before boot, at +15 s, at +120 s and at shutdown; that verdict is the run's first line and is
     kept as integrity.md beside walk.json;
   * `app/dist` rebuilt from that tip (`cd app && npm run build`) -- the sandbox serves the built bundle;
-  * the switches the walk needs, ON in the sandbox env (P5_FLAGS below: the Learn menu's onboarding switch;
+  * the switches the walk needs, ON in the sandbox env (P5_FLAGS below: the walkthroughs' onboarding switch;
     journal styles, the template gallery, the style library and the starter packs were retired as always on,
     2026-11-04), on top of the flags the ledger records as armed on web (notebook_fin_walk.flag_sets()["c1"]).
     Each name is checked against the ledger's gate list first; an unknown name refuses the run;
@@ -28,7 +28,7 @@ THE STORY, once per viewport (1280, 820, 390):
   2. picks Swing and sees the three Swing styles added;
   3. creates a note from "Swing trade plan"; its blocks and outline headings render;
   4. reloads: the offer is gone, and the Styles manager's Starter packs button opens it again;
-  5. runs the Journal styles tour from the Learn menu through every step;
+  5. runs the Journal styles tour from Help > Walkthroughs through every step (the Learn menu was dropped, go-live wave 2);
   6. runs the Community library tour, opening the gallery when the card asks;
   7. the admin's telemetry count has style_applied >= 1, and it rose during this viewport's story.
 
@@ -95,7 +95,7 @@ STEPS = (
     (2, "picking Swing adds the three Swing styles"),
     (3, "a note from Swing trade plan renders its blocks and outline headings"),
     (4, "after a reload the offer is gone; the Styles manager's Starter packs button opens it"),
-    (5, "the Journal styles tour runs from the Learn menu through every step"),
+    (5, "the Journal styles tour runs from Help > Walkthroughs through every step"),
     (6, "the Community library tour runs, opening the gallery when asked"),
     (7, "the admin telemetry count has style_applied >= 1, and it rose in this story"),
 )
@@ -405,26 +405,26 @@ def open_from_a_style(pg, base: str):
     pg.get_by_role("menuitem", name="From a style").first.click(timeout=T)
     # Scoped to the sheet: an EMPTY notebook also renders a kind picker (with its own offer) inline in the
     # list's empty state, so a page-wide locator matches twice (run 4, p5-walk-20261018T0135Z).
-    group = sheet(pg).get_by_role("group", name="Start from a kind of note")
+    group = sheet(pg).get_by_role("group", name="Start from a template")
     group.wait_for(timeout=T)
     return group
 
 
 def sheet(pg):
     """The New note sheet the caret's From a style opened."""
-    return pg.get_by_role("dialog").filter(has=pg.get_by_role("group", name="Start from a kind of note")).first
+    return pg.get_by_role("dialog").filter(has=pg.get_by_role("group", name="Start from a template")).first
 
 
 def run_tour(pg, st: Step, tour_id: str, declared: int, seen: dict) -> dict:
-    """Start `tour_id` from Research Home's Learn menu and walk it to Done. A "do this to continue" step is
-    answered the way a member does: a press on the control the card points at."""
+    """Start `tour_id` from Help > Walkthroughs and walk it to Done. A "do this to continue" step is answered the way a
+    member does: a press on the control the card points at. (Go-live wave 2: the Learn menu this used was dropped by
+    ruling; Help > Walkthroughs lists every tour, "Start the <title> tour" or "Replay the <title> tour".)"""
     title = tour_title(tour_id)
-    learn = pg.get_by_role("button", name="Learn", exact=True).first
-    learn.wait_for(timeout=T)
-    learn.click(timeout=T)
-    item = pg.locator(f'[data-learn-tour="{tour_id}"]').first
+    pg.goto(pg.url.split("/journal")[0].split("/support")[0] + "/support", wait_until="domcontentloaded", timeout=60000)
+    row = pg.locator("li").filter(has=pg.get_by_text(title, exact=True)).filter(has=pg.get_by_role("link", name=q2.WALK_LINK))
+    item = row.first.get_by_role("link", name=q2.WALK_LINK).first
     item.wait_for(timeout=T)
-    st.read("Learn menu item", item.inner_text())
+    st.read("Help walkthroughs row", row.first.inner_text())
     item.click(timeout=T)
     out = {"shown": [], "of": None, "pressed": [], "done": False, "notes": [], "cards": []}
     s = q2.wait_state(pg, title, lambda x: x["kind"] == "step" and not x["moving"], 25)

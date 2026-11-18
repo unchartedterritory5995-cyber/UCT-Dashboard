@@ -35,7 +35,8 @@
 import { helperKeysOfRows, sameTree } from './colorRules'
 import { tableSpecOf } from './tables'
 import PREFLIGHT_RULES from './preflightRules.json'
-import { recogniseExpansion } from '../../engine/ast/callExpansions'
+import { recogniseExpansion, collapseExpansions } from '../../engine/ast/callExpansions'
+import { libraryParts, namedByTitle } from './checkedLibrary'
 
 const OP_WORDS = Object.freeze({
   '>': '>', '<': '<', '>=': '≥', '<=': '≤', '==': '=', '!=': '≠',
@@ -148,6 +149,9 @@ const PLAIN_CALL_WORDS = Object.freeze({
   supertrend: 'Supertrend', supertrendDirection: 'Supertrend direction',
   // 2026-10-30 — Parabolic SAR (#523): "Parabolic SAR 0.02,0.2", not "SAR 0.02,0.2".
   sar: 'Parabolic SAR', sarDirection: 'Parabolic SAR trend',
+  // 2026-11-17 — the regular session's own values: "Opening range high 30", not "OPENINGRANGEHIGH 30".
+  sessionOpen: 'Session open', sessionHigh: 'Session high', sessionLow: 'Session low',
+  openingRangeHigh: 'Opening range high', openingRangeLow: 'Opening range low',
 })
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
@@ -272,7 +276,8 @@ export function nameOfTree(node, parentPrec = 0, mode = 'plain') {
       return `${String(node.value || '?')} ${sub(child, 9)}`
     }
     case 'tf':
-    case 'tf_live': {
+    case 'tf_live':
+    case 'tf_merge': {
       const child = Array.isArray(node.args) ? node.args[0] : null
       return `${sub(child, 9)} (${String(node.value || '?')}${node.type === 'tf_live' ? ', forming' : ''})`
     }
@@ -405,6 +410,24 @@ function formulaDefName(model, mode = 'plain') {
  */
 const notPrimary = (model, row) => !!model.scanKey && model.scanKey !== row.key
 
+// ⭐ 2026-11-18 (ruling) — A TITLE THAT NAMES A CHECKED LIBRARY INDICATOR IS A CLAIM ABOUT THE
+// FORMULA. "Kaufman Adaptive Moving Average" over a formula edited until it is no longer that
+// indicator would be a name on the chart with no checked formula behind it (the withheld-name rule,
+// for an edited copy). So such a title is kept while the definition still holds that indicator's
+// formula and gives way to the name derived from the maths once it does not. A member who names it
+// themselves in the same change keeps their own words, as always.
+function heldLibraryIndicator(model, entry) {
+  const inputs = ((model && model.memberInputs) || []).map((x) => x && x.key)
+  return ((model && model.rows) || []).some((r) => {
+    try { return !!(r && r.ast) && libraryParts(collapseExpansions(r.ast), inputs).some((p) => p.entry.id === entry.id) } catch { return false }
+  })
+}
+/** The library indicator `model`'s title names AND its formulas hold, or null. */
+export function libraryTitleOf(model) {
+  const entry = model ? namedByTitle(model.name) : null
+  return entry && heldLibraryIndicator(model, entry) ? entry : null
+}
+
 /** What "auto" looked like before the patch: name + each row's label. */
 export function namingSnapshot(model) {
   if (!model) return null
@@ -431,6 +454,7 @@ export function namingSnapshot(model) {
     name: model.name,
     nameAuto: model.name === derivedDefName(model) || model.name === formulaDefName(model)
       || model.name === formulaDefName(model, 'formula'),
+    libraryTitle: libraryTitleOf(model),
     rows,
   }
 }
@@ -445,7 +469,10 @@ export function applyDerivedNaming(model, before, explicit) {
   const changes = []
   const renamedOutputs = explicit.renamedOutputs || new Set()
   // ── the definition's name ──
-  const nameIsAuto = !explicit.renamedDefinition && (!before || before.nameAuto)
+  // the title named a library indicator the definition held, and no longer holds: it follows the maths
+  const claimLost = !explicit.renamedDefinition && !!before && !!before.libraryTitle
+    && model.name === before.name && !heldLibraryIndicator(model, before.libraryTitle)
+  const nameIsAuto = !explicit.renamedDefinition && (!before || before.nameAuto || claimLost)
   if (nameIsAuto) {
     const next = derivedDefName(model)
     if (next && next !== model.name) {

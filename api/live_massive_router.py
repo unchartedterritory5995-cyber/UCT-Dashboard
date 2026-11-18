@@ -233,7 +233,7 @@ DEFAULT_THRESHOLDS = {
     # reading). Set higher (e.g. 1.5) for stricter "fresh and dominant"
     # positioning. Set to 0 to disable this gate.
     #
-    # Contracts with unknown OI (Schwab snapshot misses, fresh strikes
+    # Contracts with unknown OI (OI snapshot misses, fresh strikes
     # with no OI history) are REJECTED at this gate -- we can't verify
     # the freshness criterion without known OI. Those rows fall through
     # to Size tier where the requirement doesn't apply.
@@ -384,6 +384,24 @@ DEFAULT_THRESHOLDS = {
     # side_confirm for alpha_leaps/ask_accum only; single-print tiers keep it.
     "aggregate_side_enabled": True,
     "aggregate_side_min": 0.67,                 # dominant premium fraction required
+    # ── Fair-NBBO ask aggregate (2026-11-09) — DARK by default ─────────────
+    # The Alpha LEAPS / Ask Accumulation aggregates are summed from the stored
+    # `Side`, which on a busy day is ~86% blank from Q-pool churn. The ledger
+    # admits blank-side SWEEPs but not blank-side BLOCKs, so a real build can
+    # grade at a fraction of its size: measured 2026-11-09, CRWD 280C 12/17/27
+    # summed to $5.57M of a true $13.31M (the missing $7.75M was blank blocks)
+    # and PANW 410C 12/17/27 to $6.87M of $10.29M. The tier then also fired on
+    # whichever SMALL print happened to carry an A side ($713K on CRWD).
+    # When enabled, a contract whose WHOLE-TAPE premium clears
+    # fair_ask_min_total_premium is re-measured against NBBO-at-fill via
+    # _session_fair_dominant (same method the push veto already trusts); if the
+    # tape is ask-dominant at >= aggregate_side_min, its fair ask premium
+    # replaces the stored-Side aggregate and any non-bid print on it becomes
+    # tier-eligible. Fail-OPEN: no tape/quotes = stored behaviour, unchanged.
+    # Costs REST calls, so it is candidate-gated in SQL and capped per scan.
+    "fair_ask_aggregate_enabled": False,        # ⚠️ DARK — arm after backtest
+    "fair_ask_min_total_premium": 3_000_000,    # contract must clear this on the WHOLE tape
+    "fair_ask_max_lookups": 12,                 # max REST-measured contracts per scan
     "aggregate_side_unclean_suppress": False,   # False = neutral card; True = drop
     # ── Flow bar (2026-10-31) — card DISPLAY only ──────────────────────────
     # Render the directional one-sidedness as a colored ANSI bar (green bull /
@@ -506,7 +524,7 @@ DEFAULT_THRESHOLDS = {
     #
     # Default 1.0 = vol must strictly exceed OI. Set to 0 to disable
     # (recover previous behavior). Like the Alpha Gold gate, this
-    # requires KNOWN OI (>0); Schwab snapshot misses fail this gate
+    # requires KNOWN OI (>0); OI snapshot misses fail this gate
     # and fall through to bullish/bearish tier.
     "size_min_vol_oi_ratio": 1.0,
     # Strict directional rule (added 6/30 evening, after audit).
@@ -531,7 +549,7 @@ DEFAULT_THRESHOLDS = {
     "derive_strict_bid_only_bb": True,
     # Fresh-strike promotion threshold (added 6/30 evening).
     #
-    # When OI is explicitly known to be zero (Schwab confirmed: no
+    # When OI is explicitly known to be zero (the OI source confirmed: no
     # settled OI yesterday — usually a brand new strike that opened
     # today), AND today's volume is at least this threshold, treat the
     # contract as PASSING the V/OI gate (any V/OI test reads as
@@ -543,7 +561,7 @@ DEFAULT_THRESHOLDS = {
     # possible.
     #
     # Critically, this only applies when OI is EXPLICITLY zero from
-    # Schwab. When OI is null/empty (Schwab fetch failed, status unknown),
+    # the OI source. When OI is null/empty (OI fetch failed, status unknown),
     # the gate still rejects -- we don't know if it's a fresh strike or
     # a transient API failure. Erring conservative on data quality.
     #
@@ -1007,7 +1025,7 @@ def _parse_int(s, default=0):
 
 def _oi_status(raw):
     """Distinguish 'OI explicitly known to be zero' (fresh strike, no
-    settled positions yesterday) from 'OI unknown' (Schwab couldn't
+    settled positions yesterday) from 'OI unknown' (the OI source couldn't
     retrieve data for this contract).
 
     Both return integer 0 from _parse_int, but they're semantically
@@ -1016,9 +1034,9 @@ def _oi_status(raw):
     while unknown OI is just missing data.
 
     Returns one of:
-      ("known", int)  — Schwab returned a positive integer value
-      ("zero", 0)     — Schwab explicitly returned "0" (real fresh strike)
-      ("unknown", 0)  — Schwab returned null/empty (failed fetch)
+      ("known", int)  — the OI source returned a positive integer value
+      ("zero", 0)     — the OI source explicitly returned "0" (real fresh strike)
+      ("unknown", 0)  — the OI source returned null/empty (failed fetch)
     """
     if raw is None:
         return ("unknown", 0)
@@ -1261,6 +1279,95 @@ def _build_session_long_ledger(rows) -> dict:
     return {rid: totals.get(key, 0.0) for rid, key in row_key.items()}
 
 
+# ── Corrupt-page resilience (2026-11-09 incident) ────────────────────────────
+# flow.db's TABLE b-tree can carry a corrupt page region. Observed 2026-11-09:
+# ~195 rows at id 47750390-47750585, written ~10:21 ET. SQLite then raises
+# "database disk image is malformed" on ANY scan whose b-tree traversal crosses
+# that region, which took down the curated feed, the Market Read, the
+# by-contract panel AND the whole Discord auto-push scheduler for 1h+ while
+# ingestion stayed perfectly healthy (massive_ws_worker kept writing).
+#
+# Neither obvious remedy works:
+#   • DELETE on the bad span fails — the delete must READ the page it chokes on.
+#   • Shrinking the scan LIMIT does not dodge it — the curated subset still
+#     reaches back past the span (LIMIT 20000 failed), and the ask ledger has
+#     no LIMIT at all.
+# What DOES work is an explicitly-bounded seek: `WHERE id >= ? AND id < ?` over
+# a range that excludes the bad window reads cleanly, because SQLite can descend
+# straight to those rowids instead of traversing across the damage.
+#
+# So: run each scan normally, and only if it reports a malformed image, re-run it
+# as bounded newest-first id windows, bisecting a failing window down to
+# _FLOW_SCAN_MIN_WINDOW so we drop only the genuinely unreadable ids. Losing a
+# few hundred prints beats losing every alert for the rest of the session. The
+# skipped spans are logged loudly so the real repair (rebuild flow.db off-hours)
+# still gets done.
+_FLOW_SCAN_WINDOW = int(os.environ.get("MASSIVE_FLOW_SCAN_WINDOW", "25000"))
+_FLOW_SCAN_MIN_WINDOW = int(os.environ.get("MASSIVE_FLOW_SCAN_MIN_WINDOW", "256"))
+
+
+def _is_malformed_db(e: Exception) -> bool:
+    """True for SQLite's corrupt-page error, which is what a damaged flow.db page
+    raises. Any OTHER DatabaseError (locked, I/O, schema) must still propagate —
+    silently windowing around those would hide real faults."""
+    return isinstance(e, sqlite3.DatabaseError) and "malformed" in str(e).lower()
+
+
+def _fetch_id_window(run, lo: int, hi: int, skipped: list):
+    """Fetch [lo, hi) via `run`, bisecting on corruption so only the unreadable
+    sub-span is dropped. Newer half first so DESC ordering survives."""
+    try:
+        return list(run(" AND id >= ? AND id < ?", (lo, hi)))
+    except sqlite3.DatabaseError as e:
+        if not _is_malformed_db(e):
+            raise
+        if hi - lo <= _FLOW_SCAN_MIN_WINDOW:
+            skipped.append((lo, hi))
+            return []
+        mid = (lo + hi) // 2
+        out = _fetch_id_window(run, mid, hi, skipped)
+        out.extend(_fetch_id_window(run, lo, mid, skipped))
+        return out
+
+
+def _resilient_fetch(conn, run, source_clause: str, today: str, sym_clause: str,
+                     sym_params, limit: int | None = None, label: str = "flow-scan"):
+    """Run `run(id_clause, id_params)` unbounded; on a corrupt-page error, retry
+    as bounded id windows and skip what stays unreadable. Returns the rows."""
+    try:
+        return list(run("", ()))
+    except sqlite3.DatabaseError as e:
+        if not _is_malformed_db(e):
+            raise
+        logging.getLogger(__name__).error(
+            "[massive] %s hit a corrupt flow.db page — retrying in bounded id windows", label)
+
+    # Index-only bounds (idx_flow_source_date_id covers source,CreatedDate,id), so
+    # this does not touch the damaged table pages.
+    try:
+        lo_id, hi_id = conn.execute(
+            f"SELECT MIN(id), MAX(id) FROM flow WHERE {source_clause} AND CreatedDate = ?{sym_clause}",
+            (today, *sym_params)).fetchone()
+    except sqlite3.DatabaseError:
+        lo_id, hi_id = None, None
+    if lo_id is None or hi_id is None:
+        return []
+
+    rows: list = []
+    skipped: list = []
+    hi = int(hi_id) + 1
+    lo_id = int(lo_id)
+    while hi > lo_id and (limit is None or len(rows) < limit):
+        lo = max(lo_id, hi - _FLOW_SCAN_WINDOW)
+        rows.extend(_fetch_id_window(run, lo, hi, skipped))
+        hi = lo
+    if skipped:
+        logging.getLogger(__name__).error(
+            "[massive] %s SKIPPED %d corrupt id span(s), ~%d ids: %s — rebuild flow.db off-hours",
+            label, len(skipped), sum(b - a for a, b in skipped), skipped[:5])
+    return rows[:limit] if limit else rows
+
+
 def _session_ledgers(conn, source_clause: str, today: str, sym_clause: str = "",
                      sym_params=()) -> tuple:
     """(thresholds, gross_before, ask_prem_ledger, ask_vol_ledger) for one day —
@@ -1284,14 +1391,19 @@ def _session_ledgers(conn, source_clause: str, today: str, sym_clause: str = "",
     ask_accum_on = th.get("ask_accum_enabled", True)
     if not (close_on or alpha_leaps_on or ask_accum_on):
         return th, {}, {}, {}
-    ledger_rows = conn.execute(f"""
-        SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium, Type
-          FROM flow
-         WHERE {source_clause} AND CreatedDate = ?{sym_clause}
-           AND (Side IN ('A','AA','B','BB')
-                OR (COALESCE(Side,'') = ''
-                    AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))
-    """, (today, *sym_params)).fetchall()
+    def _run_ledger(id_clause, id_params):
+        return conn.execute(f"""
+            SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium, Type
+              FROM flow
+             WHERE {source_clause} AND CreatedDate = ?{sym_clause}
+               AND (Side IN ('A','AA','B','BB')
+                    OR (COALESCE(Side,'') = ''
+                        AND (UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%')))
+               {id_clause}
+        """, (today, *sym_params, *id_params)).fetchall()
+
+    ledger_rows = _resilient_fetch(conn, _run_ledger, source_clause, today,
+                                   sym_clause, sym_params, label="session-ledger")
     presume = bool(th.get("sweep_empty_side_as_ask", True))
     gross_before = _build_session_long_ledger(ledger_rows) if close_on else {}
     prem = (_build_session_ask_premium_ledger(ledger_rows, presume_sweep_ask=presume)
@@ -1482,7 +1594,8 @@ def _demote_contaminated_sell(a: dict, gross_ask_map: dict, thresholds: dict) ->
 
 
 def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None,
-                       agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0):
+                       agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0,
+                       fair_ask_dominant: bool = False):
     """Returns (alertName, tier_key, tier_priority), or None if the row
     is a WHITE color that didn't qualify for premium-override promotion.
 
@@ -1505,7 +1618,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     v_oi = (volume / oi) if oi > 0 else 0
 
     # Distinguish "explicitly zero OI" (real fresh strike) from "unknown
-    # OI" (Schwab fetch failed). _parse_int collapses both to 0 for math,
+    # OI" (OI fetch failed). _parse_int collapses both to 0 for math,
     # but the gates need the distinction to handle fresh strikes correctly.
     oi_status, _ = _oi_status(row.get("OI"))
     # oi_status is one of: "known", "zero", "unknown"
@@ -1515,7 +1628,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
             "fresh_strike_min_volume", 100)
     except Exception:
         fresh_strike_min_vol = 100
-    # A row counts as "fresh-strike-with-volume" when Schwab confirmed
+    # A row counts as "fresh-strike-with-volume" when the OI source confirmed
     # zero OI yesterday AND today's volume crosses the threshold.
     # Every contract trading today is brand-new exposure -- the strongest
     # possible "fresh positioning" signal.
@@ -1540,6 +1653,19 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
 
     is_leaps = dte >= 180
     side_is_ask = side in ("A", "AA")
+    # Fair-NBBO contract override (2026-11-09, DARK behind fair_ask_aggregate_enabled).
+    # The aggregate tiers grade a CONTRACT but gate on the PRINT's own side, so a
+    # build whose big prints came back blank from Q-pool churn fired on whichever
+    # small print happened to carry an A — CRWD 280C 12/17/27 surfaced as a $713K
+    # alert on a $13.31M position, and MRNA 370C 3/19/27 had NO A-sided print at
+    # all so no tier could ever fire. When the whole-tape NBBO measurement says
+    # this contract is an ask-dominant build, a BLANK print on it counts as part
+    # of that build.
+    # ⛔ A CONFIRMED bid print (B/BB) is never flipped — ask-dominance is a
+    # property of the contract, not evidence about a fill we actually sided, and
+    # flipping it would invent a buyer out of a measured seller.
+    if fair_ask_dominant and not side_is_ask and side not in ("B", "BB"):
+        side_is_ask = True
 
     # Direction-aware tier key: Bull → "bullish", Bear → "bearish".
     # Both share priority 3 in TIER_PRIORITY, just rendered in different
@@ -1550,7 +1676,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     # Massive's classifier assigns Color from cum_vol/OI: WHITE (< 1.0),
     # YELLOW (> 1.0), MAGENTA (>= 1.5). A big-dollar print gets
     # under-ranked by that ratio alone in two ways:
-    #   WHITE  — OI unknown (fresh strike / Schwab miss) → ratio 0 → WHITE
+    #   WHITE  — OI unknown (fresh strike / OI miss) → ratio 0 → WHITE
     #            → filtered out entirely, even a $3M ASK sweep.
     #   YELLOW — vol DID exceed OI (confirmed new positioning) but the
     #            ratio landed just under 1.5×, so the row is walled out of
@@ -1651,10 +1777,10 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
             #
             # Two pass conditions (added 6/30 evening, for fresh strikes):
             #   1. Normal: oi > 0 AND v_oi > min_vol_oi_ratio
-            #   2. Fresh strike: Schwab confirmed OI=0 AND volume above
+            #   2. Fresh strike: the OI source confirmed OI=0 AND volume above
             #      fresh_strike_min_volume floor.
             #
-            # Schwab MISSES (oi unknown / fetch failed) still fail this
+            # OI MISSES (oi unknown / fetch failed) still fail this
             # gate -- we don't have the data to evaluate freshness.
             vol_exceeds_oi = (
                 (oi > 0 and v_oi > min_vol_oi_ratio)
@@ -1741,9 +1867,9 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
         # Size now requires fresh institutional positioning. Two pass
         # conditions:
         #   1. Normal: oi > 0 AND v_oi > size_min_vol_oi_ratio
-        #   2. Fresh strike: Schwab confirmed OI=0 AND volume above
+        #   2. Fresh strike: the OI source confirmed OI=0 AND volume above
         #      fresh_strike_min_volume floor (added 6/30 evening).
-        # Schwab misses (oi unknown) fall through to bullish/bearish.
+        # OI misses (oi unknown) fall through to bullish/bearish.
         if premium >= 500_000:
             try:
                 size_min_voi = _load_thresholds().get("size_min_vol_oi_ratio", 1.0)
@@ -1875,7 +2001,8 @@ def _compute_conviction(premium: int, oi: int, volume: int,
 
 def _row_to_alert(row: dict, require_direction: bool = True,
                   agg_ask_premium: float = 0.0,
-                  agg_ask_volume: float = 0.0) -> dict | None:
+                  agg_ask_volume: float = 0.0,
+                  fair_ask_dominant: bool = False) -> dict | None:
     """Translate a FlowDB row to the alert shape LiveFlow.jsx expects.
     Returns None if the row should be skipped (e.g., unclassified side).
 
@@ -2179,7 +2306,8 @@ def _row_to_alert(row: dict, require_direction: bool = True,
     else:
         result = _derive_alert_name(row, direction, money_pct=money_pct,
                                     agg_ask_premium=agg_ask_premium,
-                                    agg_ask_volume=agg_ask_volume)
+                                    agg_ask_volume=agg_ask_volume,
+                                    fair_ask_dominant=fair_ask_dominant)
     if result is None:
         return None  # WHITE row that didn't qualify for premium override
     alert_name, tier_key, tier_priority = result
@@ -2957,7 +3085,8 @@ def _incr_prepare(today: str):
             _alert_cache_day = today
 
 
-def _incr_classify(r, agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0):
+def _incr_classify(r, agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0,
+                   fair_ask_dominant: bool = False):
     """Cached _row_to_alert. Reuse the classification only when the row is
     byte-unchanged since last seen (hash of its column values); re-classify on any
     change. Returns a COPY so downstream mutation (net-flow demote, _hitCount) can't
@@ -2972,13 +3101,19 @@ def _incr_classify(r, agg_ask_premium: float = 0.0, agg_ask_volume: float = 0.0)
     was the live-feed blocker that kept the PPTA build off /live-massive even after
     the ledger fix (incremental_scan is ON in prod)."""
     rid = r["id"]
-    h = hash((tuple(r), round(agg_ask_premium, 2), round(agg_ask_volume, 2)))
+    # fair_ask_dominant is part of the fingerprint for the same reason the
+    # aggregates are: it accrues during the session (a contract becomes
+    # ask-dominant partway through), so a row cached as "not a build" before the
+    # tape tipped must reclassify once it has.
+    h = hash((tuple(r), round(agg_ask_premium, 2), round(agg_ask_volume, 2),
+              bool(fair_ask_dominant)))
     ent = _alert_cache.get(rid)
     if ent is not None and ent[0] == h:
         cached = ent[1]
         return dict(cached) if cached is not None else None
     fresh = _row_to_alert(dict(r), agg_ask_premium=agg_ask_premium,
-                          agg_ask_volume=agg_ask_volume)
+                          agg_ask_volume=agg_ask_volume,
+                          fair_ask_dominant=fair_ask_dominant)
     _alert_cache[rid] = (h, fresh)
     return dict(fresh) if fresh is not None else None
 
@@ -3098,18 +3233,26 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
             sym_clause = " AND Symbol IN (%s)" % ",".join("?" for _ in only_symbols)
             sym_params = [str(s).upper() for s in only_symbols]
         def _scan(src_clause):
-            return conn.execute(f"""
-                SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
-                       Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
-                       Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
-                  FROM flow
-                 WHERE {src_clause}
-                   AND CreatedDate = ?{sym_clause}
-                   AND (Color IN ('MAGENTA', 'YELLOW')
-                        OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
-                 ORDER BY id DESC
-                 LIMIT ?
-            """, (today, *sym_params, override_sql_floor, sql_limit)).fetchall()
+            # Corrupt-page resilient (2026-11-09): a damaged table page in flow.db
+            # used to raise "database disk image is malformed" here and take the
+            # ENTIRE curated feed + auto-push scheduler down for the session.
+            def _run(id_clause, id_params):
+                return conn.execute(f"""
+                    SELECT id, source, CreatedDate, CreatedTime, Symbol, Type, Volume,
+                           Price, Side, CallPut, Strike, Spot, Premium, ExpirationDate,
+                           Color, Dte, ER, StockEtf, Sector, Uoa, Weekly, MktCap, OI
+                      FROM flow
+                     WHERE {src_clause}
+                       AND CreatedDate = ?{sym_clause}
+                       AND (Color IN ('MAGENTA', 'YELLOW')
+                            OR (Color = 'WHITE' AND CAST(Premium AS INTEGER) >= ?))
+                       {id_clause}
+                     ORDER BY id DESC
+                     LIMIT ?
+                """, (today, *sym_params, override_sql_floor, *id_params, sql_limit)).fetchall()
+
+            return _resilient_fetch(conn, _run, src_clause, today, sym_clause,
+                                    sym_params, limit=sql_limit, label="curated-scan")
 
         if etf_enabled and past_closed:
             # PAST date, market closed: one LIMIT PER SOURCE (2026-10-03). A heal
@@ -3133,6 +3276,13 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         # projection; cache it (watermark) if it ever strains RTH.
         _close_th, _gross_before, _ask_prem_ledger, _ask_vol_ledger = _session_ledgers(
             conn, source_clause, today, sym_clause, sym_params)
+        # Fair-NBBO ask aggregate for the session's BIG contracts (2026-11-09).
+        # Resolved ONCE PER CONTRACT here, never per row: it makes REST calls, and
+        # _row_to_alert runs over up to 80k rows (a per-row call would re-create the
+        # ~70s classify pin that wedged the WS keepalive on 2026-08-05). Returns {}
+        # when the feature is dark, so the row loop below is unchanged by default.
+        _fair_ask_by_contract = _fair_ask_ledger(
+            conn, source_clause, today, _close_th, sym_clause, sym_params)
     finally:
         conn.close()
 
@@ -3159,9 +3309,18 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
             time.sleep(_FILL_YIELD_SEC)   # release GIL so the WS keepalive breathes
         _r_ap = _ask_prem_ledger.get(r["id"], 0.0)
         _r_av = _ask_vol_ledger.get(r["id"], 0.0)
-        a = (_incr_classify(r, agg_ask_premium=_r_ap, agg_ask_volume=_r_av)
+        # Fair-NBBO override: the tape says this contract is an ask-dominant build,
+        # so grade its REAL ask size instead of the blank-crippled stored-Side sum,
+        # and let this row qualify on the contract's side rather than its own.
+        _r_fair = _fair_ask_by_contract.get(
+            (r["Symbol"], r["CallPut"], r["Strike"], r["ExpirationDate"])) if _fair_ask_by_contract else None
+        if _r_fair and _r_fair > _r_ap:
+            _r_ap = _r_fair
+        a = (_incr_classify(r, agg_ask_premium=_r_ap, agg_ask_volume=_r_av,
+                            fair_ask_dominant=bool(_r_fair))
              if _incremental
-             else _row_to_alert(dict(r), agg_ask_premium=_r_ap, agg_ask_volume=_r_av))
+             else _row_to_alert(dict(r), agg_ask_premium=_r_ap, agg_ask_volume=_r_av,
+                                fair_ask_dominant=bool(_r_fair)))
         if a is None:
             skipped_unclassified += 1
             continue
@@ -3581,14 +3740,15 @@ def _build_diagnostic(today):
 
 # ─── Current quotes endpoint (for P/L column) ─────────────────────────────
 # Frontend polls this every 30s with the unique tickers visible on the page.
-# Server uses the same Schwab quote service liveflow_worker uses, with a
-# 2-min TTL cache (so two pages polling the same tickers don't double-hit
-# Schwab). Returns a dict of ticker → current spot price.
+# Server reads the Massive equities snapshot (flow_market_data.equity_spots:
+# ONE batch call for all the uncached tickers), with a 2-min TTL cache (so two
+# pages polling the same tickers don't double-hit the vendor). Returns a dict
+# of ticker → current spot price. (Schwab's quote API answered this until it
+# was retired on 2026-11-17; with its login dead every quote came back empty.)
 
 from pydantic import BaseModel
 
-# Reuse liveflow_worker's spot cache — same TTL, same source of truth.
-# Avoids duplicate Schwab calls from /live-flow + /live-massive both polling.
+# Same TTL as liveflow_worker's spot cache.
 _SPOT_CACHE_TTL = 120  # 2 min; matches liveflow_worker
 _quote_cache: dict = {}  # ticker → (price, cached_at_unix)
 
@@ -3597,26 +3757,40 @@ class CurrentQuotesPayload(BaseModel):
     tickers: list[str] = []
 
 
-async def _fetch_one_quote(ticker: str) -> float | None:
-    """Single ticker quote with 2-min cache. Lazy import of schwab_service
-    so we don't pull it on cold start when this endpoint isn't used."""
-    if not ticker or ticker.startswith("$") or "." in ticker:
-        return None
+def _quotable(ticker: str) -> bool:
+    return bool(ticker) and not ticker.startswith("$") and "." not in ticker
+
+
+async def _fetch_quotes(tickers: list[str]) -> dict:
+    """{ticker: price} with the 2-min cache. The tickers the cache does not hold
+    are read in ONE Massive batch snapshot (lazy import, so the module is not
+    pulled on cold start when this endpoint isn't used). A ticker with no quote
+    is absent, which lets the frontend show "—" in P/L. Never raises."""
     now = time.time()
-    cached = _quote_cache.get(ticker)
-    if cached and (now - cached[1]) < _SPOT_CACHE_TTL:
-        return cached[0]
-    try:
-        from api import schwab_service
-        price = await schwab_service.get_equity_quote(ticker)
-        if price:
-            _quote_cache[ticker] = (float(price), now)
-            return float(price)
-    except Exception:
-        # Quote unavailable for this ticker — likely index/unusual symbol or
-        # rate-limited. Returning None lets the frontend show "—" in P/L.
-        pass
-    return None
+    out: dict = {}
+    need: list[str] = []
+    for t in tickers:
+        if not _quotable(t):
+            continue
+        cached = _quote_cache.get(t)
+        if cached and (now - cached[1]) < _SPOT_CACHE_TTL:
+            out[t] = cached[0]
+        else:
+            need.append(t)
+    if need:
+        try:
+            from api.services import flow_market_data
+            fresh = await flow_market_data.equity_spots(need)
+        except Exception:
+            # Quote unavailable — rate-limited or the vendor is down.
+            fresh = {}
+        for t in need:
+            # equity_spots keys are upper-case; the page sends upper-case tickers.
+            price = fresh.get(t) or fresh.get(str(t).upper())
+            if price:
+                _quote_cache[t] = (float(price), now)
+                out[t] = float(price)
+    return out
 
 
 @router.post("/current-quotes")
@@ -3639,12 +3813,10 @@ async def current_quotes(payload: CurrentQuotesPayload,
     # (the live page maxes at 200 alerts which is typically <100 uniques).
     tickers = tickers[:200]
 
-    # Fire all lookups concurrently. Schwab service handles its own rate
-    # limiting; cache layer (above) dedupes same-ticker repeats within TTL.
-    results = await asyncio.gather(
-        *[_fetch_one_quote(t) for t in tickers], return_exceptions=False
-    )
-    quotes = {t: p for t, p in zip(tickers, results) if p is not None}
+    # One batch read for the uncached tickers; the cache layer (above) dedupes
+    # same-ticker repeats within TTL. Key order follows the request.
+    found = await _fetch_quotes(tickers)
+    quotes = {t: found[t] for t in tickers if t in found}
     return {"quotes": quotes, "fetched_at": time.time(), "requested": len(tickers)}
 
 
@@ -3734,31 +3906,64 @@ def _build_day_stats(today: str, exclude_algo: bool = False,
         conn = sqlite3.connect(DB_PATH, timeout=10)
         try:
             conn.row_factory = sqlite3.Row
-            if len(sources) == 1:
-                cur = conn.execute(
-                    f"{select_cols} FROM flow "
-                    f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
-                    f"ORDER BY id DESC LIMIT ?",
-                    (sources[0], today, override_sql_floor, sql_cap),
-                )
-            else:
-                # 'all' = a TRUE UNION of the partitions: cap PER SOURCE and union,
-                # not "latest N of the merged pool". The old merged-pool LIMIT dropped
-                # the morning on heavy days (>cap combined color-gate rows) and made
-                # All < Stocks -- 7/9: stocks classified 2137 vs all 1685, undercounting
-                # the day by ~$86M bull. Per-source cap keeps each partition's full day,
-                # so All == Stocks u ETFs by construction. Each source stays under the
-                # cap, so it's the same per-source work, just no longer truncated.
-                subqueries, params = [], []
-                for s in sources:
-                    subqueries.append(
-                        f"SELECT * FROM ({select_cols} FROM flow "
-                        f"WHERE source = ? AND CreatedDate = ? AND {color_gate} "
-                        f"ORDER BY id DESC LIMIT ?)"
-                    )
-                    params.extend([s, today, override_sql_floor, sql_cap])
-                cur = conn.execute(" UNION ALL ".join(subqueries), params)
-            rows = cur.fetchall()
+            # ⛔⛔ THIS READ GOES THROUGH `_resilient_fetch`, AND THAT IS WHY THE MARKET
+            # READ SURVIVES A CORRUPT PAGE (2026-11-10).
+            #
+            # ⚰️ On 2026-11-10 flow.db corrupted for the third time in two days. The
+            # paths already wired to _resilient_fetch degraded correctly and kept
+            # serving — their logs read "session-ledger hit a corrupt flow.db page —
+            # retrying in bounded id windows". THIS path was not wired, so it raised
+            # `database disk image is malformed` straight out of the build and the
+            # Options Flow day card returned nothing **for six hours**, at
+            # `[flow-prepare] build raised: ...` roughly 32 times a minute. The rows
+            # it needed were READABLE the whole time: 48 of 48 sampled id windows were
+            # clean and only the write-head tail was damaged. The page died for data it
+            # could have read.
+            #
+            # ⛔ ONE _resilient_fetch CALL PER SOURCE, NOT ONE UNION ALL. Three reasons,
+            # and the first is the load-bearing one:
+            #   1. `_resilient_fetch` recovers by re-reading in bounded `id >= ? AND
+            #      id < ?` windows, and it derives those bounds from a MIN/MAX over
+            #      `source_clause AND CreatedDate`. A UNION ALL has no single id range
+            #      to bound, so the retry could not be expressed over it.
+            #   2. It preserves the per-source cap exactly (see the 7/9 note below),
+            #      because each source keeps its own LIMIT and its own window walk.
+            #   3. A corrupt span in `indexes` no longer costs us `stocks`: each source
+            #      degrades on its own and the other still reports in full.
+            #
+            # On a HEALTHY database this is unchanged work — _resilient_fetch runs the
+            # unbounded query first and only falls back on a malformed-page error, and
+            # `UNION ALL` of per-source subqueries was already equivalent to appending
+            # them in source order.
+            #
+            # 'all' = a TRUE UNION of the partitions: cap PER SOURCE and union, not
+            # "latest N of the merged pool". The old merged-pool LIMIT dropped the
+            # MORNING on heavy days (>cap combined color-gate rows) and made All <
+            # Stocks -- 7/9: stocks classified 2137 vs all 1685, undercounting the day
+            # by ~$86M bull. Per-source cap keeps each partition's full day, so
+            # All == Stocks u ETFs by construction.
+            #
+            # `sources` holds only code-controlled literals ('stocks'/'indexes'), so
+            # interpolating them is injection-safe — the same guarantee this function
+            # already relies on for `src_clause` below.
+            for s in sources:
+                s_clause = f"source = '{s}'"
+
+                def _run_day_stats(id_clause, id_params, _s=s):
+                    # _s is bound as a DEFAULT ARG on purpose: a bare closure over the
+                    # loop variable would make every source read the LAST one.
+                    return conn.execute(
+                        f"{select_cols} FROM flow "
+                        f"WHERE source = '{_s}' AND CreatedDate = ? AND {color_gate} "
+                        f"{id_clause} "
+                        f"ORDER BY id DESC LIMIT ?",
+                        (today, override_sql_floor, *id_params, sql_cap),
+                    ).fetchall()
+
+                rows.extend(_resilient_fetch(
+                    conn, _run_day_stats, s_clause, today, "", (),
+                    limit=(cap if cap > 0 else None),
+                    label=f"day-stats:{s}"))
             if cap > 0:
                 for s in sources:
                     if sum(1 for r in rows if r["source"] == s) >= cap:
@@ -4584,6 +4789,37 @@ _CREAM_TIERS = ("alpha_leaps", "alpha", "ask_accum")
 _CREAM_SINGLE_TIERS = ("size", "leaps", "bullish", "bearish")
 _cream_cache: dict = {}
 _cream_lock = threading.Lock()
+# How long today's Cream of the Crop is served before one background build refreshes it. A
+# build is one whole-day tape scan PER TIER, minutes of work in mid-session, so this is long
+# on purpose: the list moves slowly and the build must not compete with the tape all day.
+_CREAM_TODAY_TTL = int(os.environ.get("CREAM_TODAY_TTL_S", "900"))
+_cream_building: set = set()            # the dates a background build is running for
+_cream_building_lock = threading.Lock()
+
+
+def _cream_build_in_background(today: str) -> bool:
+    """Start ONE background build of `today`'s Cream of the Crop unless one is already
+    running for that date. True when this call started it. The build takes the shared fill
+    semaphore like every other heavy tape scan, and fills `_cream_cache` when it lands. A
+    failed build fills nothing: the next request starts another."""
+    with _cream_building_lock:
+        if today in _cream_building:
+            return False
+        _cream_building.add(today)
+
+    def _run():
+        try:
+            with _recent_fill_sem:                    # bound concurrent heavy scans
+                payload = compute_cream(today)
+            _cream_cache[today] = (time.time(), payload)
+        except Exception:
+            logging.getLogger(__name__).exception("[cream] background build failed for %s", today)
+        finally:
+            with _cream_building_lock:
+                _cream_building.discard(today)
+
+    threading.Thread(target=_run, name="cream-build", daemon=True).start()
+    return True
 
 
 def _cream_ck(sym, cp, strike, exp):
@@ -4838,11 +5074,28 @@ def compute_cream(today: str, top_n=None, min_voi=None,
 @router.get("/cream")
 def cream_preview(target_date: str = Query(default=None)):
     """Read-only Cream of the Crop preview (JSON). The day's highest-conviction
-    aggregate builds, filtered + ranked — no Discord post. See compute_cream."""
+    aggregate builds, filtered + ranked — no Discord post. See compute_cream.
+
+    NEVER computes on the request. Measured on production 2026-11-17 mid-session: a cold
+    build did not answer within 120 s (it is one whole-day tape scan per tier, queued behind
+    the tape's own scans), so the caller got the edge's 502 and never a list. The route
+    answers what it holds and lets ONE background build do the work:
+      * a build inside its TTL                    -> that build, with `built_at`
+      * an older build                            -> that build, `stale: true`, and a
+                                                     background build is started
+      * nothing held yet (boot, a new day, a      -> `{status: "computing", date}` and a
+        past date first asked for)                   background build is started; the
+                                                     caller asks again
+    `built_at` is epoch seconds: when the list the caller is reading was built."""
     today = _resolve_date(target_date)
-    ttl = 60 if today == _today_mdyyyy() else _HISTORICAL_TTL
-    return _cached_single_flight(_cream_cache, today, _cream_lock, ttl,
-                                 lambda: compute_cream(today))
+    ttl = _CREAM_TODAY_TTL if today == _today_mdyyyy() else _HISTORICAL_TTL
+    hit = _cream_cache.get(today)
+    if hit is not None and time.time() - hit[0] < ttl:
+        return {**hit[1], "built_at": int(hit[0])}
+    _cream_build_in_background(today)
+    if hit is not None:
+        return {**hit[1], "built_at": int(hit[0]), "stale": True}
+    return {"status": "computing", "date": today}
 
 
 @router.post("/cream/post")
@@ -5093,7 +5346,7 @@ def _compute_ticker_flow_window(symbol: str, days: str = "1", source: str = "sto
     # up to 40 pages / 10,000 contracts) to read ~10-20 known contract keys out
     # of it — measured as the wasteful "second OI walk" on this same card path.
     # fetch_price_oi_for_contracts() reuses the per-contract single-endpoint
-    # mechanism already in production for schwab_router.py, scoped to just
+    # mechanism already in production for POST /api/schwab/options-quotes, scoped to just
     # `top`, with a ≤60s per-contract cache. It intentionally does NOT read the
     # R61 daily OI cache (R69's own shorthand plan text) — that would regress
     # the IREN 65C incident this live-OI-first logic exists to guard against
@@ -6342,7 +6595,12 @@ def _session_fair_dominant(occ: str, ts_hint_ns: int, tol: float = 0.01):
     dirp = ask + bid
     if dirp <= 0:
         return None
-    return (max(ask, bid) / dirp, "ask" if ask >= bid else "bid", n)
+    # 2026-11-09: also return the ask/bid DOLLARS. The fraction alone answers
+    # "does the tape confirm this direction"; the dollars answer "how big is the
+    # ask-side build really", which is what the Alpha LEAPS / Ask Accumulation
+    # aggregates need when our stored Side is mostly blank. Tuple is appended to,
+    # never reordered, so existing unpack sites keep working.
+    return (max(ask, bid) / dirp, "ask" if ask >= bid else "bid", n, ask, bid)
 
 
 def _aggregate_side_decision(dom_frac: float, dom_side: str, direction: str, cp: str, min_frac: float) -> bool:
@@ -6387,9 +6645,110 @@ def _aggregate_side_clean(a: dict, thr: dict) -> bool:
         _AGG_SIDE_MEMO[mkey] = (now + _AGG_SIDE_TTL, res)
     if not res:
         return True   # fail-open: no tape/quotes -> never drop a real build
-    dom_frac, dom_side, _n = res
+    dom_frac, dom_side, _n = res[0], res[1], res[2]
     min_frac = float(thr.get("aggregate_side_min", 0.67) or 0)
     return _aggregate_side_decision(dom_frac, dom_side, direction, a.get("cp"), min_frac)
+
+
+def _fair_side_cached(occ: str, ts_ns: int):
+    """`_session_fair_dominant` behind the shared (occ, day) memo. Returns the
+    5-tuple (dom_frac, dom_side, n, ask_prem, bid_prem) or None."""
+    try:
+        daykey = datetime.fromtimestamp(ts_ns / 1e9, tz=timezone.utc).astimezone(ET).strftime("%Y-%m-%d")
+    except Exception:
+        return None
+    mkey = (occ, daykey)
+    now = time.time()
+    hit = _AGG_SIDE_MEMO.get(mkey)
+    if hit and now < hit[0]:
+        return hit[1]
+    res = _session_fair_dominant(occ, ts_ns)
+    if len(_AGG_SIDE_MEMO) > 20000:
+        _AGG_SIDE_MEMO.clear()
+    _AGG_SIDE_MEMO[mkey] = (now + _AGG_SIDE_TTL, res)
+    return res
+
+
+def _fair_ask_ledger(conn, source_clause: str, today: str, thr: dict,
+                     sym_clause: str = "", sym_params=()) -> dict:
+    """{(Symbol, CallPut, Strike, ExpirationDate) -> fair ask premium} for the
+    session's BIG contracts, measured against NBBO-at-fill instead of our stored
+    Side.
+
+    WHY (2026-11-09, measured on CRWD 280C 12/17/27 and PANW 410C 12/17/27):
+    `_build_session_ask_premium_ledger` sums the stored `Side`, and on a busy day
+    ~86% of premium lands blank because of Q-pool churn. It admits blank-side
+    SWEEPs (the 2026-09-05 PPTA fix) but NOT blank-side BLOCKs, so CRWD's build
+    summed to $5.57M of a real $13.31M -- $7.75M of it blank blocks contributing
+    zero -- and PANW's to $6.87M of $10.29M. The tier then graded the wrong
+    number, and separately fired on whichever small print happened to carry an
+    A side.
+
+    This asks the tape instead. `_session_fair_dominant` already classifies EVERY
+    print of a contract against the prevailing NBBO-at-fill (the same method the
+    SMR / side-gate audits use, and the one the push veto already trusts), so it
+    is blind to our Q-pool coverage entirely.
+
+    COST CONTROL -- this makes REST calls, so it must never run per-row:
+      * SQL does the candidate selection (GROUP BY + HAVING), so only contracts
+        whose WHOLE-TAPE premium already clears the floor are considered.
+      * at most `fair_ask_max_lookups` contracts per scan, biggest first.
+      * memoized per (occ, day) for `_AGG_SIDE_TTL`, shared with the push gate.
+      * ML/ is excluded -- multi-leg is non-directional by design.
+    Fail-OPEN everywhere: any gap just leaves the stored-Side aggregate in place.
+    """
+    if not thr.get("fair_ask_aggregate_enabled", False):
+        return {}
+    try:
+        floor = float(thr.get("fair_ask_min_total_premium", 3_000_000) or 0)
+        max_lookups = int(thr.get("fair_ask_max_lookups", 12) or 0)
+        min_frac = float(thr.get("aggregate_side_min", 0.67) or 0)
+    except (TypeError, ValueError):
+        return {}
+    if floor <= 0 or max_lookups <= 0:
+        return {}
+
+    try:
+        cands = conn.execute(f"""
+            SELECT Symbol, CallPut, Strike, ExpirationDate,
+                   SUM(CAST(Premium AS REAL)) AS tot, MAX(ts_ns) AS ts
+              FROM flow
+             WHERE {source_clause} AND CreatedDate = ?{sym_clause}
+               AND UPPER(COALESCE(Type,'')) NOT LIKE '%ML%'
+             GROUP BY Symbol, CallPut, Strike, ExpirationDate
+            HAVING tot >= ?
+             ORDER BY tot DESC
+             LIMIT ?
+        """, (today, *sym_params, floor, max_lookups)).fetchall()
+    except sqlite3.DatabaseError as e:
+        if not _is_malformed_db(e):
+            raise
+        logging.getLogger(__name__).error(
+            "[massive] fair-ask candidate scan hit a corrupt page — skipping this cycle")
+        return {}
+
+    out: dict = {}
+    for row in cands:
+        sym, cp, strike, exp = row[0], row[1], row[2], row[3]
+        ts = row[5]
+        if not ts:
+            continue
+        occ = _alert_occ({"ticker": sym, "exp": exp, "cp": cp, "strike": strike})
+        if not occ:
+            continue
+        res = _fair_side_cached(occ, int(ts))
+        if not res or len(res) < 5:
+            continue
+        dom_frac, dom_side, _n, ask_prem, _bid_prem = res
+        # only override when the tape is clearly ask-dominant; a mixed or
+        # bid-dominant contract keeps the conservative stored-Side number.
+        if dom_side != "ask" or dom_frac < min_frac:
+            continue
+        out[(sym, cp, strike, exp)] = float(ask_prem or 0)
+    if out:
+        logging.getLogger(__name__).info(
+            "[massive] fair-ask ledger: %d/%d candidate contract(s) ask-dominant", len(out), len(cands))
+    return out
 
 
 def _next_ex_div(sym: str):
@@ -7504,6 +7863,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "block_darkpool_hedge_suppress",
         # Aggregate fair-NBBO side gate (2026-11-05): Alpha LEAPS / Ask Accumulation
         "aggregate_side_enabled", "aggregate_side_min", "aggregate_side_unclean_suppress",
+        "fair_ask_aggregate_enabled", "fair_ask_min_total_premium", "fair_ask_max_lookups",
         "flow_bar_enabled",          # colored ANSI flow bar on directional cards (display only)
     }
     bad_keys = set(body.keys()) - allowed_top
@@ -8118,7 +8478,7 @@ def side_method_stats():
     }
 
 
-# ─── OI enrichment from contract_oi_snapshots (snapshot-only, no Schwab) ──
+# ─── OI enrichment from contract_oi_snapshots (snapshot-only, no vendor call) ──
 # The frontend "fetch OI" button was previously wired to /api/oi-snapshot/
 # bulk-fetch, which tries snapshot lookup with an incorrect key format then
 # falls through to Schwab options_quotes_batch for the (100%) miss set.
@@ -8129,7 +8489,7 @@ def side_method_stats():
 # call due to SQLite lock contention.
 #
 # This endpoint is the surgical replacement:
-#   1. Snapshot table ONLY. Never touches Schwab, so no hang risk.
+#   1. Snapshot table ONLY. Never calls a vendor, so no hang risk.
 #   2. Uses the contract_key format proven correct by tonight's confirmation-
 #      map endpoint (`TICKER|C_or_P|STRIKE.0|M/D/YYYY`), with the same 7-
 #      variant probe fallback if that format ever changes.
@@ -8346,7 +8706,7 @@ async def enrich_oi(
                     k, sd, oi_val = r[0], r[1], int(r[2] or 0)
                     # Keep only the latest snap per key (last-wins after ORDER BY).
                     # Skip zero-OI snapshots so a real earlier value isn't
-                    # shadowed by a later Schwab-write-failed sentinel row.
+                    # shadowed by a later write-failed sentinel row.
                     if oi_val <= 0:
                         continue
                     prev = snap_by_key.get(k)

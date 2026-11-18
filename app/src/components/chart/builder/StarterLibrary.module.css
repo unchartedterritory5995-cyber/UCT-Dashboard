@@ -1,34 +1,30 @@
 /* The starter gallery. Canonical breakpoints only (640 / 1024) and 44px targets
-   — `--tap-min` is the token, never a literal. */
+   — `--tap-min` is the token, never a literal.
+   ⭐ UCT Signature (Direction A, 2026-11-16): soft cards on the panel, sentence-case
+   family labels, no gold — the chosen starter is the "selected" grey, not a gold border. */
 
 .wrap {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-
 .lede {
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--text-muted);
+  color: #93939a;
 }
-
 .family {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-
 .familyHead {
   margin: 0;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  color: #c9c6be;
 }
-
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -37,11 +33,9 @@
   padding: 0;
   list-style: none;
 }
-
 @media (max-width: 640px) {
   .grid { grid-template-columns: minmax(0, 1fr); }
 }
-
 .card {
   display: flex;
   flex-direction: column;
@@ -49,56 +43,49 @@
   gap: 5px;
   width: 100%;
   min-height: var(--tap-min);
-  padding: 10px 12px;
+  padding: 12px 14px;
   font: inherit;
   text-align: left;
-  color: var(--text-bright);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  color: #ededed;
+  background: #1a1b1f;
+  border: 0;
+  border-radius: 9px;
   cursor: pointer;
 }
-
-.card:hover { border-color: var(--border-accent); }
-.card:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
-.cardActive { border-color: var(--gold); }
-
+.card:hover { background: #222327; }
+.card:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.cardActive { background: #2c2e33; }
 .cardName {
   font-size: 13px;
   font-weight: 600;
 }
-
 .cardSentence {
-  font-size: 11px;
+  font-size: 11.5px;
   line-height: 1.45;
-  color: var(--text-muted);
+  color: #93939a;
   overflow-wrap: anywhere;
 }
-
 .cardSource {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 11px;
   line-height: 1.4;
-  color: var(--gold);
+  color: #c9c6be;
   overflow-wrap: anywhere;
 }
-
 .cardAction {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: #a9a59b;
 }
 
 /* ── the refusals: named, never approximated ───────────────────────────────── */
-
 .refusedWrap {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-
 .refusedToggle {
   display: inline-flex;
   align-items: center;
@@ -107,15 +94,13 @@
   padding: 0 4px;
   font: inherit;
   font-size: 12px;
-  color: var(--text-muted);
+  color: #93939a;
   background: transparent;
   border: 0;
   cursor: pointer;
   text-align: left;
 }
-
-.refusedToggle:hover { color: var(--text-bright); }
-
+.refusedToggle:hover { color: #f8f7f3; }
 .refusedList {
   display: flex;
   flex-direction: column;
@@ -130,20 +115,19 @@
   flex-direction: column;
   gap: 2px;
   padding: 8px 10px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  background: #1a1b1f;
+  border-radius: 9px;
 }
 
 .refusedName {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-bright);
+  color: #ededed;
 }
 
 .refusedReason {
-  font-size: 11px;
+  font-size: 11.5px;
   line-height: 1.5;
-  color: var(--text-muted);
+  color: #93939a;
   overflow-wrap: anywhere;
 }

@@ -105,7 +105,7 @@ export async function applyMappingOffer(excludeNoteIds = []) {
   return out
 }
 
-/** The preview behind "Update layout": a GET on its own route (the server's style-update-plan), so it
+/** The preview behind "Update template": a GET on its own route (the server's style-update-plan), so it
  *  can never be taken for the write; it writes nothing and settles nothing. */
 export const planStyleUpdate = (noteId, { styleId } = {}) =>
   call(`${NOTES_URL}/${enc(noteId)}/style-update-plan${styleId ? `?styleId=${enc(styleId)}` : ''}`)

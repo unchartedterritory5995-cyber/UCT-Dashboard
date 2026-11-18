@@ -126,6 +126,9 @@ const nextFrame = afterRender
 
 export const watchlistKind = {
   name: 'watchlist',
+  source: 'watchlists',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Watchlists aren't available on this page — open Charts to change a watchlist.",
+  empty: "You have no watchlists yet.",
   boardScoped: false,
   // Its receipt lines already name the list ("Added AMD to “Momentum”").
   selfDescribing: true,
@@ -293,6 +296,8 @@ function libSnap(host) {
 // Where new lists are made. Creating returns the real id for `as` (create + populate).
 export const watchlistLibraryKind = {
   name: 'watchlistLibrary',
+  source: 'watchlists',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Watchlists aren't available on this page — open Charts to change a watchlist.",
   boardScoped: false,
   selfDescribing: true,
   list: (host) => (host?.watchlists ? [libSnap(host)] : []),

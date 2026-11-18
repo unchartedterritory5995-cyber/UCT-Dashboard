@@ -636,6 +636,14 @@
    "description": "Mean daily volume of the last 50 sessions, the last one included. Blank if any of them has no volume. Measured at the last completed session."
   },
   {
+   "key": "min_volume_3d_prior",
+   "label": "Min Volume (3d, prior)",
+   "type": "range",
+   "unit": null,
+   "category": "technical",
+   "description": "The lowest daily volume of the three sessions before the last one (TC2000's MINV3.1). The last session is left out, so one heavy day cannot lift it. Blank if any of the three has no volume. Measured at the last completed session."
+  },
+  {
    "key": "vol_trend_pct",
    "label": "Volume Trend (5d vs 20d)",
    "type": "range",
@@ -1015,6 +1023,48 @@
    "category": "momentum"
   },
   {
+   "key": "rs_rating_1m",
+   "label": "1M Return Rank",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_rating_3m",
+   "label": "3M Return Rank",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_rating_6m",
+   "label": "6M Return Rank",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_rating_9m",
+   "label": "9M Return Rank",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_rating_12m",
+   "label": "12M Return Rank",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_rating_chg_20",
+   "label": "RS Rating Change (20 sessions)",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
    "key": "rs_new_high",
    "label": "RS New High (52-week)",
    "type": "bool",
@@ -1078,13 +1128,6 @@
    "category": "relative_strength"
   },
   {
-   "key": "rs_benchmark_agree",
-   "label": "RS Agrees vs SPY and RSP",
-   "type": "bool",
-   "unit": null,
-   "category": "relative_strength"
-  },
-  {
    "key": "rs_rating_ibd",
    "label": "RS Rating (IBD-style)",
    "type": "range",
@@ -1099,37 +1142,9 @@
    "category": "relative_strength"
   },
   {
-   "key": "rs_rating_chg_20",
-   "label": "RS Rating Change (20 sessions)",
-   "type": "range",
-   "unit": null,
-   "category": "relative_strength"
-  },
-  {
-   "key": "rs_rating_1m",
-   "label": "1M Return Rank",
-   "type": "range",
-   "unit": null,
-   "category": "relative_strength"
-  },
-  {
-   "key": "rs_rating_3m",
-   "label": "3M Return Rank",
-   "type": "range",
-   "unit": null,
-   "category": "relative_strength"
-  },
-  {
-   "key": "rs_rating_6m",
-   "label": "6M Return Rank",
-   "type": "range",
-   "unit": null,
-   "category": "relative_strength"
-  },
-  {
-   "key": "rs_rating_12m",
-   "label": "12M Return Rank",
-   "type": "range",
+   "key": "rs_benchmark_agree",
+   "label": "RS Agrees vs SPY and RSP",
+   "type": "bool",
    "unit": null,
    "category": "relative_strength"
   },
@@ -1153,6 +1168,260 @@
    "type": "enum",
    "unit": null,
    "category": "relative_strength"
+  },
+  {
+   "key": "rs_exit_last",
+   "label": "RS Exit Warning",
+   "type": "enum",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_exit_bars_ago",
+   "label": "RS Exit Age",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength"
+  },
+  {
+   "key": "rs_quicksand_bars_ago",
+   "label": "Quicksand Age (sessions)",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_quick_break_bars_ago",
+   "label": "Quick Break Age (sessions)",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_dead_break_bars_ago",
+   "label": "Grateful Dead Break Age (sessions)",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_rating_pos",
+   "label": "RS Rating place",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_rating_pos_prev20",
+   "label": "Place a month ago",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_pos_1m",
+   "label": "1M place",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_pos_3m",
+   "label": "3M place",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_pos_6m",
+   "label": "6M place",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_pos_12m",
+   "label": "12M place",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_rating_session",
+   "label": "Ratings as of",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_rating_pos_n",
+   "label": "Stocks ranked",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_rating_score",
+   "label": "RS Rating score",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_rating_prev20",
+   "label": "RS Rating a month ago",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_nh_count_20",
+   "label": "RS highs in 20 sessions",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_nh_quiet",
+   "label": "Sessions before the RS high",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_nh_red_bars_ago",
+   "label": "RS high on a down day, age",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_nhbp_age",
+   "label": "RS high before price, age",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_nh_span",
+   "label": "RS high span (sessions)",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "px_below_high_pct",
+   "label": "Below its high",
+   "type": "range",
+   "unit": "%",
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_setup",
+   "label": "Setup",
+   "type": "enum",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_tight",
+   "label": "Tight range",
+   "type": "bool",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_flag",
+   "label": "Setup flag",
+   "type": "enum",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_near_buy",
+   "label": "Near a buy point",
+   "type": "bool",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "atr_ext_ema21",
+   "label": "ATR Extension vs 21EMA",
+   "type": "range",
+   "unit": "ATR",
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "pct_vs_ema8",
+   "label": "EMA8 Distance",
+   "type": "range",
+   "unit": "%",
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "pct_vs_ema21",
+   "label": "EMA21 Distance",
+   "type": "range",
+   "unit": "%",
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_nh_weekly",
+   "label": "Weekly RS new high",
+   "type": "bool",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_nhbp_weekly",
+   "label": "Weekly RS high before price",
+   "type": "bool",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_leaders_member",
+   "label": "On UCT RS Leaders",
+   "type": "bool",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_leaders_days",
+   "label": "Sessions on UCT RS Leaders",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
   },
   {
    "key": "atr_pct",

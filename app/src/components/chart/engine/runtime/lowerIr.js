@@ -15,7 +15,7 @@
 import { OP, SERIES_NAMES, CLOCK_FIELDS, makeProgram } from './program.js'
 import { STMT, EXPR, SLOT } from './ir.js'
 import { isVoid } from './collections.js'
-import { naConditionIsFalse } from '../ast/interpret.js'
+import { pineNaConditionIsFalse } from '../ast/interpret.js'
 
 export class LoweringGap extends Error {
   constructor(kind, detail) {
@@ -88,7 +88,7 @@ export function lowerIrProgram(ir, opts = {}) {
    *  listing (`opts.historyFromListing`), and only in a version that has the
    *  rule. The rule and its evidence live in ONE place (`interpret.js::pineBool`,
    *  `naConditionIsFalse`); this lowering only asks it. */
-  const naFalse = !!(opts && opts.historyFromListing === true) && naConditionIsFalse(ir && ir.version)
+  const naFalse = !!(opts && opts.historyFromListing === true) && pineNaConditionIsFalse(ir && ir.version)
   let naTests = 0
   const code = []
   const consts = []
@@ -141,13 +141,15 @@ export function lowerIrProgram(ir, opts = {}) {
   }
   // ⭐ RT5 — KEYED BY NAME **AND** WHICH PARAMETERS WERE PASSED: two call sites
   // of `line.new` that pass different arguments are two different stack shapes.
-  const objectIndex = (fn, present, returns) => {
-    const key = `${fn}|${present.map((x) => (x ? 1 : 0)).join('')}|${returns}`
+  // ⭐⭐ ENGINE 54 — AND BY ITS SOURCE CALL (`site`), on a call that makes a drawing: two
+  // `line.new` calls are two sites, and each object says which one made it.
+  const objectIndex = (fn, present, returns, site = null) => {
+    const key = `${fn}|${present.map((x) => (x ? 1 : 0)).join('')}|${returns}|${site || ''}`
     for (let i = 0; i < objectOps.length; i += 1) {
       const o = objectOps[i]
-      if (`${o.fn}|${o.present.map((x) => (x ? 1 : 0)).join('')}|${o.returns}` === key) return i
+      if (`${o.fn}|${o.present.map((x) => (x ? 1 : 0)).join('')}|${o.returns}|${o.site || ''}` === key) return i
     }
-    objectOps.push({ fn, present: present.slice(), returns })
+    objectOps.push(site ? { fn, present: present.slice(), returns, site } : { fn, present: present.slice(), returns })
     return objectOps.length - 1
   }
   // ⭐⭐ S1 — KEYED LIKE A DRAWING OP: name, which parameters were passed, returns.
@@ -263,7 +265,7 @@ export function lowerIrProgram(ir, opts = {}) {
         const present = e.args.map((a) => a !== null)
         let n = 0
         for (const a of e.args) if (a !== null) { expr(a); n += 1 }
-        emit(OP.OBJECT, objectIndex(e.fn, present, e.returns), n)
+        emit(OP.OBJECT, objectIndex(e.fn, present, e.returns, e.site || null), n)
         return
       }
       // ⭐⭐ S1 — the same shape for a broker op: the PASSED arguments, then one
@@ -927,7 +929,8 @@ export function lowerIrProgram(ir, opts = {}) {
       for (let k = results - 1; k >= 0; k -= 1) emit(OP.EMIT, k)
     }
     emit(OP.HALT)
-    return { timeframe: r.timeframe, entry, results }
+    // ⭐ RS RATING L5 — the host's reading of the request (`target`), for the run's supply
+    return { timeframe: r.timeframe, entry, results, target: r.target || null }
   })
 
   const made = makeProgram({

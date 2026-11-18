@@ -1,0 +1,36 @@
+# head 654e35d59a 2026-11-10T23:04:44Z dirty: 1 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentWhichWidget.rail.test.jsx src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx
+ RUN  v4.0.18 C:/w/pl-widget/app
+ ✓ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx (3 tests) 3273ms
+     ✓ the plan picked the left one: a question, and neither widget's look changed  1180ms
+     ✓ the plan picked Momentum's view: a question, and no saved column layout  1007ms
+     ✓ control: "move the volume column after the symbol in Momentum" names it: moved, no question  1084ms
+ ❯ src/agent/agentWhichWidget.rail.test.jsx (6 tests | 1 failed) 6354ms
+     ✓ "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed  1107ms
+     × "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed 1060ms
+     ✓ u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question  1050ms
+     ✓ u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question  1052ms
+     ✓ "refresh the IPOs scanner" with two Scanners: that one only  1042ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1040ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > (d) u18-refresh-06: an EXCLUDED widget is never acted on > "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed
+AssertionError: UCT Agent6:04 PMRefreshed the Period Sort: expected [ 'refresh' ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   "refresh",
++ ]
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:61:27
+     59|     p.st.envelopes.push(plan(refresh('ps')))
+     60|     const out = await say("don't touch the period sort, just reload th…
+     61|     expect(ps.calls, out).toEqual([])                                 …
+       |                           ^
+     62|     expect(out).not.toMatch(/Refreshed/)
+     63|     expect(s.calls).toEqual([])                                       …
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 8 passed (9)
+   Start at  18:04:47
+   Duration  14.53s (transform 10.81s, setup 732ms, import 14.38s, tests 9.63s, environment 1.36s)

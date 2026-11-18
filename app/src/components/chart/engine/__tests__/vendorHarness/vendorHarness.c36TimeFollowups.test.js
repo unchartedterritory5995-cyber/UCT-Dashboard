@@ -733,10 +733,11 @@ describe('C36 · 5 — `time_close("W" | "M")` everywhere it was NOT measured: w
     const { verdict } = gradeCapture(derive(TC_BTC, TC_CUT))
     const byTitle = new Map(verdict.plots.map((p) => [p.title, p]))
     for (const title of ['Q01_timecloseW_minus_time_DAYS', 'Q02_timecloseM_minus_time_DAYS', 'Q12_newWeekClose', 'Q13_newMonthClose']) {
+      // ⭐ 2026-11-09 — withheld by name on every bar: not compared (INCONCLUSIVE,
+      // with the code), where it read DIVERGE as 5,491 `na` mismatches before
       const p = byTitle.get(title)
-      expect(p.stats.valueMismatches, title).toBe(0)
-      expect(p.stats.matching, title).toBe(0)
-      expect(p.stats.naMismatches, title).toBe(5491)
+      expect(p, title).toMatchObject({ verdict: 'INCONCLUSIVE', withheld: 'time-close:weekend-bars' })
+      expect(p.stats, title).toBeUndefined()
     }
     // the vendor's answer is a whole number of days on: the next Monday 00:00 UTC
     expect(new Set(vendor(TC_BTC, 'Q01_timecloseW_minus_time_DAYS').map((x) => x % 1))).toEqual(new Set([0]))
@@ -755,7 +756,9 @@ describe('C36 · 5 — `time_close("W" | "M")` everywhere it was NOT measured: w
   it('an hourly chart: the plot is withheld and named — not an `interpret:timeframe` refusal of the `tf_live` read', () => {
     const ours = on(H60, pine(['plot(time_close("W"), "w")', 'plot(time_close("M"), "m")', 'if barstate.islast', '    label.new(bar_index, high, na(time_close("W")) ? "na" : "known")']))
     expect(ours.ok, ours.refusal).toBe(true)
-    expect(ours.plots.map((p) => p.missingReason || null)).toEqual([null, null])
+    // ⭐ 2026-11-09 — withheld on every bar BY NAME, and the plot says so (graded INCONCLUSIVE)
+    expect(ours.plots.map((p) => p.withheldBy)).toEqual(['time-close:not-daily', 'time-close:not-daily'])
+    expect(ours.plots.every((p) => /by name \(time-close:not-daily\)/.test(p.missingReason))).toBe(true)
     expect(allNaN(column(ours, 0)) && allNaN(column(ours, 1))).toBe(true)
     expect(noteCodes(ours)).toEqual(['time-close:not-daily'])
     expect(ours.notes.join('\n')).toContain('This chart\'s timeframe is `60`')
