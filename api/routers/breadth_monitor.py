@@ -148,12 +148,13 @@ def get_breadth_ohlc_status():
 
 
 @router.get("/api/breadth-monitor/universe")
-def get_breadth_universe():
+def get_breadth_universe(_: None = Depends(require_push_secret)):
     """The breadth reconstruction universe — the SAME population the live row
     measured (collector's latest universe_list). Read-only. Consumed by the WORKER
     pod's history backfill, which can't read the collector snapshot on the web
     volume; serving it here keeps pre-2024 reconstruction on ONE population (no
-    seam vs the live/2024 rows)."""
+    seam vs the live/2024 rows). A machine door: the worker presents the
+    `PUSH_SECRET` bearer (`breadth_history_recon._resolve_universe`)."""
     from api.services import breadth_live as bl
     tickers, d = bl.universe()
     return {"tickers": tickers, "date": d, "count": len(tickers)}

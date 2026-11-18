@@ -795,14 +795,6 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "limit=10, note_type",
-      "path": "/api/coaching-notes",
-      "rate_limit_family": "member-workspace",
-      "tier": "paid"
-    },
-    {
-      "limit": "600/minute",
-      "method": "GET",
       "params": "",
       "path": "/api/community/chat/channels",
       "rate_limit_family": "community-content",
@@ -4211,14 +4203,6 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "days=30",
-      "path": "/api/psychology-events",
-      "rate_limit_family": "member-workspace",
-      "tier": "paid"
-    },
-    {
-      "limit": "600/minute",
-      "method": "GET",
       "params": "fresh=False",
       "path": "/api/regime",
       "rate_limit_family": "market-analytics",
@@ -5214,14 +5198,6 @@
       "params": "{symbol}",
       "path": "/api/single-stock-etfs/{symbol}",
       "rate_limit_family": "market-data",
-      "tier": "paid"
-    },
-    {
-      "limit": "600/minute",
-      "method": "GET",
-      "params": "",
-      "path": "/api/skill-assessments",
-      "rate_limit_family": "member-workspace",
       "tier": "paid"
     },
     {
