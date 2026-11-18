@@ -1,6 +1,6 @@
 """Cross-vendor parity for the UCT RS Rating against Deepvue (design round, 2026-11-08).
 
-`tests/fixtures/indicators/rs_parity_deepvue.json` records both sides of one
+`tests/fixtures/indicators/rs_parity_reference.json` records both sides of one
 measurement, value for value from the review
 (`docs/research/relative-strength/reviews/2026-11-08-deepvue-parity.{md,py}` in
 the uct-rs-plan repo): Deepvue's 1M 3M 6M 9M 12M ranks for 21 names, read from
@@ -25,7 +25,7 @@ its arithmetic.
 ⚰️ THE 2026-11-08 RECORD ABOVE IS HISTORY (2026-11-12). It measured the rating ranked over
 the 3,418-name cap universe, which sat about 11 points below Deepvue under 75. The rating
 is now ranked against every non-ETF stock with a recent price, and the member copy states
-the newer measurement, ``tests/fixtures/indicators/rs_parity_deepvue_universe.json``
+the newer measurement, ``tests/fixtures/indicators/rs_parity_reference_universe.json``
 (61 names, five horizons, 305 comparisons: mean miss 3.0 points, bias +0.1, 93 % within 10).
 The old record stays because it is the evidence the universe change answered.
 """
@@ -35,10 +35,10 @@ import pytest
 
 from tests.test_indicator_golden import load_case
 
-CASE = load_case("rs_parity_deepvue")
-DV = CASE["deepvue"]["rows"]
+CASE = load_case("rs_parity_reference")
+REF = CASE["reference"]["rows"]
 US = CASE["ours"]["rows"]
-NAMES = list(DV)
+NAMES = list(REF)
 TOP = CASE["reported"]["top_band_floor"]
 
 SPEARMAN_FLOOR = 0.95
@@ -74,31 +74,31 @@ def _col(rows, key):
 
 
 def test_the_fixture_is_the_review_shape():
-    assert CASE["kind"] == "rs_parity" and CASE["case"] == "rs_parity_deepvue"
+    assert CASE["kind"] == "rs_parity" and CASE["case"] == "rs_parity_reference"
     assert len(NAMES) == 21 and list(US) == NAMES
-    assert CASE["deepvue"]["columns"] == ["m1", "m3", "m6", "m9", "m12"]
+    assert CASE["reference"]["columns"] == ["m1", "m3", "m6", "m9", "m12"]
     assert CASE["ours"]["columns"] == ["ibd", "fast", "m1", "m3", "m6", "m12"]
-    for side in (DV, US):
+    for side in (REF, US):
         for t, row in side.items():
             for k, v in row.items():
                 assert isinstance(v, int) and 1 <= v <= 99, (t, k, v)
-    assert CASE["source"]["deepvue"]["read_on"] == "2026-11-08"
+    assert CASE["source"]["reference"]["read_on"] == "2026-11-08"
     assert CASE["source"]["ours"]["asof"] == "2026-11-06"
     assert CASE["caveats"] and any("MarketSurge" in c for c in CASE["caveats"])
     # the names the review lists, in its order
     assert NAMES[:3] == ["NVDA", "AAPL", "MSFT"] and NAMES[-1] == "CRCL"
 
 
-def test_our_rating_ranks_stocks_in_deepvues_order():
-    rho = _spearman(_col(US, "ibd"), _col(DV, "m12"))
+def test_our_rating_ranks_stocks_in_the_references_order():
+    rho = _spearman(_col(US, "ibd"), _col(REF, "m12"))
     print(f"Spearman(our IBD-style, Deepvue 12M) = {rho:.3f} on {len(NAMES)} names")
     assert rho >= SPEARMAN_FLOOR
     assert rho == pytest.approx(CASE["reported"]["spearman_ibd_vs_dv12m"], abs=0.005)
 
 
 def test_at_75_and_above_ours_is_within_about_a_point():
-    top = [t for t in NAMES if DV[t]["m12"] >= TOP]
-    diffs = [US[t]["ibd"] - DV[t]["m12"] for t in top]
+    top = [t for t in NAMES if REF[t]["m12"] >= TOP]
+    diffs = [US[t]["ibd"] - REF[t]["m12"] for t in top]
     mae = sum(abs(d) for d in diffs) / len(diffs)
     bias = sum(diffs) / len(diffs)
     print(f"Deepvue 12M >= {TOP}: {len(top)} names, mean |diff| {mae:.2f}, mean ours-minus-Deepvue {bias:+.2f}")
@@ -108,8 +108,8 @@ def test_at_75_and_above_ours_is_within_about_a_point():
 
 
 def test_below_75_ours_reads_lower_the_universe_offset():
-    low = [t for t in NAMES if DV[t]["m12"] < TOP]
-    offset = sum(US[t]["ibd"] - DV[t]["m12"] for t in low) / len(low)
+    low = [t for t in NAMES if REF[t]["m12"] < TOP]
+    offset = sum(US[t]["ibd"] - REF[t]["m12"] for t in low) / len(low)
     print(f"Deepvue 12M < {TOP}: {len(low)} names, mean ours-minus-Deepvue {offset:+.1f} (the universe offset)")
     assert len(low) == CASE["reported"]["below_band_names"]
     assert offset < 0, "HISTORICAL record (cap universe, 2026-11-08): ours read LOWER below 75 because it ranked a liquid universe"
@@ -119,7 +119,7 @@ def test_below_75_ours_reads_lower_the_universe_offset():
 
 
 def test_overall_mae_matches_the_review():
-    mae = sum(abs(u - d) for u, d in zip(_col(US, "ibd"), _col(DV, "m12"))) / len(NAMES)
+    mae = sum(abs(u - d) for u, d in zip(_col(US, "ibd"), _col(REF, "m12"))) / len(NAMES)
     assert round(mae, 1) == CASE["reported"]["mae_ibd_vs_dv12m"]
 
 
@@ -133,7 +133,7 @@ import json as _json
 import pathlib as _pathlib
 
 UNIVERSE_FIT = _json.loads((_pathlib.Path(__file__).resolve().parent / "fixtures" / "indicators"
-                            / "rs_parity_deepvue_universe.json").read_text(encoding="utf-8"))
+                            / "rs_parity_reference_universe.json").read_text(encoding="utf-8"))
 _HZ = ("1M", "3M", "6M", "9M", "12M")
 
 

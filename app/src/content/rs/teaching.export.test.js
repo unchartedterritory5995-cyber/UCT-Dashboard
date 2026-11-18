@@ -109,7 +109,7 @@ describe('glossary', () => {
 
   it('the RS Rating carries the MEASURED Deepvue comparison (2026-11-12), not the 3 to 5 point MarketSurge figure', () => {
     const rating = GLOSSARY.find((t) => t.key === 'rsRating')
-    // the measurement `tests/test_rs_parity_deepvue.py` rails, in plain words: the wide-universe
+    // the measurement `tests/test_rs_parity_reference.py` rails, in plain words: the wide-universe
     // fit of 2026-11-12 (the 2026-11-08 record, "about 11 points lower against a liquid
     // universe", described the cap universe the rating no longer ranks against)
     expect(rating.definition).toContain('ranked against every stock we hold a recent price for, the way Deepvue\'s is')

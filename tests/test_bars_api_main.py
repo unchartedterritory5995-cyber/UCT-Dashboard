@@ -53,3 +53,47 @@ def test_uses_the_shared_serve_core_not_a_copy():
     src = importlib.import_module("api.bars_api_main")
     assert "from api.routers.bars import serve_bars, serve_bars_history" in \
         open(src.__file__, encoding="utf-8").read()
+
+
+def test_the_bar_server_cuts_the_gil_switch_interval_like_web(monkeypatch):
+    """2026-11-17 audit: web runs at 0.5 ms (gil_tuning), the bar server at the interpreter's 5 ms,
+    with seven background threads beside row-by-row sqlite reads."""
+    import sys
+    before = sys.getswitchinterval()
+    try:
+        sys.setswitchinterval(0.005)
+        monkeypatch.delenv("PY_SWITCH_INTERVAL_MS", raising=False)
+        bam._tune_interpreter()
+        assert abs(sys.getswitchinterval() - 0.0005) < 1e-9
+    finally:
+        sys.setswitchinterval(before)
+
+
+def test_the_lifespan_tunes_the_interpreter_before_it_starts_any_thread(monkeypatch):
+    """Entered with Thread stubbed: no real thread can start here, whatever the order."""
+    import asyncio
+    import types
+    order = []
+
+    class _Stop(Exception):
+        pass
+
+    def tune():
+        order.append("tune")
+
+    def thread(*a, **k):
+        order.append("thread")
+        raise _Stop()
+
+    monkeypatch.setattr(bam, "_tune_interpreter", tune)
+    monkeypatch.setattr(bam, "threading", types.SimpleNamespace(Thread=thread))
+
+    async def enter():
+        async with bam._lifespan(None):
+            pass
+
+    try:
+        asyncio.run(enter())
+    except _Stop:
+        pass
+    assert order[:2] == ["tune", "thread"]

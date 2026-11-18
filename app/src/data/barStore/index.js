@@ -78,7 +78,9 @@ export function createBarStore(o = {}) {
       a = { n: 0, stops: [] }
       active.set(key, a)
       registry.acquire(key)
-      persist.hydrate(key).catch(() => {})
+      // Saved copy first; with none (and no server answer yet) the lake's newest bars paint at once
+      // (network.lakeSeed: never persisted, kept only where the server's answer proves them).
+      persist.hydrate(key).catch(() => {}).then(() => { try { network.lakeSeed?.(key) } catch { /* paint only */ } })
       a.stops.push(persist.attach(key))
       a.stops.push(live.attach(key, { session }))
       // P3-S2b: a live gap (reducer.liveGapStart) asks the server NOW — once per gap; the answer
@@ -169,6 +171,10 @@ export function createBarStore(o = {}) {
     scrollBack: (key, opts) => network.scrollBack(key, opts),
     /** Prime the history lake for `key` ahead of its open (network.primeLake). */
     primeLake: (key) => network.primeLake?.(key),
+    /** Paint `key` from the lake's newest bars now, if it holds nothing and no answer landed (network.lakeSeed). */
+    lakeSeed: (key) => network.lakeSeed?.(key) ?? Promise.resolve(false),
+    /** Is `sym` in the history lake (network.lakeHas)? */
+    lakeHas: (sym) => network.lakeHas?.(sym) ?? Promise.resolve(false),
     /** Does the history lake carry `key`'s scroll-back (network.lakeCarries)? */
     lakeCarries: (key) => !!network.lakeCarries?.(key),
     applyLive: (key, frame) => live.applyFrame(key, frame),

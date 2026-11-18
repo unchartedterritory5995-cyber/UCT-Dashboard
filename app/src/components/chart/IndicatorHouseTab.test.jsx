@@ -110,7 +110,8 @@ describe('the tab', () => {
   it('a member who already holds an UNCHANGED copy gets that copy: nothing is saved again', async () => {
     const save = vi.fn(async () => ({ ok: true }))
     const put = vi.fn(() => true)
-    const own = [{ id: 'u_aaaaaaaaaaaa', compute: { fn: ITEMS[0].definition.compute.fn } }]
+    // the copy as the store returns it: the house definition's own maths under the member's id
+    const own = [{ id: 'u_aaaaaaaaaaaa', compute: { ...ITEMS[0].definition.compute } }]
     render(<IndicatorHouseTab styles={styles} load={load} save={save} listOwn={() => own} isOnOffer={() => true} onPutOnChart={put} />)
     await flush()
     const row = screen.getAllByTestId('house-entry')[0]
@@ -187,10 +188,48 @@ describe('the pieces', () => {
     expect(a).not.toBe(b)
   })
   it('ownCopyId finds the member\'s unchanged copy by its maths, and nothing else', () => {
-    const fn = ITEMS[0].definition.compute.fn
-    expect(ownCopyId(ITEMS[0], [{ id: 'u_1', compute: { fn } }])).toBe('u_1')
-    expect(ownCopyId(ITEMS[0], [{ id: 'u_2', compute: { fn: 'sha256:other' } }])).toBeNull()
-    expect(ownCopyId(ITEMS[1], [{ id: 'u_1', compute: { fn } }])).toBeNull()
+    const { fn, treesHash } = ITEMS[0].definition.compute
+    expect(treesHash).toBeTruthy()                                             // the premise: more than one line
+    expect(ownCopyId(ITEMS[0], [{ id: 'u_1', compute: { fn, treesHash } }])).toBe('u_1')
+    expect(ownCopyId(ITEMS[0], [{ id: 'u_2', compute: { fn: 'sha256:other', treesHash } }])).toBeNull()
+    expect(ownCopyId(ITEMS[1], [{ id: 'u_1', compute: { fn, treesHash } }])).toBeNull()
+    // the first line alone is not the indicator: another line changed, or missing, is another indicator
+    expect(ownCopyId(ITEMS[0], [{ id: 'u_5', compute: { fn, treesHash: 'sha256:other' } }])).toBeNull()
+    expect(ownCopyId(ITEMS[0], [{ id: 'u_6', compute: { fn } }])).toBeNull()
+    // an indicator of ONE formula has no second fingerprint, and still matches on its formula
+    const single = ITEMS.find((i) => !i.definition.compute.treesHash)
+    expect(single).toBeTruthy()
+    expect(ownCopyId(single, [{ id: 'u_7', compute: { fn: single.definition.compute.fn } }])).toBe('u_7')
+    expect(ownCopyId(single, [{ id: 'u_8', compute: { fn: single.definition.compute.fn, treesHash: 'sha256:more-lines' } }])).toBeNull()
+  })
+  it('two house indicators that share a first line do not claim each other\'s copy', () => {
+    // "Relative Strength vs SPY" and "RS New High vs SPY": one ratio, different marks. Measured
+    // 2026-11-18: their `compute.fn` is the same hash, so a member holding one got it again
+    // when adding the other.
+    const byFn = new Map()
+    for (const it2 of ITEMS) byFn.set(it2.definition.compute.fn, [...(byFn.get(it2.definition.compute.fn) || []), it2])
+    const twins = [...byFn.values()].filter((g) => g.length > 1)
+    expect(twins.length).toBeGreaterThanOrEqual(1)                             // the premise still holds in the set
+    for (const group of twins) {
+      for (const a of group) {
+        const mine = [{ id: 'u_a', compute: { fn: a.definition.compute.fn, treesHash: a.definition.compute.treesHash } }]
+        for (const b of group) expect(ownCopyId(b, mine), `${b.slug} against a copy of ${a.slug}`).toBe(b === a ? 'u_a' : null)
+      }
+    }
+    // and every house indicator is told apart from every other by its whole maths
+    const whole = ITEMS.map((i) => `${i.definition.compute.fn}|${i.definition.compute.treesHash || ''}`)
+    expect(new Set(whole).size).toBe(ITEMS.length)
+  })
+  it('a copy of ANOTHER version of a house indicator is the member\'s own, not the house one', () => {
+    // Volume with 50 Average: its first line is `volume`, so its `fn` is the same hash whatever
+    // its colouring lines say. A copy whose later lines differ (an older or a newer version of
+    // the house definition, or the member's own edit of one) must not be taken for the house one.
+    const item = ITEMS.find((i) => i.slug === 'volume_with_50_average')
+    const other = { fn: item.definition.compute.fn, treesHash: `sha256:${'a'.repeat(64)}` }
+    expect(other.treesHash).not.toBe(item.definition.compute.treesHash)
+    expect(ownCopyId(item, [{ id: 'u_old', compute: other }])).toBeNull()
+    // and the same lines under the member's id ARE the house one
+    expect(ownCopyId(item, [{ id: 'u_same', compute: { ...item.definition.compute } }])).toBe('u_same')
     for (const own of [null, undefined, [], [null], [{ id: 'u_3' }]]) expect(ownCopyId(ITEMS[0], own)).toBeNull()
     expect(ownCopyId({ definition: { compute: {} } }, [{ id: 'u_4', compute: {} }])).toBeNull()   // no fingerprint, no match
   })

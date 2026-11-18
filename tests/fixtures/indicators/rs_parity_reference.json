@@ -1,9 +1,9 @@
 {
-  "case": "rs_parity_deepvue",
+  "case": "rs_parity_reference",
   "kind": "rs_parity",
-  "note": "Cross-vendor parity for the UCT RS Rating (design round 2026-11-08), read by tests/test_rs_parity_deepvue.py. Both sides are as recorded in the review docs/research/relative-strength/reviews/2026-11-08-deepvue-parity.md (uct-rs-plan) and its computation 2026-11-08-deepvue-parity.py, copied here value for value. Nothing is recomputed from bars: this fixture is a measurement record, and the test checks the agreement it reports so a later re-read that drifts reds it.",
+  "note": "Cross-vendor parity for the UCT RS Rating (design round 2026-11-08), read by tests/test_rs_parity_reference.py. Both sides are as recorded in the review docs/research/relative-strength/reviews/2026-11-08-deepvue-parity.md (uct-rs-plan) and its computation 2026-11-08-deepvue-parity.py, copied here value for value. Nothing is recomputed from bars: this fixture is a measurement record, and the test checks the agreement it reports so a later re-read that drifts reds it.",
   "source": {
-    "deepvue": {
+    "reference": {
       "product": "Deepvue",
       "indicator": "DV - Relative Strength Line (its pane table: 1M 3M 6M 9M 12M ranks, 1-99)",
       "read_on": "2026-11-08",
@@ -26,7 +26,7 @@
     "Deepvue publishes no formula; that its 12M column is a weighted rating is inferred from this data.",
     "MarketSurge (IBD's own rating) was not measured: no subscription."
   ],
-  "deepvue": {
+  "reference": {
     "columns": [
       "m1",
       "m3",

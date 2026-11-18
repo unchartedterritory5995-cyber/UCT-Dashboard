@@ -4,7 +4,8 @@ rem Copy this file to D:\uct-history\tools\run_daily.cmd. Each run exports tools
 rem origin/master (never a worktree's checked-out branch) and runs daily.py from that copy.
 rem Needs: DATA_SYNC_* in the user environment (R2 upload), Massive keys in uct-intelligence\.env.
 setlocal
-set REPO=C:\Users\Patrick\uct-worktrees\rt-ticks
+rem The main repository (its object store is shared by every worktree; a worktree can be removed).
+set REPO=C:\Users\Patrick\uct-dashboard
 set CODE=D:\uct-history\tools\lake-code
 set ZIP=%TEMP%\uct-lake-code.zip
 set LOG=D:\uct-history\daily.log

@@ -776,6 +776,14 @@ function applyLocal(state, action, ctx, source) {
     if (ab != null && (state.adjBasis == null || ab === state.adjBasis)) return true
     return basisVerdict(rows, held) === 'same'
   }
+  // ⭐ A LAKE copy joining a LOCAL copy before any server answer (network.lakeSeed, 2026-11-17: a
+  // never-opened symbol often holds the universe pack's newest rows). Two local copies are joined only
+  // when the lake's rows prove the held basis over the bars they share: on another basis (a split
+  // between the two) or with no bar in common (they could straddle a hole) the held copy stays as it is.
+  if (source === 'lake' && !state.restSeen) {
+    const held = state.bars.length ? state.bars : (state.developing ? [state.developing] : [])
+    if (held.length && !heldBasisProof(held)) return state
+  }
 
   // ⭐ THE PERSISTED DEEP-HISTORY SEGMENT (persist.js `@hist`: scroll-back windows a reload kept).
   // It only PREPENDS — rows strictly older than everything held — and only when it reaches the
@@ -1076,6 +1084,10 @@ export function reduce(state, action, ctx = {}) {
   switch (action.type) {
     case ACTION.SEED_FROM_PACK: return applyLocal(state, action, ctx, 'pack')
     case ACTION.IDB_HIT: return applyLocal(state, action, ctx, 'idb')
+    // An UNSTAMPED local copy, exactly like an unstamped IDB copy: painted (provisional / context),
+    // never persisted (not restSeen), and the server's full answer keeps its rows only where their
+    // overlap proves the same basis; with no overlap they are discarded (no hole is ever joined).
+    case ACTION.LAKE_HIT: return applyLocal(state, action, ctx, 'lake')
     case ACTION.MEM_HIT: return applyLocal(state, action, ctx, 'mem')
     case ACTION.REST_FULL: return applyRest(state, action, ctx, 'full')
     case ACTION.REST_DELTA: return applyRest(state, action, ctx, 'delta')

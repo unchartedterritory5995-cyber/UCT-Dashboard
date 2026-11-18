@@ -176,6 +176,68 @@ describe('BarStore scroll-back from the history lake', () => {
     for (let i = 1; i < bars.length; i++) expect(bars[i].t).toBeGreaterThan(bars[i - 1].t)
   })
 
+  describe('lake first paint (lakeSeed): history before a slow first answer, never joined across a hole', () => {
+    const SLOW = 1000
+    const slowServer = (url) => new Promise((r) => setTimeout(() => r(/to=/.test(url)
+      ? { bars: [SERVER_OLD], series_rev: 1, history_rev: 1, cache_key: 'b1:SIM:5:eth-clock' }
+      : { ...answer('SIM_5'), adj_basis: 'b1' }), SLOW))
+    const rows = (from, to) => { const out = []; for (let t = from; t <= to; t += 300) out.push({ t, o: 100, h: 101, l: 99, c: 100.5, v: 10 }); return out }
+    const lakeUpTo = (end) => (key, beforeT) => ({ bars: rows(OPEN - 3 * 3600, end).filter((b) => b.t < beforeT) })
+
+    it('paints the lake before the server answers; the answer keeps rows its overlap proves', async () => {
+      const w = world({ lake: lakeUpTo(OPEN + 600), server: slowServer })          // the lake reaches into the answer
+      const key = keyOf({ sym: 'SIM', tf: '5' })
+      w.registry.acquire(key)
+      w.net.fetchOnce(key)
+      const seeded = w.net.lakeSeed(key)
+      await vi.advanceTimersByTimeAsync(20)
+      expect(await seeded).toBe(true)
+      let s = w.registry.getSnapshot(key)
+      expect(s.restSeen).toBe(false)                                   // painted, but not a server copy (never persisted)
+      expect(s.bars[0].t).toBe(OPEN - 3 * 3600)
+      expect(['provisional', 'context']).toContain(s.status)
+      await vi.advanceTimersByTimeAsync(SLOW + 50)
+      s = w.registry.getSnapshot(key)
+      expect(s.restSeen).toBe(true)
+      expect(s.bars[0].t).toBe(OPEN - 3 * 3600)                         // proven by the overlap: kept as deeper history
+      for (let i = 1; i < s.bars.length; i++) expect(s.bars[i].t).toBeGreaterThan(s.bars[i - 1].t)
+    })
+
+    it('a lake that ENDS BEFORE the answer is painted first and then discarded whole: no hole', async () => {
+      const LAKE_END = OPEN - 2 * 3600
+      const w = world({ lake: lakeUpTo(LAKE_END), server: slowServer })
+      const key = keyOf({ sym: 'SIM', tf: '5' })
+      w.registry.acquire(key)
+      w.net.fetchOnce(key)
+      const seeded = w.net.lakeSeed(key)
+      await vi.advanceTimersByTimeAsync(20)
+      expect(await seeded).toBe(true)
+      expect(w.registry.getSnapshot(key).bars.at(-1).t).toBe(LAKE_END)
+      await vi.advanceTimersByTimeAsync(SLOW + 50)
+      const s = w.registry.getSnapshot(key)
+      expect(s.restSeen).toBe(true)
+      expect(s.bars[0].t).toBe(OPEN)                                    // only the answer: nothing across the gap
+      expect(s.bars.some((b) => b.t <= LAKE_END)).toBe(false)
+    })
+
+    it('does nothing once the server answered, when bars are held, for a daily key, or with no lake', async () => {
+      const w = world({ lake: lakeUpTo(OPEN + 600) })
+      const key = keyOf({ sym: 'SIM', tf: '5' })
+      w.registry.acquire(key)
+      w.net.fetchOnce(key)
+      await vi.advanceTimersByTimeAsync(20)                             // the fast answer is in
+      const before = w.registry.getSnapshot(key)
+      expect(await w.net.lakeSeed(key)).toBe(false)
+      expect(w.registry.getSnapshot(key)).toBe(before)
+      const d = keyOf({ sym: 'SIM', tf: 'D' })
+      w.registry.acquire(d)
+      expect(await w.net.lakeSeed(d)).toBe(false)
+      const none = world({})
+      none.registry.acquire(key)
+      expect(await none.net.lakeSeed(key)).toBe(false)
+    })
+  })
+
   it('a subscribed chart gets one window of depth from the lake as soon as it is answered', async () => {
     const w = world({ lake: (key, beforeT) => ({ bars: lakeMeets(beforeT, 4) }) })
     const key = keyOf({ sym: 'SIM', tf: '5' })
