@@ -907,7 +907,37 @@ def open_questions(understood: Mapping[str, Any]) -> List[str]:
         found.add("average_length")
     if _CROSS_WORD.search(words) and _PRICE_WORD.search(words) and not _CROSS_SETTLED.search(words):
         found.add("cross_meaning")
+    found.update(open_acronyms(understood))
     return [qid for qid in clarify_registry() if qid in found]
+
+
+def meant_by(question: Mapping[str, Any], understood: Mapping[str, Any]) -> Optional[str]:
+    """Which of an acronym question's choices a request NAMES, if any: the choice whose catalogue
+    row the door recognises in it (a library entry, or a withheld name)."""
+    from api.services import indicator_names
+    in_library = indicator_names.now_in_library()
+    recognised = {e.get("id") for e in understood.get("named") or []} | {w.get("id") for w in understood.get("withheld") or []}
+    for label, row in (question.get("rows") or {}).items():
+        if row in recognised or in_library.get(row) in recognised:
+            return label
+    return None
+
+
+def open_acronyms(understood: Mapping[str, Any]) -> List[str]:
+    """⭐ AN ACRONYM THAT COULD MEAN TWO INDICATORS (ruling 2026-11-18). The acronym questions this
+    request leaves open: it writes the letters, as a whole word, and names neither indicator they
+    could mean. ("DMI" names two rows UCT knows by name; guessing one would put the wrong indicator
+    on the chart under a name the member did type.)"""
+    words = str(understood.get("request_text") or "")
+    found: List[str] = []
+    for qid, q in clarify_registry().items():
+        letters = q.get("acronym")
+        if not letters:
+            continue
+        pattern = rf"(?<![A-Za-z0-9.]){re.escape(letters.upper() if q.get('capitals_only') else letters)}(?![A-Za-z0-9]|\.[A-Za-z0-9])"
+        if re.search(pattern, words, 0 if q.get("capitals_only") else re.I) and meant_by(q, understood) is None:
+            found.append(qid)
+    return found
 
 
 def door_question(understood: Mapping[str, Any], view: Any) -> Optional[str]:
@@ -973,8 +1003,15 @@ def pending_answer(message: str, turns: List[Dict[str, str]], chart: Any) -> Opt
     if not original or len(combined) > MAX_MESSAGE_CHARS:
         return None
     before, after = understand_turn(original, chart), understand_turn(combined, chart)
-    if before["refusal"] is not None or after["refusal"] is not None:
+    if before["refusal"] is not None:
         return None
+    if after["refusal"] is not None:
+        # ⭐ ONE OF AN ACRONYM'S MEANINGS MAY BE A NAME UCT DOES NOT BUILD ("ADL" -> Advance Decline
+        # Line). Choosing it IS the answer: the turn is read as the request plus that name, and
+        # goes on to that name's own answer (the way forward), never back to the question.
+        question = clarify_registry()[asked]
+        chose = question.get("acronym") and any(choice in answer for choice in question["choices"])
+        return {"question": asked, "message": combined, "answer": answer} if chose and asked in open_questions(before) else None
     if asked in open_questions(before) and asked not in open_questions(after):
         return {"question": asked, "message": combined, "answer": answer}
     return None
@@ -1008,6 +1045,9 @@ def answer_value(question_id: str, answered: Mapping[str, Any], chart: Any) -> O
         said = answered["answer"].lower()
         chosen = "close" if re.search(r"\bclos", said) else "touch" if _CROSS_SETTLED.search(said) else None
         return next(((chosen, label) for label, value in values.items() if value == chosen), None)
+    if question.get("acronym"):
+        label = meant_by(question, after)
+        return (values[label], label) if label in values else None
     return None
 
 

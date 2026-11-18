@@ -828,3 +828,110 @@ def test_the_door_asks_one_question_at_a_time_and_an_answer_builds(tmp_path):
     assert built["grade"]["ok"] is True and built["client"]["changed"] is True
     (direct,) = rows["clarify-nothing-open"]
     assert direct["model_calls"] == 1 and direct["server"]["disposition"] == "change"
+
+
+# ── what the member chose before: used, said, and beside the assistant's own note ──
+#
+# ⭐ ADDED 2026-11-18 AFTER A LIVE DEFECT. The door's "as you chose before" sentence and an answer
+# that carries its own assumption had never met in any case, and together they raised (the member
+# read "the UCT Agent hit an internal problem"). A case can now say what the member chose before
+# (`remembers`) and what the answer must say (`says`), so the two meet here, through the door AND
+# the browser's own engine.
+
+def test_a_case_can_say_what_the_answer_must_say():
+    eval_mod = ce
+    server = {"envelope": {"assumptions": [{"text": "Using an exponential average, as you chose before."},
+                                           {"output": "ma", "text": "Drawn on the price pane."}, "not a note"]}}
+    assert eval_mod.not_said(server, ["as you chose before", "Drawn on the price pane."]) == []
+    (problem,) = eval_mod.not_said(server, ["as you chose before", "Built to UCT's checked formula"])
+    assert "Built to UCT's checked formula" in problem and "does not say" in problem
+    assert eval_mod.not_said(server, None) == [] and eval_mod.not_said(None, []) == []
+    assert len(eval_mod.not_said({"gate": "internal:error"}, ["as you chose before"])) == 1     # a refused turn says nothing
+
+
+def test_the_remembered_cases_declare_what_was_chosen_and_what_must_be_said():
+    doc = json.loads(io.open(CLARIFY_CASES, encoding="utf-8").read())
+    script = json.loads(io.open(CLARIFY_SCRIPT, encoding="utf-8").read())["turns"]
+    cases = {c["id"]: c for c in doc["cases"]}
+    note = cases["remembered-kind-with-a-note"]
+    assert note["remembers"] == {"average_kind": ["ema", "Exponential (EMA)"]}
+    (turn,) = note["turns"]
+    assert turn["expect"]["says"] == ["Using an exponential average, as you chose before", "Drawn on the price pane."]
+    # THE POINT OF THE CASE: its scripted answer carries an assumption of its own
+    (answer,) = script["remembered-kind-with-a-note#0"]
+    assert answer["assumptions"] == [{"output": "ema", "text": "Drawn on the price pane."}]
+    library = cases["remembered-acronym-library-build"]
+    assert list(library["remembers"]) == ["acronym_dmi"] and len(library["turns"]) == 1
+    assert any("Built to UCT's checked formula" in p for p in library["turns"][0]["expect"]["says"])
+
+
+@needs_node
+def test_a_remembered_choice_is_used_and_said_beside_the_assistants_note_and_beside_a_library_build(tmp_path):
+    proc, _work, out = _run(tmp_path, "--cases", str(CLARIFY_CASES), "--script", str(CLARIFY_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    rows = {r["case"]: r for r in _records(out) if r["case"].startswith("remembered-")}
+    note = rows["remembered-kind-with-a-note"]
+    assert note["model_calls"] == 1 and note["grade"]["ok"] is True and note["client"]["changed"] is True
+    said = [a.get("text") for a in note["server"]["envelope"]["assumptions"]]
+    assert said == ["Using an exponential average, as you chose before. Name another kind to change it.",
+                    "Drawn on the price pane."]                                # the door's sentence first, then the assistant's
+    library = rows["remembered-acronym-library-build"]
+    assert library["model_calls"] == 1 and library["grade"]["ok"] is True and library["client"]["changed"] is True
+    said = [a.get("text") for a in library["server"]["envelope"]["assumptions"]]
+    assert said[0] == "Reading DMI as the Directional Movement Index, as you chose before. Name the other one to change it."
+    assert any(t.startswith("Built to UCT's checked formula for Directional Movement Index") for t in said[1:])
+
+
+@needs_node
+def test_a_case_fails_when_the_answer_does_not_say_what_it_must_and_when_nothing_was_chosen_before(tmp_path):
+    """The two new fields can FAIL a case. (1) A phrase the answer does not carry fails it, by name.
+    (2) Without `remembers` the same request is a question, not a build: so the case really does
+    run on what the member chose before."""
+    doc = json.loads(io.open(CLARIFY_CASES, encoding="utf-8").read())
+    case = next(c for c in doc["cases"] if c["id"] == "remembered-kind-with-a-note")
+    wrong = json.loads(json.dumps(case))
+    wrong["id"] = "says-something-it-does-not"
+    wrong["turns"][0]["expect"]["says"] = ["Using a simple average, as you chose before"]
+    forgot = json.loads(json.dumps(case))
+    forgot["id"] = "nothing-chosen-before"
+    del forgot["remembers"]
+    script = json.loads(io.open(CLARIFY_SCRIPT, encoding="utf-8").read())
+    answer = script["turns"]["remembered-kind-with-a-note#0"]
+    script["turns"] = {"says-something-it-does-not#0": answer, "nothing-chosen-before#0": answer}
+    cases = tmp_path / "cases.json"
+    cases.write_text(json.dumps({**doc, "cases": [wrong, forgot]}), encoding="utf-8")
+    scripted = tmp_path / "script.json"
+    scripted.write_text(json.dumps(script), encoding="utf-8")
+    proc, _work, out = _run(tmp_path, "--cases", str(cases), "--script", str(scripted))
+    assert proc.returncode != 0 and _last_line(proc.stdout).startswith("VERDICT: FAIL"), proc.stdout[-1500:]
+    rows = {r["case"]: r for r in _records(out)}
+    said = rows["says-something-it-does-not"]
+    assert said["server"]["disposition"] == "change" and said["client"]["changed"] is True      # it built ...
+    assert said["grade"]["ok"] is False                                                          # ... and still failed
+    assert any("does not say 'Using a simple average, as you chose before'" in p for p in said["grade"]["problems"])
+    asked = rows["nothing-chosen-before"]
+    assert asked["server"]["disposition"] == "clarify" and asked["model_calls"] == 0 and asked["grade"]["ok"] is False
+
+
+@needs_node
+def test_what_the_member_chose_before_is_still_used_when_the_browser_sends_the_answer_back(tmp_path):
+    """The browser refuses the door's first patch and asks the door again. That second request is
+    the same member's: what they chose before is used on it too, and said. (Without it the repair
+    turn would ASK which kind of average, about a request the door had already begun to build.)"""
+    doc = json.loads(io.open(DOOR_BROWSER_CASES, encoding="utf-8").read())
+    case = json.loads(json.dumps(next(c for c in doc["cases"] if c["id"] == BROWSER_REPAIR_ID)))
+    case["id"] = "remembered-through-a-browser-repair"
+    case["remembers"] = {"average_kind": ["ema", "Exponential (EMA)"]}
+    case["turns"][0]["words"] = "A 10 day moving average, and colour the candles green above it."
+    case["turns"][0]["expect"]["says"] = ["Using an exponential average, as you chose before"]
+    script = json.loads(io.open(DOOR_BROWSER_SCRIPT, encoding="utf-8").read())
+    script["turns"] = {"remembered-through-a-browser-repair#0": script["turns"][f"{BROWSER_REPAIR_ID}#0"]}
+    cases = tmp_path / "cases.json"
+    cases.write_text(json.dumps({**doc, "cases": [case]}), encoding="utf-8")
+    scripted = tmp_path / "script.json"
+    scripted.write_text(json.dumps(script), encoding="utf-8")
+    proc, _work, out = _run(tmp_path, "--cases", str(cases), "--script", str(scripted))
+    (row,) = [r for r in _records(out) if r.get("case") == "remembered-through-a-browser-repair"]
+    assert row["grade"]["ok"] is True, (row["grade"].get("problems"), proc.stdout[-1200:])
+    assert row["browser_repair"] is True and row["model_calls"] == 2 and row["client"]["changed"] is True
+    assert row["server"]["disposition"] == "change"

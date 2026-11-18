@@ -273,7 +273,8 @@ def test_a_request_is_read_as_whole_words_longest_first_and_answers_ids_only():
     assert names.names_in("the half-trend") == ["half_trend"]                       # punctuation is spacing
     # a spelling the LIBRARY answers is not unknown; one it does not answer still is
     assert names.names_in("the on-balance volume") == [] and names.names_in("an aroon up line") == []
-    assert names.names_in("add dmi") == ["directional_movement_index"]       # an acronym the library does not admit
+    assert names.names_in("add kvo") == ["klinger_volume_oscillator"]        # an acronym nothing admits: counted
+    assert names.names_in("add dmi") == []                                   # letters that mean two indicators are no row's spelling
     assert names.names_in("add obv") == []                                  # one it does: the library answers it
     assert names.names_in("") == [] and names.names_in(None) == [] and names.names_in(7) == []
     many = "ppo and pvo and trix and qqe and renko and kagi"
