@@ -3,7 +3,7 @@
   "chart": {"sym": "AAPL", "tf": "D"},
   "cases": [
     {"message": "Create an indicator that highlights when the 9 EMA crosses above the 20 EMA.", "model": true},
-    {"message": "Show RSI 28 with a 5-period moving average of RSI.", "model": true},
+    {"message": "Show RSI 28 with a 5-period simple moving average of RSI.", "model": true},
     {"message": "Make the chart background green when the 9 EMA is above the 20 EMA.", "model": true},
     {"message": "put a green arrow under the candle when the 10 EMA crosses the 21 EMA", "model": true},
     {"message": "color the bars red when close is below the 200 SMA", "model": true},
@@ -29,8 +29,17 @@
     {"message": "show Bollinger Bands 20 2", "model": true, "terms": ["bbUpper"]},
     {"message": "highlight when close is above the upper Bollinger Band", "model": true, "terms": ["bbUpper"]},
     {"message": "show relative strength versus SPY", "model": true, "not_terms": ["rsi"]},
-    {"message": "Add the McGinley Dynamic", "refused": "McGinley Dynamic"},
-    {"message": "show the Chaikin Money Flow", "refused": "Chaikin Money Flow"},
-    {"message": "show the Awesome Oscillator", "refused": "Awesome Oscillator"}
+    {"message": "Add the McGinley Dynamic", "model": true, "terms": ["mcginley_dynamic"]},
+    {"message": "show the Chaikin Money Flow", "model": true, "terms": ["chaikin_money_flow"]},
+    {"message": "show the Awesome Oscillator", "model": true, "terms": ["awesome_oscillator"]},
+    {"message": "add the kaufman adaptive moving average", "model": true, "terms": ["kaufman_adaptive_moving_average"], "not_terms": ["sma", "ema"]},
+    {"message": "plot connors rsi", "model": true, "terms": ["connors_rsi"], "not_terms": ["rsi"]},
+    {"message": "Highlight Mondays", "model": true},
+    {"message": "Add Inside bar", "model": true},
+    {"message": "Show Weekly pivot points", "model": true},
+    {"message": "Add the Gann Fan", "refused": "Gann Fan"},
+    {"message": "Add Gann Fan", "refused": "Gann Fan"},
+    {"message": "Add the Schaff Trend Cycle", "refused": "Schaff Trend Cycle"},
+    {"message": "show the Klinger Oscillator", "refused": "Klinger Oscillator"}
   ]
 }
