@@ -1,0 +1,33 @@
+//@version=5
+indicator("UCTPROBE_VW_VARIP_HISTORY", overlay = false)
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (evidence audit, admit:varip), capture
+// queue rows Q-VARIP-2a / Q-VARIP-2b (docs/pine/capture-queue-2026-11-18-lang-units.md). NEVER
+// COMPILED ON TRADINGVIEW. A copy of `vw-wsf-realtime-var-varip.pine` (Q-WSF1..4, which needs a live
+// session) WITHOUT its rows R03 (`barstate.isnew`, a name the runtime lane refuses, so a capture of it
+// cannot be graded) and R04, read on HISTORICAL bars only.
+//
+// --- DOES `varip` BEHAVE AS `var` ON CLOSED HISTORICAL BARS? ---
+// The reference (`varip`): variables "retain their values between executions of the script on the same
+// bar". On a historical bar the script executes once, so R02 should equal R01 on every bar. Rows:
+//   R00  bar_index                          control
+//   R01  var counter, += 1 per execution    == bar_index + 1 on history
+//   R02  varip counter, += 1 per execution  the question: == R01 on every historical bar?
+//   R05  varip counter [1]                  its history on the previous bar
+//   R06  var sum of close                   control: a var accumulator
+// CAPTURE: NYSE:RDDT 1D and AMEX:SPY 1D from the listing, inputs at defaults (none), after the close.
+// Record whether the newest bar was still updating; every older bar is history. If a row does not
+// compile, record the error text and the line, remove only that row, and capture the rest.
+
+var int vCount = 0
+vCount += 1
+varip int vipCount = 0
+vipCount += 1
+var float vSum = 0.0
+vSum += close
+
+plot(bar_index, "R00_bar_index_CONTROL")
+plot(vCount, "R01_var_count")
+plot(vipCount, "R02_varip_count")
+plot(vipCount[1], "R05_varip_prev")
+plot(vSum, "R06_var_sum_close")
