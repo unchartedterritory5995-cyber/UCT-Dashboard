@@ -508,7 +508,7 @@ runtime pane on and **`objectsV2: "INCONCLUSIVE"`**.
   INCONCLUSIVE) serves nothing and admits nothing, and claiming the grade for them is caught by
   name.
 
-## L11: RS Rating on a WEEKLY chart (2026-11-17, PR 1 of 2, engine NUMBER PENDING, branch `feat/rs-weekly-witness`)
+## L11: RS Rating on a WEEKLY chart (2026-11-17, PR 1 of 2, engine 74 (#1737, the engine 74 train), branch `feat/rs-weekly-witness`)
 
 **Weekly is served.** Before L11 every plot was refused `other-symbol:witness-timeframe` on a weekly
 chart and the run half `pine:request` (4b). Now RS Rating draws its RS line and both labels there.
