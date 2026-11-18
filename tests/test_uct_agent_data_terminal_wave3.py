@@ -702,5 +702,7 @@ def test_the_contract_doc_states_section_4_12_and_every_note_the_adapters_emit()
     amended = next(line for line in doc.splitlines() if line.startswith("- **v1.9 amendment (2026-11-17, terminal-data, Schwab retired):**"))
     assert '"Move it, fix the status and remove schwab from everything."' in amended
     assert "it is not an acknowledgement of v1.9" in amended and "acknowledged by the owner" not in amended
-    assert doc.index(amended) < doc.index(entry) and doc.startswith("# MD-1 — UCT market-data contract (v1.9)")
+    # the file's title carries the newest version, which later waves bump (v1.10 is data wave 4): never older than this one
+    title = re.match(r"# MD-1 — UCT market-data contract \(v1\.(\d+)\)", doc)
+    assert doc.index(amended) < doc.index(entry) and title and int(title.group(1)) >= 9
     assert "- **`flow.summary`:** only through the existing flow proxy" in doc       # still deferred: no tape kind was added

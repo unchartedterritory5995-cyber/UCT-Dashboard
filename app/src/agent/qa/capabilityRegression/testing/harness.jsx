@@ -257,6 +257,45 @@ const TERMINAL_DATA = {
     const all = [row('BBB', 'bmo', -7.5, { eps_act: 0.8 }), row('AAA', 'amc', 4.25), row('CCC', 'tbd', null)]
     return { freshness: 'historical', data: { date: p.date || '2026-11-02', day_kind: 'past', scheduled: 5, reporters: all.slice(0, p.limit || 25), count: 3, moves: 'held', moved: 2, up: 1, down: 1, flat: 0, no_move: 1 } }
   },
+  // Terminal data wave 4 (dark kinds `earnings.season`, `earnings.callThemes`, `group.drill`; MD-1 §4.13): the same rule — each
+  // adapter's own data shape, made-up names and figures.
+  'earnings.season': (p) => {
+    const row = (sym, session, mc, o = {}) => ({ sym, name: `Fixture ${sym}`, session, mc_b: mc, eps_est: 1, eps_act: null, rev_est: 500, rev_act: null, reported: false, verdict: null,
+      priced: { pct: 6.2, dollar: 12.4, captured_at: '2026-11-02T16:35:04-05:00', expiry: '2026-11-06' }, past: { moves: [{ date: '2026-08-04', pct: 3.1 }, { date: '2026-05-05', pct: -2 }], avg_abs: 2.55, n: 2 },
+      past_state: 'ok', move: null, move_state: null, ...o })
+    const all = { bmo: [row('AAA', 'bmo', 900, { eps_act: 1.5, rev_act: 520, reported: true, verdict: 'beat', move: 3.21, move_state: 'live' }), row('BBB', 'bmo', 50, { priced: null, past: null, past_state: 'not_held' })],
+      amc: [row('CCC', 'amc', 300)], tbd: [] }
+    const want = p.session === 'bmo' || p.session === 'amc' ? [p.session] : ['bmo', 'amc', 'tbd']
+    const sessions = Object.fromEntries(['bmo', 'amc', 'tbd'].map(s => [s, want.includes(s) ? all[s] : []]))
+    const count = want.reduce((n, s) => n + all[s].length, 0)
+    return { data: { date: p.date || '2026-11-03', today: '2026-11-03', day_kind: 'today', default: !p.date, session: p.session || 'all', sessions, count, shown: count, scheduled: 3,
+      counts: { scheduled: 3, reported: 1, priced: 2, priced_withheld: 0, with_past: 2, past_not_held: 1, moved: 1 }, priced_state: 'read', moves_state: 'live',
+      calendar_as_of: '2026-11-03T15:50:00Z', built_at: '2026-11-03T15:58:00Z', capture: { hour_et: 16, minute_et: 35 }, range: { from: '2026-10-26', to: '2026-11-13' }, held: 'fresh', no_day: false } }
+  },
+  'earnings.callThemes': (p) => {
+    const row = (phrase, calls, pct, base, o = {}) => ({ phrase, words: phrase.split(' ').length, calls, pct, companies: calls - 2, base_calls: Math.round(base * 4), base_pct: base, base_raw_pct: base,
+      rise: Math.round((pct - base) * 10) / 10, ratio: base ? Math.round(pct / base * 10) / 10 : null, related: [], examples: ['AAA', 'BBB'], ...o })
+    const lists = { new: [row('fixture phrase', 40, 13.3, 0), row('synthetic words', 22, 7.3, 0.2)], rising: [row('made up theme', 90, 30, 18.5)] }
+    const want = p.list === 'new' || p.list === 'rising' ? [p.list] : ['new', 'rising']
+    const cut = (name) => (want.includes(name) ? lists[name].slice(0, p.limit || 10) : [])
+    return { as_of: '2026-11-02T05:00:00Z', data: { month: p.month || '2026-11', months: ['2026-11', '2026-10'], list: p.list || 'both', calls: 300, companies: 290,
+      baseline: { months: ['2026-08', '2026-09', '2026-10'], calls: 410, matched_pct: 87.5 }, floor: { calls: 8, companies: 6 }, new: cut('new'), rising: cut('rising'),
+      qualified: { new: 2, rising: 1 }, shown: { new: cut('new').length, rising: cut('rising').length }, built_at: '2026-11-03T11:00:00Z', refreshing: false,
+      corpus: { calls: 520, oldest: '2026-08-15', newest: '2026-11-02' }, rules: {} } }
+  },
+  'group.drill': (p) => {
+    const common = { range: p.range || 'ytd', start_day: '2025-12-31', end_day: '2026-11-02', built_at: '2026-11-03T15:55:00Z', held: 'fresh', partial_history: false, kind: p.kind || null }
+    if (!p.group) {
+      const lists = { sector: [{ name: 'Technology', pct: 15, count: 4 }, { name: 'Energy', pct: -5, count: 1 }], industry: [{ name: 'Semiconductors', pct: 20, count: 2 }, { name: 'Software', pct: 10, count: 2 }],
+        theme: [{ name: 'Fixture Theme', pct: 12.5, count: 2 }] }
+      const kinds = p.kind ? [p.kind] : ['sector', 'industry', 'theme']
+      return { data: { mode: 'groups', ...common, lists: Object.fromEntries(kinds.map(k => [k, lists[k]])), counts: Object.fromEntries(kinds.map(k => [k, lists[k].length])) } }
+    }
+    const row = (sym, pct, rs, flow) => ({ sym, pct, start_close: 100, end_close: 100 + pct, industry: 'Semiconductors', sector: 'Technology', rs, flow })
+    const rows = [row('AAA', 30, 97, { dir: 'BULL', status: 'BUILDING' }), row('BBB', 20, 55, null), row('DDD', 10, null, { dir: 'BEAR', status: 'STEADY' }), row('EEE', 0, 12, null)]
+    return { data: { mode: 'group', ...common, name: p.group, found: true, group_pct: 15, rows: rows.slice(0, p.limit || 25), count: 4, shown: Math.min(4, p.limit || 25), known: 4, ranked: 3, on_board: 2,
+      sort: p.sort || 'pct', dir: p.dir || 'desc', rs_state: 'held', flow_state: 'held', flow_built_at: '2026-11-03T15:45:00Z' } }
+  },
 }
 // SG-1: T13–T18 sit FAR below their 52-week high (the Screener's sign: a distance from a high is NEGATIVE) and meet every
 // other condition of the owner's screen — so only a correctly signed "near the high" filter leaves them out
@@ -447,7 +486,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
-    // terminal data waves 1, 2 and 3 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    // terminal data waves 1 to 4 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
     if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
         stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })
