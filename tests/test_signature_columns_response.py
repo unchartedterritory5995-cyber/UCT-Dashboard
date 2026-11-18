@@ -36,7 +36,7 @@ from tests.test_rs_columns_provider import (  # noqa: F401 - fixtures are used b
     _fetcher, _hermetic_reads, _long_daily,
 )
 
-RS_IDS = ("rsLine", "rsRating", "rsPhases", "rsVsEma", "rsExit")
+RS_IDS = ("rsLine", "rsRating", "rsPhases", "rsVsEma", "rsExit", "rsMansfield")   # 2026-11-18: + UCT Mansfield RS
 
 
 def _stamp(response: Response):

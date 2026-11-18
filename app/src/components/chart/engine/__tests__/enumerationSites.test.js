@@ -1840,6 +1840,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'rsPhases::divergence', 'rsRating::ratingLine', 'rsVsEma::dist',
       // ⭐ 2026-11-12 (RS Exit Warnings): the fifth carries ONE chip, the RS line.
       'rsExit::rsLine',
+      // ⭐ 2026-11-18 (UCT Mansfield RS): the sixth carries ONE chip, the Mansfield line.
+      'rsMansfield::mansfield',
       'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
       'vwap::vwap',
       'williamsR::williams_r',
@@ -1931,6 +1933,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'rsRating', 'rsPhases', 'rsVsEma',
       // ⭐ 2026-11-12 (RS Exit Warnings): the fifth RS definition, engine-lane by construction.
       'rsExit',
+      // ⭐ 2026-11-18 (UCT Mansfield RS): the sixth, engine-lane by construction.
+      'rsMansfield',
       'bb', 'vwap', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands',
       // ⭐ `dollarVolume` IS ENGINE-LANE BY CONSTRUCTION TOO, and it is the one id
       // here whose value USED to be drawn by hand — in the volume label strip,
@@ -2111,7 +2115,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     const serverLane = defs.filter(d => d.compute.kind === 'server').map(d => d.id)
     // ⭐ U6 (2026-11-09): the RS split's three join rsLine on the server lane.
     // ⭐ 2026-11-12 (RS Exit Warnings): `rsExit` is the fifth RS definition on the server lane.
-    expect(serverLane, 'the exclusion selects nothing — it is inert').toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'])
+    // ⭐ 2026-11-18 (UCT Mansfield RS): `rsMansfield` is the sixth.
+    expect(serverLane, 'the exclusion selects nothing — it is inert').toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield'])
     for (const def of defs.filter(d => d.compute.kind !== 'server')) {
       expect(def.compute && def.compute.kind, def.id).toBe('native')
       expect(typeof def.compute.fn, `${def.id}: compute.fn is not a name`).toBe('string')
@@ -2958,6 +2963,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     rsVsEma: [],
     // ⭐ 2026-11-12 (RS Exit Warnings): the fifth, a server definition like the others — never a block.
     rsExit: [],
+    // ⭐ 2026-11-18 (UCT Mansfield RS): the sixth, a server definition like the others — never a block.
+    rsMansfield: [],
     // ⭐⭐ `dataSeries` — P2.1, AND THE STRONGEST CASE OF THIS ROW'S MEANING.
     // `avwap`, `atrBands` and `rsLine` were definitions that never had a
     // hand-written BLOCK; this one never had a hardcoded ANYTHING — no block, no
@@ -2990,7 +2997,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
    * fail by NAME for any definition that genuinely did have a block and has
    * quietly lost its refs or its compute.
    */
-  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'dataSeries', 'movingAverage', 'dollarVolume',
+  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield', 'dataSeries', 'movingAverage', 'dollarVolume',
     ...TIER1_LIBRARY]
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
@@ -3000,7 +3007,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     williamsR: 'computeWilliamsR', adx: 'computeADX', obv: 'computeOBV',
     donchian: 'computeDonchian',
     // …and `null` where there never was one. See NEVER_MIGRATED above.
-    avwap: null, atrBands: null, rsLine: null, rsRating: null, rsPhases: null, rsVsEma: null, rsExit: null,
+    avwap: null, atrBands: null, rsLine: null, rsRating: null, rsPhases: null, rsVsEma: null, rsExit: null, rsMansfield: null,
     dataSeries: null, movingAverage: null, dollarVolume: null,
     ...Object.fromEntries(TIER1_LIBRARY.map((id) => [id, null])),
   }
@@ -3302,7 +3309,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       // ⭐ 2026-10-01 — 20 + the Technical library's 33 Tier 1 studies.
       // ⭐ 53 -> 56 AT THE UCT RS SPLIT (U6, 2026-11-09): three server definitions joined the registry.
       // ⭐ 56 -> 57 AT RS EXIT WARNINGS (2026-11-12): the fifth RS definition joined it.
-      flipSetSize: 57,
+      // ⭐ 57 -> 58 AT UCT MANSFIELD RS (2026-11-18): the sixth RS definition joined it.
+      flipSetSize: 58,
       mutableSets: [],
     })
   })
@@ -3453,7 +3461,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       // default; a FINDING for the owner would move `badgeValues`, not this.
       // ⭐ 6 -> 7 AT RS EXIT WARNINGS (2026-11-12): the fifth RS definition retypes the same sentence.
       // Same badge, same default; a FINDING for the owner would move `badgeValues`, not this.
-      declarationsInSource: 7,
+      // ⭐ 7 -> 8 AT UCT MANSFIELD RS (2026-11-18): the sixth RS definition retypes the same sentence.
+      declarationsInSource: 8,
       badgeValues: ['non-repainting'],
       definitionsBadgedRepaints: [],
       plotsWithOwnBadge: [],

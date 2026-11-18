@@ -136,7 +136,8 @@ describe('the shipped definitions', () => {
     expect(rows.length).toBeGreaterThan(2)
     expect(readoutChipRows(def, rows)).toEqual([])
     // the three panes read alike: `<name> · <benchmark>  <value>`, one number each
-    for (const id of ['rsPhases', 'rsVsEma']) {
+    // 2026-11-18 (UCT Mansfield RS): `rsMansfield` reads alike: `<name> · <benchmark>  <percent>`.
+    for (const id of ['rsPhases', 'rsVsEma', 'rsMansfield']) {
       const d = getDefinition(id)
       expect(d.readout.filter((r) => r.chip).map((r) => r.key), id).toEqual(['benchmark'])
     }

@@ -323,8 +323,9 @@ describe('PANE_MODE bands — the geometry the flip reverses TO', () => {
     // three new pane definitions with a DERIVED `before`, like `rsLine`: 42 -> 45.
     // ⭐ FORTY-SIX AT 2026-11-12 (UCT RS Exit Warnings): `rsExit` is one more pane definition with
     // a DERIVED `before` (an own pane, a hidden axis, the same 0.20 band): 45 -> 46.
-    expect(checked).toBe(46)
-    expect(ids).toHaveLength(46)
+    // ⭐ FORTY-SEVEN AT 2026-11-18 (UCT Mansfield RS): `rsMansfield` is one more, the same way: 46 -> 47.
+    expect(checked).toBe(47)
+    expect(ids).toHaveLength(47)
   })
 
   it('and the chart really has ONE pane, with three oscillators on it', async () => {

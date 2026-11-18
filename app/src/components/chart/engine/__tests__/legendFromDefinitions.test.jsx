@@ -1398,6 +1398,8 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
         // 2026-11-12 (RS Exit Warnings): ONE chip, the RS line (its value is withheld from the label
         // by `legend.showValue: false`, the slim RS line's rule; the chip row carries the warning).
         'rsExit::rsLine',
+        // 2026-11-18 (UCT Mansfield RS): ONE chip, the Mansfield line (a percent, printed).
+        'rsMansfield::mansfield',
         // ⭐ 2026-10-01 — the Technical library's Tier 1: forty-two chips, decided
         // and written down (`tier1Library.fixture.js`), not grown by accident.
         ...TIER1_CHIPS,

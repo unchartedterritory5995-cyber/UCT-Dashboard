@@ -311,6 +311,8 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
     'rsRating::ratingLine', 'rsPhases::divergence', 'rsVsEma::dist',
     // ⭐ 2026-11-12 (RS Exit Warnings): the fifth postdates the shipped legend too.
     'rsExit::rsLine',
+    // ⭐ 2026-11-18 (UCT Mansfield RS): and the sixth, its one chip the Mansfield line.
+    'rsMansfield::mansfield',
     // ⭐ `dataSeries` POSTDATES THE SHIPPED LEGEND ENTIRELY — it is registry-native
     // and there is no pre-B4 `legChips` entry for it to have dropped. Excluded
     // here for exactly the reason the ten below are: this list is the membership

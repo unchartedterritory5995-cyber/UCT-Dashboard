@@ -38,7 +38,7 @@ from tests.test_rs_columns_provider import (  # noqa: F401 - fixtures are used b
     _fetcher, _hermetic_reads, _long_daily,
 )
 
-RS_IDS = ("rsLine", "rsRating", "rsPhases", "rsVsEma", "rsExit")
+RS_IDS = ("rsLine", "rsRating", "rsPhases", "rsVsEma", "rsExit", "rsMansfield")   # 2026-11-18: + UCT Mansfield RS
 ENV = {"columns": {"rs": [1.5, None, 2.25]}, "times": [1, 2, 3], "asOf": 1.0,
        "payload": {"state": "ok", "legend": {"summary": "above its 21 EMA by 6.8%", "stale": False}}}
 
@@ -464,7 +464,7 @@ def test_other_inputs_and_another_timeframe_are_other_answers(lane):
 def test_the_no_benchmark_answer_is_never_kept(lane, monkeypatch):
     only = {"NVDA": lane.bars["NVDA"]}
     monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(only))      # no benchmark rows on the pod yet
-    for def_id in ("rsLine", "rsPhases", "rsVsEma", "rsExit"):
+    for def_id in ("rsLine", "rsPhases", "rsVsEma", "rsExit", "rsMansfield"):
         body, tier = _served(def_id)
         assert tier == "cold"
     assert rs_store.flush()

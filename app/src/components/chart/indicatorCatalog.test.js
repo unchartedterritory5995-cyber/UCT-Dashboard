@@ -257,7 +257,7 @@ describe('the catalog covers every settings section, and nothing else', () => {
     // ⭐ U6 (2026-11-09): the RS split's three server definitions follow `rsLine`, in registration order.
     // ⭐ 2026-11-12 (RS Exit Warnings): the fifth RS definition, `rsExit`, follows them.
     expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'dataSeries', 'dollarVolume',
-      ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id)), 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'])
+      ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id)), 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield'])
     expect(priceOverlayIds()).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap',
       // ⭐ `movingAverage` declares `onPrice` and lands last, in registration order.
       'atrBands', 'movingAverage',
@@ -704,6 +704,10 @@ describe('the library needs a sentence per indicator, and the schema already all
       // warnings fire on a CLOSE (a cross is judged between two closed bars, the cycle level is the
       // RS value of a closed bar) and a bar's dot never moves after its close. `non-repainting`.
       rsExit: 'non-repainting',
+      // ⭐ 2026-11-18 (UCT Mansfield RS) — JUDGED: the Mansfield line is a closed-bar ratio against its own simple
+      // average, and the cross dot is judged between two closed bars, so a bar's value and dot never
+      // move after its close (the rsLine row's own Mansfield Reading). `non-repainting`.
+      rsMansfield: 'non-repainting',
       // ⭐ 2026-10-01 — JUDGED, NOT DEFAULTED: the Technical library's Tier 1. Each was
       // read for forward data: none indexes past its own bar (no centred DPO, no
       // forward-displaced plot), the recursions (SuperTrend, the EMAs) advance on

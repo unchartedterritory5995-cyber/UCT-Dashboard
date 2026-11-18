@@ -232,6 +232,9 @@ const SHIPPED_COLUMNS = Object.freeze({
   // ⭐ 2026-11-12 (RS Exit Warnings): the RS line, the two simple averages and the three dots
   // (`registry_defs.RS_EXIT_WIRE_COLUMNS`); the 0/1 event columns stay off the wire.
   rsExit: ['rsLine', 'fast', 'slow', 'dotQuick', 'dotQuicksand', 'dotDead'],
+  // ⭐ 2026-11-18 (UCT Mansfield RS): the rsLine Mansfield Reading's two wire columns (`registry_defs.RS_MANSFIELD_WIRE_COLUMNS`);
+  // the 0/1 cross events stay off this row's wire.
+  rsMansfield: ['mansfield', 'dotMansfieldCross'],
   // ⭐⭐ ONE COLUMN, AND IT IS THE SOURCE ITSELF. `dataSeries` computes nothing:
   // `value` carries whatever it was pointed at, unchanged. Written here like any
   // other definition because `columnKeys` is a pure read of the DECLARATION — who

@@ -84,6 +84,8 @@ describe('⭐⭐ THE CAPABILITY MATRIX — derived from definitions, pinned by n
       rsPhases: 'server', rsRating: 'server', rsVsEma: 'server',
       // 2026-11-12 (RS Exit Warnings): the fifth RS definition is server-computed too, so same answer.
       rsExit: 'server',
+      // 2026-11-18 (UCT Mansfield RS): the sixth RS definition is server-computed too, so same answer.
+      rsMansfield: 'server',
       // ⭐ 2026-10-01 — every Tier 1 study takes a calculation timeframe. Historical
       // Volatility and 52-Week are D/W/M-only but NOT session studies, so a daily
       // chart may still compute them on weekly or monthly bars.

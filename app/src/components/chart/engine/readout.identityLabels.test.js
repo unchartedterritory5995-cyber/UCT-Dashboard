@@ -127,7 +127,8 @@ describe('3-09b · every other label is byte-identical', () => {
     // 2026-11-12: "Pick a sector" and "Pick a theme" have companions too (the ETF
     // list, the theme chooser), so each benchmark-taking definition changes on three.
     const picks = ['SECTOR_PICK', 'THEME_PICK', 'CUSTOM']
-    expect(changed).toEqual(['rsLine', 'rsPhases', 'rsVsEma', 'rsExit']
+    // 2026-11-18 (UCT Mansfield RS): `rsMansfield` spreads the same benchmark pair, so its three companions too.
+    expect(changed).toEqual(['rsLine', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield']
       .flatMap((id) => picks.map((p) => `${id} {"benchmark":"${p}"}`)))
   })
 })
