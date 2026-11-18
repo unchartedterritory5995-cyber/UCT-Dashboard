@@ -6772,7 +6772,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${name}\` ends on a block rather than a value`, at)
           } else {
-            value = lowerExpr(parseWholeExpression(lt), bodyScope, opts)
+            // ⭐⭐ U-REQ-HOIST-COLUMN (2026-11-18) — THE LAST LINE'S COMMITTED SERIES IS THE REGION'S.
+            // `lowerStmts` above restored the statement sink it found, which is the ROOT's: a
+            // `(d * 2)[1]` here was declared into the main program, which a request's sub-run never
+            // runs, so it read `na` on every requested bar (no column, so the e78 guard could not see it).
+            // The last line runs on every call, so its declaration lands in this body's own sink,
+            // after the statements it reads.
+            const outerStmtSink = stmtHoistSink
+            stmtHoistSink = localSink
+            try {
+              value = lowerExpr(parseWholeExpression(lt), bodyScope, opts)
+            } finally { stmtHoistSink = outerStmtSink }
           }
         } finally {
           hoistSink = outerSink
@@ -7110,7 +7120,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // than TradingView's (our column reproduced by that model on 140 / 140 weeks, 33 / 33 months).
     // The same walk, over the statements, refuses it by name. A slot's own history (`d[1]`, committed
     // per requested bar) and a `var` are the region's, not columns, and keep serving.
-    // ⏳ Serving it is the roadmap's later unit: lower such a read as the region's own slot history.
+    // ⭐ SERVED SINCE THE LOWERING (NUMBER PENDING): a STATIC offset over a pure expression in the region is
+    // now the region's own committed series (`case 'offset'`, `history src r<n>`), so this walk finds no
+    // column there. It stays the backstop for every shape still lowered as one (a dynamic offset).
     if (hoisted.some((s) => carriesColumn(s))) {
       note('runtime:request-hoisted-history')
       throw new RuntimeRefusal('runtime:request-hoisted-history',
@@ -8459,6 +8471,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  inner binding precedes the outer one, which is the order they must run in.
    */
   let frameHoistSeq = 0
+  /** ⭐ U-REQ-HOIST-COLUMN — the names a request region's own committed series take (`history src r<n>`),
+   *  unique across every region of the script, so two sinks never declare one name twice. */
+  let regionHoistSeq = 0
   /** The ring for a hoisted slot: frame-relative inside a function body, the
    *  main program's otherwise. ONE place, so the three hoist sites cannot drift. */
   const hoistedHistorySlot = (slot, back, at) => (owner !== null
@@ -9410,6 +9425,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
           throw new RuntimeRefusal('runtime:statement', 'a bar offset counts backwards in whole bars', locate(node.tok))
         }
         mbbStaticCheck(back, locate(node.tok), node.arg && node.arg.type === 'name' ? `\`${node.arg.name}\`` : 'a series')
+        // ⭐⭐ U-REQ-HOIST-COLUMN, THE LOWERING (2026-11-18) — INSIDE A REQUEST, A PURE EXPRESSION'S PAST
+        // IS THE REQUESTED BARS' PAST. A column is computed once, over THIS chart's bars, and a request's
+        // sub-run reads it at the REQUESTED bar's index (`vm.js::runRequest`): PA ZigZag Fibonacci FAN's
+        // `_isUp[1]` at 1W read the chart's daily bar j-1 on weekly bar j, and drew a different zigzag than
+        // TradingView's (the e78 guard, `runtime:request-hoisted-history`, then refused it). So, exactly as
+        // a window's source is (`hoistSink`, below), the expression is declared into the region's OWN
+        // committed series and read through that slot's ring, committed once per REQUESTED bar. It is a
+        // pure expression (a slot read took the `readsSlot` arm above), so its place in the region
+        // cannot change its value. ⛔ Static offsets only: a dynamic one keeps its column above, and the
+        // e78 guard keeps refusing it by name.
+        if (inRequestValue && hoistSink) {
+          const at = locate(node.tok)
+          if (back === 0) return lowerExpr(node.arg, scope)
+          const tmp = `history src r${regionHoistSeq++}`
+          const slot = scope.declare(tmp, newSlot(tmp, false))
+          hoistSink.push(declare(slot, lowerExpr(node.arg, scope)))
+          slotHistoryGuard(slot, at)
+          return histSlot(slot, hoistedHistorySlot(slot, back, at), back)
+        }
         return hist(column(columnOf(node.arg, locate(node.tok))), back)
       }
       case 'call': {
