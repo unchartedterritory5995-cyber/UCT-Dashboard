@@ -3144,26 +3144,39 @@ def _mend_bar_field_order(envelope: Dict[str, Any]) -> int:
     are put in the engine's order. Any other argument (an average, another symbol's field, a
     member's own input, the same field twice) is left exactly as written: there the order may be
     what was meant. Returns how many calls were reordered."""
+    return sum(len(reorder_bar_fields(tree)) for _path, tree in _trees_of(envelope))
+
+
+def reorder_bar_fields(tree: Any) -> List[str]:
+    """Put the bar's fields in the engine's order, IN PLACE, in every call of `tree` where they are
+    plainly out of it (the rule of `_mend_bar_field_order`). Returns the name of each function
+    reordered, one per call. A caller that only wants to KNOW hands in a copy
+    (`misordered_bar_fields`)."""
     order = bar_field_functions()
-    mended = 0
-    for _path, tree in _trees_of(envelope):
-        stack = [tree]
-        while stack:
-            node = stack.pop()
-            if not isinstance(node, dict):
-                continue
-            args = node.get("args")
-            if isinstance(args, list):
-                want = order.get(node.get("name")) if node.get("type") == "call" else None
-                if want and len(args) > len(want):
-                    got = [a.get("name") if isinstance(a, dict) and a.get("type") == "series" and set(a) == {"type", "name"}
-                           else None for a in args[:len(want)]]
-                    if None not in got and sorted(got) == sorted(want) and tuple(got) != want:
-                        by_name = {a["name"]: a for a in args[:len(want)]}
-                        args[:len(want)] = [by_name[field] for field in want]
-                        mended += 1
-                stack.extend(args)
-    return mended
+    found: List[str] = []
+    stack = [tree]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        args = node.get("args")
+        if isinstance(args, list):
+            want = order.get(node.get("name")) if node.get("type") == "call" else None
+            if want and len(args) > len(want):
+                got = [a.get("name") if isinstance(a, dict) and a.get("type") == "series" and set(a) == {"type", "name"}
+                       else None for a in args[:len(want)]]
+                if None not in got and sorted(got) == sorted(want) and tuple(got) != want:
+                    by_name = {a["name"]: a for a in args[:len(want)]}
+                    args[:len(want)] = [by_name[field] for field in want]
+                    found.append(str(node.get("name")))
+            stack.extend(args)
+    return found
+
+
+def misordered_bar_fields(tree: Any) -> List[str]:
+    """Which functions `tree` calls with the bar's fields plainly out of the engine's order, one
+    name per call. READ-ONLY: the tree is not touched."""
+    return reorder_bar_fields(copy.deepcopy(tree))
 
 
 def _mend_single_state_paint(envelope: Dict[str, Any], view: Any) -> int:
