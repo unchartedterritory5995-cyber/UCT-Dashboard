@@ -793,6 +793,21 @@ the signature; (+1) history, an input offset, an inline offset and a derived exp
 refusals, the block shape, the bind, the run, and Fred RS's run half SERVED on a 5m chart ("RS Rating" and the empty
 rating text at the RS line; control: the seed not held, not served).
 
+**Graded against TradingView's own captures** (`l12-now-2026-11-18`, Fred RS on NYSE:RDDT 5m / 60m, over the
+window the product shows, the newest 5,000 bars, on the supply our server served at 21:25:19Z): the RS line 4,991 /
+3,687 bars exact, 4,998 / 4,964 equal at two decimals; the 5m misses are the newest post-market bars inside the
+official print's lag, the 60m ones our SPX hourly prints (yfinance) against TradingView's (worst 0.3%, one 2026-01-30
+hour; and a 2026-02-02 hole of four hours, where the run refuses rather than guess). TradingView's labels at the last
+bar: "RS Rating" and the empty rating text at the RS line, as the rail asserts.
+
+**⛔ KNOWN LIMIT, handed to the engine lane (WS-C Q1).** Fred RS's seed loop reads `curveRsPerf[delta .. delta + 34]`
+past its declared `max_bars_back = 253` wherever the seed lands rarely (1m / 5m: `delta` was 423 on TradingView's own
+5m capture, which drew the labels); our VM stops the run half there (`vm.js` `READ_HIST_SLOT_DYN`), so on 1m / 5m the
+label and dots are withheld by name (the RS line is not). TradingView never stops on such reads: WS-C Q1's M1..M5
+(`wsc-mbb-2026-11-18`, the committed probes) and Q-MBB-1 / Q-MBB-2 (`mbb-2026-11-18`, `mbb-late-2026-11-18`) answer the
+REAL history past a declared buffer, constant or dynamic, early or late, and past 5,000 for a constant offset. The
+rule change touches L4b's ring budget, so it is the engine lane's (coordinator, 2026-11-18).
+
 ## Owner rulings
 
 - **2026-11-16, the S&P 500 history difference (Q-RS9):** told that the RS line on bars before
