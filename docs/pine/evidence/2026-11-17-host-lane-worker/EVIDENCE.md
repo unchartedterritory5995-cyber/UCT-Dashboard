@@ -281,7 +281,7 @@ options-max-pain-calculator (90 / 221 ms), k-clustering (36 / 125 ms). They keep
 
 ## 7. The rails, each proven able to fail
 
-`__tests__/hostLaneWorker.rail.test.js` (18) and `__tests__/hostLaneWorker.parity.test.js` (corpus). Every mutant
+`__tests__/hostLaneWorker.rail.test.js` (19) and `__tests__/hostLaneWorker.parity.test.js` (corpus). Every mutant
 below was applied to the source, the rails were run and went red, and the file was restored from a saved copy and
 checked byte-equal (sha256), never `git checkout`; a control run of the unmutated rails, green, came first. Harness:
 `mutants.py` (scratch), the rail file plus the parity rail over a 6-script subset at 300 bars.
@@ -304,7 +304,11 @@ checked byte-equal (sha256), never `git checkout`; a control run of the unmutate
 
 | the renderer (2b) | StockChart's own `noop` rule: a pending poll re-sets no series; the landing re-sets each once and the landed values reach the series | M15: a held series re-set with the stale picture -> red. M16: no re-set on a noop landing (the stale line stays) -> red |
 
-16 mutants, 16 red, 16 restored byte-equal.
+| a throw crosses (the one rule) | the wire's error doors ARE `runtime/errorImage.js`'s (#1749, one implementation for both workers); a refusal with extra fields crosses whole and still reads as a refusal | M18: a local copy that drops fields -> red |
+| the member never reads the id (`pane/attachedPineDisclosures.noGuardIds.test.jsx`) | `host-lane` is a registered guard namespace (`ast/guardIdText.js`), so the strip strips `host-lane:worker-unresponsive`; a host-lane note is among the rendered fixtures | M17: the namespace unregistered -> the drift rail red |
+
+18 mutants, 18 red, 18 restored byte-equal. `hostLaneWorker.rail.test.js` is a whole-app engine rail
+(`tools/whole_app_engine_rails.txt`): its closure walk reads app files outside pine heavy's trigger paths.
 
 ## 8. Consequences, stated
 
