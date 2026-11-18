@@ -61,6 +61,52 @@ describe('the lake in the handoff race', () => {
     expect(w.store.peek(w.k('COLD', '5')).restSeen).toBe(true)
   })
 
+  // ⭐ Measured 2026-11-17 (instrumented build, never-opened tickers, answer held 1.5 s): 3 of 4 held a
+  // 240-row local copy (the universe pack's newest 5m rows, provisional, no server answer) before Enter,
+  // and the lake was refused outright because the key held ANY bars: the chart waited ~1.5 s.
+  describe('a local copy already held (no server answer)', () => {
+    async function withHeldCopy(held, lakeRows) {
+      const w = await boot({ lake: lakeOf(lakeRows) })
+      const idb = await import('../../utils/barsIDB')
+      await idb.idbPutMonotonic('COLD', '5', held)
+      return w
+    }
+
+    it('on the same basis as the lake: the lake joins it and the handoff commits on the joined history', async () => {
+      const lake = rows(OPEN - 300, 50)
+      const w = await withHeldCopy(lake.slice(-20), lake)                   // the held 20 are the lake's newest 20
+      const state = settled(w.pf.prepareForDisplay('COLD', '5'))
+      await vi.advanceTimersByTimeAsync(400)
+      expect(state()).toBe('lake')
+      const s = w.store.peek(w.k('COLD', '5'))
+      expect(s.restSeen).toBe(false)
+      expect(s.bars.length).toBe(50)
+      await w.server.drain()
+    })
+
+    it('on another price basis (a split between the two): the held copy is kept and the server decides', async () => {
+      const lake = rows(OPEN - 300, 50)
+      const held = lake.slice(-20).map((b) => ({ ...b, o: b.o * 2, h: b.h * 2, l: b.l * 2, c: b.c * 2 }))
+      const w = await withHeldCopy(held, lake)
+      const state = settled(w.pf.prepareForDisplay('COLD', '5'))
+      await vi.advanceTimersByTimeAsync(400)
+      expect(state()).toBe('PENDING')
+      expect(w.store.peek(w.k('COLD', '5')).bars.length).toBe(20)
+      await w.server.drain()
+      expect(state()).toBe('current')
+    })
+
+    it('with no bar in common (the two could straddle a hole): the held copy is kept and the server decides', async () => {
+      const w = await withHeldCopy(rows(OPEN - 300, 20), rows(OPEN - 300 - 86400, 50))   // the lake ends a day earlier
+      const state = settled(w.pf.prepareForDisplay('COLD', '5'))
+      await vi.advanceTimersByTimeAsync(400)
+      expect(state()).toBe('PENDING')
+      expect(w.store.peek(w.k('COLD', '5')).bars.length).toBe(20)
+      await w.server.drain()
+      expect(state()).toBe('current')
+    })
+  })
+
   it('a slow cache read (past HYDRATE_WAIT_MS) and a slow answer: the lake still commits first, after the read', async () => {
     const w = await boot({ lake: lakeOf(rows(OPEN - 300, 40)) })
     const realHydrate = w.store.persist.hydrate

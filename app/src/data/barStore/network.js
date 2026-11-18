@@ -558,17 +558,25 @@ export function createNetwork({
       if (!history?.hasSymbol) return Promise.resolve(false)
       return history.hasSymbol(sym)
     },
+    // ⭐ A LOCAL COPY ALREADY HELD DOES NOT SHUT THE LAKE OUT (2026-11-17). Measured on never-opened
+    // tickers with the answer held 1.5 s: 3 of 4 held the universe pack's 240 newest 5m rows
+    // (provisional, no server answer) before Enter, and this refused because the key held ANY bars,
+    // so the chart waited out the answer. Now only a held SERVER answer refuses (the chart's own
+    // scroll-back reaches the lake then); a held local copy is joined by the reducer only where the
+    // lake's rows prove its price basis over the bars they share (applyLocal), and the seed counts as
+    // painted only when rows were actually added.
     lakeSeed(key) {
       if (!history?.olderBars || !lakeCarriesKey(key)) return Promise.resolve(false)
-      const held = registry.peek(key)
-      if (held && (held.restSeen || held.bars.length)) return Promise.resolve(false)
+      if (registry.peek(key)?.restSeen) return Promise.resolve(false)
       return Promise.resolve()
         .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: LAKE_WINDOW_BARS }))
         .then((got) => {
           const cur = registry.peek(key)
-          if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur || cur.restSeen || cur.bars.length) return false
+          if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur || cur.restSeen) return false
+          const before = cur.bars.length
           registry.dispatch(key, { type: ACTION.LAKE_HIT, key, payload: { sym: parseKey(key)?.sym, bars: got.bars } })
-          return true
+          const after = registry.peek(key)
+          return !!after && !after.restSeen && after.bars.length > before
         })
         .catch(() => false)
     },
