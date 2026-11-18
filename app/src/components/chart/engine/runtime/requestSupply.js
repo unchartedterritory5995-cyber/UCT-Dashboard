@@ -25,7 +25,7 @@
 // its drawings not drawn), as the host withholds that bar.
 
 import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js'
-import { resolveOtherSymbols, otherSymbolPending, weekSampleOf } from '../otherSymbols.js'
+import { resolveOtherSymbols, otherSymbolPending, weekSampleOf, withChartNewestDay } from '../otherSymbols.js'
 
 export const REQUEST_GUARD = 'runtime:request'
 
@@ -75,6 +75,8 @@ function decideOther(target, ctx) {
     symbol: ctx && ctx.symbol,
     framed: !!(ctx && ctx.framed),
     tf: ctx && ctx.tf,
+    // ⭐ RS RATING L11 PR 2 — the chart's newest bar reads its own period (`newestOwnPeriodOf`)
+    chartNewestDay: ctx && ctx.chartNewestDay,
     requestCode: target.code == null ? null : String(target.code),
     ...(target.below === true ? { below: true } : {}),
   }) }
@@ -150,6 +152,7 @@ export function requestTargetsUnservable(targets, count) {
  *            newestWithheld: boolean, codes: string[], sentences: string[]}}
  */
 export function runtimeRequestSupply(requests, rows, ctx = {}) {
+  ctx = withChartNewestDay(ctx, rows)   // ⭐ RS RATING L11 PR 2: the bind reads no bars
   const out = { supply: null, refusal: null, pending: false, newestWithheld: false, codes: [], sentences: [] }
   const sites = Array.isArray(requests) ? requests : []
   if (!sites.length) return out

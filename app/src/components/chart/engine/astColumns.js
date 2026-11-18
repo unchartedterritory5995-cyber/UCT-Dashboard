@@ -21,6 +21,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 import { foldBound, bindConstsFor } from './ast/bind'
 import {
   otherSymbolRefusalOfTree, isOtherSymbolRefusal, colourReaderRefusal, colourReaderMessage, plotValueIsNaLiteral,
+  withChartNewestDay,
 } from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
@@ -275,7 +276,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   const bound = (tree) => foldBound(tree, bindConsts)
   // ⭐⭐ C26 — which other symbols this binding may read, decided ONCE for every
   // tree of the document (`otherSymbolsFor`).
-  const other = otherSymbolsFor(def, ctx)
+  const other = otherSymbolsFor(def, withChartNewestDay(ctx, bars))   // ⭐ RS RATING L11 PR 2: the bind reads no bars
   // ⭐⭐ C41 — which lower-timeframe codes this binding may read, decided ONCE for
   // every tree of the document (`lowerTfFor`). Null for a document that reads none.
   const lower = lowerTfFor(def, ctx)
