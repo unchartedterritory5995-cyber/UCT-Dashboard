@@ -966,10 +966,27 @@ MOVING_AVERAGE_RULE = (
     "chart uses one kind of average and they plainly mean that one, use it. Otherwise ASK which kind "
     "(disposition clarify, one question offering Simple, Exponential, Weighted, Hull and Volume-weighted). "
     "NEVER assume a kind")
+# ⭐ 2026-11-18 (ruling) -- A HOUSE TERM HOLDS ITS OWN CONVENTION, SO THE ASSISTANT IS HANDED IT AND
+# NEED NOT INFER IT. "Follow-through day" is the firm's term. Asked for "day 4 through day 12
+# after the lowest low", the assistant counted the day of the low as day 1 (the low 3 to 11 bars
+# back) and said so; the house counts the day AFTER the low as day 1 (4 to 12 bars back). It was
+# the one house indicator still graded different after the instruction changes of that day, and
+# everything else in it matched. A firm definition settles a house term: it is never a question.
+# (A GENERIC request that counts days from a low, with no house term, is a different matter. It was
+# measured on the requests on file before anything was built: 1 of 965, and that one is this
+# house term's own request. So no question was added; it is a row in the backlog.)
+FOLLOW_THROUGH_DAY_RULE = (
+    "a HOUSE TERM. UCT's convention for its day count: THE DAY AFTER THE LOWEST LOW IS DAY 1, so day N is N "
+    "bars after the low. \"Day 4 through day 12 after the lowest low of the last 50 sessions\" is the low "
+    "sitting 4 to 12 bars back: lowestbars(low, 50) >= 4 and lowestbars(low, 50) <= 12. Use the member's own "
+    "numbers for the gain, the days and the lookback, and compare the close with the PREVIOUS close. Say the "
+    "day-count convention in one assumption")
 GENERIC_PHRASES: Mapping[str, Tuple[str, str]] = {
     "moving average": ("moving_average", MOVING_AVERAGE_RULE),
     "ma": ("moving_average", MOVING_AVERAGE_RULE),
     "dma": ("moving_average", MOVING_AVERAGE_RULE),
+    "follow through day": ("follow_through_day", FOLLOW_THROUGH_DAY_RULE),
+    "follow through days": ("follow_through_day", FOLLOW_THROUGH_DAY_RULE),
 }
 #: The terms that NAME a kind of average. One of them beside the bare phrase settles it.
 AVERAGE_TERMS = frozenset({"sma", "ema", "wma", "hma", "vwma", "alma"})
