@@ -49,7 +49,7 @@
    "capture": "adx-and-di-for-v4-rddt-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "reassign",
@@ -71,7 +71,7 @@
    "capture": "adx-and-di-for-v4-spy-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "DIVERGE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "reassign",
@@ -857,7 +857,7 @@
    "capture": "fvg-trend-rddt-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "fn-multi",
@@ -872,7 +872,7 @@
    "capture": "fvg-trend-spy-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "fn-multi",
@@ -955,7 +955,7 @@
    "capture": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-rddt-1d-2026-11-17",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "conditional-ta",
     "core",
@@ -977,7 +977,7 @@
    "capture": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "conditional-ta",
     "core",
@@ -1078,7 +1078,7 @@
    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "fn-multi",
@@ -1129,7 +1129,7 @@
    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "fn-multi",
@@ -1489,7 +1489,7 @@
    "capture": "machine-learning-moving-average-backquant-rddt-1d-2026-11-17",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "collections:array",
     "compound-assign",
@@ -1514,7 +1514,7 @@
    "capture": "machine-learning-moving-average-backquant-spy-1d-2026-11-17",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "collections:array",
     "compound-assign",
@@ -1791,7 +1791,7 @@
    "capture": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "collections:array",
     "compound-assign",
@@ -1806,7 +1806,7 @@
    "capture": "nadaraya-watson-rational-quadratic-kernel-non-repainting-spy-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "collections:array",
     "compound-assign",
@@ -1879,7 +1879,7 @@
    "capture": "nubia-auto-midas-anchored-vwap-xdecow-rddt-1d-2026-11-17",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "fn-multi",
@@ -1897,7 +1897,7 @@
    "capture": "nubia-auto-midas-anchored-vwap-xdecow-spy-1d-2026-11-17",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "fn-multi",
@@ -3066,7 +3066,7 @@
    "capture": "supertrend-strategy-alab-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "fn-single",
@@ -3094,7 +3094,7 @@
    "capture": "supertrend-strategy-rddt-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "fn-single",
@@ -3178,7 +3178,7 @@
    "capture": "support-and-resistance-logistic-regression-flux-charts-rddt-1d-2026-11-17",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "collections:array",
     "compound-assign",
@@ -3205,7 +3205,7 @@
    "capture": "support-and-resistance-logistic-regression-flux-charts-spy-1d-2026-11-17",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "collections:array",
     "compound-assign",
@@ -3678,7 +3678,7 @@
    "capture": "volatility-coil-edge-bullbyte-rddt-1d-2026-11-17",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "collections:array",
     "core",
@@ -3705,7 +3705,7 @@
    "capture": "volatility-coil-edge-bullbyte-spy-1d-2026-11-17",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "collections:array",
     "core",
@@ -3755,7 +3755,7 @@
    "capture": "volume-divergence-by-mm-rddt-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "conditional-ta",
     "core",
@@ -3770,7 +3770,7 @@
    "capture": "volume-divergence-by-mm-spy-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "conditional-ta",
     "core",
@@ -7022,7 +7022,7 @@
    "capture": "w9-q-s1a-size-stop-v6-rddt-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "for",
@@ -7150,7 +7150,7 @@
    "capture": "w9-q-s1b-v4-shape-a-rddt-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "if-block",
@@ -7161,7 +7161,7 @@
    "capture": "w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "if-block",
@@ -7188,7 +7188,7 @@
    "capture": "w9-q-s1i-funds-rddt-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "for",
@@ -7643,7 +7643,7 @@
    "capture": "supertrend-kivancozbilgic-rddt-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "MATCH",
-   "production": "MATCH",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "reassign",
@@ -11895,7 +11895,7 @@
    "capture": "adx-and-di-for-v4-spy-1d-2026-11-17",
    "lane": "runtime",
    "runtimeOn": "DIVERGE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "reassign",
