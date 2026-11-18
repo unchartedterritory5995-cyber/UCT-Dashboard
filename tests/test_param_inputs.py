@@ -100,3 +100,49 @@ def test_P5_an_alert_label_names_the_length_its_chart_set():
     a = aus._instance_label(definition, "u_param2a", {key: 30})
     b = aus._instance_label(definition, "u_param2a", {})
     assert a != b and "30" in a and "14" in b
+
+
+# ─── ⭐⭐ P6 A SAVED COPY: A NULL `treeIndex` NAMES THE SCAN PLOT'S TREE (2026-11-18) ──────────────────────────
+# A saved Pine copy reads back as a shared graph whose hydration names the scan plot's locators `treeIndex: null`;
+# a multi-tree document runs its scan plot from `trees[scanPlot]`. Mirrors `paramInputs.js::specializeParams`
+# (railed there and in rsSavedCopySettings.test.js). Here on a JSON-loaded document, where `ast` and
+# `trees[scanPlot]` are two equal objects (a materialised graph aliases them; nothing else does).
+
+def _saved_copy_shape():
+    import copy
+    d = copy.deepcopy(FIX["stored"])
+    c = d["compute"]
+    scan = c.get("scanPlot") or "value"
+    c["scanPlot"] = scan
+    c["ast"] = copy.deepcopy(c["trees"][scan])
+    for entry in c["paramManifest"].values():
+        for loc in entry["locators"]:
+            if loc.get("treeIndex") == scan:
+                loc["treeIndex"] = None
+    return d, scan
+
+
+def test_P6_a_null_locator_writes_the_scan_plots_tree_too():
+    d, scan = _saved_copy_shape()
+    key = pi.param_input_specs(d)[0]["key"]
+    entry = next(iter(d["compute"]["paramManifest"].values()))
+    loc = next(l for l in entry["locators"] if l.get("treeIndex") is None)
+    special, why = pi.specialize(d, {key: 30})
+    assert why is None
+    from api.services.param_manifest import _literal_value, _walk
+    path = list(loc["astPath"])
+    assert _literal_value(_walk(special["compute"]["ast"], path)) == 30
+    assert _literal_value(_walk(special["compute"]["trees"][scan], path)) == 30, "the scan plot's own tree stayed at the default"
+
+
+def test_P6_control_a_scan_tree_holding_another_literal_is_never_written_blind():
+    d, scan = _saved_copy_shape()
+    key = pi.param_input_specs(d)[0]["key"]
+    entry = next(iter(d["compute"]["paramManifest"].values()))
+    path = list(next(l for l in entry["locators"] if l.get("treeIndex") is None)["astPath"])
+    from api.services.param_manifest import _literal_value, _walk
+    _walk(d["compute"]["trees"][scan], path)["value"] = 99
+    special, why = pi.specialize(d, {key: 30})
+    assert why is None
+    assert _literal_value(_walk(special["compute"]["ast"], path)) == 30
+    assert _literal_value(_walk(special["compute"]["trees"][scan], path)) == 99
