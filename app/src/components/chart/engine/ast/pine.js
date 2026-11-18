@@ -8421,6 +8421,10 @@ export class Resolver {
      *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
      *  below is PROVABLE rather than merely present. */
     this.basePeriod = basePeriodOf(opts)
+    /** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — the RUNTIME lane's request reader (`pineRuntimeFrontend.js`, its
+     *  `targetReader`) reads a daily read above an intraday chart as an `above` target its supply serves. Every
+     *  other resolver (the host's translation, the screen) keeps the refusal it always had (ruling 3.5, C49). */
+    this.aboveDailyReads = opts.aboveDailyReads === true
     /** ⭐⭐ C10 (2026-09-29) — THE TIMEFRAME A `request.security` CHILD IS BEING
      *  RESOLVED FOR, while `securityAsNode` resolves one at another timeframe;
      *  `null` everywhere else. Pine evaluates the requested expression IN that
@@ -14916,7 +14920,7 @@ export class Resolver {
         // week by the supply (R2 / R4); anything else declines as it always did.
         // ⭐ L13 (Q-RS-M) — and on a MONTHLY chart, per month (R3 witnessed 32 of 32 RDDT months).
         return this.dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue)
-      } else if (code === 'D' && isIntradayTf(this.basePeriod)) {
+      } else if (code === 'D' && isIntradayTf(this.basePeriod) && this.aboveDailyReads) {
         // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — A DAILY READ ABOVE AN INTRADAY CHART, look-ahead off: this chart's
         // own symbol or another one, served by the run from the symbol's HELD daily rows, each chart bar reading
         // the daily row its session had completed (`requestSupply.js::aboveChartRead`). The host lane never draws

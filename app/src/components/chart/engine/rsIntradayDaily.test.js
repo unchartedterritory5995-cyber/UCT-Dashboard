@@ -105,7 +105,7 @@ describe("this chart's own symbol at D: the previous session, the session's last
   it('⛔ not handed the daily rows: refused by name; still loading: pending, never drawn from the intraday bars', () => {
     const without = ctxOf()
     without.secondary.delete(OWN_DAILY_KEY)
-    expect(() => run(OWN_SRC, without)).toThrow(/own symbol at `"D"` above this chart.*not handed/)
+    expect(() => run(OWN_SRC, without)).toThrow(/own symbol at the `D` timeframe above this `5` chart.*not handed/)
     const loading = ctxOf()
     loading.secondary.set(OWN_DAILY_KEY, { bars: [], status: 'loading' })
     expect(() => run(OWN_SRC, loading)).toThrow(/still loading/)

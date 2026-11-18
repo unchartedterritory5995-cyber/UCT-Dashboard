@@ -147,8 +147,8 @@ function aboveChartRead(target, rows, ctx) {
   } else {
     const e = ctx && ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary.get(OWN_DAILY_KEY) : null
     if (!e) {
-      return { refusal: 'a `request.security` reads this chart\'s own symbol at `"D"` above this chart, and this run is '
-        + 'not handed that symbol\'s daily bars, so nothing is drawn bar by bar rather than a guess' }
+      return { refusal: `a \`request.security\` reads this chart's own symbol at the \`D\` timeframe above this \`${ctx && ctx.tf}\` `
+        + 'chart, and this run is not handed that symbol\'s daily bars, so nothing is drawn bar by bar rather than a guess' }
     }
     if (e.status !== 'available' || !Array.isArray(e.bars) || !e.bars.length) {
       if (!e.status || e.status === 'loading') return { pending: true }
