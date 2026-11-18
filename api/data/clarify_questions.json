@@ -1,0 +1,61 @@
+{
+ "_": "THE QUESTIONS THE DOOR ASKS ITSELF (Create Indicator, clarify first). Owner direction, 2026-11-18: when a choice that changes the maths is not settled, ask ONE short question with the options before building; never guess. Each entry is a question the door can ask with no model call: `text` is what the member reads, `choices` what they can tap. Every choice is a phrase the door reads back as that choice, so tapping it (or typing it) settles the question; `tests/test_clarify_registry.py` holds each one to that. WHEN a question is open is code, not data (`definition_conversation.open_questions`), read from what the planner already found. The ORDER here is the order asked: one question per turn, the first that is open. A choice that is a convention the product already holds (RSI 14 of the close, MACD 12/26/9, a library entry's own numbers) is never a question here. `also` lists the plain words a member may TYPE for a choice (\"simple\", \"exponential\"); an answer holding one is read as that choice.",
+ "contract": "uct.clarify-questions/1",
+ "questions": [
+  {
+   "id": "average_kind",
+   "open_when": "the request says moving average (or MA, DMA) and names no kind of average",
+   "text": "Which kind of moving average?",
+   "choices": [
+    "Simple (SMA)",
+    "Exponential (EMA)",
+    "Weighted (WMA)",
+    "Hull (HMA)",
+    "Volume-weighted (VWMA)",
+    "Kaufman adaptive (KAMA)"
+   ],
+   "also": {
+    "Simple (SMA)": [
+     "simple"
+    ],
+    "Exponential (EMA)": [
+     "exponential"
+    ],
+    "Weighted (WMA)": [
+     "weighted"
+    ],
+    "Hull (HMA)": [
+     "hull"
+    ],
+    "Volume-weighted (VWMA)": [
+     "volume weighted",
+     "volume-weighted"
+    ],
+    "Kaufman adaptive (KAMA)": [
+     "kaufman",
+     "adaptive"
+    ]
+   }
+  },
+  {
+   "id": "average_length",
+   "open_when": "the request asks for an average and gives no number anywhere",
+   "text": "How many bars should the average use?",
+   "choices": [
+    "10",
+    "20",
+    "50",
+    "200"
+   ]
+  },
+  {
+   "id": "cross_meaning",
+   "open_when": "the request says price crosses something and does not say whether on the close or as soon as it trades through",
+   "text": "When should a cross count?",
+   "choices": [
+    "When the bar closes across it",
+    "As soon as price trades through it"
+   ]
+  }
+ ]
+}

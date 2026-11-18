@@ -99,9 +99,11 @@ def test_PROPOSE_keeps_the_older_reading():
 
 BARE = ["add a 50 day moving average", "Add a 50 day Moving Average", "Plot the Moving Average", "add a 50 MA",
         "add the 200 dma", "20 and 50 day moving averages", "show two moving averages"]
+#: (each names its LENGTH too: a kind with no length anywhere is asked for the length,
+#: `tests/test_clarify_registry.py`. A library average brings its own numbers.)
 KIND_NAMED = [("add a 50 day SMA", "sma"), ("50 day simple moving average", "sma"), ("50 EMA", "ema"),
-              ("Add the Exponential Moving Average", "ema"), ("add a 20 day weighted moving average", "wma"),
-              ("Add the Hull Moving Average", "hma"), ("Add the Kaufman Adaptive Moving Average", "kaufman_adaptive_moving_average")]
+              ("Add the 21 day Exponential Moving Average", "ema"), ("add a 20 day weighted moving average", "wma"),
+              ("Add a 55 bar Hull Moving Average", "hma"), ("Add the Kaufman Adaptive Moving Average", "kaufman_adaptive_moving_average")]
 
 
 @pytest.mark.parametrize("message", BARE)
@@ -128,7 +130,7 @@ def test_a_named_kind_builds_without_asking(conv, clean_env, model, message, kin
     r = conv.converse(message, user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 1, r
     assert [t["name"] for t in conv.understand_turn(message, CHART)["terms"]] == [kind]     # the longer phrase wins
-    assert not conv.asks_which_average(conv.understand_turn(message, CHART), empty_view(0))
+    assert conv.door_question(conv.understand_turn(message, CHART), empty_view(0)) is None
 
 
 def test_every_choice_the_door_offers_reads_back_as_that_kind(conv, clean_env, model):
@@ -140,12 +142,15 @@ def test_every_choice_the_door_offers_reads_back_as_that_kind(conv, clean_env, m
         got = conv.understand_turn(choice, CHART)
         assert got["refusal"] is None and kind in [t["name"] for t in got["terms"]], (choice, got["terms"])
         assert not conv.asks_which_average(got, empty_view(0)), choice
-    # and the answer builds: one call, the change accepted
+    # and the answer builds: the request plus the answer, one call, the change accepted
     patch = env(0, [{"op": "create", "name": "50 day EMA", "placement": "price",
                      "outputs": [{"key": "ma", "tree": call("ema", S("close"), num(50))}]}])
     client = model([emits(patch)])
-    r = conv.converse("Exponential (EMA)", user_id="u1", view=empty_view(0), chart=CHART)
+    said = [{"role": "member", "text": "add a 50 day moving average"},
+            {"role": "assistant", "text": "Which kind of moving average?"}]
+    r = conv.converse("Exponential (EMA)", user_id="u1", view=empty_view(0), chart=CHART, snippets=said)
     assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 1
+    assert "add a 50 day moving average. Exponential (EMA)" in json.dumps(client.calls[0]["messages"][0]["content"])
 
 
 def test_when_the_door_does_not_ask(conv, clean_env, model):
@@ -156,8 +161,8 @@ def test_when_the_door_does_not_ask(conv, clean_env, model):
     # a request that says nothing of a moving average is never asked about one
     for other in ("Add RSI 14", "Highlight Mondays", "Add the McGinley Dynamic", "close above the 20 day high"):
         assert not conv.asks_which_average(conv.understand_turn(other, CHART), empty_view(0)), other
-    # the bare phrase beside a LIBRARY average is still a bare phrase: the door asks
-    assert conv.asks_which_average(conv.understand_turn("a moving average and the McGinley Dynamic", CHART), empty_view(0))
+    # a library entry that IS a kind of average names a kind: the door does not ask; the assistant has the rule
+    assert not conv.asks_which_average(conv.understand_turn("a 20 bar moving average and the McGinley Dynamic", CHART), empty_view(0))
     # a kind of average named beside the bare phrase settles it for the assistant
     assert not conv.asks_which_average(conv.understand_turn("price above its moving average and the 20 ema", CHART), empty_view(0))
     # beside an indicator ALREADY on the chart the assistant reads the chart, under the rule: one call, and the rule is in it

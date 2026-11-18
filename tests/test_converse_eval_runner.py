@@ -771,3 +771,60 @@ def test_a_named_indicator_is_built_to_its_checked_formula_in_one_call_and_a_sub
     assert own["grade"]["ok"] is True and own["server"]["attempts"] == 1 and own["client"]["changed"] is True
     (label,) = own["server"]["envelope"]["assumptions"]
     assert label["text"].startswith("Built from your own description, as your own formula.") and "Pocket Pivot" in label["text"]
+
+
+# ─── clarify first: the door's own questions ──────────────────────────────────────────────────────
+
+CLARIFY_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_clarify_cases.json"
+CLARIFY_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_clarify_scripted.json"
+CLARIFY_REGISTRY = ROOT / "api" / "data" / "clarify_questions.json"
+
+
+def test_every_registry_question_has_a_case_that_asks_it_and_a_choice_that_answers_it():
+    """No bundler needed: what the fixture holds. A question added to the registry without a case
+    here fails, so a later change cannot silently stop it being asked."""
+    registry = json.loads(io.open(CLARIFY_REGISTRY, encoding="utf-8").read())["questions"]
+    doc = json.loads(io.open(CLARIFY_CASES, encoding="utf-8").read())
+    script = json.loads(io.open(CLARIFY_SCRIPT, encoding="utf-8").read())["turns"]
+    cases = {c["id"]: c for c in doc["cases"] if c["group"] == "example"}
+    for q in registry:
+        case = cases["clarify-" + q["id"].replace("_", "-")]
+        ask, answer = case["turns"]
+        assert ask["expect"] == {"kind": "clarify", "max_model_calls": 0} and ask["model_expected"] is False
+        assert answer["words"] in q["choices"], (q["id"], answer["words"])          # answered by one of its OWN choices
+        assert answer["expect"]["kind"] == "change" and answer["expect"]["max_model_calls"] == 1
+        assert f"{case['id']}#0" not in script and len(script[f"{case['id']}#1"]) == 1   # no answer armed for the question turn
+    both = cases["clarify-kind-then-length"]["turns"]
+    assert [t["expect"]["kind"] for t in both] == ["clarify", "clarify", "change"]
+    assert cases["clarify-nothing-open"]["turns"][0]["expect"]["kind"] == "change"
+    controls = {c["id"]: c for c in doc["cases"] if c["group"] == "control"}
+    base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
+    assert controls == {k: v for k, v in base.items() if v["group"] == "control"}
+
+
+@needs_node
+def test_the_door_asks_one_question_at_a_time_and_an_answer_builds(tmp_path):
+    """Through the door AND the browser's own session code, with the conversation sent the way the
+    real box sends it: each registry question is asked with no model call and nothing built; one of
+    its choices, sent as the next message, builds in ONE call. Two open questions are asked in
+    order. A request that says everything is never asked."""
+    proc, _work, out = _run(tmp_path, "--cases", str(CLARIFY_CASES), "--script", str(CLARIFY_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    rows = {}
+    for r in _records(out):
+        rows.setdefault(r["case"], []).append(r)
+    for cid, want in (("clarify-average-kind", "Which kind of moving average?"),
+                      ("clarify-average-length", "How many bars should the average use?"),
+                      ("clarify-cross-meaning", "When should a cross count?")):
+        asked, answered = rows[cid]
+        assert asked["model_calls"] == 0 and asked["server"]["disposition"] == "clarify" and asked["client"]["changed"] is False
+        assert asked["server"]["envelope"]["questions"][0]["text"] == want and len(asked["server"]["envelope"]["questions"]) == 1
+        assert answered["model_calls"] == 1 and answered["grade"]["ok"] is True and answered["client"]["changed"] is True, cid
+    first, second, built = rows["clarify-kind-then-length"]
+    assert [r["model_calls"] for r in (first, second, built)] == [0, 0, 1]
+    assert first["server"]["envelope"]["questions"][0]["id"] == "average_kind"
+    assert second["server"]["envelope"]["questions"][0]["id"] == "average_length"
+    assert built["grade"]["ok"] is True and built["client"]["changed"] is True
+    (direct,) = rows["clarify-nothing-open"]
+    assert direct["model_calls"] == 1 and direct["server"]["disposition"] == "change"

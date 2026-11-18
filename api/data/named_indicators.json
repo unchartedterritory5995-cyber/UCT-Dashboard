@@ -350,7 +350,8 @@
      "since": "2026-11-18",
      "why": "first entry"
     }
-   ]
+   ],
+   "family": "average"
   },
   {
    "id": "mcginley_dynamic",
@@ -503,7 +504,8 @@
      "since": "2026-11-18",
      "why": "first entry"
     }
-   ]
+   ],
+   "family": "average"
   },
   {
    "id": "connors_rsi",
@@ -3749,7 +3751,8 @@
      "since": "2026-11-18",
      "why": "first entry"
     }
-   ]
+   ],
+   "family": "average"
   },
   {
    "id": "triple_exponential_moving_average",
@@ -3965,7 +3968,8 @@
      "since": "2026-11-18",
      "why": "first entry"
     }
-   ]
+   ],
+   "family": "average"
   },
   {
    "id": "chande_momentum_oscillator",

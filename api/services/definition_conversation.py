@@ -847,26 +847,126 @@ GENERIC_PHRASES: Mapping[str, Tuple[str, str]] = {
 }
 #: The terms that NAME a kind of average. One of them beside the bare phrase settles it.
 AVERAGE_TERMS = frozenset({"sma", "ema", "wma", "hma", "vwma", "alma"})
-#: The question the door asks. Every choice is a phrase this door reads back as that kind
-#: (`tests/test_request_openers.py` holds each one to its term).
-AVERAGE_QUESTION: Mapping[str, Any] = {
-    "id": "average_kind", "text": "Which kind of moving average?",
-    "choices": ["Simple (SMA)", "Exponential (EMA)", "Weighted (WMA)", "Hull (HMA)", "Volume-weighted (VWMA)",
-                "Kaufman adaptive (KAMA)"],
-}
+# --------------------------------------------------------------------------- #
+# ⭐ CLARIFY FIRST (owner direction, 2026-11-18): "always clarify". When a choice that changes the
+# MATHS is not settled, the door asks ONE short question with the options before anything is built,
+# and never guesses. The questions are DATA (`api/data/clarify_questions.json`); WHEN one is open is
+# read here, from what the planner already found. No model call: the same question every time.
+# --------------------------------------------------------------------------- #
+
+CLARIFY_PATH = Path(__file__).resolve().parents[1] / "data" / "clarify_questions.json"
+
+
+@functools.lru_cache(maxsize=1)
+def clarify_registry() -> Dict[str, Dict[str, Any]]:
+    """The door's own questions, by id, in the order they are asked."""
+    doc = json.loads(CLARIFY_PATH.read_text(encoding="utf-8"))
+    return {q["id"]: q for q in doc["questions"]}
+
+
+def clarify_question(question_id: str) -> Dict[str, Any]:
+    """One registry question in the patch contract's shape: {id, text, choices}."""
+    q = clarify_registry()[question_id]
+    return {"id": q["id"], "text": q["text"], "choices": list(q["choices"])}
+
+
+#: (kept by name for the tests that pin it) the first question of the registry.
+AVERAGE_QUESTION: Mapping[str, Any] = clarify_question("average_kind")
+
+_CROSS_WORD = re.compile(r"\bcross(?:es|ed|ing|over|overs)?\b", re.I)
+_PRICE_WORD = re.compile(r"\bprice\b", re.I)
+#: More than one average in one request.
+_SEVERAL_AVERAGES = re.compile(r"\b(?:averages|emas|smas|wmas|hmas|mas|ribbon|ribbons)\b", re.I)
+#: Words that say WHEN a cross counts: on the close, or as soon as price trades through.
+_CROSS_SETTLED = re.compile(
+    r"\b(?:close|closes|closed|closing|touch|touches|touched|intraday|intrabar|wick|wicks|trades?\s+through|high|low)\b", re.I)
+
+
+def open_questions(understood: Mapping[str, Any]) -> List[str]:
+    """The registry questions this request leaves OPEN, in the order they are asked.
+
+    ⭐ MEASURED BEFORE IT WAS WRITTEN (2026-11-18, 320 first-turn requests on file): 11 leave the
+    kind of average open, 8 the length (every one a bare name such as "Simple moving average"),
+    and none the meaning of a cross. A convention the product already holds is never a question:
+    a named-library indicator brings its own numbers, so naming one asks nothing here."""
+    names = [t.get("name") for t in understood.get("terms") or [] if isinstance(t, Mapping)]
+    bare = "moving_average" in names
+    # a library entry that IS a kind of average names the kind and brings its own numbers
+    library = [e for e in understood.get("named") or [] if e.get("family") == "average"]
+    kinds = [n for n in names if n in AVERAGE_TERMS]
+    numbers = (understood.get("notes") or {}).get("member_numbers") or []
+    words = str(understood.get("request_text") or "")
+    found = set()
+    if bare and not kinds and not library:
+        found.add("average_kind")
+    # (ONE average: "a ribbon of EMAs" or "moving averages" wants several lengths, which this
+    # question's choices cannot give; that request is the assistant's to ask about)
+    if (bare or kinds) and not numbers and not library and not _SEVERAL_AVERAGES.search(words):
+        found.add("average_length")
+    if _CROSS_WORD.search(words) and _PRICE_WORD.search(words) and not _CROSS_SETTLED.search(words):
+        found.add("cross_meaning")
+    return [qid for qid in clarify_registry() if qid in found]
+
+
+def door_question(understood: Mapping[str, Any], view: Any) -> Optional[str]:
+    """The ONE question the door asks before building, or None. Only for a NEW indicator and only
+    for a request to build: a question from the member is answered, and beside an indicator already
+    on the chart the assistant reads the chart (under the rules it is handed)."""
+    if understood.get("advisory"):
+        return None
+    if isinstance(view, Mapping) and isinstance(view.get("definition"), Mapping):
+        return None
+    still_open = open_questions(understood)
+    return still_open[0] if still_open else None
 
 
 def asks_which_average(understood: Mapping[str, Any], view: Any) -> bool:
-    """Is this a request to BUILD with a moving average whose kind nothing settles? True only for
-    a new indicator: the member wrote the bare phrase, named no kind of average beside it ("50 and
-    200 EMA moving averages" names one), is not asking a question, and there is no indicator on the
-    chart to read the kind from."""
-    names = [t.get("name") for t in understood.get("terms") or [] if isinstance(t, Mapping)]
-    if "moving_average" not in names or understood.get("advisory"):
-        return False
-    if any(n in AVERAGE_TERMS for n in names):
-        return False
-    return not (isinstance(view, Mapping) and isinstance(view.get("definition"), Mapping))
+    """Is the kind of a moving average the question this request gets?"""
+    return door_question(understood, view) == "average_kind"
+
+
+def _question_asked_in(text: Any) -> Optional[str]:
+    """The registry question a line of the conversation IS, if any."""
+    said = str(text or "")
+    return next((qid for qid, q in clarify_registry().items() if q["text"] in said), None)
+
+
+def with_pending_answers(message: str, turns: List[Dict[str, str]], chart: Any) -> str:
+    """⭐ AN ANSWER IS THE REQUEST PLUS THE ANSWER. When the last thing said to the member was one of
+    the door's own questions and this message SETTLES it, the turn is read as the words they
+    first wrote and what they have answered since: "Add a moving average. Exponential (EMA). 50".
+    So the next open question is asked, or the build goes ahead with everything they said.
+
+    A message that does not settle the question is a new request and stands alone (the member
+    changed their mind; nothing is asked twice)."""
+    j = len(turns) - 1
+    asked = _question_asked_in(turns[j]["text"]) if j >= 1 and turns[j]["role"] == "assistant" else None
+    if asked is None:
+        return message
+    said: List[str] = []
+    while j >= 1 and turns[j]["role"] == "assistant" and _question_asked_in(turns[j]["text"]) \
+            and turns[j - 1]["role"] == "member":
+        said.append(turns[j - 1]["text"].strip().rstrip("."))
+        j -= 2
+    original = ". ".join(reversed(said))
+    # a plain word for one of the choices ("simple", "exponential") is read as that choice
+    answer = message.strip()
+    typed = " " + " ".join(dc._form_tokens(answer)) + " "
+    also = [(w, label) for label, words in (clarify_registry()[asked].get("also") or {}).items() for w in words]
+    for w, label in sorted(also, key=lambda pair: -len(pair[0])):          # the longest first: "volume weighted" before "weighted"
+        if f" {w} " in typed:
+            answer = answer if label in answer else f"{answer} ({label})"
+            break
+    combined = f"{original}. {answer}"
+    if not original or len(combined) > MAX_MESSAGE_CHARS:
+        return message
+    before, after = understand_turn(original, chart), understand_turn(combined, chart)
+    if before["refusal"] is not None or after["refusal"] is not None:
+        return message
+    if asked in open_questions(before) and asked not in open_questions(after):
+        return combined
+    return message
+
 
 #: ⭐ THE NAMED-INDICATOR LIBRARY -- the rules the model reads beside a name the member wrote.
 NAMED_RULE = ("a NAMED indicator: UCT builds it to ONE checked formula. For each output you build, copy "
@@ -3206,23 +3306,26 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         return {"ok": False, "gate": refused.gate, "reason": refused.reason}
     revision = view["revision"]
 
+    message = with_pending_answers(message, turns, chart)       # an answer is the request plus the answer
     understood_turn = understand_turn(message, chart)
     if understood_turn["refusal"] is not None:
         if understood_turn["refusal"].get("preflight"):
             logger.info("[converse] preflight %s (no model call)", understood_turn["refusal"]["gate"])
         return understood_turn["refusal"]
-    if asks_which_average(understood_turn, view):
-        # ⭐ THE DOOR ASKS, with no model call: the same question every time, for nothing.
+    asking = door_question(understood_turn, view)
+    if asking is not None:
+        # ⭐ THE DOOR ASKS, with no model call: the same question every time, for nothing. ONE
+        # question; the next open one is asked on the next turn (`with_pending_answers`).
         question = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "clarify",
-                    "questions": [dict(AVERAGE_QUESTION)]}
+                    "questions": [clarify_question(asking)]}
         try:
             question = check_envelope(question, revision, view)
         except _Refused:                           # never: the question is this door's own. If it ever is, the model asks.
             logger.exception("[converse] the door's own question did not pass the door")
         else:
-            logger.info("[converse] asked which moving average (no model call)")
+            logger.info("[converse] the door asked %s (no model call)", asking)
             return {"ok": True, "disposition": "clarify", "reply": "", "turn": "question", "envelope": question,
-                    "asked_by": "door", "not_understood": understood_turn["not_understood"],
+                    "asked_by": "door", "asked": asking, "not_understood": understood_turn["not_understood"],
                     "unavailable": understood_turn["unavailable"],
                     "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
     request_text = understood_turn["request_text"]
