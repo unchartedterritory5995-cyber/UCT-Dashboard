@@ -512,6 +512,12 @@ def main() -> int:
                     help="seconds to wait on the preview before attaching (a runtime-on capability verdict lands async)")
     args = ap.parse_args()
 
+    import synthetic_session  # noqa: PLC0415 (tools/ is on sys.path)
+    if not args.synthetic and not synthetic_session.is_loopback(args.base):
+        # ⛔ the plain sign-in (and its sign-up and its clean slate) is for a LOCAL sandbox account only;
+        # anything else signs in as a synthetic account, through the helper that always signs out
+        print(f"[probe] REFUSED: {args.base} is not a local sandbox; use --synthetic smoke")
+        return 2
     from playwright.sync_api import sync_playwright
     out_dir = pathlib.Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -538,7 +544,6 @@ def main() -> int:
         if args.synthetic:
             # ⛔ PRODUCTION: the synthetic account only, through the ONE sign-in that always signs out
             # (`tools/synthetic_session.py`); never a sign-up, never another account's scripts deleted
-            import synthetic_session  # noqa: PLC0415 (tools/ is on sys.path)
             if args.synthetic == "loopback-test":
                 # the same path on a LOCAL sandbox (`synthetic_session` refuses explicit credentials
                 # anywhere else): the account is made if it is not there, then signed in the synthetic way

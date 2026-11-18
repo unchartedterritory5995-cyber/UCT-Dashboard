@@ -87,6 +87,8 @@ LOCAL_FIXTURE_SIGN_IN = {
     "tools/notebook_wave8_walk.py": _SANDBOX,
     "tools/notebook_widgets_p2_walk.py": _SANDBOX,
     "tools/pane_gesture_audit.py": _ARG,
+    "tools/pine_coverage/host_lane_browser_probe.py": _SANDBOX + "; any other base is refused unless --synthetic, "
+                                                      "which signs in through tools/synthetic_session.py",
     "tools/pine_member_pane_capture.py": _SANDBOX,
     "tools/r1_toolbar_probe.py": _SANDBOX,
     "tools/review_feed_frame_probe.py": _SANDBOX,

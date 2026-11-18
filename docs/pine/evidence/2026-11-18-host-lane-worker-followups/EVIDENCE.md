@@ -349,3 +349,12 @@ python tools/pine_coverage/host_lane_browser_probe.py --base https://uctintellig
 The probe gained three things here: `--wait-final` (settle only once the deep history's values job has landed, so
 "final values" is the landing of the 11,534-bar job on the page's own timeline, not a guess), the page's isolation
 facts (`crossOriginIsolated`, `typeof SharedArrayBuffer`), and `--synthetic` (section 4).
+
+**And one red on master, fixed here.** `tests/test_synthetic_session_signout.py` (every tool's sign-in goes through
+`synthetic_session.py` or is a named local-sandbox exemption) was red on `3a44393c21`: the probe POSTs
+`/api/auth/login` for its sandbox account and was not on the exemption list. It is now, with the reason held by
+code: the plain sign-in (with its sign-up and its clean slate of saved scripts) runs only on a loopback base, and
+any other base is refused before a browser starts unless `--synthetic`. New rail
+`tests/test_host_lane_probe_refuses_production.py` (production, the Railway origin and a LAN address refused;
+control: loopback and `--synthetic` get past it, to a stubbed browser): 2 mutants (the refusal removed; the
+refusal for every base) both red, restored byte-equal; without the exemption entry the sign-out rail is red.
