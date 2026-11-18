@@ -1749,14 +1749,85 @@ def _branch_errors(error: Any) -> List[Any]:
     return [b for s in meant[0] for b in _branch_errors(s)]
 
 
+# ⭐⭐ 2026-11-18 -- THE CONTRACT CHECK IS LINEAR IN THE SIZE OF THE ANSWER.
+#
+# ⚰️ THE INCIDENT (production, 10:36Z, found by a live check): the assistant answered "Add the
+# Fractal Adaptive Moving Average" with a deep formula holding ONE piece the contract refuses. The
+# turn never came back. For about ten minutes every other request from that account was answered
+# "still working on your previous request", answers that take a second took 10 to 30, and the pod
+# was restarted.
+#
+# WHY. A formula node is `oneOf` eight kinds, and six of those kinds hold child nodes. The schema
+# library, on a node that FAILS, collects every branch's errors in full: it descends into the
+# children under each of the six, at every enclosing level. One invalid piece at depth d costs
+# about 6^d: 2 s at depth 4, 87 s at depth 6, ten minutes at depth 7 (measured). A VALID formula
+# never paid this (the library stops at the first branch that fits), which is why no test met it.
+# It holds the interpreter lock the whole time, so the whole pod stalls, not one request.
+#
+# THE RULE NOW. The envelope is checked with every formula OPAQUE, and each formula is checked
+# node by node, each node ONCE, against the contract with its children opaque. A formula is valid
+# exactly when every node in it is, so the verdict is the full contract's
+# (`tests/test_contract_check_is_linear.py` holds the two equal, error for error, on every scripted
+# answer and on a set of broken ones), and the cost is the number of nodes.
+_ONE_NODE = "uct-one-node"
+
+
+@functools.lru_cache(maxsize=1)
+def _linear_validators() -> Tuple[Draft202012Validator, Draft202012Validator, frozenset, frozenset]:
+    """(the envelope with formulas opaque, ONE node with its children opaque, the property names
+    that hold a formula, the kinds of node). All read off the composed contract; nothing is typed
+    here."""
+    schema = composed_schema()
+    node = schema["$defs"]["node"]
+    is_node = {"$ref": "#/$defs/node"}
+    kinds = {b["$ref"].split("/")[-1] for b in node["oneOf"]}
+    roots = frozenset(prop for name, d in schema["$defs"].items() if name not in kinds
+                      for prop, sub in (d.get("properties") or {}).items() if sub == is_node)
+    if _ONE_NODE in schema["$defs"] or not roots:
+        raise RuntimeError("the patch contract no longer has the shape the linear check reads")
+    opaque = copy.deepcopy(schema)
+    opaque["$defs"]["node"] = {}                           # any value: a formula is checked node by node
+    one = {"$ref": f"#/$defs/{_ONE_NODE}", "$defs": {**opaque["$defs"], _ONE_NODE: copy.deepcopy(node)}}
+    Draft202012Validator.check_schema(opaque)
+    Draft202012Validator.check_schema(one)
+    return Draft202012Validator(opaque), Draft202012Validator(one), roots, frozenset(kinds)
+
+
+def _formula_roots(value: Any, keys: frozenset, path: Tuple[str, ...] = ()) -> List[Tuple[Tuple[str, ...], Any]]:
+    """Every formula in the envelope, with where it sits. A formula is not looked inside here."""
+    found: List[Tuple[Tuple[str, ...], Any]] = []
+    if isinstance(value, Mapping):
+        for k, v in value.items():
+            if k in keys:
+                found.append((path + (str(k),), v))
+            else:
+                found.extend(_formula_roots(v, keys, path + (str(k),)))
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            found.extend(_formula_roots(v, keys, path + (str(i),)))
+    return found
+
+
+def _contract_errors(envelope: Any) -> List[Tuple[List[str], str]]:
+    """Every way the envelope breaks the contract, as (where, what), in path order."""
+    whole, one_node, roots, kinds = _linear_validators()
+    found = [([str(p) for p in b.absolute_path], b.message)
+             for e in whole.iter_errors(envelope) for b in _branch_errors(e)]
+    stack = _formula_roots(envelope, roots)
+    while stack:
+        path, node = stack.pop()
+        for e in one_node.iter_errors(node):
+            for b in _branch_errors(e):
+                found.append((list(path) + [str(p) for p in b.absolute_path], b.message))
+        # (the children of a node of NO known kind are not formula nodes of ours: the node itself
+        # is the error, as the full contract reports it)
+        if isinstance(node, Mapping) and node.get("type") in kinds and isinstance(node.get("args"), list):
+            stack.extend((path + ("args", str(i)), child) for i, child in enumerate(node["args"]))
+    return sorted(found, key=lambda pair: pair[0])
+
+
 def _schema_errors(envelope: Any) -> List[str]:
-    errors = sorted((b for e in _validator().iter_errors(envelope) for b in _branch_errors(e)),
-                    key=lambda e: [str(p) for p in e.absolute_path])
-    out = []
-    for e in errors[:5]:
-        path = "/".join(str(p) for p in e.absolute_path) or "(envelope)"
-        out.append(f"{path}: {e.message[:200]}")
-    return out
+    return [f"{'/'.join(path) or '(envelope)'}: {message[:200]}" for path, message in _contract_errors(envelope)[:5]]
 
 
 def _unscoped(tree: Any) -> Any:
