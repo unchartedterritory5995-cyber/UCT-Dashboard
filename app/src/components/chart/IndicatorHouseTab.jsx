@@ -150,7 +150,7 @@ const NONE = () => []
 export default function IndicatorHouseTab({
   styles = ownStyles, query = '', isOnOffer = () => false, onPutOnChart = () => false,
   listOwn = NONE, load = loadHouseSet, save = saveUserDefinition, addWaitMs = ADD_WAIT_MS, buildPine = buildPineCopy,
-  fetchScript = fetchStoredScript,
+  fetchScript = fetchStoredScript, searchOnly = false, onMatches = null,
 }) {
   const [items, setItems] = useState(null)
   const [failed, setFailed] = useState(false)
@@ -225,7 +225,15 @@ export default function IndicatorHouseTab({
 
   const shown = useMemo(() => (items || []).filter((it) => houseMatches(it, query)), [items, query])
   const own = listOwn()
+  // ⭐ SEARCH-ONLY (2026-11-18, owner: "i still dont see fred's RS indicator as an option"): a search across
+  // EVERY tab never reached the UCT set (it is its own file, loaded by this tab only), so typing "Fred" said
+  // "Nothing matches". The host now mounts this tab in `searchOnly` mode under its search results: only the
+  // matching entries, under a "UCT" heading, nothing at all while loading, on a failed load or with no match,
+  // and it tells the host how many matched (`onMatches`) so "Nothing matches" is never said over a match.
+  const matched = items === null || failed ? 0 : shown.length
+  useEffect(() => { if (typeof onMatches === 'function') onMatches(matched) }, [matched, onMatches])
 
+  if (searchOnly && (failed || items === null || shown.length === 0)) return null
   if (failed) {
     return <div className={styles.indEmpty} data-testid="house-error" role="alert">UCT's indicators could not be loaded. Close this window and open it again.</div>
   }
@@ -234,11 +242,15 @@ export default function IndicatorHouseTab({
   }
 
   return (
-    <section className={styles.insAddGroup} data-testid="house-tab">
-      <p className={styles.resRefusedLede}>
-        Chosen by UCT and checked bar by bar. Adding one puts your own copy on this chart: rename it,
-        change it in Create Indicator, or delete it.
-      </p>
+    <section className={styles.insAddGroup} data-testid={searchOnly ? 'house-search' : 'house-tab'}>
+      {searchOnly ? (
+        <div className={styles.insSectionLabel}>UCT</div>
+      ) : (
+        <p className={styles.resRefusedLede}>
+          Chosen by UCT and checked bar by bar. Adding one puts your own copy on this chart: rename it,
+          change it in Create Indicator, or delete it.
+        </p>
+      )}
       {shown.length === 0 ? (
         <div className={styles.indEmpty} data-testid="house-no-match">No UCT indicator matches “{query}”.</div>
       ) : (
