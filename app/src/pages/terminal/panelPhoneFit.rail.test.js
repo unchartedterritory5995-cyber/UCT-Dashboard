@@ -176,6 +176,7 @@ const MEASURED = [
   ['ConfluencePanel.jsx', 'CONFL', [513], [530]],
   ['FlowListsPanel.jsx', 'FLWL, FLWL OPEN', [499, 458], [510, 480]],
   ['UnusualVolumePanel.jsx', 'UNVOL', [499], [510]],
+  ['ShortListPanel.jsx', 'SHRTS (all four ranks)', [492], [510]],
   ['Highs52Panel.jsx', 'H52 HIGHS / H52 LOWS (the one-list view; the paired lists fit and name none)', [488], [510]],
 ]
 /** RSS draws five screens in one table, each with its own columns: every screen names its own step (rsScreensModel.js). */
@@ -249,7 +250,7 @@ describe('the fold ladder: a table folds only from its own step down', () => {
       expect([code, need, step, step - need >= 5]).toEqual([code, need, step, true])
       expect([code, need, step, step - need <= 30]).toEqual([code, need, step, true])
     }
-    expect(pairs.length).toBe(18)
+    expect(pairs.length).toBe(19)
   })
 
   it('RSS: each of its five screens names its own step, and a screen nobody measured names none', () => {

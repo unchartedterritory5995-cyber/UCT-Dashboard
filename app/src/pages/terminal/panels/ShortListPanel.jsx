@@ -215,7 +215,7 @@ function ShortList({ rank, pick, code, inPanel }) {
       {view.rows.length ? (
         <>
           <p className={styles.lede} data-testid="terminal-shorts-ranked">{rankSentence(view, shown.length)}</p>
-          <div className={styles.tableBox}>
+          <div className={styles.tableBox} data-fold="510">
             <table className={styles.table} data-testid="terminal-shorts-table"
               aria-label={`Short interest for the ${dayText(view.settlementDate)} settlement date, ${SHORT_RANKS[rank].words}, ${shown.length} of ${view.ranked}`}>
               <thead>
