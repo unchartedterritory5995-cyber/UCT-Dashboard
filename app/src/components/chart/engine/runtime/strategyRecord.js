@@ -290,15 +290,24 @@ export function refusedStrategyRecordOf({ decl, barTimes, historyWindowBars, con
 /** The member's sentence for a backtest the broker refused while the plots are drawn (`withheld`: how many outputs
  *  showing the backtest's own values are not drawn). */
 export function backtestRefusedSentence(refused, bars, withheld = 0) {
+  const plots = withheld > 0 ? "The script's plots are drawn, except those that show the backtest's own values."
+    : "The script's plots are drawn."
+  // ⭐ (2026-11-18, engine 80, #1902) [B-EXEC]: a run refused because the newest bar is still forming says so, as the
+  // wait for the close it is (coordinator wording), never as an unconfirmed rule. ⚰️ The production check read "it
+  // rests on a strategy rule that no comparison with TradingView has confirmed yet" on every in-session chart.
+  if (refused && refused.name === 'BrokerUnpinned' && refused.rule === 'B-EXEC') return `${BACKTEST_FORMING_SENTENCE} ${plots}`
   const why = refused && refused.name === 'BrokerUnpinned'
     ? 'it rests on a strategy rule that no comparison with TradingView has confirmed yet'
     : refused && (refused.probe === 'Q-S1n' || refused.name === 'BrokerStart')
       ? `it needs this symbol's history from its first bar, and this chart holds its most recent ${bars} bars`
       : String((refused && refused.message) || 'the strategy emulator could not run it').replace(/\s*\(unsettled:[^)]*\)\s*$/, '')
-  return `The backtest is not run on this chart: ${why}. `
-    + (withheld > 0 ? "The script's plots are drawn, except those that show the backtest's own values."
-      : "The script's plots are drawn.")
+  return `The backtest is not run on this chart: ${why}. ${plots}`
 }
+
+/** [B-EXEC] the member's sentence while the newest bar is forming (coordinator wording, 2026-11-18): "the newest
+ *  bar", true on every timeframe. */
+export const BACKTEST_FORMING_SENTENCE = "The backtest isn't run while the newest bar is still forming. It runs on the closed bars "
+  + 'once that bar has closed.'
 
 /** ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — the guard a plot or paint is withheld under when its broker run
  *  was refused and a broker value reaches it (`strategyTaint.js::strategyDisarmOf`): the strategy value it draws is

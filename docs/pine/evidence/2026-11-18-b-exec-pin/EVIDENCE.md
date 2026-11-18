@@ -1,6 +1,6 @@
 # [B-EXEC] pinned: a strategy's backtest runs on a member's in-session chart (2026-11-18)
 
-Branch `feat/b-exec-pin-e80`, stacked on #1896. Engine: NUMBER PENDING (train e80). Coordinator ruling 2026-11-18 (a).
+Branch `feat/b-exec-pin-e80`, stacked on #1896. Engine: 80 (#1899, the engine 80 train). Coordinator ruling 2026-11-18 (a).
 
 ## What a member sees
 
