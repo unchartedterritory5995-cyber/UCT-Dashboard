@@ -1,6 +1,6 @@
 {
   "_what": "A RECORD of one production measurement, not a computation: our component ranks against 61 Deepvue ranks, ranked over every non-ETF ticker with a fresh daily bar (U1, 6,651 names at the 1M horizon), view 'dv' (bars to the 2026-11-09 close, the day before the read). From u5d_fit_pod.py run on the web pod 2026-11-12.",
-  "deepvue_read": "owner's Deepvue account, 2026-11-10 ~03:00 ET, ranks strip 1M 3M 6M 9M 12M for 61 names (deepvue_reads_2026-11-10.txt in the RS hand-off folder)",
+  "reference_read": "owner's Deepvue account, 2026-11-10 ~03:00 ET, ranks strip 1M 3M 6M 9M 12M for 61 names (deepvue_reads_2026-11-10.txt in the RS hand-off folder)",
   "universe": "U1: every rankable non-ETF ticker with a daily bar within 5 calendar days of the session and enough closes for the horizon; no type, price or volume filter",
   "methods": {"1M": "plain 21-bar return", "3M": "equal-weighted average of the 21/42/63-bar close ratios", "6M": "IBD-style blend (2 R63 + R126) / 3", "9M": "IBD-style blend (2 R63 + R126 + R189) / 4", "12M": "IBD-style blend (2 R63 + R126 + R189 + R252) / 5"},
   "names": 61,
