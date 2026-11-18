@@ -527,12 +527,15 @@ def test_the_other_four_rows_and_the_signature_ids_are_untouched():
 
 # ── the flag ledger ───────────────────────────────────────────────────────────
 
-def test_the_ledger_carries_rs_split_dark_on_web_with_its_arming_note():
+def test_the_ledger_carries_rs_split_armed_on_web_with_its_arming_note():
+    """Armed in production: read live from Railway (web) as 1 on 2026-11-18. The arming
+    note stays, because it is also the rollback recipe."""
     raw = LEDGER.read_bytes()
     assert raw.count(b"\n") == raw.count(b"\r\n"), "docs/feature_flags.json is a CRLF file"
     flags = json.loads(raw.decode("utf-8"))["flags"]
     e = flags["RS_SPLIT_ENABLED"]
-    assert e["status"] == "dark" and e["where"] == ["web"]
+    assert e["status"] == "armed" and e["where"] == ["web"] and e["railway_value"] == "1"
+    assert e["since"] == "2026-11-18" and "read live as 1 from Railway" in e["last_changed"]
     for must in ("unit U4", "import", "rsRating", "rsPhases", "rsVsEma", "byte-identical",
                  "railway variables --service web --set RS_SPLIT_ENABLED=1",
                  "railway redeploy --service web --yes", "/api/signature/definitions", "Rollback"):
