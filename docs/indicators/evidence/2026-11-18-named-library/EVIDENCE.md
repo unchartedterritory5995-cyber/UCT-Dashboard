@@ -486,7 +486,7 @@ with the volume test reversed, so it is entered the same way.
 | Formula | `1000 * exp(cum(volume > volume[1] ? ln(close / close[1]) : 0))`, and a 255-period EMA of it as the signal |
 | Published definition (tier b) | Fosback's form as the Wikipedia article "Negative volume index" gives it (read 2026-11-18): on a higher-volume period, prior PVI + prior PVI x the price change; otherwise unchanged. The page gives the base as "such as 100" and the signal as a one-year moving average, with no kind named |
 | Value check (tier a) | `tests/test_named_indicators_values.py::positive_volume_index`: the step written bar by bar, against the entry's exponential of a running total of logs, on every bar, at the default and at another signal length |
-| Capture against TradingView's built-in | NOT YET. Two choices follow the Negative Volume Index entry and are what a capture would settle: it starts at 1000 on the first loaded bar, and its signal is a 255-period EMA |
+| Capture against TradingView's built-in | EQUAL (run studio-builtins-2026-11-18: SPY daily from its listing, 8,509 bars). The index is equal on all 8,509 bars and its signal on all 8,255 it has a value for, absent on the same bars; the largest relative difference is 1 part in 100 trillion. It settles the two choices this entry took from the Negative Volume Index: it starts at 1000 on the first bar, and its signal is a 255-period EMA (seeded, as TradingView's is, with the average of its first 255 values) |
 
-A day of equal volume leaves it unchanged. The name is no longer in the list of names UCT withholds.
+A day of equal volume leaves it unchanged (volume must be strictly above the bar before, as the capture confirms). The name is no longer in the list of names UCT withholds. With the capture it stands on all three tiers.
 
