@@ -172,6 +172,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "",
+      "path": "/api/alerts/lists",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
       "path": "/api/alerts/routing",
       "rate_limit_family": "member-workspace",
       "tier": "paid"
@@ -4965,6 +4973,14 @@
       "method": "GET",
       "params": "",
       "path": "/api/screener/grammar",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/screener/layout-gallery",
       "rate_limit_family": "screener",
       "tier": "paid"
     },

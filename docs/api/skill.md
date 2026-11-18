@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (769)
+## Member session reads (771)
 
 ### Limits
 
@@ -150,6 +150,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/ai-search/threads` | paid | ai | limit=30 |
 | GET | `/api/ai-search/threads/{thread_id}` | paid | ai | {thread_id} |
 | GET | `/api/alerts` | member | member-workspace | limit=50 |
+| GET | `/api/alerts/lists` | paid | member-workspace |  |
 | GET | `/api/alerts/routing` | paid | member-workspace |  |
 | GET | `/api/alerts/taxonomy/cooldowns` | member | member-workspace |  |
 | GET | `/api/alerts/taxonomy/document-arrival` | member | member-workspace | active_only=True |
@@ -750,6 +751,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/screener/compile` | paid | screener |  |
 | GET | `/api/screener/fields` | paid | screener | options=0 |
 | GET | `/api/screener/grammar` | paid | screener |  |
+| GET | `/api/screener/layout-gallery` | paid | screener |  |
 | GET | `/api/screener/meta` | paid | screener |  |
 | GET | `/api/screener/methodology` | paid | screener | column |
 | GET | `/api/screener/row/{ticker}` | paid | screener | {ticker}, columns |
