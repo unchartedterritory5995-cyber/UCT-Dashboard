@@ -62,6 +62,23 @@ function withAlpha(hex, alpha) {
   return `rgba(${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)},${alpha})`
 }
 
+/**
+ * Index of the first band whose `to` reaches `from` (bands are in time order, as
+ * computeSessionBands builds them). Non-numeric times (never on an intraday chart)
+ * answer 0, so the draw walks every band as before.
+ */
+export function firstBandReaching(bands, from) {
+  if (typeof from !== 'number' || !Number.isFinite(from)) return 0
+  let lo = 0, hi = bands.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    const to = bands[mid]?.to
+    if (typeof to === 'number' && to < from) lo = mid + 1
+    else hi = mid
+  }
+  return lo
+}
+
 // Factory → { primitive, setOptions }.
 // opts: { enabled, bands:[{from,to,type}], preColor, postColor, opacity }
 export function createSessionShadingPrimitive(initial) {
@@ -72,23 +89,38 @@ export function createSessionShadingPrimitive(initial) {
   let opts = { enabled: false, bands: [], preColor: '#e0a94f', postColor: '#4a72c8', opacity: 0.08, ...initial }
   let chart = null
   let requestUpdate = null
+  let fills = null   // { pre, post } rgba strings for the current colors / opacity
 
+  // ⭐ ONLY THE BANDS ON SCREEN (2026-11-18). This draws on EVERY frame (pan, zoom, crosshair
+  // move, live tick), and it used to walk every band in the history with two timeToCoordinate
+  // calls each. A deep extended-hours 1h chart (50,000 bars, ~23 years) holds ~11,600 bands,
+  // twice over (price pane + volume pane): ~46,000 coordinate lookups a frame, measured live as
+  // 70 ms frames and a skippy crosshair. A frame shows at most a few hundred bars, so the draw
+  // binary-searches the first band reaching the visible range and stops past its end.
   const paneView = {
     zOrder: () => 'bottom',
     renderer: () => ({
       draw: (target) => {
         if (!opts.enabled || !opts.bands.length || !chart) return
         const ts = chart.timeScale()
+        const bands = opts.bands
+        let vr = null
+        try { vr = ts.getVisibleRange?.() ?? null } catch { vr = null }
+        const vTo = vr && typeof vr.to === 'number' ? vr.to : null
+        const start = vr ? firstBandReaching(bands, vr.from) : 0
+        if (!fills) fills = { pre: withAlpha(opts.preColor, opts.opacity), post: withAlpha(opts.postColor, opts.opacity) }
         target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
           ctx.save()
-          for (const band of opts.bands) {
+          for (let i = start; i < bands.length; i++) {
+            const band = bands[i]
+            if (vTo != null && typeof band.from === 'number' && band.from > vTo) break
             let x0, x1
             try { x0 = ts.timeToCoordinate(band.from); x1 = ts.timeToCoordinate(band.to) } catch { continue }
             if (x0 == null || x1 == null) continue
             // Pad half-ish a slot on each side so adjacent bars are fully covered.
             const left = Math.min(x0, x1) - 1
             const right = Math.max(x0, x1) + 1
-            ctx.fillStyle = withAlpha(band.type === 'pre' ? opts.preColor : opts.postColor, opts.opacity)
+            ctx.fillStyle = band.type === 'pre' ? fills.pre : fills.post
             ctx.fillRect(left, 0, Math.max(1, right - left), mediaSize.height)
           }
           ctx.restore()
@@ -106,6 +138,6 @@ export function createSessionShadingPrimitive(initial) {
 
   return {
     primitive,
-    setOptions(patch) { opts = { ...opts, ...patch }; if (requestUpdate) requestUpdate() },
+    setOptions(patch) { opts = { ...opts, ...patch }; fills = null; if (requestUpdate) requestUpdate() },
   }
 }
