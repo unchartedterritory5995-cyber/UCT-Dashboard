@@ -102,9 +102,11 @@ export function withParamInputs(def) {
 }
 
 /** A definition with EVERY load-time projected input taken off (a `param<N>`, and since 2c a
- *  run half's own setting, `fromRunHalf`: `runHalfInputs.js`), for anything written back. */
+ *  run half's own setting, `fromRunHalf`: `runHalfInputs.js`; a symbol setting, `fromSymbol`; and a
+ *  runtime document's timeframe setting, `fromTimeframe`: `runtime/runtimeInputs.js`), for anything
+ *  written back. */
 export function stripParamInputs(def) {
-  const projected = (i) => !!(i && (i.fromParam || i.fromRunHalf || i.fromSymbol))
+  const projected = (i) => !!(i && (i.fromParam || i.fromRunHalf || i.fromSymbol || i.fromTimeframe))
   if (!isObj(def) || !Array.isArray(def.inputs) || !def.inputs.some(projected)) return def
   return { ...def, inputs: def.inputs.filter((i) => !projected(i)) }
 }

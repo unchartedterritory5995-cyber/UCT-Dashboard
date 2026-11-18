@@ -362,6 +362,7 @@
   "sentence:window",
   "setting:param-refused",
   "setting:symbol-refused",
+  "setting:timeframe-moved",
   "strategy:clear",
   "strategy:delete",
   "thinkscript:account",
