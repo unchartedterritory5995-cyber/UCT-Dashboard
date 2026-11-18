@@ -543,7 +543,7 @@ def test_the_weekly_report_is_admin_only(store):
     r = c.get("/api/indicator-telemetry/weekly-report", params={"days": 7})
     assert r.status_code == 200 and set(r.json()) == {
         "window_days", "withheld_below_members", "demand", "names", "questions", "second_calls", "named_built",
-        "built_from_an_acronym"}
+        "built_from_an_acronym", "internal_error"}
     # the same report in plain words, for a browser tab; and that is admin only too
     t = c.get("/api/indicator-telemetry/weekly-report", params={"format": "text"})
     assert t.status_code == 200 and t.headers["content-type"].startswith("text/plain")

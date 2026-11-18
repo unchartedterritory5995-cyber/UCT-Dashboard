@@ -1405,10 +1405,16 @@ def check_named(envelope: Mapping[str, Any], view: Any, named: Any) -> None:
 
 
 def named_notes(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Dict[str, Any]]:
-    """One assumption per output this patch builds to a library formula: what it was built to and
-    how that formula was checked, in the member's words."""
-    return [{"output": key, "text": named_indicators.member_sentence(e, got)}
-            for key, e, got in _named_outputs(envelope, view, named)]
+    """What this patch built to a library formula and how that formula was checked, in the member's
+    words: ONE assumption per indicator, on the first output that holds it.
+
+    ⭐ 2026-11-18, read in the live window: it was one per OUTPUT, so the Directional Movement Index
+    said the same sentence three times in a row (+DI, -DI, ADX). Outputs built with different
+    numbers still get a sentence each, because the sentences differ."""
+    said: Dict[str, str] = {}
+    for key, e, got in _named_outputs(envelope, view, named):
+        said.setdefault(named_indicators.member_sentence(e, got), key)
+    return [{"output": key, "text": text} for text, key in said.items()]
 
 
 def _named_outputs(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Tuple[str, Dict[str, Any], Any]]:

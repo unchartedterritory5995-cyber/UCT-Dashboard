@@ -386,7 +386,7 @@ its acronym, as its own `acronyms` field (an alias is still never a bare short w
 |---|---|
 | (1) it names exactly one indicator UCT knows by name | each is the initials of its own entry and of no other library entry or name-catalogue row, and is no word of the product's own. The same check refuses ADL (also Advance Decline Line) and DMI (also Dynamic Momentum Index); ADX is the engine's own function word |
 | (2) every request on file that uses it reads as that indicator | THE REQUESTS ON FILE COULD NOT SAY. Of 909, one used an admitted acronym, and it was written to test this. So it is watched instead: each build that came from an acronym is its own row of the weekly report, with how often the member's next turn in that conversation removed or rewrote what was built |
-| (3) the reply names the indicator in full | the door's own sentence on every output begins "Built to UCT's checked formula for On Balance Volume" |
+| (3) the reply names the indicator in full | the door's own sentence begins "Built to UCT's checked formula for On Balance Volume" (said once for the indicator) |
 | (4) a symbol beside it is still the symbol | "OBV of AAPL" names the entry and reads AAPL. The acronym itself is never read as a symbol, even where the same letters are a real ticker (PVT): a patch that reads the symbol PVT for "Add PVT" is refused as a symbol the member never asked for. "PVT.TO" and "XYZ.PVT" are symbols and are left alone |
 
 An acronym names the library's formula and nothing looser: a patch that holds another formula for

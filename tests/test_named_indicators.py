@@ -417,7 +417,8 @@ def test_the_members_own_number_is_built_and_said(conv, clean_env, model):
     r = conv.converse("Chandelier Exit with an ATR multiplier of 2.5", user_id="u1", view=empty_view(0))
     assert r["ok"] is True and r["attempts"] == 1
     said = {a["output"]: a["text"] for a in r["envelope"]["assumptions"]}
-    assert set(said) == {"long", "short"} and all("atr multiplier 2.5" in t for t in said.values())
+    # said ONCE for the indicator (on its first output), not once per output
+    assert set(said) == {"long"} and "atr multiplier 2.5" in said["long"]
 
 
 def test_NEVER_APPROXIMATED_a_substitute_is_refused_twice_and_nothing_is_built(conv, clean_env, model):
@@ -497,11 +498,18 @@ def test_check_named_and_named_notes_directly(conv):
         conv.check_named(patch, empty_view(0), [MCG])
     assert exc.value.gate == GATE
     notes = conv.named_notes(patch, empty_view(0), [vortex])
-    assert [n["output"] for n in notes] == ["plus", "minus"] and all("(length 21)" in n["text"] for n in notes)
+    # ONE sentence for the indicator, on its first output (it was one per output: the same words twice)
+    assert [n["output"] for n in notes] == ["plus"] and "(length 21)" in notes[0]["text"]
+    # ... and two when the two outputs were built with different numbers, because the sentences differ
+    uneven = env(0, [create("vortex_indicator", {"length": 21})])
+    plus, minus = uneven["ops"][0]["outputs"]
+    minus["tree"] = create("vortex_indicator", {"length": 9})["outputs"][1]["tree"]
+    two = conv.named_notes(uneven, empty_view(0), [vortex])
+    assert [n["output"] for n in two] == ["plus", "minus"] and "(length 21)" in two[0]["text"] and "(length 9)" in two[1]["text"]
     assert conv.named_notes(patch, empty_view(0), []) == [] and conv.named_notes(patch, empty_view(0), [MCG]) == []
     # the door's notes come first, are not repeated, and respect the contract's limit
     merged = conv._with_door_notes({**patch, "assumptions": [{"text": "mine"}]}, notes)
-    assert merged["assumptions"][:2] == notes and merged["assumptions"][2] == {"text": "mine"}
+    assert merged["assumptions"] == notes + [{"text": "mine"}] and len(notes) == 1
     assert conv._with_door_notes(merged, notes)["assumptions"] == merged["assumptions"]
     full = {**patch, "assumptions": [{"text": f"a{i}"} for i in range(conv.MAX_ASSUMPTIONS)]}
     assert len(conv._with_door_notes(full, notes)["assumptions"]) == conv.MAX_ASSUMPTIONS
