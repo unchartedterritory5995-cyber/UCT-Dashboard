@@ -392,45 +392,35 @@ def _apply_listing_cutoff(bars: list[dict], meta: dict | None) -> list[dict]:
     unless a suspicious gap is present)."""
     if len(bars) < 2:
         return bars
-    # Largest gap + the index of the bar that RESUMES trading after it.
-    best_gap, resume_idx = 0, 0
+    # The series starts at the bar after the NEWEST listing break, the store's own rule
+    # (`listing_break.is_break`, so the chart and the RS Rating / screener agree on where a
+    # symbol's history starts):
+    #   * a gap >= _GAP_MIN_DAYS WITH a >= _REUSE_PRICE_FACTOR close jump either way (SPCX:
+    #     ~$22 SPAC ETF -> ~$150 SpaceX; DRAM: ~$1 Dataram -> ~$50 ETF). A multi-week HALT of
+    #     the same company resumes near its pre-halt price, and a reverse split is same-day.
+    #     Metadata-free, so it cuts on the FIRST serve, before the ipoDate metadata warms;
+    #   * a gap >= _GAP_STANDALONE_DAYS on its own;
+    #   * and, the chart's own third branch, a gap >= _GAP_MIN_DAYS that resumes within
+    #     _GAP_ALIGN_TOL_DAYS of the provider's listing date (a halt of the SAME company keeps
+    #     its old ipoDate, so it never aligns).
+    # ⚰️ 2026-11-18, production: this judged only the LARGEST gap. A symbol held by three
+    # securities lost the oldest one and kept the middle one: ADPT served Adeptus Health
+    # 2014-06 .. 2017-04 ($1.41) in front of Adaptive Biotechnologies (2019-06-27, $40.30),
+    # while the store readers already cut at the newest break.
+    from api.services import listing_break as _lb
+    ipo = _pd((meta or {}).get("ipo"))
+    cut = 0
     prev_d = _pd(bars[0]["t"])
     for i in range(1, len(bars)):
         d = _pd(bars[i]["t"])
         if prev_d and d:
             g = (d - prev_d).days
-            if g > best_gap:
-                best_gap, resume_idx = g, i
+            if g >= _GAP_MIN_DAYS and (
+                    _lb.is_break(g, bars[i - 1].get("c"), bars[i].get("c"))
+                    or (ipo is not None and abs((d - ipo).days) <= _GAP_ALIGN_TOL_DAYS)):
+                cut = i
         prev_d = d
-    if best_gap < _GAP_MIN_DAYS:
-        return bars  # no reuse signature at all
-
-    # METADATA-FREE reuse detection: a gap WITH a large price discontinuity is a
-    # recycled ticker — the OLD security traded at a totally different scale than
-    # the new listing (SPCX: ~$22 SPAC ETF → ~$150 SpaceX; DRAM: ~$1 Dataram →
-    # ~$50 ETF). A legit multi-week HALT of the same company resumes near its
-    # pre-halt price, so it won't trip this. This cuts on the FIRST serve, before
-    # the ipoDate metadata warms — no ~1s pre-IPO flash. (A gap ≥ _GAP_MIN_DAYS
-    # rules out a reverse split, which is same-day.)
-    prev_c = bars[resume_idx - 1].get("c")
-    cur_c = bars[resume_idx].get("c")
-    if prev_c and cur_c and prev_c > 0:
-        ratio = cur_c / prev_c
-        if ratio >= _REUSE_PRICE_FACTOR or ratio <= 1.0 / _REUSE_PRICE_FACTOR:
-            return bars[resume_idx:]
-
-    ipo = _pd((meta or {}).get("ipo"))
-    resume_d = _pd(bars[resume_idx]["t"])
-
-    # Prefer the gap whose resume aligns with the listing date (precise + safe:
-    # a legit multi-week halt of the SAME company keeps its old ipoDate, so it
-    # won't align with the gap and won't be cut).
-    if ipo and resume_d and abs((resume_d - ipo).days) <= _GAP_ALIGN_TOL_DAYS:
-        return bars[resume_idx:]
-    # No listing metadata (cold cache): only cut on an UNMISTAKABLE gap.
-    if best_gap >= _GAP_STANDALONE_DAYS:
-        return bars[resume_idx:]
-    return bars
+    return bars[cut:] if cut else bars
 
 
 # ── Step 2: split-adjustment self-heal ──────────────────────────────────────
