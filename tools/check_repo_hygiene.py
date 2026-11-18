@@ -77,6 +77,11 @@ BIG_ALLOWLIST = {
     "tests/fixtures/vendor/harness/elliot-wave-detector-pro-spy-60-2026-11-14.json",
     "tests/fixtures/vendor/harness/renderingnature-smc-reversal-engine-v71-spy-60-2026-11-14.json",
     "tests/fixtures/vendor/harness/zigzag-ma-pattern-recognition-spy-60-2026-11-14.json",
+    # 2026-11-18: one e73 capture fixture (10.2 MB, filed by 9ab9a7b457 "evidence: tonight's captures filed at e73",
+    # read by vendorHarness.b1Paints.test.js and the evidence ledger) turned the master deploy gate red at 04:15 UTC
+    # and held every deploy for 90 minutes. Same corpus and same reason as the S9 lines above; listed to unblock the
+    # gate, and the capture program may shrink or split it and delete this line.
+    "tests/fixtures/vendor/harness/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17.json",
     # 2026-11-15: five S12 capture-ahead fixtures (Units DATA-BACKED and DATA-LTF, AMEX:SPY 1D from 1993, 8,507
     # bars, 38-60 plots each) are 5.2-7.1 MB; same corpus and same reason as the S9 lines above.
     "tests/fixtures/vendor/harness/advanced-custom-multi-ma-signals-emasmavwmavwap-spy-1d-2026-11-15.json",
