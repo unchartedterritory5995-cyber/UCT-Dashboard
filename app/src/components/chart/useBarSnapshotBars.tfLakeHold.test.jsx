@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { createBarStore } from '../../data/barStore/index'
 import { LAKE_JOIN_WAIT_MS } from '../../data/barStore/prefetch'
+import { keyOf } from '../../data/barStore/types'
 
 const S = vi.hoisted(() => ({ store: null }))
 vi.mock('../../data/barStore/index', async (orig) => {
@@ -149,6 +150,23 @@ describe('a timeframe switch paints the lake depth once', () => {
     expect(first).toBeTruthy()
     expect(first.ms).toBeLessThanOrEqual(LAKE_JOIN_WAIT_MS + 20)
     expect(first.ms).toBeGreaterThanOrEqual(LAKE_JOIN_WAIT_MS - 20)
+  })
+
+  it('L4 a key whose lake already landed never holds (paints on the answer)', async () => {
+    const w = world({ lakeDelayMs: 200, restDelayMs: 80 })
+    const k60 = keyOf({ sym: SYM, tf: '60' })
+    // build and seed the 60m key first, exactly as the neighbor warm does
+    const un = w.store.subscribe(k60, () => {})
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    const seeded = w.store.lakeSeed(k60)
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    await seeded
+    expect(w.store.lakePending(k60)).toBe(false)
+    const frames = await switchTo60()
+    un()
+    const first = frames.find((f) => f.n != null)
+    expect(first).toBeTruthy()
+    expect(first.ms).toBeLessThan(150)
   })
 
   it('L3 without the lake the hold ends on the server answer, as before', async () => {

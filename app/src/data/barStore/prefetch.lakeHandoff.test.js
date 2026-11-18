@@ -140,6 +140,13 @@ describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the 
     expect(w.store.lakePending(key)).toBe(false)
   })
 
+  it('a lake load that lands with no entry to join into does not settle: the depth is still due (review of #1795)', async () => {
+    const w = await boot({ lake: lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600)) })
+    const key = w.k('COLD', '5')
+    expect(await w.store.lakeSeed(key)).toBe(false)                          // nothing held yet
+    expect(w.store.lakePending(key)).toBe(true)                              // so a later switch still waits for it
+  })
+
   it('a symbol the lake does not carry commits on its answer with no wait at all', async () => {
     const w = await boot({ lake: null })
     const state = settled(w.pf.prepareForDisplay('COLD', '5'))

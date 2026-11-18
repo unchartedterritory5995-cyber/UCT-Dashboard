@@ -37,6 +37,10 @@ import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intrada
 import { timingMark } from '../../utils/intradayTiming'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 
+/** How long a member rests on a symbol (after the background warm starts) before its other intraday
+ *  timeframes' lake depth loads: a scan past a row never pays for it. */
+export const LAKE_WARM_DWELL_MS = 2500
+
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const PRIOR_SESSION_S = 8 * 3600
 const PAINTS = new Set([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
@@ -218,20 +222,28 @@ export function useBarSnapshotBars({
   // timeframe stays on screen for at most LAKE_JOIN_WAIT_MS from the switch; then whatever is held
   // paints. A key the lake does not carry, or one already deep, never waits.
   const _lakeSwitchRef = useRef({ key: null, t0: 0 })
-  if (_isTfSwitch && _lakeSwitchRef.current.key !== key) {
+  if (!_isTfSwitch) {
+    // a later switch to the same key is a new switch with its own bound (review of #1795)
+    if (_lakeSwitchRef.current.key !== null) _lakeSwitchRef.current = { key: null, t0: 0, done: false }
+  } else if (_lakeSwitchRef.current.key !== key) {
     // eslint-disable-next-line react-hooks/purity
-    _lakeSwitchRef.current = { key, t0: Date.now() }
+    _lakeSwitchRef.current = { key, t0: Date.now(), done: false }
   }
   const [, _setLakeTick] = useState(0)
-  const _lakeDue = _isTfSwitch && !!key && _lakeSwitchRef.current.key === key && !!store.lakePending?.(key)
+  const _lakeDue = _isTfSwitch && !!key && _lakeSwitchRef.current.key === key
+    && !_lakeSwitchRef.current.done && !!store.lakePending?.(key)
   // eslint-disable-next-line react-hooks/purity
-  const _lakeHold = _lakeDue && Date.now() - _lakeSwitchRef.current.t0 < LAKE_JOIN_WAIT_MS
+  const _lakeAge = Date.now() - _lakeSwitchRef.current.t0
+  // a clock that stepped backwards reads as expired, and the timer below ends the hold whatever the
+  // clock says, so the bound holds on any clock (review of #1795)
+  const _lakeHold = _lakeDue && _lakeAge >= 0 && _lakeAge < LAKE_JOIN_WAIT_MS
   useEffect(() => {
     if (!_lakeHold) return undefined
     let alive = true
     const wake = () => { if (alive) _setLakeTick((n) => n + 1) }
     const left = Math.max(0, LAKE_JOIN_WAIT_MS - (Date.now() - _lakeSwitchRef.current.t0))
-    const id = setTimeout(wake, left + 1)
+    const sw = _lakeSwitchRef.current
+    const id = setTimeout(() => { sw.done = true; wake() }, left + 1)
     Promise.resolve().then(() => store.lakeSeed?.(key)).catch(() => {}).then(wake)
     return () => { alive = false; clearTimeout(id) }
   }, [_lakeHold, key, store])
@@ -457,6 +469,8 @@ export function useBarSnapshotBars({
     if (!sym || !backgroundWarm || _hasOverride) return undefined
     const ORDER = breadthSeries ? ['D', 'W', 'M'] : ['D', '5', '60', '30', '15', 'W', 'M', '1']
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
+    let left = false
+    let lakeId = null
     const id = setTimeout(() => {
       const keys = []
       for (const tf of ORDER) {
@@ -465,16 +479,26 @@ export function useBarSnapshotBars({
       }
       storePrefetch(keys, { priority: 'background', warm: true, signal: ac?.signal ?? null })
       // ⭐ ...and the lake's whole depth for the intraday ones a member flips to (2026-11-18), so a
-      // later timeframe click finds it held and paints at once (the hold above never waits). One load
-      // per key (network.lakeSeed shares a load in flight and skips a key already deep); the pieces
-      // come from the browser's HTTP cache after the first time.
-      for (const k of isIntraday ? keys : []) {   // a member on daily is not flipping intraday
+      // later timeframe click finds it held and paints at once (the hold above never waits). Only on a
+      // symbol the member STAYS on (a scan never pays ~100k rows a row), one key at a time, stopping
+      // when the member leaves (review of #1795: a scan stacked loads for symbols already left).
+      // network.lakeSeed skips a key already deep; the pieces come from the HTTP cache after the first time.
+      const lakeKeys = (isIntraday ? keys : []).filter((k) => {   // a member on daily is not flipping intraday
         const tf = parseKey(k)?.tf
-        if (tf !== '5' && tf !== '30' && tf !== '60') continue
-        try { if (store.lakeCarries?.(k)) Promise.resolve(store.lakeSeed?.(k)).catch(() => {}) } catch { /* a warm only */ }
-      }
+        try { return (tf === '5' || tf === '30' || tf === '60') && !!store.lakeCarries?.(k) } catch { return false }
+      })
+      if (!lakeKeys.length) return
+      lakeId = setTimeout(async () => {
+        for (const k of lakeKeys) {
+          if (left) return
+          try { await store.lakeSeed?.(k) } catch { /* a warm only */ }
+        }
+      }, LAKE_WARM_DWELL_MS)
     }, _intradaySmoothSwitchEnabled() ? 1600 : 600)
-    return () => { clearTimeout(id); try { ac?.abort() } catch { /* ignore */ } }
+    return () => {
+      left = true; clearTimeout(id); if (lakeId != null) clearTimeout(lakeId)
+      try { ac?.abort() } catch { /* ignore */ }
+    }
   }, [sym, backgroundWarm])  // eslint-disable-line react-hooks/exhaustive-deps
 
   return {

@@ -178,7 +178,10 @@ export function createNetwork({
   /** key → per-key slot + loop state */
   const keys = new Map()
   const lakeSeeds = new Map()      // key -> the lake load in flight (lakeSeed), shared by its callers
-  const lakeSettled = new Set()    // keys whose lake load has finished this page (whatever it added)
+  // key -> bars its entry held when its lake load finished on this page (whatever it added). A copy
+  // now shallower than that was evicted and rebuilt, so its depth is due again; a load that found no
+  // entry to join into never settles (review of #1795).
+  const lakeSettled = new Map()
   const LAKE_SETTLED_MAX = 2000
   let requests = 0
   /** key → Set<cb>: listeners of the key's catch-up budget (DELAYED badge, `tailExhausted`). */
@@ -596,8 +599,11 @@ export function createNetwork({
         .catch(() => false)
         .finally(() => {
           if (lakeSeeds.get(key) === p) lakeSeeds.delete(key)
-          lakeSettled.add(key)
-          if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.values().next().value)
+          const held = registry.peek(key)?.bars.length
+          if (held == null) return          // nothing to join into: still due when the key is built
+          lakeSettled.delete(key)
+          lakeSettled.set(key, held)
+          if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.keys().next().value)
         })
       lakeSeeds.set(key, p)
       return p
@@ -607,8 +613,10 @@ export function createNetwork({
      *  handoff's fast path then waits for the join instead of painting a shallow copy (prefetch). */
     lakePending(key) {
       if (!history?.olderBars || !lakeCarriesKey(key)) return false
-      if ((registry.peek(key)?.bars.length ?? 0) >= lakeTargetBars(parseKey(key)?.tf)) return false
-      return !lakeSettled.has(key)
+      const held = registry.peek(key)?.bars.length ?? 0
+      if (held >= lakeTargetBars(parseKey(key)?.tf)) return false
+      const settled = lakeSettled.get(key)
+      return settled == null || held < settled
     },
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
      *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */
