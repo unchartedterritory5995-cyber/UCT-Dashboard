@@ -289,6 +289,14 @@ export const RUNTIME_REFUSALS = Object.freeze({
     'a WINDOWED builtin fed by a mutable variable — this one needs the series bridge',
   'runtime:request-with-state':
     'a data request whose argument is a mutable value',
+  // ⭐⭐ U-REQ-HOIST-COLUMN, THE GUARD HALF (2026-11-18): a requested function whose body is hoisted into the
+  // request's region, and whose lines read one of their own earlier values through a COLUMN, which the
+  // columnar lane computes once over THIS chart's bars (PA ZigZag Fibonacci FAN's `_isUp[1]` at 1W / 1M read
+  // the chart's daily bar j-1 on weekly bar j). Refused by name, never read at the wrong bars.
+  'runtime:request-hoisted-history':
+    "a data request runs a helper's lines that read their own earlier values (such as `x[1]`), and this chart "
+    + "can read that history only from its own bars, not the requested timeframe's or symbol's, so nothing is "
+    + 'drawn rather than a wrong value',
   // ⭐⭐ SPLIT AGAIN IN 2F-1, FOR THE SAME REASON 2E SPLIT THE FIRST ONE (§14).
   // With the pointwise 14 executing, the residual bucket was re-read by name and
   // it was NOT one family either: `str.upper`, `int` and `iff` sat in
@@ -7021,6 +7029,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
         'this request computes a value that needs the columnar lane, and that lane '
         + 'runs once over the bars of THIS chart — serving it per requested symbol '
         + 'is the next step, not something to approximate', at)
+    }
+    // ⭐⭐ U-REQ-HOIST-COLUMN, THE GUARD HALF (2026-11-18) — AND ITS HOISTED STATEMENTS TOO.
+    // A requested function whose body lowers as statements (a `var`, a recurrence such as
+    // `int d = na , d := … nz(d[1])`) is hoisted into this region, and a history read of one of
+    // its bindings (`_isUp[1]`) can be lowered there as a COLUMN: computed once over THIS chart's
+    // bars, then read by the request's sub-run at the REQUESTED bar's index (`vm.js::runRequest`
+    // hands it the chart's columns). ⚰️ The walk above saw the value only, so PA ZigZag Fibonacci
+    // FAN at 1W / 1M read the chart's daily bar j-1 for weekly bar j and drew a different zigzag
+    // than TradingView's (our column reproduced by that model on 140 / 140 weeks, 33 / 33 months).
+    // The same walk, over the statements, refuses it by name. A slot's own history (`d[1]`, committed
+    // per requested bar) and a `var` are the region's, not columns, and keep serving.
+    // ⏳ Serving it is the roadmap's later unit: lower such a read as the region's own slot history.
+    if (hoisted.some((s) => carriesColumn(s))) {
+      note('runtime:request-hoisted-history')
+      throw new RuntimeRefusal('runtime:request-hoisted-history',
+        valueNode && valueNode.type === 'call' && typeof valueNode.name === 'string' ? `\`${valueNode.name}()\`` : null, at)
     }
 
     const results = valueIr && valueIr.kind === EXPR.TUPLE ? valueIr.elements.length : 1
