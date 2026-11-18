@@ -179,17 +179,22 @@ describe('the memory budget sees a declared ring', () => {
     const rings = lowerIrProgram(build(src).ir).history.filter((h) => h.name === 'x')
     expect(rings.map((h) => h.depth)).toEqual([5000])
   })
-  it('⛔ TRAP A — a build reused over a chart that GROWS past the bars it was built on still reads the real history', () => {
-    // built on N bars, run on 4,000: the reads reach 3,999 bars back, far past the build's chart and the declared 20
+  it('⛔ TRAP A — the ring does not depend on the chart the build saw: built on N bars or on 4,000, one 5,000 ring, and the grown chart reads the real history', () => {
     const src = v5(', max_bars_back = 20', 'var float x = 0.0', 'x := close',
       'd = bar_index', 's = 0.0', 'for i = d to d', '    s := x[i]', 'plot(s)')
-    const program = programOf(src)
-    expect(program.columns.length).toBe(0)                       // nothing computed for the build's own chart
     const M = 4000
     const grown = Array.from({ length: M }, (_, i) => ({ ...BARS[i % N], t: BARS[0].t + i * 86400 }))
-    const cols = program.columns.map(() => new Float64Array(M))
-    const out = execute(program, {
-      bars: M, series: ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(grown.map((b) => b[k]))), columns: cols,
+    const ringOf = (bars) => {
+      const b = buildRuntimeIr(src, { ...opts(false), bars })
+      expect(b.ok, b.ok ? '' : b.refusal.message).toBe(true)
+      return { program: lowerIrProgram(b.ir), depth: lowerIrProgram(b.ir).history.filter((h) => h.name === 'x').map((h) => h.depth) }
+    }
+    const small = ringOf(BARS)
+    const big = ringOf(grown)
+    expect(small.depth).toEqual([5000])
+    expect(big.depth).toEqual(small.depth)                       // a reused build's ring holds the grown chart too
+    const out = execute(big.program, {
+      bars: M, series: ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(grown.map((b) => b[k]))), columns: big.program.columns,
       confirmed: true, barTimes: grown.map((b) => b.t),
     }).outputs[0]
     expect(out[M - 1]).toBe(grown[0].c)                          // x[3,999] is bar 0's close
