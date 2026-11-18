@@ -9,6 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { settingsOf, settingsCount, settingPatch, settingRefusal, runningValueOwns, CAPTION_MAX } from './derivedSettings'
 import { settingTurn } from './authoringSession'
+import { compactView } from './compactView'
 
 const P = (src) => { const r = parseFormula(src); if (!r.ok) throw new Error(`${src}: ${r.error}`); return r.ast }
 const C = 'uct.authoring.patch/1'
@@ -133,6 +134,28 @@ describe('which numbers are settings', () => {
     }
     expect(own).toBeGreaterThan(20)            // NON-VACUITY: both answers occur, many times
     expect(other).toBeGreaterThan(10)
+  })
+
+  it('⛔ the view the assistant is sent lists no number that is a running value\'s own', () => {
+    // (a slot is a number OR a bar field the assistant may swap; this reads the numbers)
+    const slotsIn = (def) => compactView(def, {}, GATE).definition.outputs
+      .flatMap((o) => o.slots.filter((s) => typeof s.value === 'number').map((s) => [s.id, s.value]))
+    const all = (def) => compactView(def, {}, GATE).definition.outputs.flatMap((o) => o.slots)
+    // linked running values: not one of their numbers
+    const filter = 'accum2(1, 300, close, close, 0.2 * close + 1.4 * state1 - 0.6 * state2, state1)'
+    expect(all(build([['smooth', filter]]))).toEqual([])               // nor a bar field inside them
+    // ... and the multiple OUTSIDE them still is
+    expect(slotsIn(build([['gap', `close - 2 * ${filter}`]])).map(([, v]) => v)).toEqual([2])
+    // a one-value running value: its gain and warm-up are its own, the ATR length and the multiple are not
+    const stop = 'accum(low, max(self, close - 3 * atr(high, low, close, 14)), 300)'
+    expect(slotsIn(build([['stop', stop]])).map(([, v]) => v).sort((a, b) => a - b)).toEqual([3, 14])
+    expect(slotsIn(build([['one', 'accum(close, self + 0.1 * (close - self), 300)']]))).toEqual([])
+    // CONTROL: a formula with no running value lists its numbers as before
+    expect(slotsIn(build([['avg', 'ema(close, 20) - ema(close, 50)']])).map(([, v]) => v)).toEqual([20, 50])
+    // and the view of a formula of linked running values is small enough to send
+    const stages = ['accum4(4, 300, close, close, close, close, 0.2 * close + 0.8 * state1, '
+      + 'state1 - 0.8 * (0.2 * close + 0.8 * state1) + 0.8 * state2, state2 - 0.8 * state1 + 0.8 * state3, state3 - 0.8 * state2 + 0.8 * state4)']
+    expect(JSON.stringify(compactView(build([['line', stages[0]]]), {}, GATE)).length).toBeLessThan(12000)
   })
 
   it('nothing to tune answers an empty list, and junk answers an empty list', () => {

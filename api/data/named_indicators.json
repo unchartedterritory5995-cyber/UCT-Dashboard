@@ -7365,9 +7365,17 @@
      ],
      "read": "2026-11-18",
      "says": "Fosback's form: when volume is above the prior period's, PVI = prior PVI + prior PVI x the price change (prior PVI x (1 + change)); otherwise unchanged. The page gives the base as 'such as 100' and the signal as a one-year moving average, with no kind named.",
-     "note": "The twin of the Negative Volume Index entry, with the volume test reversed, and written the same way (1000 x e to the running total of the log of each higher-volume day's close over the prior close). Two choices follow that entry rather than the page: it starts at 1000 on the first bar of the chart's loaded history, and its signal is a 255-period EMA. Neither changes the index's shape; both are to be checked against TradingView's built-in when it is captured. A day of equal volume leaves it unchanged."
+     "note": "The twin of the Negative Volume Index entry, with the volume test reversed, and written the same way (1000 x e to the running total of the log of each higher-volume day's close over the prior close). Two choices follow that entry rather than the page: it starts at 1000 on the first bar of the chart's loaded history, and its signal is a 255-period EMA. Both are what TradingView's built-in does, which the capture settles. A day of equal volume leaves it unchanged."
     },
-    "capture": null
+    "capture": {
+     "id": "studio-builtins-2026-11-18",
+     "against": "TradingView built-in: Positive volume index",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars, from the listing"
+     ],
+     "grade": "EQUAL",
+     "detail": "Both lines are equal on every bar the chart has a value for (the index on all 8,509; its 255-bar EMA on 8,255, absent on the same bars). It starts at 1000 on the first bar and moves only when volume is strictly above the bar before."
+    }
    },
    "versions": [
     {
