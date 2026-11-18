@@ -4,7 +4,10 @@
 import { describe, it, expect } from 'vitest'
 import { parseFormula } from '../../engine/ast/parse'
 import { applyPatch, openAuthoringState, newAuthoringState, undo } from './index'
-import { settingsOf, settingsCount, settingPatch, settingRefusal, CAPTION_MAX } from './derivedSettings'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { settingsOf, settingsCount, settingPatch, settingRefusal, runningValueOwns, CAPTION_MAX } from './derivedSettings'
 import { settingTurn } from './authoringSession'
 
 const P = (src) => { const r = parseFormula(src); if (!r.ok) throw new Error(`${src}: ${r.error}`); return r.ast }
@@ -86,6 +89,50 @@ describe('which numbers are settings', () => {
     const got = settingsOf(build([['value', 'sma(close, 20) > sma(volume, 20)']]))
     expect(got.map((s) => [s.value, s.slots.length])).toEqual([[20, 1], [20, 1]])
     expect(new Set(got.map((s) => s.id)).size).toBe(2)
+  })
+
+  it('⛔ a number inside several LINKED running values is the formula\'s own, not a setting', () => {
+    // a two-pole filter: its coefficients were checked together, and one changed alone is another filter
+    const filter = 'accum2(1, 300, close, close, 0.2 * close + 1.4 * state1 - 0.6 * state2, state1)'
+    expect(settingsOf(build([['smooth', filter]]))).toEqual([])
+    // a length inside it sits in every repeat of an update: it is not a setting either
+    const chain = 'accum2(2, 300, 0, 0, 0.5 * (close - lowest(low, 10)) + 0.5 * state1, '
+      + 'ln(2 + 0.5 * (close - lowest(low, 10)) + 0.5 * state1) + 0.5 * state2)'
+    expect(settingsOf(build([['stretch', chain]]))).toEqual([])
+    // CONTROL: a number OUTSIDE it is a setting as ever
+    expect(settingsOf(build([['gap', `close - 2 * ${filter}`]])).map((x) => [x.role, x.value, x.slots.length])).toEqual([['multiple', 2, 1]])
+    // and a formula beside it keeps its settings
+    expect(brief(build([['smooth', filter], ['avg', 'ema(close, 20)']]))).toEqual(['EMA 20 | length | 20 (whole) x1'])
+  })
+
+  it('⛔ a one-value running value keeps its OWN two numbers (its gain and its warm-up); the rest are settings', () => {
+    // the shape that can settle: the gain and the warm-up are what its sentence was written from
+    expect(settingsOf(build([['one', 'accum(close, self + 0.1 * (close - self), 300)']]))).toEqual([])
+    // a stop that only rises: its warm-up is its own; the ATR length and the multiple are the member's to tune
+    const stop = 'accum(low, max(self, close - 3 * atr(high, low, close, 14)), 300)'
+    expect(settingsOf(build([['stop', stop]])).map((x) => [x.role, x.value]).sort()).toEqual([['length', 14], ['multiple', 3]])
+    // a streak: the 100-bar warm-up is its own; what is left is the number it starts from
+    expect(settingsOf(build([['streak', 'accum(0, close > close[1] ? self + 1 : 0, 100)']])).map((x) => x.id)).toEqual(['streak#0'])
+  })
+
+  it('the door and this window agree, case by case, on which numbers are a running value\'s own', () => {
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const doc = JSON.parse(fs.readFileSync(path.resolve(here, '../../../../../../tests/fixtures/authoring/running_value_own_numbers.json'), 'utf8'))
+    expect(doc.cases.length).toBeGreaterThanOrEqual(8)
+    let own = 0
+    let other = 0
+    for (const c of doc.cases) {
+      for (const p of c.own) {
+        expect(runningValueOwns(c.tree, p.path), `${c.name} ${p.path.join('.')} is its own`).toBe(p.by)
+        own += 1
+      }
+      for (const p of c.other) {
+        expect(runningValueOwns(c.tree, p), `${c.name} ${p.join('.')} is an ordinary number`).toBe(null)
+        other += 1
+      }
+    }
+    expect(own).toBeGreaterThan(20)            // NON-VACUITY: both answers occur, many times
+    expect(other).toBeGreaterThan(10)
   })
 
   it('nothing to tune answers an empty list, and junk answers an empty list', () => {

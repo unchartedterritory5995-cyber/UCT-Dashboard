@@ -387,21 +387,35 @@ _TERMINAL_GATES = frozenset({"unsupported:node", "unsupported:scalar",
 # happened). The check itself is linear now. These bound the two things nothing bounded:
 #
 # 1. THE SIZE OF AN ANSWER, refused BY NAME before anything walks it. Sized from what is real:
-#    the largest formula in the library, every scripted answer and every live answer on file is 70
-#    nodes and 12 levels deep (measured 2026-11-18, 767 formulas). The caps leave four times that.
+#    the largest formula in the library, every scripted answer and every live answer on file was 70
+#    nodes and 12 levels deep (measured 2026-11-18, 767 formulas); with several linked running
+#    values it is 107 and 16 (an update that needs another value on this bar repeats that value's
+#    update, so a smoothed, stretched range position holds its first stage three times). The caps
+#    leave four times that, and were raised with it (300 and 48 before).
 #    Defence in depth for a failure class the linear check does not cover: anything else that walks
 #    a formula (a mend, a planner check, the evaluator) is handed at most this much.
 #    `tests/test_turn_guards.py` holds the headroom, so a library entry that outgrows it is a red
 #    test and a decision, not a refused member.
 #: The most nodes ONE formula may hold, and how deep it may nest.
-MAX_FORMULA_NODES = 300
-MAX_FORMULA_DEPTH = 48
+MAX_FORMULA_NODES = 600
+MAX_FORMULA_DEPTH = 64
 #: The same for the whole answer (every op, every formula, every note): how many values it may
 #: hold in all, and how deep its objects and lists may nest (a formula level is an object and its
 #: list of arguments, so two). Far above anything real (the largest scripted answer holds under
 #: 400 values), and low enough that nothing after this can recurse out of the interpreter's stack.
 MAX_ANSWER_ITEMS = 20000
 MAX_ANSWER_DEPTH = 2 * MAX_FORMULA_DEPTH + 16
+#: ⭐ AND AFTER THE MENDS. One mend writes an output's formula into every place another formula
+#: reads its key (`_mend_output_refs`), so what is checked, applied and held in the browser can be
+#: far larger than what the assistant wrote: an oscillator drawn from four hidden filter stages was
+#: accepted as 80 nodes and held as 3,032. That INLINED form has its own cap, counted WHILE the mend
+#: writes it, so the mend itself never builds more than this: every formula node of the whole
+#: answer, once inlined. Sized from the largest legitimate one on file (that oscillator: 3,364 for
+#: the whole answer); `tests/test_turn_guards.py` holds four times that. Over it the member is
+#: answered by name. (The engine computes identical sub-formulas once and the store keeps the
+#: shared form, so neither speed nor the saved size grows with the repeats: measured 209 ms for the
+#: oscillator against 211 ms for one stage, on 5,000 bars.)
+MAX_INLINED_NODES = 15000
 SIZE_GATE = "envelope:formula-size"
 
 # 2. THE LENGTH OF A TURN. One call in flight per member (`dc.interactive_slot`) means a turn that
@@ -825,9 +839,29 @@ CONVERSE_SYSTEM_PROMPT = (
     "300). An adaptive average: accum(close, self + k * (close - self), 300) with k any formula "
     "between 0 and 1. `warmup` is a plain whole number up to 960: use 300 unless the member "
     "asks. `self` exists ONLY inside an accum's update; one accum never sits inside another "
-    "(give the inner one its own output's formula instead); accum2, accum3 and accum4 are NOT "
-    "available, so an indicator needing two running values that feed each other is unsupported. "
-    "A named indicator built this way is built to its PUBLISHED formula or not at all.\n"
+    "(give the inner one its own output's formula instead).\n"
+    "  SEVERAL RUNNING VALUES THAT FEED EACH OTHER are accum2, accum3 or accum4: accumK(which, "
+    "warmup, start1..startK, update1..updateK). All K values are replaced together on each bar. "
+    "Inside the updates `state1`..`stateK` are their PREVIOUS values, and `which` (a plain whole "
+    "number 1..K) is the one drawn. An update that needs another value as it is on THIS bar "
+    "writes that value's update out again in its place. TWO shapes only. A FILTER: every update "
+    "is a sum of plain-number multiples of the states plus terms that read no state. A two-pole "
+    "smoother of the close, period 10: accum2(1, 300, close, close, c1 * (close + offset 1 of "
+    "close) / 2 + c2 * state1 + c3 * state2, state1), where state2 carries the value before last "
+    "and the coefficients are written out as arithmetic of plain numbers: c2 is 2 * exp(-1.414 * "
+    "3.14159 / 10) * cos(1.414 * 3.14159 / 10), c3 is -(exp(-1.414 * 3.14159 / 10) * exp(-1.414 "
+    "* 3.14159 / 10)), c1 is 1 - c2 - c3. A CHAIN: each update reads its OWN state only as a "
+    "plain-number multiple under 1 (a clamp by max or min around it is fine) and EARLIER states "
+    "any way at all. Where the price sits in its 10-bar range (x, from 0 to 1), smoothed, "
+    "stretched with a log and smoothed again: accum2(2, 300, 0, 0, v, 0.5 * ln((1 + v) / (1 - v)) + 0.5 * state2) with "
+    "v written out both times as max(-0.999, min(0.999, 0.66 * (x - 0.5) + 0.67 * state1)). A "
+    "coefficient on a state is a plain number (arithmetic, exp, cos, sin, sqrt of plain numbers), "
+    "NEVER a setting: write the numbers for the length asked for and say in an assumption that "
+    "the length is fixed in the formula and they can ask for another. A ratchet, a count or a "
+    "switch across several running values (a trailing stop that flips with a trend direction, a "
+    "counter reset by another counter) is unsupported: say so and offer the nearest thing ONE "
+    "accum can do. A named indicator built with running values is built to its PUBLISHED formula "
+    "or not at all.\n"
     "  AN UP DAY is a close above the PREVIOUS close (close > offset 1 of close), a down day a "
     "close below it; the same for an up or down week or month. That is what up/down volume, "
     "accumulation and distribution days, and \"up on volume\" count. A close above its own OPEN "
@@ -2261,18 +2295,118 @@ def _offered_calls_as_plain(tree: Any, declared: Any) -> Any:
 #     recomputes from `warmup` bars back, so a count or a level older than that is forgotten.
 #     The door says so itself, on every such output, in the member's own list of assumptions:
 #     the model is not trusted to remember to.
+#
+# ⭐ 2026-11-18 -- SEVERAL RUNNING VALUES, OPENED FOR THE SHAPES THAT SETTLE. A live round of
+# well-known names showed a whole class declined for "only one running value": two-pole filters,
+# Laguerre filters, transforms of a smoothed range position. The engine computes them (`accum2`..`accum4`).
+# Opened by ruling for the two shapes whose starting point PROVABLY stops mattering inside the
+# window (`api/services/running_values.py`, where the rule and its measurements are):
+#   * LINEAR: every update a plain-number mix of the values. The bound is the coupled system's.
+#   * CASCADE: each value reads itself as a plain-number multiple under 1, and earlier ones freely.
+# Everything else that reads a previous value (a ratchet, a count, a switch across several values)
+# is PATH-DEPENDENT and stays refused BY NAME: there a restart `warmup` bars back is a different
+# indicator from the same formula run from the first bar, and no sentence makes that right.
+# A coefficient that reads a SETTING is not a plain number (the bound would move when the member
+# moved the setting): the model is told to write the numbers for the length asked for.
 RUNNING_VALUE_GATE = "unsupported:running-value"
 RUNNING_VALUE_FN = "accum"
 RUNNING_VALUE_SELF = "self"
-RUNNING_VALUE_CLOSED = ("accum2", "accum3", "accum4")
+RUNNING_VALUES_FNS = ("accum2", "accum3", "accum4")
+#: The most bars a formula may reach back (the budget gate's own cap): a warm-up past it is refused there.
+RUNNING_VALUE_WINDOW_CAP = 960
 
 
 def _is_call(node: Any, names: Any) -> bool:
     return isinstance(node, dict) and node.get("type") == "call" and node.get("name") in names
 
 
-def _refuse_closed_running_values(where: str, tree: Any) -> None:
-    """The forms that stay closed, refused by name with the way out for the model."""
+def _refuse_unsettled_running_values(where: str, node: Mapping[str, Any], inputs: frozenset) -> None:
+    """One accumK call, as the model wrote it: allowed only when its starting values provably stop
+    mattering inside its own window. Every refusal says what decided it and the way out."""
+    from api.services import running_values
+    name = node.get("name")
+    got = running_values.classify(node, RUNNING_VALUE_SETTLED, RUNNING_VALUE_WINDOW_CAP)
+    shape, needs, why = got["shape"], got["needs"], got["why"]
+    if shape == running_values.MALFORMED:
+        raise _Refused(
+            RUNNING_VALUE_GATE,
+            f"{where}: {name} is not written as the engine reads it: {why}. It is "
+            f"{name}(which value to draw, warmup, the starting values, then the updates), the first two plain "
+            "whole numbers, and `state1`.. exist only inside the updates.",
+            member="its running values were not written in a form UCT can check")
+    if shape == running_values.PATH:
+        as_numbers = (running_values.classify(_inputs_as_constants(node, inputs), RUNNING_VALUE_SETTLED,
+                                              RUNNING_VALUE_WINDOW_CAP)["shape"] if inputs else shape)
+        if as_numbers in (running_values.LINEAR, running_values.CASCADE):
+            raise _Refused(
+                RUNNING_VALUE_GATE,
+                f"{where}: inside {name} a running value is multiplied or divided by a SETTING. There the "
+                "coefficients must be plain numbers (arithmetic and exp/cos/sqrt of plain numbers are fine): "
+                "write them for the length the member asked for, and say in an assumption that the length is "
+                "fixed in the formula and they can ask for another.",
+                member="its running values were tied to a setting, which UCT cannot check yet")
+        raise _Refused(
+            RUNNING_VALUE_GATE,
+            f"{where}: this {name} never settles: {why}. Several running values are available ONLY as a "
+            "filter (every update a sum of plain-number multiples of state1.. plus terms that read no state) "
+            "or as a chain (each update reads its own state only as a plain-number multiple under 1, and "
+            "earlier states freely). A ratchet, a count or a switch across several running values is "
+            "unsupported: say so (disposition unsupported) and offer the nearest thing ONE running value "
+            "(accum with `self`) can do.",
+            member="it needs several running values that depend on each other in a way that never settles "
+                   "(a ratchet, a count or a switch)")
+    if needs is None:
+        raise _Refused(
+            RUNNING_VALUE_GATE,
+            f"{where}: this {name} never forgets where it started: {why}. Recomputed from `warmup` bars back "
+            "on every bar it would be a different indicator from the same formula run from the first bar. "
+            "Unsupported as written: say so (disposition unsupported), or use a form whose values decay.",
+            member="its running values never stop depending on where they started")
+    if got["warmup"] < needs:
+        raise _Refused(
+            RUNNING_VALUE_GATE,
+            f"{where}: this {name} needs {needs} bars for its starting values to stop mattering and its warmup "
+            f"is {got['warmup']}. Set warmup to at least {needs} (300 is the usual; the formula's whole reach "
+            f"may not pass {RUNNING_VALUE_WINDOW_CAP}).",
+            member="its running values were given too few bars to settle")
+
+
+def _refuse_edits_inside_linked(envelope: Mapping[str, Any], view: Any) -> None:
+    """⛔ A RUNNING VALUE'S OWN NUMBER IS NOT CHANGED ON ITS OWN (`running_value_owns` says which
+    numbers those are). Linked running values were accepted because their coefficients, TOGETHER,
+    settle inside their window; a one-value running value's sentence was written from its gain and
+    its warm-up. A `set_slot` that moves one of them would leave a formula nothing checked, under a
+    sentence that no longer describes it. This door never applies a patch, so it cannot check the
+    result of a one-number edit: the model is sent back to write the whole formula again
+    (`set_output_tree`), which IS checked and gets its sentence afresh. Any other slot of the same
+    formula (a multiple outside the function, the length of an average inside it) is an ordinary edit."""
+    d = (view or {}).get("definition") if isinstance(view, Mapping) else None
+    stored = {o["key"]: o["tree"] for o in ((d or {}).get("outputs") or [])
+              if isinstance(o, Mapping) and isinstance(o.get("key"), str) and isinstance(o.get("tree"), Mapping)}
+    for o in envelope.get("ops") or []:
+        if not (isinstance(o, Mapping) and o.get("op") == "set_slot" and isinstance(o.get("slot"), str) and "#" in o["slot"]):
+            continue
+        key, path = o["slot"].split("#", 1)
+        owner = running_value_owns(stored.get(key), [] if path == "root" else path.split("."))
+        if owner == RUNNING_VALUE_FN:
+            raise _Refused(
+                RUNNING_VALUE_GATE,
+                f"set_slot {o['slot']}: that is the running value's own gain or warm-up, and what the member was "
+                "told about where it starts was written from them. Do not change it on its own: send the whole "
+                f"formula again with set_output_tree on output {key!r}, so that is said afresh.",
+                member="a running value's own number was changed on its own")
+        if owner is not None:
+            raise _Refused(
+                RUNNING_VALUE_GATE,
+                f"set_slot {o['slot']}: that number sits inside {owner}, whose numbers were checked "
+                "TOGETHER (they settle only as a set). Do not change one on its own: send the whole formula "
+                f"again with set_output_tree on output {key!r}, with the new number in every place it belongs.",
+                member="one number inside its linked running values was changed on its own")
+
+
+def _refuse_closed_running_values(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
+    """The forms that stay closed, refused by name with the way out for the model. `tree` is what
+    the model WROTE (a setting still reads as a setting: `_refuse_unsettled_running_values`)."""
     stack: List[Tuple[Any, bool]] = [(tree, False)]
     while stack:
         node, inside = stack.pop()
@@ -2281,21 +2415,17 @@ def _refuse_closed_running_values(where: str, tree: Any) -> None:
             continue
         if not isinstance(node, dict):
             continue
-        if _is_call(node, RUNNING_VALUE_CLOSED):
-            raise _Refused(
-                RUNNING_VALUE_GATE,
-                f"{where}: {node.get('name')} is not available -- ONE running value only: "
-                "accum(seed, update, warmup) with `self`. An indicator that needs two running values "
-                "feeding each other is unsupported: say so (disposition unsupported) and offer the "
-                "nearest thing one running value can do.",
-                member="it needs two or more running values that feed each other")
-        here = _is_call(node, (RUNNING_VALUE_FN,))
+        several = _is_call(node, RUNNING_VALUES_FNS)
+        if several and not inside:
+            _refuse_unsettled_running_values(where, node, inputs)
+        here = several or _is_call(node, (RUNNING_VALUE_FN,))
         if here and inside:
             raise _Refused(
                 RUNNING_VALUE_GATE,
                 f"{where}: an accum sits inside another accum -- a running value cannot contain "
                 "another. Give the inner one its own hidden output and read that output's formula, or "
-                "restructure with one accum.",
+                "restructure with one accum (values that feed each other on the same bar are ONE "
+                "accum2..accum4, not one inside another).",
                 member="one running value sits inside another")
         args = node.get("args")
         if isinstance(args, list):
@@ -2307,22 +2437,29 @@ def _running_values_as_plain(tree: Any) -> Any:
     boundary's name list (which has no `self`) judges every other name the model wrote. `self` in
     a seed, in a warm-up or outside an `accum` is left as it is, and is refused by name there.
     Iterative copy; the input is never mutated."""
+    from api.services import running_values
     root = copy.deepcopy(tree)
-    stack: List[Tuple[Any, bool]] = [(root, False)]
+    stack: List[Tuple[Any, frozenset]] = [(root, frozenset())]
     while stack:
-        node, in_update = stack.pop()
+        node, bound = stack.pop()
         if not isinstance(node, dict):
             continue
         args = node.get("args")
         if not isinstance(args, list):
             continue
         is_accum = _is_call(node, (RUNNING_VALUE_FN,)) and len(args) == 3
+        k = running_values.FUNCTIONS.get(node.get("name"), 0) if _is_call(node, RUNNING_VALUES_FNS) else 0
+        several = k and len(args) == 2 + 2 * k
         for i, a in enumerate(args):
-            reads_self = in_update or (is_accum and i == 1)
-            if reads_self and isinstance(a, dict) and a.get("type") == "series" and a.get("name") == RUNNING_VALUE_SELF:
+            names = bound
+            if is_accum and i == 1:
+                names = bound | {RUNNING_VALUE_SELF}
+            elif several and i >= 2 + k:                   # an accumK's updates: state1..stateK, as `self`
+                names = bound | frozenset(running_values.STATES[:k])
+            if names and isinstance(a, dict) and a.get("type") == "series" and a.get("name") in names:
                 args[i] = {"type": "num", "value": 1}
             else:
-                stack.append((a, reads_self))
+                stack.append((a, names))
     return root
 
 
@@ -2334,7 +2471,7 @@ def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
     from api.services import ast_table
     declared = lambda name: name in (ast_table.TABLE.get("functions") or {})  # noqa: E731
     written = _inputs_as_constants(tree, inputs)          # what the MODEL wrote
-    _refuse_closed_running_values(where, written)
+    _refuse_closed_running_values(where, tree, inputs)    # (a setting still reads as a setting there)
     try:
         tree = call_expansions.expand_calls(tree, declared)
     except call_expansions.ExpansionRefused as exc:
@@ -2752,6 +2889,11 @@ def _inline_refs(tree: Any, own: Optional[str], trees: Mapping[str, Any], skip: 
         return [_inline_refs(x, own, trees, skip, seen, count) for x in tree]
     if not isinstance(tree, Mapping):
         return tree
+    if len(count) > 1:                             # every formula node this mend visits or writes
+        count[1] += 1
+        if count[1] > MAX_INLINED_NODES:
+            raise _Refused(SIZE_GATE, f"the answer holds more than {MAX_INLINED_NODES} formula nodes once the "
+                                      "outputs its formulas read are written into them")
     name = tree.get("name")
     if (tree.get("type") == "series" and isinstance(name, str) and name in trees
             and name not in skip and name != own and name not in seen
@@ -2771,7 +2913,7 @@ def _mend_output_refs(envelope: Dict[str, Any], view: Any) -> int:
     if not trees:
         return 0
     skip = _formula_names() | declared_inputs(envelope, view)
-    count = [0]
+    count = [0, 0]                                 # [reads replaced, formula nodes visited: `MAX_INLINED_NODES`]
     for o in envelope.get("ops") or []:
         if not isinstance(o, dict):
             continue
@@ -2855,6 +2997,8 @@ def mend(candidate: Any, view: Any) -> Tuple[Any, List[str]]:
         if _mend_assumptions(work, view):
             names.append(MEND_ASSUMPTION)
         return (work, names) if names else (candidate, [])
+    except _Refused:                               # the ONE thing a mend refuses: the inlined form's size
+        raise
     except Exception:                              # noqa: BLE001 -- a mend never costs the turn
         logger.exception("[converse] mend failed; the answer is checked as it came")
         return candidate, []
@@ -3051,6 +3195,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
                        member=f"a setting may not be named {', '.join(clash)}")
     for where, tree in _trees_of(envelope):
         _check_tree(where, tree, inputs)
+    _refuse_edits_inside_linked(envelope, view)
     _check_references(envelope, view)
     # ⭐ PHASE 5 -- THE FAN-OUT BOUND, over the whole turn (the browser gate holds
     # it over the whole RESULT, which also counts symbols already in the indicator).
@@ -3359,6 +3504,18 @@ def _settles(update: Any, warmup: Any) -> bool:
     `x` not reading `self`, and (1 - k) ** warmup below `RUNNING_VALUE_SETTLED`? Anything else
     (a series for k, a condition, a max or a min, a running total) answers False, and the door
     uses the stronger sentence: it cannot tell a ratchet from a filter by looking."""
+    path = _settled_gain_path(update)
+    if path is None:
+        return False
+    k = update["args"][path[0]]["args"][path[1]]["value"]
+    return (0 < k <= 1 and isinstance(warmup, int) and not isinstance(warmup, bool) and warmup > 0
+            and (1 - k) ** warmup < RUNNING_VALUE_SETTLED)
+
+
+def _settled_gain_path(update: Any) -> Optional[Tuple[int, int]]:
+    """Where the gain `k` sits when a one-value update has the shape `self + k * (x - self)` with a
+    LITERAL k (either order of the sum and of the product): the two `args` indices from the update
+    to that number, or None. The shape only; whether it settles is `_settles`."""
     def is_self(n: Any) -> bool:
         return isinstance(n, dict) and n.get("type") == "series" and n.get("name") == RUNNING_VALUE_SELF
 
@@ -3379,31 +3536,72 @@ def _settles(update: Any, warmup: Any) -> bool:
 
     plus = op(update, "+")
     if not plus:
-        return False
-    for a, b in (plus, plus[::-1]):
+        return None
+    for i in (0, 1):
+        a, b = plus[i], plus[1 - i]
         times = op(b, "*")
         if not is_self(a) or not times:
             continue
-        for k, diff in (times, times[::-1]):
+        for j in (0, 1):
+            k, diff = times[j], times[1 - j]
             minus = op(diff, "-")
             if (isinstance(k, dict) and k.get("type") == "num" and isinstance(k.get("value"), (int, float))
-                    and not isinstance(k.get("value"), bool) and 0 < k["value"] <= 1
-                    and minus and is_self(minus[1]) and not reads_self(minus[0])
-                    and isinstance(warmup, int) and not isinstance(warmup, bool) and warmup > 0):
-                return (1 - k["value"]) ** warmup < RUNNING_VALUE_SETTLED
-    return False
+                    and not isinstance(k.get("value"), bool)
+                    and minus and is_self(minus[1]) and not reads_self(minus[0])):
+                return (1 - i, j)
+    return None
+
+
+def running_value_owns(tree: Any, segs: Sequence[Any]) -> Optional[str]:
+    """⭐ IS THE NUMBER AT `segs` ONE OF A RUNNING VALUE'S OWN? The name of the function that owns
+    it, or None. (`segs`: the `args` indices from the formula's root, as a slot id writes them.)
+
+    * EVERY number inside several linked running values (`accum2`..`accum4`): they were accepted
+      because, TOGETHER, they settle inside their window.
+    * Of a one-value running value (`accum`): its warm-up, and its gain `k` when the update is the
+      shape that can settle (`_settled_gain_path`). The door's sentence about where the value starts
+      is written from exactly those two. Any other number inside it (the length of an average it
+      reads, the multiple of a stop) is an ordinary number.
+
+    One of these changed on its own would leave a formula nothing checked under a sentence that no
+    longer describes it. The window holds the same rule for its Inputs (`derivedSettings.js`,
+    `runningValueOwns`); `tests/fixtures/authoring/running_value_own_numbers.json` holds the two
+    equal, case by case."""
+    node = tree
+    path = [str(s) for s in segs]
+    for i, seg in enumerate(path):
+        if _is_call(node, RUNNING_VALUES_FNS):
+            return str(node.get("name"))
+        args = node.get("args") if isinstance(node, Mapping) else None
+        if _is_call(node, (RUNNING_VALUE_FN,)) and isinstance(args, list) and len(args) == 3:
+            gain = _settled_gain_path(args[1])
+            rest = tuple(path[i:])
+            if rest == ("2",) or (gain is not None and rest == ("1", str(gain[0]), str(gain[1]))):
+                return RUNNING_VALUE_FN
+        if not (isinstance(args, list) and seg.isdigit() and int(seg) < len(args)):
+            return None                              # an offset's count, or a path this formula does not hold
+        node = args[int(seg)]
+    return None
 
 
 def running_value_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
     """One assumption per output this patch builds from a running value: where it starts, in the
     member's words. The STRONGER sentence unless the update is the one shape that provably
-    settles (`_settles`). Deterministic: the same patch always carries the same notes."""
+    settles (`_settles`). Several LINKED running values (accum2..accum4) reach here only when they
+    settle (`_refuse_unsettled_running_values`), and their sentence gives the number of bars and
+    the tolerance it was measured to. Deterministic: the same patch always carries the same notes."""
+    from api.services import running_values
     notes: List[Dict[str, Any]] = []
     for op in envelope.get("ops") or []:
         if not isinstance(op, Mapping):
             continue
         if op.get("op") == "create":
-            outputs = [(o.get("key"), o.get("tree")) for o in op.get("outputs") or [] if isinstance(o, Mapping)]
+            # ⭐ THE OUTPUTS A MEMBER SEES COME FIRST. The contract holds a few notes, and an
+            # indicator built on hidden working lines (four filter stages and the one line drawn
+            # from them) spent every one on the hidden lines and left the visible line with none.
+            rows = [o for o in op.get("outputs") or [] if isinstance(o, Mapping)]
+            rows = [o for o in rows if not o.get("hidden")] + [o for o in rows if o.get("hidden")]
+            outputs = [(o.get("key"), o.get("tree")) for o in rows]
         elif op.get("op") == "add_output":
             outputs = [(op.get("key"), op.get("tree"))]
         elif op.get("op") == "set_output_tree":
@@ -3412,6 +3610,7 @@ def running_value_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
             continue
         for key, tree in outputs:
             found: List[Tuple[int, bool]] = []
+            linked: List[Tuple[int, int]] = []             # (how many values, bars they need)
             stack = [tree]
             while stack:
                 node = stack.pop()
@@ -3421,12 +3620,24 @@ def running_value_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
                         w = args[2].get("value") if isinstance(args[2], dict) and args[2].get("type") == "num" else None
                         if isinstance(w, int) and not isinstance(w, bool):
                             found.append((w, _settles(args[1], w)))
+                    elif _is_call(node, RUNNING_VALUES_FNS):
+                        got = running_values.classify(node, RUNNING_VALUE_SETTLED, RUNNING_VALUE_WINDOW_CAP)
+                        if isinstance(got.get("warmup"), int):
+                            settled = isinstance(got.get("needs"), int) and got["needs"] <= got["warmup"]
+                            found.append((got["warmup"], settled))
+                            if settled:
+                                linked.append((got["k"], got["needs"]))
                     if isinstance(args, list):
                         stack.extend(args)
             if not found or not isinstance(key, str):
                 continue
             window = min(w for w, _ in found)
-            if all(ok for _, ok in found):
+            if linked and all(ok for _, ok in found):
+                most, needs = max(k for k, _ in linked), max(n for _, n in linked)
+                text = (f"This value is built from {most} linked running values that start {window} bars back on "
+                        f"every bar. After {needs} bars their starting points no longer matter (to within "
+                        f"{RUNNING_VALUE_SETTLED:.2%} of where they started).")
+            elif all(ok for _, ok in found):
                 text = (f"This value starts {window} bars back on every bar. After that many bars its "
                         "starting point no longer matters.")
             else:
@@ -4184,7 +4395,11 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             # shape only: the wrapper NAME and the attempt, never its content
             logger.info("[converse] unwrapped %r on attempt=%d", wrapper, attempts)
             trace.setdefault("input_wrapper", wrapper)
-        candidate, mended = mend(candidate, view)
+        try:
+            candidate, mended = mend(candidate, view)
+        except _Refused as inlined:                # the inlined form is over its cap: answered by name, nothing built
+            logger.warning("[converse] the answer was refused for its inlined size on attempt=%d", attempts)
+            return _refusal(SIZE_GATE, inlined.detail, **extra)
         if from_text:
             mended = [MEND_LIST_AS_TEXT] + list(mended)
         if mended:

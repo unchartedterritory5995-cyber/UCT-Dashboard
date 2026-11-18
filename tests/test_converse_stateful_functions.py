@@ -83,7 +83,8 @@ def test_a_running_values_own_name_outside_its_update_is_refused_by_name(conv, c
 # inside its update. This block used to refuse that too. What it still refuses is unchanged.
 STILL_REFUSED = [
     (call("accum", ser("self"), ser("close"), num(50)), "schema:name"),        # the name in a seed
-    # two running values that feed each other: closed, and refused by its own gate with the way out
+    # two running values that never forget where they started (a running total of each other):
+    # refused by its own gate with the way out (the shapes that settle are open, 2026-11-18)
     (call("accum2", num(1), num(50), ser("close"), ser("close"),
           op("+", ser("state1"), ser("state2")), ser("state2")), "unsupported:running-value"),
     # an offered function handed the name as an argument (it asks for numbers)

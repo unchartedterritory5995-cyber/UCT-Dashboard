@@ -31,6 +31,7 @@ import { slotsOfTree, outputTrees, nodeAt, parsePath } from './slots'
 import { nameOfTree } from './derivedName'
 import { PATCH_CONTRACT, PATCH_LIMITS } from './patchValidate'
 import { collapseExpansions } from '../../engine/ast/callExpansions'
+import { MULTI_STATES } from '../../engine/ast/parse'
 import { libraryParts } from './checkedLibrary'
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -111,6 +112,75 @@ function libraryPlaces(tree, inputs) {
   return { sites, inside }
 }
 
+const isSelf = (n) => isObj(n) && n.type === 'series' && n.name === 'self'
+function readsSelf(n) {
+  const stack = [n]
+  while (stack.length) {
+    const x = stack.pop()
+    if (isSelf(x)) return true
+    if (isObj(x) && Array.isArray(x.args)) stack.push(...x.args)
+  }
+  return false
+}
+const twoArgs = (n, name) => (isOp(n, name) && Array.isArray(n.args) && n.args.length === 2 ? n.args : null)
+
+/** Where the gain `k` sits when a one-value update has the shape `self + k * (x - self)` with a
+ *  plain-number k (either order of the sum and of the product): its two `args` indices from the
+ *  update, or null. The door's `_settled_gain_path`, ported. */
+function settledGainPath(update) {
+  const plus = twoArgs(update, '+')
+  if (!plus) return null
+  for (const i of [0, 1]) {
+    const times = twoArgs(plus[1 - i], '*')
+    if (!isSelf(plus[i]) || !times) continue
+    for (const j of [0, 1]) {
+      const k = times[j]
+      const minus = twoArgs(times[1 - j], '-')
+      if (isObj(k) && k.type === 'num' && typeof k.value === 'number' && minus && isSelf(minus[1]) && !readsSelf(minus[0])) return [1 - i, j]
+    }
+  }
+  return null
+}
+
+/**
+ * IS THE NUMBER AT `segs` ONE OF A RUNNING VALUE'S OWN? The name of the function that owns it, or
+ * null. (`segs`: the `args` indices from the formula's root.)
+ *
+ * ⛔ THOSE NUMBERS ARE THE FORMULA'S OWN, NOT SETTINGS.
+ *  - EVERY number inside several linked running values (`accum2`..`accum4`). Create Indicator
+ *    accepts such a formula only after checking, from its coefficients, that its starting values
+ *    stop mattering inside its window, and tells the member after how many bars. One coefficient
+ *    changed alone would be a different filter that nothing checked (and may never settle), under
+ *    a sentence that still says it does. A value that needs another on the same bar also repeats
+ *    that value's update, so one length sits in several places that must move together. Measured
+ *    before this rule: a two-pole smoother showed 10 inputs and a stretched range position 14, each
+ *    captioned with the whole formula.
+ *  - Of a one-value running value (`accum`): its warm-up, and its gain `k` when the update is the
+ *    shape that can settle. The sentence about where the value starts is written from exactly
+ *    those two. Any other number inside it (the length of an average it reads, the multiple of a
+ *    stop) is a setting as ever.
+ * The member changes one by asking for it in words, which goes back through the check.
+ * The door holds the same rule (`definition_conversation.running_value_owns`);
+ * `tests/fixtures/authoring/running_value_own_numbers.json` holds the two equal, case by case.
+ */
+export function runningValueOwns(tree, segs) {
+  let node = tree
+  for (let i = 0; i < segs.length; i += 1) {
+    const args = isObj(node) && Array.isArray(node.args) ? node.args : null
+    if (isObj(node) && node.type === 'call') {
+      if (Object.prototype.hasOwnProperty.call(MULTI_STATES, node.name)) return node.name
+      if (node.name === 'accum' && args && args.length === 3) {
+        const rest = segs.slice(i).join('.')
+        const gain = settledGainPath(args[1])
+        if (rest === '2' || (gain && rest === `1.${gain[0]}.${gain[1]}`)) return 'accum'
+      }
+    }
+    if (!args || !Number.isInteger(segs[i]) || segs[i] >= args.length) return null
+    node = args[segs[i]]
+  }
+  return null
+}
+
 /** Why `value` is outside what a library setting can be, in a member's words; null when it can. */
 function libraryRefusal(setting, value) {
   const { min, max, integer } = setting.library
@@ -154,6 +224,7 @@ export function settingsOfTrees(list, { inputs = [] } = {}) {
       continue
     }
     if (lib.inside(segs.filter((x) => x !== 'n'))) continue                // the formula's own number, not a setting
+    if (runningValueOwns(tree, segs)) continue                             // a running value's own number: checked with it
     const offset = segs[segs.length - 1] === 'n'
     const at = offset ? segs.slice(0, -1) : segs
     const node = nodeAt(tree, at)
