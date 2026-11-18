@@ -78,6 +78,9 @@
   "percentage_price_oscillator": {
    "1": "sha256:7b618c26461616ed8f5bfb976bfcb2254b8f2d57fa2e5029aabd0f6fe67ce31f"
   },
+  "pocket_pivot": {
+   "1": "sha256:2e45632a4bf1b0e3660dabf6b61af09a146ccdb18c3c2a9f2e536bab23aec045"
+  },
   "positive_volume_index": {
    "1": "sha256:09b2ad3a469bfdd14274db24d3f0bf4761c7f8f809aa600e8c2a7ad33f3895f9"
   },

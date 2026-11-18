@@ -2075,7 +2075,7 @@
    "group": "example",
    "turns": [
     {
-     "words": "pocket pivot when volume is above the highest volume in 10 days",
+     "words": "ttm squeeze when volume is above the highest volume in 10 days",
      "expect": {
       "kind": "change",
       "outputs": [
@@ -2131,7 +2131,7 @@
    "group": "control",
    "turns": [
     {
-     "words": "Add the Pocket Pivot",
+     "words": "Add the TTM Squeeze",
      "model_expected": false,
      "expect": {
       "kind": "refused",

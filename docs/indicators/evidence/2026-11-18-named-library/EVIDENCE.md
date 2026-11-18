@@ -14,6 +14,11 @@ A named indicator in the library is built to **one** formula. Three kinds of evi
 Tiers (a) and (b) are required before the assistant may build a name. Tier (c) exists only where
 TradingView ships the indicator as a built-in.
 
+One entry stands on (a) and something else in place of (b): it **follows UCT's own reader**. Where the
+product already computes an indicator in one place, and no page read states the rule whole, the entry
+is the chart formula of that reader, proved equal to it bar for bar by a test that imports the reader
+and runs it (`evidence.house`). Pocket Pivot is the first; its section is at the end of this file.
+
 ## Tier (c): against TradingView's built-ins
 
 **Method.** One capture session. Each built-in was added from TradingView's Indicators dialog (its
@@ -125,6 +130,9 @@ the library being able to hold a parameter whose number sits in the formula in a
 
 ## Held names: known by name, no checked formula
 
+(Pocket Pivot was the third held name until later the same day. It is a library entry now: see
+"Pocket Pivot: it follows UCT's own reader" at the end of this file.)
+
 These are in the library file under `held`. Each has **no formula at all**. Named alone, each is refused
 by name, in any spelling, before any model call, and the refusal is the way forward: describe the rule
 in your own words. Named beside the member's own description of the rule, the description is built and
@@ -133,7 +141,6 @@ labelled as the member's own formula.
 | name | why it has no checked formula yet |
 |---|---|
 | TTM Squeeze | John Carter's own formula was not confirmed on a page read. The sources that describe it disagree about the channel's range. The Squeeze Momentum Indicator is in the library under its own author's name. |
-| Pocket Pivot | The authors' rules page states the volume rule only. Whether the day must itself be an up day, and how a down-volume day is defined, were not confirmed on their pages. UCT's own readers use "an up day on more volume than any down day of the prior 10"; a chart formula should be proved equal to that before it is offered under the name. |
 | Mansfield Relative Strength | The Screener already has a column of that name; a chart formula for it belongs with the Screener's columns (`chart_twins`), proved equal to that column. |
 
 ## The whole-phrase rule for unknown names: measured before it was written
@@ -650,3 +657,72 @@ entry it would answer all of them. The entry's spellings are its full name and "
 any number, by the full name or by the bare word, is asked "Which Stochastic?" (slow listed first),
 with no assistant call. The choice is remembered, used next time, and said each time.
 
+## Pocket Pivot: it follows UCT's own reader (ruling 2026-11-18)
+
+**Why it was held.** The authors' own rules page states the volume rule only. No page read states the
+whole rule, so there was no published definition to hold a formula to, and a formula written from
+recollection would have gone out under a name it had not earned.
+
+**What changed.** The product already has ONE Pocket Pivot: the Screener's base structure,
+`api/services/screener/base_catalog.py::_detect_pocket_pivot` (sourced there to Morales and Kacher). Every
+one of its tests is a fact of the bar, so it can be written as a chart formula and the two can be
+proved equal. The entry is that formula. There is one authority, the detector; the chart can never
+mark a bar the Screener would not.
+
+**The six tests** (the numbers are the detector's own and are not settings):
+
+1. an up day: the close above the close before;
+2. the close in the top half of the bar's range (exactly half counts);
+3. at least one down day in the 10 sessions before, and volume above the largest volume of those
+   down days (equal does not count; a flat day is not a down day; the newest bar is not in the window);
+4. the close at or above its 50-day and its 200-day simple averages;
+5. not stretched: the low not above the 10-day average;
+6. not in a long downtrend: the close above where it closed 105 bars ago.
+
+What the authors leave to judgement (the fundamentals, a constructive base, permission to disregard a
+red volume day) is not in the detector and is not in the formula.
+
+**The proof** is `tests/test_library_pocket_pivot.py`. It imports the detector and runs it; nothing in
+it restates the rule.
+
+| over | bars compared | bars the detector fires on | bars where the two differ |
+|---|---|---|---|
+| six random daily walks, every bar from the first | 5,400 | (asserted: at least 20 in three of them) | 0 |
+| twenty-four hand-built cases, every bar | each a 260-bar history (one is 199 bars) | 9 fire on the newest bar, 15 do not | 0 |
+| SPY daily, the bars of the built-in captures (private; the bars are a vendor's and are not committed) | 8,509 | 101 | 0 |
+| RDDT daily, the same | 668 | 1 | 0 |
+
+The hand-built set holds each tie on its own bar: the close exactly at mid-range, volume exactly equal
+to the largest down-day volume and one share above it, a down day exactly ten sessions back and one
+eleven back, a down day on no volume, a flat day on heavy volume, the low exactly on the 10-day
+average, the close exactly where it was 105 bars ago, a bar with no range, and one bar short of the
+200-day.
+
+**The set is proved to exercise every test.** The formula is eight conditions joined by "and". With any
+one removed, it disagrees with the detector somewhere in the hand-built set; a test asserts that for
+each of the eight.
+
+**Deliberate breaks** (each turned the proof red; every file restored):
+
+| the detector, changed so that | caught |
+|---|---|
+| volume equal to the largest down day passes | yes |
+| an unchanged close counts as an up day | yes |
+| exactly mid-range fails | yes |
+| the 200-day test is dropped | yes |
+| the low exactly on the 10-day average fails | yes |
+| a close equal to 105 bars ago passes | yes |
+| the window is one session longer | yes |
+| a flat day counts as a down day | no on the first run: no case held a flat day. Two were added; yes |
+
+and, in a test, each of the detector's three declared numbers moved (the window 10 to 9, the top half
+0.5 to 0.6, the downtrend 105 to 100): the proof finds the bars.
+
+**What a member is told.** "Built to UCT's checked formula for Pocket Pivot: it follows UCT's own Pocket
+Pivot, the one the Screener's base structures use (Morales and Kacher's volume rule with their stated
+conditions), and is equal to it bar for bar." It never says "published by", and it says nothing about
+any vendor.
+
+**What it is not.** The Screener's Bar Character column has a label for "an up day whose volume tops
+recent selling". That is the volume half alone and was deliberately not named Pocket Pivot there. The
+library's entry is the base structure's, with all six tests.

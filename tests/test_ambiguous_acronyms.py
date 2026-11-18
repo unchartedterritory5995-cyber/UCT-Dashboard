@@ -82,7 +82,7 @@ def test_every_clash_of_initials_that_touches_the_library_is_decided(conv):
     not_asked = {
         "ao": "nobody writes AO for the Accelerator Oscillator (its own abbreviation is AC), and AO is not an admitted acronym",
         "cc": "not letters anyone writes for the Coppock Curve or the Cyber Cycle",
-        "pp": "not an admitted acronym; Pocket Pivot is a held name and pivot points is a description",
+        "pp": "not an admitted acronym; Pocket Pivot is asked for by its full name and pivot points is a description",
         "smi": "not an admitted acronym for either; both names are looked up in full",
         "ts": "not letters anyone writes for TD Sequential or the TTM Squeeze",
     }

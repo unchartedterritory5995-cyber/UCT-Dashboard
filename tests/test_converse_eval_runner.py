@@ -732,11 +732,11 @@ def test_the_named_cases_answer_with_the_librarys_own_formulas_and_one_substitut
     assert which["expect"] == {"kind": "clarify", "max_model_calls": 0} and "ctl-which-average#0" not in script
     assert "moving average" in which["words"] and not any(k in which["words"].lower() for k in ("simple", "exponential", "sma", "ema"))
     held_ids = {e["id"] for e in ni.held_names()}
-    assert [i for a, i in ni.phrases() if a in held["words"].lower() and i in held_ids] == ["pocket_pivot"]
+    assert [i for a, i in ni.phrases() if a in held["words"].lower() and i in held_ids] == ["ttm_squeeze"]
     own = next(c for c in doc["cases"] if c["id"] == "held-own-words")["turns"][0]
-    assert "pocket pivot" in own["words"] and own["expect"]["kind"] == "change"
+    assert "ttm squeeze" in own["words"] and own["expect"]["kind"] == "change"
     (own_answer,) = script["held-own-words#0"]
-    assert "accum" not in json.dumps(own_answer["ops"]) and "Pocket" not in json.dumps(own_answer["ops"])
+    assert "accum" not in json.dumps(own_answer["ops"]) and "Squeeze" not in json.dumps(own_answer["ops"])
     wrong = script["ctl-named-substitute#0"]
     assert len(wrong) == 2 and all('"name": "ema"' in json.dumps(a["ops"]) and "accum" not in json.dumps(a["ops"]) for a in wrong)
     base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
@@ -784,7 +784,7 @@ def test_a_named_indicator_is_built_to_its_checked_formula_in_one_call_and_a_sub
     own = rows["held-own-words"]
     assert own["grade"]["ok"] is True and own["server"]["attempts"] == 1 and own["client"]["changed"] is True
     (label,) = own["server"]["envelope"]["assumptions"]
-    assert label["text"].startswith("Built from your own description, as your own formula.") and "Pocket Pivot" in label["text"]
+    assert label["text"].startswith("Built from your own description, as your own formula.") and "TTM Squeeze" in label["text"]
 
 
 # ─── clarify first: the door's own questions ──────────────────────────────────────────────────────
