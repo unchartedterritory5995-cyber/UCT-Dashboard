@@ -182,6 +182,7 @@
   "indicatorTemplate.save": "chartSetup",
   "indicatorTemplate.delete": "chartSetup",
   "volumeProfile.set": "volumeProfile",
+  "headerValue.set": "headerValue",
   "definition.search": "definitions",
   "definition.describe": "definitions",
   "definition.duplicate": "definitions",
@@ -271,6 +272,10 @@
   {
    "id": "volumeProfile",
    "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+  },
+  {
+   "id": "headerValue",
+   "title": "An indicator line’s latest value in the chart header: show it, take it out"
   },
   {
    "id": "drawingOps",
@@ -478,6 +483,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -703,6 +712,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -942,6 +955,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -1193,6 +1210,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -1414,6 +1435,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -1531,6 +1556,7 @@
     "indicatorCalc",
     "definitions",
     "volumeProfile",
+    "headerValue",
     "drawingOps",
     "drawingTools",
     "drawings",
@@ -1730,6 +1756,7 @@
     "indicatorTemplate.save",
     "indicatorTemplate.delete",
     "volumeProfile.set",
+    "headerValue.set",
     "definition.search",
     "definition.describe",
     "definition.duplicate",

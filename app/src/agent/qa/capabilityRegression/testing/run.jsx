@@ -6,6 +6,7 @@ import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
 import { readUctIntelligence } from '../../../../components/chart/uctIntelligence'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { volumeProfileOf } from '../../../../components/chart/builder/agentMutations'
+import { infoValuesOf } from '../../../../components/chart/engine/infoValues'
 import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
 import { mountCase, faithful, boardState, chartsOf, refusals, receiptsNow, proposalsNow, nlm1Of } from './harness'
@@ -256,6 +257,8 @@ export function checkExpect(ctx, e, label) {
   if ('movingAveragesOn' in e) expect(anyAverageOn(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null), nativeRegistry.getDefinition), `${label}: a moving average showing`).toBe(e.movingAveragesOn)
   // volumeProfile.set: the first chart's Volume Profile as the canvas reads it ({enabled, bins, ...} — only the keys a case names)
   if (e.volumeProfile) expect(volumeProfileOf(chartsOf(board)[0]?.opts?.settings ?? null), `${label}: the Volume Profile`).toMatchObject(e.volumeProfile)
+  // headerValue.set: the first chart's header values as the header reads them (`instanceId::plotKey`, a broken one ends in '!')
+  if (e.headerValues) expect(infoValuesOf(chartsOf(board)[0]?.opts?.settings ?? null).map(o => `${o.instanceId}::${o.plotKey}${o.severed ? '!' : ''}`), `${label}: the header values`).toEqual(e.headerValues)
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)

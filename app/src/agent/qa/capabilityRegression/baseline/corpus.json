@@ -11278,6 +11278,49 @@
       ]
     },
     {
+      "id": "headerValue.set",
+      "source": "Charts family C1-100 / C2-041: the legend chip's \"Value in header\" row (StockChart handleChipInfoValue → infoValues.addInfoValue, a reference only)",
+      "capabilities": [
+        "headerValue.set"
+      ],
+      "board": "IALERTS",
+      "needs": [
+        "headerValue.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "headerValue.set",
+            "target": "$charts[0]",
+            "args": {
+              "instance": "rsi",
+              "output": null,
+              "show": true,
+              "all": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "headerValues": [
+          "inst:rsi:1::rsi"
+        ],
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "show the rsi value in the header",
+        "put rsi's latest value in the chart header",
+        "pin the rsi reading to the header"
+      ]
+    },
+    {
       "id": "newsLibrary.save",
       "source": "Charts family 11-15: the News row bookmark (lib/tradeExchangeNewsLibrary.save); a headline named by its tickers field",
       "capabilities": [

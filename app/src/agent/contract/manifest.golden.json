@@ -7387,6 +7387,55 @@
    "shape": null
   },
   {
+   "name": "headerValue.set",
+   "domain": "headerValue",
+   "target": "chart",
+   "summary": "Show or remove an indicator line's latest value in ONE chart's header (the legend chip's \"Value in header\"). Only a reference to an indicator already on that chart is stored; the indicator itself is never changed. Undo restores it exactly.",
+   "hints": "target = the chart. instance = the indicator on that chart (its legend name, its id, its kind like \"rsi\", or \"#50:sma\" for a moving average by length). output = the line's key or label when it draws several (MACD: macd / signal / histogram), else null; \"all\" with show false removes all of that indicator's values. show true = put it in the header, false = take it out. all = true with show false and no instance clears every indicator value in the header (else null). Header stats beside the ticker and Bar info (Volume, RVOL, Open, Close…) are chart.setSetting, never this.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "output": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "show": {
+      "type": "boolean"
+     },
+     "all": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "instance",
+     "output",
+     "show",
+     "all"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "definition.search",
    "domain": "definition",
    "target": "definitionLibrary",

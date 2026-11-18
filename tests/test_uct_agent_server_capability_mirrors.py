@@ -134,6 +134,15 @@ def test_the_volume_profile_family_is_an_INDICATOR_action_withheld_bare():
         assert guard.suspicious(text) is False, text
 
 
+def test_the_header_value_family_is_an_INDICATOR_action_withheld_bare():
+    # headerValue.set puts ONE indicator line's latest value in a chart's header (the chip's "Value in header"), never history
+    assert v2.domain_for("headerValue.set") == "indicator"
+    assert guard.suspicious(_bare("headerValue.set")) is True
+    for text in ("Put the RSI value in the header so you can watch it.", "The header shows the 50 SMA's latest value.",
+                 "Header values update on every bar."):
+        assert guard.suspicious(text) is False, text
+
+
 def test_the_chart_menu_family_is_a_CHART_action_not_history():
     # #1106: the chart's right-click Ask AI and watermark Reset act on ONE chart (the chart domain), never history
     assert v2.domain_for("chartMenu.askAi") == "chart"

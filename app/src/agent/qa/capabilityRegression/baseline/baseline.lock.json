@@ -4484,6 +4484,26 @@
     }
    }
   },
+  "headerValue.set": {
+   "digest": "7f4d0932572dfb4f",
+   "phrasings": {
+    "show the rsi value in the header": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put rsi's latest value in the chart header": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "pin the rsi reading to the header": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "newsLibrary.save": {
    "digest": "0a7b6822479210fa",
    "phrasings": {

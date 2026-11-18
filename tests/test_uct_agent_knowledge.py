@@ -1717,6 +1717,10 @@ def test_guard_withholds_the_volume_profile_action_name_bare():
     assert guard.suspicious("Next, volumeProfile.set with the default settings.") is True
 
 
+def test_guard_withholds_the_header_value_action_name_bare():
+    assert guard.suspicious("Next, headerValue.set with the default settings.") is True
+
+
 @pytest.mark.parametrize("text", [
     "The volume profile shows where most shares traded; the point of control is the busiest price.",
     "Use a VPVR with more bins on a long base.",

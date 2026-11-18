@@ -34,6 +34,8 @@ import { registerIndicatorControlCapabilities } from './capabilities/indicatorCo
 import { registerIndicatorTemplateCapabilities } from './capabilities/indicatorTemplates'
 // Charts family (2026-11-12): the chart's Volume Profile overlay (the carved-out canvas key) — on / off, bins, colours
 import { registerVolumeProfileCapabilities } from './capabilities/volumeProfile'
+// Charts family (C1-100 / C2-041): an indicator line's latest value in the chart header (the legend chip's "Value in header")
+import { registerHeaderValueCapabilities } from './capabilities/headerValue'
 import { registerDefinitionCapabilities } from './capabilities/definitions'
 // the chart's UCT Intelligence INDICATOR (its library row + panel layers) — not indicator authoring
 import { registerUctIntelligenceCapabilities } from './capabilities/uctIntelligence'
@@ -104,6 +106,7 @@ export function registerBuiltins() {
   registerIndicatorControlCapabilities()
   registerIndicatorTemplateCapabilities()
   registerVolumeProfileCapabilities()       // volumeProfile.set: Chart Settings → Indicators' Volume Profile row (never an instance)
+  registerHeaderValueCapabilities()         // headerValue.set: an indicator line's value in the header (infoValues.js, a reference only)
   registerDefinitionCapabilities()
   registerUctIntelligenceCapabilities()     // uctIntelligence.set: add / remove the UCT Intelligence indicator, its layers on / off
   registerAboutCapabilities()
