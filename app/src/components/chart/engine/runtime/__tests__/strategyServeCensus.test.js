@@ -198,7 +198,7 @@ describe('the serve census over corpus/committed, broker gate on', () => {
     }
     // ⛔ CONTROL: admission is a door, not a pin. A strategy the SERVER ADMITS whose backtest rests on a broker rule no
     // MATCHing capture pins (B-EXIT-NA, not in brokerPins.resolved.json) is still refused BY NAME, by the same guard
-    // and rule, at one of two places (engine 76 #1803, NUMBER PENDING fix/strategy-disarmed-taint):
+    // and rule, at one of two places (engine 76 #1803, engine 77 #1833 fix/strategy-disarmed-taint):
     //   macd-shortlong   its backtest ALONE, at the report: its six MACD plots read no broker value (its ORDER logic
     //                    reads `strategy.position_size`), so they are drawn beside the refused backtest;
     //   stop-loss-and-take-profit   at its run: its three plots all draw broker values (`strategy.position_avg_price`),

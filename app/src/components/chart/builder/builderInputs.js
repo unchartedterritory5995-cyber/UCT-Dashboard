@@ -393,7 +393,7 @@ function displacementRefusal(key, entry) {
     + 'TO CHANGE IT: change the value in the script and paste it again.' }
 }
 
-/** ⭐ NUMBER PENDING (bt) — the one sentence for "this knob would cost the script its install".
+/** ⭐ Engine 66 (#1473) (bt) — the one sentence for "this knob would cost the script its install".
  *  Its own sentence for the same reason `displacementRefusal` has one: the default is folded in
  *  and the column is right, but the cause is the install budget, not a window or an offset. */
 function budgetRefusal(key, entry) {
@@ -482,7 +482,7 @@ function positionVerdict(source, candidates) {
     if (entry && entry.displacementBound) {
       return displacementRefusal(key, entry)
     }
-    // ⭐ NUMBER PENDING (bt) — and a third: an input given back to the install budget
+    // ⭐ Engine 66 (#1473) (bt) — and a third: an input given back to the install budget
     // (`memberInputTranslation`) is folded out of the formula by a LATER pass's choice.
     if (entry && entry.budgetBound) {
       return budgetRefusal(key, entry)
@@ -889,7 +889,7 @@ export function memberInputTranslation(translate, source, opts = {}) {
       }
     }
   }
-  // ⭐⭐ NUMBER PENDING (bt) — A KNOB MAY NEVER COST THE SCRIPT ITS INSTALL EITHER. A declared
+  // ⭐⭐ Engine 66 (#1473) (bt) — A KNOB MAY NEVER COST THE SCRIPT ITS INSTALL EITHER. A declared
   // input is a `series` leaf named for the input (`pine.js`, `inputName`), and the install budget
   // counts DISTINCT series names (`budget.js::seriesRefs`, cap `maxSeriesRefs`), so a column the
   // author's defaults draw within the cap can measure over it once its knobs are live — and the

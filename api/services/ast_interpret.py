@@ -939,7 +939,7 @@ def _exact_sum(series: Sequence[float], lo: int, hi: int) -> float:
 
 def _window_mean(series: Sequence[float], lo: int, hi: int) -> float:
     """``ta.sma``: the EXACTLY ROUNDED window sum over its length (``math.fsum``), the twin of
-    ``interpret.js::windowMean`` / ``exactSum`` (SMA-EXACT, NUMBER PENDING): TradingView's sma
+    ``interpret.js::windowMean`` / ``exactSum`` (SMA-EXACT, Engine 65 (#1484)): TradingView's sma
     equals it on every bar of every capture from 2026-11-14 on. A NaN in the window answers NaN."""
     return _exact_sum(series, lo, hi) / (hi - lo + 1)
 

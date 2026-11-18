@@ -1,4 +1,4 @@
-// ⭐⭐ NUMBER PENDING (bt, 2026-11-16) — `time(tf, session[, zone])`: the wrapping session, the
+// ⭐⭐ Engine 66 (#1473) (bt, 2026-11-16) — `time(tf, session[, zone])`: the wrapping session, the
 // session that runs to midnight, the v4 default days, the UTC spelling of a fixed zone, and the bare
 // `period` of v1-v3 — each held to what witnesses it.
 //
