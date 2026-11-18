@@ -513,7 +513,7 @@ export const CALL_EXPANSIONS = Object.freeze({
   },
   // Fisher Transform — `fisherTree` above. NUMBER PENDING.
   fisher: {
-    min: 1, max: 1, signature: 'fisher(length)', describe: 'the Fisher Transform as TradingView computes it: where the bar\'s midpoint sits in its range over `length` bars, smoothed, stretched with a log and smoothed again. Its trigger line is `fisher(length)` one bar earlier',
+    pending: true, min: 1, max: 1, signature: 'fisher(length)', describe: 'the Fisher Transform as TradingView computes it: where the bar\'s midpoint sits in its range over `length` bars, smoothed, stretched with a log and smoothed again. Its trigger line is `fisher(length)` one bar earlier',
     vendorNote: FISHER_NOTE,
     build: (a) => fisherTree(a[0]),
   },
