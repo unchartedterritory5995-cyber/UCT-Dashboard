@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import json
 
+import pathlib
+
 import pytest
 
 from api.services import definition_concierge as dc
@@ -45,7 +47,8 @@ def create(tree, key="rule", name="My rule"):
 
 def test_the_held_names_and_what_each_carries():
     # Pocket Pivot was held until 2026-11-18; it is a library entry now (tests/test_library_pocket_pivot.py)
-    assert set(HELD) == {"ttm_squeeze", "mansfield_relative_strength"}
+    # and two more are names of UCT's own built-in indicators (tests/test_named_built_ins.py)
+    assert set(HELD) == {"ttm_squeeze", "mansfield_relative_strength", "rs_rating", "rs_phases"}
     built = {e["id"] for e in ni.entries()}
     built_aliases = {a for e in ni.entries() for a in e["aliases"]}
     for e in ni.held_names():
@@ -78,7 +81,6 @@ def test_the_way_forward_is_what_the_member_reads():
 @pytest.mark.parametrize("message", [
     "Add the TTM Squeeze", "add a ttm squeeze", "TTM SQUEEZE", "add a ttm squeeze marker in a lower pane",
     "ttm squeeze please", "TTM squeeze with dots on the zero line",
-    "Add the Mansfield Relative Strength", "mansfield relative performance",
     "ttm squeeze on NVDA", "Add the TTM Squeeze with a 50 day average", "TTM Squeeze 20 2 1.5",
 ])
 def test_a_held_name_alone_is_refused_by_name_before_any_call(conv, clean_env, model, message):
@@ -89,12 +91,30 @@ def test_a_held_name_alone_is_refused_by_name_before_any_call(conv, clean_env, m
     assert "(for example: " in r["reason"]
 
 
+@pytest.mark.parametrize("message", ["Add the Mansfield Relative Strength", "mansfield relative performance"])
+def test_a_held_name_that_lives_elsewhere_says_where(conv, clean_env, model, message):
+    """Mansfield Relative Strength is a Screener column today and no built-in draws it on a chart:
+    the answer says where the number is, and still offers the member's own words."""
+    client = model([])
+    r = conv.converse(message, user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is False and r["gate"] == UNCHECKED and client.calls == [], r
+    assert r["reason"] == ni.way_forward(HELD["mansfield_relative_strength"])
+    assert r["reason"].startswith('Mansfield Relative Strength is a Screener column in UCT today (the Screener, under '
+                                  'Relative Strength, as "Mansfield RS"), not a chart line yet.')
+    assert "in your own words (for example: " in r["reason"] and len(r["reason"]) < 400
+    # the place it names is the Screener's own label for that column and its group
+    filters = (pathlib.Path(__file__).resolve().parents[1] / "api" / "services" / "screener" / "filters.py").read_text(encoding="utf-8")
+    assert '_open_range("mansfield", "Mansfield RS", "relative_strength", "mansfield"' in filters
+    assert '"relative_strength": {"label": "Relative Strength"' in filters
+
+
 def test_every_held_alias_is_refused_however_it_is_capitalised(conv):
     for e in ni.held_names():
         for alias in e["aliases"]:
             for words in (alias, alias.title(), alias.upper()):
                 got = conv.understand_turn(f"add the {words}", CHART)
-                assert got["refusal"] is not None and got["refusal"]["gate"] == UNCHECKED, words
+                gate = conv.NAMED_BUILT_IN_GATE if ni.built_in(e) is not None else UNCHECKED
+                assert got["refusal"] is not None and got["refusal"]["gate"] == gate, words
                 assert got["refusal"]["reason"] == ni.way_forward(e), words
 
 

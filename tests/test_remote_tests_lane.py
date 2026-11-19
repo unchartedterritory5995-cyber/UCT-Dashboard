@@ -254,3 +254,101 @@ def test_test_only_packages_install_only_when_the_ref_has_the_file():
     install = [s for s in _wf()["jobs"]["pytest"]["steps"] if s.get("name") == "Install"][0]["run"]
     assert "if [ -f tests/ci-only-packages.txt ]; then python -m pip install --quiet -r tests/ci-only-packages.txt; fi"         in install, install
     assert (ROOT / "tests" / "ci-only-packages.txt").is_file()
+
+
+# ---- D1 (2026-11-18): allowlisted measurement variables in, remote-out/ back -------------------------------------
+GOOD_ENV = ["VENDOR_HARNESS_RUNTIME_ON=1", "VENDOR_HARNESS_DIR=../tests/fixtures/vendor/harness",
+            "VENDOR_HARNESS_OUT=../remote-out/runtime-on"]
+
+
+def test_D1_allowlisted_measurement_variables_are_accepted():
+    assert rt.validate(GOOD_REF, [], ["src/lib"], 1, GOOD_ENV) == []
+    assert rt.validate_env(["CAPABILITY_CENSUS_OUT=remote-out/cap.json"]) == []
+
+
+@pytest.mark.parametrize("pair", ["ANTHROPIC_API_KEY=x", "GITHUB_TOKEN=x", "PATH=/usr/bin", "PINE_LIBRARY_STORE=/s",
+                                  "NODE_OPTIONS=--require=evil", "LD_PRELOAD=x.so"])
+def test_D1_a_name_off_the_allowlist_is_refused_whatever_it_is(pair):
+    """Never a secret, never a variable that changes how a program loads: only the measurement switches."""
+    assert rt.validate_env([pair]), pair
+
+
+@pytest.mark.parametrize("value", ["$(id)", "`id`", "x;$HOME", "x\ny", "'q'", '"q"', "x*", "a\\b", "x" * 201])
+def test_D1_a_value_cannot_carry_shell_or_a_newline(value):
+    assert rt.validate_env([f"VENDOR_HARNESS_DIR={value}"]), value
+
+
+def test_D1_an_out_variable_must_land_in_remote_out():
+    assert rt.validate_env(["VENDOR_HARNESS_OUT=../docs/pine/vendor-harness/runtime-on"])
+    assert rt.validate_env(["RUN_HALF_OUT=/tmp/x"])
+    assert rt.validate_env(["VENDOR_HARNESS_OUT=../remote-out/rt"]) == []
+
+
+def test_D1_malformed_duplicated_or_too_many_pairs_are_refused():
+    assert rt.validate_env(["VENDOR_HARNESS_DIR"])
+    assert rt.validate_env(["VENDOR_HARNESS_DIR=a", "VENDOR_HARNESS_DIR=b"])
+    assert rt.validate_env([f"VOCAB_CENSUS={i}" for i in range(rt.MAX_ENV + 1)])
+
+
+def test_D1_the_plan_job_emits_only_validated_env(tmp_path, monkeypatch):
+    out = tmp_path / "out"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(out))
+    monkeypatch.setenv("RT_REF", GOOD_REF)
+    monkeypatch.setenv("RT_PYTEST", "")
+    monkeypatch.setenv("RT_VITEST", "src/lib")
+    monkeypatch.setenv("RT_SHARDS", "1")
+    monkeypatch.setenv("RT_ENV", " ".join(GOOD_ENV))
+    assert rt.main(["--validate-inputs"]) == rt.OK
+    assert "env=" + " ".join(GOOD_ENV) in out.read_text(encoding="utf-8").splitlines()
+    out.unlink()
+    monkeypatch.setenv("RT_ENV", "GITHUB_TOKEN=x")
+    assert rt.main(["--validate-inputs"]) == rt.FAIL
+    assert not out.exists() or "env=" not in out.read_text(encoding="utf-8"), "a refused request emitted env"
+
+
+def test_D1_every_allowlisted_name_is_really_read_somewhere():
+    """An allowlist entry nobody reads is noise that will drift: each name must appear in app/src or tools/."""
+    import subprocess
+    unread = []
+    for n in sorted(rt.ENV_ALLOWLIST):
+        r = subprocess.run(["git", "grep", "-l", "-F", n, "--", "app/src", "tools"], capture_output=True, text=True,
+                           cwd=ROOT)
+        if not [f for f in r.stdout.split() if f != "tools/remote_tests.py"]:
+            unread.append(n)
+    assert unread == []
+
+
+def test_D1_env_reaches_the_tests_only_through_GITHUB_ENV():
+    wf = _wf()
+    assert wf["jobs"]["plan"]["outputs"]["env"] == "${{ steps.v.outputs.env }}"
+    for name in ("pytest", "vitest"):
+        steps = wf["jobs"][name]["steps"]
+        exp = [s for s in steps if (s.get("env") or {}).get("RT_ENV") == "${{ needs.plan.outputs.env }}"]
+        assert len(exp) == 1, name
+        assert "set -f" in exp[0]["run"] and '>> "$GITHUB_ENV"' in exp[0]["run"], name
+        test_step = next(i for i, s in enumerate(steps) if s.get("id") == "t")
+        assert steps.index(exp[0]) < test_step, f"{name}: the variables are exported after the tests ran"
+    for name, job in wf["jobs"].items():
+        for s in job["steps"]:
+            assert "outputs.env" not in (s.get("run") or ""), (name, s.get("name"))
+
+
+def test_D1_every_test_job_uploads_remote_out():
+    for name in ("pytest", "vitest"):
+        ups = [s for s in _wf()["jobs"][name]["steps"]
+               if str(s.get("uses", "")).startswith("actions/upload-artifact")
+               and (s.get("with") or {}).get("path") == "remote-out/"]
+        assert len(ups) == 1 and str(ups[0]["with"]["name"]).startswith("remote-out-"), name
+        assert ups[0].get("if") == "always()", name
+
+
+def test_D1_outputs_are_collected_and_never_read_as_junit(tmp_path):
+    art = tmp_path / "art"
+    (art / "remote-out-vitest-1" / "runtime-on").mkdir(parents=True)
+    (art / "remote-out-vitest-1" / "runtime-on" / "verdicts.json").write_text("{}", encoding="utf-8")
+    (art / "remote-out-vitest-1" / "runtime-on" / "report.xml").write_text("<not junit", encoding="utf-8")
+    dest = tmp_path / "dest"
+    got = rt.collect_outputs(art, dest)
+    assert got == [dest / "remote-out-vitest-1"]
+    assert (dest / "remote-out-vitest-1" / "runtime-on" / "verdicts.json").read_text(encoding="utf-8") == "{}"
+    assert rt.failing_tests(art) == [], "a test's own output was parsed as a junit file"

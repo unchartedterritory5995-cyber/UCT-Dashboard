@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import datetime as _dt
 import logging
+import threading
+from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import TimeoutError as _FutTimeout
 
 from api.services import polygon_options
 from api.services.cache import TTLCache
@@ -501,6 +504,14 @@ def _move_is_good(payload: dict | None) -> bool:
     return payload is not None
 
 
+def _move_key(sym: str | None, report_date: str | None, timing: str | None = None) -> str:
+    """The one spelling of a straddle's cache key. An AMC read picks a different
+    expiry, so it is a different entry. `uct_agent/marketdata/earnings_expected_move.cache_key`
+    restates the no-timing form on purpose; do not change the string."""
+    return (f"expmove::{(sym or '').upper()}::{report_date or ''}"
+            + ("::amc" if reports_after_close(timing) else ""))
+
+
 def get_expected_move(sym: str, report_date: str | None = None,
                       *, outcome: dict | None = None, timing: str | None = None) -> dict | None:
     """Cached front for `compute_expected_move`: fresh TTL cache wins; else the
@@ -521,7 +532,7 @@ def get_expected_move(sym: str, report_date: str | None = None,
     should be able to answer tomorrow without waiting out a TTL."""
     amc = reports_after_close(timing)
     # an AMC read picks a different expiry, so it is a different cache entry
-    key = f"expmove::{(sym or '').upper()}::{report_date or ''}" + ("::amc" if amc else "")
+    key = _move_key(sym, report_date, timing)
     built: dict = {}
 
     def _build():
@@ -548,3 +559,148 @@ def get_expected_move(sym: str, report_date: str | None = None,
                        else (dict(built) or {"ok": False, "kind": KIND_UNAVAILABLE,
                                              "reason": UNAVAILABLE_NO_CHAIN}))
     return dict(result) if result is not None else None
+
+
+# ── One bounded read for the callers that know a report, not a chain ──────────
+#
+# The earnings preview/analysis enrichment, the Discord chart context line, the
+# earnings-reaction panel and the Notebook "my names reporting" widget all want
+# the same thing: the straddle for ONE report, in the field names they already
+# read (`pct` at 1dp, `dollar`, `expiry`, `strike`, `spot`, `call_mark`,
+# `put_mark`), or None. `report_move` is that read over `get_expected_move`.
+#
+# WHY IT IS MORE THAN A RENAME OF KEYS. `get_expected_move` has no wall clock of
+# its own: with nothing held for a key the CALLER builds, and a cold build is an
+# expirations read plus a chain read, each paginated under its own budget. Some
+# of these callers sit under a member's request or a deadline of their own, so:
+#
+#   * a HELD answer (fresh, or the last good one inside `_MOVE_STALE`'s bound) is
+#     returned inline: no thread hop and no chain read on the caller's thread;
+#   * anything else is built on `_REPORT_POOL` and the caller waits at most
+#     `timeout`. Past that the caller gets None with `chain_timeout`, the build
+#     keeps running and fills the cache, and the next ask is a held answer;
+#   * one build per key at a time (`_report_inflight`: a second asker waits on the
+#     first one's future), and at most `REPORT_MAX_PENDING` keys in the pool: past
+#     that the answer is None AT ONCE, never a queue that outlives a slow chain.
+#
+# The pool is therefore the limiter for every caller here: a loop over a list
+# (the weekly earnings warm, a watchlist widget) reaches the chain source at
+# most `REPORT_POOL_WORKERS` builds at a time, whatever the list's length, and a
+# straddle built for one caller is the held answer for all the others.
+REPORT_POOL_WORKERS = 4
+REPORT_MAX_PENDING = 32
+REPORT_MOVE_TIMEOUT_S = 15.0
+_REPORT_POOL = ThreadPoolExecutor(max_workers=REPORT_POOL_WORKERS, thread_name_prefix="report-move")
+_report_lock = threading.Lock()
+_report_inflight: dict[str, tuple[Future, dict]] = {}
+
+
+def _move_is_held(key: str) -> bool:
+    """True when `get_expected_move` would answer `key` without building: a fresh
+    TTL entry, or a last-good straddle still inside the stale bound."""
+    if _MOVE_CACHE.get(key) is not None:
+        return True
+    value, age = _MOVE_STALE.peek(key)
+    return value is not None and age is not None and age <= _MOVE_STALE.max_age
+
+
+def report_shape(move: dict | None) -> dict | None:
+    """A straddle in the shape the report callers read, or None.
+
+    ROUNDING IS LOAD-BEARING, exactly as in the Calendar's own mapping
+    (`calendar._inhouse_move`): these readers print `pct` with no formatter of
+    their own, so it leaves here at 1dp and the dollar figures at 2dp. `call_mark`
+    / `put_mark` keep the names the earnings-reaction panel renders; each is the
+    bid/ask midpoint (this source has no last-trade fallback). `source`, `asof`
+    (when the chain was read) and `horizon` ride along so a payload can say where
+    its number came from and how old it is."""
+    if not isinstance(move, dict):
+        return None
+    try:
+        return {
+            "pct": round(float(move["pct"]), 1),
+            "dollar": round(float(move["dollar"]), 2),
+            "expiry": move.get("expiry"),
+            "strike": float(move["strike"]),
+            "spot": round(float(move["spot"]), 2),
+            "call_mark": round(float(move["call_mid"]), 2),
+            "put_mark": round(float(move["put_mid"]), 2),
+            "horizon": move.get("horizon"),
+            "asof": move.get("asof"),
+            "source": move.get("source") or "massive-chain",
+        }
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _not_read(reason: str) -> dict:
+    return {"ok": False, "kind": KIND_UNAVAILABLE, "reason": reason}
+
+
+def _report_job(key: str, sym: str, report_date: str | None, timing: str | None, holder: dict):
+    try:
+        oc: dict = {}
+        move = get_expected_move(sym, report_date, outcome=oc, timing=timing)
+        # One assignment of a finished dict: a waiter sees all of it or none of it.
+        holder["outcome"] = oc
+        return move
+    finally:
+        with _report_lock:
+            _report_inflight.pop(key, None)
+
+
+def _bounded_build(key: str, sym: str, report_date: str | None, timing: str | None,
+                   timeout: float) -> tuple[dict | None, dict]:
+    """(move or None, outcome) from the pool, waiting at most `timeout` seconds."""
+    with _report_lock:
+        slot = _report_inflight.get(key)
+        if slot is None:
+            if len(_report_inflight) >= REPORT_MAX_PENDING:
+                return None, _not_read(UNAVAILABLE_TIMEOUT)
+            holder: dict = {}
+            slot = (_REPORT_POOL.submit(_report_job, key, sym, report_date, timing, holder), holder)
+            _report_inflight[key] = slot
+    fut, holder = slot
+    try:
+        move = fut.result(timeout=max(0.0, float(timeout)))
+    except _FutTimeout:
+        # "We did not get an answer in time" is not "there is no answer": an
+        # `unavailable` reason, never a refusal.
+        return None, _not_read(UNAVAILABLE_TIMEOUT)
+    except Exception as exc:  # noqa: BLE001 -- a failed read is an empty cell, never a raise
+        _log.warning("report_move %s: the chain read raised: %s", sym, exc)
+        return None, _not_read(UNAVAILABLE_READ_ERROR)
+    return move, dict(holder.get("outcome") or {})
+
+
+def report_move(sym: str, report_date: str | None = None, *, timing: str | None = None,
+                outcome: dict | None = None,
+                timeout: float = REPORT_MOVE_TIMEOUT_S) -> dict | None:
+    """The straddle for `sym`'s report, shaped by `report_shape`, or None.
+
+    Never raises and never returns a zero in place of "no answer". Returns at
+    once when a straddle is held; otherwise waits at most `timeout` seconds for a
+    build that runs on this module's own pool (see the block comment above).
+    `outcome` is the same optional OUT-dict `get_expected_move` fills
+    (`{"ok", "kind", "reason"}`); a timeout or a full pool reads `chain_timeout`."""
+    move, oc = None, {}
+    sym = str(sym or "").strip().upper()
+    try:
+        key = _move_key(sym, report_date, timing)
+        if not sym:
+            oc = _not_read(UNAVAILABLE_NO_CHAIN)
+        elif _move_is_held(key):
+            move = get_expected_move(sym, report_date, outcome=oc, timing=timing)
+        else:
+            move, oc = _bounded_build(key, sym, report_date, timing, timeout)
+    except Exception as exc:  # noqa: BLE001 -- same rule as above
+        _log.warning("report_move %s: %s", sym, exc)
+        move, oc = None, _not_read(UNAVAILABLE_READ_ERROR)
+    shaped = report_shape(move) if move is not None else None
+    if move is not None and shaped is None:
+        oc = _not_read(UNAVAILABLE_READ_ERROR)
+    if outcome is not None:
+        outcome.clear()
+        outcome.update({"ok": True} if shaped is not None
+                       else (oc if oc and not oc.get("ok") else _not_read(UNAVAILABLE_NO_CHAIN)))
+    return shaped

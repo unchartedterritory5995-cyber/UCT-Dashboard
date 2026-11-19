@@ -727,6 +727,87 @@ unchanged).
   #1868's rounding, so graded on that supply their RS line reads about 1e-7 off. They stay local, cited as
   witnesses, and are re-captured beside a rounded supply once #1868 is deployed.
 
+## L12 PR 2 (U-DAILY): the rating's daily reads on an INTRADAY chart (2026-11-18, branch `feat/rs-intraday-daily`, stacked on L12 PR 1)
+
+**What it serves.** Fred RS's rating reads `request.security(syminfo.tickerid, 'D', close)` and
+`request.security(comparativeTickerId, 'D', close)`. On an intraday chart TradingView prints the label "RS Rating"
+with an EMPTY rating (the number prints only when `timeframe.isdaily`, unless Rating Only), and draws the new-high /
+new-low dots on the RS line. Both live in the run half, which until now was refused by name on an intraday chart (a
+daily read above the chart was not one the run read), so the RS line drew (L12 PR 1) and the labels and dots did not.
+
+**The reads, witnessed** (`l12-is-2026-11-18`, look-ahead off, extended-hours chart):
+
+- **This chart's OWN symbol at `"D"`** (the rs-own-daily probe, RDDT 5m / 60m): every chart bar of a session reads the
+  PREVIOUS session's daily close (5m: pre 5,259, regular 11,154, post 4,062 bars), except the session's LAST chart
+  bar, which reads its own (5m 19:55 on 95 of 95 days, 60m 19:00 on 656 of 656: the daily bar closes with the
+  extended session), and the newest bar, which reads the session in progress (the developing day, = the chart's close).
+- **SP:SPX at `"D"`** (the rs-spx probe's X01..X04, 1 / 5 / 15 / 30 / 60m): a bar opening before the session's close
+  reads the previous session's daily row (every pre-market and regular bar), a bar from the close the session's own
+  (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still read the previous one,
+  the official print's own lag: 205 of 2,463 1m and 142 of 4,157 5m post bars).
+- **The seed (`request.seed`, which IS `request.security(<seed>, "D", …)`, `pine.js::seedAsSecurity`)** (the rs-seed
+  probe on RDDT 1 / 5 / 15 / 30 / 60m, `l12-now-2026-11-18` and `l12-seed3-now-2026-11-18`, captured after the close):
+  each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00
+  bar, or the next bar where a 5m chart has none at 19:00; in EDT, 20:00 ET being past the extended session, the next
+  session's 04:00 bar); several rows on one bar (a weekend's) the NEWEST; every other bar `na`. 22,216 / 20,681 /
+  21,018 / 19,830 / 10,353 graded bars, values and na, all three fields, against our store's rows recorded beside;
+  "the oldest wins" is off on the 2 weekend bars, a bar that CONTAINS the instant on 17 to 21, ET midnight on 18 to 27
+  (`utc-midnight-at-or-after`). ⭐ INFERRED, not captured: the chart's FIRST bar (every capture's history began before
+  the seed's): a row lands there only if its instant falls after the extended-hours grid slot before it.
+
+**How.** `pine.js` mints a daily read above an intraday chart as an `above` request target, for a BARE open / high /
+low / close, look-ahead off (anything else declines exactly as before), and ONLY in the run's own request reader
+(`Resolver` option `aboveDailyReads`, set by `pineRuntimeFrontend.js`'s `targetReader`): `requestTargetOf` is shared
+with the host translator, whose refusals (ruling 3.5, C49, C23) stay verbatim. The host lane never draws it (the daily
+gate). The run's supply (`requestSupply.js::aboveChartRead`) evaluates the expression on the symbol's HELD daily rows
+and places them per chart bar:
+- SP:SPX from `SPX@D` (the intraday block's `D: session-completed`, `requestWitnesses.json`), never from a forming row;
+- the chart symbol's own daily rows under `OWN_DAILY_KEY` (`OWN~D`: never `<TICKER>@D`, which `heldKeyParts` would read
+  as a listing), which the chart fetches only for a run that reads them (`useSecondarySources::ownDailyNeeded`, from
+  `runtimeColumns.js::runtimeReadsOwnDaily`, the run's own compile for that timeframe, memoised), as deep as a held
+  daily read (`heldDepthOf`), on the live tail, and in the binder's signature (`otherSymbolsSignature`).
+A bar whose row is not held is unknown, and the supply's rules apply (the run refuses a request it cannot read on every
+settled bar). The vendor harness files a second held series and the own daily rows from a supply record
+(`ourSide.js::otherSymbolSupply`).
+
+**The seed's placement** (`otherSymbols.js::utcMidnightAtOrAfterOf`): the held daily rows (`<seed>@D`: an intraday
+timeframe's SECOND block shape, held at D alone and read at D) are landed on the chart's OWN bars, never on a grid
+(the supply now hands the bind the chart's bars, `withChartNewestDay`; a read not handed them is refused by name),
+keyed by the landing bar's `t`, gaps `na` (`SERIES_GAPS_READ_NA`); `aboveChartRead` aligns them by exact time.
+
+**Two holes U-DAILY's first rails never reached** (Fred RS's run half on a 5m chart found both): an expression over a
+read above the chart (`na(x) ? 1 : 0`) refused `pine:request`, because only the run's REQUEST reader read `above` and
+its column resolver declined it; and the chart's OWN read translates (for the columnar lane) to a plain gated `close`,
+which looked pure, so `closeDa = request.security(syminfo.tickerid, 'D', close)` became a substituted macro and Fred
+RS's `closeDa[n63]` a column the daily gate withheld whole (`runtime:request`; another symbol's read only escaped by
+its `sym` tree reading as state). Both run resolvers now read `above` (the host translator never does), and
+`pineRuntimeFrontend.js::needsRuntime` answers true for such a request (`isAboveRequest`): a slot wherever it is used.
+
+**Rails.** `rsIntradayDaily.test.js` (10): the target minted for a bare OHLC on an intraday timeframe only, never for
+another expression or a look-ahead; the member door does not refuse it before a chart is known; the own symbol's
+placement (the previous session, the day's last bar its own, the newest bar the session's) and the refusals (not handed
+the rows: by name; loading: pending; a bar before the rows: unknown); SP:SPX's session-completed placement and a forming
+session's post-market bars; the fetch (`ownDailyNeeded`, `OWN~D` asked as the chart symbol at D, never as a ticker) and
+the signature; (+1) history, an input offset, an inline offset and a derived expression over the read.
+`rsIntradaySeed.test.js` (11): the placement (EDT and EST, a missing 19:00 bar, a weekend's rows, the first bar), the
+refusals, the block shape, the bind, the run, and Fred RS's run half SERVED on a 5m chart ("RS Rating" and the empty
+rating text at the RS line; control: the seed not held, not served).
+
+**Graded against TradingView's own captures** (`l12-now-2026-11-18`, Fred RS on NYSE:RDDT 5m / 60m, over the
+window the product shows, the newest 5,000 bars, on the supply our server served at 21:25:19Z): the RS line 4,991 /
+3,687 bars exact, 4,998 / 4,964 equal at two decimals; the 5m misses are the newest post-market bars inside the
+official print's lag, the 60m ones our SPX hourly prints (yfinance) against TradingView's (worst 0.3%, one 2026-01-30
+hour; and a 2026-02-02 hole of four hours, where the run refuses rather than guess). TradingView's labels at the last
+bar: "RS Rating" and the empty rating text at the RS line, as the rail asserts.
+
+**⛔ KNOWN LIMIT, handed to the engine lane (WS-C Q1).** Fred RS's seed loop reads `curveRsPerf[delta .. delta + 34]`
+past its declared `max_bars_back = 253` wherever the seed lands rarely (1m / 5m: `delta` was 423 on TradingView's own
+5m capture, which drew the labels); our VM stops the run half there (`vm.js` `READ_HIST_SLOT_DYN`), so on 1m / 5m the
+label and dots are withheld by name (the RS line is not). TradingView never stops on such reads: WS-C Q1's M1..M5
+(`wsc-mbb-2026-11-18`, the committed probes) and Q-MBB-1 / Q-MBB-2 (`mbb-2026-11-18`, `mbb-late-2026-11-18`) answer the
+REAL history past a declared buffer, constant or dynamic, early or late, and past 5,000 for a constant offset. The
+rule change touches L4b's ring budget, so it is the engine lane's (coordinator, 2026-11-18).
+
 ## Owner rulings
 
 - **2026-11-16, the S&P 500 history difference (Q-RS9):** told that the RS line on bars before

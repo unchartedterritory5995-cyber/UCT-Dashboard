@@ -199,7 +199,8 @@ describe('which intraday timeframes are served, and what the chart fetches', () 
     const rows = requestWitnessRows()
     for (const tf of ['1', '5', '15', '30', '60']) {
       expect(heldFetchOf('SPX', tf), tf).toEqual({ symbol: 'SPX', tf, key: 'SPX' })
-      expect(rows['SP:SPX'].periods[tf].reads).toEqual({ period: 'latest-at-or-before' })
+      // ⭐ L12 PR 2 — and its daily read above the chart (U-DAILY, `rsIntradayDaily.test.js`)
+      expect(rows['SP:SPX'].periods[tf].reads).toEqual({ period: 'latest-at-or-before', D: 'session-completed' })
       expect(rows['SP:SPX'].periods[tf].alsoHeld).toBe('D')
       expect(rows['SP:SPX'].periods[tf].witness, tf).toMatch(/2026-11-18/)
     }
@@ -230,12 +231,17 @@ describe('which intraday timeframes are served, and what the chart fetches', () 
     expect(r.refused[0].pending).toBe(true)
   })
 
-  it('⛔ a "D" read on an intraday chart is not this unit: refused by name', () => {
+  it('⭐ L12 PR 2 — a "D" read on an intraday chart is handed the daily rows keyed by session, unplaced (the run places them)', () => {
     const def = { compute: { kind: 'ast', ast: { type: 'sym', value: 'SPX', args: [{ type: 'num', value: 0 }] } },
       meta: { recurrenceOrigin: 'pine', otherSymbols: [{ ticker: 'SPX', spellings: ['SP'] }] } }
     const r = resolveOtherSymbols(def, { ...ctx5(), requestCode: 'D' })
-    expect(r.served).toEqual([])
-    expect(r.refused[0].code).toBe(R.WITNESS_TIMEFRAME)
+    expect(r.served).toEqual(['SPX'])
+    expect(r.samples.SPX).toBe('session-completed')
+    expect(r.symbols.SPX.map((b) => [b.t, b.c])).toEqual(SPX_D.map((b) => [new Date(b.t * 1000).toISOString().slice(0, 10), b.c]))
+    // ⛔ a read at another code is still refused by name
+    const w = resolveOtherSymbols(def, { ...ctx5(), requestCode: 'W' })
+    expect(w.served).toEqual([])
+    expect(w.refused[0].code).toBe(R.WITNESS_TIMEFRAME)
   })
 })
 

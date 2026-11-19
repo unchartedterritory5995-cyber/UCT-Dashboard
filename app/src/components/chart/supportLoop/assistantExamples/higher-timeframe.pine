@@ -1,0 +1,4 @@
+//@version=5
+indicator("Weekly 10 SMA", overlay=true)
+w = request.security(syminfo.tickerid, "W", ta.sma(close, 10))
+plot(w, "Weekly 10 SMA", color=color.purple)

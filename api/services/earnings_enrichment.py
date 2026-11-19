@@ -5,8 +5,11 @@ Provides high-value pre-earnings data members care about:
 - Historical earnings-day moves (avg ± move over last N reports)
 - Estimate / analyst revision trends (Finnhub recommendation-trends proxy)
 - Beat-magnitude history (surprise % per quarter for visualization)
-- Implied move from front-week ATM options straddle (yfinance; the SPOT comes
-  out of the chain response itself, not a second fetch — see section 5)
+- Implied move from the ATM options straddle. Two readers: the preview/analysis
+  enrichment (`enrich_earnings_response`) reads `implied_move.report_move`, our
+  own option chain read; `get_implied_move` here (yfinance; the SPOT comes out of
+  the chain response itself, not a second fetch — see section 5) is what the
+  Calendar's default enrichment path still calls
 - Key quotes extracted from the most recent earnings call transcript
 
 All helpers are best-effort — return None on any failure, never raise.
@@ -771,11 +774,18 @@ def _implied_for_report(sym: str, earnings_date: Optional[str],
     """The implied move for the report, with its session resolved: the caller's
     own timing when it has one (the earnings row's bucket), else
     `implied_move.report_timing` (engine weekly calendar, then Finnhub `hour`).
-    Unknown timing keeps the on-or-after rule -- the documented default."""
+    Unknown timing keeps the on-or-after rule -- the documented default.
+
+    The number is `implied_move.report_move`: the ATM straddle off our own option
+    chain read, the same one the Terminal's Expected Move panel shows, in this
+    module's field names plus `source` / `asof` / `horizon`. It is bounded there
+    (a held answer at once, else a build on that module's pool with a deadline),
+    so this leg adds no pool and no deadline here. `get_implied_move` below is
+    unchanged and is still what the Calendar's default enrichment path reads."""
+    from api.services.implied_move import report_move, report_timing
     if not timing and earnings_date:
-        from api.services.implied_move import report_timing
         timing = report_timing(sym, earnings_date)
-    return get_implied_move(sym, earnings_date, timing=timing)
+    return report_move(sym, earnings_date, timing=timing)
 
 
 def enrich_earnings_response(sym: str, av_quarters: list, earnings_date: Optional[str] = None,

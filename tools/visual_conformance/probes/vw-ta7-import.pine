@@ -1,0 +1,30 @@
+//@version=5
+indicator("UCTPROBE_VW_TA7_IMPORT", overlay = false)
+
+// PROVENANCE: written 2026-11-19 for the Pine parity programme (libraries chain, U-LIB L2), capture queue rows
+// Q-LIB-5a / Q-LIB-5b. NEVER COMPILED ON TRADINGVIEW. No licence-held text. It IMPORTS TradingView's published
+// library `TradingView/ta/7` (MPL-2.0, a v5 library, imported by a v5 script: no cross-version question) and never
+// copies a line of it.
+//
+// --- THE SECOND IMPORTING SCRIPT FOR THE `library:TradingView/ta/7` ROW ---
+// A library version is admitted on two importing scripts graded MATCH with the runtime pane on, one of them a
+// community script (U15). kalman-psar-backquant (community) is one: its RDDT capture grades MATCH on the runtime
+// lane with ta/7 linked (measured 2026-11-19). This probe is the second: the two exports kalman-psar calls, each
+// read as a plot, and a running total of one (state that carries forward, which only the runtime lane draws,
+// so the probe is drawn where the row's evidence must come from). Rows:
+//   A00  bar_index                          control
+//   L01  ta7.dema(close, 10)                (kalman-psar calls it)
+//   L02  ta7.tema(close, 10)                (kalman-psar calls it)
+//   L03  the running sum of dema - close    a `var` accumulator over L01
+// CAPTURE: NYSE:RDDT 1D and AMEX:SPY 1D, each from the listing, inputs at defaults (none), after the close. Read
+// every plot on every bar as full float64 text. If a row does not compile, record the error text and the line,
+// remove only that row, and capture the rest.
+import TradingView/ta/7 as ta7
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(ta7.dema(close, 10), "L01_dema_close_10")
+plot(ta7.tema(close, 10), "L02_tema_close_10")
+var float acc = 0.0
+d = ta7.dema(close, 10)
+acc += nz(d - close)
+plot(acc, "L03_running_sum_dema_minus_close")

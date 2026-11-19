@@ -59,3 +59,28 @@ list should equal its `:23456` and `:1234567` twins on every bar if the default 
 | Q-BLT-1b | `tools/visual_conformance/probes/vw-blt-session-default-days.pine` | NYSE:RDDT 30 | no | the same | the same, on a second symbol |
 | Q-BLT-2a | `tools/visual_conformance/probes/vw-blt-session-default-days-v1.pine` | AMEX:SPY 30 | no | every plot on every bar (each is 0 or 1) | the rule with no pragma: cm-forex-sessions-highlight-v1, trading-session-indicator |
 | Q-BLT-2b | `tools/visual_conformance/probes/vw-blt-session-default-days-v1.pine` | NYSE:RDDT 30 | no | the same | the same, on a second symbol |
+
+## BI1': TradingView's own `ta.sar` (U-BUILTIN)
+
+builtin:parabolic-sar is TradingView's Parabolic SAR, one `ta.sar(start, increment, maximum)` call over its three
+inputs. Both our lanes refuse `ta.sar` by name. The native formula language's `sar(step, maxStep)` is a different
+calculation, the chart's own Parabolic SAR rules (`callExpansions.js::SAR_NOTE`: "It is not TradingView's ta.sar"),
+so no existing capture or measurement stands for `ta.sar`. The community captures named parabolic-sar compute a SAR
+by hand and do not call it. The runtime lane's `ta.sar` (BI1', coordinator ruling 2026-11-18) is written from the
+Pine reference's own `pine_sar` code. It is served only once both rows grade MATCH on every bar; until then it is
+refused by name. The host lane keeps refusing it.
+
+| id | source | chart | live | what to record | unblocks |
+|---|---|---|---|---|---|
+| Q-BLT-3a | builtin Parabolic SAR (`builtin:parabolic-sar__PSAR`), inputs at their defaults | NYSE:RDDT 1D from the listing | no | the SAR plot on every bar | U-BUILTIN BI1': `ta.sar` on the runtime lane |
+| Q-BLT-3b | builtin Parabolic SAR (`builtin:parabolic-sar__PSAR`), inputs at their defaults | AMEX:SPY 1D from the listing | no | the same | the same, on a second symbol |
+
+## Not capture questions (queue dispositions)
+
+Each row above is a capture, taken from the listing by the capture session. The disposition only says that no
+probe file stands in for a built-in, so the queue lists them as built-ins rather than as probe targets.
+
+| not a capture | disposition | reason |
+|---|---|---|
+| Q-BLT-3a | builtin | the TradingView built-in Parabolic SAR (`builtin:parabolic-sar__PSAR`): no probe file can stand in for a built-in; captured from the listing |
+| Q-BLT-3b | builtin | the TradingView built-in Parabolic SAR (`builtin:parabolic-sar__PSAR`): no probe file can stand in for a built-in; captured from the listing |
