@@ -1,0 +1,204 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "HTF-LIVE-FIRST-PERIOD (fix/htf-live-first-period-mask): the host column's look-ahead read (`tf_live`) of a first period built from part of it is withheld by name wherever a root reads it; each `tf_live` child is walked on the higher-timeframe bars with every field but `close` (and every bar reader) unknown on the first one; a read of `close` alone keeps its picture; another request holding one keeps the field-unaware rule; both lanes. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "L1",
+   "mutant": "JS: the host chain drops the tf_live mask (master's column: the partial week drawn)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    tfLiveMask(tree, bars, opts, inputs, budget, scalars),",
+   "to": "    null,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
+   "expectRed": "live(high) (bars 0-2"
+  },
+  {
+   "id": "L2",
+   "mutant": "JS: close counted as a partial field (a correct picture taken away)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "const PARTIAL_PERIOD_SERIES = new Set(Object.keys(TABLE.series || {}).filter((name) => name !== 'close'))",
+   "to": "const PARTIAL_PERIOD_SERIES = new Set(Object.keys(TABLE.series || {}).filter(() => true))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
+   "expectRed": "KEPT live(close)"
+  },
+  {
+   "id": "L3",
+   "mutant": "JS: every site field-unaware (the first period's own bars only: a history inside the read leaks)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (u === FIELD_UNAWARE) return first",
+   "to": "    if (u === FIELD_UNAWARE || u) return first",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
+   "expectRed": "live(high[1]) (a history inside"
+  },
+  {
+   "id": "L4",
+   "mutant": "JS: the merge's pick in place of the look-ahead pick",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const reads = tfLiveReads(isos, code, at)",
+   "to": "    const reads = tfMergeReads(isos, code, at)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
+   "expectRed": "live(high) (bars 0-2"
+  },
+  {
+   "id": "L5",
+   "mutant": "JS: every higher-timeframe bar unknown, not the first one only",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  const firstOnly = () => { const c = new Float64Array(htf.length); c[0] = 1; return c }",
+   "to": "  const firstOnly = () => { const c = new Float64Array(htf.length); c.fill(1); return c }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
+   "expectRed": "live(high) (bars 0-2"
+  },
+  {
+   "id": "L6",
+   "mutant": "JS: a first bar that certainly opens its week judged partial",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (tfBucket(prev, code) !== tfBucket(first, code)) return null      // the first bar opens its period",
+   "to": "    if (false) return null      // the first bar opens its period",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
+   "expectRed": "CONTROL live(high) on the Monday set"
+  },
+  {
+   "id": "L7",
+   "mutant": "JS: a chart from the listing judged partial",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (!n || typeof code !== 'string' || (opts && opts.historyFromListing === true)) return null",
+   "to": "  if (!n || typeof code !== 'string') return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
+   "expectRed": "CONTROL live(high) from the listing"
+  },
+  {
+   "id": "L8",
+   "mutant": "JS: a bar reader inside the read not counted as a partial field",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    || (node.type === 'call' && BAR_READERS.includes(node.name)))",
+   "to": "    || false)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
+   "expectRed": "live(bop(1))"
+  },
+  {
+   "id": "L9",
+   "mutant": "JS: another request holding a look-ahead read is no site",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      const m = node.type === 'tf_live' ? liveOwn(node) : fieldUnaware(livesUnder(node))",
+   "to": "      const m = node.type === 'tf_live' ? liveOwn(node) : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
+   "expectRed": "sym('SPY', live(high))"
+  },
+  {
+   "id": "L10",
+   "mutant": "JS: the root walk not exact (a running value over the read withheld from the first unknown bar on)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    (nd) => Float64Array.from(own.get(nd)), TF_LIVE_FIRST_CODE, { exact: true })",
+   "to": "    (nd) => Float64Array.from(own.get(nd)), TF_LIVE_FIRST_CODE, { exact: false })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
+   "expectRed": "ema(live(high), 3)"
+  },
+  {
+   "id": "L11",
+   "mutant": "JS: the higher-timeframe walk not exact (a window inside reaches its declared lookback)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    { exact: true })",
+   "to": "    { exact: false })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
+   "expectRed": "live(sma(high, 2))"
+  },
+  {
+   "id": "PL1",
+   "mutant": "Python: the chain drops the tf_live mask",
+   "file": "api/services/ast_interpret.py",
+   "from": "        lived = tf_live_mask(ast, bars, opts, inputs, budget, scalars)",
+   "to": "        lived = None",
+   "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
+   "expectRed": "live(high) (bars 0-2"
+  },
+  {
+   "id": "PL2",
+   "mutant": "Python: close counted as a partial field",
+   "file": "api/services/ast_interpret.py",
+   "from": "_PARTIAL_PERIOD_SERIES = frozenset(name for name in TABLE[SERIES_SECTION] if name != \"close\")",
+   "to": "_PARTIAL_PERIOD_SERIES = frozenset(name for name in TABLE[SERIES_SECTION] if True)",
+   "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
+   "expectRed": "KEPT live(close)"
+  },
+  {
+   "id": "PL3",
+   "mutant": "Python: every site field-unaware",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if u == _FIELD_UNAWARE:",
+   "to": "        if u == _FIELD_UNAWARE or u:",
+   "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
+   "expectRed": "live(high[1]) (a history inside"
+  },
+  {
+   "id": "PL4",
+   "mutant": "Python: each chart bar reads the period before its own",
+   "file": "api/services/ast_interpret.py",
+   "from": "            if k is not None and u[at[k]]:",
+   "to": "            if k is not None and u[max(at[k] - 1, 0)]:",
+   "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
+   "expectRed": "live(high) (bars 0-2"
+  },
+  {
+   "id": "PL5",
+   "mutant": "Python: every higher-timeframe bar unknown",
+   "file": "api/services/ast_interpret.py",
+   "from": "        col = [0] * len(htf)",
+   "to": "        col = [1] * len(htf)",
+   "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
+   "expectRed": "live(high) (bars 0-2"
+  },
+  {
+   "id": "PL6",
+   "mutant": "Python: a first bar that certainly opens its week judged partial",
+   "file": "api/services/ast_interpret.py",
+   "from": "            return None                                        # the first bar opens its period",
+   "to": "            pass                                               # the first bar opens its period",
+   "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
+   "expectRed": "CONTROL live(high) on the Monday set"
+  },
+  {
+   "id": "PL7",
+   "mutant": "Python: a chart from the listing judged partial",
+   "file": "api/services/ast_interpret.py",
+   "from": "    if not n or not isinstance(code, str) or (opts or {}).get(\"historyFromListing\") is True:",
+   "to": "    if not n or not isinstance(code, str):",
+   "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
+   "expectRed": "CONTROL live(high) from the listing"
+  },
+  {
+   "id": "PL8",
+   "mutant": "Python: a bar reader not counted as a partial field",
+   "file": "api/services/ast_interpret.py",
+   "from": "            or (kind == \"call\" and node.get(\"name\") in BAR_READERS))",
+   "to": "            or False)",
+   "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
+   "expectRed": "live(bop(1))"
+  },
+  {
+   "id": "PL9",
+   "mutant": "Python: another request holding a look-ahead read is no site",
+   "file": "api/services/ast_interpret.py",
+   "from": "            m = live_own(node) if node.get(\"type\") == \"tf_live\" else field_unaware(lives_under(node))",
+   "to": "            m = live_own(node) if node.get(\"type\") == \"tf_live\" else None",
+   "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
+   "expectRed": "sym('SPY', live(high))"
+  },
+  {
+   "id": "PL10",
+   "mutant": "Python: the root walk not exact",
+   "file": "api/services/ast_interpret.py",
+   "from": "                         lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), exact=True)",
+   "to": "                         lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), exact=False)",
+   "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
+   "expectRed": "ema(live(high), 3)"
+  },
+  {
+   "id": "PL11",
+   "mutant": "Python: the higher-timeframe walk not exact",
+   "file": "api/services/ast_interpret.py",
+   "from": "                         _reads_partial_field, first_only, exact=True)",
+   "to": "                         _reads_partial_field, first_only, exact=False)",
+   "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
+   "expectRed": "live(sma(high, 2))"
+  }
+ ]
+}
