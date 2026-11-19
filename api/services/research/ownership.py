@@ -183,6 +183,72 @@ SHORT_STATES = ("ok", "none", "unavailable", "not_held")
 
 
 def _held_short(sym):
+    """The short interest block for `sym`: what the short interest service ALREADY HOLDS, read
+    only. First the stock's own held history (`_held_short_stock`: present for a while after a
+    member opens its short interest panel); when the service holds nothing for the stock, its row
+    of the market list (`_held_short_market`: the whole universe, kept built by the service's
+    daily warm). `basis` says which one answered. Never starts a build, never asks a vendor,
+    never raises."""
+    out = _held_short_stock(sym)
+    if out["state"] != "not_held":
+        return out
+    return _held_short_market(sym, out)
+
+
+def _held_short_market(sym, out):
+    """Fill `out` from the stock's row of the held market list (`short_data.held_market_row`).
+    The row is the same report and the same percent of float the short interest list prints.
+
+    'ok'          the stock is in the newest report
+    'none'        a list is held, the stock is one the list covers, and the report has no row for it
+    'unavailable' no list is held and the last build was refused or could not be read
+    'not_held'    otherwise (no list yet, or a symbol the list does not cover): unknown, never zero
+    """
+    try:
+        from api.services import short_data
+        row, how = short_data.held_market_row(sym)
+    except Exception as exc:  # noqa: BLE001 -- a held list that cannot be read is "not held"
+        _logger.warning("held short interest list could not be read for %s: %s", sym, type(exc).__name__)
+        return out
+    if how == "held" and isinstance(row, dict):
+        if row.get("short_interest") is None or not row.get("settlement_date"):
+            return out
+        pct, flt = row.get("pct_float"), row.get("float_shares")
+        had_before = row.get("prev_short_interest") is not None
+        out.update({
+            "state": "ok", "basis": "market_list",
+            "shares_short": row.get("short_interest"),
+            "short_pct_float": pct,
+            "days_to_cover": row.get("days_to_cover"),
+            "avg_daily_volume": row.get("avg_daily_volume"),
+            "settlement_date": row.get("settlement_date"),
+            "prior_short": row.get("prev_short_interest"),
+            "prior_settlement_date": row.get("previous_settlement_date") if had_before else None,
+            "change_shares": row.get("change_shares"),
+            "change_pct": row.get("change_pct"),
+            "float_shares": flt,
+            # the list keeps the figure or nothing: a float on file with no percent is the withheld case
+            "pct_float_withheld": pct is None and flt is not None,
+            "float_source": row.get("float_source"),
+            "publication_estimate": row.get("publication_estimate"),
+            "read_at": row.get("read_at"),
+        })
+        return out
+    if how == "not_in_list":
+        try:
+            covered = short_data.clean_symbol(sym) in short_data.universe()
+        except Exception:  # noqa: BLE001
+            covered = False
+        if covered:
+            out.update({"state": "none", "basis": "market_list"})
+        return out
+    if how == "not_held" and isinstance(row, dict) and row.get("status") == "unavailable":
+        out.update({"state": "unavailable", "basis": "market_list", "reason": row.get("reason"),
+                    "http_status": row.get("http_status")})
+    return out
+
+
+def _held_short_stock(sym):
     """The short interest block: the newest FINRA report the short interest service already
     holds for `sym`, with its settlement date. READ ONLY (`short_data.held_stock`): it never
     starts a build and never asks a vendor, and it never raises.
@@ -203,7 +269,7 @@ def _held_short(sym):
         "prior_short": None, "prior_settlement_date": None, "change_shares": None, "change_pct": None,
         "float_shares": None, "pct_float_withheld": False, "float_source": None,
         "publication_estimate": None, "read_at": None, "reason": None, "http_status": None,
-        "source": None,
+        "source": None, "basis": None,
     }
     try:
         from api.services import short_data
@@ -223,7 +289,7 @@ def _held_short(sym):
         if newest.get("short_interest") is None or not newest.get("settlement_date"):
             return out
         out.update({
-            "state": "ok",
+            "state": "ok", "basis": "stock_history",
             "shares_short": newest.get("short_interest"),
             "short_pct_float": flt.get("pct_float"),
             "days_to_cover": newest.get("days_to_cover"),

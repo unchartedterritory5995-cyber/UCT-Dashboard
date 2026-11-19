@@ -113,6 +113,76 @@ class TestHeldShort:
         monkeypatch.setattr(short_data, "held_stock", boom)
         assert own._held_short("TEST")["state"] == "not_held"
 
+    def test_with_no_history_held_the_stocks_row_of_the_market_list_answers(self, monkeypatch):
+        """Nobody has opened this stock's short interest panel, but the service keeps the whole
+        market's newest report built: the stock's row of it fills the card, and says so."""
+        monkeypatch.setattr(short_data, "held_stock", lambda sym: (None, "not_held"))
+        row = {"sym": "TEST", "short_interest": 9_000_000, "avg_daily_volume": 3_000_000, "days_to_cover": 3.0,
+               "prev_short_interest": 6_000_000, "change_shares": 3_000_000, "change_pct": 50.0,
+               "float_shares": 90_000_000, "pct_float": 10.0, "settlement_date": "2026-10-30",
+               "previous_settlement_date": "2026-10-15", "publication_estimate": "2026-11-10",
+               "read_at": "2026-11-18T14:00:00+00:00", "source": short_data.SOURCE,
+               "float_source": short_data.FLOAT_SOURCE}
+        asked = []
+
+        def held_row(sym):
+            asked.append(sym)
+            return dict(row), "held"
+
+        monkeypatch.setattr(short_data, "held_market_row", held_row)
+        s = own._held_short("TEST")
+        assert asked == ["TEST"]
+        assert s["state"] == "ok" and s["basis"] == "market_list"
+        assert s["shares_short"] == 9_000_000 and s["days_to_cover"] == 3.0 and s["short_pct_float"] == 10.0
+        assert s["settlement_date"] == "2026-10-30" and s["prior_short"] == 6_000_000
+        assert s["prior_settlement_date"] == "2026-10-15" and s["change_pct"] == 50.0
+        assert s["float_shares"] == 90_000_000 and s["pct_float_withheld"] is False
+        assert s["float_source"] == short_data.FLOAT_SOURCE and s["source"] == short_data.SOURCE
+
+    def test_the_stocks_own_history_wins_over_the_market_list(self, monkeypatch):
+        def never(sym):
+            raise AssertionError("the market list was asked although the stock's own history is held")
+
+        monkeypatch.setattr(short_data, "held_stock", lambda sym: (_held_answer(), "fresh"))
+        monkeypatch.setattr(short_data, "held_market_row", never)
+        s = own._held_short("TEST")
+        assert s["state"] == "ok" and s["basis"] == "stock_history" and s["shares_short"] == 50_000_000
+
+    def test_a_market_row_with_a_float_and_no_percent_is_withheld_and_a_missing_number_stays_none(self, monkeypatch):
+        monkeypatch.setattr(short_data, "held_stock", lambda sym: (None, "not_held"))
+        row = {"sym": "TEST", "short_interest": 200_000_000, "avg_daily_volume": None, "days_to_cover": None,
+               "prev_short_interest": None, "change_shares": None, "change_pct": None,
+               "float_shares": 90_000_000, "pct_float": None, "settlement_date": "2026-10-30",
+               "previous_settlement_date": "2026-10-15"}
+        monkeypatch.setattr(short_data, "held_market_row", lambda sym: (dict(row), "held"))
+        s = own._held_short("TEST")
+        assert s["state"] == "ok" and s["short_pct_float"] is None and s["pct_float_withheld"] is True
+        assert s["days_to_cover"] is None and s["prior_short"] is None and s["prior_settlement_date"] is None
+
+    def test_a_covered_stock_missing_from_the_report_is_none_and_an_uncovered_symbol_stays_not_held(self, monkeypatch):
+        monkeypatch.setattr(short_data, "held_stock", lambda sym: (None, "not_held"))
+        monkeypatch.setattr(short_data, "held_market_row", lambda sym: (None, "not_in_list"))
+        monkeypatch.setattr(short_data, "universe", lambda: frozenset({"TEST"}))
+        assert own._held_short("TEST")["state"] == "none"
+        assert own._held_short("SPY")["state"] == "not_held"
+        assert own._held_short("SPY")["shares_short"] is None
+
+    def test_a_refused_market_list_is_unavailable_with_its_reason(self, monkeypatch):
+        monkeypatch.setattr(short_data, "held_stock", lambda sym: (None, "not_held"))
+        refused = {"status": "unavailable", "reason": "refused", "http_status": 403, "source": short_data.SOURCE}
+        monkeypatch.setattr(short_data, "held_market_row", lambda sym: (dict(refused), "not_held"))
+        s = own._held_short("TEST")
+        assert s["state"] == "unavailable" and s["reason"] == "refused" and s["http_status"] == 403
+        assert s["shares_short"] is None
+
+    def test_a_market_list_that_cannot_be_read_is_not_held(self, monkeypatch):
+        def boom(sym):
+            raise RuntimeError("disk")
+
+        monkeypatch.setattr(short_data, "held_stock", lambda sym: (None, "not_held"))
+        monkeypatch.setattr(short_data, "held_market_row", boom)
+        assert own._held_short("TEST")["state"] == "not_held"
+
     def test_it_never_starts_a_build(self, monkeypatch):
         """THE rail: this path reads what is held and asks nobody. `get_stock` (which starts a
         background vendor read) and the vendor readers must not be reached from here."""
@@ -124,7 +194,8 @@ class TestHeldShort:
                 return {"status": "computing", "sym": "ZZNEVER"}
             return _f
         short_data.reset_for_tests()
-        for name in ("get_stock", "build_stock", "_stock_bg", "_vendor_page", "_vendor_rows", "get_market"):
+        for name in ("get_stock", "build_stock", "_stock_bg", "_vendor_page", "_vendor_rows", "get_market",
+                     "build_market", "_market_bg", "_start_market_job", "warm_market"):
             monkeypatch.setattr(short_data, name, spy(name))
         assert own._held_short("ZZNEVER")["state"] == "not_held"
         assert started == []
