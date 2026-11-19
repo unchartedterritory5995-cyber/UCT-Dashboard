@@ -91,17 +91,17 @@ def test_the_rendered_licence_sentence_is_the_one_the_chart_renders(monkeypatch)
     """The same literal as pineDataCatalog.test.js: both readers fill one template from one file."""
     monkeypatch.setitem(plc._TABLE, ("sec_edgar", "fundamentals"), plc.LicensingClassEntry("R", "test", "T-83"))
     assert cat.family_refusal("financial") == (
-        "data:licence",
+        "pine-data:licence",
         "Not served: `request.financial`. The financial data rests on licensing class R "
         "(licensing register row T-83), and a member's script reads only data classed A or LA.")
 
 
 def test_a_hold_refuses_by_name_after_the_licence_passes():
     guard, sentence = cat.family_refusal("uct_short_interest")
-    assert guard == "data:owner-hold"
+    assert guard == "pine-data:owner-hold"
     assert "`uct.short_interest`, `uct.days_to_cover`" in sentence and "O7" in sentence
     guard, sentence = cat.family_refusal("uct_short_volume")
-    assert guard == "data:owner-hold" and "O7" in sentence
+    assert guard == "pine-data:owner-hold" and "O7" in sentence
 
 
 def test_unknown_names_and_unserved_fields_refuse_by_name():
@@ -118,16 +118,16 @@ def test_unknown_names_and_unserved_fields_refuse_by_name():
 def test_today_by_name():
     """What the catalogue serves and refuses today. If a register restatement moves a class, regenerate the blocks
     and update this list in that unit, on purpose. ⚰️ 2026-11-19 (ruling C1's own unit): earnings (T-35/T-36) and
-    dividends / splits (T-07) moved from data:licence to served when the table followed the register's 2026-09-19
+    dividends / splits (T-07) moved from pine-data:licence to served when the table followed the register's 2026-09-19
     note. Nothing reads the catalogue at runtime yet (S4-3 onward), so no member sees the change today."""
     got = {fam: (cat.family_refusal(fam) or ("served",))[0] for fam in cat.families()}
     assert got == {
         "earnings": "served", "dividends": "served", "splits": "served",
         "financial": "served",
-        "uct_rs_rating": "data:licence", "uct_rs_line": "data:licence", "uct_breadth": "data:licence",
-        "uct_cot": "data:licence",
-        "uct_short_interest": "data:owner-hold", "uct_short_volume": "data:owner-hold",
-        "uct_sentiment": "data:licence",
+        "uct_rs_rating": "pine-data:licence", "uct_rs_line": "pine-data:licence", "uct_breadth": "pine-data:licence",
+        "uct_cot": "pine-data:licence",
+        "uct_short_interest": "pine-data:owner-hold", "uct_short_volume": "pine-data:owner-hold",
+        "uct_sentiment": "pine-data:licence",
     }
 
 

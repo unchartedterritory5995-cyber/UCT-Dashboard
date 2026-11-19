@@ -5209,8 +5209,9 @@ export function nodeCount(ast, held) {
 
 /** The node types whose child is evaluated by a FRESH `interpret` call on other
  *  bars (`tf` / `tf_live` resample, `sym` reads another ticker): a scope of its
- *  own, with its own memo. See `evaluationUnits`. */
-const SCOPE_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
+ *  own, with its own memo. See `evaluationUnits`. Exported for the alert lane's
+ *  `tf_merge` proof (`evaluability.js::mergeNewestUnproven`; Python `_SCOPE_TYPES`). */
+export const SCOPE_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
 
 /** ⭐⭐ C19 (2026-09-30) — WHAT THE EVALUATOR ACTUALLY COMPUTES, counted in the
  *  units it memoises. The number `budget:nodes` thresholds.
@@ -8307,7 +8308,11 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // `api/services/indicator_compute.py::bar_close_state`, which is the ONE
     // consumer of the NYSE sets, and that function's answer is the tri-state
     // the caller now passes as `newestBarIsForming`.
-    const cols = computeClock(bars, opts ? opts.tf : undefined,
+    // ⭐ PERF (C4) — a caller may hand in `opts.clockOf`, called exactly as `computeClock` is, with THESE bars,
+    // timeframe and tri-state: the runtime lane hands `clockMemo.js::clockColumnsOf`, which computes the columns once
+    // per bars array and answers each ask with its own copy. The memo is not kept here: this module is pure.
+    const clockOf = opts && typeof opts.clockOf === 'function' ? opts.clockOf : computeClock
+    const cols = clockOf(bars, opts ? opts.tf : undefined,
       opts ? opts.newestBarIsForming : undefined)
     for (const name of Object.keys(TABLE.clock || {})) {
       const col = cols[name]

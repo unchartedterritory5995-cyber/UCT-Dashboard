@@ -24,18 +24,17 @@ if not na(swingHigh) and not na(swingLow)
     golden := array.get(prices, 4)
 var line[] ls = array.new_line(0)
 var label[] lbs = array.new_label(0)
-if barstate.islast and array.size(prices) > 0
-    while array.size(ls) > 0
-        oldLine = array.pop(ls)
-        line.delete(oldLine)
-    while array.size(lbs) > 0
-        oldLabel = array.pop(lbs)
-        label.delete(oldLabel)
+if array.size(prices) > 0
     from = math.min(highBar, lowBar)
     for i = 0 to array.size(prices) - 1
         y = array.get(prices, i)
-        array.push(ls, line.new(from, y, bar_index, y, extend=extend.right, color=color.gray))
-        array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, "#.#") + "%", style=label.style_label_left, color=color.gray, textcolor=color.white, size=size.small))
+        if array.size(ls) <= i
+            array.push(ls, line.new(from, y, bar_index, y, extend=extend.right, color=color.gray))
+            array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, "#.#") + "%", style=label.style_label_left, color=color.gray, textcolor=color.white, size=size.small))
+        level = array.get(ls, i)
+        line.set_xy1(level, from, y)
+        line.set_xy2(level, bar_index, y)
+        label.set_xy(array.get(lbs, i), bar_index, y)
 plot(swingHigh, "Swing high", color=color.new(color.red, 60), style=plot.style_stepline)
 plot(swingLow, "Swing low", color=color.new(color.green, 60), style=plot.style_stepline)
 plot(golden, "61.8% level", color=color.orange)

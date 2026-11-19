@@ -81,6 +81,17 @@ Parity at engine 84, over 915 committed captures, both lanes run with the store:
 `tests/test_pine_parity_roadmap.py::test_the_official_census_is_productions_library_store` holds the map's store
 to the allowlist's `promote` rows. A new promotion turns it red until the census is re-measured.
 
+**Re-measured again for the ta/7 promotion (libraries chain L2, same day, same engine 84).** The store is now 8
+versions: `TradingView/ta/7` and `RelativeValue/2` were promoted under the runtime-only rule.
+- Served is unchanged: **286**. Host-only is 226.
+- Runtime-on is 298 -> 299. `committed:kalman-psar-backquant` now attaches on the runtime lane and is walled
+  only by admission: `admission:import` and `admission:library:TradingView/ta/7`.
+- The other ta/7 importers lose `runtime:library` and keep their own walls:
+  - machine-learning-rsi-bullvision: conditional-history and function-global-state;
+  - smart-money-concept-tradingfinder: its five TFlab libraries and history walls;
+  - relative-volume-at-time: `pine:library-version`.
+- Each lane took its own lock hold.
+
 ## 1. What "served" and "wall" mean here
 
 - **Served (member-facing).** Production runs the runtime pane armed with capability admission on

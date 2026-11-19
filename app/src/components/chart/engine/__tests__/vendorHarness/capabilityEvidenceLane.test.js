@@ -22,6 +22,8 @@ import {
 } from '../../runtimeKill'
 import { memberPaneDefinition, __forceRuntimeLaneForTests } from '../../../builder/memberPane/memberPaneDefinition'
 import { strategyBrokerFlag } from './strategyLane'
+import { storeHolds } from './storeHeld.js'
+import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
 
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
   .match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
@@ -34,6 +36,17 @@ vi.stubEnv(strategyBrokerFlag(), '1')
 const registry = JSON.parse(fs.readFileSync(path.join(REPO, 'api/data/pine_runtime_allowlist.json'), 'utf8')).capabilities
 const verdicts = JSON.parse(fs.readFileSync(path.join(REPO, 'docs/pine/vendor-harness/runtime-on/verdicts.json'), 'utf8'))
 const fileOf = Object.fromEntries(verdicts.results.map((r) => [r.id, r.file]))
+// ⭐ STORE-HELD (libraries chain, coordinator ruling 2026-11-19): the snapshot is graded with production's library
+// store, and each row that needed it names the versions (`storeHeld`, `./storeHeld.js`). Library code is never
+// committed, so where the store is not loaded (CI) such a case is SKIPPED BY NAME, saying which versions it needs,
+// exactly as a licence-held capture is; with `PINE_LIBRARY_STORE` set to production's store it runs.
+loadPineLibraryStoreFromEnv()
+const pinsOf = Object.fromEntries(verdicts.results.map((r) => [r.id, Array.isArray(r.storeHeld) ? r.storeHeld : []]))
+function itNeedsHeldAndStore(id, name, fn, timeout) {
+  const pins = pinsOf[id] || []
+  if (pins.length && !storeHolds(pins)) return it.skip(`${name} [store-held: ${pins.join(', ')}]`, fn, timeout)
+  return itNeedsHeld(fileOf[id] ? [fileOf[id]] : [], name, fn, timeout)
+}
 const evidence = [...new Set(Object.values(registry)
   .filter((r) => r && r.admitted === true)
   .flatMap((r) => r.evidence.filter((e) => e.runtimeLane !== 'forced').map((e) => e.capture)))].sort()
@@ -69,7 +82,7 @@ describe('WS-I Part 2 — every admitted capability\'s evidence was drawn by the
   })
 
   for (const id of evidence) {
-    itNeedsHeld(fileOf[id] ? [fileOf[id]] : [], `${id} takes the runtime lane`, () => {
+    itNeedsHeldAndStore(id, `${id} takes the runtime lane`, () => {
       expect(fileOf[id], id).toBeTruthy()
       expect(laneOf(id)).toBe('runtime')
     })
@@ -80,7 +93,7 @@ describe('WS-I Part 2 — every admitted capability\'s evidence was drawn by the
   })
 
   for (const id of forcedEvidence) {
-    itNeedsHeld(fileOf[id] ? [fileOf[id]] : [], `${id}: the door draws it on the host lane; FORCED, the runtime lane MATCHES`, () => {
+    itNeedsHeldAndStore(id, `${id}: the door draws it on the host lane; FORCED, the runtime lane MATCHES`, () => {
       expect(fileOf[id], id).toBeTruthy()
       expect(laneOf(id)).toBe('host')
       __forceRuntimeLaneForTests(true)
@@ -163,7 +176,7 @@ describe('WS-I Part 2 — the reach run records the lanes the door itself answer
   })
 
   for (const { capture: id, lane } of report.captures) {
-    itNeedsHeld(fileOf[id] ? [fileOf[id]] : [], `${id}: ${lane}`, () => {
+    itNeedsHeldAndStore(id, `${id}: ${lane}`, () => {
       const source = sourceOfCapture(id)
       latchRuntimeAdmission(runtimeSourceHash(source), { admitted: true })
       const d = memberPaneDefinition({ source, id: 'u_capreach', name: 'reach lane' })

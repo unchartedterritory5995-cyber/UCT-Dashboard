@@ -2,18 +2,18 @@
  "populations": {
   "capture": {
    "scripts": 955,
-   "admitted": 774,
-   "runtimeLane": 190,
+   "admitted": 777,
+   "runtimeLane": 192,
    "hostLane": 330,
-   "refused": 254,
+   "refused": 255,
    "coreOnly": 45
   },
   "committed": {
    "scripts": 266,
-   "admitted": 194,
-   "runtimeLane": 46,
+   "admitted": 196,
+   "runtimeLane": 47,
    "hostLane": 62,
-   "refused": 86,
+   "refused": 87,
    "coreOnly": 4
   },
   "reference": {
@@ -26,10 +26,10 @@
   },
   "builtin": {
    "scripts": 142,
-   "admitted": 118,
+   "admitted": 119,
    "runtimeLane": 28,
    "hostLane": 70,
-   "refused": 20,
+   "refused": 21,
    "coreOnly": 30
   }
  },
@@ -2396,6 +2396,30 @@
    ]
   },
   {
+   "capture": "kalman-psar-backquant-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "import",
+    "library:TradingView/ta/7",
+    "reassign",
+    "switch",
+    "ternary",
+    "tuple-destructure",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
    "capture": "keltner-center-of-gravity-channel-rddt-1d-2026-09-30",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -2978,6 +3002,30 @@
     "realtime-state",
     "reassign",
     "request-other",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "machine-learning-rsi-bullvision-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "import",
+    "library:TradingView/ta/7",
+    "obj:table",
+    "reassign",
+    "switch",
     "ternary",
     "tuple-destructure",
     "var"
@@ -9743,6 +9791,18 @@
     "compound-assign",
     "core",
     "reassign"
+   ]
+  },
+  {
+   "capture": "vw-library-import-rddt-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "import",
+    "library:TradingView/ta/7",
+    "method-call"
    ]
   },
   {
@@ -17984,6 +18044,25 @@
    ]
   },
   {
+   "key": "builtin:relative-volume-at-time__Relative1Vol",
+   "lane": null,
+   "guard": "pine:library-version",
+   "declined": "pine:library-version",
+   "caps": [
+    "compound-assign",
+    "core",
+    "history-expr",
+    "if-block",
+    "import",
+    "library:TradingView/ta/7",
+    "method-call",
+    "realtime-state",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
    "key": "builtin:rob-booker-adx-breakout__Rob1Booker1A",
    "lane": null,
    "guard": "pine:strategy-call",
@@ -19332,6 +19411,28 @@
    ]
   },
   {
+   "key": "committed:kalman-psar-backquant__0a389f529b",
+   "lane": "runtime",
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "import",
+    "library:TradingView/ta/7",
+    "reassign",
+    "switch",
+    "ternary",
+    "tuple-destructure",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
    "key": "committed:keltner-center-of-gravity-channel__e4a81d76f6",
    "lane": "host",
    "caps": [
@@ -19562,6 +19663,28 @@
     "realtime-state",
     "reassign",
     "request-other",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "key": "committed:machine-learning-rsi-bullvision__50b4566edd",
+   "lane": null,
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "import",
+    "library:TradingView/ta/7",
+    "obj:table",
+    "reassign",
+    "switch",
     "ternary",
     "tuple-destructure",
     "var"

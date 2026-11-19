@@ -59,6 +59,8 @@ import {
 } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { runHarness, loadCapture, VENDOR_DIR, REPO } from './harness'
 import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
+import { storeHeldOf, libraryStorePins } from './storeHeld.js'
+import { fixturePath } from '../../ast/__tests__/licenceHeld'
 import { strategyBrokerFlag, strategyEvidenceOf, assertStrategyLaneMeasured } from './strategyLane.js'
 import { runtimePaneEnabled, __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
@@ -159,6 +161,22 @@ const OUT = process.env.VENDOR_HARNESS_OUT ? path.resolve(process.cwd(), process
 // loaded, so every run without one writes the file it always did. ⛔ The store is a scratch directory outside the
 // repository (library code is never committed).
 const LIBRARIES_LOADED = loadPineLibraryStoreFromEnv()
+// ⭐ STORE-HELD ROWS (coordinator ruling 2026-11-19): with a store loaded, every row whose script reaches a loaded
+// version records which (`storeHeld`: `path@sha256`, `./storeHeld.js`), so a run without the store skips exactly
+// those rows by name (`tools/vendor_harness/store_held.py`). Only a file that holds `import ` at all is re-read.
+function markStoreHeld(results) {
+  if (!LIBRARIES_LOADED.length) return results
+  return results.map((r) => {
+    // a licence-held capture is read where it lives now (the local capture store), as the harness read it
+    const at = fixturePath(r.file) || path.join(REPO, r.file)
+    let raw
+    try { raw = fs.readFileSync(at, 'utf8') } catch { return r }
+    if (!raw.includes('import ')) return r
+    const loaded = loadCapture(at)
+    const pins = storeHeldOf(loaded.capture && loaded.capture.source ? loaded.capture.source.text : '')
+    return pins.length ? { ...r, storeHeld: pins } : r
+  })
+}
 
 describe('the vendor harness over the captures on disk', () => {
   // ⛔ read at COLLECTION, in the same module state that grades the captures
@@ -207,8 +225,8 @@ describe('the vendor harness over the captures on disk', () => {
         dirs: dirs.map((d) => path.relative(REPO, d).replace(/\\/g, '/')),
         lane,
         laneEvidence: { requested: REQUESTED, objectsOnlyPane: objectsOnly, ...evidence, strategy: strategyEvidence },
-        ...(LIBRARIES_LOADED.length ? { libraryStore: LIBRARIES_LOADED } : {}),
-        results: run.results,
+        ...(LIBRARIES_LOADED.length ? { libraryStore: libraryStorePins(LIBRARIES_LOADED) } : {}),
+        results: markStoreHeld(run.results),
         inventory: run.inventory,
       }, null, 1) + '\n')
       fs.writeFileSync(path.join(OUT, 'summary.md'), [

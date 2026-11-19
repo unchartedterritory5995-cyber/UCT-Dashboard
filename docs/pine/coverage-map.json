@@ -5,12 +5,20 @@
  "masterSha": "3685713d65",
  "libraryStore": [
   {
+   "path": "TradingView/RelativeValue/2",
+   "sha256": "ae9639a064ce36ed9ad40f54d3758ded64b6d5f429947908cf044c814d183fe2"
+  },
+  {
    "path": "TradingView/RelativeValue/3",
    "sha256": "44d71612a7596a11258e244e500c0ce56b563eceac2f07973b16b5dec4c7480d"
   },
   {
    "path": "TradingView/ta/11",
    "sha256": "da37dca4bc18ce3b825d1d9c8b682f97859508cc5bb8bd3e51e1a28713edee80"
+  },
+  {
+   "path": "TradingView/ta/7",
+   "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"
   },
   {
    "path": "theEccentricTrader/PubLibCandleTrend/2",
@@ -37,14 +45,14 @@
   "transferBound": 214,
   "attachedAnyForm": 297,
   "attachedPct": 43.7,
-  "runtimeCounterfactualTransfer": 297,
-  "runtimeCounterfactualPct": 43.7,
+  "runtimeCounterfactualTransfer": 298,
+  "runtimeCounterfactualPct": 43.9,
   "byPopulation": {
    "committed": {
     "scripts": 266,
     "transfer": 61,
     "attached": 91,
-    "runtimeCounterfactual": 96,
+    "runtimeCounterfactual": 97,
     "transferPct": 22.9
    },
    "reference": {
@@ -1543,7 +1551,8 @@
     "vendorOtherCaptures": 46,
     "refusedAs": {
      "pine:library-denied": 5,
-     "pine:module": 90
+     "pine:library-version": 1,
+     "pine:module": 86
     }
    },
    {
@@ -5132,7 +5141,7 @@
    "blocker": "[imports-libraries]",
    "capability": "imports-libraries",
    "soleBlockerOf": 11,
-   "scriptsBlocked": 54
+   "scriptsBlocked": 52
   },
   {
    "blocker": "[user-functions]",
@@ -6633,7 +6642,7 @@
    "drawing-objects": 110,
    "history-offsets": 26,
    "imperative": 226,
-   "imports-libraries": 54,
+   "imports-libraries": 52,
    "known-divergence": 8,
    "output-contract": 7,
    "paint-withheld": 18,
@@ -6737,11 +6746,11 @@
    {
     "capability": "user-functions",
     "label": "User-defined functions with multi-line bodies",
-    "unblocks": 30,
+    "unblocks": 31,
     "unblocksFullyEnumerated": 13,
     "touches": 64,
-    "cumulativeTransfer": 445,
-    "cumulativePct": 65.5
+    "cumulativeTransfer": 446,
+    "cumulativePct": 65.7
    },
    {
     "capability": "builtin-missing",
@@ -6749,8 +6758,8 @@
     "unblocks": 30,
     "unblocksFullyEnumerated": 11,
     "touches": 61,
-    "cumulativeTransfer": 475,
-    "cumulativePct": 70.0
+    "cumulativeTransfer": 476,
+    "cumulativePct": 70.1
    },
    {
     "capability": "tuples",
@@ -6758,15 +6767,15 @@
     "unblocks": 30,
     "unblocksFullyEnumerated": 16,
     "touches": 56,
-    "cumulativeTransfer": 505,
-    "cumulativePct": 74.4
+    "cumulativeTransfer": 506,
+    "cumulativePct": 74.5
    },
    {
     "capability": "imports-libraries",
     "label": "import of published libraries / library() scripts",
-    "unblocks": 35,
+    "unblocks": 34,
     "unblocksFullyEnumerated": 9,
-    "touches": 54,
+    "touches": 52,
     "cumulativeTransfer": 540,
     "cumulativePct": 79.5
    },
@@ -6945,8 +6954,8 @@
   "lane": "runtime-on",
   "definition": "The member door with the runtime pane ON at every peel step, as a permitted member with every script graded (the server's starter allowlist is NOT applied: an upper bound). A script transfers when it transfers fully on the host lane or attaches on the runtime lane, and is not a strategy that places orders. Door acceptance, not numeric parity.",
   "sample": 679,
-  "transfer": 298,
-  "transferPct": 43.9,
+  "transfer": 299,
+  "transferPct": 44.0,
   "productionTransfer": 226,
   "added": [
    "builtin:fisher-transform__Fisher_Trans",
@@ -6971,6 +6980,7 @@
    "committed:inside-bar-boxes__2f747d848b",
    "committed:inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c",
    "committed:kalman-price-filter-backquant__47a601e4bc",
+   "committed:kalman-psar-backquant__0a389f529b",
    "committed:kernel-channel-backquant__d8c4b7f75c",
    "committed:linear-regression-channel__jiDgL4o6Qx",
    "committed:macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH",
@@ -7026,7 +7036,7 @@
   "byPopulation": {
    "committed": {
     "scripts": 266,
-    "transfer": 94
+    "transfer": 95
    },
    "reference": {
     "scripts": 271,
@@ -7037,7 +7047,7 @@
     "transfer": 84
    }
   },
-  "runtimeAttached": 93,
+  "runtimeAttached": 94,
   "runtimeAttachedOrderStrategies": [
    "builtin:parabolic-sar-strategy__Parabolic1SA",
    "committed:flawless-victory-strategy__1BVZuaaWOU",
@@ -7046,18 +7056,18 @@
    "reference:ut-bot-strategy__VynMPwQs9U"
   ],
   "walls": {
-   "notTransferring": 381,
-   "fullyEnumerated": 191,
+   "notTransferring": 380,
+   "fullyEnumerated": 190,
    "touches": {
     "pine:builtin": 81,
     "runtime:call-undeclared-builtin-state": 55,
     "pine:function": 53,
-    "runtime:library": 53,
+    "runtime:library": 50,
     "pine:request": 36,
     "runtime:no-output": 34,
+    "runtime:history-dynamic-offset": 31,
     "runtime:statement": 31,
     "runtime:conditional-history": 30,
-    "runtime:history-dynamic-offset": 30,
     "runtime:request": 29,
     "runtime:request-with-state": 27,
     "runtime:expression-statement": 18,
@@ -7103,6 +7113,7 @@
     "host:pine:presentation-only": 1,
     "host:unnamed": 1,
     "pine:block": 1,
+    "pine:library-version": 1,
     "pine:member": 1,
     "pine:statement": 1,
     "pine:text-value": 1,
@@ -7112,14 +7123,14 @@
    },
    "first": {
     "attached-dirty": 74,
-    "runtime:library": 51,
+    "runtime:library": 48,
     "pine:request": 27,
     "pine:builtin": 20,
     "pine:function": 20,
     "runtime:no-output": 20,
     "runtime:request-with-state": 19,
     "runtime:history-dynamic-offset": 18,
-    "runtime:conditional-history": 15,
+    "runtime:conditional-history": 16,
     "runtime:request": 13,
     "runtime:statement": 11,
     "runtime:call-undeclared-builtin-state": 10,
@@ -7147,6 +7158,7 @@
     "host:pine:presentation-only": 1,
     "pine:collection": 1,
     "pine:drawing": 1,
+    "pine:library-version": 1,
     "pine:statement": 1,
     "pine:text-value": 1,
     "pine:window-dependent": 1,
@@ -7160,7 +7172,7 @@
     "runtime:withheld-all": 1
    },
    "stuck": {
-    "reached": 191,
+    "reached": 190,
     "cap": 113,
     "runtime:no-output": 34,
     "pine:constant-only": 13,
@@ -7354,7 +7366,7 @@
      "runtime:conditional-history"
     ],
     "builtin:relative-volume-at-time__Relative1Vol": [
-     "runtime:library",
+     "pine:library-version",
      "pine:function",
      "runtime:nothing-drawn"
     ],
@@ -7855,9 +7867,6 @@
      "runtime:call-undeclared-builtin-state",
      "runtime:function"
     ],
-    "committed:kalman-psar-backquant__0a389f529b": [
-     "runtime:library"
-    ],
     "committed:linear-regression-channel-200__243d67c804": [
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
@@ -7918,12 +7927,12 @@
     ],
     "committed:machine-learning-moving-average-backquant__4d7ff59e68": [],
     "committed:machine-learning-rsi-bullvision__50b4566edd": [
-     "runtime:library",
      "runtime:conditional-history",
      "runtime:conditional-history",
      "runtime:conditional-history",
      "runtime:conditional-history",
      "runtime:conditional-history",
+     "runtime:function-global-state",
      "runtime:function-global-state",
      "runtime:function-global-state"
     ],
@@ -8176,9 +8185,9 @@
      "runtime:library",
      "runtime:library",
      "runtime:library",
-     "runtime:library",
      "runtime:history-expression",
-     "runtime:history-expression"
+     "runtime:history-expression",
+     "runtime:history-dynamic-offset"
     ],
     "committed:smart-money-concepts-by-welotrades__0bff41a2e5": [
      "runtime:history-dynamic-offset",
@@ -9668,8 +9677,8 @@
    "captures": 915,
    "verdicts": {
     "DIVERGE": 71,
-    "INCONCLUSIVE": 507,
-    "MATCH": 314,
+    "INCONCLUSIVE": 505,
+    "MATCH": 316,
     "MATCH_SUBSTITUTED": 23
    },
    "productionVerdicts": {
@@ -9682,7 +9691,7 @@
     "DIVERGE->MATCH": 2,
     "DIVERGE->MATCH_SUBSTITUTED": 15,
     "INCONCLUSIVE->DIVERGE": 10,
-    "INCONCLUSIVE->MATCH": 120,
+    "INCONCLUSIVE->MATCH": 122,
     "INCONCLUSIVE->MATCH_SUBSTITUTED": 8,
     "MATCH->INCONCLUSIVE": 6
    },
@@ -9849,6 +9858,11 @@
     },
     {
      "file": "tests/fixtures/vendor/harness/kalman-price-filter-backquant-rddt-1d-2026-10-03.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/kalman-psar-backquant-rddt-1d-2026-11-15.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
     },
@@ -10258,6 +10272,11 @@
      "to": "MATCH"
     },
     {
+     "file": "tests/fixtures/vendor/harness/vw-library-import-rddt-1d-2026-10-02.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
      "file": "tests/fixtures/vendor/harness/vw-loop-in-block-spy-1d-2026-10-02.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
@@ -10499,13 +10518,13 @@
     }
    ],
    "runtimeDeclines": {
-    "runtime:library": 35,
+    "runtime:library": 32,
     "pine:function": 31,
     "pine:request": 29,
     "pine:builtin": 25,
     "runtime:request-with-state": 18,
     "lower-tf:store-unmeasured": 17,
-    "runtime:conditional-history": 15,
+    "runtime:conditional-history": 16,
     "runtime:history-dynamic-offset": 13,
     "runtime:request": 11,
     "pine:library-denied": 9,
@@ -10540,9 +10559,9 @@
     "requested": "runtime-on",
     "objectsOnlyPane": true,
     "gateOpen": true,
-    "declined": 290,
+    "declined": 288,
     "gated": 0,
-    "runtimeDrawn": 211,
+    "runtimeDrawn": 213,
     "hostRefused": 533,
     "reachedRuntime": 501,
     "strategy": {
@@ -14487,7 +14506,7 @@
    "reachedAfterPeel": false,
    "stuck": "pine:no-output",
    "firstGuards": [
-    "pine:module",
+    "pine:library-version",
     "pine:tuple"
    ],
    "walls": [
@@ -19385,21 +19404,19 @@
    "clean": false,
    "doorClean": false,
    "cleanBound": false,
-   "runtimeAttached": false,
+   "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
    "armedWall": null,
-   "runtimeClean": false,
+   "runtimeClean": true,
    "peelSteps": 7,
    "reachedAfterPeel": false,
    "stuck": "pine:roundtrip",
    "firstGuards": [
-    "pine:module",
     "pine:state"
    ],
    "walls": [
     "[imperative]",
-    "[imports-libraries]",
     "[user-functions]"
    ],
    "objectProgram": {
@@ -20110,12 +20127,10 @@
    "reachedAfterPeel": true,
    "stuck": null,
    "firstGuards": [
-    "pine:module",
     "pine:tuple"
    ],
    "walls": [
     "[imperative]",
-    "[imports-libraries]",
     "[paint-withheld]",
     "[tuples]"
    ],
@@ -28538,7 +28553,7 @@
    "wouldTransferIfArmed": null,
    "armedWall": null,
    "runtimeClean": false,
-   "peelSteps": 6,
+   "peelSteps": 7,
    "reachedAfterPeel": false,
    "stuck": "pine:roundtrip",
    "firstGuards": [

@@ -89,7 +89,7 @@ import { toRenderState } from './objectRenderState'
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, runtimeColourStopOf, columnErrors, resolveInputs } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, runtimeColourStopOf, columnErrors, resolveInputs, runtimeRunPendingOf } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 // ⭐⭐ HOST WORKER — a host document computed off the main thread answers PENDING while its values
 // are in the worker (with the pane's last picture re-aligned on bar time), and a worker that held a
@@ -1567,6 +1567,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
 
   /** instanceId → `{registry, def, bars, sig, cols}`. */
   let computeMemo = new Map()
+  // ⭐ (engine 86) instance -> the picture it last drew (`{registry, def, sig, pic}`), see `hadPicture` below
+  let drawnPictures = new Map()
 
   /** bindingKey → `{column, bars, adjustTime, up, down, points}`. */
   let pointMemo = new Map()
@@ -1687,7 +1689,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     for (const id of strategyIds) attempt(() => setStrategyRecord(id, null, noticeScope))
     strategyIds.clear()
   }
-  const noteRuntimeErrorStop = (instanceId, cols, def = null) => {
+  const noteRuntimeErrorStop = (instanceId, cols, def = null, hadPicture = true) => {
     noteStrategyRecord(instanceId, cols)
     const stop = cols ? runtimeErrorStopOf(cols) : null
     let sentence = stop && stop.reached ? stop.sentence : null
@@ -1697,6 +1699,14 @@ export function createBinder({ chart, LWC, scope = '' }) {
     if (!sentence && def) {
       const ran = runtimeRunStopOf(def, cols)
       if (ran) sentence = ran.sentence
+    }
+    // ⭐ (engine 86) — and while its run is still in the worker, it says so: an empty pane on a first load, a
+    // symbol or timeframe switch reads as work (`nativeRegistry.runtimeRunPendingOf`). ⛔ Only where this pane has
+    // NO picture of this instance yet (`hadPicture`): a live chart's every update is a short pending run too, and a
+    // sentence that came and went on every bar would be noise.
+    if (!sentence && def && !hadPicture) {
+      const pending = runtimeRunPendingOf(def, cols)
+      if (pending) sentence = pending.sentence
     }
     // ⭐ DIV-4 r1 — a host document's `barcolor` whose run-read colour is not served
     // on this chart says why on the same strip (`nativeRegistry.runtimeColourStopOf`).
@@ -1741,6 +1751,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     stoppedIds.clear()
     clearStrategyRecords()
     computeMemo = new Map()
+    drawnPictures = new Map()
     pointMemo = new Map()
     pendingLayout = null
     pendingLaidOut = false
@@ -2167,6 +2178,13 @@ export function createBinder({ chart, LWC, scope = '' }) {
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
         + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
       const memo = computeMemo.get(inst.instanceId)
+      // ⭐ (engine 86) the picture this instance draws: the chart's symbol and the timeframe it computes on, with its
+      // document and signature. `drawnPictures` keeps the last one that LANDED (the memo is dropped while a run is
+      // pending, so it cannot), so a pending run can tell a live chart's next bar (a picture is drawn) from a first
+      // load or a switch (none yet), and only the second says it is computing (`noteRuntimeErrorStop`).
+      const pic = `${ctx.sym || ''}|${frame || ctx.tf || ''}`
+      const drawn = drawnPictures.get(inst.instanceId)
+      const hadPicture = !!(drawn && drawn.registry === registry && drawn.def === def && drawn.sig === sig && drawn.pic === pic)
       let cols
       if (memo && memo.registry === registry && memo.def === def && memo.bars === calcBars && memo.sig === sig) {
         cols = memo.cols
@@ -2244,6 +2262,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // pane's last picture, and the landing (`notifyColumnsLanded`) must find no memo to repaint.
         if ((Object.keys(cols).length || runtimeObjectsOf(cols)) && !halfPending && !isHostLanePending(cols)) {
           computeMemo.set(inst.instanceId, { registry, def, bars: calcBars, sig, cols })
+          drawnPictures.set(inst.instanceId, { registry, def, sig, pic })
         } else {
           computeMemo.delete(inst.instanceId)
         }
@@ -2257,7 +2276,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         heldIds.add(inst.instanceId)
       } else {
         // ⭐ C43 — reached on this chart at these settings, or no longer reached
-        noteRuntimeErrorStop(inst.instanceId, cols, def)
+        noteRuntimeErrorStop(inst.instanceId, cols, def, hadPicture)
         // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
         // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
         // columns the decision was made for; a registry without the report (a test

@@ -61,7 +61,9 @@ def test_goldens_exercise_the_paths_they_claim():
 
 def test_bar_stream_reader_runs_every_frame_through_ingest_core():
     """The in-web reader and the stream-ingest service share ONE frame body."""
-    src = inspect.getsource(bar_stream._run_websocket)
+    # the reader body lives in _connection_loop since the hot standby (2026-11-19)
+    assert "_connection_loop(on_bar, policy" in inspect.getsource(bar_stream._run_websocket)
+    src = inspect.getsource(bar_stream._connection_loop)
     assert "ingest_core.apply_frame(raw_msg, frame_ctx)" in src
     assert "parse_aggregate_event(" not in src, "frame parsing belongs in ingest_core"
     assert bar_stream.parse_aggregate_event is ingest_core.parse_aggregate_event

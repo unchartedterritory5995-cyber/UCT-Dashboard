@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -119,10 +120,71 @@ class FrameContext:
     #: connection kicks this one); None = skip. stream-ingest's reconnect policy.
     on_status: Optional[Callable[[object], None]] = None
     logger: logging.Logger = field(default_factory=lambda: logging.getLogger("api.services.bar_stream"))
+    #: HOT STANDBY: `first(ev) -> bool`, False for an AM/A/T event another connection already
+    #: delivered (EventDedup). None (one connection) = every event is applied, as before.
+    dedup: Optional[Callable[[dict], bool]] = None
 
 
 #: ev types the telemetry counts (bar_stream._feed_counts keys).
 COUNTED_EVENTS = frozenset({"A", "AM", "T"})
+
+
+# ── HOT STANDBY: the same feed on two connections, applied once (2026-11-19) ────────────────────────
+# Massive confirmed (support, 2026-11-19) that both of our stocks connections may carry the same
+# channels at once. bar_stream runs two sockets with the same subscriptions when INGEST_HOT_STANDBY
+# is on, so one dropping leaves the other delivering; every AM/A/T event then arrives TWICE and must
+# be applied ONCE (a trade applied twice doubles its volume). The key is the event's identity AND its
+# values: a duplicate is byte-for-byte the same event; an aggregate the vendor re-sends with corrected
+# values for the same window is NOT a duplicate and is applied.
+def dedup_key(ev) -> Optional[tuple]:
+    """The duplicate key of an AM/A/T event, or None (status events, anything else: never dropped)."""
+    if not isinstance(ev, dict):
+        return None
+    k = ev.get("ev")
+    if k == _TRADE_EVENT_TYPE:
+        return ("T", ev.get("sym"), ev.get("q"), ev.get("i"), ev.get("x"), ev.get("t"), ev.get("p"), ev.get("s"))
+    if k in ("A", "AM"):
+        return (k, ev.get("sym"), ev.get("s"), ev.get("e"), ev.get("o"), ev.get("h"), ev.get("l"), ev.get("c"), ev.get("v"))
+    return None
+
+
+class EventDedup:
+    """`first(ev)`: True the first time an event is seen within `window_s` (by arrival time), False
+    for its copy from the other connection. Two generations swapped every `window_s / 2`, so a key is
+    remembered for between window/2 and window seconds and memory stays bounded by the event rate
+    (the copies of one event arrive milliseconds apart, from the same vendor stream). Thread-safe
+    enough for its single caller: both sockets run on bar_stream's one event loop."""
+
+    def __init__(self, window_s: float = 10.0, monotonic: Callable[[], float] = time.monotonic):
+        self.half = float(window_s) / 2.0
+        self._mono = monotonic
+        self._cur: set = set()
+        self._prev: set = set()
+        self._swap_at = self._mono() + self.half
+        self.kept = 0
+        self.dropped = 0
+
+    def first(self, ev) -> bool:
+        key = dedup_key(ev)
+        if key is None:
+            return True
+        now = self._mono()
+        if now >= self._swap_at + self.half:
+            # a whole window with no rotation (a quiet feed): everything remembered is too old
+            self._prev, self._cur = set(), set()
+            self._swap_at = now + self.half
+        elif now >= self._swap_at:
+            self._prev, self._cur = self._cur, set()
+            self._swap_at = now + self.half
+        if key in self._cur or key in self._prev:
+            self.dropped += 1
+            return False
+        self._cur.add(key)
+        self.kept += 1
+        return True
+
+    def stats(self) -> dict:
+        return {"kept": self.kept, "dropped": self.dropped, "remembered": len(self._cur) + len(self._prev)}
 
 
 def apply_frame(raw_msg, ctx: FrameContext) -> int:
@@ -145,7 +207,11 @@ def apply_frame(raw_msg, ctx: FrameContext) -> int:
     count_event = ctx.count_event
     note_am_lag = ctx.note_am_lag
     logger = ctx.logger
+    dedup = ctx.dedup
     for ev in events:
+        # HOT STANDBY: the other connection already delivered this exact event (EventDedup).
+        if dedup is not None and not dedup(ev):
+            continue
         if isinstance(ev, dict):
             _ec = ev.get("ev")
             if _ec in COUNTED_EVENTS and count_event is not None:
