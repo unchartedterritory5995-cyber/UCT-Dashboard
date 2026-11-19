@@ -2024,6 +2024,11 @@ const _BAR_INFO_MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG'
 // ⛔ A NUMERIC `time` HERE IS CHART TIME (ET wall clock read as UTC — what the
 // crosshair's param.time carries), so it is printed in UTC. Printing it in
 // America/New_York shifted the hovered intraday time a SECOND time (10:30 → 06:30).
+// Built once: a fresh formatter per call showed in the live ticker-switch profile (2026-11-19).
+const _BAR_INFO_FMT = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'UTC', month: 'short', day: 'numeric',
+  hour: '2-digit', minute: '2-digit', hour12: false,
+})
 export function formatBarInfoDate(time) {
   if (typeof time === 'string') {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(time)
@@ -2033,10 +2038,7 @@ export function formatBarInfoDate(time) {
   }
   if (!Number.isFinite(time)) return ''
   const d = new Date(time * 1000)
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'UTC', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(d).reduce((a, p) => { a[p.type] = p.value; return a }, {})
+  const parts = _BAR_INFO_FMT.formatToParts(d).reduce((a, p) => { a[p.type] = p.value; return a }, {})
   if (!parts.month) return ''
   return `${String(parts.month).toUpperCase()} ${parts.day} ${parts.hour}:${parts.minute}`
 }
