@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "CO-1 (feat/pine-colour-na-v4, NUMBER PENDING): a Pine v4 colour compared with `na` is lowered as the number comparison and reads false on every bar (vw-tc1-colour-na-compare). Every rule it adds, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "K1",
+   "mutant": "v4 refused again (the captured version is not served)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            if (pineVersion === 4) return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))",
+   "to": "            if (false && pineVersion === 4) return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/colourNaCompareV4.test.js",
+   "expectRed": "Pine v4"
+  },
+  {
+   "id": "K2",
+   "mutant": "every version served (v5 / v6 are not captured)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            if (pineVersion === 4) return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))",
+   "to": "            if (pineVersion >= 4) return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/colourNaCompareV4.test.js",
+   "expectRed": "every other version"
+  },
+  {
+   "id": "K3",
+   "mutant": "the comparison answers true where TradingView answers false",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            if (pineVersion === 4) return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))",
+   "to": "            if (pineVersion === 4) return num(1)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/colourNaCompareV4.test.js",
+   "expectRed": "C1"
+  }
+ ]
+}
