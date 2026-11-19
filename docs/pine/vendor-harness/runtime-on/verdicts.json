@@ -354701,7 +354701,7 @@
    ]
   },
   {
-   "file": "../../AppData/Local/uct-vendor-batch/runs/licence-moved-2026-11-15/captures/supertrend-kivancozbilgic-rddt-1d-2026-10-02.json",
+   "file": "tests/fixtures/vendor/harness/supertrend-kivancozbilgic-rddt-1d-2026-10-02.json",
    "format": "harness-v1",
    "id": "supertrend-kivancozbilgic-rddt-1d-2026-10-02",
    "script": "Supertrend",
