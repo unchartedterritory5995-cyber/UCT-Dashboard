@@ -63,6 +63,7 @@ import { lexPine, blockStatements, parseWholeExpression, findTop, isPunct, bound
 import { KEY_RE } from '../ast/parse.js'
 import { pineColourHex } from '../pinePalette.js'
 import { isSessionString, TIME_INPUT_MAX_ABS_MS } from '../defSchema.js'
+import { instantField } from './clockFns.js'
 
 /** The bar series a member may pick for a source input. */
 export const RUNTIME_SOURCES = Object.freeze(new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3',
@@ -347,7 +348,7 @@ export function timestampOfDateString(str) {
  *  ⛔ `timestamp(year, month, …)` is REFUSED BY NAME: it reads the exchange's time zone
  *  (`syminfo.timezone`), which this pane is not handed — a guess would move every bar's
  *  window by hours. */
-export function timeInputDefaultOf(node, lookup) {
+export function timeInputDefaultOf(node, lookup, opts = {}) {
   // ⭐⭐ RULING-0927 r1 (2026-11-07) — ONLY THE CAPTURED FORM IS SERVED, on every lane that reads
   // a time default (this function is the one reader: the run, the settings dialog and the
   // translator all call it). T16 of `vw-time-tf-spy-1d-2026-09-27.json` witnesses exactly
@@ -358,7 +359,7 @@ export function timeInputDefaultOf(node, lookup) {
   const confirm = argOf(node, 'confirm', 5)
   if (confirm !== undefined && literalNumber(confirm) !== 0) return { skip: TIME_CONFIRM_SKIP }
   const def = argOf(node, 'defval', 0)
-  const r = constTimeOf(def, lookup, 0)
+  const r = constTimeOf(def, lookup, 0, opts)
   if (r.skip) return r
   const why = unwitnessedTimeDefault(terminalTimeNode(def, lookup))
   return why ? { skip: why } : r
@@ -381,10 +382,28 @@ function terminalTimeNode(v, lookup) {
   return v
 }
 
-/** Why a READABLE default is still not served (null when it is the captured form). */
+/** ⭐⭐ ENGINE NUMBER PENDING (C1) — THE ZONES `timestamp(timezone, …)` NAMES THAT ARE UTC ITSELF: no offset, so
+ *  no sign to read (the sign of `GMT+N` is CR-S1's, queued). */
+const UTC_ZONE_NAMES = /^(?:UTC|GMT)$/
+
+/** Why a READABLE default is still not served (null when it is the captured form, or a form the reference
+ *  alone settles).
+ *  ⭐⭐ ENGINE NUMBER PENDING (C1, coordinator ruling 2026-11-19) — three forms need no capture, because nothing is
+ *  read in them that the Pine reference does not state exactly (v6 `input.time`: "defval (const int)";
+ *  `timestamp`: "Returns: UNIX time", its numeric form reading `timezone`, "The default is syminfo.timezone"):
+ *    · a literal count of milliseconds IS the UNIX time the input returns;
+ *    · `timestamp("UTC" | "GMT", year, month, day, hour, minute[, second])` names UTC itself;
+ *    · `timestamp(year, month, day, hour, minute[, second])` reads the exchange's zone, so it is read only where
+ *      the run is told a New York symbol (the clock rule every other exchange-zone read on this lane follows,
+ *      `pineRuntimeFrontend.js::requireNewYorkExchange`), and never in New York's clock-change hours
+ *      (`constTimeOf`). Every other spelling waits for Q-D2 / CR-S1. */
 function unwitnessedTimeDefault(v) {
-  if (literalNumber(v) !== null) return 'its default is a literal count of milliseconds' + TIME_NEEDS_CAPTURE
+  if (literalNumber(v) !== null) return null
   const args = v && v.type === 'call' && v.name === 'timestamp' ? (v.args || []).filter((a) => a && !a.name) : []
+  if (args.length >= 6 && args[0].value && args[0].value.type === 'string' && UTC_ZONE_NAMES.test(args[0].value.value.trim())) {
+    return null
+  }
+  if (args.length >= 5 && literalNumber(args[0].value) !== null) return null
   if (args.length === 1 && args[0].value && args[0].value.type === 'string') {
     const text = args[0].value.value
     return WITNESSED_TIME_DEFAULT.test(text)
@@ -394,9 +413,23 @@ function unwitnessedTimeDefault(v) {
   return 'its default is `timestamp(timezone, year, …)`' + TIME_NEEDS_CAPTURE
 }
 
+/** A New York wall time `[y, mo, d, h, mi, s]` as UNIX milliseconds when exactly ONE instant reads it back
+ *  (`clockFns.instantField` over the exchange zone, the lane's one New York clock), else null: a time in the
+ *  spring-forward gap reads back from neither candidate, one in the fall-back hour from both. */
+function newYorkWallMs([y, mo, d, h, mi, s]) {
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h < 0 || h > 23 || mi < 0 || mi > 59 || s < 0 || s > 59) return null
+  const wall = Date.UTC(y, mo - 1, d, h, mi, s)
+  const back = new Date(wall)
+  if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null
+  const reads = [4, 5].map((off) => wall + off * 3600000).filter((c) => instantField('year', c, 'exchange') === y
+    && instantField('month', c, 'exchange') === mo && instantField('dayofmonth', c, 'exchange') === d
+    && instantField('hour', c, 'exchange') === h && instantField('minute', c, 'exchange') === mi)
+  return reads.length === 1 ? reads[0] : null
+}
+
 const OUT_OF_RANGE = 'its default is outside the dates a chart can hold (±8.64e15 ms, about 271,821 years either side of 1970)'
 
-function constTimeOf(v, lookup, depth) {
+function constTimeOf(v, lookup, depth, opts = {}) {
   if (!v || depth > 8) return { skip: 'its default is not a fixed date and time' }
   const n = literalNumber(v)
   if (n !== null) {
@@ -433,12 +466,29 @@ function constTimeOf(v, lookup, depth) {
       if (ms === null) return { skip: `its default \`timestamp("${tz.value}", ${parts.join(', ')})\` is not a date` }
       return Math.abs(ms) <= TIME_INPUT_MAX_ABS_MS ? { ms } : { skip: OUT_OF_RANGE }
     }
+    // ⭐⭐ C1 — `timestamp(year, month, day, hour, minute[, second])` reads the EXCHANGE's zone: read where the run
+    // is told a New York symbol (`opts.exchangeZone`, the clock rule of the rest of this lane), as New York wall
+    // time. ⛔ Not in the hour New York's clock skips or repeats (both readings are NEEDS CAPTURE, `clockFns.js`).
+    if (args.length >= 5 && literalNumber(args[0].value) !== null && opts && opts.exchangeZone === 'America/New_York') {
+      const parts = [0, 1, 2, 3, 4, 5].map((i) => {
+        if (!args[i]) return i >= 5 ? 0 : null
+        const x = literalNumber(args[i].value)
+        return x !== null && Number.isInteger(x) ? x : null
+      })
+      if (parts.some((x) => x === null)) return { skip: 'its default is not a fixed date and time' }
+      const ms = newYorkWallMs(parts)
+      if (ms === null) {
+        return { skip: `its default \`timestamp(${parts.slice(0, 5).join(', ')})\` falls in the hour New York's clock `
+          + 'skips or repeats, where which instant TradingView reads is not captured' }
+      }
+      return Math.abs(ms) <= TIME_INPUT_MAX_ABS_MS ? { ms } : { skip: OUT_OF_RANGE }
+    }
     return { skip: "its default is `timestamp(year, month, …)`, which reads the exchange's time zone — "
-      + 'not handed to this pane' }
+      + 'known here only on a New York symbol (NYSE, NASDAQ, NYSE Arca) the run is told' }
   }
   if (v.type === 'name' && typeof lookup === 'function') {
     const bound = lookup(v.name)
-    if (bound) return constTimeOf(bound, lookup, depth + 1)
+    if (bound) return constTimeOf(bound, lookup, depth + 1, opts)
   }
   return { skip: 'its default is not a fixed date and time' }
 }
