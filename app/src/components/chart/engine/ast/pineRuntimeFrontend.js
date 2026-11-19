@@ -47,6 +47,7 @@ import { CLOCK_REALTIME } from '../../indicators.js'
 import { clockColumnsOf } from '../clockMemo.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { importLinesOf, linkLibraries, remapLibraryLocation } from './pineLibraries.js'
+import { versionAt, RUNTIME_ISLAND_FAMILIES } from './pineLibraryVersion.js'
 import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 import { barConstantTree } from './barConstant.js'
 import { roundToMintickTree } from './tickRound.js'
@@ -1946,7 +1947,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   let lexed
   try { lexed = lexPine(source) } catch (e) { return fail(e, diagnostics) }
-  lexed = linkLibraries(lexed, opts, { lexPine, blockStatements })
+  // ⭐⭐ the version island: this lane judges these families of a v5 library per token (`versionAt`)
+  lexed = linkLibraries(lexed, opts, { lexPine, blockStatements, islandFamilies: RUNTIME_ISLAND_FAMILIES })
   holder.link = lexed.libraryLink || null
   const { tokens, indents, version } = lexed
 
@@ -9396,8 +9398,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
             && scope.lookup(node.name) === null && !env.has(node.name)) {
           // ⭐ C29 — the TEXT Pine reads, in this script's version: the one
           // `periodTextOf` the columnar resolver asks (v6 daily is `"1D"`).
-          notePeriodRead('timeframe.period', pineVersion)
-          return str(periodTextOf(lanePeriod, pineVersion))
+          // ⭐⭐ the version island: inside a v5 library, the library's version (`"D"`)
+          const atVersion = versionAt(node.tok, pineVersion)
+          notePeriodRead('timeframe.period', atVersion)
+          return str(periodTextOf(lanePeriod, atVersion))
         }
         const slot = scope.lookup(node.name)
         if (slot !== null) return read(slot)

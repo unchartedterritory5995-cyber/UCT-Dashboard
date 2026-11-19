@@ -187,6 +187,7 @@ import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
 // ⭐⭐ L1 — `import Author/Library/Version` is linked, not refused, when the library
 // registry holds that version (`pineLibraries.js`).
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
+import { versionAt } from './pineLibraryVersion.js'
 import { PINNED_SCRIPT_KEYS } from './paramIdPinned.js'
 import { strategyTaintSinks, STRATEGY_TAINT_ROW_SINKS, STRATEGY_TAINT_SCRIPT_SINKS } from './strategyTaint.js'
 
@@ -10241,8 +10242,10 @@ export class Resolver {
       // ⭐ C29 — as TEXT, in the script's own Pine version (`periodTextOf`).
       if (legacyPeriodUndeclared(node.name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
       if (OWN_TF_NAMES.has(node.name)) {
-        const text = periodTextOf(this.periodInForce(node.name, node.tok), this.pineVersion)
-        if (!this.periodCodeRead) recordPeriodRead('timeframe.period', this.pineVersion)
+        // ⭐⭐ the version island: inside a v5 library, the library's version (`"D"`, not `"1D"`)
+        const atVersion = versionAt(node.tok, this.pineVersion)
+        const text = periodTextOf(this.periodInForce(node.name, node.tok), atVersion)
+        if (!this.periodCodeRead) recordPeriodRead('timeframe.period', atVersion)
         return text
       }
       return null

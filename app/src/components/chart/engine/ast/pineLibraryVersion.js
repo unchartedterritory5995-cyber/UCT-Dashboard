@@ -103,6 +103,31 @@ export function versionAt(tok, programVersion) {
   return Number.isFinite(v) ? v : programVersion
 }
 
+// ─── ⭐⭐ THE VERSION ISLAND, STEP 2: THE FAMILIES A LANE JUDGES PER TOKEN ─────────────────────────────────────────
+//
+// Each construct `crossVersionDifference` finds belongs to one FAMILY of the v6 migration guide. A lane whose every
+// rule for a family asks `versionAt` judges a v5 library's code in that family under v5, as TradingView does, so the
+// linker stops refusing that family for it: the lane hands its families to `linkLibraries` (`islandFamilies`) and
+// the check skips exactly those. ⛔ Only the RUNTIME lane hands any; the host lane keeps the whole check until its own
+// rules read per token. ⛔ A family joins `RUNTIME_ISLAND_FAMILIES` in the commit that moves the last of the runtime
+// lane's rules for it onto `versionAt`, with its rail: a v5 library in a v6 script computes what the same library
+// computes in a v5 script (`pineLibraryVersion.test.js`, "the version island, family by family"). A construct with
+// no family (`request.*`, `strategy.*`, `transp`/`offset`/`linewidth`, a repeated argument, a negative literal
+// index, history of a literal or a field, a const-int division, `label.new` without `textcolor`) stays refused on
+// every lane.
+export const ISLAND_FAMILY = Object.freeze({
+  BOOL_NA: 'bool-na',
+  IMPLICIT_CAST: 'implicit-cast',
+  LAZY_AND_OR: 'lazy-and-or',
+  FOR_BOUND: 'for-bound',
+  COLOURS: 'colours',
+  TIMEFRAME_PERIOD: 'timeframe.period',
+})
+/** The families the runtime lane judges per token (`pineRuntimeFrontend.js` hands them to the linker). */
+export const RUNTIME_ISLAND_FAMILIES = Object.freeze([
+  ISLAND_FAMILY.TIMEFRAME_PERIOD,
+])
+
 const isPunct = (t, v) => !!t && t.kind === 'punct' && t.value === v
 const isWord = (t, v) => !!t && t.kind === 'ident' && !t.member && t.value === v
 const OPENERS = new Set(['(', '['])
@@ -223,7 +248,10 @@ function unwrap(toks) {
  *   the library's kept definitions (what the importing script reaches)
  * @param {number[]} indents the library's indent table (`lexPine(...).indents`)
  */
-export function crossVersionDifference(kept, indents) {
+export function crossVersionDifference(kept, indents, { skip } = {}) {
+  // ⭐⭐ the version island: a family the lane judges per token (`islandFamilies`) is not a difference there
+  const skipped = new Set(Array.isArray(skip) ? skip : [])
+  const hit = (family, d) => (family && skipped.has(family) ? null : { ...d, family: family || null })
   // ── type evidence: names shown to be bools / numbers anywhere in the kept code ──
   const boolNames = new Set()
   const numNames = new Set()
@@ -299,25 +327,27 @@ export function crossVersionDifference(kept, indents) {
       const next = toks[i + 1]
       const prev = toks[i - 1]
       if (v === 'timeframe.period') {
-        return { what: '`timeframe.period`', why: 'its text is "D" in Pine v5 and "1D" in v6 (Timeframes must include a multiplier)', tok: t }
+        const r = hit(ISLAND_FAMILY.TIMEFRAME_PERIOD, { what: '`timeframe.period`', why: 'its text is "D" in Pine v5 and "1D" in v6 (Timeframes must include a multiplier)', tok: t })
+        if (r) return r
       }
       if (v && CHANGED_COLOURS[v]) {
-        return { what: `\`${v}\``, why: `its value changed: ${CHANGED_COLOURS[v]} (Color changes)`, tok: t }
+        const r = hit(ISLAND_FAMILY.COLOURS, { what: `\`${v}\``, why: `its value changed: ${CHANGED_COLOURS[v]} (Color changes)`, tok: t })
+        if (r) return r
       }
       if (v && !t.member && (v.startsWith('request.') || v === 'security')) {
-        return { what: `\`${v}\``, why: 'request rules changed in v6 (Dynamic requests)', tok: t }
+        return hit(null, { what: `\`${v}\``, why: 'request rules changed in v6 (Dynamic requests)', tok: t })
       }
       if (v && !t.member && v.startsWith('strategy.')) {
-        return { what: `\`${v}\``, why: 'strategy rules changed in v6 (Strategies)', tok: t }
+        return hit(null, { what: `\`${v}\``, why: 'strategy rules changed in v6 (Strategies)', tok: t })
       }
       if (v === 'label.new' && isPunct(next, '(')) {
         const args = toks.slice(i + 2, closeOf(toks, i + 1) - 1)
         if (!args.some((a, k) => isWord(a, 'textcolor') && isPunct(args[k + 1], '='))) {
-          return { what: '`label.new` without `textcolor`', why: 'its default text colour is black in v5 and white in v6 (Color changes)', tok: t }
+          return hit(null, { what: '`label.new` without `textcolor`', why: 'its default text colour is black in v5 and white in v6 (Color changes)', tok: t })
         }
       }
       if ((v === 'transp' || v === 'offset' || v === 'linewidth') && !t.member && isPunct(next, '=') && (isPunct(prev, ',') || isPunct(prev, '('))) {
-        return { what: `the \`${v}\` argument`, why: `v6 changed it (${v === 'transp' ? 'The transp parameter is removed' : v === 'offset' ? 'No series offset values' : 'Minimum linewidth is 1'})`, tok: t }
+        return hit(null, { what: `the \`${v}\` argument`, why: `v6 changed it (${v === 'transp' ? 'The transp parameter is removed' : v === 'offset' ? 'No series offset values' : 'Minimum linewidth is 1'})`, tok: t })
       }
       // a repeated named argument
       if (isPunct(t, '(') && prev && prev.kind === 'ident') {
@@ -326,7 +356,7 @@ export function crossVersionDifference(kept, indents) {
         for (const part of splitTop(toks.slice(i + 1, end - 1), (x) => isPunct(x, ','))) {
           if (part.length > 1 && part[0].kind === 'ident' && isPunct(part[1], '=')) {
             if (seen.has(part[0].value)) {
-              return { what: `the argument \`${part[0].value}\` given twice`, why: 'v5 keeps the first and v6 refuses (Cannot repeat parameters)', tok: part[0] }
+              return hit(null, { what: `the argument \`${part[0].value}\` given twice`, why: 'v5 keeps the first and v6 refuses (Cannot repeat parameters)', tok: part[0] })
             }
             seen.add(part[0].value)
           }
@@ -338,7 +368,7 @@ export function crossVersionDifference(kept, indents) {
           const parts = splitTop(toks.slice(i + 1, end - 1), (x) => isPunct(x, ','))
           const idx = callee.startsWith('array.') ? parts[1] : parts[0]
           if (idx && isPunct(idx[0], '-') && idx[1] && idx[1].kind === 'number') {
-            return { what: `the negative index in \`${callee}\``, why: 'v5 stops with a runtime error and v6 counts from the end (Negative indices in arrays)', tok: idx[0] }
+            return hit(null, { what: `the negative index in \`${callee}\``, why: 'v5 stops with a runtime error and v6 counts from the end (Negative indices in arrays)', tok: idx[0] })
           }
         }
       }
@@ -349,17 +379,19 @@ export function crossVersionDifference(kept, indents) {
         const pv = prev.kind === 'ident' ? String(prev.value) : ''
         const field = prev.kind === 'ident' && (prev.member || (pv.includes('.') && !BUILTIN_HEADS.has(pv.split('.')[0])))
         if (lit || field) {
-          return { what: `\`${pv || prev.value}[…]\``, why: 'v6 no longer reads the history of a literal or of a field directly (History-referencing operator)', tok: t }
+          return hit(null, { what: `\`${pv || prev.value}[…]\``, why: 'v6 no longer reads the history of a literal or of a field directly (History-referencing operator)', tok: t })
         }
         if (prev.kind === 'ident' && boolNames.has(pv)) {
-          return { what: `the history of the bool \`${pv}\``, why: 'on the first bars it is na in v5 and false in v6 (Boolean values cannot be na)', tok: t }
+          const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `the history of the bool \`${pv}\``, why: 'on the first bars it is na in v5 and false in v6 (Boolean values cannot be na)', tok: t })
+          if (r) return r
         }
       }
       // na() / nz() / fixnan() of anything not shown to be a number
       if ((v === 'na' || v === 'nz' || v === 'fixnan') && !t.member && isPunct(next, '(')) {
         const arg = splitTop(toks.slice(i + 2, closeOf(toks, i + 1) - 1), (x) => isPunct(x, ','))[0] || []
         if (!evidentlyNumber(arg, numNames)) {
-          return { what: `\`${v}()\` of a value not shown to be a number`, why: 'v5 reads an na bool there and v6 refuses a bool (Boolean values cannot be na)', tok: t }
+          const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `\`${v}()\` of a value not shown to be a number`, why: 'v5 reads an na bool there and v6 refuses a bool (Boolean values cannot be na)', tok: t })
+          if (r) return r
         }
       }
       // const int / const int
@@ -391,7 +423,7 @@ export function crossVersionDifference(kept, indents) {
         const right = isPunct(toks[b], '(') ? toks.slice(i + 1, closeOf(toks, b)) : toks.slice(i + 1, b + 1)
         const leftOk = isPunct(t, '/=') ? possiblyConstInt(toks.slice(i - 1, i)) : possiblyConstInt(left)
         if (leftOk && possiblyConstInt(right) && !(right.length === 1 && right[0].kind === 'ident' && isPunct(toks[i + 2], '('))) {
-          return { what: 'a division of two values that may be `const int`', why: 'v5 truncates it and v6 keeps the fraction (Fractional division of constants)', tok: t }
+          return hit(null, { what: 'a division of two values that may be `const int`', why: 'v5 truncates it and v6 keeps the fraction (Fractional division of constants)', tok: t })
         }
       }
     }
@@ -414,7 +446,8 @@ export function crossVersionDifference(kept, indents) {
           for (let j = 0; j < right.length; j += 1) {
             const x = right[j]
             if (x.kind === 'ident' && isPunct(right[j + 1], '(') && !isPureCall(String(x.value), !!x.member)) {
-              return { what: `\`${t.value}\` with a call on its right (\`${x.value}\`)`, why: 'v5 evaluates both sides on every bar and v6 skips the right side when the left decides (Lazy evaluation of conditions)', tok: t }
+              const r = hit(ISLAND_FAMILY.LAZY_AND_OR, { what: `\`${t.value}\` with a call on its right (\`${x.value}\`)`, why: 'v5 evaluates both sides on every bar and v6 skips the right side when the left decides (Lazy evaluation of conditions)', tok: t })
+              if (r) return r
             }
           }
         }
@@ -448,7 +481,8 @@ export function crossVersionDifference(kept, indents) {
       for (const c of conds) {
         for (const part of splitTop(unwrap(c), (x) => isWord(x, 'and') || isWord(x, 'or'))) {
           if (!evidentlyBool(part, boolNames)) {
-            return { what: `a condition not shown to be a bool (\`${part.map((x) => x.value).join(' ').slice(0, 60)}\`)`, why: 'v5 reads a number there as a bool and v6 refuses it (Explicit "bool" casting)', tok: part[0] }
+            const r = hit(ISLAND_FAMILY.IMPLICIT_CAST, { what: `a condition not shown to be a bool (\`${part.map((x) => x.value).join(' ').slice(0, 60)}\`)`, why: 'v5 reads a number there as a bool and v6 refuses it (Explicit "bool" casting)', tok: part[0] })
+            if (r) return r
           }
         }
       }
@@ -483,13 +517,15 @@ export function crossVersionDifference(kept, indents) {
               const sizeOf = SIZE_READS.has(s) && arg && arg.kind === 'ident' ? String(arg.value)
                 : (/\.size$/.test(s) && !/^(array|map|matrix)\./.test(s) ? s.slice(0, -5) : null)
               if (!sizeOf || resized.has(sizeOf) || reassigned.has(sizeOf)) {
-                return { what: `a \`for\` loop whose end bound calls \`${s}\``, why: 'v5 evaluates the bound once and v6 before every iteration (Dynamic for loop boundaries)', tok: lt[0] }
+                const r = hit(ISLAND_FAMILY.FOR_BOUND, { what: `a \`for\` loop whose end bound calls \`${s}\``, why: 'v5 evaluates the bound once and v6 before every iteration (Dynamic for loop boundaries)', tok: lt[0] })
+                if (r) return r
               }
               j = closeOf(bound, j + 1) - 1
               continue
             }
             if (reassigned.has(s.split('.')[0])) {
-              return { what: `a \`for\` loop whose end bound reads \`${s}\`, which the loop reassigns`, why: 'v5 evaluates the bound once and v6 before every iteration (Dynamic for loop boundaries)', tok: lt[0] }
+              const r = hit(ISLAND_FAMILY.FOR_BOUND, { what: `a \`for\` loop whose end bound reads \`${s}\`, which the loop reassigns`, why: 'v5 evaluates the bound once and v6 before every iteration (Dynamic for loop boundaries)', tok: lt[0] })
+              if (r) return r
             }
           }
         }
@@ -499,7 +535,8 @@ export function crossVersionDifference(kept, indents) {
         const target = nameOf(lt[eqAt - 1])
         const rhs = lt.slice(eqAt + 1)
         if (target && boolNames.has(target) && rhs.some((x, j) => isWord(x, 'na') && !isPunct(rhs[j + 1], '('))) {
-          return { what: `\`na\` given to the bool \`${target}\``, why: 'a bool can be na in v5 and not in v6 (Boolean values cannot be na)', tok: lt[eqAt] }
+          const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `\`na\` given to the bool \`${target}\``, why: 'a bool can be na in v5 and not in v6 (Boolean values cannot be na)', tok: lt[eqAt] })
+          if (r) return r
         }
       }
       for (let i = 0; i < lt.length; i += 1) {
@@ -510,7 +547,8 @@ export function crossVersionDifference(kept, indents) {
           // the other arm of the ternary
           const arms = lt.filter((x) => isWord(x, 'true') || isWord(x, 'false'))
           if (arms.length) {
-            return { what: '`na` as the arm of a bool ternary', why: 'a bool can be na in v5 and not in v6 (Boolean values cannot be na)', tok: lt[i] }
+            const r = hit(ISLAND_FAMILY.BOOL_NA, { what: '`na` as the arm of a bool ternary', why: 'a bool can be na in v5 and not in v6 (Boolean values cannot be na)', tok: lt[i] })
+            if (r) return r
           }
         }
       }
@@ -542,7 +580,8 @@ export function crossVersionDifference(kept, indents) {
           || boolNames.has(String(x.value)) || BOOL_CALLS.has(String(x.value))
           || BOOL_PREFIXES.some((pre) => String(x.value).startsWith(pre)))))
       if (!closed && mayBeBool) {
-        return { what: `an \`${word}\` used as a value without ${word === 'if' ? '`else`' : 'a default arm'}`, why: 'a bool result is na in v5 and false in v6 (Boolean values cannot be na)', tok: value ? opener : lt[0] }
+        const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `an \`${word}\` used as a value without ${word === 'if' ? '`else`' : 'a default arm'}`, why: 'a bool result is na in v5 and false in v6 (Boolean values cannot be na)', tok: value ? opener : lt[0] })
+        if (r) return r
       }
     }
   }
