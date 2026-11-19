@@ -121,4 +121,7 @@ def test_committed_fixtures_only_and_the_budget():
     assert any(str(s.get("uses", "")).endswith("pine-heavy-setup") for s in steps)
     job = doc["jobs"]["chromium-half"]
     assert 0 < job["timeout-minutes"] <= 30
+    # an image Playwright's pinned Chromium supports, pinned (ubuntu-latest moved to 26.04, which 1.58 refuses)
+    assert job["runs-on"] == "ubuntu-24.04"
+    assert any("playwright==1.58.0" in str(s.get("run") or "") for s in steps)
     assert "continue-on-error" not in str(job)
