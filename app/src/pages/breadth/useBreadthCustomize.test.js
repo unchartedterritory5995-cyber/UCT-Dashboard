@@ -253,3 +253,41 @@ describe('useBreadthCustomize column order', () => {
     expect(result.current.order).toBeNull()
   })
 })
+
+// The core Default (2026-11-19): Default is computed from the caller's defaults, never
+// stored; members' presets are untouched; save-from-Default and reset keep working.
+describe('useBreadthCustomize with a core Default', () => {
+  const defaults = { hidden: ['vix', 'naaim'], order: ['uct_exposure', 'breadth_score', 'vix', 'naaim'] }
+
+  it('Default shows the core set and its order, and nothing is written for it', () => {
+    const { result } = renderHook(() => useBreadthCustomize({ defaults }))
+    expect(result.current.isDefaultActive).toBe(true)
+    expect([...result.current.hidden].sort()).toEqual(['naaim', 'vix'])
+    expect(result.current.order).toEqual(defaults.order)
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"presets":{}}')
+    expect(stored.presets[DEFAULT_PRESET]).toBeUndefined()
+  })
+
+  it('a member’s saved preset is untouched by the new Default', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ activePreset: 'Mine', presets: { Mine: { hidden: ['breadth_score'] } } }))
+    const { result } = renderHook(() => useBreadthCustomize({ defaults }))
+    expect(result.current.activePreset).toBe('Mine')
+    expect([...result.current.hidden]).toEqual(['breadth_score'])
+    expect(result.current.order).toBeNull()
+  })
+
+  it('a member who was on Default gets the new core set (Default is never stored)', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ activePreset: DEFAULT_PRESET, presets: { Keep: { hidden: [] } } }))
+    const { result } = renderHook(() => useBreadthCustomize({ defaults }))
+    expect([...result.current.hidden].sort()).toEqual(['naaim', 'vix'])
+    expect(result.current.presetNames).toEqual([DEFAULT_PRESET, 'Keep'])
+  })
+
+  it('Reset to defaults puts a custom preset back to the core set and order', () => {
+    const { result } = renderHook(() => useBreadthCustomize({ defaults }))
+    act(() => result.current.savePreset('Mine', [], ['vix']))
+    act(() => result.current.resetActive())
+    expect([...result.current.hidden].sort()).toEqual(['naaim', 'vix'])
+    expect(result.current.order).toEqual(defaults.order)
+  })
+})

@@ -8,7 +8,10 @@
  * order, as metric keys. Optional — a preset without one keeps the code order,
  * and keys it does not name (new metrics) follow in code order.
  *
- * `Default` is hard-coded ({ hidden: [] }) and never appears in `presets`.
+ * `Default` is hard-coded and never appears in `presets` (so it is never persisted per
+ * member: a member on Default always sees the CURRENT default). Since 2026-11-19 it is
+ * the focused core set the caller passes in (`defaults: { hidden, order }`, built from
+ * breadth/defaultColumns.js); with no `defaults` it is the old "everything, code order".
  * Storing `hidden` (vs `visible`) means new metrics added in code auto-appear
  * in every saved preset — users only re-hide them if unwanted.
  *
@@ -77,12 +80,19 @@ export function validatePresetName(name, existingNames) {
  *   renamePreset(old, new) rename a custom preset
  *   deletePreset(name)     delete a custom preset; switch to Default
  *   switchPreset(name)     set active
- *   resetActive()          clear hidden set + order on the active preset (Default no-op)
+ *   resetActive()          put the active preset back to the default view (Default no-op)
  *   order                  string[] | null — the active preset's column order
  *   setOrder(keys)         replace the active preset's column order (Default no-op)
  */
-export default function useBreadthCustomize() {
+const NO_DEFAULTS = Object.freeze({ hidden: Object.freeze([]), order: null })
+
+export default function useBreadthCustomize({ defaults = NO_DEFAULTS } = {}) {
   const [state, setState] = useState(() => loadFromStorage())
+  // Fixed for the life of the hook: the default view is code, not member state.
+  const [{ hidden: defaultHidden, order: defaultOrder }] = useState(() => ({
+    hidden: defaults.hidden ?? [],
+    order: defaults.order ?? null,
+  }))
 
   // Debounce writes so rapid checkbox toggles don't thrash storage.
   // stateRef lets the unmount flush always see the current value, avoiding
@@ -107,14 +117,14 @@ export default function useBreadthCustomize() {
   const isDefaultActive = activePreset === DEFAULT_PRESET
 
   const hidden = useMemo(() => {
-    if (isDefaultActive) return new Set()
+    if (isDefaultActive) return new Set(defaultHidden)
     return new Set(presets[activePreset]?.hidden ?? [])
-  }, [isDefaultActive, presets, activePreset])
+  }, [isDefaultActive, presets, activePreset, defaultHidden])
 
   const order = useMemo(() => {
-    if (isDefaultActive) return null
+    if (isDefaultActive) return defaultOrder
     return presets[activePreset]?.order ?? null
-  }, [isDefaultActive, presets, activePreset])
+  }, [isDefaultActive, presets, activePreset, defaultOrder])
 
   const presetNames = useMemo(() => {
     const customs = Object.keys(presets).sort((a, b) => a.localeCompare(b))
@@ -208,15 +218,20 @@ export default function useBreadthCustomize() {
     })
   }, [])
 
+  // "Reset to defaults": the active custom preset goes back to the DEFAULT view
+  // (the core set and its order), not to "every metric".
   const resetActive = useCallback(() => {
     setState(prev => {
       if (prev.activePreset === DEFAULT_PRESET) return prev
+      const entry = defaultOrder
+        ? { hidden: [...defaultHidden], order: [...defaultOrder] }
+        : { hidden: [...defaultHidden] }
       return {
         ...prev,
-        presets: { ...prev.presets, [prev.activePreset]: { hidden: [] } },  // order cleared too
+        presets: { ...prev.presets, [prev.activePreset]: entry },
       }
     })
-  }, [])
+  }, [defaultHidden, defaultOrder])
 
   return {
     activePreset,

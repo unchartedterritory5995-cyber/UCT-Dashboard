@@ -16,6 +16,7 @@ import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
 import { shadeFor } from './breadth/shading'
+import { defaultsFor } from './breadth/defaultColumns'
 import { fetchDrill, peekDrill, prefetchDrill, forgetDrill } from './breadth/drillFetch'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
@@ -407,6 +408,7 @@ function preloadDrillModal() { loadDrillModal().catch(() => {}) }
 
 // ── COLS lookup map ────────────────────────────────────────────────────────
 const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
+const MONITOR_DEFAULTS = defaultsFor(COLS.map(c => c.key))
 
 // The member's column order (a preset's saved `order`, known keys only), then
 // every metric it does not name, in code order — so a new metric still appears.
@@ -772,7 +774,8 @@ export default function Breadth() {
     try { localStorage.removeItem('breadth_collapsed_cols') } catch { /* private mode */ }
   }, [])
 
-  const customize = useBreadthCustomize()
+  // Default = the focused core set (breadth/defaultColumns.js), computed, never stored.
+  const customize = useBreadthCustomize({ defaults: MONITOR_DEFAULTS })
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   // A header-menu change asked for on the immutable Default preset: the Columns
@@ -1050,13 +1053,17 @@ export default function Breadth() {
   // handed to the Columns panel's save prompt instead, as a checkbox click there is.
   const applyColChange = useCallback((change) => {
     if (customize.isDefaultActive) {
-      setPendingColChange(change)
+      // Default is the core set: the new preset starts from it plus this change.
+      setPendingColChange({
+        hidden: [...customize.hidden, ...(change.hidden ?? [])],
+        order: change.order ?? orderedKeys,
+      })
       setCustomizeOpen(true)
       return
     }
     if (change.order) customize.setOrder(change.order)
     if (change.hidden) customize.setHiddenSet([...customize.hidden, ...change.hidden])
-  }, [customize])
+  }, [customize, orderedKeys])
   const moveCol = useCallback((key, dir) => {
     const i = visibleCols.findIndex(c => c.key === key)
     const other = visibleCols[i + dir]?.key
@@ -1359,7 +1366,7 @@ export default function Breadth() {
                   retired 2026-08-26; families are separated by a hairline rule
                   on each group's first column instead. */}
               <tr>
-                <th scope="col" className={`${styles.th} ${styles.dateCol}`} style={{ minWidth: 'calc(10ch + 32px)' }}>Date</th>
+                <th scope="col" className={`${styles.th} ${styles.dateCol}`} style={{ minWidth: 'calc(10ch + 66px)' }}>Date</th>
                 {visibleCols.map((col, ci) => {
                   const isMa = col.type === 'ma_stack'
                   const label = isMa
@@ -1442,6 +1449,11 @@ export default function Breadth() {
                         </span>
                       )
                       : row.date}
+                    {/* Follow-Through Day: a quiet tag on the date instead of its own
+                        column (owner 2026-11-19; the FTD column stays in Columns). */}
+                    {!!row.is_ftd && (
+                      <span className={styles.ftdTag} title="Follow-Through Day" aria-label="Follow-Through Day">FTD</span>
+                    )}
                   </td>
                   {visibleCols.map(col => {
                     const groupStart = groupStartKeys.has(col.key) ? styles.groupStart : ''

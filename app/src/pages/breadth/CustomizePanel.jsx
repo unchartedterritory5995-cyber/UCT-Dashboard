@@ -114,8 +114,14 @@ export default function CustomizePanel({
     if (err) { setError(err); return }
     // Default's hidden set is empty; the new preset's hidden = the toggled key
     // (or the header menu's pending hide / order).
-    if (pending) onSavePreset(draftName.trim(), pending.hidden ?? [], pending.order ?? null)
-    else onSavePreset(draftName.trim(), [pendingToggleKey])
+    if (pending) onSavePreset(draftName.trim(), pending.hidden ?? [...hidden], pending.order ?? order)
+    else {
+      // Default is the core set now: the new preset is Default with this one box flipped.
+      const next = new Set(hidden)
+      if (next.has(pendingToggleKey)) next.delete(pendingToggleKey)
+      else next.add(pendingToggleKey)
+      onSavePreset(draftName.trim(), [...next], order)
+    }
     closeInline()
   }
 
@@ -274,14 +280,14 @@ export default function CustomizePanel({
       <div className={styles.footer}>
         <span className={styles.activeLabel}>
           {isDefaultActive
-            ? 'Default — all metrics visible'
+            ? `Default — ${cols.length - hidden.size} core metrics`
             : `${cols.length - hidden.size} of ${cols.length} visible`}
         </span>
         <button
           className={styles.resetLink}
           onClick={onResetActive}
-          disabled={isDefaultActive || hidden.size === 0}
-          title={isDefaultActive ? 'Default has nothing to reset' : 'Show all metrics in this preset'}
+          disabled={isDefaultActive}
+          title={isDefaultActive ? 'Default has nothing to reset' : 'Put this preset back to the default columns'}
         >
           Reset to defaults
         </button>

@@ -1097,3 +1097,20 @@ tbody tr { cursor: pointer; }
 /* Views runs to the window's bottom edge too: no strip of page padding under it
    (the Monitor's sheet cancels the same padding with its own negative margin). */
 .pageFlushBottom { padding-bottom: 0; --page-pad-bottom: 0px; }
+
+/* Follow-Through Day — a quiet tag after the date (owner 2026-11-19), replacing
+   the FTD column in the default view. Up-colour tinted, never gold. */
+.ftdTag {
+  display: inline-flex;
+  align-items: center;
+  height: 15px;
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--br-up) 18%, transparent);
+  color: var(--br-up);
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: 1px;
+}

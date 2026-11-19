@@ -157,6 +157,9 @@ beforeEach(() => {
   localStorage.clear()
   localStorage.setItem('uct.breadth.dates.v1', JSON.stringify({ dates: ROWS.map(r => r.date) }))
   localStorage.setItem('uct.breadth.recent.v1', JSON.stringify(ROWS))
+  // The sentiment columns are off the core Default (2026-11-19); a member preset
+  // showing every metric puts them on screen, as the sheet showed them before.
+  localStorage.setItem('uct.breadth.customize.v1', JSON.stringify({ activePreset: 'All', presets: { All: { hidden: [] } } }))
 })
 
 const mount = () => render(<MemoryRouter initialEntries={['/breadth']}><Breadth /></MemoryRouter>)
