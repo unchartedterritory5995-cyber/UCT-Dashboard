@@ -3,8 +3,15 @@
 //   E1 etDateLabel is exactly toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
 //      at every hour across both 2026 DST transitions and around midnight ET
 //   E2 the D bucket label is unchanged
-//   E3 the half-day close survives a walk over more ET days than the old 4,000-day cache held
-import { describe, it, expect } from 'vitest'
+//   E3 the close cache holds a deep chart's days: a second pass over 6,000 ET days asks the
+//      calendar nothing (the old 4,000-day cap cleared itself and asked again for every day)
+import { describe, it, expect, vi } from 'vitest'
+import * as nyse from '../../lib/marketClock/nyseCalendar.js'
+
+vi.mock('../../lib/marketClock/nyseCalendar.js', async (importOriginal) => {
+  const m = await importOriginal()
+  return { ...m, earlyCloseOn: vi.fn(m.earlyCloseOn) }
+})
 import { etDateLabel, computeBarTime, rthCloseMinuteOfChartTime } from './barTime'
 
 const slow = (sec) => new Date(sec * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
@@ -24,13 +31,15 @@ describe('etDateLabel', () => {
     expect(computeBarTime('D', t)).toBe(slow(t))
   })
 
-  it('E3 a 6,000-day walk keeps the half-day close right on both passes', () => {
+  it('E3 a second pass over 6,000 ET days is served from the cache, half-days intact', () => {
     const day0 = Math.floor(Date.UTC(2005, 0, 3) / 86400000)
+    const at = (d) => d * 86400 + 600 * 60                    // 10:00 chart time on ET day d
+    for (let d = day0; d < day0 + 6000; d++) rthCloseMinuteOfChartTime(at(d))
+    nyse.earlyCloseOn.mockClear()
+    for (let d = day0; d < day0 + 6000; d++) rthCloseMinuteOfChartTime(at(d))
+    expect(nyse.earlyCloseOn).not.toHaveBeenCalled()
     const blackFriday2025 = Math.floor(Date.UTC(2025, 10, 28) / 86400000)
-    for (let pass = 0; pass < 2; pass++) {
-      for (let d = day0; d < day0 + 8000; d++) rthCloseMinuteOfChartTime(d * 86400 + 600 * 60)
-      expect(rthCloseMinuteOfChartTime(blackFriday2025 * 86400 + 600 * 60)).toBe(13 * 60)
-      expect(rthCloseMinuteOfChartTime((blackFriday2025 + 3) * 86400 + 600 * 60)).toBe(16 * 60)
-    }
+    expect(rthCloseMinuteOfChartTime(at(blackFriday2025))).toBe(13 * 60)
+    expect(rthCloseMinuteOfChartTime(at(blackFriday2025 + 3))).toBe(16 * 60)
   })
 })

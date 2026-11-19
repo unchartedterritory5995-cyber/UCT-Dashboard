@@ -1,7 +1,7 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
-import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar } from './chart/barTime'
+import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
@@ -4445,7 +4445,7 @@ export default function StockChart({
       // For daily/weekly, convert to YYYY-MM-DD date string in ET so it aligns with daily bars
       let time
       if (isDailyWeekly) {
-        time = new Date(tsRaw * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+        time = etDateLabel(tsRaw)
       } else {
         time = toChartTime(tsRaw)
       }
@@ -9346,7 +9346,7 @@ export default function StockChart({
       if (replayCutoff && out?.length) {
         out = out.filter(b => (
           typeof b.t === 'number'
-            ? new Date(b.t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) <= replayCutoff
+            ? etDateLabel(b.t) <= replayCutoff
             : String(b.t).slice(0, 10) <= replayCutoff
         ))
       }
