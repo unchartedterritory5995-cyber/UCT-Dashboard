@@ -54,14 +54,14 @@ describe('a removal through a handle with no register is withheld by name, one p
       `${ARR_Z}${UP}    array.get(zs, 0).lb.delete()\n    l = label.new(bar_index, high, "u")\n    zs.set(0, Z.new(l))\n`,
     'an array element\'s field, function form `label.delete(array.get(zs, 0).lb)`':
       `${ARR_Z}${UP}    label.delete(array.get(zs, 0).lb)\n    l = label.new(bar_index, high, "u")\n    zs.set(0, Z.new(l))\n`,
+    'a `var` label held in an array element\'s field, deleted on the last bar (it drew the label TradingView deletes)':
+      `${H}type Z\n    label lb\nvar label l0 = label.new(bar_index, high, "keep")\nvar zs = array.from(Z.new(l0))\nif barstate.islast\n    zs.get(0).lb.delete()\n`,
     'a function result\'s field `g().lb.delete()`':
       `${H}type Z\n    label lb\nvar z0 = Z.new(na)\ng() => z0${UP}    g().lb.delete()\n    z0.lb := label.new(bar_index, high, "u")\n`,
     'a ternary\'s field `(c ? z1 : z2).lb.delete()`':
       `${H}type Z\n    label lb\nvar z1 = Z.new(na)\nvar z2 = Z.new(na)${UP}    (close > 0 ? z1 : z2).lb.delete()\n    z1.lb := label.new(bar_index, high, "u")\n`,
     'a matrix element `mx.get(0, 0).delete()`':
       `${H}var mx = matrix.new<label>(1, 1)${UP}    mx.get(0, 0).delete()\n    l = label.new(bar_index, high, "u")\n    mx.set(0, 0, l)\n`,
-    'a map value `m.get("k").delete()`':
-      `${H}var m = map.new<string, label>()${UP}    m.get("k").delete()\n    l = label.new(bar_index, high, "u")\n    m.put("k", l)\n`,
   }
   for (const [what, src] of Object.entries(REMOVAL)) {
     it(what, () => {
@@ -72,6 +72,28 @@ describe('a removal through a handle with no register is withheld by name, one p
       expect(beside.ok).toBe(true)
       expect(beside.drawn).toBe(false)
       expect(beside.note).toMatch(DRAWINGS_WITHHELD)
+    })
+  }
+})
+
+describe('a map value: the removal is counted by name and the label the map holds is never drawn', () => {
+  // Measured: `m.get("k").delete()` is `label.delete` in the reader's `unsupported`, and a label put into a map is a
+  // create the program loses (`content:lost`), so nothing of the map is drawn; with nothing left to draw the door
+  // answers with its general sentence, and beside a plot the `Drawings` note names what was not carried.
+  const MAP = {
+    'redrawn every up bar (`l = label.new(…)`, `m.put("k", l)`)':
+      `${H}var m = map.new<string, label>()${UP}    m.get("k").delete()\n    l = label.new(bar_index, high, "u")\n    m.put("k", l)\n`,
+    'a `var` label put once and deleted on the last bar':
+      `${H}var label l0 = label.new(bar_index, high, "keep")\nvar m = map.new<string, label>()\nif barstate.isfirst\n    m.put("k", l0)\nif barstate.islast\n    m.get("k").delete()\n`,
+  }
+  for (const [what, src] of Object.entries(MAP)) {
+    it(what, () => {
+      const alone = served(src, 'u_uh_map')
+      expect(alone.ok, `served ${alone.live} labels`).toBe(false)
+      const beside = withPlot(src, 'u_uh_map_p')
+      expect(beside.ok).toBe(true)
+      expect(beside.drawn).toBe(false)
+      expect(beside.note).not.toBe('')
     })
   }
 })
