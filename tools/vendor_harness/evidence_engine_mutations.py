@@ -1,6 +1,6 @@
 """Mutation proofs for the evidence engine (the proof record). Each mutation: save the file's bytes, apply
-ONE edit, run the NAMED rail from tests/test_evidence_engine.py, expect it red, restore the saved bytes,
-verify sha256. Never git checkout.
+ONE edit, run the NAMED rail from tests/test_evidence_engine.py (or the rails file a mutation names as its sixth
+element), expect it red, restore the saved bytes, verify sha256. Never git checkout.
 
     python -B tools/vendor_harness/evidence_engine_mutations.py           # every mutation, then the CONTROL
     python -B tools/vendor_harness/evidence_engine_mutations.py --dry     # only check each pattern occurs once
@@ -18,6 +18,8 @@ EL = W / "tools" / "vendor_harness" / "evidence_ledger.py"
 BC = W / "tools" / "vendor_harness" / "batch_capture.py"
 DOC = W / "docs" / "pine" / "EVIDENCE-ENGINE-DESIGN.md"
 RAILS = "tests/test_evidence_engine.py"
+#: The driver's own rails (the recording double): a mutation of `batch_capture.py` names this file as its sixth element.
+BATCH_RAILS = "tests/test_vendor_batch_capture.py"
 
 LICENCE = "test_the_licence_gate_admits_probes_corpus_and_permitted_headers_only"
 PROMOTE = "test_promote_needs_the_packet_sha_and_files_every_verdict"
@@ -37,6 +39,16 @@ SECTION = "test_a_sections_chart_beats_the_preambles_and_the_listing_flag_follow
 PROSE_CELL = "test_a_probe_named_in_a_prose_cell_is_a_reference_never_a_request"
 HEADING = "test_a_finished_capture_heading_is_recognised_numbered_or_in_any_case"
 LOCAL_EVIDENCE = "test_there_is_no_local_evidence_mode_and_the_design_doc_says_so"
+# ── the capture phase (2026-11-19) ──
+PHASE_ID = "test_a_capture_id_parses_with_and_without_a_phase_and_an_unknown_phase_is_refused"
+PHASE_CELL = "test_a_phase_cell_outside_the_vocabulary_refuses_the_queue_by_name"
+PHASE_TARGETS = "test_phased_rows_of_one_probe_and_chart_are_distinct_targets_and_unphased_ones_merge_as_before"
+PHASE_CHECK = "test_queue_check_refuses_phased_rows_that_would_collide_and_passes_distinct_phases"
+PHASE_STATUS = "test_fixture_status_matches_a_capture_by_its_phase"
+PHASE_MANIFEST = "test_the_manifest_carries_each_phase_as_its_own_script"
+BATCH_ID = "test_the_capture_id_carries_the_phase_and_an_unphased_id_is_unchanged"
+BATCH_VOCAB = "test_a_capture_phase_outside_the_vocabulary_is_refused_before_any_page_step"
+BATCH_CLASH = "test_two_scripts_naming_one_capture_id_refuse_the_batch_before_any_page_step"
 
 MUTATIONS = [
     # ── the first eight (2026-11-02, tip ec0882c16a) ──
@@ -213,6 +225,41 @@ MUTATIONS = [
     ("RDDT's listing day carries over to another symbol", BC,
      '            o.listing_date = script.get("listingDate") or KNOWN_LISTING.get(o.symbol.upper())',
      "            pass", DRIVER),
+    # ── the capture phase (2026-11-19): one vocabulary, distinct targets, the queue check, the batch-start refusal ──
+    ("an id accepts any suffix as a phase", EL,
+     'PHASE_SUFFIX_RX = "(?:-(?:" + "|".join(re.escape(p) for p in CAPTURE_PHASES) + "))?"',
+     'PHASE_SUFFIX_RX = "(?:-[a-z-]+)?"', PHASE_ID),
+    ("the script key keeps the phase", EL, '    return m.group(1) if m else (capture_id or "")',
+     '    return (m.group(1) + m.group(2)) if m else (capture_id or "")', PHASE_ID),
+    ("a phase cell outside the vocabulary is admitted", EE, "    if v not in el.CAPTURE_PHASES:\n", "    if False:\n",
+     PHASE_CELL),
+    ("a phased row is not its own target", EE, ' + (f"@{phase}" if phase else "")', "", PHASE_TARGETS),
+    ("a target carries no capturePhase", EE, '"capturePhase": t["phase"],', '"capturePhase": None,', PHASE_TARGETS),
+    ("the queue never runs the phase check", EE, "    clash = phase_refusals(phase_groups)\n    if clash:\n",
+     "    clash = phase_refusals(phase_groups)\n    if False:\n", PHASE_CHECK),
+    ("phased and unphased rows of one probe and chart are admitted", EE, "        if not all(phases):\n",
+     "        if False:\n", PHASE_CHECK),
+    ("a repeated phase is admitted", EE, "        elif len(set(phases)) != len(phases):\n", "        elif False:\n",
+     PHASE_CHECK),
+    ("a capture of another phase answers the target", EE, 'and f["tf"] == t\n             and f["phase"] == phase]',
+     'and f["tf"] == t]', PHASE_STATUS),
+    ("a capture of another phase makes the target stale", EE, ' and f["sha"] != sha and f["phase"] == phase]',
+     ' and f["sha"] != sha]', PHASE_STATUS),
+    ("a ledger verdict of another phase answers the target", EE,
+     ' and has_verdict and el.capture_phase(r.get("captureId")) == phase:', " and has_verdict:", PHASE_STATUS),
+    ("the manifest slug drops the phase", EE, '{norm_tf(t[\'tf\'])}" + (f"-{phase}" if phase else ""))',
+     '{norm_tf(t[\'tf\'])}")', PHASE_MANIFEST),
+    ("the manifest drops capturePhase", EE, '            **({"capturePhase": phase} if phase else {}),\n', "",
+     PHASE_MANIFEST),
+    ("the capture id drops the phase", BC, '    return f"{capture_id}-{phase}" if phase else capture_id',
+     "    return capture_id", BATCH_ID, BATCH_RAILS),
+    ("a capturePhase outside the vocabulary is admitted", BC,
+     "    if phase is not None and phase not in CAPTURE_PHASES:\n", "    if False:\n", BATCH_VOCAB, BATCH_RAILS),
+    ("the batch never checks its capture ids at its start", BC,
+     '            clash = capture_id_refusal(manifest["scripts"], drv.opts_for)\n', "            clash = None\n",
+     BATCH_CLASH, BATCH_RAILS),
+    ("two scripts naming one capture id are admitted", BC, "        if cid in seen:\n", "        if False:\n",
+     BATCH_CLASH, BATCH_RAILS),
 ]
 
 
@@ -223,10 +270,15 @@ def adapt(text, a, b):
     return a, b
 
 
+def rails_of(m) -> str:
+    """The rails file a mutation's rail lives in: its sixth element, else RAILS."""
+    return m[5] if len(m) > 5 else RAILS
+
+
 def main() -> int:
     dry = "--dry" in sys.argv
     bad = []
-    for label, path, a, b, rail in MUTATIONS:
+    for label, path, a, b, rail, *_ in MUTATIONS:
         text = path.read_bytes().decode("utf-8")
         a2, _ = adapt(text, a, b)
         if text.count(a2) != 1:
@@ -237,7 +289,8 @@ def main() -> int:
         return 1 if bad else 0
     out, killed = [], 0
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
-    for label, path, a, b, rail in MUTATIONS:
+    for m in MUTATIONS:
+        label, path, a, b, rail = m[:5]
         saved = path.read_bytes()
         sha = hashlib.sha256(saved).hexdigest()
         text = saved.decode("utf-8")
@@ -245,7 +298,7 @@ def main() -> int:
         try:
             path.write_bytes(text.replace(a2, b2).encode("utf-8"))
             # pycache defeats a same-length mutation: never write bytecode
-            p = subprocess.run([sys.executable, "-B", "-m", "pytest", RAILS, "-q", "-p", "no:cacheprovider", "-k", rail],
+            p = subprocess.run([sys.executable, "-B", "-m", "pytest", rails_of(m), "-q", "-p", "no:cacheprovider", "-k", rail],
                                cwd=str(W), capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
             last = p.stdout.strip().splitlines()[-1] if p.stdout.strip() else p.stderr.strip()[-200:]
             red = p.returncode != 0 and ("failed" in last or "error" in last)
@@ -255,8 +308,9 @@ def main() -> int:
             path.write_bytes(saved)
             assert hashlib.sha256(path.read_bytes()).hexdigest() == sha, f"restore failed for {path}"
         print(out[-1], flush=True)
-    # control: unmutated, the same rails are green
-    p = subprocess.run([sys.executable, "-B", "-m", "pytest", RAILS, "-q", "-p", "no:cacheprovider"],
+    # control: unmutated, the same rails are green (every rails file a mutation named)
+    p = subprocess.run([sys.executable, "-B", "-m", "pytest", *sorted({rails_of(m) for m in MUTATIONS}), "-q",
+                        "-p", "no:cacheprovider"],
                        cwd=str(W), capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     control = p.stdout.strip().splitlines()[-1] if p.stdout.strip() else p.stderr[-400:]
     print("CONTROL:", control)
