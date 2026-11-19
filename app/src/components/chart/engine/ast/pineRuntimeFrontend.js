@@ -133,7 +133,8 @@ const STRATEGY_OCA_TYPES = Object.freeze({
 
 const ARRAY_READS_ELEMENT = new Set(['array.get', 'array.pop', 'array.shift',
   'array.first', 'array.last', 'array.remove'])
-import { COLOUR_FNS, producesColour, hexToPacked, objectHexToPacked, colourTypedNamesOf } from '../runtime/colours.js'
+import { COLOUR_FNS, producesColour, hexToPacked, objectHexToPacked, colourTypedNamesOf, COLOUR_COMPARABLE } from '../runtime/colours.js'
+import { THEME_NAMES, packedThemeColour } from '../objectTheme.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
  *  Collapsing these into `pine:state` would hide the next dependency, which is
@@ -4357,10 +4358,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐ TC — the immutable bindings `holdsColour` is reading through right now (its cycle guard; see
    *  the name arm below). `touchesColour` and `fractionalColourIn` keep their own sets. */
   const colourNamesInFlight = new Set()
+  /** ⭐ CO-2 — does this script name `chart.fg_color` / `chart.bg_color` anywhere (comments and strings stripped)? */
+  let themeInScript = null
+  const THEME_IN_SCRIPT = () => {
+    if (themeInScript === null) {
+      try { themeInScript = /\bchart\.(?:fg|bg)_color\b/.test(strippedForScan(source)) } catch { themeInScript = true }
+    }
+    return themeInScript
+  }
   const holdsColour = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
       if (colourHexByName(node.name, pineVersion) !== null) return true
+      // ⭐ CO-2 — the chart's two theme colours are colours (a script's own binding of the name wins)
+      if (THEME_NAMES.includes(node.name) && lookupReadable(node.name, scope) === null && !env.has(node.name)) return true
       const slot = lookupReadable(node.name, scope)
       // ⭐ WS-E — a name TYPED `color` is one, even when it was declared `na`.
       if (slot !== null) return isColourTy(slotTy(slot)) || colourTypedNames.has(node.name)
@@ -8819,6 +8830,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
             && scope.lookup(node.name) === null && !env.has(node.name)) {
           return str(ORDER_ENUM[node.name])
         }
+        // ⭐⭐ ENGINE NUMBER PENDING (CO-2) — `chart.fg_color` / `chart.bg_color` ARE COLOUR VALUES HERE, carried as
+        // the SAME theme reference the host reader carries (`objectTheme.js`, one authority), in the number form
+        // this lane's colours take (`packedThemeColour`), and resolved where they are drawn: an object's colour
+        // slot, a per-bar colour column. TradingView: they are the chart's own background and its high-contrast
+        // foreground (the light-theme capture `vw-theme-colours-spy-1d-2026-10-01` reads #0f0f0f on #ffffff),
+        // so they are never folded to a hex here. ⛔ A script's own binding of the name wins.
+        if (THEME_NAMES.includes(node.name) && scope.lookup(node.name) === null && !env.has(node.name)) {
+          return num(packedThemeColour(node.name))
+        }
         // ⭐⭐ S1 — A BROKER VALUE (`strategy.position_size`, ...), read from the run's
         // broker; the two directions are the numbers the broker reads ([B-DIR]).
         if (brokerMode && node.name.startsWith('strategy.')
@@ -9081,6 +9101,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
               `\`${node.op}\` over a colour written with a transparency that is not a whole number (or a gradient) — `
               + 'whether TradingView compares such colours by their opacity byte or their transparency is not captured '
               + 'yet (probe `vw-tc1-colour-na-compare`, rows E1-E2)', at)
+          }
+          // ⭐ CO-2 — IN A SCRIPT THAT PAINTS WITH THE CHART'S THEME COLOUR, each operand takes the step that stops
+          // the run by name where it IS one (`colours.js::COLOUR_COMPARABLE`): the chart's colour is not in the
+          // computation. Every other script's comparison is lowered exactly as before.
+          if (THEME_IN_SCRIPT()) {
+            return binary(op, colourCall(COLOUR_COMPARABLE, [lowerExpr(node.left, scope)]),
+              colourCall(COLOUR_COMPARABLE, [lowerExpr(node.right, scope)]))
           }
           return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))
         }
