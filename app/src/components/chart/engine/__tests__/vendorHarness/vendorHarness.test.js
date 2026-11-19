@@ -231,6 +231,41 @@ describe('2 · the TradingView-side snippet, against a RECORDING DOUBLE of the m
     expect(vh.cleanup().globalsLeft).toEqual([])
   })
 
+  it('records an hline (metaInfo band) and a fill (filled area): declared, defaults and live state — null when absent', () => {
+    const read = (study) => {
+      const vh = install({ studies: [study], bars: BARS })
+      const sum = vh.capture({ study: 'UCTVH probe', source: SRC, newestBarIsForming: false, chunkSize: 1500 })
+      const parts = []
+      for (let i = 0; i < sum.chunks; i++) parts.push(vh.chunk(i).text)
+      vh.cleanup()
+      const cap = JSON.parse(parts.join(''))
+      expect(validateCapture(cap)).toEqual({ ok: true, errors: [] })
+      return cap.study
+    }
+    const band = { id: 'hline_0', name: 'Zero' }
+    const fill = { id: 'fill_0', objAId: 'plot_0', objBId: 'plot_1', type: 'plot_plot', title: 'Band fill' }
+    const base = mkStudy()
+    const st = read(mkStudy({
+      mi: { ...base.mi, bands: [band], filledAreas: [fill],
+        defaults: { ...base.mi.defaults, bands: [{ color: '#787B86', linestyle: 2, linewidth: 1, value: 0, visible: true }],
+          filledAreasStyle: { fill_0: { color: '#2196F3', transparency: 90, visible: true } } } },
+      state: { ...base.state, bands: [{ color: '#FF0000', linestyle: 0, linewidth: 2, value: 50, visible: true }],
+        filledAreasStyle: { fill_0: { color: '#2196F3', transparency: 80, visible: true } } },
+    }))
+    expect(st.bands).toEqual([band])
+    expect(st.bandDefaults).toEqual([{ color: '#787B86', linestyle: 2, linewidth: 1, value: 0, visible: true }])
+    expect(st.bandState).toEqual([{ color: '#FF0000', linestyle: 0, linewidth: 2, value: 50, visible: true }])
+    expect(st.filledAreas).toEqual([fill])
+    expect(st.filledAreaDefaults).toEqual({ fill_0: { color: '#2196F3', transparency: 90, visible: true } })
+    expect(st.filledAreaState).toEqual({ fill_0: { color: '#2196F3', transparency: 80, visible: true } })
+    // a study with no hline and no fill: every field is null (the model held none), and the plots are unchanged
+    const plainStudy = read(mkStudy())
+    for (const k of ['bands', 'bandDefaults', 'bandState', 'filledAreas', 'filledAreaDefaults', 'filledAreaState']) {
+      expect(plainStudy[k]).toBeNull()
+    }
+    expect(plainStudy.plots.map((p) => p.title)).toEqual(['B', 'A', null])
+  })
+
   it('⛔ refuses an ambiguous study name, and a study that failed to compile', () => {
     let vh = install({ studies: [mkStudy(), mkStudy()], bars: BARS })
     expect(() => vh.capture({ study: 'UCTVH', source: SRC })).toThrow(/matched 2 indicators/)
