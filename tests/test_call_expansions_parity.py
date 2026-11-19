@@ -45,7 +45,24 @@ CASES = [
     # (2026-10-30) Parabolic SAR over accum4, inside its measured domain
     ("sar", [n(0.02), n(0.2)]), ("sar", [n(0.03), n(0.3)]), ("sar", [n(0.02), n(1)]),
     ("sarDirection", [n(0.02), n(0.2)]), ("sarDirection", [n(0.1), n(0.5)]),
+    # (2026-11-18) the Fisher Transform over accum2, at the two lengths it was graded at and two more
+    ("fisher", [n(9)]), ("fisher", [n(20)]), ("fisher", [n(2)]), ("fisher", [n(10.0)]),
+    # (2026-11-18) the Detrended Price Oscillator: an odd and an even length (the bars-back count is
+    # floor(n / 2) + 1, so 21 and 20 both read 11 back), the shortest, and a source that is a formula
+    ("dpo", [CLOSE, n(21)]), ("dpo", [CLOSE, n(20)]), ("dpo", [CLOSE, n(1)]), ("dpo", [HL2, n(9)]),
+    # (2026-11-18) the Laguerre Filter and the Laguerre RSI over accum4: the two graded settings, and one
+    # gamma in each of the other restart tiers
+    ("laguerre", [HL2, n(0.8)]), ("laguerreRsi", [CLOSE, n(0.5)]),
+    ("laguerre", [CLOSE, n(0.6)]), ("laguerre", [CLOSE, n(0.85)]), ("laguerreRsi", [CLOSE, n(0.95)]),
+    ("laguerreRsi", [HL2, n(0.2)]),
     # declined (null) in both lanes
+    ("dpo", [CLOSE, n(0)]), ("dpo", [CLOSE, n(20.5)]),
+    ("fisher", [n(1)]), ("fisher", [n(9.5)]), ("fisher", [{"type": "series", "name": "len"}]),
+    # a gamma that is 0, past the largest that settles, or not a number; a source that is itself a running value
+    ("laguerre", [CLOSE, n(0)]), ("laguerre", [CLOSE, n(0.96)]), ("laguerreRsi", [CLOSE, n(1)]),
+    ("laguerre", [CLOSE, {"type": "series", "name": "g"}]),
+    ("laguerreRsi", [{"type": "call", "name": "fisher", "args": [n(9)]}, n(0.5)]),
+    ("laguerre", [{"type": "call", "name": "accum", "args": [CLOSE, CLOSE, n(100)]}, n(0.5)]),
     ("linreg", [CLOSE, n(1)]), ("linreg", [CLOSE, {"type": "series", "name": "len"}]),
     ("vwma", [CLOSE, n(2.5)]), ("correlation", [CLOSE, SPY, n(1)]), ("roc", [CLOSE, n(0)]),
     ("bbUpper", [CLOSE, n(20.5), n(2)]),
@@ -68,7 +85,7 @@ def test_the_two_lanes_build_byte_identical_trees():
     server = [ce.expand_call({"type": "call", "name": name, "args": args}) for name, args in CASES]
     assert json.dumps(server, sort_keys=True) == json.dumps(browser, sort_keys=True)
     # 9 -> 14 (2026-10-30): five SAR settings outside the measured domain.
-    assert sum(1 for t in server if t is None) == 15    # the declined cases are declined in both
+    assert sum(1 for t in server if t is None) == 26    # declined in both: 15, dpo's 2, fisher's 3, the Laguerre pair's 6
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not on PATH")
@@ -78,6 +95,87 @@ def test_the_two_lanes_name_the_same_functions_and_signatures():
     res = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, timeout=60)
     assert res.returncode == 0, res.stderr
     assert json.loads(res.stdout) == [[k, v[0], v[1], v[2]] for k, v in ce.CALL_EXPANSIONS.items()]
+
+
+def test_the_fisher_transform_is_exactly_the_tree_that_was_graded():
+    """The grade is the grade of ONE tree (`tests/fixtures/ast/fisher_graded.json` says what it was
+    graded against). The server's builder must produce that tree, to the hash, at both graded
+    lengths; the window's builder is held to the same file by `callExpansions.test.js`, and to this
+    one byte for byte by the parity test above."""
+    import io as _io
+    from api.services import user_definitions as ud
+    doc = json.loads(_io.open(Path(__file__).parent / "fixtures" / "ast" / "fisher_graded.json", encoding="utf-8").read())
+    assert set(doc["graded"]) == {"9", "20"}
+    for length, graded in doc["graded"].items():
+        tree = ce.expand_call({"type": "call", "name": "fisher", "args": [n(int(length))]})
+        assert ud.ast_hash(tree) == graded, length
+    # CONTROL: the hash sees one number moved anywhere (another length, another window)
+    assert ud.ast_hash(ce.expand_call({"type": "call", "name": "fisher", "args": [n(10)]})) not in doc["graded"].values()
+    assert ud.ast_hash(ce.fisher_tree(n(9), warmup=299)) != doc["graded"]["9"]
+    # what it is: two linked running values restarted FISHER_WARMUP bars back, the second one drawn
+    tree = ce.expand_call({"type": "call", "name": "fisher", "args": [n(9)]})
+    assert tree["name"] == "accum2" and [a.get("value") for a in tree["args"][:4]] == [2, ce.FISHER_WARMUP, 0, 0]
+    assert ce.FISHER_WARMUP == 300
+
+
+def test_dpo_reads_its_average_half_the_length_plus_one_bars_back():
+    """TradingView's default (not centred) form, which the captures show equal on every bar at an odd
+    and an even length: the source minus its n-bar simple average as it stood floor(n / 2) + 1 bars
+    ago. The count is DERIVED from the length; that is the whole reason this is a function."""
+    def dpo(length, source=CLOSE):
+        return ce.expand_call({"type": "call", "name": "dpo", "args": [source, n(length)]})
+    for length, back in ((21, 11), (20, 11), (14, 8), (15, 8), (2, 2), (1, 1), (200, 101)):
+        assert dpo(length) == {"type": "op", "name": "-", "args": [
+            CLOSE, {"type": "offset", "value": back, "args": [{"type": "call", "name": "sma", "args": [CLOSE, n(length)]}]}]}, length
+    # the average is of the SAME source the function was given
+    assert dpo(9, HL2)["args"][1]["args"][0]["args"][0] == HL2 and dpo(9, HL2)["args"][0] == HL2
+    # CONTROL: it is not momentum (which reads the SOURCE back), and not the textbook form (the price back)
+    mom = ce.expand_call({"type": "call", "name": "mom", "args": [CLOSE, n(11)]})
+    assert dpo(21) != mom and dpo(21)["args"][0] == CLOSE and dpo(21)["args"][1]["type"] == "offset"
+    assert ce.CALL_EXPANSIONS["dpo"][2] == "dpo(source, length)"
+
+
+def test_the_laguerre_pair_is_exactly_the_trees_that_were_graded():
+    """`tests/fixtures/ast/laguerre_graded.json` says what each was graded against. The server's
+    builders must produce those trees, to the hash; the window's are held to the same file by
+    `callExpansions.test.js`, and to these byte for byte by the parity test above."""
+    import io as _io
+    from api.services import user_definitions as ud
+    doc = json.loads(_io.open(Path(__file__).parent / "fixtures" / "ast" / "laguerre_graded.json", encoding="utf-8").read())
+    assert set(doc["graded"]) == {"laguerre(hl2, 0.8)", "laguerreRsi(close, 0.5)"}
+    for name, row in doc["graded"].items():
+        assert ud.ast_hash(ce.expand_call(row["call"])) == row["hash"], name
+    # CONTROL: another gamma, or another source, is another tree
+    hashes = {row["hash"] for row in doc["graded"].values()}
+    assert ud.ast_hash(ce.expand_call({"type": "call", "name": "laguerre", "args": [HL2, n(0.79)]})) not in hashes
+    assert ud.ast_hash(ce.expand_call({"type": "call", "name": "laguerre", "args": [CLOSE, n(0.8)]})) not in hashes
+
+
+def test_the_laguerre_restart_window_is_sized_from_gamma_and_always_long_enough():
+    """The larger gamma is, the longer the filter remembers. Each tier's window must leave less than
+    a billionth of the start at the tier's LARGEST gamma, by the same rule that decides which
+    linked running values settle (`api/services/running_values.py`), and the whole reach must fit
+    the history a formula may reach."""
+    from api.services import running_values as rv
+    assert ce.LAGUERRE_WARMUPS == ((0.5, 64), (0.7, 128), (0.8, 192), (0.9, 400), (0.95, 800)) and ce.LAGUERRE_MAX_GAMMA == 0.95
+    assert [most for most, _ in ce.LAGUERRE_WARMUPS] == sorted(most for most, _ in ce.LAGUERRE_WARMUPS)
+    for most, bars in ce.LAGUERRE_WARMUPS:
+        stage = ce.laguerre_stage(CLOSE, n(most), 4)
+        assert stage["args"][1] == n(bars) and ce.laguerre_warmup(most) == bars
+        got = rv.classify(stage, 1e-9, 960)
+        assert got["shape"] == rv.LINEAR and got["needs"] is not None and got["needs"] <= bars, (most, bars, got["needs"])
+        assert bars <= 960 - 100                                        # room for a source that reaches back itself
+    # the tier boundary: just past one tier's largest gamma takes the next tier's window
+    assert ce.laguerre_stage(CLOSE, n(0.5), 1)["args"][1] == n(64) and ce.laguerre_stage(CLOSE, n(0.51), 1)["args"][1] == n(128)
+    # CONTROL: the rule can say no. At the smallest window, the largest gamma has NOT settled.
+    short = ce.laguerre_stage(CLOSE, n(0.5), 4)
+    short["args"][1] = n(40)
+    assert rv.classify(short, 1e-9, 960)["needs"] > 40
+    # and a gamma the rule cannot settle within reach is not offered
+    assert ce.laguerre_warmup(0.951) is None and ce.expand_call({"type": "call", "name": "laguerre", "args": [CLOSE, n(0.97)]}) is None
+    assert "above 0 and at most 0.95" in ce.expansion_problem("laguerre", 2)
+    assert "does not settle within the bars a chart formula may reach" in ce.expansion_problem("laguerreRsi", 2)
+    assert ce.expansion_problem("fisher", 1) == "fisher needs a whole-number length of at least 2 written as a number -- fisher(length)"
 
 
 def test_supertrend_reads_its_own_past_through_the_manifests_binding():
@@ -198,9 +296,13 @@ def test_chart_door_function_words_and_refusals_that_stay():
     cheap = dc.plan("color it green when cheap", dc.INDICATOR_KIND, lexicon=conv.CHART_LEXICON)
     assert [n["phrase"] for n in cheap["not_understood"]] == ["cheap"]
     # every phrase is its own unique bucket (a tie would match nothing)
+    # (one of them is the LIBRARY'S since 2026-11-18: an entry that declares the engine function it
+    # is the indicator of takes that function's phrase; tests/test_library_stochastic.py holds the rule)
+    from api.services import named_indicators as ni
+    taken = {alias: e["id"] for e in ni.entries() if e.get("names_function") for alias in e["aliases"]}
     for phrase, key in conv.EXPANSION_PHRASES:
         stems, _ = dc._stem_key(dc._form_tokens(phrase))
-        assert [r["key"] for r in conv.CHART_LEXICON["index"][stems]] == [key]
+        assert [r["key"] for r in conv.CHART_LEXICON["index"][stems]] == [taken.get(phrase, key)]
 
 
 # --------------------------------------------------------------------------- #

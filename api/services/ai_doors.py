@@ -279,9 +279,29 @@ DOORS: dict[str, Door] = {
     "api/services/perplexity_search.py": Door(
         "shared-client", "Perplexity wrapper (web_search / stream_search)",
         "PERPLEXITY_DAILY_LIMIT 500 calls/ET day global, durable"),
+    # 2026-11-18 (census triage): 53859ea686 (2026-11-10, half-price Batch lanes) gave this wrapper two
+    # more callers, the earnings preview warm and the pattern-vision slot; each has its own row below.
     "api/services/llm_batch.py": Door(
-        "shared-client", "Anthropic batch submit for call_recap_warmer",
-        "call_recap $10/day, durable"),
+        "shared-client", "Anthropic Message Batches submit/reap for call_recap_warmer, the earnings "
+        "preview warm and the pattern-vision slot",
+        "the caller's budget: call_recap $10/day, earnings_warm (below), pattern vision hard cap (below)"),
+    # 2026-11-18 (census triage): found by the census once #1855 put this file in CI. The warm's preview
+    # call moved off engine's generator onto the Batch lane in 53859ea686, with a live fallback when a
+    # submit fails. Reached only from the scheduler (`earnings_preview_warm` job + the boot warm in
+    # api/main.py), never from a member request: members read the stored previews.
+    "api/services/earnings_preview_warm.py": Door(
+        "background", "earnings_preview_warm scheduler job + boot warm (EARNINGS_WARM_ENABLED); preview "
+        "calls go to the Batch lane (EARNINGS_WARM_BATCH), live only when a batch submit fails",
+        "llm_budget.allows per generation (`_ai_budget_ok`, the /admin/ai-spend line) + "
+        "narrative_cost_guard charge on a failed live call + EARNINGS_WARM_COST_CAP_DAILY when the owner "
+        "sets one (no default); skip-if-stable"),
+    # 2026-11-18 (census triage): same commit; JudgeBatch queues the slot's judgements through llm_batch.
+    # Scheduler only (`pattern_vision_judge` slot in api/main.py); the admin judge route stays on the
+    # live path through vision_judge.py above.
+    "api/services/pattern_vision/orchestrator.py": Door(
+        "background", "pattern_vision_judge slot's Batch lane (PATTERN_VISION_BATCH); reaper job stores verdicts",
+        "PATTERN_VISION_COST_HARD_CAP $10/day, held at SUBMIT time (JudgeBatch.affordable counts today's "
+        "cost plus everything queued and not yet reaped), pattern_vision.db"),
     # ── Catalysts / themes / patterns (scheduler) ────────────────────────────
     "api/services/catalyst/engine.py": Door(
         "background", "catalyst refresh; member self-heal from GET /api/catalysts/today",

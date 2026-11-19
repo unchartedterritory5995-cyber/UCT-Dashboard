@@ -1,0 +1,21 @@
+{
+ "schema": "uct.harness-supply/v1",
+ "capture": "rs-spx-daily-m-rddt-1m-2026-11-18",
+ "why": "RS RATING L13 (Q-RS-M): the SP:SPX witness on a MONTHLY chart (X01..X04 at \"D\", X05 at timeframe.period). The grade needs what OUR SERVER serves for SPX, held at D: the owner's 2026-11-15 ruling covers inline provider rows in the rs-rating-fred6724-* records only, so this probe's record names them by MANIFEST and the rows stay in the local supply store (ourSide.js::recordedSupplyOf; without the file the grade is refused by name).",
+ "other": {
+  "SPX": {
+   "servedBy": "api/index_bars.py::_fetch_full_series(SPX, D): FMP ^GSPC first (_fetch_fmp_daily, paged from 1990-01-01)",
+   "source": "FMP ^GSPC as PRODUCTION served it (`/api/bars/SPX?tf=D&bars=12500`, the served shape), read on the rig as smoke@ with GETs only at 2026-11-18T12:47:00Z, minutes before the capture (scratchpad fetch_spx_daily.py); the route answered newest_bar_is_forming false (pre-market)",
+   "primaryRecorded": true,
+   "recordedAtUTC": "2026-11-18T12:47:00Z",
+   "newestBarIsForming": false,
+   "rows": {
+    "file": "spx-fmp-gspc-1d-served-2026-11-18.json",
+    "sha256": "9764c239f0e9705e059499c25b283b33f529809c7b701aa0e0b67647a956721f",
+    "count": 9288,
+    "first": "1990-01-02",
+    "last": "2026-11-17"
+   }
+  }
+ }
+}

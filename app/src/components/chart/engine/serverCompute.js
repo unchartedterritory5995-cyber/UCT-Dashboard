@@ -1337,6 +1337,69 @@ export function liveAsks(tf, now = Date.now()) {
   return out
 }
 
+// ─── ONE PAINT: THE SYMBOL HANDOFF WAITS FOR THE PANES TOO (2026-11-17) ───────
+//
+// Owner: "instant on everything, smooth on the eyes". Measured on production (typed first opens of
+// never-opened tickers): the candles painted at once and the RS panes (rsLine, rsPhases, rsVsEma)
+// appeared 217-270 ms LATER on 2 of 10 switches: their batch request had left only ~80 ms before
+// Enter (the warm starts when the typed text settles) and the web pod answers in 90-380 ms. The
+// handoff (hooks/useSymbolHandoff) now commits a new symbol only once the columns the charts at that
+// timeframe draw have landed, waiting at most its bound; landed (or this browser's stored copy) costs
+// nothing.
+/** Have the columns the charts at `tf` draw (`liveAsks`) landed for `sym`? A provisional entry (this
+ *  browser's store) counts: it paints at once. True when nothing at `tf` asks for server columns. */
+export function columnsReadyFor(sym, tf, now = Date.now()) {
+  for (const a of liveAsks(tf, now)) {
+    const key = serverColumnsKey(a.defId, sym, tf, a.inputs)
+    if (key && !_cache.get(key)) return false
+  }
+  return true
+}
+
+/** Resolves true once `columnsReadyFor(sym, tf)`, or with that answer after `ms`. What is missing is
+ *  asked for at once, as the chart's own (one batch, deduped against what is already on its way).
+ *  Never rejects. */
+/**
+ * The columns request for a switch, sent at Enter beside the bars request; never waits, never throws.
+ * The handoff's commit-time wait (`whenColumnsReady`) then covers only what is left of it.
+ * ⚰️ The request left only from that wait, after the bars prepare had reported: on production
+ * (2026-11-18, 60m, URI) the prepare took ~235 ms, the wait's 300 ms ran out at 535 ms and the RS
+ * pane lines appeared 167 ms after the candles. `fetchColumnsBatch` skips a key cached or in flight
+ * (and sends nothing when no chart at `tf` asks), so the later wait's own call sends nothing again.
+ */
+export function warmColumnsFor(sym, tf) {
+  try {
+    if (!sym || !tf) return
+    Promise.resolve(fetchColumnsBatch(sym, String(tf), liveAsks(tf))).catch(() => {})
+  } catch { /* a warm only */ }
+}
+
+export function whenColumnsReady(sym, tf, ms) {
+  if (columnsReadyFor(sym, tf)) return Promise.resolve(true)
+  try { Promise.resolve(fetchColumnsBatch(sym, String(tf), liveAsks(tf))).catch(() => {}) } catch { /* the wait still ends */ }
+  // ⛔ A landing is not always announced: a warm (quiet) batch notifies only for keys a paint has
+  // asked for, and a primed entry not at all. So the wait also LOOKS every READY_POLL_MS (at most
+  // ms / READY_POLL_MS cheap reads), and never sits out its bound after the columns are here.
+  return new Promise((resolve) => {
+    let off = null
+    let timer = null
+    let poll = null
+    const done = (v) => {
+      if (timer == null) return
+      clearTimeout(timer)
+      clearInterval(poll)
+      timer = null
+      try { off?.() } catch { /* ignore */ }
+      resolve(v)
+    }
+    timer = setTimeout(() => done(columnsReadyFor(sym, tf)), ms)
+    poll = setInterval(() => { if (columnsReadyFor(sym, tf)) done(true) }, READY_POLL_MS)
+    off = subscribe(() => { if (columnsReadyFor(sym, tf)) done(true) })
+  })
+}
+/** How often a columns wait looks for a landing nobody announced. */
+export const READY_POLL_MS = 16
+
 /**
  * For a timeframe nothing has painted at in this page load, but which this member
  * uses: the asks its board's OTHER daily-family charts are drawing now (one per

@@ -91,6 +91,12 @@ export const PERIOD_SIDE_WORDS = Object.freeze({
   GAINERS: 'gainers', GAINER: 'gainers', UP: 'gainers', TOP: 'gainers', BEST: 'gainers',
   LOSERS: 'losers', LOSER: 'losers', DOWN: 'losers', BOTTOM: 'losers', WORST: 'losers',
 })
+/** CEOS's list words: a copy of panels/callThemesModel.js CALL_THEMES_LIST_ARG_WORDS (args.callThemes.test.js). */
+export const CALL_THEMES_LIST_WORDS = Object.freeze({
+  NEW: 'new', FRESH: 'new', FIRST: 'new',
+  RISING: 'rising', RISE: 'rising', RISERS: 'rising', UP: 'rising',
+  BOTH: 'both', ALL: 'both',
+})
 export const ROTATION_SIDE_ARG_WORDS = Object.freeze({
   IN: 'in', INTO: 'in', UP: 'in', RISING: 'in', LEADERS: 'in', GAINING: 'in',
   OUT: 'out', DOWN: 'out', FADING: 'out', FALLING: 'out', LAGGARDS: 'out', LOSING: 'out',
@@ -109,6 +115,29 @@ export const TOP_FLOW_SORT_WORDS = Object.freeze({
   PEAK: 'peak', HIGH: 'peak',
   NEW: 'newest', NEWEST: 'newest', LATEST: 'newest', RECENT: 'newest',
 })
+// the earnings season screen: copies of the panel model's words (args.earningsSeason.test.js pins each to its owner)
+export const EARNINGS_DAY_WORDS = Object.freeze({ TODAY: 'today', TONIGHT: 'tonight', TOMORROW: 'tomorrow' })
+export const EARNINGS_SESSION_WORDS = Object.freeze({
+  BMO: 'bmo', MORNING: 'bmo', BEFORE: 'bmo',
+  AMC: 'amc', EVENING: 'amc', AFTER: 'amc',
+})
+// unusual volume: copies of the panel model's words (args.unusualVolume.test.js pins each to its owner)
+export const UNVOL_SIDE_WORDS = Object.freeze({
+  UP: 'up', GAINERS: 'up', GREEN: 'up',
+  DOWN: 'down', DN: 'down', LOSERS: 'down', RED: 'down',
+})
+export const UNVOL_MIN_WORDS = Object.freeze({
+  '2X': 2, 2: 2, '3X': 3, 3: 3, '5X': 5, 5: 5,
+})
+// the short interest list: a copy of the panel model's words (args.shortInterest.test.js pins it to its owner)
+export const SHORT_RANK_WORDS = Object.freeze({
+  DTC: 'dtc', DAYS: 'dtc', COVER: 'dtc',
+  UP: 'up', INCREASE: 'up', INCREASES: 'up', RISING: 'up', BUILDING: 'up',
+  DOWN: 'down', DECREASE: 'down', DECREASES: 'down', FALLING: 'down', COVERING: 'down',
+  FLOAT: 'float', PCT: 'float', PERCENT: 'float',
+})
+/** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
+export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
   LEADERS: 'starter_rs_leaders', LEADER: 'starter_rs_leaders', LDR: 'starter_rs_leaders',
   TOP: 'starter_rs_top_rating', RATING: 'starter_rs_top_rating',
@@ -409,6 +438,22 @@ export const ARG_KINDS = {
     },
     describe: (v) => `search "${v}"`,
   },
+  /** CEOS's two picks (panels/callThemesModel.js; pinned by args.callThemes.test.js): which list,
+   *  and a month as YYYY-MM. `CEOS RISING 2026-10` reads the same in either order. */
+  callThemesList: {
+    takes: 'NEW, RISING or BOTH',
+    parse: (tok) => CALL_THEMES_LIST_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => ({ new: 'phrases new this month', rising: 'rising phrases', both: 'both lists' })[v] || v,
+  },
+  callThemesMonth: {
+    takes: 'a month as YYYY-MM',
+    parse: (tok) => {
+      const m = /^(\d{4})[-/](\d{1,2})$/.exec(String(tok ?? '').trim())
+      if (!m || Number(m[1]) < 2000 || Number(m[1]) > 2100 || Number(m[2]) < 1 || Number(m[2]) > 12) return null
+      return `${m[1]}-${m[2].padStart(2, '0')}`
+    },
+    describe: (v) => `month ${v}`,
+  },
   /** TROT's side: themes rotating in, or rotating out (panels/themeRotationModel.js ROTATION_SIDE_WORDS). */
   rotationSide: {
     takes: 'IN or OUT',
@@ -433,6 +478,81 @@ export const ARG_KINDS = {
     takes: 'an order (GAIN, LOSERS, PEAK, NEW)',
     parse: (tok) => TOP_FLOW_SORT_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
     describe: (v) => ({ gain: 'biggest gain first', loss: 'biggest loss first', peak: 'biggest peak gain first', newest: 'newest pick first' })[v] || v,
+  },
+  // ── the earnings season screen (2026-11-17) ──
+  /** ERNS's day (panels/earningsSeasonModel.js parseEarningsDay; pinned by args.earningsSeason.test.js):
+   *  TODAY, TONIGHT (today, after the close), TOMORROW (the next session), or a date. Unlike
+   *  `etDate` the day may be ahead, and `11/19` is the NEAREST such day, not the most recent. The
+   *  word is kept as a word, so a saved `ERNS TOMORROW` still means tomorrow the day after. */
+  earningsDay: {
+    takes: 'TODAY, TONIGHT, TOMORROW or a date (YYYY-MM-DD or MM/DD)',
+    parse: (tok, ctx = {}) => {
+      const t = String(tok ?? '').trim().toUpperCase()
+      if (Object.prototype.hasOwnProperty.call(EARNINGS_DAY_WORDS, t)) return EARNINGS_DAY_WORDS[t]
+      if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return isRealIsoDate(t) ? t : null
+      const m = t.match(/^(\d{1,2})\/(\d{1,2})$/)
+      if (!m) return null
+      const today = ctx.today || todayIso()
+      const p = (n) => String(n).padStart(2, '0')
+      const year = Number(today.slice(0, 4))
+      const at = (y) => `${y}-${p(m[1])}-${p(m[2])}`
+      const dayNumber = (iso) => { const [y, mo, d] = iso.split('-').map(Number); return Date.UTC(y, mo - 1, d) / 86400000 }
+      let iso = at(year)
+      if (!isRealIsoDate(iso)) return null
+      const away = dayNumber(iso) - dayNumber(today)
+      if (away < -EARNINGS_DAY_REACH) iso = at(year + 1)
+      else if (away > EARNINGS_DAY_REACH) iso = at(year - 1)
+      return isRealIsoDate(iso) ? iso : null
+    },
+    describe: (v) => ({ today: 'today', tonight: 'today, after the close', tomorrow: 'the next session' })[v] || `day ${v}`,
+  },
+  /** ERNS's part of the day (panels/earningsSeasonModel.js EARNINGS_SESSION_ARG_WORDS). */
+  earningsSession: {
+    takes: 'BMO (before the open) or AMC (after the close)',
+    parse: (tok) => EARNINGS_SESSION_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'bmo' ? 'before the open' : 'after the close'),
+  },
+  // ── sector and theme drill-down (2026-11-18) ──
+  /** GRP's group, by NAME or by sector fund: a REST kind (`rest: true`), every word the range does
+   *  not take, joined (`GRP AI / GPU CHIPS`, `GRP AEROSPACE & DEFENSE`, `GRP XLK`). A leading
+   *  SECTOR, INDUSTRY or THEME pins the kind; the PANEL (panels/groupDrillModel.js parseGroupQuery,
+   *  resolveGroup) reads that word and resolves the name against the lists it loads, because the
+   *  groups are data, not a constant. A range word is never a name word, so a second one (`GRP XLK
+   *  3M 1Y`) is said to be not applied instead of becoming part of the name. Upper case, as typed:
+   *  the resolver ignores case and punctuation. */
+  groupName: {
+    takes: 'a sector fund, a sector, an industry or a theme (GRP XLK, GRP THEME AI / GPU CHIPS)',
+    parse: (tok) => {
+      const t = String(tok ?? '').replace(/\s+/g, ' ').trim().toUpperCase()
+      if (!t || Object.prototype.hasOwnProperty.call(PERIOD_RANGE_WORDS, t)) return null
+      return t
+    },
+    describe: (v) => `group "${v}"`,
+  },
+  // ── unusual volume (2026-11-18) ──
+  /** UNVOL's two picks (panels/unusualVolumeModel.js; pinned by args.unusualVolume.test.js): which
+   *  way the stock is going on the day, and how far above its usual volume it must be. No word
+   *  sits in both maps, so `UNVOL 3X UP` reads the same in either order. */
+  unvolSide: {
+    takes: 'UP or DOWN',
+    parse: (tok) => UNVOL_SIDE_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'down' ? 'down on the day' : 'up on the day'),
+  },
+  unvolMin: {
+    takes: 'a multiple (2X, 3X, 5X)',
+    parse: (tok) => UNVOL_MIN_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => `${v}× its usual volume or more`,
+  },
+  // ── short interest (2026-11-18) ──
+  /** SHRTS's rank (panels/shortListModel.js SHORT_RANK_ARG_WORDS; pinned by args.shortInterest.test.js). */
+  shortRank: {
+    takes: 'a rank (DTC, UP, DOWN, FLOAT)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(SHORT_RANK_WORDS, key) ? SHORT_RANK_WORDS[key] : null
+    },
+    describe: (v) => ({ dtc: 'most days to cover first', up: 'biggest increase in short interest first',
+      down: 'biggest decrease in short interest first', float: 'highest percent of float first' })[v] || v,
   },
 }
 

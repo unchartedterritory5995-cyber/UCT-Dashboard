@@ -99,6 +99,10 @@ DEFAULT_RUN_ROOT = pathlib.Path(
 CAPTURED = "CAPTURED"
 REFUSED_BY_TV = "REFUSED_BY_TV"
 GATE_FAILED = "GATE_FAILED"
+#: ⭐⭐ THE RIG'S PERSISTED STATE (coordinator, 2026-11-18): the batch's exit code when the rig layout, read on a
+#: FRESH load at the batch's end, carries a study or is not at the symbol / resolution the batch found. Every capture
+#: may still be good; the NEXT batch's gate would stop on the rig. (See `Driver.verify_fresh_load`.)
+RIG_DIRTY = 3
 INCONCLUSIVE = "INCONCLUSIVE"
 INCOMPLETE = "INCOMPLETE"
 OUTCOMES = (CAPTURED, REFUSED_BY_TV, GATE_FAILED, INCONCLUSIVE, INCOMPLETE)
@@ -325,6 +329,31 @@ VH_STUDIES_JS = "() => window.__uctVH.studies()"
 VH_CAPTURE_JS = ("(o) => { try { return { ok: true, summary: window.__uctVH.capture(o) } } "
                  "catch (e) { return { ok: false, error: String((e && e.message) || e) } } }")
 VH_CHUNK_JS = "(i) => JSON.stringify(window.__uctVH.chunk(i))"
+# ⭐⭐ THE GUARDED CLEAN-SAVE (owner ruling, delegated to the coordinator, 2026-11-19): the layout's own Save (its
+# keyboard shortcut), pressed ONLY by `Driver.guarded_clean_save` behind `clean_save_refusal`, and ONLY when the batch
+# runs with `--clean-save` (or the `repair` command). TradingView's saved word, waited for after the press.
+SAVE_SHORTCUT = "Control+s"
+SAVED_TEXT_JS = "() => /all changes saved/i.test(document.body ? (document.body.innerText || '') : '')"
+# ⛔ Before the Save key: focus leaves whatever holds it (the Pine editor's Ctrl+S saves a SCRIPT to the account, not
+# the layout). True only when nothing but the page itself holds focus; anything else refuses the save.
+FOCUS_BODY_JS = ("() => { const a = document.activeElement; if (a && a !== document.body && a.blur) a.blur(); "
+                 "const b = document.activeElement; return !b || b === document.body || b === document.documentElement }")
+
+
+def clean_save_refusal(state: dict, original: dict):
+    """⛔ THE GUARD: why the in-page state may NOT be saved, or None when it may. Saved only when it reads exactly
+    0 studies on the batch's original symbol and resolution: a dirty layout is never saved."""
+    st = state or {}
+    studies = st.get("studies")
+    if studies is None:
+        return "the in-page state was not read"
+    if len(studies) != 0:
+        return f"{len(studies)} studies are still on the chart: {studies}"
+    if not sym_match(st.get("symbol"), (original or {}).get("symbol")):
+        return f"the symbol reads {st.get('symbol')!r}, not {(original or {}).get('symbol')!r}"
+    if res_norm(st.get("resolution")) != res_norm((original or {}).get("resolution")):
+        return f"the resolution reads {st.get('resolution')!r}, not {(original or {}).get('resolution')!r}"
+    return None
 VH_CLEANUP_JS = "() => (window.__uctVH ? window.__uctVH.cleanup() : { globalsLeft: [], absent: true })"
 GLOBALS_JS = "() => Object.keys(window).filter((k) => /^__uct/.test(k))"
 
@@ -531,6 +560,8 @@ class Opts:
         self.profile_leaf = kw.get("profile_leaf")
         self.retry = set(kw.get("retry", DEFAULT_RETRY))
         self.date = kw.get("date") or _dt.datetime.now().strftime("%Y-%m-%d")
+        # ⭐ the guarded clean-save (`Driver.guarded_clean_save`): OFF unless the run asks for it
+        self.clean_save = bool(kw.get("clean_save", False))
 
 
 class Driver:
@@ -543,6 +574,9 @@ class Driver:
         self.base_opts = opts
         self.provenance = {}         # batch-level: run, account fingerprint, profile, engine sha
         self.abort = None           # (exit code, reason) once the rig cannot be trusted
+        # batch-level: the titles of the studies THIS batch added (`capture`), the only ones the guarded repair may
+        # remove from a layout a fresh load shows dirty (`guarded_clean_save`)
+        self.added_titles = set()
         self._reset()
 
     def _reset(self):
@@ -583,6 +617,78 @@ class Driver:
             self.clock.sleep(self.opts.poll_s)
 
     # ── batch-level ─────────────────────────────────────────────────────────
+    def verify_fresh_load(self, original):
+        """⭐⭐ THE RIG'S PERSISTED STATE (coordinator, 2026-11-18): reload the rig layout and read it as the NEXT batch
+        will: 0 studies, and the symbol and resolution this batch found (`original`). The verdict is the FRESH load's,
+        never the page's own: on TradingView with the layout's autosave on, a study removed through the widget API
+        (`REMOVE_JS`) and a resolution set through it are NOT recorded, while an add from the Pine editor is.
+        ⚰️ MEASURED 2026-11-18: run l12-is-2026-11-18's last probe (UCTPROBE_RS_OWN_DAILY_INTRADAY, RDDT 5m) was removed
+        and verified gone in the page, the batch restored 1D, and a fresh load read the probe on 5m: the layout had
+        saved it at the add. The next batch (Q-FCMP3) stopped at its gate, and the owner's layout carried it until it
+        was cleared by hand. ⛔ Read only: it never removes or sets anything (the only repair is `guarded_clean_save`)."""
+        self.page.reload(wait_until="domcontentloaded")
+        st, ok = self.poll("verify:state", STATE_JS, None,
+                           lambda s: bool(s and s.get("handle") is not None and s.get("studies") is not None and s.get("symbol")),
+                           max(self.opts.ui_timeout_s * 6, 30))
+        st = st or {}
+        studies = [{"id": s.get("id"), "name": s.get("name")} for s in (st.get("studies") or [])]
+        want = {"symbol": original.get("symbol"), "resolution": original.get("resolution")}
+        got = {"symbol": st.get("symbol"), "resolution": st.get("resolution")}
+        clean = (ok and not studies and sym_match(got["symbol"], want["symbol"])
+                 and res_norm(got["resolution"]) == res_norm(want["resolution"]))
+        return {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got}
+
+    def guarded_clean_save(self, original, label="repair") -> dict:
+        """⭐⭐ THE GUARDED CLEAN-SAVE (owner ruling, delegated to the coordinator, 2026-11-19: "Save only through the
+        guarded clean-save step"). On the rig layout the editor's add is AUTOSAVED and a widget-API removal or
+        resolution change is NOT, so a probe that outlived an autosave persists. The repair, on the page a FRESH load
+        just gave (the persisted, dirty layout):
+          1. remove ONLY the studies THIS batch added (`added_titles`); a study it did not add is never touched,
+             and the layout is reported dirty instead;
+          2. put the symbol and resolution back (`restore`);
+          3. ⛔ THE GUARD: read the IN-PAGE state. Not exactly 0 studies on the original symbol and resolution: NO
+             SAVE, the result says why. A dirty layout is never saved;
+          4. clean: focus leaves any editor (`FOCUS_BODY_JS`; else NO SAVE: the Pine editor's Ctrl+S saves a SCRIPT),
+             the layout's own Save (`SAVE_SHORTCUT`), then wait for TradingView's saved word;
+          5. a FRESH load decides (`verify_fresh_load`): only a clean read is CLEAN.
+        Every save is recorded (`ok`, `saved`, the state before and after). Never raises."""
+        out = {"label": label, "at": utcnow(), "saved": False, "ok": False}
+        try:
+            st = self.read_state(f"{label}:dirty")
+            ours = [s for s in (st.get("studies") or []) if s.get("name") in self.added_titles]
+            foreign = [s for s in (st.get("studies") or []) if s.get("name") not in self.added_titles]
+            out["found"] = [{"id": s.get("id"), "name": s.get("name")} for s in (st.get("studies") or [])]
+            if foreign:
+                out["refused"] = f"studies this batch did not add are on the layout: {[s.get('name') for s in foreign]}"
+                return out
+            for s in ours:
+                self.ev(f"{label}:remove", REMOVE_JS, s.get("id"))
+            back = self.restore(original, label)
+            out["restore"] = back
+            now = self.read_state(f"{label}:in-page")
+            before = {"studies": [s.get("name") for s in (now.get("studies") or [])],
+                      "symbol": now.get("symbol"), "resolution": now.get("resolution")}
+            out["before"] = before
+            why = clean_save_refusal(before, original)
+            if why:
+                out["refused"] = why
+                return out
+            if self.ev(f"{label}:focus", FOCUS_BODY_JS) is not True:
+                out["refused"] = "focus could not leave the element holding it (an editor's Ctrl+S saves a script)"
+                return out
+            self.step(f"{label}:save")
+            self.page.keyboard.press(SAVE_SHORTCUT)
+            out["saved"] = True
+            _, out["sawSaved"] = self.poll(f"{label}:saved", SAVED_TEXT_JS, None, bool, max(self.opts.ui_timeout_s, 5))
+            self.clock.sleep(self.opts.settle_s)
+            after = self.verify_fresh_load(original)
+            out["after"] = after
+            out["ok"] = bool(after.get("ok"))
+            return out
+        except Exception as exc:  # noqa: BLE001 -- recorded; the batch reports RIG_DIRTY
+            out["error"] = f"{type(exc).__name__}: {exc}"
+            return out
+
     def read_state(self, name="state"):
         st = self.ev(name, STATE_JS)
         if not st or st.get("handle") is None:
@@ -822,6 +928,7 @@ class Driver:
         title = listed[0].get("title") or listed[0].get("description")
         if not title:
             raise Inconclusive("the one indicator on the chart has no title to select it by", listed)
+        self.added_titles.add(title)
         forming, forming_why = newest_bar_forming(o.newest_bar_forming)
         sym_slug = slugify(o.symbol.split(":")[-1])
         tf_slug = slugify(res_norm(o.tf) if re.fullmatch(r"\d+", res_norm(o.tf)) else "1" + res_norm(o.tf))
@@ -838,6 +945,12 @@ class Driver:
             if script.get(key) is not None:
                 cap_opts[key] = script[key]
         res = self.ev("vh_capture", VH_CAPTURE_JS, cap_opts)
+        # ⭐ (c) THE PROBE LEAVES THE CHART THE MOMENT ITS VALUES ARE READ: `capture()` staged the whole capture text in
+        # the page (`tv_capture.js`: `chunk(i)` slices `staged.text`), so the chunk reads and the transport check below
+        # need no study. On the rig layout the editor's add is AUTOSAVED and a widget-API removal is not: a study that
+        # outlives an autosave stays on the owner's layout (01:17Z 2026-11-19, the settled L12 batch). The shorter its
+        # life, the smaller that window. `cleanup()` still runs after, as before (it finds nothing left to remove).
+        self.remove_added_now()
         if not res or not res.get("ok"):
             msg = (res or {}).get("error") or str(res)
             if "failed to compile" in msg:
@@ -883,6 +996,21 @@ class Driver:
                     "source": summary.get("newestBarIsFormingSource") or "asserted",
                     "asserted": forming, "why": forming_why},
                 "depth": depth}
+
+    def remove_added_now(self) -> list:
+        """(c) Remove every study this script added (not in the row's baseline) right now, through the same
+        model-level remove `cleanup()` uses; returns the ids asked to go. Never raises: a removal that fails here is
+        retried, checked and reported by `cleanup()`, which always runs."""
+        try:
+            st = self.page.evaluate(STATE_JS) or {}
+            base = self.baseline_ids if self.baseline_ids is not None else set()
+            ids = [s["id"] for s in (st.get("studies") or []) if s.get("id") not in base]
+            for sid in ids:
+                self.page.evaluate(REMOVE_JS, sid)
+            self.step("removed-at-capture")
+            return ids
+        except Exception:  # noqa: BLE001 — cleanup() owns the verdict
+            return []
 
     def cleanup(self) -> dict:
         """⛔ ALWAYS RUNS. Remove what this script added, put the chart back,
@@ -1122,6 +1250,26 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
                 rd.ledger("batch-restore", **back, steps=drv.steps)
             except Exception as exc:  # noqa: BLE001
                 rd.ledger("batch-restore", ok=False, error=f"{type(exc).__name__}: {exc}")
+            # ⭐⭐ THE RIG'S PERSISTED STATE: only a FRESH load proves the batch left nothing persisted
+            try:
+                verified = drv.verify_fresh_load(original)
+            except Exception as exc:  # noqa: BLE001
+                verified = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+            rd.ledger("batch-verify", **verified)
+            # ⭐⭐ THE GUARDED CLEAN-SAVE: a layout the fresh load shows dirty is repaired only through the guard, and
+            # only when this run was started with `--clean-save`; every attempt is a ledger row
+            if not verified.get("ok") and verified.get("read") and getattr(opts, "clean_save", False):
+                rep = drv.guarded_clean_save(original, "batch-repair")
+                rd.ledger("clean-save", **rep)
+                if rep.get("ok"):
+                    log(f"[batch] the guarded clean-save repaired the rig: a fresh load reads clean ({json.dumps(rep.get('before'))})")
+                    verified = rep["after"]
+                else:
+                    log(f"[batch] the guarded clean-save did not repair the rig: {json.dumps({k: rep.get(k) for k in ('saved', 'refused', 'error')})}")
+            if not verified.get("ok"):
+                log(f"[batch] ⛔⛔ RIG LEFT DIRTY on a fresh load: {json.dumps(verified)} — the next batch's gate will "
+                    "stop on it; the rig needs a repair before any capture")
+                code = code or RIG_DIRTY
         rd.ledger("batch-end", counts=counts)
     log(f"[batch] done: {json.dumps(counts)}")
     return code
@@ -1294,6 +1442,15 @@ def main(argv=None) -> int:
     r.add_argument("--only", action="append", default=None, help="a slug (repeatable)")
     r.add_argument("--retry", default=",".join(DEFAULT_RETRY),
                    help="prior outcomes to retry on resume (comma list)")
+    r.add_argument("--clean-save", action="store_true",
+                   help="repair a layout the fresh load shows dirty through the GUARDED clean-save (owner ruling 2026-11-19)")
+    rp = sub.add_parser("repair", help="ONE guarded clean-save of the rig layout: remove the named leftover probes, "
+                                       "restore symbol / resolution, Save only if clean in the page, verify on a fresh load")
+    common(rp)
+    rp.add_argument("--symbol", default="NYSE:RDDT")
+    rp.add_argument("--tf", default="1D")
+    rp.add_argument("--remove-title", action="append", required=True,
+                    help="a leftover study's title this repair may remove (repeatable); nothing else is touched")
     g = sub.add_parser("grade", help="grade a run's captures (verdicts.json + summary.md)")
     g.add_argument("--run-dir", required=True)
     g.add_argument("--objects-only-pane", choices=["manifest", "on", "off"], default="manifest")
@@ -1320,6 +1477,28 @@ def main(argv=None) -> int:
     if args.cmd == "recon":
         return _launch(args, lambda page: _recon(page, args))
 
+    if args.cmd == "repair":
+        run_id = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+        rd = RunDir(DEFAULT_RUN_ROOT / f"repair-{run_id}", run_id)
+        opts = Opts(symbol=args.symbol, tf=args.tf, title_selector=args.title_selector,
+                    profile_leaf=resolve_profile(args.profile).name, clean_save=True)
+
+        def _repair(page):
+            drv = Driver(page, RealClock(page), opts, rd, None)
+            drv.added_titles = set(args.remove_title)
+            original = {"symbol": args.symbol, "resolution": args.tf}
+            first = drv.verify_fresh_load(original)
+            rd.ledger("repair-verify-before", **first)
+            if first.get("ok"):
+                print("[repair] the rig already reads clean on a fresh load: nothing to do")
+                return 0
+            out = drv.guarded_clean_save(original, "repair")
+            rd.ledger("clean-save", **out)
+            print(f"[repair] {json.dumps({k: out.get(k) for k in ('saved', 'refused', 'error', 'before', 'sawSaved')})}")
+            print(f"[repair] fresh load after: {json.dumps(out.get('after'))}")
+            return 0 if out.get("ok") else RIG_DIRTY
+        return _launch(args, _repair)
+
     if args.cmd == "run":
         why = throttle_refusal(args.throttle_s)
         if why:
@@ -1341,7 +1520,8 @@ def main(argv=None) -> int:
                     chunk_size=args.chunk_size, newest_bar_forming=args.newest_bar_forming,
                     title_selector=args.title_selector,
                     profile_leaf=resolve_profile(args.profile).name,
-                    retry=[x.strip() for x in args.retry.split(",") if x.strip()])
+                    retry=[x.strip() for x in args.retry.split(",") if x.strip()],
+                    clean_save=bool(args.clean_save))
         print(f"[batch] run dir: {run_dir}")
         return _launch(args, lambda page: run_batch(page, manifest, rd, opts, RealClock(page),
                                                     only=args.only, limit=args.limit))

@@ -186,9 +186,11 @@ describe('⭐⭐ a user function called as a statement, for its effect', () => {
     // array refusing; C11 admitted global READS, and max-pain's exact
     // `generate_strikes()` shape now runs (functionGlobalReads.test.js). A
     // global's PAST inside a function has not been measured, so it stays here.
+    // ⭐ U-FGS F2 served a MUTABLE global's past (its value at each call, G01-G06); a global bound ONCE keeps the
+    // refusal until W13 / W14 is read, and that is the wall pinned here now.
     const r = refusalOf(
-      'var a = 0.0\na := a + 1\n'
-      + 'bump(x) =>\n    y = x + a[1]\n    y\n'
+      'var a = 0.0\na := a + 1\nb = a * 2\n'
+      + 'bump(x) =>\n    y = x + b[1]\n    y\n'
       + `bump(${ARG})\nplot(a)\n`)
     expect(r.guard).toBe('runtime:function-global-state')
   })

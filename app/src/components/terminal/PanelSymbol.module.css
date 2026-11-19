@@ -28,6 +28,22 @@
   text-decoration: underline solid;
 }
 
+/* A name on the member's watchlist carries the kit's mark (WatchMark.jsx). The name and its
+ * mark stay on one line. */
+.marked {
+  white-space: nowrap;
+}
+
+/* As the last thing in a table cell the mark takes NO width: the star hangs in the cell's own
+ * padding, so a marked name is exactly as wide as an unmarked one and no column moves. Anywhere
+ * else (a card, a news line, a cell with something after the name) it sits in the line.
+ * NOTE: CSS cannot see bare text after the name, so a cell never puts bare text straight after a
+ * PanelSymbol (wrap it in a span): components/terminal/watchMarks.rail.test.js. */
+td > .marked:last-child .cellMark,
+th > .marked:last-child .cellMark {
+  width: 0;
+}
+
 @media (max-width: 1024px) {
   .link {
     min-height: var(--tap-min);

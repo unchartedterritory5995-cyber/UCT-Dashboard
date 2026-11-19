@@ -1212,3 +1212,46 @@ describe('the copies this module is FORCED to keep are bound to their originals'
       .toEqual([...interp.TF_RESAMPLABLE].sort())
   })
 })
+
+// ─── a condition read from an earlier bar is still a condition (2026-11-17) ──────────────────────
+//
+// Found on production: "a new 52-week high for the first time in at least 30 days" was refused
+// twice as `lint:repaint`. The natural spelling is "a new high now, and none on the 30 bars
+// before": `newHigh && barssince(newHigh[1], 30) >= 30`. It reads only earlier bars. This walk's
+// own copy of the yes/no rule (`argYieldsBool`) did not know an offset, called the call
+// unanalysable, and unanalysable is reported as "repaints" (Indicators backlog 63).
+describe('a condition read from an earlier bar is still a condition', () => {
+  const n = (value) => ({ type: 'num', value })
+  const s = (name) => ({ type: 'series', name })
+  const call = (name, ...args) => ({ type: 'call', name, args })
+  const op = (name, ...args) => ({ type: 'op', name, args })
+  const back = (node, bars) => ({ type: 'offset', value: bars, args: [node] })
+  const NEW_HIGH = op('>=', s('high'), call('highest', s('high'), n(252)))
+
+  it('"none on the 30 bars before" lints as reading only earlier bars', () => {
+    const firstIn30 = op('&&', NEW_HIGH, op('>=', call('barssince', back(NEW_HIGH, 1), n(30)), n(30)))
+    const got = lint.lintRepaint(firstIn30)
+    expect(got.mode, JSON.stringify(got)).toBe('non-repainting')
+    expect(got.forward).toBe(0)
+    expect(got.back).toBeGreaterThanOrEqual(252 + 30)
+    for (const tree of [call('valuewhen', back(NEW_HIGH, 1), s('close'), n(30)), call('barssince', back(back(NEW_HIGH, 1), 4), n(30))]) {
+      expect(lint.lintRepaint(tree).mode, JSON.stringify(tree)).toBe('non-repainting')
+    }
+    // the same call without the offset was always accepted: the offset is the only change
+    expect(lint.lintRepaint(call('barssince', NEW_HIGH, n(30))).mode).toBe('non-repainting')
+  })
+
+  it('CONTROL: a NUMBER read from an earlier bar is still not a condition', () => {
+    for (const arg of [back(s('close'), 1), back(call('sma', s('close'), n(20)), 3)]) {
+      const got = lint.lintRepaint(call('barssince', arg, n(30)))
+      expect(got.mode).toBe('repaints')
+      expect(got.reasons.join('; ')).toMatch(/is its condition/)
+    }
+  })
+
+  it('the interpreter accepts the same tree (two readers of one rule agree)', () => {
+    const tree = op('>=', call('barssince', back(NEW_HIGH, 1), n(30)), n(30))
+    expect(() => interpretMaxLookback(tree)).not.toThrow()
+    expect(() => interpretMaxLookback(call('barssince', back(s('close'), 1), n(30)))).toThrow()
+  })
+})

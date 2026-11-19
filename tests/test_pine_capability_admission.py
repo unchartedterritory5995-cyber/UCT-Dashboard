@@ -10,12 +10,14 @@ Rails (each mutation-proved, `docs/pine/evidence/2026-11-13-capability-admission
   A3 an env variable adds a capability    A4 the kill list is ignored
   A5 a bad JSON admits                    A7 an object family admits without v2-run evidence
   A8 phantom evidence                     A9 a server lane admits by capability
+  A10 a row added or changed on evidence graded at an older engine (2026-11-18)
 (A6, the detector under-declaring, is `tests/test_pine_capabilities.py`.)
 And: with the variable OFF (the default) every answer is the one before Part 2.
 """
 from __future__ import annotations
 
 import copy
+import datetime
 import json
 import logging
 from pathlib import Path
@@ -148,7 +150,10 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "obj:table",
         # DRAW-1 (coordinator ruling 2026-11-16): box.* on its x-graded evidence, with the count-at-cap
         # carve-out (`objectPool.js` COUNT_AT_CAP_FAMILIES): a box family whose collector ran is withheld by name
-        "obj:box"])
+        "obj:box",
+        # (2026-11-18) strategy() run by the simulated broker: Q-SD1 / Q-SD2 (supertrend-strategy, community) and
+        # W9-Q-S1p, MATCH runtime-on with the broker armed; a backtest is still served only on pinned broker rules
+        "strategy-decl"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -597,6 +602,53 @@ def test_G6_without_the_scope_the_door_withholds_it(tmp_path, monkeypatch, store
     assert body["admitted"] is False and "realtime-state" in body["missing"] and "historyOnly" not in body
 
 
+# ═══ G6-VARIP — varip admits for CLOSED-BAR HISTORY only (coordinator ruling 2026-11-18) ══
+# On a closed historical bar a `varip` is a `var`; it differs only within a FORMING bar, and no
+# capture grades that. So any `varip` row needs `scope: closed-bar-history`, exactly as
+# realtime-state does. No varip row is in the registry yet (it needs Q-VARIP-1 / Q-VARIP-2).
+
+VARIP_SCRIPT = MEMBER_COPY + "varip int vipCount = 0" + chr(10) + "vipCount += 1" + chr(10)
+
+
+def _with_varip_row(tmp_path, monkeypatch, **extra):
+    def add(doc):
+        doc["capabilities"]["varip"] = dict(ROW, **extra)
+        return doc
+    _registry_file(tmp_path, monkeypatch, add)
+
+
+def test_G6_varip_without_the_closed_bar_scope_is_not_admitted():
+    assert "varip" in rg.PINE_CAPABILITY_FORMING_UNGRADED
+    for row in (ROW, dict(ROW, scope="all-bars"), dict(ROW, scope=None)):
+        reasons = rg.pine_capability_admission("varip", row)
+        assert reasons and any("closed-bar-history" in r for r in reasons), reasons
+        assert not rg.pine_capability_history_only("varip", row)
+    assert rg.pine_capability_admission("varip", dict(ROW, scope="closed-bar-history")) == []
+    assert rg.pine_capability_history_only("varip", dict(ROW, scope="closed-bar-history"))
+
+
+def test_G6_varip_the_committed_registry_holds_no_varip_row():
+    doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    assert "varip" not in doc["capabilities"]
+
+
+def test_G6_varip_the_door_answers_history_only_with_the_scope(tmp_path, monkeypatch, store, on):
+    _with_varip_row(tmp_path, monkeypatch, scope="closed-bar-history")
+    caps = pc.capabilities_of(VARIP_SCRIPT)
+    assert "varip" in caps and "realtime-state" not in caps, caps   # varip alone carries the rule here
+    rep = rt.admitted_capabilities()
+    assert "varip" in rep["admitted"] and "varip" in rep["historyOnly"]
+    body = _client().post("/api/user-definitions/runtime-admission", json={"source": VARIP_SCRIPT}).json()
+    assert body == {"sha256": rt.source_hash(VARIP_SCRIPT), "admitted": True, "missing": [],
+                    "historyOnly": ["varip"]}
+
+
+def test_G6_varip_without_the_scope_the_door_withholds_it(tmp_path, monkeypatch, store, on):
+    _with_varip_row(tmp_path, monkeypatch)
+    body = _client().post("/api/user-definitions/runtime-admission", json={"source": VARIP_SCRIPT}).json()
+    assert body["admitted"] is False and "varip" in body["missing"] and "historyOnly" not in body
+
+
 # ═══ A8 — every evidence id is a real capture graded MATCH, drawn by the run ═══
 
 def _verdicts():
@@ -696,7 +748,7 @@ def _x_verdict(o: dict):
 KILL_DOC = ROOT / "api" / "data" / "pine_runtime_killlist.json"
 
 
-def _kill_entry_problems(s: dict, v: dict) -> list:
+def _kill_entry_problems(s: dict, v: dict, today: datetime.date | None = None) -> list:
     """Why one kill entry is not held to its graded evidence: a committed capture of THAT source whose
     runtime-on grade is not MATCH, a reason in the member's words, and the condition that lifts it."""
     out = []
@@ -714,6 +766,38 @@ def _kill_entry_problems(s: dict, v: dict) -> list:
         out.append(f"{s.get('slug')}: its source file is another source")
     if not (s.get("reason") and s.get("liftWhen")):
         out.append(f"{s.get('slug')}: no reason or no liftWhen")
+    # ⭐ (2026-11-18) a HELD kill carries a hard expiry, and is red on its own once past it
+    if s.get("status") == rt.KILL_PENDING:
+        out.extend(_held_kill_expiry_problems(s, today))
+    elif s.get("status") is not None:
+        out.append(f"{s.get('slug')}: status {s.get('status')!r} is not a status this list knows")
+    return out
+
+
+def _held_kill_expiry_problems(s: dict, today: datetime.date | None = None) -> list:
+    """A held kill (`status: pending`) names an ISO `expires` date, and today is not past it."""
+    today = today or datetime.date.today()
+    try:
+        expires = datetime.date.fromisoformat(str(s.get("expires")))
+    except ValueError:
+        return [f"{s.get('slug')}: a held kill with no readable `expires` date"]
+    if today > expires:
+        return [f"{s.get('slug')}: a held kill past its expiry ({expires.isoformat()}): serve the kill or lift it"]
+    return []
+
+
+def held_kill_captures(rt_verdicts: dict, today: datetime.date | None = None) -> dict:
+    """The REACH stops a held kill may carry: ``{capture: slug}`` for each `status: pending` entry of the committed
+    kill list (`rt.pending_kills`, the one authority) that is not past its expiry and whose named capture's
+    runtime-on record grades what the entry says (DIVERGE). Nothing else is ever accepted this way."""
+    recs = {r["id"]: r for r in rt_verdicts["results"]}
+    out = {}
+    for s in rt.pending_kills().values():
+        ev = s.get("evidence") or {}
+        r = recs.get(ev.get("capture"))
+        if _held_kill_expiry_problems(s, today) or r is None or r["verdict"] != ev.get("verdict") or ev.get("verdict") != "DIVERGE":
+            continue
+        out[ev["capture"]] = s.get("slug")
     return out
 
 
@@ -726,7 +810,11 @@ def test_RT1_every_committed_kill_is_held_to_its_graded_evidence():
     v = _verdicts()
     for s in doc["scripts"]:
         assert _kill_entry_problems(s, v) == [], s["slug"]
-        assert s["sha256"] in rt.kill_list()
+        if s.get("status") == rt.KILL_PENDING:
+            # a HELD kill is recorded, never served: the script still draws
+            assert s["sha256"] not in rt.kill_list() and s["sha256"] in rt.pending_kills(), s["slug"]
+        else:
+            assert s["sha256"] in rt.kill_list()
     # CONTROL: an entry whose capture grades MATCH (the lifted parabolic-sar entry, as it stood) is red;
     # the same entry on a capture that DIVERGES is green
     src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
@@ -737,6 +825,12 @@ def test_RT1_every_committed_kill_is_held_to_its_graded_evidence():
     moved = copy.deepcopy(v)
     moved["parabolic-sar-spy-1d-2026-11-15"]["verdict"] = "DIVERGE"
     assert _kill_entry_problems(entry, moved) == []
+    # CONTROL (2026-11-18): the same entry HELD is green until its expiry, red the day after, red with no date
+    held = dict(entry, status=rt.KILL_PENDING, expires="2026-11-21")
+    assert _kill_entry_problems(held, moved, today=datetime.date(2026, 11, 21)) == []
+    assert any("past its expiry" in p for p in _kill_entry_problems(held, moved, today=datetime.date(2026, 11, 22)))
+    assert any("no readable `expires`" in p for p in _kill_entry_problems(dict(held, expires=None), moved))
+    assert any("not a status" in p for p in _kill_entry_problems(dict(entry, status="paused"), moved))
 
 
 #: The by-name rails need a killed script, and the committed kill list is empty since parabolic-sar's kill
@@ -826,8 +920,38 @@ def test_RT1_the_trend_targets_kill_is_lifted_on_its_own_condition():
 #: capability evidence alone. Every script that uses either family, is admitted, and has a committed
 #: capture grading DIVERGE on EITHER lane is on the committed kill list until its own `liftWhen`.
 DRAW1_NEW_OBJECT_FAMILIES = {"obj:box", "obj:table"}
-DRAW1_KILLED_SLUGS = {"contraction-box-doji-lines", "heat-map-seasons", "htf-candle-footprint-cartel-console",
+#: (contraction-box-doji-lines was the eighth: lifted on its own condition, below.)
+DRAW1_KILLED_SLUGS = {"heat-map-seasons", "htf-candle-footprint-cartel-console",
                       "sonarlab-order-blocks", "vw-object-gc-a", "vw-object-gc-b", "vw-object-gc-c"}
+
+
+#: The contraction-box-doji-lines kill (DRAW-1: SPY daily held one line more than TradingView, 205 vs 204 and 201 vs
+#: 200) was LIFTED by engine 78 (#1858) (Pine's tolerant compare, #1858): the extra line was a near-tie comparison,
+#: not the collector. Its `liftWhen` was "an engine fix to the line count, then a runtime-on re-grade to MATCH on
+#: -spy-1d-2026-10-03 and -2026-11-15"; both re-graded MATCH in #1858's own pine-heavy run 44319610649.
+CONTRACTION_LIFT = ("contraction-box-doji-lines-spy-1d-2026-10-03", "contraction-box-doji-lines-spy-1d-2026-11-15")
+
+
+def test_RT1_the_contraction_box_kill_is_lifted_on_its_own_condition():
+    src = (ROOT / "corpus" / "committed" / "contraction-box-doji-lines__1486658151.pine").read_text(encoding="utf-8")
+    assert rt.source_hash(src) not in rt.committed_kills() and not rt.killed(None, src)
+    v = _verdicts()
+    for cid in CONTRACTION_LIFT:
+        r = v[cid]
+        text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+        assert rt.source_hash(text) == rt.source_hash(src), cid
+        assert r["verdict"] == "MATCH" and r["objects"]["verdict"] == "MATCH", cid
+        # the count that held the kill: every family's count agrees, lines included
+        counts = {c["family"]: c for c in r["objects"]["counts"]}
+        assert counts["lines"]["agree"] is True and counts["lines"]["vendor"] == counts["lines"]["ours"], cid
+        assert all(c["agree"] for c in counts.values()), cid
+        o = r["objectsV2"]
+        # every paired record agrees field by field; x is not witnessed everywhere (a capture taken before U13,
+        # or TradingView's off-chart timepoint), which is INCONCLUSIVE by name and never a difference
+        assert o["verdictWithoutX"] == "MATCH" and o["pairedNothing"] is False and not o["x"]["differing"], cid
+    # ...and the production lane's re-grade lifted its host known-divergence entry the same way
+    from api.services import host_known_divergence as hkd
+    assert hkd.refused(src) is None and rt.source_hash(src) not in hkd.committed()
 
 
 def _draw1_unkilled_diverging(kills: dict) -> list:
@@ -944,6 +1068,143 @@ def test_A8_the_rail_can_fail():
     assert ("for", "names another script") in got
     assert ("for", "states the wrong community flag") in got
     assert ("obj:polyline", "the capture's script does not use it") in got
+
+
+# ═══ A10 — evidence freshness: a row ADDED or CHANGED is held to evidence graded at TODAY's engine ═══
+#
+# ⚰️ 2026-11-18: A8 checks that each evidence id EXISTS in the runtime-on snapshot and grades MATCH, never WHICH
+# engine graded it. Both snapshots were last regenerated at engine 78 (f9a976fb47) while master shipped 80, so a
+# new row could have been admitted on evidence two engines old. Ledger evidence already counts only at today's
+# engine (`rollout_gate._pine_ledger_entry_fresh`); committed-snapshot evidence had no such rule.
+# ⭐ The snapshot now names its engine (the corpus writer stamps `scriptEngineVersion`), and each admitted row
+# carries `admission: {scriptEngineVersion, rowSha256}` written by tools/pine_coverage/stamp_admission.py, which
+# refuses unless the snapshot is at today's engine. The digest is over the row's admission fields, so a NEW row
+# with a copied stamp, or evidence edited after stamping, no longer matches: no git history is needed.
+# ⛔ An engine bump invalidates NO existing row (coordinator ruling: it was valid when admitted).
+
+import re  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "tools" / "pine_coverage"))
+import stamp_admission as sa  # noqa: E402 -- the ONE definition of the row digest
+
+VERDICTS_PROD = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
+
+
+def _engine_now() -> int:
+    return svc.SCRIPT_ENGINE_VERSION
+
+
+def _freshness_problems(caps: dict, snapshot_engine, current_engine: int) -> list:
+    """(capability, why) for every admitted row not held to its stamp."""
+    if not isinstance(snapshot_engine, int) or isinstance(snapshot_engine, bool):
+        return [("*", "the runtime-on snapshot carries no scriptEngineVersion: regenerate it")]
+    bad = []
+    if snapshot_engine > current_engine:
+        bad.append(("*", f"the runtime-on snapshot claims engine {snapshot_engine}, newer than today's {current_engine}"))
+    for cap, row in caps.items():
+        if not isinstance(row, dict) or row.get("admitted") is not True:
+            continue
+        st = row.get("admission")
+        if not isinstance(st, dict):
+            bad.append((cap, "no admission stamp: run tools/pine_coverage/stamp_admission.py"))
+            continue
+        at = st.get("scriptEngineVersion")
+        if not isinstance(at, int) or isinstance(at, bool):
+            bad.append((cap, "its stamp names no engine"))
+            continue
+        if st.get("rowSha256") != sa.row_digest(row):
+            bad.append((cap, f"the row was added or changed since it was stamped: its evidence must be graded at "
+                             f"today's engine {current_engine}. Regenerate the runtime-on snapshot at {current_engine} "
+                             f"if it is not (`git log -1 -- docs/pine/vendor-harness/runtime-on/verdicts.json`), then "
+                             f"`python tools/pine_coverage/stamp_admission.py {cap}`"))
+        if at > snapshot_engine:
+            bad.append((cap, f"stamped at engine {at}, newer than the snapshot's {snapshot_engine}"))
+        if at > current_engine:
+            bad.append((cap, f"stamped at engine {at}, newer than today's {current_engine}"))
+    return bad
+
+
+def _caps() -> dict:
+    return json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))["capabilities"]
+
+
+def _snap_engine() -> int:
+    return json.loads(VERDICTS_RT.read_text(encoding="utf-8")).get("scriptEngineVersion")
+
+
+def test_A10_C1_both_snapshots_carry_the_engine_that_graded_them():
+    for p in (VERDICTS_RT, VERDICTS_PROD):
+        v = json.loads(p.read_text(encoding="utf-8")).get("scriptEngineVersion")
+        assert isinstance(v, int) and not isinstance(v, bool) and 0 < v <= _engine_now(), (p.name, v)
+    assert sa.current_engine() == _engine_now(), "the tool and the server read different engine numbers"
+
+
+def test_A10_C2_every_admitted_row_is_held_to_its_stamp():
+    assert _freshness_problems(_caps(), _snap_engine(), _engine_now()) == []
+
+
+def test_A10_C4_an_engine_bump_invalidates_no_existing_row():
+    assert _freshness_problems(_caps(), _snap_engine(), _engine_now() + 5) == []
+
+
+def test_A10_C6_a_new_row_with_a_copied_stamp_is_red_and_a_properly_stamped_one_is_not():
+    caps = copy.deepcopy(_caps())
+    snap = _snap_engine()
+    new = copy.deepcopy(caps["core"])
+    new["evidence"] = new["evidence"][:3]                       # a NEW row on (some of) the same evidence
+    caps["new-cap"] = new                                       # ...with core's stamp copied along
+    got = {c for c, _why in _freshness_problems(caps, snap, _engine_now())}
+    assert got == {"new-cap"}, got
+    new["admission"] = {"scriptEngineVersion": snap, "rowSha256": sa.row_digest(new)}   # CONTROL
+    assert _freshness_problems(caps, snap, _engine_now()) == []
+    new["admission"]["scriptEngineVersion"] = snap + 1          # a stamp claiming evidence newer than exists
+    assert [c for c, _ in _freshness_problems(caps, snap, snap + 1)] == ["new-cap"]
+    del new["admission"]
+    assert [c for c, _ in _freshness_problems(caps, snap, _engine_now())] == ["new-cap"]
+
+
+def test_A10_C3_the_rail_reads_the_snapshot_engine_it_is_given():
+    caps = _caps()
+    assert _freshness_problems(caps, None, _engine_now())[0][0] == "*"
+    assert _freshness_problems(caps, _engine_now() + 1, _engine_now())[0][0] == "*"
+
+
+def test_A10_the_digest_covers_the_evidence_and_not_the_note():
+    row = copy.deepcopy(_caps()["core"])
+    d = sa.row_digest(row)
+    row["note"] = "prose changes are not an admission"
+    assert sa.row_digest(row) == d
+    row["evidence"] = row["evidence"][1:]
+    assert sa.row_digest(row) != d
+
+
+def test_A10_C5_the_stamp_tool_refuses_stale_evidence_and_writes_nothing(tmp_path):
+    allow, snap = tmp_path / "allow.json", tmp_path / "verdicts.json"
+    allow.write_bytes(Path(rt.ALLOWLIST_PATH).read_bytes())
+    snap.write_bytes(VERDICTS_RT.read_bytes())
+    s = _snap_engine()
+    doc = json.loads(allow.read_text(encoding="utf-8"))
+    edited = allow.read_text(encoding="utf-8").replace(
+        json.dumps(doc["capabilities"]["core"]["evidence"][0], ensure_ascii=False) + ",\n", "", 1)
+    allow.write_text(edited, encoding="utf-8", newline="")      # core's evidence changed after stamping
+    before = allow.read_bytes()
+    with pytest.raises(SystemExit, match="REFUSED"):
+        sa.stamp(["core"], allowlist=allow, snapshot=snap, engine_now=s + 2)
+    assert allow.read_bytes() == before, "a refused stamp wrote the allowlist"
+    sa.stamp(["core"], allowlist=allow, snapshot=snap, engine_now=s)     # CONTROL: a fresh snapshot stamps
+    out = allow.read_bytes()
+    assert out != before and len(out.splitlines()) == len(before.splitlines())
+    row = json.loads(out)["capabilities"]["core"]
+    assert row["admission"] == {"scriptEngineVersion": s, "rowSha256": sa.row_digest(row)}
+
+
+def test_A10_C7_the_snapshot_writer_stamps_the_engine_from_its_one_authority():
+    src = (ROOT / "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js").read_text(
+        encoding="utf-8")
+    assert re.search(r"^import \{ SCRIPT_ENGINE_VERSION \} from '\.\./\.\./scriptEngineVersion\.js'", src, re.M)
+    block = src[src.index("fs.writeFileSync(path.join(OUT, 'verdicts.json')"):]
+    block = block[:block.index("results: run.results")]
+    assert "scriptEngineVersion: SCRIPT_ENGINE_VERSION," in block, "the writer no longer stamps the engine"
 
 
 # ═══ A9 — the server lanes stay per-script ═════════════════════════════════════
@@ -1070,7 +1331,7 @@ def test_the_door_stores_nothing_and_logs_no_source(store, on, caplog):
 # committed harness snapshots of both lanes.
 
 REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-16-draw1-drawing-objects" / "runs" / "report.json"
-VERDICTS_PROD = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
+# VERDICTS_PROD is bound once, above (the A10 evidence-freshness block); the REACH rails read the same path.
 
 
 #: ⛔⛔ TEMPORARY (coordinator ruling 2026-11-15: RE-CAPTURE is preferred over a named exception).
@@ -1117,8 +1378,10 @@ def withheld_whole(record: dict) -> bool:
         r.get("state") in ("notDrawn", "withheld") for r in (paints.get("rows") or [{"state": "x"}]))
 
 
-def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict) -> list:
+def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict, today: datetime.date | None = None) -> list:
     rton = {r["id"]: r["verdict"] for r in rt_verdicts["results"]}
+    # ⭐ (2026-11-18) a HELD kill's one named capture, re-proved from its record and only until its expiry
+    held = held_kill_captures(rt_verdicts, today)
     records = {r["id"]: r for r in rt_verdicts["results"]}
     prod = {r["id"]: r["verdict"] for r in prod_verdicts["results"]}
     out = []
@@ -1127,6 +1390,8 @@ def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict) 
     for c in report["captures"]:
         if c["lane"] == "runtime" and rton.get(c["capture"]) != "MATCH" and rton.get(c["capture"]) != "INCONCLUSIVE":
             if c["capture"] in WITHHELD_WHOLE and withheld_whole(records.get(c["capture"])):
+                continue
+            if c["capture"] in held:
                 continue
             out.append(f"{c['capture']}: drawn by the runtime lane and graded {rton.get(c['capture'])}")
     for cid, v in prod.items():
@@ -1171,7 +1436,9 @@ def test_REACH_the_committed_reach_run_is_the_committed_registrys():
     # ⭐ COND-TA: the reach run lists a runtime-lane DIVERGE as a stop whatever its shape; the only
     # stops a committed run may carry are the captures named in WITHHELD_WHOLE, each re-proved from
     # its own verdict record by `reach_rule_violations` (the next test). Any other stop is red here.
-    assert {s["capture"] for s in report["stops"]} <= set(WITHHELD_WHOLE), report["stops"]
+    # ⭐ (2026-11-18) ...and the one named capture of each HELD kill on the committed kill list, until its expiry
+    held = held_kill_captures(json.loads(VERDICTS_RT.read_text(encoding="utf-8")))
+    assert {s["capture"] for s in report["stops"]} <= set(WITHHELD_WHOLE) | set(held), report["stops"]
     assert report["matchToDiverge"] == []
     assert sum(1 for c in report["captures"] if c["lane"] == "runtime") >= 10   # not vacuous
     if held_absent:
@@ -1184,6 +1451,53 @@ def test_REACH_no_runtime_lane_DIVERGE_and_no_MATCH_to_DIVERGE():
     problems = reach_rule_violations(report, json.loads(VERDICTS_RT.read_text(encoding="utf-8")),
                                      json.loads(VERDICTS_PROD.read_text(encoding="utf-8")))
     assert problems == [], problems
+
+
+def held_kills_or_synthetic(rtv: dict, tmp_path, monkeypatch) -> dict:
+    """The committed list's HELD kills; when it holds none (adx-and-di-for-v4 was LIFTED at engine 78: Q-FCMP ruled
+    TOLERANCE, #1858, and its SPY capture re-graded MATCH), ONE synthetic held entry in a tmp kill list naming a real
+    committed capture that grades DIVERGE, so the rule is still shown both ways. Read through `rt.pending_kills`."""
+    pending = rt.pending_kills()
+    if pending:
+        return pending
+    rec = next(r for r in rtv["results"] if r["verdict"] == "DIVERGE" and r["id"] not in WITHHELD_WHOLE
+               and (ROOT / r["file"]).is_file())
+    src = json.loads((ROOT / rec["file"]).read_text(encoding="utf-8"))["source"]["text"]
+    entry = {"slug": "synthetic-held", "status": rt.KILL_PENDING,
+             "expires": (datetime.date.today() + datetime.timedelta(days=3)).isoformat(),
+             "sha256": rt.source_hash(src), "source": rec["file"], "reason": "SYNTHETIC", "liftWhen": "SYNTHETIC",
+             "evidence": {"capture": rec["id"], "verdict": "DIVERGE"}}
+    f = tmp_path / "held-killlist.json"
+    f.write_text(json.dumps({"_readme": ["tmp, synthetic"], "scripts": [entry]}), encoding="utf-8")
+    monkeypatch.setattr(rt, "KILLLIST_PATH", str(f))
+    return rt.pending_kills()
+
+
+def test_REACH_a_held_kill_is_one_named_stop_until_its_expiry_and_nothing_else(tmp_path, monkeypatch):
+    """(coordinator ruling 2026-11-18) A HELD kill (`status: pending` on the committed kill list) lets the REACH rule
+    carry its ONE named capture as a stop, re-proved from that capture's record, and only until `expires`. CONTROLS:
+    the day after expiry it is a stop again; the same capture graded MATCH (the held entry no longer true) is not
+    accepted; another DIVERGE capture of the same script is not accepted."""
+    rtv = json.loads(VERDICTS_RT.read_text(encoding="utf-8"))
+    prodv = json.loads(VERDICTS_PROD.read_text(encoding="utf-8"))
+    pending = held_kills_or_synthetic(rtv, tmp_path, monkeypatch)
+    assert pending, "no held kill, committed or synthetic (vacuous)"
+    for s in pending.values():
+        cid = s["evidence"]["capture"]
+        expires = datetime.date.fromisoformat(s["expires"])
+        report = {"captures": [{"capture": cid, "lane": "runtime"}]}
+        assert held_kill_captures(rtv, expires) == {cid: s["slug"]}
+        assert all(cid not in p for p in reach_rule_violations(report, rtv, prodv, today=expires))
+        late = expires + datetime.timedelta(days=1)
+        assert any(cid in p for p in reach_rule_violations(report, rtv, prodv, today=late))
+        healed = copy.deepcopy(rtv)
+        for r in healed["results"]:
+            if r["id"] == cid:
+                r["verdict"] = "MATCH"
+        assert cid not in held_kill_captures(healed, expires)
+    other = next(r["id"] for r in rtv["results"] if r["verdict"] == "DIVERGE"
+                 and r["id"] not in WITHHELD_WHOLE and r["id"] not in held_kill_captures(rtv))
+    assert any(other in p for p in reach_rule_violations({"captures": [{"capture": other, "lane": "runtime"}]}, rtv, prodv))
 
 
 def test_REACH_the_rule_can_fail():
@@ -1219,8 +1533,10 @@ def test_REACH_a_whole_run_withholding_is_named_and_re_proved_and_nothing_else_r
             if r["id"] == cid:
                 r["plots"][0] = dict(r["plots"][0], verdict="DIVERGE", reason="2 bars differ")
         assert any(cid in p for p in reach_rule_violations(report, drifted, prodv))
-    # a DIVERGE capture NOT named never reads as withheld whole, whatever its record
-    other = next(r["id"] for r in rtv["results"] if r["verdict"] == "DIVERGE" and r["id"] not in WITHHELD_WHOLE)
+    # a DIVERGE capture NOT named never reads as withheld whole, whatever its record (a held kill's capture is the
+    # other named exception, `test_REACH_a_held_kill_is_one_named_stop_until_its_expiry_and_nothing_else`)
+    other = next(r["id"] for r in rtv["results"] if r["verdict"] == "DIVERGE" and r["id"] not in WITHHELD_WHOLE
+                 and r["id"] not in held_kill_captures(rtv))
     assert any(other in p for p in reach_rule_violations({"captures": [{"capture": other, "lane": "runtime"}]}, rtv, prodv))
 
 

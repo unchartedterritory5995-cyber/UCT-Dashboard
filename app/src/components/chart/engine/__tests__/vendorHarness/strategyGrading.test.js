@@ -21,8 +21,10 @@ import crypto from 'node:crypto'
 
 import { REPO, HARNESS_DIR } from './harness'
 import {
-  gradeStrategyCapture, strategyVerdictOf, runOurBroker, oursOf, STRATEGY_VERDICT_SCHEMA, declaredPlots, valueSeriesOf, referenceTextsOf,
+  gradeStrategyCapture, strategyVerdictOf, runOurBroker, oursOf, STRATEGY_VERDICT_SCHEMA, declaredSlots, captureSlotsOf, valueSeriesOf,
+  referenceTextsOf, engineSlotCallsOf, TV_SLOT_TYPE,
 } from './strategyHarness.js'
+import { RUNTIME_OUTPUT_CALLS } from '../../ast/pineRuntimeFrontend.js'
 import {
   referenceOfReport, referenceOfCapture, PROPERTY_DEPENDENTS, REPORT_UNITS, unreadDependedOn, effectiveSettingsDisagreements,
 } from '../../../../../../../tools/vendor_harness/strategy_reference.mjs'
@@ -242,6 +244,19 @@ const STRATEGY_CAPTURE_ROWS = Object.freeze({
   'w9-mk1-markers-rddt-1d-2026-11-16': 'W9-MK1',
   'w9-mk1-markers-rpt-rddt-1d-2026-11-16': 'W9-MK1',
   'w9-q-s1i-short-v6-rddt-1d-2026-11-16': 'Q-S1i',
+  // 2026-11-17 (the e73 filing): the run manifests' rows (capture-queue-2026-11-17-strategy-decl, -2026-11-05-w9)
+  'w9-q-s1a-size-stop-v6-rddt-1d-2026-11-17': 'Q-S1a',
+  'w9-q-s1b-v4-shape-a-rddt-1d-2026-11-17': 'Q-S1b',
+  'w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17': 'Q-S1b',
+  'w9-q-s1i-funds-rddt-1d-2026-11-17': 'Q-S1i',
+  // the community strategy (supertrend-strategy, corpus/committed, MPL-2.0), held out of the e73 filing while step 7
+  // could not pair a source's bound plots (#1770), re-filed at the engine that draws its fill anchor (#1788)
+  'supertrend-strategy-rddt-1d-2026-11-17': 'Q-SD1',
+  'supertrend-strategy-alab-1d-2026-11-17': 'Q-SD2',
+  // 2026-11-18 (run qs1p-is-2026-11-18, packet d64e34c28819): the two community strategies captured IN SESSION, the
+  // newest daily bar forming, with their Strategy Tester reports: [B-EXEC], a strategy executes once per closed bar
+  'supertrend-strategy-is-rddt-1d-2026-11-18': 'Q-S1p',
+  'macd-shortlong-strategy-is-rddt-1d-2026-11-18': 'Q-S1p',
 })
 
 function committedReportCaptures() {
@@ -297,9 +312,11 @@ function mirrorRun(capture, { mutateFills = null, mutatePlots = null, mutateLabe
   const fills = ref.fills.map((f) => ({ ...f }))
   if (mutateFills) mutateFills(fills)
   // TradingView's own plots, in the capture's order, and its own label texts: what a perfect run of ours emits
+  // (every slot of s25 and of the SPY 15 capture is a `plot`; `mutatePlots` is handed the point lists)
   const pv = capture.plotValues
-  const plots = pv.fields.slice(1).map((_, k) => pv.rows.map((r) => ({ time: r[0], value: r[k + 1] === undefined ? null : r[k + 1] })))
-  if (mutatePlots) mutatePlots(plots)
+  const points = pv.fields.slice(1).map((_, k) => pv.rows.map((r) => ({ time: r[0], value: r[k + 1] === undefined ? null : r[k + 1] })))
+  if (mutatePlots) mutatePlots(points)
+  const plots = points.map((p) => ({ kind: 'plot', points: p }))
   const labels = referenceTextsOf(capture).labels.map((l) => ({ ...l }))
   if (mutateLabels) mutateLabels(labels)
   return () => ({
@@ -400,18 +417,21 @@ describe('value read-backs (step 7): the capture\'s plots against ours, paired f
   const grade = (opts, capture = CAPTURE) => gradeStrategyCapture(capture, { slotMap: SLOT_MAP, run: mirrorRun(CAPTURE, opts) })
 
   it('the source\'s plots are read in order, with their titles and whether each reads the broker', () => {
-    const d = declaredPlots(CAPTURE.source.text)
+    const r = declaredSlots(CAPTURE.source.text)
+    expect(r.ok).toBe(true)
+    const d = r.slots
     expect(d).toHaveLength(50)
-    expect(d[0]).toEqual({ title: 'N01_bar_index_CONTROL', readsBroker: false })
-    expect(d[1]).toEqual({ title: 'N02_position_size', readsBroker: true })
+    expect(d.every((p) => p.kind === 'plot')).toBe(true)
+    expect(d[0]).toMatchObject({ title: 'N01_bar_index_CONTROL', readsBroker: false })
+    expect(d[1]).toMatchObject({ title: 'N02_position_size', readsBroker: true })
     // a ternary whose comma-separated call arguments sit inside parentheses is ONE argument
-    expect(d.find((p) => p.title === 'N13_last_exit_price')).toEqual({ title: 'N13_last_exit_price', readsBroker: true })
+    expect(d.find((p) => p.title === 'N13_last_exit_price')).toMatchObject({ title: 'N13_last_exit_price', readsBroker: true })
     expect(d.filter((p) => !p.readsBroker).map((p) => p.title)).toEqual(['N01_bar_index_CONTROL', 'S01_time_CONTROL', 'S02_bar_index_CONTROL'])
     // every title the source declares is the capture's own style title at that position
     const styles = CAPTURE.study.styles
     expect(d.map((p) => p.title)).toEqual(CAPTURE.plotValues.fields.slice(1).map((f) => styles[f].title))
     // controls: `title =` by name, a call with no title, and a string holding a comma and a parenthesis
-    expect(declaredPlots('plot(close, title = "a, (b")\nplot(x)\nplot(series = y, color = c)\n'))
+    expect(declaredSlots('plot(close, title = "a, (b")\nplot(x)\nplot(series = y, color = c)\n').slots.map(({ title, readsBroker }) => ({ title, readsBroker })))
       .toEqual([{ title: 'a, (b', readsBroker: false }, { title: null, readsBroker: false }, { title: null, readsBroker: false }])
   })
 
@@ -439,7 +459,7 @@ describe('value read-backs (step 7): the capture\'s plots against ours, paired f
   it('⛔ a different plot count on our side is INCONCLUSIVE, never paired anyway', () => {
     const g = grade({ mutatePlots: (p) => { p.pop() } })
     expect(g).toMatchObject({ verdict: 'INCONCLUSIVE', step: 7 })
-    expect(g.reason).toMatch(/our run emitted 49 plot\(s\) and the capture holds 50/)
+    expect(g.reason).toMatch(/our run emitted 49 value output\(s\) and the capture holds 50/)
   })
 
   it('⛔ a style title that contradicts the pairing is INCONCLUSIVE (the capture\'s plot order is not the source\'s)', () => {
@@ -449,7 +469,7 @@ describe('value read-backs (step 7): the capture\'s plots against ours, paired f
     c.study.styles.plot_4.title = a
     const g = grade({}, c)
     expect(g).toMatchObject({ verdict: 'INCONCLUSIVE', step: 7 })
-    expect(g.reason).toMatch(/plot 4 is titled "N05_closedtrades" in the capture and "N04_opentrades" in the source/)
+    expect(g.reason).toMatch(/plot_3 is titled "N05_closedtrades" in the capture and "N04_opentrades" in the source/)
     // and a capture whose plot has no title at all cannot be paired either
     const n = clone(CAPTURE)
     delete n.study.styles.plot_0.title
@@ -457,7 +477,7 @@ describe('value read-backs (step 7): the capture\'s plots against ours, paired f
     // and a source that declares another number of plots than the capture holds
     const m = clone(CAPTURE)
     m.source = { ...m.source, text: `${m.source.text}plot(close, "EXTRA")\n` }
-    expect(valueSeriesOf(m, mirrorRun(CAPTURE)().plots)).toEqual({ status: 'unpaired', reason: 'the source declares 51 plot(s) and the capture holds 50' })
+    expect(valueSeriesOf(m, mirrorRun(CAPTURE)().plots)).toEqual({ status: 'unpaired', reason: expect.stringMatching(/^the source declares more plot slots than the capture holds \(50\): `plot` at line \d+ has none$/) })
   })
 
   it('⛔ a run on another tick than the capture\'s is INCONCLUSIVE at step 2 (the tick is the capture\'s own)', () => {
@@ -466,6 +486,118 @@ describe('value read-backs (step 7): the capture\'s plots against ours, paired f
     const g = gradeStrategyCapture(CAPTURE, { slotMap: SLOT_MAP, run: off })
     expect(g).toMatchObject({ verdict: 'INCONCLUSIVE', step: 2 })
     expect(g.reason).toMatch(/syminfo\.mintick/)
+  })
+})
+
+// ─── (2026-11-17, Q-SD1 / Q-SD2) what the source declares is read by the Pine parser: every slot, in TradingView's order ───
+// supertrend-strategy (corpus/committed, MPL-2.0) binds its three plots (`upPlot = plot(…)`) for its two fills, and
+// draws four plotshapes and a barcolor: ten TradingView slots. The committed capture of the same source
+// (`supertrend-strategy-rddt-1d-2026-10-02`, sha 7e343cf8…) records them as Q-SD1 / Q-SD2 do. ⚰️ The line-start
+// `plot(` scan read 0 of them: "the source declares 0 plot(s) and the capture holds 10".
+describe('step 7 pairing: the source\'s output calls, read by the parser, take TradingView\'s plot slots in order', () => {
+  const ST = JSON.parse(fs.readFileSync(path.join(HARNESS_DIR, 'supertrend-strategy-rddt-1d-2026-10-02.json'), 'utf8'))
+  const ST_SRC = fs.readFileSync(path.join(REPO, 'corpus/committed/supertrend-strategy__rcRbtoBiKG.pine'), 'utf8').replace(/\r\n/g, '\n')
+  const strip = (r) => r.slots.map(({ kind, title }) => [kind, title])
+  // our broker runs a capture whose backtest start is known: this one holds RDDT's listing day (`history.startsAtBar0`),
+  // which is method (a); taken before Strategy Tester reports were read, it states no grade method of its own
+  const ST_RUN = { ...ST, provenance: { ...(ST.provenance || {}), gradeMethod: 'a' } }
+
+  it('an ASSIGNED plot (`x = plot(…)`) is counted, with its title, where it stands', () => {
+    expect(ST.source.text.replace(/\r\n/g, '\n')).toBe(ST_SRC)
+    const r = declaredSlots(ST_SRC)
+    expect(r.ok).toBe(true)
+    expect(strip(r)).toEqual([
+      ['plot', 'Up Trend'], ['plotshape', 'UpTrend Begins'], ['plotshape', 'Buy'],
+      ['plot', 'Down Trend'], ['plotshape', 'DownTrend Begins'], ['plotshape', 'Sell'],
+      ['plot', ''], ['fill', 'UpTrend Highligter'], ['fill', 'DownTrend Highligter'], ['barcolor', null],
+    ])
+    // the three plots are the bound ones: none of them starts its line
+    for (const s of r.slots.filter((x) => x.kind === 'plot')) expect(ST_SRC.split('\n')[s.line - 1]).toMatch(/^\w+ = plot\(/)
+    // controls: a `var`-typed binding, a statement, and a comma-joined line each count once
+    expect(strip(declaredSlots('//@version=5\nindicator("t")\nfloat p = plot(close, "A")\nplot(open, "B")\nc = close > open ? 1 : 0, plot(high, "C")\n')))
+      .toEqual([['plot', 'A'], ['plot', 'B'], ['plot', 'C']])
+  })
+
+  it('CODE, NEVER PROSE: a plot written in a comment is not counted', () => {
+    expect(strip(declaredSlots('//@version=5\nindicator("t")\n// p = plot(close, "COMMENTED")\nplot(open, "O") // plot(high, "TRAILING")\n')))
+      .toEqual([['plot', 'O']])
+  })
+
+  it('plotshape / fill / barcolor take their TradingView plot slots in order (a fill\'s colour and the paint are paired, not compared)', () => {
+    const s = captureSlotsOf(ST)
+    expect(s.status, s.reason).toBe('ok')
+    expect(s.slots.map((x) => [x.id, x.kind, x.value])).toEqual([
+      ['plot_0', 'plot', true], ['plot_1', 'plotshape', true], ['plot_2', 'plotshape', true],
+      ['plot_3', 'plot', true], ['plot_4', 'plotshape', true], ['plot_5', 'plotshape', true],
+      ['plot_6', 'plot', true], ['plot_7', 'fill', false], ['plot_8', 'fill', false], ['plot_9', 'barcolor', false],
+    ])
+    // the capture's own type of each slot is the one the call is filed as; a fill's slots name their area
+    expect(ST.study.plots.map((p) => p.type)).toEqual(['line', 'shapes', 'shapes', 'line', 'shapes', 'shapes', 'line', 'colorer', 'colorer', 'bar_colorer'])
+    expect(ST.study.plots.slice(7, 9).map((p) => p.target)).toEqual(['fill_0', 'fill_1'])
+    // OUR broker's run of the same capture emits the seven value outputs in the same calls' order, and the pairing holds
+    const run = runOurBroker(ST_RUN)
+    expect(run.ok, run.refusal && run.refusal.message).toBe(true)
+    expect(run.plots.map((p) => p.kind)).toEqual(['plot', 'plotshape', 'plotshape', 'plot', 'plotshape', 'plotshape', 'plot'])
+    const v = valueSeriesOf(ST, run.plots)
+    expect(v.status, v.reason).toBe('ok')
+    expect(v.series.map((x) => x.title)).toEqual(['Up Trend', 'UpTrend Begins', 'Buy', 'Down Trend', 'DownTrend Begins', 'Sell', ''])
+    expect(v.notCompared.map((x) => x.slot)).toEqual(['plot_7', 'plot_8', 'plot_9'])
+  })
+
+  it('⛔ a genuine count mismatch is still refused, by name (either side, and our run\'s value outputs too)', () => {
+    const extra = clone(ST)
+    extra.source = { ...extra.source, text: `${ST_SRC}\nplot(close, "EXTRA")\n` }
+    expect(captureSlotsOf(extra)).toEqual({ status: 'unpaired', reason: expect.stringMatching(/^the source declares more plot slots than the capture holds \(10\): `plot` at line \d+ has none$/) })
+    const short = clone(ST)
+    short.source = { ...short.source, text: ST_SRC.replace(/^barcolor\(.*$/m, '') }
+    expect(captureSlotsOf(short)).toEqual({ status: 'unpaired', reason: 'the source declares 9 plot slot(s) and the capture holds 10' })
+    // a slot of another TYPE at a position is refused, never paired by count
+    const typed = clone(ST)
+    typed.study.plots[1].type = 'chars'
+    expect(captureSlotsOf(typed)).toEqual({ status: 'unpaired', reason: expect.stringMatching(/^plot_1 is a "chars" slot in the capture and the source's `plotshape` at line \d+ is filed as "shapes"$/) })
+    // a fill's slot that names an area the source does not declare (it has two fills) belongs to no call of it
+    const area = clone(ST)
+    area.study.plots[8].target = 'fill_2'
+    expect(captureSlotsOf(area)).toEqual({ status: 'unpaired', reason: expect.stringMatching(/^plot_8 is a "colorer" slot in the capture and the source's `barcolor` at line \d+ is filed as "bar_colorer"$/) })
+    // our run: one value output fewer, or the same count of other calls
+    const run = runOurBroker(ST_RUN)
+    expect(valueSeriesOf(ST, run.plots.slice(1))).toEqual({ status: 'unpaired', reason: 'our run emitted 6 value output(s) and the capture holds 7' })
+    const swapped = run.plots.map((p, k) => (k === 1 ? { ...p, kind: 'plotchar' } : p))
+    expect(valueSeriesOf(ST, swapped).status).toBe('unpaired')
+  })
+
+  it('⛔ a value output our side carried NO COLUMN for is INCONCLUSIVE at step 7, named, never a series of `na` (DIVERGE)', () => {
+    // the strategy lane hands `{points: null, missing}` for a plot the member pane did not carry (`strategyLane.js::plotsOf`)
+    const r = mirrorRun(CAPTURE)()
+    r.plots[6] = { kind: 'plot', points: null, missing: 'the member pane did not carry this output (hidden helper)' }
+    const g = gradeStrategyCapture(CAPTURE, { slotMap: SLOT_MAP, run: () => r })
+    expect(g).toMatchObject({ verdict: 'INCONCLUSIVE', step: 7, graded: { fills: true, values: 0 } })
+    expect(g.reason).toMatch(/^the value series cannot be paired: our side carried no column for plot_6 \(`plot` at line \d+\): the member pane did not carry this output \(hidden helper\)$/)
+    // control: the same run with the column carried MATCHes
+    expect(gradeStrategyCapture(CAPTURE, { slotMap: SLOT_MAP, run: mirrorRun(CAPTURE) }).verdict).toBe('MATCH')
+  })
+
+  it('the parser\'s list IS the front end\'s registration: every committed strategy capture the value build builds', () => {
+    let compared = 0
+    const off = []
+    for (const id of [...Object.keys(STRATEGY_CAPTURE_ROWS), 'supertrend-strategy-rddt-1d-2026-10-02', 'supertrend-strategy-spy-1d-2026-10-02']) {
+      const c = JSON.parse(fs.readFileSync(path.join(HARNESS_DIR, `${id}.json`), 'utf8'))
+      const e = engineSlotCallsOf(c)
+      if (!e.ok) continue
+      compared += 1
+      const d = declaredSlots(c.source.text)
+      if (!d.ok || d.slots.map((s) => s.kind).join(',') !== e.calls.join(',')) off.push(`${id}: [${d.ok ? d.slots.map((s) => s.kind) : d.reason}] vs [${e.calls}]`)
+    }
+    expect(off).toEqual([])
+    // not vacuous: 49 of the 54 build today (2026-11-17, after #1760), the supertrend pair among them (measured over
+    // the whole committed set the same day: every one of the 296 captures whose value build builds agrees)
+    expect(compared).toBeGreaterThanOrEqual(40)
+    expect(engineSlotCallsOf(ST)).toEqual({ ok: true, calls: ['plot', 'plotshape', 'plotshape', 'plot', 'plotshape', 'plotshape', 'plot', 'fill', 'fill', 'barcolor'] })
+  })
+
+  it('every output call the runtime front end registers is filed here: a slot type, a fill, a candle, or slotless (`hline`)', () => {
+    for (const call of RUNTIME_OUTPUT_CALLS) expect(Object.hasOwn(TV_SLOT_TYPE, call) || call === 'hline', call).toBe(true)
+    for (const call of Object.keys(TV_SLOT_TYPE)) expect(RUNTIME_OUTPUT_CALLS.has(call), call).toBe(true)
   })
 })
 

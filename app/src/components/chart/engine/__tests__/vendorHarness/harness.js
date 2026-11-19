@@ -14,7 +14,7 @@ import { validateCapture } from '../../../../../../../tools/vendor_harness/schem
 import { compareCapture, renderSummary, compareObjectsV2, MATCH_SUBSTITUTED } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide } from './ourSide'
-import { supplyAttributionOf, otherSymbolUnsettledOf } from './supplyAttribution'
+import { supplyAttributionOf, otherSymbolUnsettledOf, supplyBehindOf } from './supplyAttribution'
 import { pairObjects } from './objectColours'
 import { pairRecords, attachXSidecar } from './objectRecords'
 import { gradePaints } from './paintColours'
@@ -122,7 +122,9 @@ export function gradeCapture(original, opts = {}) {
   // SUPPLY-ATTRIBUTED (coordinator ruling on #1541): only where the supply symbol has a committed witness
   const supplyAttribution = integrity.ok && ours && ours.ok ? supplyAttributionOf(capture) : null
   const otherSymbolUnsettled = integrity.ok && ours && ours.ok ? otherSymbolUnsettledOf(capture) : null
-  const indicator = compareCapture(capture, ours, { integrity, objectColours, paints, supplyAttribution, otherSymbolUnsettled })
+  // SUPPLY BEHIND THE CAPTURE (coordinator ruling, 2026-11-18): a forming newest bar the recorded supply cannot answer
+  const supplyBehind = integrity.ok && ours && ours.ok ? supplyBehindOf(capture) : null
+  const indicator = compareCapture(capture, ours, { integrity, objectColours, paints, supplyAttribution, otherSymbolUnsettled, supplyBehind })
   // ⭐⭐ THE STRATEGY GRADE, FOLDED IN where the capture holds a Strategy Tester report or our door ran a
   // broker document (`strategyLane.js`, THE FOLD); null, and the verdict unchanged, everywhere else
   const strategy = integrity.ok ? strategyLaneGradeOf(capture, ours, { unrun }) : null

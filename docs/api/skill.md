@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (769)
+## Member session reads (775)
 
 ### Limits
 
@@ -150,6 +150,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/ai-search/threads` | paid | ai | limit=30 |
 | GET | `/api/ai-search/threads/{thread_id}` | paid | ai | {thread_id} |
 | GET | `/api/alerts` | member | member-workspace | limit=50 |
+| GET | `/api/alerts/lists` | paid | member-workspace |  |
 | GET | `/api/alerts/routing` | paid | member-workspace |  |
 | GET | `/api/alerts/taxonomy/cooldowns` | member | member-workspace |  |
 | GET | `/api/alerts/taxonomy/document-arrival` | member | member-workspace | active_only=True |
@@ -196,6 +197,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/calendar/day-metrics` | paid | research | date |
 | GET | `/api/calendar/day-metrics-batch` | paid | research | dates |
 | GET | `/api/calendar/dividends` | paid | research | syms |
+| GET | `/api/calendar/earnings-season` | paid | research | date |
 | GET | `/api/calendar/enrichment` | paid | research | date |
 | GET | `/api/calendar/enrichment-batch` | paid | research | dates |
 | GET | `/api/calendar/implied-moves` | paid | research | date |
@@ -226,7 +228,6 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/charts/layouts/{layout_id}/share` | member | member-workspace | {layout_id} |
 | GET | `/api/charts/list-sources/screen/{screen_id}` | member | member-workspace | {screen_id} |
 | GET | `/api/charts/list-sources/theme/{theme_id}` | member | member-workspace | {theme_id} |
-| GET | `/api/coaching-notes` | paid | member-workspace | limit=10, note_type |
 | GET | `/api/community/chat/channels` | member | community-content |  |
 | GET | `/api/community/chat/channels/{slug}/messages` | member | community-content | {slug}, before_id, after_id, limit=50 |
 | GET | `/api/community/chat/channels/{slug}/read-state` | member | community-content | {slug} |
@@ -288,6 +289,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/earnings/audio/{ticker}` | paid | research | {ticker} |
 | GET | `/api/earnings/call-audio/{ticker}` | paid | research | {ticker}, year, quarter |
 | GET | `/api/earnings/call-recap/{ticker}` | paid | research | {ticker}, quarter |
+| GET | `/api/earnings/call-themes` | paid | research | month |
 | GET | `/api/earnings/intel/{ticker}` | paid | research | {ticker} |
 | GET | `/api/earnings/keyword-alerts` | paid | research |  |
 | GET | `/api/earnings/sentiment/{ticker}` | paid | research | {ticker} |
@@ -652,7 +654,6 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/pre-trade-checklist` | paid | member-workspace | symbol (required), setup_type (required), entry_price (required), stop_price (required) |
 | GET | `/api/provenance/bar` | paid | market-data | ticker (required), tf (required), bar_time (required) |
 | GET | `/api/provenance/quote` | member | market-data | symbol (required), entity_id, entity_type, vendor |
-| GET | `/api/psychology-events` | paid | member-workspace | days=30 |
 | GET | `/api/regime` | paid | market-analytics | fresh=False |
 | GET | `/api/regime/vocabulary` | paid | market-analytics |  |
 | GET | `/api/research/analyst-ratings/{sym}` | paid | research | {sym} |
@@ -664,9 +665,10 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/compare/{sym}/{comparator}` | paid | research | {sym}, {comparator} |
 | GET | `/api/research/congress-latest` | paid | research |  |
 | GET | `/api/research/congress-trades/{sym}` | paid | research | {sym} |
+| GET | `/api/research/dilution-watch/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/earnings-reaction/{sym}` | paid | research | {sym} |
 | GET | `/api/research/estimate-history/{sym}` | paid | research | {sym} |
-| GET | `/api/research/estimates/{sym}` | paid | research | {sym}, consensus=0 |
+| GET | `/api/research/estimates/{sym}` | paid | research | {sym}, consensus=0, revisions=0 |
 | GET | `/api/research/events/{sym}` | paid | research | {sym} |
 | GET | `/api/research/expected-move/{sym}` | paid | research | {sym}, report_date, grade=True |
 | GET | `/api/research/filing-search` | paid | research | q (required), sym, form, section, limit=40 |
@@ -707,6 +709,9 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/ratings/{sym}` | paid | research | {sym} |
 | GET | `/api/research/rename-notice/{sym}` | paid | research | {sym} |
 | GET | `/api/research/seasonality/{sym}` | paid | research | {sym} |
+| GET | `/api/research/short-data/{ticker}` | paid | research | {ticker} |
+| GET | `/api/research/short-interest-list` | paid | research | rank, limit |
+| GET | `/api/research/treasury-yields` | paid | research |  |
 | GET | `/api/risk-summary` | paid | member-workspace |  |
 | GET | `/api/rs-rankings` | paid | market-analytics |  |
 | GET | `/api/rs-rankings/{ticker}` | paid | market-analytics | {ticker} |
@@ -750,6 +755,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/screener/compile` | paid | screener |  |
 | GET | `/api/screener/fields` | paid | screener | options=0 |
 | GET | `/api/screener/grammar` | paid | screener |  |
+| GET | `/api/screener/layout-gallery` | paid | screener |  |
 | GET | `/api/screener/meta` | paid | screener |  |
 | GET | `/api/screener/methodology` | paid | screener | column |
 | GET | `/api/screener/row/{ticker}` | paid | screener | {ticker}, columns |
@@ -777,7 +783,6 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/signature/gex-walls` | paid | market-analytics | sym (required) |
 | GET | `/api/signature/rs-themes` | paid | market-analytics |  |
 | GET | `/api/single-stock-etfs/{symbol}` | paid | market-data | {symbol} |
-| GET | `/api/skill-assessments` | paid | member-workspace |  |
 | GET | `/api/skill.md` | member | docs |  |
 | GET | `/api/skill/whitelist` | member | docs |  |
 | GET | `/api/snapshot` | member | market-data |  |
@@ -831,6 +836,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/upb/overview` | member | member-workspace |  |
 | GET | `/api/upb/sections/{section_id}/entries` | member | member-workspace | {section_id} |
 | GET | `/api/user-definitions` | paid | screener | graph=False, engine |
+| GET | `/api/user-definitions/assistant-memory` | paid | screener |  |
 | GET | `/api/user-definitions/capability-worker` | paid | screener |  |
 | GET | `/api/user-definitions/library` | paid | screener | limit=24, after |
 | GET | `/api/user-definitions/runtime-kill` | paid | screener |  |

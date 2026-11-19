@@ -16,7 +16,8 @@ transfer with the committed snapshot `docs/pine/coverage-ratchet.json` (keys + t
 THE PREDICATE is the coverage map's, imported, never restated (`coverage_map.py`):
   production   `transfers_fully`: the census's `clean` (isClean of step 0) and not a strategy that places
                orders. The headline "transfers fully" of docs/pine/COVERAGE-MAP.md.
-  runtime-on   `runtime_on_transfers`: clean, or attached on the runtime lane, and not placing orders.
+  runtime-on   `runtime_on_transfers`: clean, or attached on the runtime lane, or a host document whose run
+               half draws what its object program lost (`cleanByRunHalf`), and not placing orders.
 Both read step 0 only, so the census runs with cap 1 (no peeling: the wall list is the map's job).
 
 VERDICTS (exit code):
@@ -153,6 +154,12 @@ def wall_of(lane, row, src):
             parts.append("attached with refusals %s" % ", ".join(guards))
         if st.get("lossVerdict") not in (None, "clean"):
             parts.append("objects %s" % st.get("lossVerdict"))
+            # ⭐⭐ PARITY UNIT 1 - the run half that would draw what the host program lost, as bound
+            rhb = st.get("runHalfBound") or {}
+            if lane == RC.LANE_RUNTIME_ON and rhb:
+                parts.append("run half %s%s" % (rhb.get("state"), " %s" % rhb["code"] if rhb.get("code") else ""))
+                if row.get("cleanByRunHalf") and CM.is_runtime_killed(src, _killed()):
+                    parts.append("on the runtime kill list (api/data/pine_runtime_killlist.json)")
         if st.get("withheldObjects"):
             parts.append("object program withheld")
         if (st.get("withheldPaints") or 0) > 0:

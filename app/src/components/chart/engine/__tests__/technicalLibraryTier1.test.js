@@ -193,7 +193,8 @@ describe('5 — the right-click quick menu', () => {
     // declare it too, for the same reason: browsed and added in the library once the live
     // server lists them, never a right-click quick toggle. Spelled by name, like Tier 1.
     // 2026-11-12 (RS Exit Warnings): the fourth gated definition, `rsExit`, declares it for the same reason.
-    const LIBRARY_ONLY = [...TIER1_IDS, 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit']
+    // 2026-11-18 (UCT Mansfield RS): the fifth gated definition, `rsMansfield`, declares it for the same reason.
+    const LIBRARY_ONLY = [...TIER1_IDS, 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield']
     for (const d of registry.listDefinitions()) {
       expect(d.meta.quickMenu === false, d.id).toBe(LIBRARY_ONLY.includes(d.id))
     }

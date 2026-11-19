@@ -91,9 +91,14 @@ describe('stock.gammaLevels — the answer', () => {
     expect(a.facts).toMatchObject({ symbol: 'AAA', spot: 100, regime: 'choppy', levels: 3, held: 'fresh', stale: false, chain_source: 'massive' })
     expect(gexRead(gammaEnv().data).state).toBe('ok')                 // the kind's data IS the shape the LVL panel reads
   })
-  it('a last good copy is said to be stale; Schwab\'s chain is named; no build time and no chain are said plainly', () => {
-    const s = honest(answerFromGamma(gammaEnv({ held: 'last_good', chain_source: 'schwab' }, { stale: true }), 'AAA'))
-    expect(s.text).toContain("from Schwab's option chain")
+  it('a last good copy is said to be stale; Massive\'s chain is named and no other; no build time and no chain are said plainly', () => {
+    const s = honest(answerFromGamma(gammaEnv({ held: 'last_good', chain_source: 'massive' }, { stale: true }), 'AAA'))
+    expect(s.text).toContain("from Massive's option chain")
+    // Schwab's chain was retired on 2026-11-17. A payload that still said so (an older server) is not named as a chain.
+    const old = honest(answerFromGamma(gammaEnv({ chain_source: 'schwab' }), 'AAA'))
+    expect(old.facts.chain_source).toBeNull()
+    expect(old.text).not.toMatch(/Schwab/)
+    expect(old.text).toContain("Worked out by UCT at ")
     expect(s.text).toContain('Stale: these are the last good levels, older than the 10 minutes they are normally kept, so they may be behind the option market.')
     const n = honest(answerFromGamma(gammaEnv({ computed_at: null, asOf: null, chain_source: null }, { stale: true }), 'AAA'))
     expect(n.text).toContain('The levels carry no build time, so I cannot say how old they are.')
@@ -117,7 +122,7 @@ describe('stock.gammaLevels — the answer', () => {
     const src = adapter('gamma_levels')
     expect(pyTuple(src, 'LEVEL_KINDS')).toEqual(Object.keys(LEVEL_KINDS).filter(k => k !== 'darkPool'))
     expect(pyTuple(src, 'REGIMES')).toEqual(Object.keys(REGIME_TEXT))
-    expect([...new Set(/^CHAIN_OF_MODE = \{(.+)\}$/m.exec(src)[1].match(/: "(\w+)"/g).map(s => s.slice(3, -1)))].sort()).toEqual(['massive', 'schwab'])
+    expect([...new Set(/^CHAIN_OF_MODE = \{(.+)\}$/m.exec(src)[1].match(/: "(\w+)"/g).map(s => s.slice(3, -1)))].sort()).toEqual(['massive'])        // one chain since Schwab was retired (2026-11-17)
     expect(src.replace(/"\s*\n\s*"/g, '')).toContain('expiring within a week, each given only when it is within {band}% of the stock price')   // what the answer's first line restates
   })
 })
@@ -197,7 +202,8 @@ describe('stock.topFlowPicks — the answer', () => {
     expect(OI_ROSE).toBe('open interest later rose more than 10% above its first reading')
     // where the numbers come from is said the same way on both sides
     for (const said of [FLOW_SOURCES, /^NOTE_SOURCES = \(([\s\S]+?)\)$/m.exec(src)[1].replace(/"\s*\n\s*"/g, '')]) {
-      for (const word of ["UCT's options flow tape", 'Massive', 'Schwab as backup', 'November 2026', 'Schwab alone before']) expect(said, word).toContain(word)
+      for (const word of ["UCT's options flow tape", 'from Massive (prices recorded before November 2026 came from Schwab and stay as recorded)']) expect(said, word).toContain(word)
+      for (const gone of ['Schwab as backup', 'Schwab alone before']) expect(said, gone).not.toContain(gone)        // the backup was removed 2026-11-17
     }
   })
 })

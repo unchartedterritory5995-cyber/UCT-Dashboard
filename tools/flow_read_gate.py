@@ -147,7 +147,11 @@ EXCLUDED: dict[str, str] = {
         "their adapters against a 0 baseline. Tracked separately.",
     "tests/test_no_shadowed_definitions.py": "repo-wide AST rail over every module",
     "tests/test_d3_realtime_topology_rail.py": "repo-wide vendor-socket rail",
-    "tests/test_schwab_partner_fixes.py": "Schwab fallback, not the Massive read path",
+    "tests/test_schwab_partner_fixes.py": "the /api/schwab/* partner routes' gates and AI narrative, not the Massive read path",
+    "tests/test_schwab_retired_replacements.py":
+        "source rails for the Schwab retirement (2026-11-17): spot quotes, the OI fetch, the "
+        "contract-history recorder, market caps. It imports live_massive_router for "
+        "/current-quotes only and asserts nothing about the flow tape read",
     "tests/test_dashboard_warm.py":
         "boot/warm path; imports the router but asserts nothing about the read",
     "tests/test_breadth_series_boot_warm.py": "boot/warm path, breadth not flow",

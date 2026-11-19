@@ -13,6 +13,7 @@ note these adapters emit, verbatim.
 """
 from __future__ import annotations
 
+import inspect
 import json
 import re
 import time
@@ -60,7 +61,7 @@ def _env(monkeypatch):
     monkeypatch.setenv(gw.KINDS_ENV, ",".join(KINDS))
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
     monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, ",".join(sorted(ISOLATED)))
-    monkeypatch.delenv(gex_service.GEX_SOURCE_ENV, raising=False)
+    monkeypatch.delenv("GEX_CHAIN_SOURCE", raising=False)      # retired 2026-11-17: nothing reads it (railed below)
     gw._reset_for_test(None)
     monkeypatch.setattr(tp, "today_et", lambda: TODAY)
     monkeypatch.setattr(er, "today_et", lambda: TODAY.isoformat())
@@ -178,7 +179,9 @@ def test_the_level_kinds_and_regimes_are_the_services_and_the_lvl_panels_own():
     block = js[js.index("export const REGIME_TEXT = Object.freeze({"):js.index("const num = ")]
     assert tuple(re.findall(r"^\s+(\w+): '", block, flags=re.M)) == gl.REGIMES
     assert rules.GXW_DTE == "week"                                    # NOTE_WHAT says "expiring within a week"
-    assert set(gl.CHAIN_OF_MODE) == set(gex_service.GEX_MODES) and set(gl.CHAIN_OF_MODE.values()) == set(gex_service.GEX_SOURCES)
+    # one chain since Schwab was retired (2026-11-17): the kind's table is exactly what the service can answer
+    assert gl.CHAIN_OF_MODE == {"massive": "massive"} and gex_service.chain_source() in gl.CHAIN_OF_MODE
+    assert not hasattr(gex_service, "GEX_SOURCE_ENV") and not hasattr(gex_service, "GEX_MODES")
 
 
 def test_gamma_reads_what_the_route_holds_and_never_builds(monkeypatch):
@@ -230,9 +233,9 @@ def test_gamma_a_cold_symbol_is_unavailable_and_no_chain_is_read(monkeypatch):
     assert out["status"] == "unavailable" and gl.NOTE_NOT_HELD.format(sym="AAA", minutes=10, max_minutes=30) in out["notes"]
     assert built == []
     # a remembered failure (the route's negative cache) is "nothing held", never an answer
-    signature_route._gxw_remember_error("AAA", {"sym": "AAA", "levels": [], "error": "Schwab not authenticated"})
+    signature_route._gxw_remember_error("AAA", {"sym": "AAA", "levels": [], "error": "Massive API error: 503"})
     out = _read(gl.KIND)
-    assert out["status"] == "unavailable" and "Schwab" not in json.dumps(out) and built == []
+    assert out["status"] == "unavailable" and "503" not in json.dumps(out) and built == []
 
 
 def test_gamma_no_level_in_the_band_is_healthy_and_a_bad_payload_is_never_no_levels(monkeypatch):
@@ -257,14 +260,26 @@ def test_gamma_no_level_in_the_band_is_healthy_and_a_bad_payload_is_never_no_lev
     assert out["stale"] is True and out["data"]["computed_at"] is None and gl.NOTE_NO_TIME in out["notes"]
 
 
-@pytest.mark.parametrize("mode,chain,vendor", [(None, "schwab", "Schwab"), ("massive", "massive", "Massive"),
-                                               ("schwab", "schwab", "Schwab"), ("shadow", "schwab", "Schwab")])
-def test_gamma_names_the_chain_the_server_reads(monkeypatch, mode, chain, vendor):
+@pytest.mark.parametrize("left_in_the_retired_variable", [None, "massive", "schwab", "shadow"])
+def test_gamma_names_massive_whatever_the_retired_variable_says(monkeypatch, left_in_the_retired_variable):
+    """`GEX_CHAIN_SOURCE` chose between Massive's chain and Schwab's until 2026-11-17. It is retired with Schwab: a
+    value still set on a server (production carries `massive`; `schwab` and `shadow` were its other values) is read
+    by nothing, and the kind names Massive."""
     _hold_walls(monkeypatch)
-    if mode:
-        monkeypatch.setenv(gex_service.GEX_SOURCE_ENV, mode)
+    if left_in_the_retired_variable:
+        monkeypatch.setenv("GEX_CHAIN_SOURCE", left_in_the_retired_variable)
     out = _read(gl.KIND)
-    assert out["data"]["chain_source"] == chain and gl.NOTE_CHAIN.format(vendor=vendor) in out["notes"]
+    assert out["data"]["chain_source"] == "massive" and gl.NOTE_CHAIN in out["notes"]
+    assert gl.NOTE_CHAIN == "the option chain behind these levels is Massive's, the one chain UCT reads for them"
+    assert "schwab" not in json.dumps(out).lower()
+
+
+def test_gamma_does_not_name_a_chain_it_does_not_know(monkeypatch):
+    """`chain_source` stays in the payload (shape); a label the kind has no row for is None, never a guess."""
+    _hold_walls(monkeypatch)
+    monkeypatch.setattr(gex_service, "chain_source", lambda: "schwab")
+    out = _read(gl.KIND)
+    assert "chain_source" in out["data"] and out["data"]["chain_source"] is None and gl.NOTE_CHAIN not in out["notes"]
 
 
 def test_gamma_failing_route_and_bad_symbols(monkeypatch):
@@ -325,7 +340,10 @@ def test_the_statuses_directions_sorts_and_day_limits_are_the_topf_panels_own():
         assert int(re.search(rf"^export const {const} = (\d+)$", js, flags=re.M).group(1)) == mine, const
     words = dict(re.findall(r"^  (\w+): Object\.freeze\(\{[^}]*words: '([^']+)'", js, flags=re.M))
     assert words == tp.SORT_WORDS
-    assert set(tp.PRICE_SOURCES) == set(top_flow_tracker.SNAPSHOT_SOURCES)
+    # the labels a stored entry can carry: the tracker writes only "massive" now; "schwab" is read, never written
+    assert tp.PRICE_SOURCES == ("massive", "schwab") and not hasattr(top_flow_tracker, "SNAPSHOT_SOURCES")
+    written = top_flow_tracker._massive_entry({"mid": 2.5, "oi": 10}, "11/17/2026")
+    assert written["src"] == "massive" and '"src": "schwab"' not in inspect.getsource(top_flow_tracker)
 
 
 def test_top_picks_every_gain_is_the_flow_records_own_arithmetic(monkeypatch):
@@ -366,7 +384,10 @@ def test_top_picks_too_new_is_never_zero_percent_and_sources_are_named(monkeypat
     assert by_sym["AAA"]["src"] == ["massive", "schwab"] and by_sym["CCC"]["src"] == ["massive"]
     assert by_sym["BBB"]["src"] == ["schwab"] and by_sym["DDD"]["src"] == []      # an entry with no source on record is Schwab
     assert tp.NOTE_WHAT in out["notes"] and tp.NOTE_SOURCES in out["notes"]
-    assert "Massive" in tp.NOTE_SOURCES and "Schwab" in tp.NOTE_SOURCES and "options flow tape" in tp.NOTE_SOURCES
+    assert "options flow tape" in tp.NOTE_SOURCES and "Schwab as backup" not in tp.NOTE_SOURCES
+    # the same words the member reads on the Top Flow panel and the Flow Record
+    for said in (tp.NOTE_SOURCES, fr.NOTE_SOURCES):
+        assert "from Massive (prices recorded before November 2026 came from Schwab and stay as recorded)" in said
 
 
 def test_top_picks_time_is_the_newest_daily_price_and_the_newest_pick_is_said(monkeypatch):
@@ -665,12 +686,23 @@ def test_the_contract_doc_states_section_4_12_and_every_note_the_adapters_emit()
         assert f"| `{m.KIND}` |" in section and f"- `{m.KIND}`: " in section, m.KIND      # its table row, and why it is isolated
     # default OFF, the isolation switch and the never-builds rule are stated where the kinds are documented
     for s in ("UCT_AGENT_DATA_KINDS", "UCT_AGENT_ISOLATED_KINDS", "turn.LOCAL_ONLY_ACTIONS", "**Status: dark, not armed.**",
-              "**No read of this section starts a build or spends a provider call.**", "GEX_CHAIN_SOURCE", "too new to score"):
+              "**No read of this section starts a build or spends a provider call.**", "too new to score",
+              # the chain switch is named only to say it is retired
+              "the `GEX_CHAIN_SOURCE` switch and the Schwab chain it could select were retired that day"):
         assert s in section, s
+    assert "`massive` or `schwab`" not in section and "Schwab as backup" not in section and "`shadow` serves" not in section
     # wave 2's section still ends where this one begins, and the statement v1.9 amends no longer stands as written
     assert doc.index("### 4.11 Terminal data wave 2") < doc.index(head) < doc.index("## 8. Changing this contract")
     assert "(`GET /api/signature/gex-walls`) are not exposed to the Agent.\n" not in doc
     assert "`levels.gamma` (§4.12)" in doc[doc.index("### 4.10 Terminal data wave 1"):doc.index("### 4.11 Terminal data wave 2")]
     entry = next(line for line in doc.splitlines() if line.startswith("- **v1.9 addition (2026-11-17, terminal-data, data wave 3):**"))
     assert "owed by a person" in entry and "acknowledged by the owner" not in entry      # §8.1: no acknowledgement is claimed
+    # the Schwab retirement is an AMENDMENT of v1.9 (no kind, param or field moved), dated, quoting the instruction,
+    # and it claims no acknowledgement either
+    amended = next(line for line in doc.splitlines() if line.startswith("- **v1.9 amendment (2026-11-17, terminal-data, Schwab retired):**"))
+    assert '"Move it, fix the status and remove schwab from everything."' in amended
+    assert "it is not an acknowledgement of v1.9" in amended and "acknowledged by the owner" not in amended
+    # the file's title carries the newest version, which later waves bump (v1.10 is data wave 4): never older than this one
+    title = re.match(r"# MD-1 — UCT market-data contract \(v1\.(\d+)\)", doc)
+    assert doc.index(amended) < doc.index(entry) and title and int(title.group(1)) >= 9
     assert "- **`flow.summary`:** only through the existing flow proxy" in doc       # still deferred: no tape kind was added

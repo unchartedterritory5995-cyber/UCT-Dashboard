@@ -210,8 +210,24 @@ def _start_hotset_push() -> None:
     _log.info("[bars-api] hot-set push loop started")
 
 
+def _tune_interpreter() -> None:
+    """⚡ The GIL switch interval, as on web (`api/services/gil_tuning.py`, 0.5 ms). Every bar read
+    here is a row-by-row sqlite read, one GIL hand-off per row, and each hand-off waited up to 5 ms
+    behind any busy thread: this process runs seven (install, off-grid sweep, pull, checkpointer,
+    pack ingest, live store, index warm). Web was tuned on 2026-11-12; this tier never was, and it
+    answers the cold first opens (the 2026-11-17 audit's slow-first-open gap: FROG 1.5 s cold)."""
+    try:
+        from api.services import gil_tuning
+        g = gil_tuning.apply()
+        _log.info("[bars-api] thread switch interval %.2f ms (was %.2f ms; %s=%r; %s)", g["ms"], g["was_ms"],
+                  gil_tuning.ENV, g["raw"], "applied" if g["applied"] else "REFUSED, left as it was")
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] thread switch interval tuning failed (non-fatal): %s", e)
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    _tune_interpreter()          # first: before any of the threads below exists
     # ⭐ Install the DB in a BACKGROUND THREAD (uvicorn has already bound the port,
     # so Railway's readiness check is satisfied — running the install BEFORE uvicorn
     # made the port bind too late and Railway restart-looped the container at ~40s).
@@ -268,6 +284,13 @@ async def _lifespan(app: FastAPI):
                   ",".join(index_bars.SERVING_TIER_WARM_TFS))
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] index warm loop start failed (non-fatal): %s", e)
+    try:
+        # Deep daily history rebuilt from one checked source, served per ticker (bars_rebuild):
+        # the local copy loads at once, then syncs from the bars bucket. BARS_REBUILD_SERVE=0 = off.
+        from api.services import bars_rebuild
+        bars_rebuild.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] rebuilt-history sync start failed (non-fatal): %s", e)
     _log.info("[bars-api] serving tier UP — /api/bars + /api/bars-history "
               "(no universe warmers, no uploader, no WS; index warm on)")
     yield

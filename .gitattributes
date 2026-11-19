@@ -182,6 +182,11 @@ app/src/components/chart/chartDataMap.test.js -text
 app/src/hub/sections/homeSection.js -text
 docs/plans/joystick/deferred.md -text
 scripts/rth-close.ps1 -text
+# ⭐ Same rule, derived the same way (index blob carries CR, no NUL, `text` unspecified), and found by
+# tests/test_no_cr_in_tracked_text_blobs.py on 2026-11-18 (PR #1855's full run): two Charts agent
+# documents stored with CRLF since they were written (0bb8f2a585, 3433893154). No bytes change.
+docs/agent/CHARTS_COVERAGE_MATRIX.md -text
+docs/agent/CHARTS_EXECUTION_STATUS.md -text
 
 # Economic data: agency payload fixtures are BYTE-FIDELITY artifacts (raw archive
 # hashes, byte-level XML edits in tests/econ/test_adapter_dol.py). With

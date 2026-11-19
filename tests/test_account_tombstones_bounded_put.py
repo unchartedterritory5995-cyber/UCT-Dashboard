@@ -90,7 +90,11 @@ def test_the_shared_data_sync_client_is_left_as_other_callers_rely_on_it(local_b
     from api.services import data_sync
     shared = data_sync._client()
     assert shared is not None
-    assert shared.meta.config.read_timeout == 60, (
+    # ⚰️ This pinned 60. 4ee32cee02 (11-13, "R2 downloads survive a stall") deliberately raised the shared
+    # client to R2_READ_TIMEOUT_S (300 by default). What this guards is that the TOMBSTONE bound never leaks
+    # into the client everyone else uses, so it compares with data_sync's own value, never a typed number.
+    assert shared.meta.config.read_timeout != at.PUT_READ_TIMEOUT_S
+    assert shared.meta.config.read_timeout == data_sync.R2_READ_TIMEOUT_S, (
         "the shared client's behaviour changed -- the bound belongs to the tombstone put alone")
 
 

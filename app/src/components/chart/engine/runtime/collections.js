@@ -28,6 +28,7 @@ import { buildMapFns, isMap, MAP_WRITES } from './maps.js'
 import { RuntimeLimitError } from './limits.js'
 import { isDrawingHandle } from './handles.js'
 import { isUdtRecord } from './records.js'
+import { pineEq } from '../pineCompare.js'
 import { buildMatrixFns, isMatrix, MATRIX_WRITES } from './matrices.js'
 
 export class CollectionError extends Error {
@@ -354,7 +355,31 @@ const unmeasuredReduction = (name) => ({
  *  equals `na` here. ⛔ JS `Array#includes` would answer TRUE (SameValueZero);
  *  both members compare with `indexOf`'s strict equality, under which NaN
  *  matches nothing — the measured answer. */
-const indexOfValue = (arr, v) => ((typeof v === 'number' && Number.isNaN(v)) ? -1 : arr.indexOf(v))
+//  ⭐⭐ engine 78 (#1858) (Q-FCMP2 vw-fcmp-builtins-v2 B27 / B28 / Z12): a NUMBER is found where it is equal
+//  within TradingView's epsilon (`pineCompare.js::pineEq`): `array.indexof([1.0, 2.0], 1 + 3e-14)` is 0 and
+//  `array.includes` true, at 9e-11 too. Text, colours and handles keep strict equality.
+//  ⭐ engine 81 (Q-FCMP3 vw-fcmp-arrays A02-A04, AMEX:SPY and NYSE:RDDT 1D, run fcmp3b-2026-11-18):
+//  `array.lastindexof` finds a number the same way, from the end (`lastIndexOfValue`):
+//  `array.lastindexof([1.0, 2.0, 1.0 + 3e-14], 1.0)` is 2 and `array.lastindexof([1.0, 2.0], 1.0 + 9e-11)` is 0.
+//  ⛔ The three BINARY SEARCHES stay EXACT, as measured (A07-A14): a built-in is not the operator rule.
+const indexOfValue = (arr, v) => {
+  if (typeof v !== 'number') return arr.indexOf(v)
+  if (Number.isNaN(v)) return -1
+  for (let i = 0; i < arr.length; i += 1) {
+    const x = arr[i]
+    if (typeof x === 'number' && x === x && pineEq(x, v)) return i
+  }
+  return -1
+}
+const lastIndexOfValue = (arr, v) => {
+  if (typeof v !== 'number') return arr.lastIndexOf(v)
+  if (Number.isNaN(v)) return -1
+  for (let i = arr.length - 1; i >= 0; i -= 1) {
+    const x = arr[i]
+    if (typeof x === 'number' && x === x && pineEq(x, v)) return i
+  }
+  return -1
+}
 
 /** ⭐⭐ C11 — THE MEMBERS THE NINE C11 SCRIPTS WRITE, each Pine's documented
  *  behaviour and nothing inferred. ⛔ `array.slice` is deliberately ABSENT: its
@@ -764,7 +789,7 @@ const W6T5_MEMBERS = {
     fn: (a, budget) => {
       if (typeof a[1] === 'number' && Number.isNaN(a[1])) throw unpinned('array.lastindexof of `na`')
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      return a[0].lastIndexOf(a[1])
+      return lastIndexOfValue(a[0], a[1])
     },
   },
   'array.range': {

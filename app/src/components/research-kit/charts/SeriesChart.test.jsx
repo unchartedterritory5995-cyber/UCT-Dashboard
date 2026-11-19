@@ -166,4 +166,14 @@ describe('the value formatter reaches the AXIS, not just the tooltip', () => {
     })
     expect(o.xAxis.axisLabel.formatter(8.5)).toBe('8.5%')
   })
+
+  it('keeps the rank value axis readable in a narrow card: few ticks, no label over its neighbour, kit ink', () => {
+    // Seen on a real screen: a 280px card left ~65px for the value axis and it printed
+    // "2.00%4.00%6.00%" on top of each other, in the default label ink.
+    const o = buildSeriesOption(['A', 'B'], [{ name: 'x', values: [1, 2] }], { mode: 'rank' })
+    expect(o.xAxis.axisLabel.hideOverlap).toBe(true)
+    expect(o.xAxis.splitNumber).toBe(3)
+    expect(o.xAxis.axisLabel.fontSize).toBe(10)
+    expect(o.xAxis.axisLabel.color).toBe(o.yAxis.axisLabel.color)
+  })
 })

@@ -94,12 +94,44 @@ export function browserRefusalBlock(refusal) {
   return errors.length ? { envelope: refusal.envelope, errors } : null
 }
 
+/**
+ * What THIS build of the browser accepts beyond the first contract, told to the door on every turn.
+ * The door adds an optional field to its answer only for a browser that names it here, so a tab
+ * still running an older build never meets a field its own validator refuses.
+ *   note.by: a note may say who wrote it (`by: "uct"`).
+ *   offer:   an answer may carry one action to take with one tap (`builtInOffer.js`).
+ */
+export const ACCEPTS = Object.freeze(['note.by', 'offer'])
+
+/**
+ * ⭐ `script`: an answer may BE a Pine script. ⛔ NOT every sender of this build accepts one: only a
+ * window that puts the script through its own engine and SHOWS it and its verdict (`scriptAnswer.js`).
+ * A sender says so with `gateCtx.showsScripts === true`; with anything else the word is not sent and
+ * the door answers with the formula turn it always gave.
+ * ⚰️ 2026-11-19, found live while the lane was admin-only: this word was in `ACCEPTS`, so the builder's
+ * own "Describe it" box (`ConverseBox`) and the UCT Agent door told the door they accept a script.
+ * Neither shows one: an admin there read "This draws a zigzag ..." about a script that was nowhere
+ * on the screen. The senders that show one are held by `scriptAccepts.test.js`.
+ */
+export const ACCEPTS_SCRIPT = 'script'
+
+/** The bounds the server reads `addable` under (`definition_conversation.BUILT_INS_MAX`). */
+export const BUILT_INS_LIMITS = Object.freeze({ max: 40, maxChars: 64 })
+
+/** The built-in indicator ids to tell the door this window can add (from `gateCtx.builtIns`). */
+export function builtInIds(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((id) => typeof id === 'string' && id && id.length <= BUILT_INS_LIMITS.maxChars)
+    .slice(0, BUILT_INS_LIMITS.max)
+}
+
 /** The request body for one turn — exported so tests can pin the wire shape. */
-export function converseBody({ message, state, gateCtx = {}, snippets = [], browserRefusal = null }) {
+export function converseBody({ message, state, gateCtx = {}, snippets = [], browserRefusal = null, scriptRefusal = null }) {
   const view = compactView(state.working, state, gateCtx)
   const body = {
     message: String(message || '').slice(0, CONVERSE_LIMITS.maxMessage),
     view,
+    accepts: [...ACCEPTS, ...(gateCtx && gateCtx.showsScripts === true ? [ACCEPTS_SCRIPT] : [])],
     authoring: { assumptions: view.assumptions, openQuestions: view.openQuestions },
     snippets: boundedSnippets(snippets),
     chart: {
@@ -117,6 +149,14 @@ export function converseBody({ message, state, gateCtx = {}, snippets = [], brow
   if (typeof id === 'string' && CONVERSATION_ID_RE.test(id)) body.conversationId = id
   const refused = browserRefusalBlock(browserRefusal)
   if (refused) body.browser_refusal = refused
+  // ⭐ which of UCT's own built-in indicators this window can add to the chart right now: the
+  // door offers to add one only when its id is here (omitted when there is none)
+  const builtIns = builtInIds(gateCtx.builtIns)
+  if (builtIns.length) body.addable = builtIns
+  // ⭐ this window's own engine refused a script the door offered for this request: the script
+  // and the engine's words go back for a repair (`scriptAnswer.refusalOf`)
+  const refusedScript = scriptRefusalBlock(scriptRefusal)
+  if (refusedScript) body.script_refusal = refusedScript
   return body
 }
 
@@ -140,7 +180,7 @@ function retryAfterOf(r) {
   } catch { return null }
 }
 
-export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null, signal = null, browserRefusal = null }) {
+export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null, signal = null, browserRefusal = null, scriptRefusal = null }) {
   const doFetch = fetchImpl || globalThis.fetch
   let r
   try {
@@ -148,7 +188,7 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(converseBody({ message, state, gateCtx, snippets, browserRefusal })),
+      body: JSON.stringify(converseBody({ message, state, gateCtx, snippets, browserRefusal, scriptRefusal })),
       ...(signal ? { signal } : {}),
     })
   } catch {
@@ -195,7 +235,47 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
     ok: true, disposition: body.disposition, reply: typeof body.reply === 'string' ? body.reply : '',
     turn: body.turn || null, envelope: body.envelope, notUnderstood, unavailable,
     ...allowanceOf(body),
+    ...offerOf(body),
+    ...scriptOf(body),
   }
+}
+
+/** The bounds of a script answer and of its refusal (`pine_authoring.SCRIPT_MAX_CHARS`,
+ *  `script_conversation.REFUSAL_MAX_*`). */
+export const SCRIPT_LIMITS = Object.freeze({ maxChars: 24000, maxName: 60, maxErrors: 6, maxErrorChars: 300 })
+
+/** ⭐ The script an answer IS, as the server sent it: text, a name and the repair round. What it
+ *  is worth is the engine's to say (`scriptAnswer.checkScript`), never this function's. */
+export function scriptOf(body) {
+  const s = body && body.script
+  if (!s || typeof s !== 'object' || typeof s.pine !== 'string' || !s.pine.trim()) return {}
+  if (s.pine.length > SCRIPT_LIMITS.maxChars) return {}
+  return { script: {
+    pine: s.pine,
+    name: typeof s.name === 'string' ? s.name.slice(0, SCRIPT_LIMITS.maxName) : '',
+    round: Number.isInteger(s.round) && s.round >= 0 ? s.round : 0,
+  } }
+}
+
+/** `{pine, errors, round}` as it goes on the wire, or null when there is nothing usable to send. */
+export function scriptRefusalBlock(refusal) {
+  if (!refusal || typeof refusal !== 'object' || typeof refusal.pine !== 'string' || !refusal.pine) return null
+  if (refusal.pine.length > SCRIPT_LIMITS.maxChars) return null
+  const errors = (Array.isArray(refusal.errors) ? refusal.errors : [])
+    .filter((e) => typeof e === 'string' && e.trim())
+    .slice(0, SCRIPT_LIMITS.maxErrors)
+    .map((e) => e.replace(/[ \t\r\n]+/g, ' ').trim().slice(0, SCRIPT_LIMITS.maxErrorChars))
+  if (!errors.length) return null
+  return { pine: refusal.pine, errors, round: Number.isInteger(refusal.round) && refusal.round >= 1 ? refusal.round : 1 }
+}
+
+/** ⭐ The one action an answer offers, as the server sent it (kind and indicator id only; what
+ *  it means here is `builtInOffer.liveOffer`'s to say). Anything else is no offer. */
+export function offerOf(body) {
+  const o = body && body.offer
+  if (!o || typeof o !== 'object' || typeof o.kind !== 'string' || typeof o.indicator !== 'string') return {}
+  if (!o.indicator || o.indicator.length > BUILT_INS_LIMITS.maxChars || o.kind.length > 40) return {}
+  return { offer: { kind: o.kind, indicator: o.indicator } }
 }
 
 /** ⭐ F1: the share of today's allowance left (0 to 1) when the server sent one. */

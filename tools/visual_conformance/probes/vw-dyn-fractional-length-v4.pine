@@ -1,0 +1,27 @@
+//@version=4
+study("UCTPROBE_VW_DYN_FRACTIONAL_LENGTH_V4", overlay = false)
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (parity2, U-DYN), capture queue rows
+// Q-DYN-2a/b (docs/pine/capture-queue-2026-11-18-parity2.md). NEVER COMPILED ON TRADINGVIEW. The v4 sibling of
+// `vw-dyn-fractional-length.pine` (rows and meaning identical); reference:rsi-cyclic-smoothed is v4.
+length = input(9, "length")
+plot(wma(close, 9 / 2), "W01_wma_9div2")
+plot(wma(close, 4), "W02_wma_4")
+plot(wma(close, 5), "W03_wma_5")
+plot(sma(close, 11 / 2), "S01_sma_11div2")
+plot(sma(close, 5), "S02_sma_5")
+plot(sma(close, 6), "S03_sma_6")
+plot(sma(close, 13 / 2), "S04_sma_13div2")
+plot(sma(close, 7), "S05_sma_7")
+plot(sma(close, 22 / 3), "S06_sma_22div3")
+plot(sma(close, 8), "S07_sma_8")
+plot(wma(close, 40 / 3), "W04_wma_40div3")
+plot(wma(close, 13), "W05_wma_13")
+plot(wma(close, 14), "W06_wma_14")
+plot(close[21 / 2 + 1], "H01_close_21div2p1")
+plot(close[11], "H02_close_11")
+plot(close[12], "H03_close_12")
+plot(close[13 / 2], "H04_close_13div2")
+plot(close[7], "H05_close_7")
+plot(close[6], "H06_close_6")
+plot(wma(close, length / 2), "W07_wma_input9div2")

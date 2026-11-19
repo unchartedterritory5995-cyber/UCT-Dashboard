@@ -8,7 +8,8 @@ vi.mock('../../hooks/usePreferences', () => ({
   parsePref: (raw, fb) => { try { return raw == null ? fb : JSON.parse(raw) } catch { return fb } },
   default: () => ({ prefs: pref.prefs, loading: pref.loading, setPref: pref.setPref }),
 }))
-import FirstRunCard, { ORIENTATION_PREF, FIRST_RUN_NEW } from './FirstRunCard'
+import FirstRunCard, { ORIENTATION_PREF, FIRST_RUN_NEW, readyBoardNames } from './FirstRunCard'
+import { STARTER_BOARDS } from './starterBoards'
 import parseCommand from './parseCommand'
 import { BY_CODE } from './functions'
 
@@ -71,5 +72,21 @@ describe('first-run orientation: the newer codes', () => {
       expect(line.textContent).toContain(n.what)
     }
     expect(screen.getByTestId('terminal-firstrun').textContent).toMatch(/click a name in a list/)
+  })
+})
+
+// 2026-11-17: the ready-made boards are the way in that needs no codes, so the card says so.
+describe('first-run orientation: the ready-made boards', () => {
+  it('names every ready-made board from the list itself, and says where the button is', () => {
+    render(<FirstRunCard />)
+    const line = screen.getByTestId('terminal-firstrun-boards')
+    expect(line.textContent).toContain('Boards button')
+    expect(STARTER_BOARDS.length).toBeGreaterThan(0)
+    for (const b of STARTER_BOARDS) expect(line.textContent).toContain(b.name)
+  })
+
+  it('reads the names it is given, in order (a renamed or added board is never described from memory)', () => {
+    expect(readyBoardNames([{ name: 'Alpha' }, { name: 'Beta two' }])).toBe('Alpha, Beta two')
+    expect(readyBoardNames()).toBe(STARTER_BOARDS.map((b) => b.name).join(', '))
   })
 })

@@ -85,7 +85,7 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
         "R", "Economic calendar releases — no DDLA assumed, same A3 posture as this vendor's other data classes.", "T-37",
     ),
     ("fmp", "indices"): LicensingClassEntry(
-        "R", "Daily cash-index history (/stable/historical-price-eod/full, ^GSPC/^NDX/^DJI/^RUT/^VIX) — no DDLA assumed, same A3 posture as this vendor's other data classes. The PRIMARY source for daily index bars by owner ruling 2026-11-14 (top FMP plan; docs/pine/RS-RATING-TRANSFER.md).", "A3",
+        "R", "Cash-index history (^GSPC/^NDX/^DJI/^RUT/^VIX): daily (/stable/historical-price-eod/full) and, since 2026-11-18, intraday (/stable/historical-chart/{interval}, settled sessions only: api/index_bars.py fills the sessions Yahoo's answer lacks). No DDLA assumed, same A3 posture as this vendor's other data classes. The PRIMARY source for daily index bars by owner ruling 2026-11-14 (top FMP plan; docs/pine/RS-RATING-TRANSFER.md). The daily-only wording before 2026-11-18 named the one endpoint then in use, not a plan or terms limit: FMP intraday bars on a member chart are register row T-40 (licensing-register.md: noDDLA R, DDLA LA; the DDLA was confirmed to exist 2026-09-19).", "A3/T-40",
     ),
     ("fmp", "news"): LicensingClassEntry(
         "R", "Company news / press releases — no DDLA assumed (R without a data redistribution license agreement; LA with one).", "T-38",
@@ -105,21 +105,25 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
     # Schwab confirmed"; ESC-10 "CLOSED AND APPROVED BY THE OWNER 2026-09-26"; the agreement document itself is not
     # captured in the repo). These rows restate the register; they are not a ruling. Nothing looks a Schwab pair up
     # today, so they switch nothing on (tests/test_schwab_licensing_record.py holds both facts).
+    # ⚰️ RETIRED 2026-11-17. The owner retired Schwab from the product that day ("Move it, fix the status and remove
+    # schwab from everything"): no production code reads Schwab any more (tests/test_no_schwab_in_production_code.py).
+    # The four rows stay as the HISTORICAL RECORD of the class each data class had while it was read, and each
+    # description now says so. No class is changed by the retirement.
     ("schwab", "option_chains"): LicensingClassEntry(
-        "LA", "Option chains + Greeks + open interest (marketdata/v1/chains) shown to members as GEX, gamma walls, zero-gamma and dealer positioning — T-77, ANSWERED BY THE OWNER 2026-09-19 (Commercial/Redistribution tier with display to non-account-holders): LA. Member surfaces only; public recordings are the T-79 row below.", "T-77",
+        "LA", "RETIRED 2026-11-17 (Schwab is no longer read; historical record, GEX reads Massive). Option chains + Greeks + open interest (marketdata/v1/chains) shown to members as GEX, gamma walls, zero-gamma and dealer positioning — T-77, ANSWERED BY THE OWNER 2026-09-19 (Commercial/Redistribution tier with display to non-account-holders): LA. Member surfaces only; public recordings are the T-79 row below.", "T-77",
     ),
     ("schwab", "option_quotes"): LicensingClassEntry(
-        "LA", "One contract's price, volume and open interest read out of the same /chains response (schwab_service.get_option_quote / get_batch_option_quotes: the Flow Record's daily snapshots (the only source until 2026-11-17, the backup behind Massive since), /api/schwab/options-quotes) — the T-77 data class: LA for member display. A public or unauthenticated surface is its own row (T-27).", "T-77",
+        "LA", "RETIRED 2026-11-17 (Schwab is no longer read; historical record, these reads are Massive's now). One contract's price, volume and open interest read out of the same /chains response (the Flow Record's daily snapshots and POST /api/schwab/options-quotes read it until 2026-11-17) — the T-77 data class: LA for member display. A public or unauthenticated surface is its own row (T-27).", "T-77",
     ),
     ("schwab", "open_interest"): LicensingClassEntry(
-        "LA", "Stored Schwab open-interest snapshots for day-over-day OI attribution — T-78, ANSWERED (see T-77): LA.", "T-78",
+        "LA", "RETIRED 2026-11-17 (Schwab is no longer read; historical record, snapshots are recorded from Massive now and the rows stored before stay). Stored Schwab open-interest snapshots for day-over-day OI attribution — T-78, ANSWERED (see T-77): LA.", "T-78",
     ),
     ("schwab", "gex_public_recordings"): LicensingClassEntry(
-        "R", "Schwab-derived GEX inside PUBLIC Desk YouTube recordings — T-79: R, unchanged pending T-18's own gate (public exposure), which Schwab's answer did not address. Not loosened by the rows above.", "T-79",
+        "R", "RETIRED 2026-11-17 as a live read (Schwab is no longer read); the class still describes recordings made while it was. Schwab-derived GEX inside PUBLIC Desk YouTube recordings — T-79: R, unchanged pending T-18's own gate (public exposure), which Schwab's answer did not address. Not loosened by the rows above.", "T-79",
     ),
     # No ("schwab", "quotes") row: the register's Schwab rows (T-77, T-78, T-79) cover option chains, stored open
-    # interest and the public recordings. Schwab EQUITY quotes (schwab_service.get_equity_quote / get_market_summary /
-    # get_mktcap_batch, marketdata/v1/quotes) have no register row of their own, so that pair is left unregistered
+    # interest and the public recordings. Schwab EQUITY quotes (marketdata/v1/quotes; read until 2026-11-17 for spot
+    # prices, the index strip and market caps) had no register row of their own, so that pair is left unregistered
     # and falls through to `_DEFAULT` ("U" — not researched, never inferred), like ("fmp", "ipo") below.
     # ── UCT Agent asset-class kinds (W1-C C-03): index.quote / commodity.quote / crypto.quote serve a class ONLY from
     # a row in force as A or LA (api/services/uct_agent/marketdata/asset_quotes.py). None below is, so every read

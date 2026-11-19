@@ -12,9 +12,9 @@ move. The store's own `finalPnl` is never returned (it reads 0 for a missing pri
 
 WHERE THE NUMBERS COME FROM, said on every read (api/top_flow_tracker.py, api/flow_scoreboard.py):
   * the picks and their entry prices come from UCT's options flow tape (saved by the Options Flow page);
-  * the daily contract prices are recorded each weekday after the close: from Massive with Schwab as backup since
-    November 2026, from Schwab alone before. Each history entry written since carries `src`; an entry without one is
-    Schwab. A row's `src` lists the sources that priced it.
+  * the daily contract prices are recorded each weekday after the close, from Massive (prices recorded before
+    November 2026 came from Schwab and stay as recorded). Each history entry written since carries `src: "massive"`;
+    an entry with `src: "schwab"` or with none was recorded from Schwab. A row's `src` lists the sources that priced it.
 
 THE CUT IS STATED. The store grows with every pick, so the server filters, orders and cuts: at most `limit` rows, the
 whole count beside them, and a note naming both. The order is the TOPF panel's own (`sortRows`): a pick that is not
@@ -57,6 +57,8 @@ MAX_LIMIT = 50
 #: the TOPF panel's own numbers (topFlowModel.js STALE_AFTER_DAYS / NO_NEW_PICKS_AFTER_DAYS), railed equal
 STALE_AFTER_DAYS = 4
 NO_NEW_PICKS_AFTER_DAYS = 14
+#: the `src` LABELS a stored history entry can carry. Nothing reads Schwab any more (retired 2026-11-17): "schwab"
+#: is here only to read the label of entries recorded before November 2026, which are never rewritten.
 PRICE_SOURCES = ("massive", "schwab")
 SYMBOL_RE = re.compile(r"^[A-Za-z][A-Za-z.\-]{0,9}$")
 #: a stored symbol this kind will show (the TOPF panel's own rule)
@@ -70,8 +72,9 @@ NOTE_WHAT = ("each Top Flow pick UCT flagged on its options flow tape, with how 
              "gain is the contract's own price change against its price when flagged, never the stock's move; UCT's "
              "own selection, not a recommendation")
 NOTE_SOURCES = ("picks and entry prices come from UCT's options flow tape; daily contract prices are recorded each "
-                "weekday after the close, from Massive with Schwab as backup since November 2026 and from Schwab alone "
-                "before (each row's `src` names the sources that priced it; an entry with no source on record is Schwab)")
+                "weekday after the close, from Massive (prices recorded before November 2026 came from Schwab and stay "
+                "as recorded); each row's `src` names the sources that priced it, and an entry with no source on record "
+                "is Schwab")
 NOTE_TOO_NEW = ("{n} of the {total} picks that match have fewer than {min} daily prices and are too new to score: their "
                 "gains are not given, which is not the same as 0%")
 NOTE_AS_OF = ("as_of is the newest daily price date in the pick store, as that session's close; prices are recorded "
@@ -122,7 +125,7 @@ def _iso(d: Optional[date]) -> Optional[str]:
 
 def priced_days(pick: dict) -> list[tuple[Optional[date], str]]:
     """(the day, the source) of every history entry that carries a usable price, in the store's own order. An entry
-    with no `src` was recorded before the move to Massive and is Schwab (api/top_flow_tracker.py)."""
+    with no `src` (or with "schwab") was recorded from Schwab before November 2026 (api/top_flow_tracker.py)."""
     from api import flow_scoreboard as fs
     out = []
     for h in pick.get("history") or []:

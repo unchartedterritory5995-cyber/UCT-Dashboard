@@ -134,19 +134,19 @@ function CreamList({ code }) {
           {view.net ? ` Across the whole market that day: ${money(view.net.bull)} of bullish premium and ${money(view.net.bear)} of bearish premium.` : ''}
         </span>
       </div>
-      <div className={styles.tableBox}>
+      <div className={styles.tableBox} data-fold="510">
         <table className={styles.table} data-testid="terminal-flwl-cream"
           aria-label={`Cream of the Crop${day ? ` for ${day}` : ''}, ${view.rows.length} ${view.rows.length === 1 ? 'position' : 'positions'}`}>
           <thead>
             <tr>
               <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-              <th scope="col" className={styles.wrapCell}>Contract</th>
+              <th scope="col" className={`${styles.wrapCell} ${styles.snugTight}`}>Contract</th>
               <th scope="col" title="Which way the position leans">Direction</th>
               <th scope="col" title="Dollars paid at the ask on this contract in the session">Premium</th>
               <th scope="col" title="The flow grade of the position, A+ best">Grade</th>
-              <th scope="col" className={styles.phoneHide} title="Contracts bought at the ask, against the open interest before the session">Volume vs open interest</th>
+              <th scope="col" className={`${styles.phoneHide} ${styles.snugWrap}`} title="Contracts bought at the ask, against the open interest before the session">Volume vs open interest</th>
               <th scope="col" className={styles.phoneHide} title="Contracts bought at the ask in the session">Contracts</th>
-              <th scope="col" className={styles.phoneHide}>Days to expiry</th>
+              <th scope="col" className={`${styles.phoneHide} ${styles.snugWrap}`}>Days to expiry</th>
             </tr>
           </thead>
           <tbody>
@@ -156,7 +156,7 @@ function CreamList({ code }) {
                   <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                   <PanelSymbol sym={r.sym} className={styles.sym} />
                 </td>
-                <td className={styles.wrapCell}>{contractText(r)}</td>
+                <td className={`${styles.wrapCell} ${styles.snugTight}`}>{contractText(r)}</td>
                 <td className={toneOf(r.direction)}>{directionWords(r)}</td>
                 <td>{money(r.premium)}</td>
                 <td>{r.grade || 'Not graded'}</td>
@@ -258,19 +258,19 @@ function OpenBoard({ code }) {
           bearish names can be missing from this list.
         </p>
       ) : null}
-      <div className={styles.tableBox}>
+      <div className={styles.tableBox} data-fold="480">
         <table className={styles.table} data-testid="terminal-flwl-open"
           aria-label={`Open flow board, ${rows.length} ${rows.length === 1 ? 'stock' : 'stocks'}`}>
           <thead>
             <tr>
               <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-              <th scope="col" className={styles.wrapCell} title="The stock's largest open contract by premium">Largest contract</th>
+              <th scope="col" className={`${styles.wrapCell} ${styles.snugTight}`} title="The stock's largest open contract by premium">Largest contract</th>
               <th scope="col" title="Which way the open premium leans">Direction</th>
               <th scope="col" title="Bullish premium less bearish premium on the open contracts">Net premium</th>
               {/* Two merged columns, so the board fits a half-width panel without cutting its last columns off. */}
-              <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell}`}
+              <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}
                 title="Bullish premium, then bearish premium, on the open contracts, and the bullish share of the two">Bullish and bearish premium</th>
-              <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell}`}
+              <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}
                 title="The stock's move from the earliest trade behind these positions to the latest one on the tape, and that first trade's date">Stock since first trade</th>
             </tr>
           </thead>
@@ -281,14 +281,14 @@ function OpenBoard({ code }) {
                   <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                   <PanelSymbol sym={r.sym} className={styles.sym} />
                 </td>
-                <td className={styles.wrapCell}>{contractText(r)}</td>
+                <td className={`${styles.wrapCell} ${styles.snugTight}`}>{contractText(r)}</td>
                 <td className={toneOf(r.direction)}>{directionWords(r)}</td>
                 <td className={tone(r.net)}>{r.net == null ? NA : signedMoney(r.net)}</td>
-                <td className={`${styles.phoneHide} ${styles.wrapCell}`}>
+                <td className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}>
                   {money(r.bull)} / {money(r.bear)}
                   {r.bullShare == null ? null : <span className={styles.muted}>{` (${formatPercent(r.bullShare, { decimals: 0 })}${NBSP}bullish)`}</span>}
                 </td>
-                <td className={`${styles.phoneHide} ${styles.wrapCell}`}>
+                <td className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}>
                   <span className={tone(r.stockPct)}>{formatPercent(r.stockPct, { decimals: 1, signed: true, absent: NA })}</span>
                   <span className={styles.muted}>{r.since ? ` since${NBSP}${unbroken(r.since)}` : ' (first trade date not given)'}</span>
                 </td>

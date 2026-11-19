@@ -98,14 +98,22 @@ describe('⛔ what Pine forbids, or has not been measured, still refuses by name
     expect(r.ok).toBe(false)
   })
 
-  it('a global\'s HISTORY inside a function still refuses — whose past it is has not been measured', () => {
-    const r = build('var g = 0.0\ng := g + close\nf() => g[1]\nplot(f())\n')
-    expect(r.ok).toBe(false)
-    expect(r.refusal.guard).toBe('runtime:function-global-state')
+  it('⭐ U-FGS F2 — a MUTABLE global\'s HISTORY inside a function is its value at the previous call', () => {
+    // ⚰️ this refused: whose past it is had not been measured. vw-udt-fn-global-history (committed) G01-G06.
+    const [out] = runPine('var g = 0.0\ng := g + close\nf() => g[1]\nplot(f())\n')
+    const cum = closes.map((_, i) => closes.slice(0, i + 1).reduce((s, c) => s + c, 0))
+    expect(Number.isNaN(out[0])).toBe(true)
+    expect(out.slice(1)).toEqual(cum.slice(0, -1))
   })
 
-  it('a WINDOW over a bare global inside a function still refuses', () => {
-    const r = build('var g = 0.0\ng := g + close\nf() => ta.sma(g, 3)\nplot(f())\n')
+  it('⭐ U-FGS F2 — a WINDOW over a mutable global inside a function, called every bar, is the root\'s', () => {
+    const [fn] = runPine('var g = 0.0\ng := g + close\nf() => ta.sma(g, 3)\nplot(f())\n')
+    const [root] = runPine('var g = 0.0\ng := g + close\nplot(ta.sma(g, 3))\n')
+    expect(fn.map((v) => (Number.isNaN(v) ? null : v))).toEqual(root.map((v) => (Number.isNaN(v) ? null : v)))
+  })
+
+  it('a global bound ONCE: its HISTORY inside a function still refuses (W13 / W14)', () => {
+    const r = build('var g = 0.0\ng := g + close\nh = g * 2\nf() => h[1]\nplot(f())\n')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:function-global-state')
   })

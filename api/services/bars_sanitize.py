@@ -158,6 +158,15 @@ _GAP_MIN_DAYS = 21            # a gap this big + a listing-date match ⇒ reuse
 _GAP_STANDALONE_DAYS = 150    # a gap this big ⇒ reuse even without listing metadata
 _GAP_ALIGN_TOL_DAYS = 12      # gap must resume within this many days of the listing
 _REUSE_PRICE_FACTOR = 4.0    # a gap WITH a ≥4× (or ≤¼×) price jump ⇒ reuse, no metadata
+#: The calendar days one bar of each timeframe spans when NOTHING is missing. A gap is measured as the
+#: EXCESS over it, so every threshold above means "days of missing history" on every timeframe.
+#: ⚰️ 2026-11-18: the gap was a raw step, and a MONTHLY series' every step (28-31 days) is >= 21. Its
+#: "largest gap" was simply its first 31-day step, resuming on the month after the listing month (RDDT
+#: 2024-04-01, SPY 1993-02-01), which sits within the alignment tolerance of the cached ipoDate (2024-03-21,
+#: 1993-01-29): the cut dropped the LISTING MONTH (TradingView's 1M chart has it: RDDT from 2024-03-01, 33
+#: months). Only where the profile was cached, so it came and went with the metadata cache; the
+#: metadata-free price-ratio branch could cut the same false gap on a volatile month. Daily is unchanged.
+_NOMINAL_STEP_DAYS = {"D": 0, "W": 7, "M": 31}
 _SPLIT_TOL = 0.15            # |observed/expected − 1| ≤ this ⇒ boundary is unadjusted
 _WICK = 1.40                 # a wick > body*this AND > neighbor*this is a lone spike
 
@@ -383,54 +392,65 @@ def _meta_cached(ticker: str) -> dict | None:
 
 
 # ── Step 1: ticker-reuse listing cutoff ─────────────────────────────────────
-def _apply_listing_cutoff(bars: list[dict], meta: dict | None) -> list[dict]:
+def _resume_aligns_with_listing(resume_d, ipo, tf: str) -> bool:
+    """Does the bar that resumes after the gap open the new listing? Within the tolerance of the
+    listing day, or (M) the listing day lies inside the resume bar's own month: a monthly bar is keyed
+    on its month's 1st, so a listing late in the month is still that month's. (A weekly bar is keyed on
+    its Friday, and every day of its week is within the tolerance already.)"""
+    if abs((resume_d - ipo).days) <= _GAP_ALIGN_TOL_DAYS:
+        return True
+    return tf == "M" and (resume_d.year, resume_d.month) == (ipo.year, ipo.month)
+
+
+def _apply_listing_cutoff(bars: list[dict], meta: dict | None, tf: str = "D") -> list[dict]:
     """Drop the OLD security's bars from a recycled ticker.
 
     A reused ticker has a large data gap whose resumption aligns with the new
     security's listing date. Normal continuously-traded tickers have no such gap,
     so this is a fast no-op for them (single O(bars) scan, no metadata needed
-    unless a suspicious gap is present)."""
+    unless a suspicious gap is present).
+
+    ⭐ PERIOD-AWARE (2026-11-18): a gap is the EXCESS of a step over one bar's span
+    (`_NOMINAL_STEP_DAYS`: a month's 31 days, a week's 7, a day's 0), so a monthly
+    series' ordinary month-to-month step is no gap, and the listing alignment reads
+    the resume bar's PERIOD (a monthly bar is keyed on its month's 1st, a weekly one
+    on its Friday, while the listing day falls anywhere inside it)."""
     if len(bars) < 2:
         return bars
-    # Largest gap + the index of the bar that RESUMES trading after it.
-    best_gap, resume_idx = 0, 0
+    # The series starts at the bar after the NEWEST listing break, the store's own rule
+    # (`listing_break.is_break`, so the chart and the RS Rating / screener agree on where a
+    # symbol's history starts):
+    #   * a gap >= _GAP_MIN_DAYS WITH a >= _REUSE_PRICE_FACTOR close jump either way (SPCX:
+    #     ~$22 SPAC ETF -> ~$150 SpaceX; DRAM: ~$1 Dataram -> ~$50 ETF). A multi-week HALT of
+    #     the same company resumes near its pre-halt price, and a reverse split is same-day.
+    #     Metadata-free, so it cuts on the FIRST serve, before the ipoDate metadata warms;
+    #   * a gap >= _GAP_STANDALONE_DAYS on its own;
+    #   * and, the chart's own third branch, a gap >= _GAP_MIN_DAYS that resumes within
+    #     _GAP_ALIGN_TOL_DAYS of the provider's listing date (a halt of the SAME company keeps
+    #     its old ipoDate, so it never aligns).
+    # ⚰️ 2026-11-18, production: this judged only the LARGEST gap. A symbol held by three
+    # securities lost the oldest one and kept the middle one: ADPT served Adeptus Health
+    # 2014-06 .. 2017-04 ($1.41) in front of Adaptive Biotechnologies (2019-06-27, $40.30),
+    # while the store readers already cut at the newest break.
+    # ⭐ PERIOD-AWARE (2026-11-18): every gap below is the EXCESS of a step over one bar's span
+    # (`_NOMINAL_STEP_DAYS`), so `is_break` is asked about days of MISSING history on every timeframe
+    # (a daily step is unchanged; a monthly series' 31-day step is no gap), and a monthly resume bar
+    # aligns with a listing inside its own month (`_resume_aligns_with_listing`).
+    step = _NOMINAL_STEP_DAYS.get(tf, 0)
+    from api.services import listing_break as _lb
+    ipo = _pd((meta or {}).get("ipo"))
+    cut = 0
     prev_d = _pd(bars[0]["t"])
     for i in range(1, len(bars)):
         d = _pd(bars[i]["t"])
         if prev_d and d:
-            g = (d - prev_d).days
-            if g > best_gap:
-                best_gap, resume_idx = g, i
+            g = (d - prev_d).days - step
+            if g >= _GAP_MIN_DAYS and (
+                    _lb.is_break(g, bars[i - 1].get("c"), bars[i].get("c"))
+                    or (ipo is not None and _resume_aligns_with_listing(d, ipo, tf))):
+                cut = i
         prev_d = d
-    if best_gap < _GAP_MIN_DAYS:
-        return bars  # no reuse signature at all
-
-    # METADATA-FREE reuse detection: a gap WITH a large price discontinuity is a
-    # recycled ticker — the OLD security traded at a totally different scale than
-    # the new listing (SPCX: ~$22 SPAC ETF → ~$150 SpaceX; DRAM: ~$1 Dataram →
-    # ~$50 ETF). A legit multi-week HALT of the same company resumes near its
-    # pre-halt price, so it won't trip this. This cuts on the FIRST serve, before
-    # the ipoDate metadata warms — no ~1s pre-IPO flash. (A gap ≥ _GAP_MIN_DAYS
-    # rules out a reverse split, which is same-day.)
-    prev_c = bars[resume_idx - 1].get("c")
-    cur_c = bars[resume_idx].get("c")
-    if prev_c and cur_c and prev_c > 0:
-        ratio = cur_c / prev_c
-        if ratio >= _REUSE_PRICE_FACTOR or ratio <= 1.0 / _REUSE_PRICE_FACTOR:
-            return bars[resume_idx:]
-
-    ipo = _pd((meta or {}).get("ipo"))
-    resume_d = _pd(bars[resume_idx]["t"])
-
-    # Prefer the gap whose resume aligns with the listing date (precise + safe:
-    # a legit multi-week halt of the SAME company keeps its old ipoDate, so it
-    # won't align with the gap and won't be cut).
-    if ipo and resume_d and abs((resume_d - ipo).days) <= _GAP_ALIGN_TOL_DAYS:
-        return bars[resume_idx:]
-    # No listing metadata (cold cache): only cut on an UNMISTAKABLE gap.
-    if best_gap >= _GAP_STANDALONE_DAYS:
-        return bars[resume_idx:]
-    return bars
+    return bars[cut:] if cut else bars
 
 
 # ── Step 2: split-adjustment self-heal ──────────────────────────────────────
@@ -661,6 +681,160 @@ def split_adjust_active() -> bool:
     return _ENABLED and _bsr.enabled()
 
 
+def _identity_source(symbol: str, tf: str) -> list[dict]:
+    """A source symbol's stored D/W/M bars, formatted, NOT sanitized (no ticker: its own listing
+    cutoff would drop exactly the earlier life being borrowed, e.g. FB's Meta years)."""
+    from api.services import bars_fetch as _bf
+    rows = _bf._sqlite.get_bars(symbol, tf, 20000)
+    return _bf._fmt_sqlite_bars(rows, tf, None) if rows else []
+
+
+# ── Step 4: a W/M series is never shallower than the daily series ──────────────
+# ⚰️ MEASURED ON PRODUCTION 2026-11-18. Weekly META started 2022-06-10, but daily META started at
+# Facebook's 2012 IPO. XYZ weekly started in 2025 (Square's daily: 2015). WBD, TFC and ELV (monthly)
+# showed the same thing. Each of these symbols was renamed or merged. Massive keys a symbol's
+# aggregates from the rename, and the W/M rows carry a gap there, so the reuse cutoff (step 1) cut
+# every week before it. The daily store holds the whole lineage with no gap, so its cutoff kept
+# the history. One company, two depths, depending on the timeframe.
+# The older W/M bars are built from the served daily series with the one W/M resampler, and only
+# when both series agree where they meet.
+#: A W/M series starting this many days after the stored daily series is shallow.
+_DEEPEN_MIN_DAYS = {"W": 14, "M": 62}
+#: The newest built bar must sit this close before the first stored one: no hole at the join.
+_DEEPEN_JOIN_DAYS = {"W": 10, "M": 40}
+#: Closes of the stored bars right after the first (the first can be a partial period) must agree.
+_DEEPEN_CHECK_BARS = 3
+_DEEPEN_TOL = 0.02
+#: The W/M series built from the daily series, per (ticker, tf), as tuples: a fill reads and resamples
+#: the daily store (30-60 ms for META, measured on the local store copy 2026-11-18) once per TTL, not
+#: on every uncached W/M read. Tuples keep an entry small (~120 bytes a period); only renamed or
+#: holed series ever get here.
+_BUILT_CACHE = TTLCache(max_size=128)
+_BUILT_TTL = 600
+
+
+def _store_first(symbol: str, tf: str) -> date | None:
+    """The first stored bar's date for (symbol, tf), or None."""
+    from api.services import bars_fetch as _bf
+    v = _bf._sqlite.get_first_ts(symbol, tf)
+    if v is None:
+        return None
+    s = str(v)
+    return _pd(f"{s[:4]}-{s[4:6]}-{s[6:8]}")
+
+
+def _reaches_store_head(ticker: str, bars: list[dict], tf: str) -> bool:
+    """Do these W/M bars start at the store's first row? A slice of the newest N rows does not, and
+    it is never deepened: a 600-bar first paint of AAPL weekly starts in 2015 on purpose."""
+    try:
+        first = _store_first(ticker, tf)
+    except Exception:  # noqa: BLE001 - no answer: not deepened
+        return False
+    b0 = _pd(bars[0].get("t")) if bars else None
+    return first is not None and b0 is not None and b0 <= first
+
+
+def _close_agrees(a: dict, b: dict) -> bool:
+    try:
+        x, y = float(a["c"]), float(b["c"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    return x > 0 and y > 0 and abs(y / x - 1) <= _DEEPEN_TOL
+
+
+def _holes(bars: list[dict], tf: str) -> list[int]:
+    """Indexes `i` where a hole longer than the join limit sits between bars[i-1] and bars[i]."""
+    out, prev = [], _pd(bars[0].get("t")) if bars else None
+    for i in range(1, len(bars)):
+        d = _pd(bars[i].get("t"))
+        if prev and d and (d - prev).days > _DEEPEN_JOIN_DAYS[tf]:
+            out.append(i)
+        prev = d or prev
+    return out
+
+
+def _agree(stored: list[dict], by_t: dict) -> bool | None:
+    """True: every stored bar the built series also holds agrees on its close (one at least).
+    False: one disagrees. None: no bar in common, nothing proven."""
+    agreed = 0
+    for b in stored:
+        s = by_t.get(str(b.get("t"))[:10])
+        if s is None:
+            continue
+        if not _close_agrees(b, s):
+            return False
+        agreed += 1
+    return True if agreed else None
+
+
+def _whole(b: dict, by_t: dict) -> dict:
+    """The built bar for a stored bar's period when the stored one is a partial period (the rename
+    week: META's first weekly bar held Thursday and Friday only); else the stored bar."""
+    s = by_t.get(str(b.get("t"))[:10])
+    if s is not None and _close_agrees(b, s) and float(s.get("v") or 0) > float(b.get("v") or 0):
+        return s
+    return b
+
+
+def _built_periods(ticker: str, tf: str) -> list[dict]:
+    """The served daily series resampled to `tf` with `bars_fetch._resample_*_iso` (fresh dicts)."""
+    key = f"{ticker}:{tf}"
+    hit = _BUILT_CACHE.get(key)
+    if hit is None:
+        daily = sanitize_daily_bars(ticker, _identity_source(ticker, "D"), "D")
+        from api.services import bars_fetch as _bf
+        resample = _bf._resample_weekly_iso if tf == "W" else _bf._resample_monthly_iso
+        built = resample(daily, ticker=ticker) if daily else []
+        hit = tuple((str(b["t"])[:10], b["o"], b["h"], b["l"], b["c"], b.get("v")) for b in built)
+        _BUILT_CACHE.set(key, hit, ttl=_BUILT_TTL)
+    return [{"t": t, "o": o, "h": h, "l": l, "c": c, "v": v} for t, o, h, l, c, v in hit]
+
+
+def _deepen_from_daily(ticker: str, bars: list[dict], tf: str, head: bool = True) -> list[dict]:
+    """`bars` (a sanitized W/M series) with the periods the served daily series holds and they lack,
+    built with `bars_fetch._resample_*_iso`: the older periods when the series starts at its store's
+    head (`head`) and the daily series reaches further back, and the periods inside a hole. Each
+    fill needs the stored bars next to it to agree with the built ones, and must close its gap;
+    otherwise that part is unchanged. A partial period at a fill's edge becomes the whole one."""
+    w0 = _pd(bars[0].get("t")) if bars else None
+    if w0 is None:
+        return bars
+    lead = False
+    if head:
+        d0 = _store_first(ticker, "D")
+        lead = d0 is not None and (w0 - d0).days >= _DEEPEN_MIN_DAYS[tf]
+    holes = _holes(bars, tf)
+    if not lead and not holes:
+        return bars
+    built = _built_periods(ticker, tf)
+    if not built:
+        return bars
+    by_t = {str(b["t"])[:10]: b for b in built}
+    keys = [str(b["t"])[:10] for b in built]
+    n = _DEEPEN_CHECK_BARS
+    out = list(bars)
+    # Interior holes, newest first so earlier indexes stay valid.
+    for i in reversed(holes):
+        lo, hi = str(out[i - 1]["t"])[:10], str(out[i]["t"])[:10]
+        inside = [by_t[k] for k in keys if lo < k < hi]
+        if not inside or _agree(out[max(0, i - n):i] + out[i:i + n], by_t) is not True:
+            continue
+        if _holes([out[i - 1]] + inside + [out[i]], tf):
+            continue  # the fill must close the hole, all of it
+        out[i:i] = inside
+        j = i + len(inside)
+        if j < len(out) - 1:   # never the newest bar: the live, developing period stays as served
+            out[j] = _whole(out[j], by_t)
+    if lead:
+        first_t = str(out[0]["t"])[:10]
+        older = [by_t[k] for k in keys if k < first_t]
+        # The head itself can be a partial period: the bars after it prove the series.
+        if (older and _agree(out[1:1 + n], by_t) is True
+                and (w0 - _pd(older[-1]["t"])).days <= _DEEPEN_JOIN_DAYS[tf]):
+            out = older + [_whole(out[0], by_t)] + out[1:]
+    return out
+
+
 # ── Public entry point ──────────────────────────────────────────────────────
 def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     """Normalize a D/W/M bars list (list of {t,o,h,l,c,v}, ascending by t).
@@ -669,9 +843,39 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     bug here can never blank a chart. Intraday timeframes pass through untouched."""
     if not _ENABLED or not bars or tf not in ("D", "W", "M"):
         return bars
+    # ⭐ A ticker whose history was REBUILT from one checked source (bars_rebuild: the vendor's official
+    # daily files per company, one split basis, checked day by day against an independent vendor) serves
+    # it through the rebuild's last session, and its W / M from it. The steps below exist to repair the
+    # stored patchwork (another company's bars, unapplied splits, lone bad wicks); the rebuild is already
+    # all of that, so they are not run over it again. Not on the served list -> nothing changes here.
     try:
+        from api.services import bars_rebuild as _reb
+        if _reb.active(ticker):
+            rebuilt = _reb.apply(ticker, bars, tf, head=_reaches_store_head(ticker, bars, tf))
+            if rebuilt is not None:
+                # ⛔ EXCEPT the split heal. The rebuild is on the basis of the day it was built; a split
+                # after that puts the store's newer bars on a new basis and the rebuilt ones not, and the
+                # chart would draw the cliff. The one detector finds it the same way it does in the store.
+                meta = _meta_cached(ticker)
+                if meta and meta.get("splits") and split_adjust_active():
+                    unadjusted = unadjusted_splits(rebuilt, meta["splits"])
+                    if unadjusted:
+                        rebuilt = _apply_split_adjust(rebuilt, meta["splits"], unadjusted)
+                return rebuilt
+    except Exception as e:  # noqa: BLE001 - the stored path below still serves
+        _log.warning("rebuilt history skipped for %s tf=%s: %s", ticker, tf, e)
+    try:
+        # Read before step 1 changes the head: only a series that starts at its store's first row
+        # gets older periods from the daily series (step 4).
+        head = tf in ("W", "M") and _reaches_store_head(ticker, bars, tf)
         meta = _meta_cached(ticker)                      # None on cold miss (+warm)
-        bars = _apply_listing_cutoff(bars, meta)
+        bars = _apply_listing_cutoff(bars, meta, tf)
+        # Another company's bars INSIDE the series (bars_identity: META's 2021-06-30 .. 2022-01-28
+        # was the Roundhill ETF at ~$15): replaced by the company's own bars under the symbol it
+        # traded as then, or dropped. Before the split repair, so a filled window is adjusted with
+        # the rest of the series.
+        from api.services import bars_identity as _bid
+        bars = _bid.apply(ticker, bars, tf, _identity_source)
         # 🔴 THE KILL SWITCH HAS TO REACH HERE, AND FOR WEEKS IT DID NOT.
         # `BARS_SPLIT_REPAIR_ENABLED=0` was set after the split heuristic was found
         # to fire on ordinary flat days, and the incident report recorded the damage
@@ -704,6 +908,11 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
                 _schedule_store_repair(ticker, tf)
         if tf == "D":
             bars = _clamp_wicks(bars)
+        elif bars:
+            try:
+                bars = _deepen_from_daily(ticker, bars, tf, head)
+            except Exception as e:  # noqa: BLE001 - the stored depth is still a chart
+                _log.warning("W/M deepen failed for %s tf=%s: %s", ticker, tf, e)
         return bars
     except Exception as e:  # noqa: BLE001
         _log.warning("sanitize_daily_bars failed for %s tf=%s: %s", ticker, tf, e)

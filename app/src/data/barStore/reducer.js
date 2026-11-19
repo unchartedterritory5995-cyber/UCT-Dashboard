@@ -81,6 +81,9 @@ export function initialState(key, ctx = {}) {
     status: 'empty', baseRev: 0, devRev: 0, depth: 0,
     source: null, restSeen: false, needsFull: true, error: null, invalidatedFor: null,
     gen: 0, pendingHistoryRev: null, depthFloor: 0, localHoleFrom: null, liveGapFrom: null,
+    lakeOnly: false,
+    // ⭐⭐ (2026-11-18) the route's `newest_bar_is_forming` WITH the bar it describes ({t, forming}), or null
+    newestForming: null,
   }
   s.status = deriveStatus(s, { ...ctx, session: ctx.session ?? p.session ?? 'rth' })
   return Object.freeze(s)
@@ -368,7 +371,7 @@ function isForeign(state, obj) {
 // ── snapshot finalize (identity-stable, frozen, status) ──────────────────────
 
 const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'adjBasis', 'grid', 'restFrom', 'sealedSpans']
-const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom']
+const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'lakeOnly', 'newestForming']
 
 function _sameFields(a, b) {
   if (!a || !b) return false
@@ -520,6 +523,21 @@ function staleReason(state, p, action) {
 // ── REST answers ─────────────────────────────────────────────────────────────
 
 const _hasContract = (p) => p && (p.contract != null || 'complete_through' in p || 'developing' in p)
+
+/** ⭐⭐ (2026-11-18) THE ROUTE'S TRI-STATE FOR THE NEWEST BAR OF THIS ANSWER (`newest_bar_is_forming`, which
+ *  `api/routers/bars.py` computes from the bar it describes, at request time), kept WITH that bar's time: the
+ *  snapshot says it only about that bar (`adapter.js::newestBarIsFormingOf`). ⚰️ The store dropped it, so every
+ *  chart on this source handed its runs "unknown" at every hour, and a strategy read its closed newest bar as
+ *  forming. An answer that states none keeps the last one, which still names its own bar. Identity-stable. */
+function _formingOf(p, state) {
+  const f = p.newest_bar_is_forming
+  const rows = Array.isArray(p.bars) ? p.bars : null
+  const last = rows && rows.length ? rows[rows.length - 1] : null
+  const t = last && typeof last === 'object' ? normT(last.t ?? last.time, state.tf) : NaN
+  if (typeof f !== 'boolean' || !finite(t)) return state.newestForming ?? null
+  const held = state.newestForming
+  return held && held.t === t && held.forming === f ? held : Object.freeze({ t, forming: f })
+}
 
 function applyRest(state, action, ctx, kind) {
   const p = action.payload || {}
@@ -724,6 +742,7 @@ function applyRest(state, action, ctx, kind) {
     // A full answer re-proves what it carries: a local hole it did not fill is the server's.
     localHoleFrom: kind === 'full' ? null : state.localHoleFrom,
     liveGapFrom: null,   // the server answered: what it still lacks is its truth (P3-S2b)
+    newestForming: _formingOf(p, state),
   }, ctx)
 }
 
@@ -746,7 +765,21 @@ const _maxOrKeep = (held, inc) => (inc == null ? held : (held == null ? inc : Ma
 
 // ── local hits (pack / IDB / mem) ────────────────────────────────────────────
 
+/** A local fill, and whether the entry then holds the LAKE'S rows alone (`lakeOnly`): a lake hit onto
+ *  an empty or lake-only entry keeps it; any other local fill clears it (a server answer too). */
 function applyLocal(state, action, ctx, source) {
+  const out = _applyLocal(state, action, ctx, source)
+  if (out === state) return state
+  const lakeOnly = source === 'lake' && (!!state.lakeOnly || (!state.bars.length && !state.developing))
+  return out.lakeOnly === lakeOnly ? out : Object.freeze({ ...out, lakeOnly })
+}
+
+/** A server answer's result no longer holds the lake's rows alone. */
+function _notLakeOnly(state, out) {
+  return out === state || !out.lakeOnly ? out : Object.freeze({ ...out, lakeOnly: false })
+}
+
+function _applyLocal(state, action, ctx, source) {
   const p = action.payload || {}
   if (isForeign(state, p)) return state
   const ck = p.cache_key ?? p.cacheKey ?? null
@@ -775,6 +808,40 @@ function applyLocal(state, action, ctx, source) {
   const heldBasisProof = (held) => {
     if (ab != null && (state.adjBasis == null || ab === state.adjBasis)) return true
     return basisVerdict(rows, held) === 'same'
+  }
+  // ⭐ A LAKE copy joining a LOCAL copy before any server answer (network.lakeSeed, 2026-11-17: a
+  // never-opened symbol often holds the universe pack's newest rows). Two local copies are joined only
+  // when the lake's rows prove the held basis over the bars they share: on another basis (a split
+  // between the two) or with no bar in common (they could straddle a hole) the held copy stays as it is.
+  if (source === 'lake' && !state.restSeen) {
+    const held = state.bars.length ? state.bars : (state.developing ? [state.developing] : [])
+    if (held.length && !heldBasisProof(held)) return state
+  }
+  // ⭐ ...and the other order: a SAVED copy landing after the lake (2026-11-18: the open's lake load
+  // waits for the cache read at most HYDRATE_WAIT_MS, prefetch _lakeLoad). The lake's rows carry no
+  // stamp, so the saved copy's own stamp proves nothing about them: it joins them only when its rows
+  // prove the lake's basis over the bars they share. On another basis (a split between the two), or
+  // with no bar in common (they could straddle a hole), the saved copy REPLACES the lake's rows: it is
+  // the server's earlier answer, and the lake re-joins whatever the next answer proves (network
+  // _noteAnswered: the whole depth in one join).
+  //  - ONLY over rows that are the LAKE'S ALONE (`lakeOnly`, review of #1884): a lake that joined an
+  //    earlier mem / IDB / pack copy holds that copy's stamped rows too, and the old rules decide.
+  //  - A universe-PACK seed (a few hundred newest rows, a warm) never replaces the lake's depth: one
+  //    its rows do not prove is refused, and the server's answer decides.
+  //  - The replace keeps what the stream added (push / final rows and a live forming bar: the server's
+  //    current basis, exactly what a saved copy meets on an entry with no lake) and the depth floor.
+  if (source !== 'lake' && !state.restSeen && state.lakeOnly && !p.history) {
+    const held = state.bars.length ? state.bars : (state.developing ? [state.developing] : [])
+    if (held.length && basisVerdict(rows, held) !== 'same') {
+      if (source === 'pack') return state
+      const live = state.bars.filter((b) => b.src === 'push' || b.src === 'final' || b.src === 'tick')
+      const dev = state.developing && state.developing.src !== DEV_SRC.LOCAL && state.developing.src !== DEV_SRC.SERVER
+        ? state.developing : null
+      const fresh = Object.freeze({ ...initialState(state.key, ctx), baseRev: state.baseRev + 1, devRev: state.devRev + 1,
+        gen: state.gen, depthFloor: state.depthFloor, invalidatedFor: 'lake_basis',
+        bars: live.length ? Object.freeze(live) : EMPTY_BARS, developing: dev })
+      return _applyLocal(fresh, action, ctx, source)
+    }
   }
 
   // ⭐ THE PERSISTED DEEP-HISTORY SEGMENT (persist.js `@hist`: scroll-back windows a reload kept).
@@ -1081,8 +1148,8 @@ export function reduce(state, action, ctx = {}) {
     // overlap proves the same basis; with no overlap they are discarded (no hole is ever joined).
     case ACTION.LAKE_HIT: return applyLocal(state, action, ctx, 'lake')
     case ACTION.MEM_HIT: return applyLocal(state, action, ctx, 'mem')
-    case ACTION.REST_FULL: return applyRest(state, action, ctx, 'full')
-    case ACTION.REST_DELTA: return applyRest(state, action, ctx, 'delta')
+    case ACTION.REST_FULL: return _notLakeOnly(state, applyRest(state, action, ctx, 'full'))
+    case ACTION.REST_DELTA: return _notLakeOnly(state, applyRest(state, action, ctx, 'delta'))
     case ACTION.REST_ERROR: return applyError(state, action, ctx)
     case ACTION.PUSH_BAR: return applyPush(state, action, ctx, false)
     case ACTION.PUSH_FINAL: return applyPush(state, action, ctx, true)

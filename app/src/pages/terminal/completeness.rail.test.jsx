@@ -133,7 +133,12 @@ const ARG_SAMPLE = {
   journalAccount: 'ALL', flowList: 'OPEN',
   confluenceLean: 'BEAR', repeatOrder: 'LATEST', periodRange: 'QTD', periodDate: '2026-01-02', periodSide: 'LOSERS', callQuery: 'margins',
   rotationSide: 'OUT', periodUnit: 'SECTORS',
+  callThemesList: 'RISING', callThemesMonth: '2026-10',
   topFlowStatus: 'EXPIRED', topFlowDirection: 'BEAR', topFlowSort: 'PEAK',
+  earningsDay: 'TOMORROW', earningsSession: 'AMC',
+  groupName: 'XLK',
+  unvolSide: 'DOWN', unvolMin: '3X',
+  shortRank: 'FLOAT',
 }
 
 afterEach(cleanup)

@@ -31,6 +31,7 @@ import {
   CONFLUENCE_CODE, CONFLUENCE_DAYS, CONFLUENCE_LEANS, CONFLUENCE_URL, bandGroups, confluenceCommandArgs, confluenceRead, leanRows,
   leanWords, normConfluenceLean,
 } from './confluenceModel'
+import ListAlertSwitch from './ListAlertSwitch'
 import styles from './marketPanels.module.css'
 
 export {
@@ -152,7 +153,7 @@ function Board({ code, lean, onLean }) {
           {count(counts.all)} {plural(counts.all, 'stock is', 'stocks are')} on the board in the other direction.
         </PanelState>
       ) : groups.map((g) => (
-        <div className={styles.tableBox} key={g.band}>
+        <div className={styles.tableBox} data-fold="530" key={g.band}>
           <table className={styles.table} data-testid={`terminal-confl-band-${g.band}`}
             aria-label={`Confluence board, ${view.bands[g.band].name}, ${g.rows.length} ${plural(g.rows.length, 'stock', 'stocks')}`}>
             <caption className={styles.caption}>
@@ -161,12 +162,12 @@ function Board({ code, lean, onLean }) {
             <thead>
               <tr>
                 <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-                <th scope="col" title="Which way the open option premium leans, and whether the last 5 trading days are still adding to it">Direction</th>
-                <th scope="col"
+                <th scope="col" className={styles.phoneWrap} title="Which way the open option premium leans, and whether the last 5 trading days are still adding to it">Direction</th>
+                <th scope="col" className={styles.phoneWrap}
                   title="Bullish premium less bearish premium on option contracts that are still open, then the part of the open premium that sits in long-dated contracts and its share of all of it">Open option premium</th>
-                <th scope="col" className={styles.wrapCell}
+                <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}
                   title="Dollars traded in the dark pool over the window, the average price paid there, and the last dark pool session's price against that average">Dark pool</th>
-                <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell}`} title="The stock's largest open contract by premium">Largest contract</th>
+                <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`} title="The stock's largest open contract by premium">Largest contract</th>
               </tr>
             </thead>
             <tbody>
@@ -176,25 +177,25 @@ function Board({ code, lean, onLean }) {
                     <span className={styles.rowNum} aria-hidden="true">{rowNumber.get(r.key)}</span>
                     <PanelSymbol sym={r.sym} className={styles.sym} />
                   </td>
-                  <td className={toneOf(r.direction)}>{leanWords(r)}</td>
+                  <td className={`${toneOf(r.direction) || ''} ${styles.phoneWrap}`.trim()}>{leanWords(r)}</td>
                   {/* One cell of two fixed lines, not two columns: six columns cut the last one off at a
                       half-width panel, and a wrapping cell broke a word in the middle on a phone. */}
                   <td>
                     <span className={tone(r.net)}>{r.net == null ? NA : `${signedMoney(r.net)} net`}</span>
                     <br />
-                    <span className={styles.muted}>
+                    <span className={`${styles.muted} ${styles.phoneWrap}`}>
                       {`${money(r.leapPremium)} long-dated`}
                       {r.leapSharePct == null ? null : ` (${formatPercent(r.leapSharePct, { decimals: 0 })})`}
                     </span>
                   </td>
-                  <td className={styles.wrapCell}>
+                  <td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>
                     {money(r.darkPool)}
                     {r.avgPrice == null ? null : <span className={styles.muted}>{` avg${NBSP}${price(r.avgPrice)}`}</span>}
                     {r.lastVsAvgPct == null ? null : (
                       <span className={tone(r.lastVsAvgPct)}>{` last${NBSP}${formatPercent(r.lastVsAvgPct, { decimals: 1, signed: true })}`}</span>
                     )}
                   </td>
-                  <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{unbroken(contractText(r))}</td>
+                  <td className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}>{unbroken(contractText(r))}</td>
                 </tr>
               ))}
             </tbody>
@@ -248,6 +249,8 @@ export default function ConfluencePanel({ lean: leanProp = null }) {
           ))}
         </div>
       </div>
+      {/* "Alert me when a stock I follow appears here" (the confluence board). Draws nothing until the server says the alerts are on. */}
+      <ListAlertSwitch kind="confluence" />
       <Board code={code} lean={lean} onLean={pick} />
     </div>
   )

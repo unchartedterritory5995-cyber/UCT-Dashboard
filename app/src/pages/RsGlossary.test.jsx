@@ -176,17 +176,18 @@ describe('RsGlossary under the RS split flag (U9)', () => {
     expect(screen.getByTestId('rs-method').textContent).not.toMatch(/\bReading\b/)
   })
 
-  it('flag ON: the five indicators by the names the registry gives them, the RS Line sentence verbatim, lessons, formulas', () => {
+  it('flag ON: the six indicators by the names the registry gives them, the RS Line sentence verbatim, lessons, formulas', () => {
     vi.stubEnv('VITE_RS_SPLIT_ENABLED', '1')
     renderAtRoute()
     expectVoice()
     expect(screen.getByRole('link', { name: 'The RS indicators' }).getAttribute('href')).toBe('#rs-indicators')
     const section = screen.getByTestId('rs-indicators')
     expect(within(section).getByRole('heading', { level: 2, name: 'The RS indicators on the chart' })).toBeTruthy()
-    expect(RS_INDICATORS.map((i) => i.id)).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'])
+    expect(RS_INDICATORS.map((i) => i.id)).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsMansfield', 'rsExit'])
     const markers = {
       rsLine: 'const RS_LINE_SLIM_RAW = {', rsRating: 'const RS_RATING_RAW = {',
       rsPhases: 'const RS_PHASES_RAW = {', rsVsEma: 'const RS_VS_EMA_RAW = {', rsExit: 'const RS_EXIT_RAW = {',
+      rsMansfield: 'const RS_MANSFIELD_RAW = {',
     }
     for (const ind of RS_INDICATORS) {
       const row = within(section).getByTestId(`rs-indicator-${ind.id}`)

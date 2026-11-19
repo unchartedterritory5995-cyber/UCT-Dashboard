@@ -60,6 +60,13 @@ def _run(c):
     return S.evaluate(c["bars"], c["served"], c["lines"])
 
 
+#: The ranker score is compared within the tolerance the ranker rail below already holds. ⚰️ It was exact (`!=`):
+#: the features run through np.polyfit/mean/std and scipy, unpinned, so a Linux runner's build differed from the
+#: Windows box the answers were frozen on in the last bits, and both reproduction rails went red with every gate,
+#: line price and span still identical (first full backend run, PR #1855). Gate, price and span stay EXACT.
+SCORE_TOL = 1e-9
+
+
 def _mismatches(raw=False):
     """Cases whose answer differs from `expect(c)`, or (`raw`) from the frozen answer itself."""
     bad = []
@@ -67,7 +74,8 @@ def _mismatches(raw=False):
         r = _run(c)
         e = c["expect"] if raw else expect(c)
         got = None if r["pick"] is None else {k: r["pick"][k] for k in ("P", "left", "disp_left")}
-        if r["gate"] != e["gate"] or got != e["pick"] or (e["pick"] is not None and r["score"] != e["score"]):
+        if r["gate"] != e["gate"] or got != e["pick"] or (
+                e["pick"] is not None and abs(r["score"] - e["score"]) > SCORE_TOL):
             bad.append((c["id"], e, r["gate"], got))
     return bad
 

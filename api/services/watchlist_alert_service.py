@@ -529,6 +529,11 @@ EMAIL_FOOTERS = {
     "transcript_keyword": ("To stop this message, remove the word from your earnings call alerts: "
                            "search it in the UCT Terminal with TSRC, or open a company's earnings "
                            "call transcript and use SEARCH ALL TRANSCRIPTS."),
+    # The Terminal list alerts (`list_alerts.py`): one switch per list, drawn on the list
+    # itself (H52, CONFL, ACCUM) and again in Settings, Notifications.
+    "list_alert": ("To stop this message, open the list in the UCT Terminal (H52, CONFL or "
+                   'ACCUM) and switch off "Alert me when a stock I follow appears here", or '
+                   "open Settings, Notifications, List alerts."),
 }
 
 

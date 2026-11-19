@@ -2379,6 +2379,16 @@ export function makeBroker(cfg, data) {
     riskDefaultOnly('`strategy.risk.max_drawdown`')
     ddPeak = capital()
   }
+  // ⭐⭐ [B-EXEC] a default strategy executes once per CLOSED bar: a run handed a forming newest bar
+  // (`data.formingBar`, the vm's) leaves it out. Asked once, before the first bar runs, after every bind
+  // check above (the order the vm asked it in), and DATED on that bar: ruling D11 names it the culprit of a
+  // difference on the forming bar, never of one before it, where it played no part.
+  if (Number.isInteger(data.formingBar) && data.formingBar >= 0) {
+    const was = nowBar
+    nowBar = data.formingBar
+    rule('B-EXEC')
+    nowBar = was
+  }
 
   return { beginBar, endBar, call, summary }
 }

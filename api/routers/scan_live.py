@@ -72,7 +72,7 @@ def require_push_secret(request: Request) -> None:
 
     ⚠️ ``compare_digest``, never ``==``: string equality returns on the first
     differing byte and leaks the prefix length by timing. Precedent:
-    ``broker_sync.py`` L275, ``schwab_oauth_state.py`` L114.
+    ``broker_sync.py`` L275.
 
     ⛔ AND IT COMPARES BYTES, NOT ``str``. ``hmac.compare_digest`` RAISES
     ``TypeError`` when either ``str`` carries a non-ASCII character — and an HTTP

@@ -69,8 +69,9 @@ for ops; no code change needed when the logo file is swapped.
 
 Fallback resolution order:
   1. UCT_LOGO_URL env var (preferred — set on Railway worker service)
-  2. GitHub raw URL pointing at app/public/UCT_logo.jpg in the master branch
-     (permanent, immune to Vite hash rebuilds, requires no Railway config)
+  2. The site's own public route /api/brand/massive-card-logo.png (api/main.py):
+     stable, immune to Vite hash rebuilds, and independent of which GitHub
+     account owns the repository (a GitHub raw URL breaks if the repo moves)
 
 NEVER use:
   - Vite-built /assets/* paths — hashes change every frontend deploy, URL dies
@@ -81,8 +82,7 @@ Image must be PNG/JPG/WebP (AVIF is unreliable in Discord embeds).
 """
 UCT_LOGO_URL = os.getenv(
     "UCT_LOGO_URL",
-    "https://raw.githubusercontent.com/unchartedterritory5995-cyber/"
-    "UCT-Dashboard/master/app/public/UCT_logo_512.png",
+    "https://uctintelligence.com/api/brand/massive-card-logo.png",
 ).strip()
 
 # ─── Config ──────────────────────────────────────────────────────────────────
@@ -1663,7 +1663,7 @@ async def replay_post_alerts_to_discord(
 # requires one of:
 #   (a) Inspecting the raw Bullflow SSE event payload to confirm tradeType
 #       isn't there under another field name (needs a debug capture)
-#   (b) Schwab tape lookup per alert to determine execution type (adds latency)
+#   (b) a vendor tape lookup per alert to determine execution type (adds latency)
 #
 # Until that's wired up, combo detection stays simulator-only. The 2X
 # follow-through filter and per-ticker cap above cover most of the noise
@@ -1833,7 +1833,7 @@ def _prune_aggregates():
 
 
 # ─── OI snapshot lookup ──────────────────────────────────────────────────────
-# Wires Bullflow live alerts to our daily Schwab OI snapshot data captured by
+# Wires Bullflow live alerts to our daily OI snapshot data captured by
 # api/oi_snapshots.py. The snapshot cron runs at 5:30 UTC = 1:30 AM ET daily,
 # so by 9:30 ET market open we have today's snapshot reflecting yesterday's
 # closing OI. Each incoming alert is enriched with:
@@ -1921,7 +1921,7 @@ async def _enrich_with_oi(alert: dict):
       1. Local snapshot — walks back up to 5 days through contract_oi_snapshots.
          Fast (SQLite read, cached per-day in process). Covers tickers that
          the daily 5:30 UTC cron snapshotted.
-      2. On-demand Schwab fetch — used when stage 1 misses (typically a
+      2. On-demand OI fetch (Massive) — used when stage 1 misses (typically a
          ticker that hasn't accumulated 3+ trades in our BBS flow CSV and
          therefore isn't in the daily snapshot batch). Adds ~200-500ms
          latency on the FIRST alert for that contract per day; subsequent
@@ -1942,8 +1942,8 @@ async def _enrich_with_oi(alert: dict):
         alert.get("strike"), alert.get("exp"),
     )
 
-    # Stage 2: on-demand Schwab fallback when stage 1 missed. Persists the
-    # result for next time. Only called on misses to keep Schwab load minimal.
+    # Stage 2: on-demand fetch when stage 1 missed. Persists the
+    # result for next time. Only called on misses to keep vendor load minimal.
     if not snap:
         try:
             from api import oi_snapshots
@@ -1987,8 +1987,9 @@ async def _enrich_with_oi(alert: dict):
 # compute how deep ITM/OTM a contract is — a key signal for distinguishing
 # high-delta directional bets (deep ITM) from lottery plays (far OTM).
 #
-# Strategy: call Schwab's equity quote endpoint, cache results per-symbol with
-# a 2-minute TTL. Same MU ticker firing 8 times in 2 hours hits Schwab once.
+# Strategy: read the Massive equities snapshot (flow_market_data.equity_spot), cache
+# results per-symbol with a 2-minute TTL. Same MU ticker firing 8 times in 2 hours
+# is one vendor call.
 # Moneyness recomputed per alert though (price drifts intraday).
 #
 # Failure mode: any error → fields set to None, alert still flows. Title
@@ -2004,7 +2005,7 @@ async def _get_cached_spot(symbol):
     cache update which is fine since values are functionally equivalent."""
     if not symbol:
         return None
-    # Skip indexes / unusual symbols that Schwab's equity endpoint won't quote.
+    # Skip indexes / unusual symbols the equity quote does not cover.
     if symbol.startswith("$") or "." in symbol:
         return None
 
@@ -2014,8 +2015,8 @@ async def _get_cached_spot(symbol):
         return cached[0]
 
     try:
-        from api import schwab_service
-        price = await schwab_service.get_equity_quote(symbol)
+        from api.services import flow_market_data
+        price = await flow_market_data.equity_spot(symbol)
         if price:
             _spot_cache[symbol] = (price, now)
             return price
@@ -2048,7 +2049,7 @@ def _calc_moneyness(spot, strike, cp):
 async def _enrich_with_moneyness(alert: dict):
     """
     Adds spot, moneynessPct, moneynessLabel fields to the alert. Async because
-    Schwab quote lookup is async. Always sets the three fields (None on miss).
+    the quote lookup is async. Always sets the three fields (None on miss).
     """
     spot = await _get_cached_spot(alert.get("ticker"))
     if not spot:
@@ -3100,13 +3101,13 @@ async def _ingest_alert(msg, discord_client):
     # Enrich with OI data (trade size, prior OI, vol/OI ratio, exceeded flag).
     # Done after dedup so we don't waste SQLite reads on dropped alerts. The
     # cache means repeat fires on the same contract only hit the DB once/day.
-    # Async because of on-demand Schwab fallback for contracts not in the
+    # Async because of the on-demand OI fetch for contracts not in the
     # daily snapshot batch — adds ~300ms latency on first-fire of unseen
     # contracts, hits cache on subsequent fires.
     await _enrich_with_oi(enriched)
 
     # Enrich with spot price + moneyness (how deep ITM/OTM). Async because
-    # Schwab quote lookup is async, but cached per-ticker for 2 min so the
+    # the quote lookup is async, but cached per-ticker for 2 min so the
     # network cost is one call per unique ticker every 2 min.
     await _enrich_with_moneyness(enriched)
 

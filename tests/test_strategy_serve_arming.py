@@ -169,21 +169,58 @@ def _committed_strategies():
     return out
 
 
-def test_the_server_admits_no_strategy_today(monkeypatch):
-    """The production state of `strategyServeCensus.test.js` latches "not admitted" for every committed strategy. This
-    holds that to the server's own verdict (capability admission ON), so admitting `strategy-decl` cannot slip past it:
-    when it is admitted, re-measure the census (`strategyServeAudit.measure.test.js`) and move both."""
+CENSUS = ROOT / "app" / "src" / "components" / "chart" / "engine" / "runtime" / "__tests__" / "strategyServeCensus.test.js"
+
+
+def _census_server_admits() -> list:
+    """`SERVER_ADMITS` as the census rail latches it, PARSED from that file (one list, never a copy here)."""
+    src = CENSUS.read_text(encoding="utf-8")
+    m = re.search(r"const SERVER_ADMITS = Object\.freeze\(\[(.*?)\]\)", src, re.S)
+    assert m, "strategyServeCensus.test.js no longer declares `const SERVER_ADMITS = Object.freeze([...])`"
+    return re.findall(r"'([^']+)'", m.group(1))
+
+
+def _server_verdicts(monkeypatch) -> dict:
     monkeypatch.setenv("PINE_RUNTIME_CAPABILITY_ADMISSION", "on")
     from api.services import runtime_definitions as rd
-    scripts = _committed_strategies()
-    assert len(scripts) == 25, len(scripts)
-    admitted, missing_decl = [], []
-    for key, src in scripts:
+    out = {}
+    for key, src in _committed_strategies():
         ok, missing = rd.capability_admitted(src, persist=False, wait=120.0)
         assert "pending" not in missing, f"{key}: the detector did not answer"
-        if ok:
-            admitted.append(key)
-        if "strategy-decl" not in missing:
-            missing_decl.append(key)
-    assert admitted == [], f"the server now admits strategies {admitted}: re-measure the serve census"
-    assert missing_decl == [], f"`strategy-decl` is no longer what withholds {missing_decl}"
+        out[key] = (ok, missing)
+    return out
+
+
+# ⚰️ `test_the_server_admits_no_strategy_today` (until 2026-11-18): `strategy-decl` had no registry row, so the server
+# admitted none of the 25 and the census latched "not admitted" for each. `strategy-decl` is admitted on Q-SD1 / Q-SD2
+# (supertrend-strategy, community) and W9-Q-S1p, all MATCH runtime-on (api/data/pine_runtime_allowlist.json).
+def test_the_server_admits_exactly_the_census_list(monkeypatch):
+    """The production state of `strategyServeCensus.test.js` latches the server's verdict per committed strategy from
+    its `SERVER_ADMITS`. This holds that list to the server's own verdict (capability admission ON), BOTH ways, so a
+    registry change cannot move what members are served past the census: a moved verdict re-measures the census
+    (`strategyServeAudit.measure.test.js`) and moves both."""
+    verdicts = _server_verdicts(monkeypatch)
+    assert len(verdicts) == 25, len(verdicts)
+    admitted = sorted(k for k, (ok, _) in verdicts.items() if ok)
+    assert admitted == sorted(_census_server_admits()), "the server's admitted strategies are not the census's list"
+    # every withheld one is withheld by a capability with no conformant row, never by `strategy-decl`
+    for key, (ok, missing) in verdicts.items():
+        assert ok or missing, f"{key}: withheld with no reason"
+        assert "strategy-decl" not in missing, f"{key}: `strategy-decl` withholds it"
+
+
+def test_CONTROL_admission_is_a_door_not_a_pin(monkeypatch):
+    """CONTROL. Admission is a door, not a pin: the server admits a strategy whose backtest rests on a broker rule no
+    MATCHing capture pins (B-EXIT-NA is absent from `brokerPins.resolved.json`), and the census holds that the member
+    is refused by name at its run (`runtime:strategy-unpinned`). Here: such a strategy IS admitted (so the census
+    control is reached), and B-EXIT-NA is indeed unpinned."""
+    verdicts = _server_verdicts(monkeypatch)
+    pins = json.loads((ROOT / "app" / "src" / "components" / "chart" / "engine" / "runtime" / "brokerPins.resolved.json")
+                      .read_text(encoding="utf-8"))["rules"]
+    assert "B-EXIT-NA" not in pins
+    for key in ("macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99",
+                "stop-loss-and-take-profit-in-example__YlblCbts4x"):
+        assert verdicts[key][0] is True, f"{key}: {verdicts[key][1]}"
+        assert key in _census_server_admits()
+    # and the same detector withholds a strategy by name for a capability with no row
+    assert verdicts["pmax-explorer__jN9HBNhynF"] == (False, ["request-other"])

@@ -96,6 +96,16 @@ class Refused(Exception):
     """The run must not start. Raised BEFORE anything is imported or created."""
 
 
+def not_said(server: Any, says: Any) -> List[str]:
+    """⭐ `says`: sentences the ANSWER must carry (each a phrase that must appear in one of the
+    patch's assumptions, which is where the door writes what it used and what it built). The
+    problems, one per phrase not found."""
+    texts = [str(a.get("text") or "") for a in (((server or {}).get("envelope") or {}).get("assumptions") or [])
+             if isinstance(a, Mapping)]
+    return [f"the answer does not say {phrase!r} (its notes: {texts})" for phrase in says or []
+            if not any(phrase in text for text in texts)]
+
+
 class LaneUnavailable(Exception):
     """The JS lane could not be built or answered nonsense: never a zero result."""
 
@@ -625,7 +635,24 @@ class Run:
             raise CapReached(f"the sandbox ledger reached ${self.spent():.4f} of the ${self.cap:.2f} cap")
 
     # ── one member turn, exactly as the browser takes it ──
-    def turn(self, sid: str, words: str, scripted: Optional[List[dict]]) -> Dict[str, Any]:
+    def memory_for(self, case: Mapping[str, Any]):
+        """⭐ WHAT THIS CASE'S MEMBER HAS CHOSEN BEFORE (`remembers`: {question id: [value, label]}),
+        as the door's own memory object over a store that lives for this case only. None when the
+        case says nothing: the door then remembers nothing and uses nothing, as before."""
+        chosen = case.get("remembers")
+        if not chosen:
+            return None
+        from api.services import indicator_memory  # noqa: PLC0415
+        store: Dict[str, Any] = {}
+        memory = indicator_memory.Memory(
+            EVAL_USER, reader=lambda u: store.get(u),
+            writer=lambda u, text: store.pop(u, None) if text is None else store.__setitem__(u, text))
+        for question_id, (value, label) in chosen.items():
+            if not memory.remember(question_id, value, label):
+                raise LaneUnavailable(f"the case's `remembers` holds a choice the memory refuses: {question_id}")
+        return memory
+
+    def turn(self, sid: str, words: str, scripted: Optional[List[dict]], memory: Any = None) -> Dict[str, Any]:
         self.check_cap()
         local = self.lane.call("local", sid=sid, words=words)
         if local.get("handled"):
@@ -639,7 +666,7 @@ class Run:
         server = self.conv.converse(
             body["message"], user_id=EVAL_USER, view=body["view"], authoring=body.get("authoring"),
             snippets=body.get("snippets"), chart=body.get("chart") or {}, admin=True,
-            conversation_id=body.get("conversationId"))
+            conversation_id=body.get("conversationId"), memory=memory, accepts=body.get("accepts"))
         server = json.loads(json.dumps(server, default=str))
         servers = [server]
         client = self.lane.call("model", sid=sid, words=words, serverBodies=servers)
@@ -653,7 +680,8 @@ class Run:
             again = self.conv.converse(
                 want["message"], user_id=EVAL_USER, view=want["view"], authoring=want.get("authoring"),
                 snippets=want.get("snippets"), chart=want.get("chart") or {}, admin=True,
-                conversation_id=want.get("conversationId"), browser_refusal=want.get("browser_refusal"))
+                conversation_id=want.get("conversationId"), browser_refusal=want.get("browser_refusal"),
+                memory=memory, accepts=want.get("accepts"))
             servers.append(json.loads(json.dumps(again, default=str)))
             client = self.lane.call("model", sid=sid, words=words, serverBodies=servers)
         if client.get("needsServer"):
@@ -687,7 +715,14 @@ class Run:
         ev = self.lane.call("evaluate", **{"def": out["working"], "bars": self.bars})
         if not ev["valid"]:
             raise LaneUnavailable(f"a reference definition does not validate: {ev['errors']}")
-        for k, col in ev["columns"].items():
+        # ⭐ A REFERENCE THAT READS ANOTHER SYMBOL cannot be valued here: the bars are the chart's own
+        # symbol's, so its column is unknown on every bar. It is matched BY HASH ALONE (its column is
+        # withheld from `match_outputs`), never by two columns that are equal because both are empty.
+        elsewhere = {o.get("key") or f"o{i}" for i, o in enumerate(outputs) if sym_tickers(o["tree"])}
+        for k, col in list(ev["columns"].items()):
+            if k in elsewhere:
+                ev["columns"][k] = None
+                continue
             if ev["hashes"].get(k) and not any(v not in (None,) for v in col):
                 raise LaneUnavailable(f"reference output {k} is all-unknown on the synthetic bars")
         return ev
@@ -773,12 +808,13 @@ class Run:
         prev: Optional[dict] = None
         steps: List[dict] = []
         ok = True
+        memory = self.memory_for(case)
         for i, turn in enumerate(case["turns"]):
             key = f"{case['id']}#{i}"
             scripted = (self.script_doc.get("turns") or {}).get(key)
             if not self.live and scripted is None and turn.get("model_expected", True):
                 scripted = []
-            t = self.turn(sid, turn["words"], scripted)
+            t = self.turn(sid, turn["words"], scripted, memory)
             expect = turn["expect"]
             grade = self.grade_turn(case, turn, t, prev)
             row = {
@@ -837,7 +873,11 @@ class Run:
             return {"ok": False, "problems": [f"the model was reached {t['unexpected_calls']} time(s) "
                                               "with no scripted answer"]}
         if k == "change":
-            return self.grade_change(t, expect, prev)
+            graded = self.grade_change(t, expect, prev)
+            unsaid = not_said(t["server"], expect.get("says"))
+            if unsaid:
+                graded = {**graded, "ok": False, "problems": list(graded.get("problems") or []) + unsaid}
+            return graded
         problems: List[str] = []
         server, client = t["server"] or {}, t["client"] or {}
         # whatever the case expects, a patch the door accepted and the browser refused is a failure

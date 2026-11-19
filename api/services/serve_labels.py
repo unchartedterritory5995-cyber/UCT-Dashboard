@@ -54,6 +54,7 @@ _LABELS: dict[str, tuple[str, str]] = {
     "entry":            ("miss",     "router entry default"),
     "breadth":          ("route",    "breadth series routed through /api/bars"),
     "market-indicator": ("route",    "market-indicator series routed through /api/bars"),
+    "pine-seed":        ("route",    "Pine Seed series (pine_seed_store.build_bars) routed through /api/bars"),
     "index":            ("route",    "index series routed through /api/bars"),
     "warm-shed":        ("shed",     "warm request shed under load (503)"),
     "history-read":     ("warm",     "/api/bars-history sealed read (Server-Timing literal)"),

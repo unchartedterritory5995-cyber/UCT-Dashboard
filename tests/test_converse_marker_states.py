@@ -52,7 +52,11 @@ def test_the_measured_answer_is_refused_with_both_ways_out(conv):
 def test_the_repair_builds_the_squeeze(conv, clean_env, model):
     good = env(0, [CREATE, {"op": "set_style", "output": "dot", "style": "line", "width": 4}, STATES])
     client = model([emits(env(0, [CREATE, MARKER, STATES])), emits(good)])
-    r = conv.converse("TTM squeeze with dots on the zero line", user_id="u1", view=empty_view(0))
+    # (the production request was "TTM squeeze with dots on the zero line". Since 2026-11-18 "TTM
+    # Squeeze" is a HELD name, refused by name unless the member describes the rule; this is that
+    # request with the rule described, which is what the repair under test needs.)
+    r = conv.converse("Bollinger Bands inside the Keltner Channels, with dots on the zero line", user_id="u1",
+                      view=empty_view(0))
     assert r["ok"] is True and r["attempts"] == 2 and len(client.calls) == 2
     assert r["usage"]["repair_gate"] == GATE
     assert "drawn as markers" in str(client.calls[1]["messages"][-1]["content"][0]["content"])

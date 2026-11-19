@@ -16,10 +16,10 @@
 // cannot disagree about a pick.
 // ⛔ A PICK WITH FEWER THAN TWO DAILY PRICES IS "TOO NEW TO SCORE", in words. It is never drawn as
 // 0% or as a loss, and it never ranks among the gains.
-// ⛔ THE DAILY PRICES CAN STOP. They are recorded each weekday after the close from Massive, with
-// Schwab as backup (Schwab alone before November 2026); when neither prices a contract none is
-// stored. The panel says how old the newest one is, and every row carries the date of its own
-// latest price.
+// ⛔ THE DAILY PRICES CAN STOP. They are recorded each weekday after the close from Massive
+// (from Schwab before November 2026); when Massive has no price for a contract none is stored.
+// The panel says how old the newest one is, and every row carries the date of its own latest
+// price.
 // ⛔ THE RECORD CAN STOP GROWING TOO. When the newest pick is weeks old the panel says so.
 // ⛔ A FAILED READ IS NEVER AN EMPTY LIST, and an empty list says what it cannot tell apart.
 //
@@ -55,7 +55,7 @@ export const PAGE_ROWS = 50
 export const MAX_ROWS = 250
 /** The store changes once a day (the afternoon snapshot) and when the desk posts picks. */
 const POLL_MS = 30 * 60 * 1000
-const SOURCE = 'UCT options flow tape (picks), daily option prices from Massive with Schwab as backup'
+const SOURCE = 'UCT options flow tape (picks), daily option prices from Massive'
 const WHAT = 'The Top Flow picks'
 const NA = 'n/a'
 /** A hyphen that never breaks a line, so a date stays whole in a sentence. */
@@ -260,13 +260,13 @@ export default function TopFlowPanel({ status: statusProp = null, direction: dir
       {read.error ? <p className={styles.note} role="status" data-testid="terminal-topf-stale-read">{failureText(read.error, WHAT)} Showing the last read.</p> : null}
       {!fresh.newestDay ? (
         <p className={styles.note} role="status" data-testid="terminal-topf-no-prices">
-          No daily price has been stored for any pick yet. Prices are recorded about 4:30 PM ET on weekdays from Massive,
-          with Schwab as backup. Until the first one lands every pick reads as too new to score, which is not a gain of 0%.
+          No daily price has been stored for any pick yet. Prices are recorded about 4:30 PM ET on weekdays from Massive.
+          Until the first one lands every pick reads as too new to score, which is not a gain of 0%.
         </p>
       ) : fresh.stale ? (
         <p className={styles.note} role="status" data-testid="terminal-topf-stale">
           The newest daily price is from {unbroken(fresh.newestDay)}, {count(fresh.ageDays)} days ago. Daily prices are
-          recorded from Massive, with Schwab as backup; when neither has a price for a contract none is stored, and its
+          recorded from Massive; when it has no price for a contract none is stored, and its
           history stops. Every gain below is as of the date in its own row, not today.
         </p>
       ) : null}
@@ -286,7 +286,7 @@ export default function TopFlowPanel({ status: statusProp = null, direction: dir
         ) : null}
       </div>
       {matched.length ? (
-        <div className={styles.tableBox}>
+        <div className={styles.tableBox} data-fold="550">
           <table className={styles.table} data-testid="terminal-topf-table"
             aria-label={`Top Flow picks, ${TOP_FLOW_SORTS[sort].words}, ${shown.length} of ${matched.length}`}>
             <thead>
@@ -340,7 +340,7 @@ export default function TopFlowPanel({ status: statusProp = null, direction: dir
         Picks are the top bullish and bearish contracts on the desk&apos;s options flow watchlist, saved each time the desk
         posts that list. A pick and its entry come from UCT&apos;s options flow tape: the entry is the average price its
         flagged trades paid for the contract. Its daily prices are recorded about 4:30 PM ET on weekdays until the
-        contract expires, from Massive with Schwab as backup (from Schwab alone before November 2026). A gain is the contract&apos;s own price against its entry, not the
+        contract expires, from Massive (prices recorded before November 2026 came from Schwab and stay as recorded). A gain is the contract&apos;s own price against its entry, not the
         stock&apos;s move: the latest gain uses the newest daily price, the peak the best one, and an expired pick keeps
         the gain of its last daily price. For a bearish pick on a call, or a bullish pick on a put, a falling contract
         price is what the pick wanted, and it still reads as a loss here. A pick needs {count(MIN_HISTORY_SNAPSHOTS)} daily

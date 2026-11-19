@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import UIcon from '../../../../components/ui/UIcon'
+import Input from '../../../../components/ui/Input'
 import { DRILL_POPOVER_ATTR, GROUP_OPTIONS } from './scanFacets'
 import styles from './ScanFilters.module.css'
 
@@ -144,7 +145,7 @@ function FilterPanel({ anchorRect, anchorRef, filters, total, shown, onClose }) 
         )}
         {m.industry.length > 1 && (
           <Section title="Industry" right={(
-            <input className={styles.search} value={industryQ} onChange={e => setIndustryQ(e.target.value)}
+            <Input className={styles.search} value={industryQ} onChange={e => setIndustryQ(e.target.value)}
               placeholder="Search industries" aria-label="Search industries" />
           )}>
             <OptChips opts={industries} onToggle={t('industry')} limit={industryQ ? Infinity : 12} />

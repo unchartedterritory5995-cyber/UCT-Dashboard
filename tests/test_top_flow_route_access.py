@@ -1,4 +1,4 @@
-"""Three access fixes on the Top Flow and Schwab quote routes (2026-11-17).
+"""Three access fixes on the Top Flow routes and the option quote route (2026-11-17).
 
   * POST /api/top-flow/snapshot   one sweep at a time; a second request is answered at once.
                                   Gate unchanged (any signed-in session): its in-app caller is
@@ -9,7 +9,8 @@
                                   admin-gated Discord push answers ok.
   * POST /api/schwab/options-quotes  signed-in session or service token (it had no check).
 
-Each router is mounted on a small app of its own. No vendor is called: the Schwab batch
+Each router is mounted on a small app of its own. No vendor is called: the Unusual Whales batch
+(the route's first source since Schwab was retired the same day)
 function and the tracker's sweep are replaced, and a signed-in request is a cookie the
 faked session check recognises.
 """
@@ -25,7 +26,7 @@ from fastapi.testclient import TestClient
 
 import api.flow_admin_auth as flow_auth
 import api.schwab_router as schwab_router
-import api.schwab_service as schwab
+import api.uw_service as uw
 import api.top_flow_router as top_flow_router
 import api.top_flow_tracker as tracker
 
@@ -211,10 +212,13 @@ def test_a_sweep_that_fails_does_not_wedge_the_route(monkeypatch):
 
 # ── POST /api/schwab/options-quotes ───────────────────────────────────────────
 
-BODY = [{"symbol": "AAPL", "strike": 200, "expDate": "2026-12-18", "cp": "C"}]
+# a contract that has not expired on the day the test runs (the route's own expiry check is real)
+_EXP = (__import__("datetime").date.today() + __import__("datetime").timedelta(days=45)).isoformat()
+BODY = [{"symbol": "AAPL", "strike": 200, "expDate": _EXP, "cp": "C"}]
 QUOTE = {"symbol": "AAPL", "strike": 200.0, "cp": "C", "mark": 6.3, "last": 6.2, "bid": 6.2, "ask": 6.4,
          "openInterest": 1400, "underlyingPrice": 231.5, "volume": 320, "iv": 0.3, "delta": 0.5,
          "gamma": 0.01, "theta": -0.1}
+SERVED = {**QUOTE, "_source": "uw"}       # the route marks which source priced a contract
 
 
 @pytest.fixture
@@ -225,7 +229,7 @@ def quotes_spy(monkeypatch):
         calls.append(contracts)
         return [dict(QUOTE) for _ in contracts]
 
-    monkeypatch.setattr(schwab, "get_batch_option_quotes", _batch)
+    monkeypatch.setattr(uw, "get_batch_quotes", _batch)
     return calls
 
 
@@ -241,7 +245,7 @@ def test_options_quotes_refuses_a_signed_out_request(auth, quotes_spy):
 def test_options_quotes_serves_a_signed_in_member_and_the_service_token(auth, quotes_spy):
     resp = _client(schwab_router.router, MEMBER).post("/api/schwab/options-quotes", json=BODY)
     assert resp.status_code == 200
-    assert resp.json() == {"quotes": [QUOTE]}
+    assert resp.json() == {"quotes": [SERVED]}
     resp = _client(schwab_router.router).post("/api/schwab/options-quotes", json=BODY,
                                               headers={"Authorization": "Bearer test-push-secret"})
     assert resp.status_code == 200 and len(quotes_spy) == 2
@@ -252,15 +256,15 @@ def test_the_gate_is_the_one_its_sibling_routes_use():
     assert _gate_names(schwab_router.router, "GET", "/api/schwab/market-narrative") == {"require_flow_user"}
 
 
-def test_the_in_process_caller_still_gets_its_answer_with_no_session(quotes_spy):
-    """api/oi_snapshots.py calls options_quotes_batch(payload) as a plain function, also on
-    flow-worker, which has no session to offer. The gate is a default argument the body never
-    reads, so that call is unchanged."""
+def test_a_plain_function_call_still_gets_its_answer_with_no_session(quotes_spy):
+    """The gate is a default argument the body never reads, so calling the handler as a plain
+    function works. api/oi_snapshots.py used to do exactly that (also on flow-worker, which has no
+    session to offer); since 2026-11-17 it reads open interest from Massive alone and no longer
+    imports this router."""
     out = asyncio.run(schwab_router.options_quotes_batch(BODY))
-    assert out == {"quotes": [QUOTE]} and len(quotes_spy) == 1
+    assert out == {"quotes": [SERVED]} and len(quotes_spy) == 1
     caller = (REPO / "api" / "oi_snapshots.py").read_text(encoding="utf-8")
-    assert "from api.schwab_router import options_quotes_batch" in caller
-    assert "options_quotes_batch(payload)" in caller
+    assert "options_quotes_batch" not in caller and "schwab_router" not in caller
 
 
 def test_the_page_calls_are_same_origin_so_the_session_cookie_rides_along():

@@ -162,6 +162,8 @@ def _problems(src: str, name: str) -> list[str]:
 #: for its data path, or when its production-only reason stops being true; never grow it to
 #: silence a red without reading the tool first.
 EXEMPT_TOOLS: dict[str, str] = {
+    "door_browser_sweep.py": ("RIDES converse_eval's OWN SANDBOX: its `setup()` calls `ce.refuse_shared_root` and `ce.enter_sandbox` (which sets the run's paths and then imports conftest inside the run) BEFORE its first `api.*` import, all of which sit inside that function, below those two calls. A module-level pin would run the census ahead of the sandbox that converse_eval builds and refuses to run without."),
+    "named_indicators_build.py": ("REPO FILES ONLY: its one api import is the named-indicator library's own loader (`api.services.named_indicators`: stdlib imports, reads `api/data/named_indicators.json`, opens no store and no shared-root path), and it writes generated files inside the repo. Tests run it with `--check` on every library change, where a 40-120 s census per run would buy nothing."),
     "agent_eval_ledger.py": ('A LIBRARY, not a run: imported by the paid agent tools (agent_eval_run, agent_live_batch, ...), each of which pins the census itself or is exempt on its own terms. Its one api import (`narrative_cost_guard.estimate_cost`, inside `cost_usd`) is a pure price estimator that reads no data root, and its ledger lives at C:/UCT/agent-eval-ledger.db, outside the shared root. A module-level pin would run the 40-120 s census inside every consumer and sandbox tools that are exempt for a reason. (Ruled 2026-11-15.)'),
     "bench_setup_tags.py": ('PINS ITSELF, ON PURPOSE, IN main(): it opens the live bars.db `immutable=1` (read-only, no lock, no journal) FIRST, then imports conftest so every OTHER data path lands in a sandbox. A module-level pin would run the census before that open and redirect the very store it benches. (Ruled 2026-11-15.)'),
     "converse_eval.py": ("BUILDS ITS OWN SANDBOX, THEN PINS: `hub_sandbox_boot.apply_sandbox_env` sets the eval's paths, then `import conftest` runs inside the run, and it REFUSES if any api module was imported before the pins (they would have captured pre-pin paths). A module-level pin would run the census before its sandbox exists. (Ruled 2026-11-15.)"),
@@ -366,6 +368,12 @@ EXEMPT_TOOLS: dict[str, str] = {
         "ModuleNotFoundError, and the job gates the promotion of production: #260 was refused "
         "on 2026-10-01. The tool writes one committed JSON fixture under app/ and opens no "
         "database."),
+    "index_gap_scan.py": (
+        "Runs in CI: `.github/workflows/index-gap-scan.yml` executes it on a runner that installs "
+        "requirements.txt only (no pytest, no repo conftest). It reads the PUBLIC `GET /api/bars` "
+        "answers over HTTP and nothing else; its one api import, `api.services.intraday_gap_audit` "
+        "(the expected-RTH-bucket authority, a pure calendar calculation), is function-local. It "
+        "opens no database and writes no file. (Ruled 2026-11-19.)"),
 }
 
 #: Named members, never a count: the walk must see these three PINNED tools and these three

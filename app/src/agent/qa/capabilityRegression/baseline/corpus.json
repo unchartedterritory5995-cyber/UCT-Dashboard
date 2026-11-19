@@ -13562,6 +13562,248 @@
         "earnings reactions",
         "how did the stocks that just reported earnings react"
       ]
+    },
+    {
+      "id": "stock.earningsSeason",
+      "source": "Terminal data wave 4 (11-18): the Agent half of the ERNS, CEOS and GRP terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.earningsSeason"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.earningsSeason"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.earningsSeason",
+            "target": "$stockData",
+            "args": {
+              "date": null,
+              "session": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.season.*\"params\":\\{\"session\":\"all\",\"limit\":25\\}"
+        ],
+        "says": [
+          "Earnings season for",
+          "options priced a move of",
+          "which is not the same as 0%",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "earnings season",
+        "show me the earnings season",
+        "how does earnings season look",
+        "give me the earnings season"
+      ]
+    },
+    {
+      "id": "stock.callThemes",
+      "source": "Terminal data wave 4 (11-18): the Agent half of the ERNS, CEOS and GRP terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.callThemes"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.callThemes"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.callThemes",
+            "target": "$stockData",
+            "args": {
+              "month": null,
+              "list": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.callThemes.*\"params\":\\{\"list\":\"both\",\"limit\":10\\}"
+        ],
+        "says": [
+          "What was said on earnings calls in Nov 2026",
+          "A call counts once",
+          "No transcript text is shown"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what are CEOs saying",
+        "call themes",
+        "rising phrases on earnings calls",
+        "what are executives talking about"
+      ]
+    },
+    {
+      "id": "stock.groupDrill",
+      "source": "Terminal data wave 4 (11-18): the Agent half of the ERNS, CEOS and GRP terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.groupDrill"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.groupDrill"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.groupDrill",
+            "target": "$stockData",
+            "args": {
+              "group": "technology",
+              "kind": "sector",
+              "range": null,
+              "sort": null,
+              "dir": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*group\\.drill.*\"params\":\\{\"range\":\"ytd\",\"kind\":\"sector\"\\}",
+          "^POST /api/agent/data .*group\\.drill.*\"params\":\\{\"range\":\"ytd\",\"kind\":\"sector\",\"group\":\"Technology\",\"sort\":\"pct\",\"dir\":\"desc\",\"limit\":25\\}"
+        ],
+        "says": [
+          "Technology \\(sector\\), this year",
+          "RS rank",
+          "on the confluence board",
+          "It is not a recommendation"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "stocks in the technology sector",
+        "what is in the technology sector",
+        "members of the technology sector",
+        "drill into the technology sector"
+      ]
+    },
+    {
+      "id": "stock.shortInterest",
+      "source": "Terminal data wave 5 (11-18): the Agent half of the SHINT and SHRTS terminal panels (FINRA short interest), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.shortInterest"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.shortInterest"
+      ],
+      "ownWords": [
+        "shortInterest"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.shortInterest",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "reports": null,
+              "days": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*short\\.interest.*\"params\":\\{\"symbol\":\"NVDA\",\"reports\":12,\"days\":10\\}"
+        ],
+        "says": [
+          "NVDA short interest, FINRA's report for settlement date Thu, Oct 15, 2026",
+          "Daily short volume is not short interest",
+          "about two weeks old",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "short interest on NVDA",
+        "what is the short interest on NVDA",
+        "how heavily shorted is NVDA",
+        "NVDA days to cover"
+      ]
+    },
+    {
+      "id": "stock.shortList",
+      "source": "Terminal data wave 5 (11-18): the Agent half of the SHINT and SHRTS terminal panels (FINRA short interest), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.shortList"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.shortList"
+      ],
+      "ownWords": [
+        "shortInterest"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.shortList",
+            "target": "$stockData",
+            "args": {
+              "rank": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*short\\.list.*\"params\":\\{\"rank\":\"dtc\",\"limit\":25\\}"
+        ],
+        "says": [
+          "Short interest list, FINRA's report for settlement date Thu, Oct 15, 2026",
+          "most days to cover first",
+          "about two weeks old",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "most shorted stocks",
+        "which stocks have the highest short interest",
+        "short interest list",
+        "highest days to cover"
+      ]
     }
   ],
   "refusals": [

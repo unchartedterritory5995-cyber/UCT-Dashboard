@@ -7,11 +7,14 @@
     "An entry comes off ONLY when its `liftWhen` is met (an engine fix, then a re-grade to MATCH on the named captures).",
     "tests/test_pine_capability_admission.py holds every entry to its evidence capture (a committed runtime-on verdict",
     "that is not MATCH, on a capture whose source hashes to the entry's sha256). Edit as text.",
-    "Lifted: trend-targets-algoalpha (PR #1374), parabolic-sar (2026-11-16, round_to_mintick on a half tick, both captures MATCH).",
+    "Lifted: trend-targets-algoalpha (PR #1374), parabolic-sar (2026-11-16, round_to_mintick on a half tick, both captures MATCH), contraction-box-doji-lines (engine 78, Pine's tolerant compare, #1858: the extra line was a near-tie comparison, and both SPY captures re-grade MATCH runtime-on, run 44319610649).",
     "Empty is a valid state: the by-name rails use a synthetic entry (tests/test_pine_capability_admission.py).",
     "DRAW-1 (2026-11-16): seven scripts newly admitted by obj:box / obj:table have a committed capture grading DIVERGE on",
     "either lane, so each is killed here until its liftWhen (rail: test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed).",
-    "Engine 68 regrade (feat/pine-host-known-divergence, 2026-11-17): seven probes newly graded DIVERGE are killed until their liftWhen: vw-h5-format-volume, vw-w3-format-date, vw-w3-loop-helper-text, vw-w3-str-repeat-length (admitted by obj:table, DRAW-1 rule) and vw-imp-change-before-reassign, vw-w4-series-length, vw-w4-series-length-v4 (drawn by the runtime lane under admission, the REACH stop rule)."
+    "Engine 68 regrade (feat/pine-host-known-divergence, 2026-11-17): seven probes newly graded DIVERGE are killed until their liftWhen: vw-h5-format-volume, vw-w3-format-date, vw-w3-loop-helper-text, vw-w3-str-repeat-length (admitted by obj:table, DRAW-1 rule) and vw-imp-change-before-reassign, vw-w4-series-length, vw-w4-series-length-v4 (drawn by the runtime lane under admission, the REACH stop rule).",
+    "HELD kills (2026-11-18): an entry with `status: \"pending\"` is recorded here and NOT served (runtime_definitions.kill_entry_is_served is the one rule: committed_kills and the coverage census both skip it; the script still draws); it names its evidence capture, its liftWhen and a hard `expires` date (YYYY-MM-DD), and the REACH rail accepts that one capture as a stop only until then. Past `expires` the rails are red on their own. LIFTED 2026-11-18 on its liftWhen: adx-and-di-for-v4 (Q-FCMP ruled TOLERANCE, packet 56330c15e071; engine 78 #1858 compares within 1e-10; adx-and-di-for-v4-spy-1d-2026-11-17 re-graded MATCH on the runtime-on lane). The list holds no held kill now; the rails show the rule on a synthetic one.",
+    "U-STMT PR 1 (#1930, engine 82, 2026-11-18): machine-learning-moving-average-backquant is killed by the REACH stop rule. `ta.change(source, length)` on the runtime lane builds it, and under admission the door now draws it on that lane; its RDDT captures grade MATCH, its SPY capture DIVERGE (the run stops at the array-operation limit and draws nothing). Records spliced from that PR's pine-heavy run 44427583401.",
+    "CO-2 (#1984, engine 84, 2026-11-19): volatility-coil-edge-bullbyte is killed by the REACH stop rule. Theme colours on the runtime lane (`chart.fg_color` / `chart.bg_color`) build it, and under admission the door now draws it on that lane; all three of its captures grade DIVERGE (TradingView paints its \"Signal Bar BG\" background, ours does not). Records spliced from that PR's pine-heavy run 44482355116."
   ],
   "scripts": [
     {
@@ -27,18 +30,6 @@
       },
       "liftWhen": "a capture witnesses per-call-site ta.crossover / ta.crossunder in a v5 arm (HIST-K2, vw-hist-callsite-kernels-v5) and the drawing build carries its labels, then a runtime-on re-grade to MATCH on RDDT",
       "addedBy": "coordinator ruling 2026-11-16 (capability admission ON: an admitted script with a DIVERGE capture is killed by source hash)"
-    },
-    {
-      "slug": "contraction-box-doji-lines",
-      "sha256": "e1800075f68502a1c26be72510646ffdb68967581c0aa2ada3b54c6d19155cf3",
-      "source": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
-      "reason": "its lines can differ in number from TradingView's: on SPY daily TradingView holds one line fewer (204 vs 205; 200 vs 201 on a second capture)",
-      "evidence": {
-        "capture": "contraction-box-doji-lines-spy-1d-2026-11-15",
-        "verdict": "DIVERGE"
-      },
-      "liftWhen": "an engine fix to the line count at max_lines_count, then a runtime-on re-grade to MATCH on contraction-box-doji-lines-spy-1d-2026-10-03 and -2026-11-15",
-      "addedBy": "DRAW-1 (2026-11-16, coordinator ruling): a script newly admitted by obj:box / obj:table with a committed capture grading DIVERGE"
     },
     {
       "slug": "heat-map-seasons",
@@ -195,6 +186,34 @@
       },
       "liftWhen": "an engine fix to the flat-window stdev residue, then a runtime-on re-grade to MATCH on vw-w4-series-length-v4-spy-1d-2026-11-16",
       "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture the RUNTIME lane draws under capability admission grades DIVERGE (the REACH stop rule)"
+    },
+    {
+      "slug": "machine-learning-moving-average-backquant",
+      "sha256": "f4de349fe90823ee24e5d964680dc256436dc70d824da5dbd12a660cec4e56a3",
+      "source": "corpus/committed/machine-learning-moving-average-backquant__4d7ff59e68.pine",
+      "reason": "on a long chart it needs more array operations than a script may make here: on SPY daily (8,509 bars) its run reaches 2,000,262 of the 2,000,000 allowed on bar 2,805, so it stops and draws nothing, where TradingView draws its line, its bar colours and its table (on RDDT daily, 668 bars, every item agrees)",
+      "evidence": {
+        "capture": "machine-learning-moving-average-backquant-spy-1d-2026-11-17",
+        "verdict": "DIVERGE",
+        "paints": "1 paint differs (first: barcolor plot_6 \"Bar Color\" notDrawn); the ML MA plot and the objects INCONCLUSIVE by name (runtime:limit, 2,000,262 array operations on bar 2,805 of 8,509)",
+        "session": "pine heavy run 44427583401 on PR #1930 (d597bb8a62), vendor harness runtime-on lane; the two RDDT captures grade MATCH on the same run (plot, objects, paints, objectsV2)"
+      },
+      "liftWhen": "the run carries SPY daily's whole history inside the runtime's limits (an engine change to the script's array work, or a coordinator ruling on the limit), then a runtime-on re-grade to MATCH on machine-learning-moving-average-backquant-spy-1d-2026-11-17",
+      "addedBy": "coordinator ruling 2026-11-16 (capability admission ON: an admitted script with a DIVERGE capture is killed by source hash), applied by U-STMT PR 1 (#1930), which is what lets the runtime lane reach it"
+    },
+    {
+      "slug": "volatility-coil-edge-bullbyte",
+      "sha256": "e8c92f7b76aa240c5be0bd39e61150812eb64bf599ac52d616965bc04bea9fba",
+      "source": "corpus/committed/volatility-coil-edge-bullbyte__604f0fd1c6.pine",
+      "reason": "its \"Signal Bar BG\" background is not drawn on the runtime lane where TradingView paints it, on every capture (RDDT daily twice, SPY daily)",
+      "evidence": {
+        "capture": "volatility-coil-edge-bullbyte-spy-1d-2026-11-17",
+        "verdict": "DIVERGE",
+        "paints": "1 paint differs (first: bgcolor plot_0 \"Signal Bar BG\" notDrawn); the objects INCONCLUSIVE by name (interpret:bind-time-text)",
+        "session": "pine heavy run 44482355116 on PR #1984 (106ffa1def), vendor harness runtime-on lane; the two RDDT captures (2026-11-14, 2026-11-17) grade DIVERGE on the same paint in the same run"
+      },
+      "liftWhen": "the runtime lane draws the script's \"Signal Bar BG\" background as TradingView does, then a runtime-on re-grade to MATCH on volatility-coil-edge-bullbyte-spy-1d-2026-11-17 and both RDDT captures",
+      "addedBy": "coordinator ruling 2026-11-16 (capability admission ON: an admitted script with a DIVERGE capture is killed by source hash), applied by CO-2 (#1984) under the coordinator's instruction of 2026-11-19, which is what lets the runtime lane reach it"
     }
   ]
 }

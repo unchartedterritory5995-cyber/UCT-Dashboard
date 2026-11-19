@@ -442,6 +442,19 @@ _period_done_lock = threading.Lock()
 _period_last: dict = {}              # range key -> {started, finished, seconds, outcome, count}
 
 
+# ── The last GOOD answer outlives its freshness, so a range is never cold twice ──────────
+# Owner request 2026-11-17 ("Instant period rankings"): a range's answer is fresh for _TTL
+# (five minutes), and until this change the request after that waited for a whole new build
+# or read "computing". A ranked list for a fixed range changes only in its live price and
+# volume columns, so the last good answer is kept a while longer and served AT ONCE, marked
+# `refreshing`, while ONE background build replaces it for the next read. Only an "ok" answer
+# with rows is kept; an error or an empty answer never is. `as_of` still says when the rows
+# were built.
+_PERIOD_STALE_S = float(os.environ.get("PERIOD_STALE_S", "900"))   # 0 = never serve a past answer
+_PERIOD_OLD_KEEP = 12                # the seven one-click ranges and a few typed ones
+_period_old: dict = {}               # range key -> (serve_until, answer)
+
+
 def _period_remember(ck: str, out: dict, ttl: float) -> None:
     """Keep `out` for `ttl` seconds in this module AND in the shared cache."""
     now = _time.time()
@@ -451,7 +464,26 @@ def _period_remember(ck: str, out: dict, ttl: float) -> None:
             _period_done.pop(k, None)
         while len(_period_done) > _PERIOD_KEEP:              # drop the one that expires soonest
             _period_done.pop(min(_period_done, key=lambda k: _period_done[k][0]), None)
+        if _PERIOD_STALE_S > 0 and out.get("status") == "ok" and out.get("results"):
+            _period_old[ck] = (now + ttl + _PERIOD_STALE_S, out)
+            for k in [k for k, (until, _o) in _period_old.items() if until <= now]:
+                _period_old.pop(k, None)
+            while len(_period_old) > _PERIOD_OLD_KEEP:
+                _period_old.pop(min(_period_old, key=lambda k: _period_old[k][0]), None)
     cache.set(ck, out, ttl=ttl)
+
+
+def _period_old_answer(ck: str):
+    """The last good answer for a range while it may still be served past its freshness, as a
+    copy marked `refreshing`; else None."""
+    with _period_done_lock:
+        hit = _period_old.get(ck)
+        if hit is None:
+            return None
+        if hit[0] <= _time.time():
+            _period_old.pop(ck, None)
+            return None
+        return {**hit[1], "refreshing": True}
 
 
 def _period_answer(ck: str):
@@ -510,16 +542,24 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
         return {"status": "error", "results": [], "count": 0, "error": "start must be before end"}
     ck = f"scan_period_{start_ymd}_{end_ymd}"
     cached = _period_answer(ck)
+    if cached is not None and cached.get("status") == "error":
+        # a failed rebuild is held for a few seconds; the last good answer is worth more
+        old = _period_old_answer(ck)
+        if old is not None:
+            return old
     if cached is None:
+        old = _period_old_answer(ck)
         with _partial_lock:
             if ck in _partial_inflight:      # the bars.db fallback is already working on it
-                return {"status": "computing", "results": [], "count": 0, "as_of": None}
+                return old if old is not None else {"status": "computing", "results": [], "count": 0, "as_of": None}
         with _period_inflight_lock:
             done = _period_inflight.get(ck)
             if done is None:
                 done = _period_inflight[ck] = threading.Event()
                 threading.Thread(target=_period_build_bg, args=(ck, start_ymd, end_ymd, done),
                                  daemon=True, name="period-build").start()
+        if old is not None:
+            return old                       # at once; the build replaces it for the next read
         done.wait(_PERIOD_WAIT_S)
         cached = _period_answer(ck)
     if cached is not None:
@@ -559,6 +599,107 @@ def _build_period_change(ck: str, start_ymd: int, end_ymd: int) -> None:
                 threading.Thread(target=_partial_bg, args=(ck, start_ymd, end_ymd), daemon=True).start()
 
 
+# ── The one-click ranges are kept built (owner request 2026-11-17) ───────────────────────
+# The Terminal's PCHG panel offers seven one-click ranges (periodChangeModel.js PERIOD_RANGES)
+# and asks for each by two dates worked out from today's date in New York, so every member
+# asks for the SAME seven ranges on a given day. One background thread on the web service
+# builds them, one at a time, after boot and then on a slow loop, so a member's first click
+# reads a held answer and not "computing" for half a minute. Past dates' whole-market closes
+# are already kept on disk (massive.get_grouped_daily_closes), so after the first pass a
+# rebuild is two cached reads and the live snapshot.
+# ⛔ preset_ranges MIRRORS rangeDates in app/src/pages/terminal/panels/periodChangeModel.js.
+# Both are pinned to ONE table of examples (periodPresets.fixture.json, beside the model),
+# read by tests/test_scan_period_presets.py and by periodChangeModel.test.js. A mismatch is
+# not a wrong number for a member: the warm would build a range nobody asks for and the
+# panel would wait as it did before.
+_PRESET_WARM_S = float(os.environ.get("PERIOD_PRESET_WARM_S", "240"))   # 0 = never start the loop
+_PRESET_WARM_IDLE_S = 840.0          # nights and weekends: nothing moves, keep answers inside _PERIOD_STALE_S
+_PRESET_WARM_DELAY_S = 150.0         # after boot: never compete with startup
+_PRESET_BUILD_WAIT_S = 180.0         # the longest the loop waits on a build a member already started
+_preset_warm_started = threading.Event()
+_preset_warm_last: dict = {}         # for debug_period: when the loop last ran and what each range did
+
+
+def _months_back(t: date, months: int) -> date:
+    import calendar
+    y, m = t.year, t.month - months
+    while m <= 0:
+        m += 12
+        y -= 1
+    return date(y, m, min(t.day, calendar.monthrange(y, m)[1]))
+
+
+def preset_ranges(today: date) -> dict:
+    """{range key: start date} for the panel's seven one-click ranges; every range ends today.
+    This month, this quarter and year to date start from the LAST DAY BEFORE the period."""
+    first_of = lambda y, m: date(y, m, 1) - timedelta(days=1)
+    return {
+        "mtd": first_of(today.year, today.month),
+        "qtd": first_of(today.year, today.month - ((today.month - 1) % 3)),
+        "ytd": first_of(today.year, 1),
+        "m1": _months_back(today, 1),
+        "m3": _months_back(today, 3),
+        "m6": _months_back(today, 6),
+        "y1": _months_back(today, 12),
+    }
+
+
+def warm_presets(today: date = None) -> dict:
+    """Build today's seven one-click ranges, one at a time, ON THE CALLER'S THREAD. Shares the
+    single-flight with get_period_change, so a range a member is already building is waited
+    for, never built twice. Never raises. Returns {range key: what happened}."""
+    t = today or _now_et().date()
+    end = int(t.strftime("%Y%m%d"))
+    said = {}
+    for key, start in preset_ranges(t).items():
+        s = int(start.strftime("%Y%m%d"))
+        ck = f"scan_period_{s}_{end}"
+        try:
+            with _partial_lock:
+                if ck in _partial_inflight:
+                    said[key] = "the deep-history fallback is working on it"
+                    continue
+            with _period_inflight_lock:
+                done = _period_inflight.get(ck)
+                mine = done is None
+                if mine:
+                    done = _period_inflight[ck] = threading.Event()
+            if mine:
+                _period_build_bg(ck, s, end, done)
+            else:
+                done.wait(_PRESET_BUILD_WAIT_S)
+            said[key] = (_period_last.get(ck) or {}).get("outcome") or "no record"
+        except Exception as exc:                       # one range must not stop the others
+            said[key] = f"failed: {type(exc).__name__}"
+    _preset_warm_last.clear()
+    _preset_warm_last.update({"at": _time.time(), "day": t.isoformat(), "ranges": said})
+    return said
+
+
+def _preset_warm_loop() -> None:
+    _time.sleep(_PRESET_WARM_DELAY_S)
+    while True:
+        try:
+            warm_presets()
+        except Exception:
+            pass
+        now = _now_et()
+        busy = now.weekday() < 5 and 4 <= now.hour < 20
+        _time.sleep(_PRESET_WARM_S if busy else max(_PRESET_WARM_S, _PRESET_WARM_IDLE_S))
+
+
+def start_preset_warmer(force: bool = False) -> bool:
+    """Start the loop once, on the web service only (every other service that imports this
+    module would repeat the same provider reads for nobody). True when this call started it."""
+    if _PRESET_WARM_S <= 0 or _preset_warm_started.is_set():
+        return False
+    if not force and os.environ.get("RAILWAY_SERVICE_NAME", "") != "web":
+        return False
+    _preset_warm_started.set()
+    threading.Thread(target=_preset_warm_loop, daemon=True, name="period-presets").start()
+    return True
+
+
 def debug_period(start_ymd: int, end_ymd: int) -> dict:
     """Synchronous ground-truth probe for a stuck pre-2004 sort (admin diagnostic).
     Reports whether grouped-daily covers the dates, whether bars.db actually HOLDS
@@ -595,10 +736,15 @@ def debug_period(start_ymd: int, end_ymd: int) -> dict:
     with _period_done_lock:
         held = _period_done.get(ck)
     last = dict(_period_last.get(ck) or {})
+    with _period_done_lock:
+        old = _period_old.get(ck)
     out["build"] = {"running": building,
                     "held_here": bool(held and held[0] > _time.time()),
                     "held_status": (held[1] or {}).get("status") if held else None,
+                    "past_answer_servable": bool(old and old[0] > _time.time()),
                     "last": last or None}
+    out["preset_warm"] = {"started": _preset_warm_started.is_set(), "every_s": _PRESET_WARM_S,
+                          "last": dict(_preset_warm_last) or None}
     try:
         cs = _common_stock_symbols()
         out["cs_universe_size"] = len(cs) if cs else 0
@@ -777,7 +923,17 @@ def get_period_change_groups(start_ymd: int, end_ymd: int, group: str) -> dict:
     group; members still show their own raw % change."""
     if group not in ("theme", "sector", "industry"):
         return {"status": "error", "group": group, "results": [], "count": 0, "error": "bad group"}
-    base = get_period_change(start_ymd, end_ymd)
+    return period_groups_of(get_period_change(start_ymd, end_ymd), group)
+
+
+def period_groups_of(base: dict, group: str) -> dict:
+    """The groups answer worked out from a per-stock answer ALREADY IN HAND (`get_period_change`'s
+    shape). It reads the stored sector / industry map or the stored theme list and nothing else:
+    it never asks for the per-stock ranking, so it can never start that build. A caller that must
+    not cause work (the Agent's `group.drill` kind, inside a turn) passes the answer this module
+    already holds (`_period_answer`, else `_period_old_answer`)."""
+    if group not in ("theme", "sector", "industry"):
+        return {"status": "error", "group": group, "results": [], "count": 0, "error": "bad group"}
     if base.get("status") != "ok":
         return {"status": base.get("status", "computing"), "group": group, "results": [], "count": 0, "error": base.get("error")}
     chg = {r["sym"]: r["period_change"] for r in base["results"]}

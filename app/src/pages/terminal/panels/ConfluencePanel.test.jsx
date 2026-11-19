@@ -21,6 +21,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
+// The list alert switch has its own test (ListAlertSwitch.test.jsx). Here it is a marker, so this
+// file's reads stay the panel's own, and one test at the end pins that the panel mounts it.
+vi.mock('./ListAlertSwitch', async () => {
+  const { createElement } = await import('react')
+  return { default: ({ kind }) => createElement('span', { 'data-testid': 'list-alert-stub', 'data-kind': kind, hidden: true }) }
+})
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import ConfluencePanel, { CONFLUENCE_URL, MAX_ROWS, contractText } from './ConfluencePanel'
@@ -354,4 +360,15 @@ describe('CONFL accessibility', () => {
     await screen.findByTestId('terminal-confl-none')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 20_000)
+})
+
+describe('CONFL list alert', () => {
+  it('mounts the "alert me" switch for the confluence board, outside the toolbar', async () => {
+    serve({ [CONFLUENCE_URL]: BOARD })
+    renderPanel()
+    await screen.findByTestId('terminal-confl-band-L')
+    const stub = screen.getByTestId('list-alert-stub')
+    expect(stub.getAttribute('data-kind')).toBe('confluence')
+    expect(stub.closest('[role="toolbar"]')).toBeNull()
+  })
 })

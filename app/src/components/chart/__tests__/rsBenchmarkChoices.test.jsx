@@ -31,7 +31,7 @@ import ChartSettingsModal from '../ChartSettingsModal'
 import MobileIndicatorSheet from '../../../pages/charts/mobile/MobileIndicatorSheet'
 
 const RS = getDefinition('rsLine')
-const BENCH_IDS = ['rsLine', 'rsPhases', 'rsVsEma', 'rsExit']
+const BENCH_IDS = ['rsLine', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield']   // 2026-11-18: + UCT Mansfield RS
 const MENU = [
   ['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['QQQ', 'Nasdaq 100 (QQQ)'],
   ['IWM', 'Russell 2000 (IWM)'], ['SECTOR', 'Sector (auto)'], ['SECTOR_PICK', 'Pick a sector'],

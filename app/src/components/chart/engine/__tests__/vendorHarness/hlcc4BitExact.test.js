@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/__tests__/vendorHarness/hlcc4BitExact.test.js
 //
-// ⭐⭐ `hlcc4` IS `(high + low + 2 * close) / 4`, AS TRADINGVIEW COMPUTES IT, BIT FOR BIT (NUMBER PENDING,
+// ⭐⭐ `hlcc4` IS `(high + low + 2 * close) / 4`, AS TRADINGVIEW COMPUTES IT, BIT FOR BIT (Engine 65 (#1489),
 // 2026-11-16).
 //
 // The Pine reference writes `hlcc4` as `(high + low + close + close) / 4`, and we built exactly that: a

@@ -32,16 +32,19 @@ from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional
 
 try:
-    from . import factors, pack, piece
+    from . import factors, identity, pack, piece
     from .build import BuildError, _json_bytes, _write_atomic
 except ImportError:  # script mode
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import factors  # type: ignore[no-redef]
+    import identity  # type: ignore[no-redef]
     import pack  # type: ignore[no-redef]
     import piece  # type: ignore[no-redef]
     from build import BuildError, _json_bytes, _write_atomic  # type: ignore[no-redef]
 
 VDIR = f"v{piece.FORMAT_VERSION}"
+#: Fewer packs to check than this are checked in the publishing process itself (no process pool).
+POOL_MIN_CHECKED = 24
 
 
 def collect_packs(roots: Iterable[Path]) -> Dict[tuple, Path]:
@@ -87,14 +90,25 @@ def _read_pack(job) -> tuple:
     return series, period, entries
 
 
-def build_indexes(packs: Dict[tuple, Path], *, check: bool = True, log=print, jobs: int = 1) -> Dict[str, dict]:
+def build_indexes(packs: Dict[tuple, Path], *, check: bool = True, log=print, jobs: int = 1,
+                  check_since: Optional[float] = None) -> Dict[str, dict]:
     """symbol -> index document. With `check`, every piece's header is read and must agree with the
     pack's trailer (symbol, series, period, bars, first, last, crc, length). `jobs` > 1 reads the
-    packs in a process pool (the check is CPU-bound: ~80 s a year of packs in one process); results
-    are merged in the same order as one process, so the documents are identical."""
+    packs in a process pool; results are merged in the same order as one process, so the documents
+    are identical.
+
+    `check_since` (epoch seconds, 2026-11-17): only packs written at or after it are checked. A pack is
+    immutable once written and was checked by the publish that followed its build; re-reading all 469
+    packs' piece headers took ~35 minutes of random reads on the lake's disk at every daily run."""
     out: Dict[str, dict] = {}
-    work = [(key, path, check) for key, path in packs.items()]
-    pool = ProcessPoolExecutor(max_workers=jobs) if jobs > 1 and len(work) > 1 else None
+    work = [(key, path, check and (check_since is None or path.stat().st_mtime >= check_since))
+            for key, path in packs.items()]
+    # ⛔ A pool only when there is real checking to share out (2026-11-17). An identity publish crashed
+    # (segfault, exit 139) right where the upload began after a 469-pack pool check; the same upload
+    # alone, and the same check alone, both ran clean. A daily run checks only the few packs it rebuilt:
+    # it reads them in this process and never puts the pool and the uploader in one process.
+    checked = sum(1 for _key, _path, c in work if c)
+    pool = ProcessPoolExecutor(max_workers=jobs) if jobs > 1 and checked > POOL_MIN_CHECKED else None
     try:
         results = pool.map(_read_pack, work, chunksize=1) if pool else map(_read_pack, work)
         for n, (series, period, entries) in enumerate(results, 1):
@@ -115,6 +129,7 @@ def stamp_indexes(indexes: Dict[str, dict], rows, as_of: str) -> int:
         tables = factors.build_factor_tables(rows, as_of)
     except ValueError as exc:
         raise BuildError(str(exc)) from exc
+    tables = factors.with_class_share_spellings(tables, indexes.keys())
     n = 0
     for sym, doc in indexes.items():
         doc["splits"] = tables.get(sym, [])
@@ -147,7 +162,7 @@ def explode(packs: Dict[tuple, Path], indexes: Dict[str, dict], out: Path) -> in
     for sym, doc in indexes.items():
         d = {"v": doc["v"], "symbol": sym, "series": {
             s: {per: {k: v for k, v in e.items() if k != "off"} for per, e in ps.items()} for s, ps in doc["series"].items()}}
-        for k in ("splits", "splits_as_of"):
+        for k in ("splits", "splits_as_of", "identity"):
             if k in doc:
                 d[k] = doc[k]
         plain[sym] = d
@@ -263,7 +278,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--explode", type=Path, help="also write a per-piece tree here")
     ap.add_argument("--splits", type=Path, help='the split reference, {"rows": [...]}')
     ap.add_argument("--as-of", help="YYYY-MM-DD: the last date whose splits are executed (with --splits)")
+    ap.add_argument("--ticker-events", type=Path,
+                    help="ref/ticker_events.jsonl: cut reused tickers, stitch renamed companies (identity.py)")
     ap.add_argument("--no-check", action="store_true", help="skip reading every piece header")
+    ap.add_argument("--check-since", type=float, default=None,
+                    help="epoch seconds: check only the packs written at or after this (the rest were checked when written)")
     ap.add_argument("--upload", action="store_true")
     ap.add_argument("--bucket")
     ap.add_argument("--prefix", default="")
@@ -276,7 +295,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         packs = collect_packs(args.roots)
         print(f"{len(packs)} packs")
-        indexes = build_indexes(packs, check=not args.no_check, jobs=args.check_jobs)
+        indexes = build_indexes(packs, check=not args.no_check, jobs=args.check_jobs, check_since=args.check_since)
         print(f"{len(indexes):,} symbols")
         if args.splits:
             if not args.as_of:
@@ -285,6 +304,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             if not rows:
                 raise BuildError(f"{args.splits} has no rows")
             print(f"{stamp_indexes(indexes, rows, args.as_of):,} symbols with splits")
+        if args.ticker_events:
+            # after the splits: the split tables follow the same windows as the pieces
+            plans = identity.plan(identity.load_records(args.ticker_events), have=indexes.keys())
+            st = identity.apply(indexes, plans)
+            print(f"identity: {st['cut']} symbols cut, {st['stitched']} stitched "
+                  f"({st['entries_added']:,} entries added, {st['entries_dropped']:,} dropped)")
         if args.out:
             print(f"{write_indexes(indexes, args.out):,} indexes written")
         if args.explode:

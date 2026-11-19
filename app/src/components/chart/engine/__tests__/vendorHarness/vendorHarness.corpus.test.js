@@ -62,6 +62,12 @@ import { strategyBrokerFlag, strategyEvidenceOf, assertStrategyLaneMeasured } fr
 import { runtimePaneEnabled, __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
 import { __admitEveryRunHalfForTests } from '../../runHalfRailSeam'
+import { __serveEveryTimeframeSettingForTests } from '../../runtime/runtimeInputs.js'
+// ⭐ (2026-11-18) the engine that graded a snapshot is written INTO it: an admission rail can then hold new
+// capability evidence to the CURRENT engine (tests/test_pine_capability_admission.py, C1-C6). No commit SHA:
+// a file cannot name the commit that contains it, and a SHA would break the byte-identical before/after
+// evidence every regeneration is compared by (`git log -1 -- <snapshot>` names the commit).
+import { SCRIPT_ENGINE_VERSION } from '../../scriptEngineVersion.js'
 import { objectsOnlyPaneEnabled } from '../../objectsOnlyPaneGate'
 import { strategyBrokerEnabled } from '../../strategyBrokerGate'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
@@ -88,6 +94,9 @@ if (REQUESTED) {
     // ⭐ RS RATING L8 — and every run half, for the same reason: its evidence is this lane's
     // grade of the run's drawings (`runHalfRailSeam.js`)
     __admitEveryRunHalfForTests()
+    // ⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — and a capture taken at a MOVED timeframe setting is
+    // graded at it: the lane's grade is the evidence that would admit one (`runtimeInputs.js::movedTimeframeServed`)
+    __serveEveryTimeframeSettingForTests()
   }
 }
 
@@ -186,6 +195,7 @@ describe('the vendor harness over the captures on disk', () => {
       fs.mkdirSync(OUT, { recursive: true })
       fs.writeFileSync(path.join(OUT, 'verdicts.json'), JSON.stringify({
         generatedBy: 'app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js',
+        scriptEngineVersion: SCRIPT_ENGINE_VERSION,
         dirs: dirs.map((d) => path.relative(REPO, d).replace(/\\/g, '/')),
         lane,
         laneEvidence: { requested: REQUESTED, objectsOnlyPane: objectsOnly, ...evidence, strategy: strategyEvidence },
@@ -198,6 +208,8 @@ describe('the vendor harness over the captures on disk', () => {
         `Directories: ${dirs.map((d) => `\`${path.relative(REPO, d).replace(/\\/g, '/')}\``).join(', ')}`,
         '',
         `Lane: **${lane}**${REQUESTED ? '' : ' (suite default, not requested)'}. ${laneLine}`,
+        '',
+        `Graded at script engine **${SCRIPT_ENGINE_VERSION}**.`,
         '',
         '```', run.table, '```', '',
         ...(evidence.declined ? [`## Runtime declines by code (${evidence.declined})`, '',

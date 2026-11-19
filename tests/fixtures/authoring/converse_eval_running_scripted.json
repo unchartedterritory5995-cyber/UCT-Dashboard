@@ -1,0 +1,2515 @@
+{
+ "contract": "uct.converse-eval.scripted/1",
+ "_": "Scripted answers for converse_eval_running_cases.json.",
+ "usage": {
+  "input_tokens": 3000,
+  "output_tokens": 900
+ },
+ "turns": {
+  "run-streak#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Counted the up-day streak.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Up Streak",
+      "placement": "pane",
+      "primary": "streak",
+      "outputs": [
+       {
+        "key": "streak",
+        "tree": {
+         "type": "call",
+         "name": "accum",
+         "args": [
+          {
+           "type": "num",
+           "value": 0
+          },
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": ">",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "+",
+             "args": [
+              {
+               "type": "series",
+               "name": "self"
+              },
+              {
+               "type": "num",
+               "value": 1
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 100
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "run-ratchet-stop#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built a stop that only rises.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Rising Stop",
+      "placement": "price",
+      "primary": "stop",
+      "outputs": [
+       {
+        "key": "stop",
+        "tree": {
+         "type": "call",
+         "name": "accum",
+         "args": [
+          {
+           "type": "series",
+           "name": "low"
+          },
+          {
+           "type": "call",
+           "name": "max",
+           "args": [
+            {
+             "type": "series",
+             "name": "self"
+            },
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 3
+                },
+                {
+                 "type": "call",
+                 "name": "atr",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  },
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 14
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 300
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "run-smoother#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Smoothed the close.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Smoothed Close",
+      "placement": "price",
+      "primary": "smooth",
+      "outputs": [
+       {
+        "key": "smooth",
+        "tree": {
+         "type": "call",
+         "name": "accum",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "series",
+             "name": "self"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.1
+              },
+              {
+               "type": "op",
+               "name": "-",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "series",
+                 "name": "self"
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 300
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "run-kama#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built Kaufman's adaptive average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "KAMA",
+      "placement": "price",
+      "primary": "kama",
+      "outputs": [
+       {
+        "key": "kama",
+        "tree": {
+         "type": "call",
+         "name": "accum",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "series",
+             "name": "self"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "call",
+               "name": "pow",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "+",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "*",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "/",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "abs",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "-",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "close"
+                          },
+                          {
+                           "type": "offset",
+                           "value": 10,
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "close"
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "sum",
+                       "args": [
+                        {
+                         "type": "call",
+                         "name": "abs",
+                         "args": [
+                          {
+                           "type": "op",
+                           "name": "-",
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "close"
+                            },
+                            {
+                             "type": "offset",
+                             "value": 1,
+                             "args": [
+                              {
+                               "type": "series",
+                               "name": "close"
+                              }
+                             ]
+                            }
+                           ]
+                          }
+                         ]
+                        },
+                        {
+                         "type": "num",
+                         "value": 10
+                        }
+                       ]
+                      }
+                     ]
+                    },
+                    {
+                     "type": "op",
+                     "name": "-",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "/",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 2
+                        },
+                        {
+                         "type": "op",
+                         "name": "+",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 2
+                          },
+                          {
+                           "type": "num",
+                           "value": 1
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "op",
+                       "name": "/",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 2
+                        },
+                        {
+                         "type": "op",
+                         "name": "+",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 30
+                          },
+                          {
+                           "type": "num",
+                           "value": 1
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "/",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 2
+                    },
+                    {
+                     "type": "op",
+                     "name": "+",
+                     "args": [
+                      {
+                       "type": "num",
+                       "value": 30
+                      },
+                      {
+                       "type": "num",
+                       "value": 1
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 2
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "-",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "series",
+                 "name": "self"
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 300
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "run-mcginley#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the McGinley Dynamic.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "McGinley Dynamic",
+      "placement": "price",
+      "primary": "md",
+      "outputs": [
+       {
+        "key": "md",
+        "tree": {
+         "type": "call",
+         "name": "accum",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "series",
+             "name": "self"
+            },
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "op",
+               "name": "-",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "series",
+                 "name": "self"
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 14
+                },
+                {
+                 "type": "call",
+                 "name": "pow",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "/",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "series",
+                     "name": "self"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 4
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 300
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "run-two-pole#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built a two-pole smoother of the close.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Two-pole smoother",
+      "placement": "price",
+      "primary": "smooth",
+      "outputs": [
+       {
+        "key": "smooth",
+        "tree": {
+         "type": "call",
+         "name": "accum2",
+         "args": [
+          {
+           "type": "num",
+           "value": 1
+          },
+          {
+           "type": "num",
+           "value": 300
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.2
+              },
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 1.4
+                },
+                {
+                 "type": "series",
+                 "name": "state1"
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 0.6
+                },
+                {
+                 "type": "series",
+                 "name": "state2"
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "series",
+           "name": "state1"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "run-two-pole-maths#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built a two-pole smoother of the close, period 10.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Two-pole smoother, period 10",
+      "placement": "price",
+      "primary": "smooth",
+      "outputs": [
+       {
+        "key": "smooth",
+        "tree": {
+         "type": "call",
+         "name": "accum2",
+         "args": [
+          {
+           "type": "num",
+           "value": 1
+          },
+          {
+           "type": "num",
+           "value": 300
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "op",
+             "name": "+",
+             "args": [
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 1
+                    },
+                    {
+                     "type": "op",
+                     "name": "*",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "*",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 2
+                        },
+                        {
+                         "type": "call",
+                         "name": "exp",
+                         "args": [
+                          {
+                           "type": "op",
+                           "name": "/",
+                           "args": [
+                            {
+                             "type": "op",
+                             "name": "*",
+                             "args": [
+                              {
+                               "type": "op",
+                               "name": "u-",
+                               "args": [
+                                {
+                                 "type": "num",
+                                 "value": 1.414
+                                }
+                               ]
+                              },
+                              {
+                               "type": "num",
+                               "value": 3.14159
+                              }
+                             ]
+                            },
+                            {
+                             "type": "num",
+                             "value": 10
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "cos",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "/",
+                         "args": [
+                          {
+                           "type": "op",
+                           "name": "*",
+                           "args": [
+                            {
+                             "type": "num",
+                             "value": 1.414
+                            },
+                            {
+                             "type": "num",
+                             "value": 3.14159
+                            }
+                           ]
+                          },
+                          {
+                           "type": "num",
+                           "value": 10
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "u-",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "*",
+                     "args": [
+                      {
+                       "type": "call",
+                       "name": "exp",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "/",
+                         "args": [
+                          {
+                           "type": "op",
+                           "name": "*",
+                           "args": [
+                            {
+                             "type": "op",
+                             "name": "u-",
+                             "args": [
+                              {
+                               "type": "num",
+                               "value": 1.414
+                              }
+                             ]
+                            },
+                            {
+                             "type": "num",
+                             "value": 3.14159
+                            }
+                           ]
+                          },
+                          {
+                           "type": "num",
+                           "value": 10
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "exp",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "/",
+                         "args": [
+                          {
+                           "type": "op",
+                           "name": "*",
+                           "args": [
+                            {
+                             "type": "op",
+                             "name": "u-",
+                             "args": [
+                              {
+                               "type": "num",
+                               "value": 1.414
+                              }
+                             ]
+                            },
+                            {
+                             "type": "num",
+                             "value": 3.14159
+                            }
+                           ]
+                          },
+                          {
+                           "type": "num",
+                           "value": 10
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "+",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "offset",
+                     "value": 1,
+                     "args": [
+                      {
+                       "type": "series",
+                       "name": "close"
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 2
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "*",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "*",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 2
+                    },
+                    {
+                     "type": "call",
+                     "name": "exp",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "/",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "*",
+                         "args": [
+                          {
+                           "type": "op",
+                           "name": "u-",
+                           "args": [
+                            {
+                             "type": "num",
+                             "value": 1.414
+                            }
+                           ]
+                          },
+                          {
+                           "type": "num",
+                           "value": 3.14159
+                          }
+                         ]
+                        },
+                        {
+                         "type": "num",
+                         "value": 10
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "call",
+                   "name": "cos",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "/",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "*",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 1.414
+                        },
+                        {
+                         "type": "num",
+                         "value": 3.14159
+                        }
+                       ]
+                      },
+                      {
+                       "type": "num",
+                       "value": 10
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "series",
+                 "name": "state1"
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "op",
+               "name": "u-",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "*",
+                 "args": [
+                  {
+                   "type": "call",
+                   "name": "exp",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "/",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "*",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "u-",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 1.414
+                          }
+                         ]
+                        },
+                        {
+                         "type": "num",
+                         "value": 3.14159
+                        }
+                       ]
+                      },
+                      {
+                       "type": "num",
+                       "value": 10
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "call",
+                   "name": "exp",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "/",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "*",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "u-",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 1.414
+                          }
+                         ]
+                        },
+                        {
+                         "type": "num",
+                         "value": 3.14159
+                        }
+                       ]
+                      },
+                      {
+                       "type": "num",
+                       "value": 10
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "state2"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "series",
+           "name": "state1"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "run-four-stage#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built a four-stage smoother of the close.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Four-stage smoother",
+      "placement": "price",
+      "primary": "smooth",
+      "outputs": [
+       {
+        "key": "smooth",
+        "tree": {
+         "type": "call",
+         "name": "accum4",
+         "args": [
+          {
+           "type": "num",
+           "value": 4
+          },
+          {
+           "type": "num",
+           "value": 300
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.2
+              },
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.8
+              },
+              {
+               "type": "series",
+               "name": "state1"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "state1"
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 0.8
+                },
+                {
+                 "type": "op",
+                 "name": "+",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "*",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 0.2
+                    },
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "*",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 0.8
+                    },
+                    {
+                     "type": "series",
+                     "name": "state1"
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.8
+              },
+              {
+               "type": "series",
+               "name": "state2"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "state2"
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 0.8
+                },
+                {
+                 "type": "op",
+                 "name": "+",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "state1"
+                    },
+                    {
+                     "type": "op",
+                     "name": "*",
+                     "args": [
+                      {
+                       "type": "num",
+                       "value": 0.8
+                      },
+                      {
+                       "type": "op",
+                       "name": "+",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "*",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 0.2
+                          },
+                          {
+                           "type": "series",
+                           "name": "close"
+                          }
+                         ]
+                        },
+                        {
+                         "type": "op",
+                         "name": "*",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 0.8
+                          },
+                          {
+                           "type": "series",
+                           "name": "state1"
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "*",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 0.8
+                    },
+                    {
+                     "type": "series",
+                     "name": "state2"
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.8
+              },
+              {
+               "type": "series",
+               "name": "state3"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "state3"
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "num",
+                 "value": 0.8
+                },
+                {
+                 "type": "op",
+                 "name": "+",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "state2"
+                    },
+                    {
+                     "type": "op",
+                     "name": "*",
+                     "args": [
+                      {
+                       "type": "num",
+                       "value": 0.8
+                      },
+                      {
+                       "type": "op",
+                       "name": "+",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "-",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "state1"
+                          },
+                          {
+                           "type": "op",
+                           "name": "*",
+                           "args": [
+                            {
+                             "type": "num",
+                             "value": 0.8
+                            },
+                            {
+                             "type": "op",
+                             "name": "+",
+                             "args": [
+                              {
+                               "type": "op",
+                               "name": "*",
+                               "args": [
+                                {
+                                 "type": "num",
+                                 "value": 0.2
+                                },
+                                {
+                                 "type": "series",
+                                 "name": "close"
+                                }
+                               ]
+                              },
+                              {
+                               "type": "op",
+                               "name": "*",
+                               "args": [
+                                {
+                                 "type": "num",
+                                 "value": 0.8
+                                },
+                                {
+                                 "type": "series",
+                                 "name": "state1"
+                                }
+                               ]
+                              }
+                             ]
+                            }
+                           ]
+                          }
+                         ]
+                        },
+                        {
+                         "type": "op",
+                         "name": "*",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 0.8
+                          },
+                          {
+                           "type": "series",
+                           "name": "state2"
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "*",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 0.8
+                    },
+                    {
+                     "type": "series",
+                     "name": "state3"
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.8
+              },
+              {
+               "type": "series",
+               "name": "state4"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "run-range-stretch#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the stretched range position.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Range position, stretched",
+      "placement": "pane",
+      "primary": "stretch",
+      "outputs": [
+       {
+        "key": "stretch",
+        "tree": {
+         "type": "call",
+         "name": "accum2",
+         "args": [
+          {
+           "type": "num",
+           "value": 2
+          },
+          {
+           "type": "num",
+           "value": 300
+          },
+          {
+           "type": "num",
+           "value": 0
+          },
+          {
+           "type": "num",
+           "value": 0
+          },
+          {
+           "type": "call",
+           "name": "max",
+           "args": [
+            {
+             "type": "op",
+             "name": "u-",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.999
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "min",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.999
+              },
+              {
+               "type": "op",
+               "name": "+",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "*",
+                 "args": [
+                  {
+                   "type": "num",
+                   "value": 0.66
+                  },
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "op",
+                     "name": "/",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "-",
+                       "args": [
+                        {
+                         "type": "op",
+                         "name": "/",
+                         "args": [
+                          {
+                           "type": "op",
+                           "name": "+",
+                           "args": [
+                            {
+                             "type": "series",
+                             "name": "high"
+                            },
+                            {
+                             "type": "series",
+                             "name": "low"
+                            }
+                           ]
+                          },
+                          {
+                           "type": "num",
+                           "value": 2
+                          }
+                         ]
+                        },
+                        {
+                         "type": "call",
+                         "name": "lowest",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "low"
+                          },
+                          {
+                           "type": "num",
+                           "value": 10
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "op",
+                       "name": "-",
+                       "args": [
+                        {
+                         "type": "call",
+                         "name": "highest",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "high"
+                          },
+                          {
+                           "type": "num",
+                           "value": 10
+                          }
+                         ]
+                        },
+                        {
+                         "type": "call",
+                         "name": "lowest",
+                         "args": [
+                          {
+                           "type": "series",
+                           "name": "low"
+                          },
+                          {
+                           "type": "num",
+                           "value": 10
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    },
+                    {
+                     "type": "num",
+                     "value": 0.5
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "op",
+                 "name": "*",
+                 "args": [
+                  {
+                   "type": "num",
+                   "value": 0.67
+                  },
+                  {
+                   "type": "series",
+                   "name": "state1"
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "+",
+           "args": [
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.5
+              },
+              {
+               "type": "call",
+               "name": "ln",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "+",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 1
+                    },
+                    {
+                     "type": "call",
+                     "name": "max",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "u-",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 0.999
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "min",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 0.999
+                        },
+                        {
+                         "type": "op",
+                         "name": "+",
+                         "args": [
+                          {
+                           "type": "op",
+                           "name": "*",
+                           "args": [
+                            {
+                             "type": "num",
+                             "value": 0.66
+                            },
+                            {
+                             "type": "op",
+                             "name": "-",
+                             "args": [
+                              {
+                               "type": "op",
+                               "name": "/",
+                               "args": [
+                                {
+                                 "type": "op",
+                                 "name": "-",
+                                 "args": [
+                                  {
+                                   "type": "op",
+                                   "name": "/",
+                                   "args": [
+                                    {
+                                     "type": "op",
+                                     "name": "+",
+                                     "args": [
+                                      {
+                                       "type": "series",
+                                       "name": "high"
+                                      },
+                                      {
+                                       "type": "series",
+                                       "name": "low"
+                                      }
+                                     ]
+                                    },
+                                    {
+                                     "type": "num",
+                                     "value": 2
+                                    }
+                                   ]
+                                  },
+                                  {
+                                   "type": "call",
+                                   "name": "lowest",
+                                   "args": [
+                                    {
+                                     "type": "series",
+                                     "name": "low"
+                                    },
+                                    {
+                                     "type": "num",
+                                     "value": 10
+                                    }
+                                   ]
+                                  }
+                                 ]
+                                },
+                                {
+                                 "type": "op",
+                                 "name": "-",
+                                 "args": [
+                                  {
+                                   "type": "call",
+                                   "name": "highest",
+                                   "args": [
+                                    {
+                                     "type": "series",
+                                     "name": "high"
+                                    },
+                                    {
+                                     "type": "num",
+                                     "value": 10
+                                    }
+                                   ]
+                                  },
+                                  {
+                                   "type": "call",
+                                   "name": "lowest",
+                                   "args": [
+                                    {
+                                     "type": "series",
+                                     "name": "low"
+                                    },
+                                    {
+                                     "type": "num",
+                                     "value": 10
+                                    }
+                                   ]
+                                  }
+                                 ]
+                                }
+                               ]
+                              },
+                              {
+                               "type": "num",
+                               "value": 0.5
+                              }
+                             ]
+                            }
+                           ]
+                          },
+                          {
+                           "type": "op",
+                           "name": "*",
+                           "args": [
+                            {
+                             "type": "num",
+                             "value": 0.67
+                            },
+                            {
+                             "type": "series",
+                             "name": "state1"
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 1
+                    },
+                    {
+                     "type": "call",
+                     "name": "max",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "u-",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 0.999
+                        }
+                       ]
+                      },
+                      {
+                       "type": "call",
+                       "name": "min",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 0.999
+                        },
+                        {
+                         "type": "op",
+                         "name": "+",
+                         "args": [
+                          {
+                           "type": "op",
+                           "name": "*",
+                           "args": [
+                            {
+                             "type": "num",
+                             "value": 0.66
+                            },
+                            {
+                             "type": "op",
+                             "name": "-",
+                             "args": [
+                              {
+                               "type": "op",
+                               "name": "/",
+                               "args": [
+                                {
+                                 "type": "op",
+                                 "name": "-",
+                                 "args": [
+                                  {
+                                   "type": "op",
+                                   "name": "/",
+                                   "args": [
+                                    {
+                                     "type": "op",
+                                     "name": "+",
+                                     "args": [
+                                      {
+                                       "type": "series",
+                                       "name": "high"
+                                      },
+                                      {
+                                       "type": "series",
+                                       "name": "low"
+                                      }
+                                     ]
+                                    },
+                                    {
+                                     "type": "num",
+                                     "value": 2
+                                    }
+                                   ]
+                                  },
+                                  {
+                                   "type": "call",
+                                   "name": "lowest",
+                                   "args": [
+                                    {
+                                     "type": "series",
+                                     "name": "low"
+                                    },
+                                    {
+                                     "type": "num",
+                                     "value": 10
+                                    }
+                                   ]
+                                  }
+                                 ]
+                                },
+                                {
+                                 "type": "op",
+                                 "name": "-",
+                                 "args": [
+                                  {
+                                   "type": "call",
+                                   "name": "highest",
+                                   "args": [
+                                    {
+                                     "type": "series",
+                                     "name": "high"
+                                    },
+                                    {
+                                     "type": "num",
+                                     "value": 10
+                                    }
+                                   ]
+                                  },
+                                  {
+                                   "type": "call",
+                                   "name": "lowest",
+                                   "args": [
+                                    {
+                                     "type": "series",
+                                     "name": "low"
+                                    },
+                                    {
+                                     "type": "num",
+                                     "value": 10
+                                    }
+                                   ]
+                                  }
+                                 ]
+                                }
+                               ]
+                              },
+                              {
+                               "type": "num",
+                               "value": 0.5
+                              }
+                             ]
+                            }
+                           ]
+                          },
+                          {
+                           "type": "op",
+                           "name": "*",
+                           "args": [
+                            {
+                             "type": "num",
+                             "value": 0.67
+                            },
+                            {
+                             "type": "series",
+                             "name": "state1"
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 0.5
+              },
+              {
+               "type": "series",
+               "name": "state2"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "ctl-two-running-values#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built a flipping stop.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Flipping stop",
+      "placement": "price",
+      "primary": "stop",
+      "outputs": [
+       {
+        "key": "stop",
+        "tree": {
+         "type": "call",
+         "name": "accum2",
+         "args": [
+          {
+           "type": "num",
+           "value": 1
+          },
+          {
+           "type": "num",
+           "value": 300
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "max",
+           "args": [
+            {
+             "type": "series",
+             "name": "state1"
+            },
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 3
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": ">",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "series",
+               "name": "state1"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            },
+            {
+             "type": "op",
+             "name": "u-",
+             "args": [
+              {
+               "type": "num",
+               "value": 1
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built a flipping stop.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Flipping stop",
+      "placement": "price",
+      "primary": "stop",
+      "outputs": [
+       {
+        "key": "stop",
+        "tree": {
+         "type": "call",
+         "name": "accum2",
+         "args": [
+          {
+           "type": "num",
+           "value": 1
+          },
+          {
+           "type": "num",
+           "value": 300
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "max",
+           "args": [
+            {
+             "type": "series",
+             "name": "state1"
+            },
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 3
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": ">",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "series",
+               "name": "state1"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            },
+            {
+             "type": "op",
+             "name": "u-",
+             "args": [
+              {
+               "type": "num",
+               "value": 1
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "ctl-other-symbol#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Above the index",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "sym",
+           "value": "QQQ",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-screener-text#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Technology",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "textop",
+         "name": "==",
+         "args": [
+          {
+           "type": "symtext",
+           "name": "sector"
+          },
+          {
+           "type": "str",
+           "value": "Technology"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-ambiguous#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "RSI overbought",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-ambiguous#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "questions": [
+     {
+      "id": "q1",
+      "text": "What should confirm it?",
+      "choices": [
+       "volume above its 50-bar average",
+       "volume above 1.5x its 50-bar average"
+      ]
+     }
+    ],
+    "disposition": "clarify",
+    "reply": ""
+   }
+  ],
+  "ctl-rename-nothing#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "RSI overbought",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-rename-nothing#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "questions": [
+     {
+      "id": "q1",
+      "text": "What would you like to call it?"
+     }
+    ],
+    "disposition": "clarify",
+    "reply": ""
+   }
+  ]
+ }
+}

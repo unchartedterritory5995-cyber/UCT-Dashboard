@@ -189,6 +189,23 @@ def test_a_slow_reader_gets_the_CURRENT_value_of_the_forming_candle_not_a_backlo
     asyncio.run(go())
 
 
+def test_quotes_are_not_served_as_live_while_ingest_says_its_vendor_socket_is_down():
+    """⛔ 2026-11-17 audit: status batches keep arriving while ingest's Massive socket is DOWN, so "a
+    batch arrived" kept the frozen quote served as live and the quote feed never fell back."""
+    rb, c, _ = make_rb()
+    rb.subscribe("ZZA", "1", v2=True)
+    rb.apply_batch(batch(1, prices={"ZZA": {"price": 5.0, "ts": T0}}))
+    assert rb.get_last_price("ZZA")["price"] == 5.0
+    rb.apply_batch(fp.Batch(epoch=1, seq=2, status={"epoch": 1, "connect": False, "closing": False, "clients": 1}))
+    assert rb.feed_fresh() is False and rb.get_last_price("ZZA") is None     # the caller falls back
+    assert rb.get_status()["vendor_up"] is False
+    rb.apply_batch(fp.Batch(epoch=1, seq=3, status={"epoch": 1, "connect": True, "closing": False, "clients": 1}))
+    assert rb.feed_fresh() is True and rb.get_last_price("ZZA")["price"] == 5.0
+    # a batch WITHOUT a status leaves ingest's last word in place
+    rb.apply_batch(batch(4, prices={"ZZA": {"price": 6.0, "ts": T0 + 1000}}))
+    assert rb.get_last_price("ZZA")["price"] == 6.0
+
+
 def test_a_final_is_never_replaced_or_overtaken_and_order_is_kept():
     async def go():
         rb, c, _ = make_rb()
@@ -287,7 +304,12 @@ def test_feed_client_end_to_end_with_the_ingest_service(monkeypatch):
     from api.services import ingest_feed_server as ifs
     monkeypatch.setenv("PUSH_SECRET", SECRET)
     monkeypatch.setattr(ifs, "BATCH_INTERVAL_S", 0.01)
+    monkeypatch.setattr(ifs, "STATUS_INTERVAL_S", 0.02)
     monkeypatch.setattr(fc, "RECONNECT_MIN_S", 0.05)
+    # No Massive socket in a test: ingest reports its vendor socket through this property, in every
+    # status batch (`connect`), and web serves quotes as live only while it says up.
+    vendor = {"up": True}
+    monkeypatch.setattr(ir.IngestRuntime, "vendor_connected", property(lambda self: vendor["up"]))
     port = _free_port()
     owners = {"bars": {"ZZA": frozenset({"AM", "A", "T"})}}
 
@@ -318,6 +340,12 @@ def test_feed_client_end_to_end_with_the_ingest_service(monkeypatch):
         rt.on_bar("ZZA", {"t": T0 + 1000, "p": 10.5, "s": 100, "c": []}, "T")
         await _until(lambda: not q.empty() and rb.get_last_price("ZZA") is not None)
         assert q.get_nowait()["bar"]["c"] == 10.5 and rb.get_last_price("ZZA")["price"] == 10.5
+        # ingest's Massive socket drops: over the real wire, the quote stops being served as live
+        vendor["up"] = False
+        await _until(lambda: rb.get_last_price("ZZA") is None)
+        assert rb.get_status()["vendor_up"] is False
+        vendor["up"] = True
+        await _until(lambda: rb.get_last_price("ZZA") is not None)
         epoch1 = srv.epoch
 
         stop.set()                                     # ingest restarts: a new process, a new epoch

@@ -161,6 +161,10 @@ export const DEFAULT_LIMITS = Object.freeze({
   // delta-rsi at a constant 459 a bar (meets this at bar ~4,357; the pane budget stops it
   // at ~610 first); next wyckoff-accumulation-distribution at 25 a bar, kalman at 25,
   // atr-stepped at 21. Admits <=62 a bar at 32,000 bars. Not raised, for the same reason.
+  // ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, engine 84) — NOW THE FLOOR OF A CEILING THAT
+  // SCALES WITH THE BARS A RUN COVERS (`ARRAY_OPERATIONS_PER_BAR`, `Budget.coverBars`). A whole-chart count is crossed
+  // by an honest script through chart LENGTH alone: Fred RS's run half makes 245 array operations a bar, CONSTANT,
+  // and stopped here at bar 8,164 of the 11,520 a filled 5m extended-hours chart runs over.
   ARRAY_OPERATIONS: 2000000,
   // ENFORCED — drawings live at the end of a bar, every family, AFTER the store's
   // own Pine collector (`objectStore.js`). ⛔ RAISED FROM 500, deliberately: Pine
@@ -228,6 +232,24 @@ export const DEFAULT_LIMITS = Object.freeze({
   // every other caller of `execute` (a worker, a census, a test harness).
   WALL_TIME: 5000,
 })
+
+/** ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, engine 84) — THE ARRAY OPERATIONS A RUN MAY MAKE
+ *  PER BAR IT COVERS. The ceiling of a run is `max(ARRAY_OPERATIONS, ARRAY_OPERATIONS_PER_BAR × bars)`
+ *  (`arrayOperationsCeiling`): below 4,000 bars it is the 2,000,000 it always was; above, it grows with the chart.
+ *    WHY 500: the heaviest honest scripts measured make a CONSTANT count a bar — delta-rsi-oscillator-strategy 459
+ *  (its own 21x3 least-squares solve, rebuilt every bar), Fred RS's run half 245 (2,822,407 over 11,520 bars),
+ *  then wyckoff / kalman 25 — so 500 admits each at any length, and 16,384,000 at the 32,768-bar `HISTORY` ceiling.
+ *    WHAT IT STILL BOUNDS: element work `TOTAL_INSTRUCTIONS` cannot see (one `array.sort` instruction over a
+ *  100,000-element array is 100,000 operations): a script that makes thousands a bar still stops BY NAME, within
+ *  a few bars of the floor's stop. The time it takes is bounded by the pane budget and `WALL_TIME`, its memory by
+ *  `ARRAY_ELEMENTS` and `MEMORY`, one bar by `INSTRUCTIONS_PER_BAR`: none of those changed.
+ *    ⛔ THE BARS THE RUN COVERS (`ctx.bars`), set once by the top-level `execute`, never the bars it executes: a
+ *  run resumed from a checkpoint has a full run's ceiling, and a request's sub-run shares its caller's. */
+export const ARRAY_OPERATIONS_PER_BAR = 500
+/** The array-operation ceiling of a run over `bars` bars, `floor` the per-chart number (`ARRAY_OPERATIONS`). */
+export function arrayOperationsCeiling(floor, bars) {
+  return Number.isInteger(bars) && bars > 0 ? Math.max(floor, ARRAY_OPERATIONS_PER_BAR * bars) : floor
+}
 
 /** ⭐ P1 HARDENING — the per-object figure `MEMORY` charges for a live drawing. */
 export const LIVE_OBJECT_BYTES = 512
@@ -297,6 +319,9 @@ export function resolveLimits(overrides) {
 export class Budget {
   constructor(limits) {
     this.limits = resolveLimits(limits)
+    // ⭐ a caller that NAMES the array-operation ceiling (a measurement, a test: no product caller passes limits)
+    // gets exactly that number; the default scales with the bars the run covers (`coverBars`)
+    this.arrayOpsScale = !(limits && Object.prototype.hasOwnProperty.call(limits, 'ARRAY_OPERATIONS'))
     this.counts = Object.create(null)
     for (const n of LIMIT_NAMES) this.counts[n] = 0
     this.startedAt = 0
@@ -307,9 +332,30 @@ export class Budget {
     const next = this.counts[limit] + n
     this.counts[limit] = next
     const ceiling = this.limits[limit]
-    if (next > ceiling) throw new RuntimeLimitError(limit, ceiling, next)
+    if (next > ceiling) {
+      const err = new RuntimeLimitError(limit, ceiling, next)
+      // a ceiling that scaled with the chart names the bars it was set for (`runtimeLimitSentence`)
+      if (limit === 'ARRAY_OPERATIONS' && this.coveredBars !== undefined && ceiling > this.floorOf(limit)) err.coveredBars = this.coveredBars
+      throw err
+    }
     return next
   }
+
+  /** ⭐⭐ (coordinator ruling 2026-11-19) — THE BARS THIS RUN COVERS, set ONCE (the top-level `execute`): the
+   *  array-operation ceiling becomes `arrayOperationsCeiling(floor, bars)`, unless the caller named it. A second call (a request's sub-run, a
+   *  stand-in run handed the same budget) changes nothing. */
+  coverBars(bars) {
+    if (this.coveredBars !== undefined) return
+    this.coveredBars = bars
+    if (!this.arrayOpsScale) return
+    const floor = this.limits.ARRAY_OPERATIONS
+    this.floors = { ARRAY_OPERATIONS: floor }
+    const ceiling = arrayOperationsCeiling(floor, bars)
+    if (ceiling !== floor) this.limits = Object.freeze({ ...this.limits, ARRAY_OPERATIONS: ceiling })
+  }
+
+  /** The per-chart number a limit is (its floor when it scales with the bars). */
+  floorOf(limit) { return this.floors && this.floors[limit] !== undefined ? this.floors[limit] : this.limits[limit] }
 
   /** Set-and-check, for the peak measures (nesting, depth, live objects) where
    *  the interesting number is the high-water mark rather than a total. */

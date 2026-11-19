@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 231,
+  "all": 236,
   "withProductionKinds": 205,
-  "darkGated": 26
+  "darkGated": 31
  },
  "totals": {
-  "capabilities": 231,
-  "withAnyRegressionCase": 179,
+  "capabilities": 236,
+  "withAnyRegressionCase": 184,
   "perProtection": {
    "nl": {
-    "covered": 176,
-    "applicable": 231
+    "covered": 181,
+    "applicable": 236
    },
    "routing": {
-    "covered": 173,
-    "applicable": 231
+    "covered": 178,
+    "applicable": 236
    },
    "args": {
-    "covered": 179,
-    "applicable": 231
+    "covered": 184,
+    "applicable": 236
    },
    "execution": {
-    "covered": 176,
-    "applicable": 231
+    "covered": 181,
+    "applicable": 236
    },
    "receipt": {
-    "covered": 148,
-    "applicable": 231
+    "covered": 153,
+    "applicable": 236
    },
    "refusal": {
     "covered": 35,
-    "applicable": 231
+    "applicable": 236
    },
    "permission": {
-    "covered": 224,
-    "applicable": 231
+    "covered": 229,
+    "applicable": 236
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 231
+    "applicable": 236
    },
    "phrasings": {
-    "covered": 172,
-    "applicable": 231
+    "covered": 177,
+    "applicable": 236
    }
   }
  },
@@ -9409,6 +9409,60 @@
     "phrasings": []
    }
   },
+  "stock.callThemes": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.callThemes: \"what are CEOs saying\"",
+     "stock.callThemes: \"call themes\"",
+     "stock.callThemes: \"rising phrases on earnings calls\"",
+     "stock.callThemes: \"what are executives talking about\""
+    ],
+    "routing": [
+     "stock.callThemes: \"what are CEOs saying\"",
+     "stock.callThemes: \"call themes\"",
+     "stock.callThemes: \"rising phrases on earnings calls\"",
+     "stock.callThemes: \"what are executives talking about\""
+    ],
+    "args": [
+     "corpus stock.callThemes"
+    ],
+    "execution": [
+     "stock.callThemes (c)"
+    ],
+    "receipt": [
+     "stock.callThemes (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.compare": {
    "domain": "stock",
    "group": "data",
@@ -9758,6 +9812,60 @@
     "phrasings": []
    }
   },
+  "stock.earningsSeason": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.earningsSeason: \"earnings season\"",
+     "stock.earningsSeason: \"show me the earnings season\"",
+     "stock.earningsSeason: \"how does earnings season look\"",
+     "stock.earningsSeason: \"give me the earnings season\""
+    ],
+    "routing": [
+     "stock.earningsSeason: \"earnings season\"",
+     "stock.earningsSeason: \"show me the earnings season\"",
+     "stock.earningsSeason: \"how does earnings season look\"",
+     "stock.earningsSeason: \"give me the earnings season\""
+    ],
+    "args": [
+     "corpus stock.earningsSeason"
+    ],
+    "execution": [
+     "stock.earningsSeason (c)"
+    ],
+    "receipt": [
+     "stock.earningsSeason (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.expectedMove": {
    "domain": "stock",
    "group": "data",
@@ -9912,6 +10020,60 @@
     ],
     "receipt": [
      "stock.gammaLevels (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.groupDrill": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.groupDrill: \"stocks in the technology sector\"",
+     "stock.groupDrill: \"what is in the technology sector\"",
+     "stock.groupDrill: \"members of the technology sector\"",
+     "stock.groupDrill: \"drill into the technology sector\""
+    ],
+    "routing": [
+     "stock.groupDrill: \"stocks in the technology sector\"",
+     "stock.groupDrill: \"what is in the technology sector\"",
+     "stock.groupDrill: \"members of the technology sector\"",
+     "stock.groupDrill: \"drill into the technology sector\""
+    ],
+    "args": [
+     "corpus stock.groupDrill"
+    ],
+    "execution": [
+     "stock.groupDrill (c)"
+    ],
+    "receipt": [
+     "stock.groupDrill (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10189,6 +10351,114 @@
     ],
     "receipt": [
      "stock.sessionHighsLows (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.shortInterest": {
+   "domain": "stock",
+   "group": "shortInterest",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.shortInterest: \"short interest on NVDA\"",
+     "stock.shortInterest: \"what is the short interest on NVDA\"",
+     "stock.shortInterest: \"how heavily shorted is NVDA\"",
+     "stock.shortInterest: \"NVDA days to cover\""
+    ],
+    "routing": [
+     "stock.shortInterest: \"short interest on NVDA\"",
+     "stock.shortInterest: \"what is the short interest on NVDA\"",
+     "stock.shortInterest: \"how heavily shorted is NVDA\"",
+     "stock.shortInterest: \"NVDA days to cover\""
+    ],
+    "args": [
+     "corpus stock.shortInterest"
+    ],
+    "execution": [
+     "stock.shortInterest (c)"
+    ],
+    "receipt": [
+     "stock.shortInterest (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.shortList": {
+   "domain": "stock",
+   "group": "shortInterest",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.shortList: \"most shorted stocks\"",
+     "stock.shortList: \"which stocks have the highest short interest\"",
+     "stock.shortList: \"short interest list\"",
+     "stock.shortList: \"highest days to cover\""
+    ],
+    "routing": [
+     "stock.shortList: \"most shorted stocks\"",
+     "stock.shortList: \"which stocks have the highest short interest\"",
+     "stock.shortList: \"short interest list\"",
+     "stock.shortList: \"highest days to cover\""
+    ],
+    "args": [
+     "corpus stock.shortList"
+    ],
+    "execution": [
+     "stock.shortList (c)"
+    ],
+    "receipt": [
+     "stock.shortList (c)"
     ],
     "refusal": [],
     "permission": [],

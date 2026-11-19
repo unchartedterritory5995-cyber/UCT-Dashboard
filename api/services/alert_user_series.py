@@ -1019,6 +1019,49 @@ def runtime_inputs_for(definition: Mapping[str, Any], params: Optional[Mapping])
     return {str(k): v for k, v in dict(params or {}).items() if str(k) in declared}
 
 
+#: ⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) -- a runtime document declares its timeframe inputs as
+#: settings ON LOAD only (`runtime/runtimeInputs.js::withTimeframeInputs`, never stored), so this lane, which
+#: reads the STORED document, has no declared key for one and would run the author's timeframe. An alert on a
+#: script whose timeframe setting is moved is therefore withheld by name, never computed at another timeframe.
+TIMEFRAME_SETTING_GUARD = "setting:timeframe-moved"
+_SP = "[ \t]"   # a blank on one line (never a newline)
+_TF_INPUT_RX = re.compile(
+    "^" + _SP + "*(?:(?:var|varip)" + _SP + "+)?(?:(?:simple|const|series|input)" + _SP + "+)?(?:string"
+    + _SP + "+)?([A-Za-z_][A-Za-z0-9_]*)" + _SP + "*=" + _SP + "*input[.]timeframe" + _SP + "*[(]", re.M)
+_TF_LEGACY_RX = re.compile(
+    "^" + _SP + "*([A-Za-z_][A-Za-z0-9_]*)" + _SP + "*=" + _SP + "*input" + _SP + "*[(]"
+    + "(?=[^\n]*[^A-Za-z0-9_.]type" + _SP + "*=" + _SP + "*(?:input[.])?(?:resolution|timeframe)(?![A-Za-z0-9_]))",
+    re.M)
+_TF_DEFAULT_RX = re.compile(_SP + "*(?:defval" + _SP + "*=" + _SP + "*)?(['\"])(.*?)\\1")
+
+
+def runtime_timeframe_inputs(definition: Mapping[str, Any]) -> dict:
+    """``{Pine name: author's default text or None}`` for every timeframe input of a runtime document's
+    script (``compute.source``). Over-reads, never under-reads: a name whose default is not a literal
+    maps to ``None``, and any value given for it counts as moved."""
+    src = ((definition or {}).get("compute") or {}).get("source")
+    if not isinstance(src, str) or not src:
+        return {}
+    out: dict = {}
+    for rx in (_TF_INPUT_RX, _TF_LEGACY_RX):
+        for m in rx.finditer(src):
+            d = _TF_DEFAULT_RX.match(src, m.end())
+            out.setdefault(m.group(1), d.group(2) if d else None)
+    return out
+
+
+def runtime_timeframe_moved(definition: Mapping[str, Any], params: Optional[Mapping]) -> Optional[str]:
+    """Why an alert on this runtime document is withheld for a moved timeframe setting, or ``None``."""
+    given = dict(params or {})
+    for name, default in runtime_timeframe_inputs(definition).items():
+        v = given.get(name)
+        if isinstance(v, str) and v != default:
+            at = f" ({default if default else 'the chart'})" if default is not None else ""
+            return (f"its timeframe setting {name} is set to {v or 'the chart'}: an alert computes this script at "
+                    f"its author's timeframe{at} only, so it is not armed at another")
+    return None
+
+
 class RuntimeBarsRefused(RuntimeError):
     """A bar whose time this lane cannot state in the unit the runtime reads."""
 
@@ -1175,6 +1218,9 @@ def _make_runtime_value_fn(row: Mapping[str, Any], def_id: str, plot_key: str,
         out: list = [None] * len(bars or [])
         if k < 0:
             return out
+        tf_why = runtime_timeframe_moved(definition, params)
+        if tf_why:
+            raise rsl.ServerLaneWithheld(TIMEFRAME_SETTING_GUARD, f"{address}: {tf_why}")
         run = rsl.runtime_column_fn(row, plot_key, RUNTIME_LANE, client_factory=_client_factory())
         col = run(wire, runtime_inputs_for(definition, params), tf=str(tf), ticker=str(sym))
         if len(col) != len(wire):
@@ -1319,6 +1365,9 @@ def _gate_runtime_service(row: Mapping[str, Any], definition: Mapping[str, Any],
         raise _server_run_refusal(def_id, "", exc.guard, exc.sentence) from exc
     if k < 0 or not wire:
         raise AdmissionRefused("bars", f"{REFUSAL_FRAGMENTS['bars']}: {def_id} (no bar has closed)")
+    tf_why = runtime_timeframe_moved(definition, params)
+    if tf_why:
+        raise _server_run_refusal(def_id, "", TIMEFRAME_SETTING_GUARD, tf_why)
     keys = runtime_output_keys(definition)
     job = prc.Job(job=f"{sym}|{tf}|arm", ticker=str(sym), tf=str(tf), bars=wire, want=tuple(keys),
                   runtime_inputs=runtime_inputs_for(definition, params))
@@ -1399,7 +1448,11 @@ def _prime_runtime_batch(batch: RuntimeBatch, alerts: Sequence[Mapping[str, Any]
         definition = row.get("definition") or {}
         jobs: dict = {}
         for alert, plot in members:
-            inputs = runtime_inputs_for(definition, ev._parse_params(dict(alert)))
+            params = ev._parse_params(dict(alert))
+            # a moved timeframe setting is not batched: its own call withholds it by name (`column`)
+            if runtime_timeframe_moved(definition, params):
+                continue
+            inputs = runtime_inputs_for(definition, params)
             ikey = json.dumps(inputs, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
                               default=str)
             jobs.setdefault(ikey, (inputs, set()))[1].add(plot)

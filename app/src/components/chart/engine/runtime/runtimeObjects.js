@@ -44,6 +44,99 @@ export function runtimeObjectsWithheldOf(cols) {
 export const drawsRuntimeObjects = (def) => !!(def && def.compute
   && def.compute.kind === 'runtime' && def.compute.objects === true)
 
+/** The families a host object program creates (loop bodies included). */
+function programFamilies(program) {
+  const out = new Set()
+  const walk = (ops) => {
+    for (const op of ops || []) {
+      if (!op) continue
+      if (op.k === 'create' && typeof op.family === 'string') out.add(op.family)
+      if (Array.isArray(op.body)) walk(op.body)
+    }
+  }
+  walk(program && program.ops)
+  return out
+}
+
+/** The input keys a document's own rows read as Style knobs (a plot's colour and width), deep: a stored
+ *  document spells each `"$key"`, and an installed one has substituted it and records it under `$refs`
+ *  (`defSchema.js::noteRef`, `{field: key}`, a `levels` ref an array). */
+function styleKeysOf(def) {
+  const out = new Set()
+  const addRef = (r) => {
+    if (typeof r === 'string') out.add(r)
+    else if (Array.isArray(r)) r.forEach(addRef)
+  }
+  const walk = (v) => {
+    if (typeof v === 'string') { if (v.length > 1 && v[0] === '$') out.add(v.slice(1)) } else if (Array.isArray(v)) v.forEach(walk)
+    else if (v && typeof v === 'object') {
+      for (const [k, x] of Object.entries(v)) {
+        if (k === '$refs' && x && typeof x === 'object') Object.values(x).forEach(addRef)
+        else walk(x)
+      }
+    }
+  }
+  walk(def && def.plots)
+  return out
+}
+
+/**
+ * ⭐⭐ PARITY UNIT LF — HAS THE MEMBER MOVED ONE OF THE SCRIPT'S OWN SETTINGS OFF THE AUTHOR'S DEFAULT?
+ * The script's settings are the document's inputs that no row reads as a Style knob (`styleKeysOf`): those
+ * are what the run is rebuilt with, and what a host program translated at mint cannot follow. A key the
+ * instance does not carry is at its default. Colours compare without case (`#B2B5BE` is `#b2b5be`).
+ */
+export function scriptSettingsMoved(def, inputs) {
+  if (!inputs || typeof inputs !== 'object' || !def || !Array.isArray(def.inputs)) return false
+  const style = styleKeysOf(def)
+  for (const spec of def.inputs) {
+    if (!spec || typeof spec.key !== 'string' || style.has(spec.key)) continue
+    if (!Object.prototype.hasOwnProperty.call(inputs, spec.key)) continue
+    const v = inputs[spec.key]
+    const d = spec.default
+    const same = typeof v === 'string' && typeof d === 'string' ? v.toLowerCase() === d.toLowerCase() : v === d
+    if (!same) return true
+  }
+  return false
+}
+
+/**
+ * ⭐⭐ PARITY UNIT LF (2026-11-18) — DOES THIS INSTANCE DRAW THE RUN'S OBJECTS ON THESE COLUMNS?
+ *
+ * A runtime document whose host object program was CLEAN now draws the run's own drawings
+ * (`runtimeObjectsDoor.js::runtimeOwnObjectsOf`, `hostFallback`), and carries that host program
+ * beside them (`definition.objects`). ⛔ A CHANGE NEVER TAKES AWAY WHAT A MEMBER SEES: the run's
+ * store holds back by name a family whose answer no capture settles (`objectStore.js`), and the host
+ * program drew that family. So whenever the run withholds its drawings whole, or holds back a family
+ * the host program draws, THIS chart draws the host program instead, exactly as before the change.
+ * A run still in flight (no record yet) is the run's branch: the layer stays empty until it lands
+ * (never the host picture first and a swap after). A document with no host program beside the run
+ * (every other run-owned document) is unchanged: the run's objects, whatever it holds back.
+ * The binder and the vendor harness both ask THIS, so the graded picture is the drawn one.
+ *
+ * ⛔ THE HOST PROGRAM IS THE AUTHOR'S-SETTINGS PICTURE. It was translated once, at mint, with every input
+ * at its default, so it follows none of the member's settings (measured: inside-bar-range with
+ * `lineColor` set draws the run's lines in that colour and the host program's in the author's
+ * #b2b5be). So once the member has moved one of the SCRIPT's own settings (`scriptSettingsMoved`,
+ * given the instance's `inputs`), the host program is never drawn: the run's picture is, exactly as
+ * for a run-owned document with no program beside it (a family it holds back stays held back by name,
+ * a run withheld whole draws nothing and says why). A stand-in drawn at settings the member did not
+ * choose would be a wrong drawing.
+ */
+export function drawsRunObjectsOn(def, cols, inputs = null) {
+  if (!drawsRuntimeObjects(def)) return false
+  const program = def && def.objects
+  if (!program || !Array.isArray(program.ops) || !program.ops.length) return true
+  if (scriptSettingsMoved(def, inputs)) return true
+  if (!cols || typeof cols !== 'object') return true
+  const p = cols[RUNTIME_OBJECTS_KEY]
+  if (!p || typeof p !== 'object') return true
+  if (p.status === 'WITHHELD') return p.pending === true
+  const fams = programFamilies(program)
+  // (the run half's own reading of a family held back: any key of `withheld`, `nativeRegistry.js::withRunHalf`)
+  return !Object.keys(p.withheld || {}).some((fam) => fams.has(fam))
+}
+
 /** ⭐ UIE PHASE 2 — where a run's withheld WARM-UP rides (`runtimeColumns.js::
  *  computeOffListing`): the same non-enumerable shape, so a column walk never sees it. */
 export const RUNTIME_WARMUP_KEY = '__runtimeWarmup'

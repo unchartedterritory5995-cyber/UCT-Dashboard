@@ -589,6 +589,18 @@ class ConverseIn(BaseModel):
     #: optional; `definition_conversation.browser_refusal` decides whether it is used, and a
     #: malformed one is ignored (an ordinary turn), never a 422.
     browser_refusal: Optional[Any] = None
+    #: ⭐ 2026-11-18 — what this build of the browser accepts beyond the first contract
+    #: (``["note.by"]``). Optional and untrusted: an older tab omits it and gets the answer it
+    #: always got; anything that is not a list of known words is ignored, never a 422.
+    accepts: Optional[Any] = None
+    #: ⭐ 2026-11-18 — the ids of UCT's own indicators this browser can add to the chart
+    #: right now (its registry and the live server decide). Optional and untrusted: only a browser
+    #: that also accepts an "offer" is ever offered one, and only for an id it listed here.
+    addable: Optional[Any] = None
+    #: ⭐ 2026-11-18 — the browser's own engine refused a SCRIPT this door offered for this same
+    #: request: ``{pine, errors, round}``, the script and the engine's own words. Untrusted and
+    #: optional; `script_conversation.script_refusal` decides whether it is used.
+    script_refusal: Optional[Any] = None
 
 
 def require_create_indicator_access(user: dict = Depends(require_paid)) -> dict:
@@ -632,7 +644,7 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
     global member budget, checked before every model call.
     """
     _charge_propose(str(user["id"]))
-    from api.services import definition_conversation
+    from api.services import definition_conversation, indicator_memory
     # ⭐ P2X owner decision 1: an ADMIN (the `require_admin` rule, role ==
     # 'admin') gets the conversation's admin allowance
     # (`definition_conversation.conversation_cap_usd`). Every other bound --
@@ -644,7 +656,61 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
         body.message, user_id=user["id"], view=body.view,
         authoring=body.authoring, snippets=body.snippets, chart=chart,
         admin=(user.get("role") == "admin"), conversation_id=body.conversationId,
-        examples=body.examples is True, browser_refusal=body.browser_refusal)
+        examples=body.examples is True, browser_refusal=body.browser_refusal,
+        accepts=body.accepts, addable=body.addable, script_refusal=body.script_refusal,
+        # ⭐ what THIS member chose when the door asked before (their own account row, no one else's)
+        memory=indicator_memory.Memory(user["id"]),
+        # ⭐ and what they USUALLY use, read from their own saved indicators only when the door asks
+        saved=svc.list_for_user)
+
+
+def _saved_or_none(user_id: Any):
+    """This member's own saved indicators for the Settings card's "usual" lines, or None when the
+    store cannot be read (the card then shows no such line; nothing else about it changes)."""
+    try:
+        return svc.list_for_user(user_id)
+    except Exception:                              # noqa: BLE001
+        return None
+
+
+class AssistantMemoryIn(BaseModel):
+    """One remembered choice the member sets themselves: a question's id and one of that
+    question's own values (a choice id, or a whole number for a length)."""
+    question: str = Field(..., min_length=1, max_length=32)
+    value: Union[int, float, str] = Field(...)
+
+
+@router.get("/assistant-memory")
+def assistant_memory(user: dict = Depends(require_paid),
+                     _dark: dict = Depends(require_admin_dark_rollout)):
+    """WHAT CREATE INDICATOR REMEMBERS about this member (their own account row, no one else's):
+    every question it can remember an answer to, and their answer where they have one."""
+    from api.services import definition_conversation, indicator_memory
+    return definition_conversation.memory_view(indicator_memory.Memory(user["id"]), _saved_or_none(user["id"]))
+
+
+@router.put("/assistant-memory")
+def set_assistant_memory(body: AssistantMemoryIn, user: dict = Depends(require_paid),
+                         _dark: dict = Depends(require_admin_dark_rollout)):
+    """The member changes a remembered choice. The value must be one of that question's own
+    (checked against the registry); anything else is refused and nothing is written."""
+    from api.services import definition_conversation, indicator_memory
+    memory = indicator_memory.Memory(user["id"])
+    if not definition_conversation.set_memory(memory, body.question, body.value):
+        raise HTTPException(status_code=400, detail="That is not one of this question's choices.")
+    return definition_conversation.memory_view(memory, _saved_or_none(user["id"]))
+
+
+@router.delete("/assistant-memory")
+def forget_assistant_memory(question: Optional[str] = Query(None, max_length=32),
+                            user: dict = Depends(require_paid),
+                            _dark: dict = Depends(require_admin_dark_rollout)):
+    """Forget one remembered choice (`?question=`), or everything (no parameter): the row is
+    removed and nothing else holds a copy."""
+    from api.services import definition_conversation, indicator_memory
+    memory = indicator_memory.Memory(user["id"])
+    memory.forget(question)
+    return definition_conversation.memory_view(memory, _saved_or_none(user["id"]))
 
 
 @router.get("/library")

@@ -1151,6 +1151,11 @@ function ChartToolbar({
   // skips the compute check on an empty list rather than refusing, so a mount
   // site with no bars still gets a parseable proposal.
   bars = null,
+  // ⭐ 2026-11-19 -- the chart as the ENGINE sees it: `{bars, ctx}`, the bars the binder computes on and
+  // the compute context it is handed. For a check made beside the chart (`builder/runsHere.js`): a
+  // script Create Indicator's assistant wrote is run on it before the dock says it runs. Default
+  // `null`: a mount with none keeps the paste check alone.
+  engineChart = null,
   // Shared saved-color swatches (same list as Chart Settings + the right-click
   // drawing menu) so the toolbar's color popup is the full ColorPanel, not the
   // old 3×3 grid. Default `[]`/null → the panel simply omits the Saved row.
@@ -1226,9 +1231,13 @@ function ChartToolbar({
   // ⭐ UCT SIGNATURE R2 — words to PRE-FILL into the start view's Describe it (never sent):
   // the Indicators window's "Build “…” with the UCT Agent". Every other opening clears them.
   const [builderDescription, setBuilderDescription] = useState(null)
+  // ⭐ A SCRIPT Create Indicator's assistant wrote (`builder/authoring/scriptAnswer.js`): opened on
+  // the script tab with this text in it, where it is checked, previewed and saved like a pasted one.
+  const [builderPine, setBuilderPine] = useState(null)
   const openBuilder = useCallback((mode = null, opts = null) => {
     setBuilderMode(typeof mode === 'string' ? mode : null)
     setBuilderDescription(opts && typeof opts.description === 'string' && opts.description.trim() ? opts.description : null)
+    setBuilderPine(opts && typeof opts.pine === 'string' && opts.pine.trim() ? opts.pine : null)
     setBuilderEverOpened(true)
     setBuilderOpen(true)
   }, [])
@@ -2099,11 +2108,14 @@ function ChartToolbar({
             /* ⭐ PHASE D TASK 13 — the concierge's compute stage runs on the
                window the user sees. See the `bars` prop's declaration. */
             bars={bars}
+            /* ⭐ the script tab's status panel runs a pasted script on this chart (`builder/runsHere.js`) */
+            engineChart={engineChart}
             /* W1a hand-back: the preview draws on this chart */
             sym={currentSym}
             tf={tf}
             initialMode={builderMode}
             initialDescription={builderDescription}
+            initialPine={builderPine}
             /* ⭐ PHASE 4 — "Edit formula" from the legend / inspector / Your indicators */
             editRow={builderEditRow}
           />
@@ -2126,6 +2138,9 @@ function ChartToolbar({
               onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); setCreateSendSeed(false); if (res && res.receipt) setSaveReceipt(res.receipt) }}
               seed={createSeed}
               sendSeed={!!createSeed && createSendSeed}
+              /* ⭐ a script answer is RUN on this chart before the dock says it runs (`builder/runsHere.js`) */
+              engineChart={engineChart}
+              onOpenScript={({ pine }) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); setCreateSendSeed(false); setBuilderEditRow(null); openBuilder('pine', { pine }) }}
               settings={cs}
               onChange={onUpdateSettings}
               sym={currentSym}

@@ -118,11 +118,10 @@ AGENTS: dict[str, dict[str, Any]] = {
             "get_earnings_today", "get_earnings_this_week",
             "get_theme_status", "get_theme_laggards", "get_theme_holdings",
             "get_theme_history", "get_scanner_candidates",
-            # get_options_flow / get_dark_pool / get_economic_calendar removed:
-            # all three import functions that don't exist (always return empty ->
-            # the mentor falsely claims "no options flow"/"no macro events"), and
-            # options/dark-pool are out of the owner's scope. Re-add only after
-            # each is wired to a real source (econ: FMP stable/economic-calendar).
+            # get_options_flow / get_dark_pool / get_economic_calendar are NOT on
+            # this persona's list: options and dark pool are out of the owner's
+            # scope for it. (Each of the three reads a real source now; adding
+            # one back here is the owner's call, not a wiring task.)
             "get_uct20_picks", "get_uct20_portfolio_stats", "get_cot_data",
             "get_breadth_analogues", "get_breadth_metric",
             "get_insider_activity", "get_earnings_intel",
@@ -301,7 +300,7 @@ AGENTS: dict[str, dict[str, Any]] = {
         "tool_allowlist": {
             # Scanner + opportunity surfaces
             "get_scanner_candidates", "get_uct20_picks", "get_movers",
-            "get_news",  # get_options_flow/get_dark_pool removed (broken + out of scope)
+            "get_news",  # get_options_flow/get_dark_pool left off (out of the owner's scope here)
             "get_earnings_today", "get_earnings_this_week",
             "get_theme_status", "get_theme_holdings", "get_breadth_analogues",
             # P9: pattern detection + bar summary help scout confirm setups
@@ -411,11 +410,10 @@ def _compass_tool_union() -> set[str]:
     # Phase 3 Sprint 4: new data sources — social sentiment + institutional
     # ownership + short interest + insider buying clusters.
     out.add("reddit_sentiment")          # PRAW r/wsb + r/stocks + etc
-    out.add("stocktwits_sentiment")      # public ST API, user-tagged bull/bear
     out.add("get_institutional_holders") # yfinance 13F aggregate
     out.add("get_short_interest")        # yfinance + FINRA
     out.add("get_insider_clusters")      # OpenInsider scrape
-    out.add("get_social_sentiment")      # one-call aggregate of all three social
+    out.add("get_social_sentiment")      # one-call aggregate of the social sources
     # Phase 3 Sprint 5: proactive layer — Discord relay, morning briefing,
     # voice persona introspection.
     out.add("post_to_discord")

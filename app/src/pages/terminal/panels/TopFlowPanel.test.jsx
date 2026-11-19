@@ -30,7 +30,7 @@ import { stampedKey } from './marketRead'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
-const SOURCE = 'UCT options flow tape (picks), daily option prices from Massive with Schwab as backup'
+const SOURCE = 'UCT options flow tape (picks), daily option prices from Massive'
 /** The hyphen a date is drawn with, so it never breaks a line. */
 const HY = String.fromCharCode(0x2011)
 const day = (iso) => iso.replace(/-/g, HY)
@@ -274,7 +274,7 @@ describe('TOPF the list', () => {
     const method = screen.getByTestId('terminal-topf-method').textContent
     for (const s of [
       'A pick and its entry come from UCT\'s options flow tape',
-      'Its daily prices are recorded about 4:30 PM ET on weekdays until the contract expires, from Massive with Schwab as backup',
+      'Its daily prices are recorded about 4:30 PM ET on weekdays until the contract expires, from Massive (prices recorded before November 2026 came from Schwab and stay as recorded).',
       'A gain is the contract\'s own price against its entry, not the stock\'s move',
       'A pick needs 2 daily prices to be scored; until then it is too new, which is not 0%.',
       'Losing picks are never removed.',
@@ -315,7 +315,7 @@ describe('TOPF how fresh the daily prices are', () => {
     const stale = screen.getByTestId('terminal-topf-stale')
     expect(stale.getAttribute('role')).toBe('status')
     expect(stale.textContent).toContain(`The newest daily price is from ${day('2026-06-30')}, 6 days ago.`)
-    expect(stale.textContent).toContain('when neither has a price for a contract none is stored, and its history stops')
+    expect(stale.textContent).toContain('recorded from Massive; when it has no price for a contract none is stored, and its history stops')
     expect(stale.textContent).toContain('Every gain below is as of the date in its own row, not today.')
     expect(screen.queryByTestId('terminal-topf-newest')).toBeNull()
   })

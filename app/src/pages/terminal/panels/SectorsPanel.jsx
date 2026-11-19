@@ -17,11 +17,12 @@
 // the method sentence says the server recomputes about every 15 minutes.
 import { useMemo, useState } from 'react'
 import {
-  PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
 import { formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
+import { groupDrillCommand, sectorFundOf } from './groupDrillModel'
 import styles from './marketPanels.module.css'
 import bars from './barCells.module.css'
 
@@ -160,7 +161,9 @@ export default function SectorsPanel({ period: periodProp = null }) {
                   <tr key={r.sym} data-testid={`terminal-sectors-row-${r.sym}`}>
                     <td className={styles.wrapCell}>
                       <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
-                      {r.name}
+                      {/* The sector opens GRP beside this panel: its stocks ranked. 1 month and 3 months carry over; a fund GRP does not know stays plain text. */}
+                      <PanelCommand cmd={sectorFundOf(r.sym) ? groupDrillCommand({ fund: r.sym, range: period }) : ''}
+                        label={`Open the stocks of ${r.name}, ranked`}>{r.name}</PanelCommand>
                     </td>
                     <td><PanelSymbol sym={r.sym} className={styles.sym} /></td>
                     <td>
@@ -185,8 +188,8 @@ export default function SectorsPanel({ period: periodProp = null }) {
             one before it; 1 week, 1 month and 3 months look back {SECTOR_PERIODS['1W'].sessions}, {SECTOR_PERIODS['1M'].sessions} and{' '}
             {SECTOR_PERIODS['3M'].sessions} trading days. The server recomputes the ranking
             about every 15 minutes. Each bar is sized against the biggest move on the board, and a sign (+/−) marks every
-            return, so color is never the only signal. Click a fund to load it into the linked panels; type a row number to
-            do the same.
+            return, so color is never the only signal. Click a sector to open its stocks, ranked. Click a fund to load it
+            into the linked panels; type a row number to do the same.
             {read.receivedAt ? ` Read at ${formatTimeEt(read.receivedAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
           </p>
         </>

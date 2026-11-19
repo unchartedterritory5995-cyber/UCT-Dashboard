@@ -2,13 +2,14 @@
  "about": "The committed-corpus scripts (corpus/committed) that transfer on each lane, by the coverage map's predicate. Written by tools/pine_coverage/coverage_ratchet.py --write; checked by the pine-heavy coverage-ratchet legs. Keys and text sha only.",
  "lanes": {
   "production": {
-   "count": 59,
+   "count": 60,
    "scripts": {
     "committed:atr-bands__ad60b125e6": "42ef9b8a7ab4b836",
     "committed:atr-trailing-stoploss__2JLLfrGRHg": "026ce841faa6cac2",
     "committed:btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a": "1da5b935b215b714",
     "committed:candlestick-patterns-identified-update-1-17-26__1082": "b597f17ba9faabad",
     "committed:cdc-btc-rainbow-road__d880789793": "2e7c78101de95787",
+    "committed:contraction-box-doji-lines__1486658151": "e1800075f68502a1",
     "committed:cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz": "794c58389b22d92b",
     "committed:cumulative-volume-delta__K07lTKE3tP": "bd087164e90c3524",
     "committed:donchian-channels__5df15aaa23": "fb4cfe8389cd754e",
@@ -66,17 +67,19 @@
    }
   },
   "runtime-on": {
-   "count": 91,
+   "count": 93,
    "scripts": {
     "committed:adx-and-di-for-v4__932": "d0853c4724651a1d",
     "committed:atr-bands__ad60b125e6": "42ef9b8a7ab4b836",
     "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb": "25a1edaacc7adb84",
+    "committed:atr-support-and-resistance__3e9ddb38c4": "9906a5be26b9a754",
     "committed:atr-trailing-stoploss__2JLLfrGRHg": "026ce841faa6cac2",
     "committed:bollinger-band-width-percentile__03JuGF728K": "8c2d311c2ac3e380",
     "committed:btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a": "1da5b935b215b714",
     "committed:candlestick-patterns-identified-update-1-17-26__1082": "b597f17ba9faabad",
     "committed:cc-yata__bd898a1af0": "fffc63eb46320890",
     "committed:cdc-btc-rainbow-road__d880789793": "2e7c78101de95787",
+    "committed:contraction-box-doji-lines__1486658151": "e1800075f68502a1",
     "committed:cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz": "794c58389b22d92b",
     "committed:cumulative-volume-delta__K07lTKE3tP": "bd087164e90c3524",
     "committed:deadband-hysteresis-filter-backquant__3fb3d09595": "3facc3fa0e36027e",

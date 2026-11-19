@@ -1,0 +1,71 @@
+//@version=6
+indicator("vw-fcmp-magnitude")
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme, the second float-comparison probe (after Q-FCMP,
+// vw-float-compare-tolerance.pine). Q-FCMP found TradingView's comparisons TOLERANT: `(0.1 + 0.2) == 0.3` is true,
+// `1.0 + 3e-14 == 1.0` is true, and SPY 1D bar 5,333's up/down moves (2.84e-14 apart) compare equal, not greater.
+// The v6 reference says of `==` and `!=`: "This operator rounds "float" operands to nine fractional digits."
+// It says nothing for `<` `<=` `>` `>=`, and the v4 / v5 references say nothing at all.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION (size across magnitudes): rounding to nine fractional digits is ABSOLUTE (every value below 5e-10 is 0, and
+// above ~1e7 the 1e-9 grid is finer than the doubles themselves, so the compare is exact there); a relative or ulp
+// tolerance scales with the operands. M01-M23: M vs M + 16 ulp / 3e-10 / 7e-10 for M from 1e-12 to 1e9 (a row whose
+// offset is below one ulp of M is omitted). M24-M25: 1e7 and 1e9 vs + 1e-6 (equal under any relative tolerance of at
+// least 3.2e-13, Q-FCMP's bound). M26-M28: the next double. M29-M31: adjacent doubles a multiply-then-round
+// (`Math.round(x * 1e9) / 1e9`) merges and an exact decimal rounding keeps apart. M32-M34: the DMI's up / down moves
+// on every bar, raw and scaled by 1e6 and 1e-8 (on SPY bar 5,333 the x1e6 pair is 2.84e-8 apart: rounding reads 50,
+// a relative tolerance 41; the x1e-8 row makes ~175 SPY bars ties under rounding).
+// CODE: cmp(a, b) = 1*(a == b) + 2*(a != b) + 4*(a < b) + 8*(a <= b) + 16*(a > b) + 32*(a >= b).
+//   An exact compare reads 41 when a == b, 14 when a < b, 50 when a > b. Any other number means the six
+//   operators disagree with each other (e.g. 13 = `==` says equal while `<` says less).
+// Every operand is a literal times the series `one` (exactly 1.0 on every bar), so nothing folds at compile time,
+// except the `const_` rows, which repeat two rows with the literals inline.
+// CAPTURE: AMEX:SPY 1D FROM THE LISTING (history.startsAtBar0 asserted), then NYSE:RDDT 1D, inputs at defaults.
+
+one = bar_index >= 0 ? 1.0 : 0.0
+iOne = bar_index >= 0 ? 1 : 0
+nf = bar_index < 0 ? 1.0 : na
+ni = bar_index < 0 ? 1 : na
+cmp(float a, float b) => (a == b ? 1 : 0) + (a != b ? 2 : 0) + (a < b ? 4 : 0) + (a <= b ? 8 : 0) + (a > b ? 16 : 0) + (a >= b ? 32 : 0)
+cmpIF(int a, float b) => (a == b ? 1 : 0) + (a != b ? 2 : 0) + (a < b ? 4 : 0) + (a <= b ? 8 : 0) + (a > b ? 16 : 0) + (a >= b ? 32 : 0)
+cmpFI(float a, int b) => (a == b ? 1 : 0) + (a != b ? 2 : 0) + (a < b ? 4 : 0) + (a <= b ? 8 : 0) + (a > b ? 16 : 0) + (a >= b ? 32 : 0)
+cmpII(int a, int b) => (a == b ? 1 : 0) + (a != b ? 2 : 0) + (a < b ? 4 : 0) + (a <= b ? 8 : 0) + (a > b ? 16 : 0) + (a >= b ? 32 : 0)
+bucket(float x, float lo, float hi) => (x == lo ? 1 : 0) + (x == hi ? 2 : 0)
+up = high - high[1]
+down = low[1] - low
+
+plot(bar_index, "M00_bar_index_CONTROL")
+plot(cmp(1e-12 * one, 1.0000000000000032e-12 * one), "M01_M1e-12_16ulp")
+plot(cmp(1e-12 * one, 3.01e-10 * one), "M02_M1e-12_3e-10")
+plot(cmp(1e-12 * one, 7.01e-10 * one), "M03_M1e-12_7e-10")
+plot(cmp(1e-10 * one, 1.0000000000000021e-10 * one), "M04_M1e-10_16ulp")
+plot(cmp(1e-10 * one, 4e-10 * one), "M05_M1e-10_3e-10")
+plot(cmp(1e-10 * one, 8e-10 * one), "M06_M1e-10_7e-10")
+plot(cmp(1e-09 * one, 1.0000000000000034e-09 * one), "M07_M1e-9_16ulp")
+plot(cmp(1e-09 * one, 1.3e-09 * one), "M08_M1e-9_3e-10")
+plot(cmp(1e-09 * one, 1.7e-09 * one), "M09_M1e-9_7e-10")
+plot(cmp(1e-06 * one, 1.0000000000000033e-06 * one), "M10_M1e-6_16ulp")
+plot(cmp(1e-06 * one, 1.0003e-06 * one), "M11_M1e-6_3e-10")
+plot(cmp(1e-06 * one, 1.0007e-06 * one), "M12_M1e-6_7e-10")
+plot(cmp(0.001 * one, 0.0010000000000000035 * one), "M13_M0.001_16ulp")
+plot(cmp(0.001 * one, 0.0010000003 * one), "M14_M0.001_3e-10")
+plot(cmp(0.001 * one, 0.0010000007 * one), "M15_M0.001_7e-10")
+plot(cmp(1000.0 * one, 1000.0000000000018 * one), "M16_M1000.0_16ulp")
+plot(cmp(1000.0 * one, 1000.0000000003 * one), "M17_M1000.0_3e-10")
+plot(cmp(1000.0 * one, 1000.0000000007 * one), "M18_M1000.0_7e-10")
+plot(cmp(1000000.0 * one, 1000000.0000000019 * one), "M19_M1000000.0_16ulp")
+plot(cmp(1000000.0 * one, 1000000.0000000003 * one), "M20_M1000000.0_3e-10")
+plot(cmp(1000000.0 * one, 1000000.0000000007 * one), "M21_M1000000.0_7e-10")
+plot(cmp(10000000.0 * one, 10000000.00000003 * one), "M22_M10000000.0_16ulp")
+plot(cmp(1000000000.0 * one, 1000000000.0000019 * one), "M23_M1000000000.0_16ulp")
+plot(cmp(10000000.0 * one, 10000000.000001 * one), "M24_M10000000.0_1e-6")
+plot(cmp(1000000000.0 * one, 1000000000.000001 * one), "M25_M1000000000.0_1e-6")
+plot(cmp(10000000.0 * one, 10000000.000000002 * one), "M26_M10000000.0_1ulp")
+plot(cmp(123456789.123 * one, 123456789.12300001 * one), "M27_M123456789.123_1ulp")
+plot(cmp(1000000000.0 * one, 1000000000.0000001 * one), "M28_M1000000000.0_1ulp")
+plot(cmp(10000000.000000013 * one, 10000000.000000015 * one), "M29_mulmerge_1e7")
+plot(cmp(123456789.12300004 * one, 123456789.12300006 * one), "M30_mulmerge_1.2e8")
+plot(cmp(1000000000.0000008 * one, 1000000000.000001 * one), "M31_mulmerge_1e9")
+plot(cmp(up * 1.0, down * 1.0), "M32_dmi_moves_x1.0")
+plot(cmp(up * 1e6, down * 1e6), "M33_dmi_moves_x1e6")
+plot(cmp(up * 1e-8, down * 1e-8), "M34_dmi_moves_x1e-8")

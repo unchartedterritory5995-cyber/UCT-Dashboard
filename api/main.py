@@ -2388,12 +2388,17 @@ def _run_snapshot_resume() -> None:
 RS_HISTORY_SHORT_SHARE = 0.20
 
 
-def rs_history_enabled() -> bool:
-    """`RS_HISTORY_ENABLED` read per call: a flip needs no restart. Only "1" arms it
-    (the `_wire_enabled` convention: "true", "yes" and typos all mean off). The ONE
-    reader -- `/api/screener/snapshot-status` imports this, so the job and the
-    surface cannot disagree about the switch."""
-    return os.environ.get("RS_HISTORY_ENABLED", "0") == "1"
+# `rs_history_enabled` MOVED OUT of this module on 2026-11-15 and is re-exported
+# here, so `api.main.rs_history_enabled` keeps resolving for everyone who already
+# spells it that way. It is still ONE definition; it simply no longer lives in a
+# module that costs the whole app to import.
+#
+# ⚰️ Why it moved: `api/services/indicator_alert_evaluator.py` read it with a lazy
+# `from api.main import rs_history_enabled`, which put THIS module inside
+# flow-worker's import closure and took the web app with it — 1,654 files reachable
+# against 24 watched, the S7 price-level modules among them. See
+# `api/services/rs_history_flag.py` for the full account.
+from api.services.rs_history_flag import rs_history_enabled  # noqa: E402
 
 
 def _rs_history_shortfall(receipt: dict):
@@ -4445,6 +4450,15 @@ def register_transcript_index_jobs(scheduler):
                 _ilog.info("[tindex] pruned %s calls past the retention window", dropped)
         except Exception as exc:
             _ilog.warning("[tindex] sweep failed: %s", exc)
+        # "What CEOs are saying" (the Terminal's CEOS panel) is worked out from this same index,
+        # so its once-a-day build rides this sweep instead of a schedule of its own: it runs after
+        # the index is current, on the one service that holds the index, and never on a request.
+        try:
+            from api.services import call_themes
+            if call_themes.refresh_if_due():
+                _ilog.info("[call-themes] daily build started after the index sweep")
+        except Exception as exc:
+            _ilog.warning("[call-themes] daily build could not start: %s", exc)
 
     for hour, minute in ((6, 45), (20, 45)):
         scheduler.add_job(
@@ -4501,6 +4515,47 @@ def register_transcript_keyword_jobs(scheduler):
         _run_keyword_alert_scan,
         trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=30, timezone=_ET),
         id="transcript_keyword_alerts", replace_existing=True)
+    return True
+
+
+def register_list_alert_jobs(scheduler):
+    """The Terminal list alerts (owner pick 2026-11-17): tell a member when a stock they
+    follow comes onto the New 52-week highs list, the confluence board or the repeat-hit
+    option contracts list (`api/services/list_alerts.py`).
+
+    Registered unconditionally and the SERVICE decides whether to do anything: it is off
+    unless `TERMINAL_LIST_ALERTS_ENABLED` is `1` (or `admin`, the owner's preview), read on
+    every run, and off it returns before it opens a database or reads a list. Registering
+    it dark keeps arming it an env change rather than a deploy.
+
+    Weekdays at `list_alerts.CHECK_TIMES_ET`, both after the close: each list is read ONCE
+    per run for every member. The second pass is the retry for a list that was not ready
+    and a delivery that reached nobody; the per-session record means it can never repeat a
+    message. The service itself refuses a run before the close, so the by-contract read on
+    the flow-worker is never made in market hours.
+
+    Returns True once the jobs are registered."""
+    # Imported inside the function like every other registrar here.
+    from apscheduler.triggers.cron import CronTrigger
+    from api.services import list_alerts
+
+    _lalog = logging.getLogger(__name__)
+
+    def _run_list_alerts():
+        try:
+            if not list_alerts.enabled():
+                return
+            # `run_evening` logs its own receipt (what was read, sent and skipped).
+            list_alerts.run_evening()
+        except Exception as exc:
+            _lalog.warning("[list-alerts] scheduled run failed: %s", exc)
+
+    for hour, minute in list_alerts.CHECK_TIMES_ET:
+        scheduler.add_job(
+            _run_list_alerts,
+            trigger=CronTrigger(day_of_week="mon-fri", hour=hour, minute=minute, timezone=_ET),
+            id=f"list_alerts_{hour:02d}{minute:02d}", max_instances=1, coalesce=True,
+            misfire_grace_time=1800, replace_existing=True)
     return True
 
 
@@ -5855,44 +5910,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
 
-    # ── Schwab proactive token refresh ───────────────────────────────────────
-    #
-    # ⚰️ `schwab_service.start_auto_refresh()` HAS EXISTED AND HAS NEVER BEEN CALLED.
-    # Measured 2026-11-09: zero callers anywhere in the tree, while
-    # `_auto_refresh_loop`'s own docstring claims "As long as the app is running, users
-    # never need to re-authenticate." Two separate false claims in one function — the
-    # loop never ran, AND Schwab caps the refresh token at 7 days regardless, so a
-    # weekly manual OAuth is unavoidable either way.
-    #
-    # The observable consequence, measured the same evening: web's access token sat
-    # **53.4 minutes old** with an unchanged value, i.e. expired (they live 1800s),
-    # because the ONLY thing that ever refreshed was an on-demand `get_valid_token()`
-    # call and nothing had asked after hours.
-    #
-    # ⛔ WHY IT MATTERS NOW, AND WHY IT IS HERE RATHER THAN IN THE PUSHER. The token
-    # replication added alongside this ships ONLY the access token to flow-worker, and
-    # flow-worker cannot refresh by design (it never holds a refresh token). So
-    # flow-worker's coverage is exactly as fresh as web's last refresh. The pusher
-    # deliberately refuses to ship an expired token, so without a proactive refresh on
-    # web there are windows where there is nothing good to send. Refreshing from the
-    # pusher was rejected: it runs on a BackgroundScheduler THREAD, and driving an
-    # async refresh from there means a second event loop touching `_TOKEN_REFRESH_LOCK`
-    # — a second authority over the one thing that must stay single-flight.
-    #
-    # ⛔ MUST be created here, inside the async lifespan: `start_auto_refresh` calls
-    # `asyncio.create_task`, which needs the running loop.
-    #
-    # DARK by default — arm with the replication flags, not before, since its only
-    # purpose here is keeping the replicated token fresh.
-    try:
-        if os.environ.get("SCHWAB_AUTO_REFRESH_ENABLED", "0") == "1":
-            from api import schwab_service as _schwab
-            _schwab.start_auto_refresh()
-            logging.getLogger(__name__).info(
-                "[startup] schwab auto-refresh task started (25 min cadence)")
-    except Exception as e:
-        logging.getLogger(__name__).exception(
-            "[startup] failed to start schwab auto-refresh: %s", e)
+    # (The Schwab token refresh task that used to start here is gone: Schwab was retired from
+    # the product on 2026-11-17. Its poll was the source of the every-minute
+    # "Token refresh failed" error in the web log.)
 
     # Live options-flow SSE tailer (2026-07-08) — the instant-tape backend.
     # Reads flow.db for new prints and pushes them to connected browsers. Inert
@@ -6644,6 +6664,26 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
 
+    # The Terminal's one-click period rankings (PCHG: this month, this quarter, year to date
+    # ...) are kept built so a member's first click is not a half-minute "computing". The
+    # loop starts itself on the web service only (scan_period.start_preset_warmer).
+    try:
+        from api.services import scan_period as _scan_period
+        if not _light_skip("period-preset-warm"):
+            _scan_period.start_preset_warmer()
+    except Exception as e:
+        print(f"[startup] period preset warm scheduling failed (non-fatal): {e}")
+
+    # The market-wide short interest list (SHRTS, and one stock's row for other readers) is kept
+    # built: the first build runs a few minutes after boot, then a cheap look for a newer report
+    # every few hours. The loop starts itself on the web service only (short_data.start_market_warmer).
+    try:
+        from api.services import short_data as _short_data
+        if not _light_skip("short-data-warm"):
+            _short_data.start_market_warmer()
+    except Exception as e:
+        print(f"[startup] short data warm scheduling failed (non-fatal): {e}")
+
     # Company-logo cache prewarm: fill /data/logo_cache for the whole cap_universe
     # so the FIRST view of any watchlist / theme / calendar serves real logos from
     # disk (edge-cacheable, immutable) instead of a cold transparent-pixel-then-retry
@@ -7035,6 +7075,14 @@ async def lifespan(app: FastAPI):
             print(f"[startup] breadth EOD source job armed (mode={_breadth_eod.mode()})")
     except Exception as e:
         print(f"[startup] breadth EOD source wiring error (non-fatal): {e}")
+
+    # Deep daily history rebuilt from one checked source, served per ticker (bars_rebuild); web serves
+    # /api/bars too when the edge falls back to it. BARS_REBUILD_SERVE=0 = off.
+    try:
+        from api.services import bars_rebuild as _bars_rebuild
+        _bars_rebuild.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        print(f"[startup] rebuilt-history sync start failed (non-fatal): {e}")
 
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
@@ -8093,52 +8141,6 @@ async def lifespan(app: FastAPI):
                                id="optionsflow_etf_replica_reconcile",
                                max_instances=1, coalesce=True, replace_existing=True)
 
-        # ── Schwab access token -> flow-worker ────────────────────────────────
-        #
-        # ⚰️ WHY THIS EXISTS. Schwab's OAuth callback can only land on `web`, and
-        # `/data/schwab_token.json` is on a PER-SERVICE volume. Measured 2026-11-09,
-        # minutes after a successful re-auth: web's token 0.0 days old, flow-worker's
-        # **113.4 days** old and failing `invalid_grant` on every cycle, silently
-        # covered by the Massive OI fallback. The owner read that as "every deploy I
-        # have to log in again" — the login fixed the pod they were looking at and
-        # never the one serving the data. `/data` survives deploys; nothing propagated.
-        #
-        # ⛔ NOT FOLDED INTO THE TICKER_TYPES BLOCK ABOVE, and not under its flag.
-        # Those carry datasets on a daily/30-min cadence; this carries a 30-MINUTE
-        # CREDENTIAL and must run far more often. Its own flag, its own job id, its
-        # own try/except — a fault in either must not stop the other.
-        #
-        # ⛔ A PUSH IS NOT THE PRIMARY PATH — `save_tokens` already pushes on every
-        # login and every refresh. This is the self-healing cadence, and it is what
-        # covers the case the owner actually hits: a flow-worker DEPLOY, which boots
-        # with whatever token the volume last held and cannot pull (web is IPv4-only
-        # on an IPv6 private network, so pull was disproved). A current pod costs one
-        # status probe and transfers nothing.
-        #
-        # ⚠️ THIS DOES NOT REMOVE THE WEEKLY RE-AUTH. Schwab caps the refresh token at
-        # 7 days and refreshing does not extend it. One manual OAuth per week on web
-        # is unavoidable; what this removes is the per-pod and per-deploy half.
-        #
-        # DARK until SCHWAB_TOKEN_PUSH_ENABLED=1 on web AND
-        # SCHWAB_TOKEN_REPLICA_RECEIVE_ENABLED=1 on flow-worker.
-        try:
-            def _schwab_token_push():
-                try:
-                    from api.services import schwab_token_push
-                    schwab_token_push.reconcile()
-                except Exception as _e:
-                    logging.getLogger(__name__).warning(
-                        "[schwab-token-push] reconcile raised: %s", _e)
-
-            _scheduler.add_job(
-                _schwab_token_push, "interval",
-                minutes=int(os.environ.get("SCHWAB_TOKEN_PUSH_INTERVAL_MIN", "5")),
-                id="schwab_token_replica_push",
-                max_instances=1, coalesce=True, replace_existing=True)
-        except Exception as _e:
-            logging.getLogger(__name__).warning(
-                "[schwab-token-push] could not register job: %s", _e)
-
         # Breadth live -- rebuild the day's reference levels BEFORE the open.
         #
         # Levels are cached per session day, keyed on the last completed
@@ -8770,6 +8772,17 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] screener job registration error: {e}")
 
+        # -- Terminal list alerts (dark unless TERMINAL_LIST_ALERTS_ENABLED) --
+        # In its own try: a failure here skips nothing above or below, and the
+        # other way round.
+        try:
+            if register_list_alert_jobs(_scheduler):
+                logging.getLogger(__name__).info(
+                    "[startup] terminal list alerts: jobs registered (weekday evenings ET; "
+                    "nothing runs unless TERMINAL_LIST_ALERTS_ENABLED is set)")
+        except Exception as e:
+            print(f"[scheduler] list alerts registration error: {e}")
+
         # -- Nightly closed-bar Signature sweep (Phase A) -------------------
         try:
             register_signature_sweep_job(_scheduler)
@@ -9008,9 +9021,10 @@ async def lifespan(app: FastAPI):
         # Burst windows (every 2 min) cover the high-value pre-market and
         # post-close trading hours; regular cadence handles mid-day; slow
         # hourly job is a safety net (since_id makes overlap free).
+        _tw_poll_on = False
         if os.environ.get("TWITTERAPI_IO_ENABLED", "").lower() in ("1", "true", "yes"):
+            _tw_poll_on = True
             from api.services.tweet_poller import poll_all_accounts as _tw_poll
-            from api.services.tweet_cleanup import run_cleanup as _tw_cleanup
 
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/2", timezone=_ET),
                                id="tweet_poll_burst_premarket", max_instances=1, replace_existing=True)
@@ -9029,6 +9043,13 @@ async def lifespan(app: FastAPI):
             # makes duplicate fetches free.
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(minute="0", timezone=_ET),
                                id="tweet_poll_slow", max_instances=1, replace_existing=True)
+        # THE EXPIRY JOBS ARE NOT PART OF THE POLLER. They used to be registered inside the `if`
+        # above, so switching the poller off also switched off the 7-day expiry and the check for
+        # posts removed at the source: what was already stored would then have been kept and
+        # served with nothing ever clearing it. Stored posts expire whether or not new ones are
+        # being fetched. `run_cleanup` never raises and does nothing on an empty store.
+        try:
+            from api.services.tweet_cleanup import run_cleanup as _tw_cleanup
             _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
             # Saved Notebook posts that left X: two checks at least 10 minutes apart. Each job
@@ -9038,7 +9059,12 @@ async def lifespan(app: FastAPI):
                                id="notebook_tweet_capture_sweep", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_capture_sync.run_confirm, trigger=CronTrigger(hour=3, minute=25, timezone=_ET),
                                id="notebook_tweet_capture_confirm", max_instances=1, replace_existing=True)
+        except Exception as e:
+            print(f"[scheduler] tweet expiry job registration error: {e}")
+        if _tw_poll_on:
             print("[scheduler] tweet poll jobs registered")
+        else:
+            print("[scheduler] tweet expiry jobs registered (the poller is off)")
 
         # -- The Desk -> Substack articles poller -------------------------------
         # Pulls each configured Substack RSS feed hourly. Free (no API cost), so
@@ -10214,9 +10240,9 @@ async def lifespan(app: FastAPI):
                            id="ssetf_nightly_rebuild", max_instances=1, replace_existing=True)
 
         # -- Daily OI snapshot for retroactive flow confirmation ----------
-        # Captures Schwab live OI for every contract with flow in the past
-        # 30 days. Runs at 5:30 AM ET -- well before market open, off-peak
-        # for Schwab API rate limits. Day-over-day OI deltas let us
+        # Captures open interest (from Massive) for every contract with flow in
+        # the past 30 days. Runs at 5:30 AM ET -- well before market open.
+        # Day-over-day OI deltas let us
         # retroactively confirm B-side trades as real positioning once
         # OI growth proves they were institutional opens (vs churn).
         try:
@@ -10232,11 +10258,11 @@ async def lifespan(app: FastAPI):
                 print("[startup] dealer_positioning table initialized")
             except Exception as _e:
                 print(f"[startup] dealer_positioning init failed (non-fatal): {_e}")
-            # Post-P5-cutover: the Schwab consumer + on-demand OI fetch + flow.db
+            # Post-P5-cutover: the OPRA consumer + on-demand OI fetch + flow.db
             # live on the FLOW-WORKER now, so the daily OI snapshot cron runs
             # THERE (see flow_worker_main._start_flow_schedulers). Registering it
-            # on web too would write to web's frozen flow.db AND refresh-race the
-            # shared Schwab token. Gate it to where the consumer runs.
+            # on web too would write to web's frozen flow.db. Gate it to where
+            # the consumer runs.
             if os.getenv("MASSIVE_WS_ENABLED") == "1":
                 # timezone EXPLICIT (2026-07-16): a pre-built CronTrigger defaults
                 # to the SERVER-LOCAL tz (UTC on Railway), NOT the scheduler's ET —
@@ -12039,6 +12065,8 @@ app.include_router(entity_resolve_router.router)  # /api/entity/resolve — TERM
 app.include_router(decision_record_router.router)  # /api/decision-record/ticker/{t} — TERM-088 member door, paid, read-only, DARK (DECISION_RECORD_MEMBER_ENABLED)
 app.include_router(analyst_revisions_router.router)  # /api/research/analyst-revisions/{t} — TERM-073 member door, paid, read-only, DARK (ANALYST_REVISIONS_ENABLED)
 app.include_router(iv_history_router.router)  # /api/research/iv-history/{sym}[/implied-vs-realized] — our own options log, paid, read-only, DARK (IV_HISTORY_ENABLED)
+from api.routers import treasury_yields as treasury_yields_router  # noqa: E402  (RATES: Treasury yields and the curve, paid)
+app.include_router(treasury_yields_router.router)  # /api/research/treasury-yields
 app.include_router(options_screener_router.router)  # /api/options-screener/{screen,unusual-volume,iv-percentile} — COV-02/03 over our own options log, paid, read-only, DARK (OPTIONS_SCREENER_ENABLED)
 app.include_router(yf_guard_router.router, dependencies=_OPEN_READS)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
@@ -12125,6 +12153,12 @@ from api.routers import alert_outbound as alert_outbound_router  # noqa: E402  (
 app.include_router(alert_outbound_router.router)
 from api.routers import screen_promote as screen_promote_router  # noqa: E402  (FT-027, dark)
 app.include_router(screen_promote_router.router)
+from api.routers import list_alerts as list_alerts_router  # noqa: E402  (Terminal list alerts, dark)
+app.include_router(list_alerts_router.router)
+from api.routers import short_data as short_data_router  # noqa: E402  (SHINT / SHRTS: FINRA short interest and short volume, paid)
+app.include_router(short_data_router.router)
+from api.routers import dilution_watch as dilution_watch_router  # noqa: E402  (DILU: share-issuance filings from SEC EDGAR, paid)
+app.include_router(dilution_watch_router.router)  # /api/research/dilution-watch/{ticker}
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
@@ -12279,7 +12313,7 @@ def _csv_response(csv_path: str, filename: str):
     return JSONResponse(status_code=404, content={"error": f"{filename} not found"})
 
 @app.get("/api/brand/massive-card-logo.png")
-async def _massive_card_logo():
+def _massive_card_logo():
     """Public author-icon for the Massive Discord cards (the UCT Logo).
 
     Discord fetches an embed's ``icon_url`` anonymously, so the image MUST be

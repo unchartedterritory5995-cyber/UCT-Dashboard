@@ -276,13 +276,13 @@
      {
       "key": "isDDColor",
       "type": "color",
-      "label": "Close at or below 0.998 times previous Close and Volume abo… colour",
+      "label": "Close at or below 0.998 times previous Close and Volume abo\u2026 colour",
       "default": "#F23645"
      },
      {
       "key": "isDDWidth",
       "type": "int",
-      "label": "Close at or below 0.998 times previous Close and Volume abo… width",
+      "label": "Close at or below 0.998 times previous Close and Volume abo\u2026 width",
       "default": 1,
       "min": 1,
       "max": 10,
@@ -303,7 +303,7 @@
      },
      {
       "key": "isDD",
-      "label": "Close at or below 0.998 times previous Close and Volume abo…",
+      "label": "Close at or below 0.998 times previous Close and Volume abo\u2026",
       "style": "markers",
       "color": "$isDDColor",
       "width": "$isDDWidth",
@@ -416,7 +416,7 @@
      "name": "Relative Strength vs SPY",
      "shortName": "Relative",
      "category": "Custom",
-     "description": "close divided by (SPY’s close)",
+     "description": "close divided by (SPY\u2019s close)",
      "tags": [
       "custom"
      ],
@@ -640,7 +640,7 @@
      "name": "RS New High vs SPY",
      "shortName": "RS New High",
      "category": "Custom",
-     "description": "close divided by (SPY’s close)",
+     "description": "close divided by (SPY\u2019s close)",
      "tags": [
       "custom"
      ],
@@ -670,13 +670,13 @@
      {
       "key": "sigColor",
       "type": "color",
-      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d… colour",
+      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d\u2026 colour",
       "default": "#089981"
      },
      {
       "key": "sigWidth",
       "type": "int",
-      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d… width",
+      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d\u2026 width",
       "default": 1,
       "min": 1,
       "max": 10,
@@ -698,7 +698,7 @@
      },
      {
       "key": "sig",
-      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d…",
+      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d\u2026",
       "style": "markers",
       "color": "$sigColor",
       "width": "$sigWidth",
@@ -1236,7 +1236,7 @@
    "definition": {
     "schemaVersion": 1,
     "id": "house_volume_with_50_average",
-    "version": 1,
+    "version": 2,
     "compute": {
      "kind": "ast",
      "fn": "sha256:768274096e378fe106495faa89f1c584bdde5a224780a81e0e9fb71ffc2b60f2",
@@ -1278,8 +1278,14 @@
            "name": "close"
           },
           {
-           "type": "series",
-           "name": "open"
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
           }
          ]
         },
@@ -1332,8 +1338,14 @@
            "name": "close"
           },
           {
-           "type": "series",
-           "name": "open"
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
           }
          ]
         },
@@ -1390,8 +1402,14 @@
              "name": "close"
             },
             {
-             "type": "series",
-             "name": "open"
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
             }
            ]
           },
@@ -1452,8 +1470,14 @@
                "name": "close"
               },
               {
-               "type": "series",
-               "name": "open"
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
               }
              ]
             },
@@ -1506,14 +1530,14 @@
        ]
       }
      },
-     "treesHash": "sha256:ecc98210d5ffc055f0dfed8d05e99a920b47a4ae29e7bda301bd3fa88ea881aa",
+     "treesHash": "sha256:545c218d2e2ad59351d8445234ad68afa9efe126e6d69a5de05f7e49aaa19913",
      "scanPlot": "vol",
      "sources": {
       "vol": "volume",
       "avg": "sma(volume, 50)",
-      "upSurge": "close > open && volume > sma(volume, 50) * 1.4",
-      "downSurge": "close < open && volume > sma(volume, 50) * 1.4",
-      "vol_cs": "close > open && volume > sma(volume, 50) * 1.4 ? 0 : close < open && volume > sma(volume, 50) * 1.4 ? 1 : 2"
+      "upSurge": "close > close[1] && volume > sma(volume, 50) * 1.4",
+      "downSurge": "close < close[1] && volume > sma(volume, 50) * 1.4",
+      "vol_cs": "close > close[1] && volume > sma(volume, 50) * 1.4 ? 0 : close < close[1] && volume > sma(volume, 50) * 1.4 ? 1 : 2"
      }
     },
     "meta": {
@@ -1568,13 +1592,13 @@
      {
       "key": "upSurgeColor",
       "type": "color",
-      "label": "Close above Open and Volume above 1.4 times SMA 50 (Volume) colour",
+      "label": "Close above previous Close and Volume above 1.4 times SMA 5\u2026 colour",
       "default": "#c9a84c"
      },
      {
       "key": "upSurgeWidth",
       "type": "int",
-      "label": "Close above Open and Volume above 1.4 times SMA 50 (Volume) width",
+      "label": "Close above previous Close and Volume above 1.4 times SMA 5\u2026 width",
       "default": 1,
       "min": 1,
       "max": 10,
@@ -1583,13 +1607,13 @@
      {
       "key": "downSurgeColor",
       "type": "color",
-      "label": "Close below Open and Volume above 1.4 times SMA 50 (Volume) colour",
+      "label": "Close below previous Close and Volume above 1.4 times SMA 5\u2026 colour",
       "default": "#c9a84c"
      },
      {
       "key": "downSurgeWidth",
       "type": "int",
-      "label": "Close below Open and Volume above 1.4 times SMA 50 (Volume) width",
+      "label": "Close below previous Close and Volume above 1.4 times SMA 5\u2026 width",
       "default": 1,
       "min": 1,
       "max": 10,
@@ -1642,7 +1666,7 @@
      },
      {
       "key": "upSurge",
-      "label": "Close above Open and Volume above 1.4 times SMA 50 (Volume)",
+      "label": "Close above previous Close and Volume above 1.4 times SMA 5\u2026",
       "style": "line",
       "color": "$upSurgeColor",
       "width": "$upSurgeWidth",
@@ -1654,7 +1678,7 @@
      },
      {
       "key": "downSurge",
-      "label": "Close below Open and Volume above 1.4 times SMA 50 (Volume)",
+      "label": "Close below previous Close and Volume above 1.4 times SMA 5\u2026",
       "style": "line",
       "color": "$downSurgeColor",
       "width": "$downSurgeWidth",
@@ -2580,7 +2604,7 @@
           },
           "then": {
            "t": "lit",
-           "s": "—"
+           "s": "\u2014"
           },
           "else": {
            "t": "cat",
@@ -2675,7 +2699,7 @@
           },
           "then": {
            "t": "lit",
-           "s": "—"
+           "s": "\u2014"
           },
           "else": {
            "t": "cat",
@@ -3349,7 +3373,7 @@
           },
           "then": {
            "t": "lit",
-           "s": "—"
+           "s": "\u2014"
           },
           "else": {
            "t": "num",
@@ -3427,7 +3451,7 @@
           },
           "then": {
            "t": "lit",
-           "s": "—"
+           "s": "\u2014"
           },
           "else": {
            "t": "num",
@@ -3848,7 +3872,7 @@
    "definition": {
     "schemaVersion": 1,
     "id": "house_up_down_volume_ratio_50",
-    "version": 1,
+    "version": 2,
     "paints": [
      {
       "kind": "bgcolor",
@@ -3861,7 +3885,7 @@
     ],
     "compute": {
      "kind": "ast",
-     "fn": "sha256:9467d911b726a7c6f9ae16239383df48d7ea3f45c368ed0e7f812c58fd11f21f",
+     "fn": "sha256:7d8b906aed678ce573e43bce06fa8260175f4d0adca412125609974e2968be45",
      "rev": 1,
      "ast": {
       "type": "op",
@@ -3884,8 +3908,14 @@
               "name": "close"
              },
              {
-              "type": "series",
-              "name": "open"
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
              }
             ]
            },
@@ -3922,8 +3952,14 @@
               "name": "close"
              },
              {
-              "type": "series",
-              "name": "open"
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
              }
             ]
            },
@@ -3945,7 +3981,7 @@
        }
       ]
      },
-     "source": "sum(close > open ? volume : 0, 50) / sum(close < open ? volume : 0, 50)",
+     "source": "sum(close > close[1] ? volume : 0, 50) / sum(close < close[1] ? volume : 0, 50)",
      "trees": {
       "udr": {
        "type": "op",
@@ -3968,8 +4004,14 @@
                "name": "close"
               },
               {
-               "type": "series",
-               "name": "open"
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
               }
              ]
             },
@@ -4006,8 +4048,14 @@
                "name": "close"
               },
               {
-               "type": "series",
-               "name": "open"
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
               }
              ]
             },
@@ -4054,8 +4102,14 @@
                  "name": "close"
                 },
                 {
-                 "type": "series",
-                 "name": "open"
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
                 }
                ]
               },
@@ -4092,8 +4146,14 @@
                  "name": "close"
                 },
                 {
-                 "type": "series",
-                 "name": "open"
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
                 }
                ]
               },
@@ -4122,18 +4182,18 @@
        ]
       }
      },
-     "treesHash": "sha256:42f9952edc15261367518a5d551c951d3716ad213446af755704d63be605af29",
+     "treesHash": "sha256:89bed4da59c7b28b405eaf88c948e090e50898e519911a9b0e57b0dbdf36ba2a",
      "scanPlot": "udr",
      "sources": {
-      "udr": "sum(close > open ? volume : 0, 50) / sum(close < open ? volume : 0, 50)",
-      "strong": "sum(close > open ? volume : 0, 50) / sum(close < open ? volume : 0, 50) > 1.2"
+      "udr": "sum(close > close[1] ? volume : 0, 50) / sum(close < close[1] ? volume : 0, 50)",
+      "strong": "sum(close > close[1] ? volume : 0, 50) / sum(close < close[1] ? volume : 0, 50) > 1.2"
      }
     },
     "meta": {
      "name": "Up/Down Volume Ratio (50)",
      "shortName": "Up/Down",
      "category": "Custom",
-     "description": "(the sum of (volume when (1 when close is greater than open and 0 otherwise) is not zero, 0 when it is zero, and nothing while it is unknown) over the last 50 bars) divided by (the sum of (volume when (1 when close is less than open and 0 otherwise) is not zero, 0 when it is zero, and nothing while it is unknown) over the last 50 bars)",
+     "description": "(the sum of (volume when (1 when close is greater than (close 1 bar ago) and 0 otherwise) is not zero, 0 when it is zero, and nothing while it is unknown) over the last 50 bars) divided by (the sum of (volume when (1 when close is less than (close 1 bar ago) and 0 otherwise) is not zero, 0 when it is zero, and nothing while it is unknown) over the last 50 bars)",
      "tags": [
       "custom"
      ],
@@ -4166,13 +4226,13 @@
      {
       "key": "strongColor",
       "type": "color",
-      "label": "SUM 50 (Volume when Close above Open, else 0) divided by SU… colour",
+      "label": "SUM 50 (Volume when Close above previous Close, else 0) div\u2026 colour",
       "default": "#c9a84c"
      },
      {
       "key": "strongWidth",
       "type": "int",
-      "label": "SUM 50 (Volume when Close above Open, else 0) divided by SU… width",
+      "label": "SUM 50 (Volume when Close above previous Close, else 0) div\u2026 width",
       "default": 1,
       "min": 1,
       "max": 10,
@@ -4193,7 +4253,7 @@
      },
      {
       "key": "strong",
-      "label": "SUM 50 (Volume when Close above Open, else 0) divided by SU…",
+      "label": "SUM 50 (Volume when Close above previous Close, else 0) div\u2026",
       "style": "line",
       "color": "$strongColor",
       "width": "$strongWidth",

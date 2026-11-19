@@ -21,6 +21,8 @@
 // capture exercises, and so the rules a MATCH may pin.
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { lexPine, blockStatements, parseWholeExpression, findTop, isPunct, OUTPUT_CALLS as PINE_OUTPUT_CALLS } from '../../ast/pine.js'
+import { splitCommaStatements } from '../../ast/objectFnInline.js'
 import { runtimeClockOpts } from '../../ast/pineRuntimeClock.js'
 import { lowerIrProgram } from '../../runtime/lowerIr.js'
 import { execute } from '../../runtime/vm.js'
@@ -28,7 +30,7 @@ import { strategyRecordOf } from '../../runtime/strategyRecord.js'
 import { strategyReportOf } from '../../runtime/brokerReport.js'
 import { symbolConstants, minContractOf } from '../../ast/bind.js'
 import { storeExchangeOfCapture } from './storeExchange.js'
-import { gradeStrategy, strategyFirstDifference } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { gradeStrategy, strategyFirstDifference, decodeVendorText } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { settingsAgreement, propertiesByKey, pineVersionOf, extractReportFields, isStrategyCapture } from '../../../../../../../tools/vendor_harness/strategy_capture.mjs'
 import {
   referenceOfCapture, tickOfCapture, effectiveSettingsDisagreements, unreadDependedOn,
@@ -114,12 +116,19 @@ function buildAsTheDoorDoes(capture, bars) {
 /**
  * Run our broker on the capture's script and bars.
  * @returns {{ok:true, record, report, plots, drawn} | {ok:false, refusal:{rule, guard, expected, message}}}
- *   `plots`: our `plot` outputs in the order the program emits them, each `[{time, value}]`;
+ *   `plots`: our value outputs in the order the program emits them, each `{kind, points: [{time, value}]}`;
  *   `drawn`: `{status:'ok', labels:[{time, text}]}` when the run drew its own objects, else
  *   `{status:'ungraded', reason}` (the drawing build refused, or the store withheld the labels).
  */
 export function runOurBroker(capture, { pins = ALL } = {}) {
-  const { bars } = barsTradingViewRan(capture)
+  const ranOn = barsTradingViewRan(capture)
+  // ⭐⭐ (2026-11-18, Q-S1p) A CAPTURE TAKEN IN SESSION is graded on the member's own run: every bar, the forming one
+  // too, with the newest NOT confirmed, so our vm leaves it out ([B-EXEC]): the rule the capture grades.
+  // ⚰️ The harness handed such a run the bars TradingView ran (the forming bar already cut) AND said the newest was
+  // forming, so the vm left out a second bar: the last closed bar read `na` on our side (supertrend-strategy-is, the
+  // first in-session strategy capture graded, DIVERGE at 11-17 on a run no member makes).
+  const forming = capture.newestBarIsForming === true && ranOn.unrun !== null
+  const bars = forming ? barsOfCapture(capture) : ranOn.bars
   if (!bars) return { ok: false, refusal: { rule: 'harness:bars', guard: 'harness:bars', expected: false, message: 'the capture has no unix-s bars' } }
   const made = buildAsTheDoorDoes(capture, bars)
   if (!made.ok) {
@@ -154,14 +163,23 @@ export function runOurBroker(capture, { pins = ALL } = {}) {
     return { ok: false, refusal: { rule: (e && e.rule) || guard, guard, expected, message: String(e && e.message) } }
   }
   const record = strategyRecordOf({ summary: res.broker, decl: built.ir.broker, barTimes, historyWindowBars: windowBars, confirmed })
-  // ⭐ the script's own plots, IN THE ORDER THE PROGRAM EMITS THEM. A plot output carries no title (⚰️ U14 keyed
-  // them by `output.title`, which no plot has: no value series was ever compared, and method (b)'s signal
-  // identity could only ever answer INCONCLUSIVE). `valueSeriesOf` pairs them with the capture's plots and
-  // refuses a pairing it cannot prove.
+  // ⭐ the script's own VALUE outputs (`plot`, `plotshape`, `plotchar`, `plotarrow`), IN THE ORDER THE PROGRAM EMITS
+  // THEM, each with the call that made it. A plot output carries no title (⚰️ U14 keyed them by `output.title`, which
+  // no plot has: no value series was ever compared, and method (b)'s signal identity could only ever answer
+  // INCONCLUSIVE). `valueSeriesOf` pairs them with the capture's value slots and refuses a pairing it cannot prove.
   const plots = []
   for (const [k, o] of (program.outputs || []).entries()) {
-    if (!o || o.call !== 'plot' || !res.outputs[k]) continue
-    plots.push(Array.from(res.outputs[k], (value, i) => ({ time: barTimes[i], value: Number.isFinite(value) ? value : null })))
+    if (!o || !VALUE_SLOT_CALLS.has(o.call) || !res.outputs[k]) continue
+    plots.push({ kind: o.call, points: Array.from(res.outputs[k], (value, i) => ({ time: barTimes[i], value: Number.isFinite(value) ? value : null })) })
+  }
+  // the forming bar is neither side's evidence (TradingView's strategy did not run it, `newestBarNotRun`): its point
+  // leaves our series ONLY when our run computed nothing there; a value of ours on it stays, and the grade reads it
+  // as a bar of ours TradingView does not have (DIVERGE)
+  if (forming) {
+    for (const pl of plots) {
+      const last = pl.points[pl.points.length - 1]
+      if (last && last.time === ranOn.unrun && last.value === null) pl.points.pop()
+    }
   }
   // ruling D11: the bar TIME each rule was first asked on (null: before the first bar)
   const ruleFirstTime = {}
@@ -216,73 +234,228 @@ function drawnOf(made, res, barTimes) {
 }
 
 // ─── the value series: the capture's plots against ours ──────────────────────────
-/** Every top-level `plot(...)` of a source, in order: `{ title, readsBroker }`. `title` is its literal title
- *  (the second positional argument or `title =`), null when it has none; `readsBroker` says whether the call's
- *  own text reads a `strategy.*` value (method (b): such a plot is a broker value, not a signal). */
-export function declaredPlots(source) {
-  const text = String(source || '').replace(/\r\n/g, '\n')
-  const out = []
-  const re = /^plot[ \t]*\(/gm
-  let m
-  while ((m = re.exec(text))) {
-    const args = []
-    let depth = 0
-    let cur = ''
-    let q = null
-    let i = m.index + m[0].length
-    for (; i < text.length; i += 1) {
-      const ch = text[i]
-      if (q) { cur += ch; if (ch === '\\') { cur += text[i + 1] || ''; i += 1 } else if (ch === q) q = null; continue }
-      if (ch === '"' || ch === "'") { q = ch; cur += ch; continue }
-      if (ch === '(' || ch === '[') depth += 1
-      else if (ch === ')' || ch === ']') { if (depth === 0) break; depth -= 1 } else if (ch === ',' && depth === 0) { args.push(cur); cur = ''; continue }
-      cur += ch
-    }
-    args.push(cur)
-    const lit = (a) => { const t = /^\s*(?:title\s*=\s*)?"((?:[^"\\]|\\.)*)"\s*$/.exec(a || ''); return t ? t[1] : null }
-    const named = args.find((a) => /^\s*title\s*=/.test(a))
-    const title = named !== undefined ? lit(named) : (args.length > 1 && !/^\s*\w+\s*=(?!=)/.test(args[1]) ? lit(args[1]) : null)
-    out.push({ title, readsBroker: /\bstrategy\./.test(args[0] || '') })
-    re.lastIndex = i
+//
+// ⭐⭐ (2026-11-17, Q-SD1 / Q-SD2) WHAT THE SOURCE DECLARES IS READ BY THE PINE PARSER, NEVER BY A TEXT PATTERN.
+// ⚰️ `declaredPlots` matched a LINE-START `plot(`: it could not see `upPlot = plot(…)`, the idiom of every script
+// that fills a band (a `fill` names its plots by binding them), nor a `plotshape`, a `fill` or a `barcolor`, each of
+// which takes a TradingView plot slot. supertrend-strategy (Q-SD1, Q-SD2) declares its three plots bound, and the
+// grade read "the source declares 0 plot(s) and the capture holds 10" after its trades, fills and report had matched.
+// The source is now lexed and split into statements by `pine.js` (`lexPine`, `blockStatements`: comments are gone
+// before anything is read) and each output call parsed by `parseWholeExpression`, the calls the runtime front end
+// registers as outputs in the order it registers them (`pineRuntimeFrontend.js`: a top-level call statement, or one
+// bound to a name). A rail holds the list against the front end's own `ir.outputs` on every committed strategy capture.
+
+/** The TradingView plot TYPE each slot-taking output call is filed as (`metaInfo().plots[i].type`, measured on the
+ *  committed captures). `fill` is not here: it is a FILLED AREA, whose own slots (a colorer for a per-bar colour, the
+ *  data rows of a gradient) name it by `target: fill_<j>`; a fill with a constant colour takes no plot slot at all. */
+export const TV_SLOT_TYPE = Object.freeze({
+  plot: 'line', plotshape: 'shapes', plotchar: 'chars', plotarrow: 'arrows',
+  alertcondition: 'alertcondition', bgcolor: 'bg_colorer', barcolor: 'bar_colorer',
+})
+/** The calls whose slot holds a VALUE, compared at step 7 bar by bar. A colour slot (a paint, a fill's colour, a
+ *  plot's own colorer) and an alert condition are paired and LISTED as not compared there (`notCompared`): the paint
+ *  grade grades colours. */
+export const VALUE_SLOT_CALLS = Object.freeze(new Set(['plot', 'plotshape', 'plotchar', 'plotarrow']))
+/** The calls whose TradingView slots this grade does not pair (four prices and up to three colours): refused by name. */
+const UNPAIRED_SLOT_CALLS = Object.freeze(new Set(['plotcandle', 'plotbar']))
+/** Every output call that takes a TradingView plot slot or a filled area, in the source's own order. */
+export const SLOT_CALLS = Object.freeze(new Set([...Object.keys(TV_SLOT_TYPE), 'fill', ...UNPAIRED_SLOT_CALLS]))
+/** The slots TradingView files right AFTER the slot they serve, naming it in `target`. */
+const SUB_SLOT_TYPES = Object.freeze(new Set(['colorer', 'text_colorer']))
+
+const argValue = (a) => (a && a.value !== undefined ? a.value : a)
+const literalText = (node) => (node && node.type === 'string' && typeof node.value === 'string' ? node.value : null)
+
+/** Does a parsed expression read a `strategy.*` value (a name or a call)? */
+function readsStrategy(node, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 200) return false
+  if (Array.isArray(node)) return node.some((x) => readsStrategy(x, depth + 1))
+  if ((node.type === 'name' || node.type === 'call') && typeof node.name === 'string' && node.name.startsWith('strategy.')) return true
+  for (const [k, v] of Object.entries(node)) {
+    if (k === 'tok' || k === 'endTok') continue
+    if (v && typeof v === 'object' && readsStrategy(v, depth + 1)) return true
   }
-  return out
+  return false
 }
 
 /**
- * ⭐ THE PAIRING, FAIL-CLOSED. TradingView names a study's plots `plot_0..plot_n` in the order the source calls
- * `plot()`, and our program emits its `plot` outputs in that order too. That is used ONLY when the capture
- * itself confirms it: the source declares exactly as many titled plots as the capture holds and as our run
- * emitted, and every plot's style title in the capture IS the title the source declares at that position.
- * Anything else is `{status: 'unpaired', reason}` (the grade is INCONCLUSIVE), never paired by position anyway.
- * @returns {{status:'ok', series:object[]} | {status:'unpaired', reason:string}}
+ * Every output call of a source that takes a TradingView plot slot or a filled area, in source order:
+ * `{ ok: true, slots: [{ kind, title, readsBroker, line }] }`, or `{ ok: false, reason }` when the source cannot be
+ * read. `kind` is the call (`plot`, `plotshape`, `fill`, `barcolor`, ...). `title` is the call's literal title (for a
+ * value call: `title =` or the second positional argument; for a paint, an alert or a fill: `title =` only, their
+ * positional title differs by version), null when it has none. `readsBroker` says whether the call's own value
+ * argument reads a `strategy.*` value (method (b): such a plot is a broker value, not a signal).
  */
-export function valueSeriesOf(capture, ourPlots) {
+export function declaredSlots(source) {
+  let lexed
+  let stmts
+  try {
+    lexed = lexPine(String(source == null ? '' : source))
+    // a line of comma-joined statements (`c = x ? a : b, plot(…)`) is each of its statements, read by the one split
+    // the lanes share (`objectFnInline.js::splitCommaStatements`)
+    stmts = splitCommaStatements(blockStatements(lexed.tokens, lexed.indents, 0), { isPunct })
+  } catch (e) {
+    return { ok: false, reason: `the source cannot be read by the Pine parser (${String((e && e.message) || e).slice(0, 160)})` }
+  }
+  const slots = []
+  for (const stmt of stmts) {
+    const toks = stmt.header || []
+    const head = toks[0]
+    let at = -1
+    // ── an output call statement: `plot(…)` ──
+    if (head && head.kind === 'ident' && SLOT_CALLS.has(head.value) && isPunct(toks[1], '(')) at = 0
+    else {
+      // ── an output call BOUND TO A NAME: `p = plot(…)` (the front end's own test) ──
+      const e = findTop(toks, (x) => isPunct(x, '='))
+      const v = e > 0 ? toks[e + 1] : null
+      if (v && v.kind === 'ident' && SLOT_CALLS.has(v.value) && isPunct(toks[e + 2], '(')) at = e + 1
+    }
+    if (at < 0) continue
+    let call
+    try { call = parseWholeExpression(toks.slice(at)) } catch (e) {
+      return { ok: false, reason: `the \`${toks[at].value}()\` at line ${toks[at].line} cannot be parsed (${String((e && e.message) || e).slice(0, 120)})` }
+    }
+    if (!call || call.type !== 'call' || call.name !== toks[at].value) {
+      return { ok: false, reason: `the statement at line ${toks[at].line} is not one \`${toks[at].value}()\` call` }
+    }
+    const kind = call.name
+    const args = call.args || []
+    const named = (n) => { const a = args.find((x) => x && x.name === n); return a ? argValue(a) : null }
+    const positional = args.filter((x) => x && !x.name)
+    let title = named('title')
+    const valueCall = VALUE_SLOT_CALLS.has(kind) || kind === 'alertcondition'
+    if (title === null && valueCall && positional.length > 1) title = argValue(positional[1])
+    const valueName = Object.hasOwn(PINE_OUTPUT_CALLS, kind) ? PINE_OUTPUT_CALLS[kind] : null
+    const value = valueCall ? (named(valueName) || (positional.length ? argValue(positional[0]) : null)) : null
+    slots.push({ kind, title: literalText(title), readsBroker: readsStrategy(value), line: toks[at].line })
+  }
+  return { ok: true, slots }
+}
+
+/**
+ * The slot-taking output calls the runtime front end REGISTERS for a capture's script, in the order it registers them
+ * (`ir.outputs`; a candle's four outputs are one call), from the value build `runOurBroker` makes: what
+ * `declaredSlots` is held against (`strategyGrading.test.js`). `{ok: false, refusal}` when that build refuses.
+ */
+export function engineSlotCallsOf(capture) {
+  const { bars } = barsTradingViewRan(capture)
+  const built = buildRuntimeIr(capture.source.text, { bars, inputs: {}, symbol: symbolOf(capture), strategyBroker: true,
+    ...runtimeClockOpts(capture.newestBarIsForming), objectTrees: [] })
+  if (!built.ok) return { ok: false, refusal: built.refusal || {} }
+  const calls = []
+  for (const o of built.ir.outputs || []) {
+    if (!o || !SLOT_CALLS.has(o.call)) continue
+    if (UNPAIRED_SLOT_CALLS.has(o.call) && o.role !== 'open') continue
+    calls.push(o.call)
+  }
+  return { ok: true, calls }
+}
+
+/**
+ * ⭐ WHICH CAPTURE SLOT IS WHICH SOURCE CALL, FAIL-CLOSED, read off the capture's OWN plot list
+ * (`study.plots`: each slot's TradingView type, and the `target` a colour or data slot names). TradingView files a
+ * study's slots in the order the source calls its outputs; a call's colorer / text colorer follows the slot it serves
+ * and names it (`target: plot_k`), and a fill's slots name their filled area (`target: fill_<j>`, the j-th `fill`).
+ * At every position the capture's slot must be the TYPE the source's call is filed as, and a value slot's style
+ * title must BE the title the source gives it; every slot of the capture must be accounted for. Anything else is
+ * `{status: 'unpaired', reason}`, never paired by position anyway.
+ * @returns {{status:'ok', slots:{id, column, kind, title, readsBroker, value:boolean, what:string}[]}
+ *   | {status:'unpaired', reason:string}}
+ */
+export function captureSlotsOf(capture, declared = declaredSlots(capture && capture.source && capture.source.text)) {
   const pv = capture.plotValues
   if (!pv || !Array.isArray(pv.fields) || !Array.isArray(pv.rows)) return { status: 'unpaired', reason: 'the capture holds no plot values' }
-  const styles = (capture.study && capture.study.styles) || {}
-  const declared = declaredPlots(capture.source.text)
+  if (!declared || !declared.ok) return { status: 'unpaired', reason: (declared && declared.reason) || 'the source declares nothing readable' }
+  const plots = capture.study && Array.isArray(capture.study.plots) ? capture.study.plots : null
   const n = pv.fields.length - 1
-  if (declared.length !== n) return { status: 'unpaired', reason: `the source declares ${declared.length} plot(s) and the capture holds ${n}` }
-  if (!Array.isArray(ourPlots) || ourPlots.length !== n) {
-    return { status: 'unpaired', reason: `our run emitted ${Array.isArray(ourPlots) ? ourPlots.length : 0} plot(s) and the capture holds ${n}` }
+  if (!plots) return { status: 'unpaired', reason: `the capture holds ${n} plot value column(s) and records no plot list (study.plots)` }
+  const ids = plots.map((p) => p && p.id)
+  if (ids.length !== n || pv.fields.slice(1).some((f) => !ids.includes(f))) {
+    return { status: 'unpaired', reason: `the capture's plot list (${ids.length}) is not its value columns (${n})` }
   }
-  const series = []
-  for (let k = 1; k <= n; k += 1) {
-    const style = styles[pv.fields[k]]
-    const title = style && typeof style.title === 'string' ? style.title : null
-    const want = declared[k - 1].title
-    if (title === null || want === null || title !== want) {
-      return { status: 'unpaired', reason: `plot ${k} is titled ${JSON.stringify(title)} in the capture and ${JSON.stringify(want)} in the source` }
+  const styles = capture.study.styles || {}
+  const titleOf = (p, fromStyle) => {
+    const t = fromStyle ? (styles[p.id] && styles[p.id].title) : (p.title ?? (styles[p.id] && styles[p.id].title))
+    return typeof t === 'string' ? decodeVendorText(t) : null
+  }
+  const out = []
+  const where = (d) => `\`${d.kind}\` at line ${d.line}`
+  let i = 0
+  let fills = 0
+  const take = (p, d, value, what) => { out.push({ id: p.id, column: pv.fields.indexOf(p.id), kind: d.kind, title: d.title, readsBroker: d.readsBroker, value, what }); i += 1 }
+  for (const d of declared.slots) {
+    if (d.kind === 'fill') {
+      const target = `fill_${fills}`
+      fills += 1
+      while (plots[i] && plots[i].target === target) take(plots[i], d, false, `${where(d)} (${plots[i].type} of ${target})`)
+      continue
     }
-    series.push({
-      title,
-      readsBroker: declared[k - 1].readsBroker,
-      reference: pv.rows.map((r) => ({ time: r[0], value: r[k] === undefined ? null : r[k] })),
-      ours: ourPlots[k - 1],
-    })
+    if (UNPAIRED_SLOT_CALLS.has(d.kind)) {
+      return { status: 'unpaired', reason: `the source's ${where(d)} fills TradingView slots this grade does not pair` }
+    }
+    const p = plots[i]
+    if (!p) return { status: 'unpaired', reason: `the source declares more plot slots than the capture holds (${n}): ${where(d)} has none` }
+    const want = TV_SLOT_TYPE[d.kind]
+    if (p.type !== want) {
+      return { status: 'unpaired', reason: `${p.id} is a ${JSON.stringify(p.type)} slot in the capture and the source's ${where(d)} is filed as ${JSON.stringify(want)}` }
+    }
+    const value = VALUE_SLOT_CALLS.has(d.kind)
+    if (value) {
+      const title = titleOf(p, true)
+      if (title === null || d.title === null || title !== d.title) {
+        return { status: 'unpaired', reason: `${p.id} is titled ${JSON.stringify(title)} in the capture and ${JSON.stringify(d.title)} in the source (${where(d)})` }
+      }
+    } else {
+      // a paint or an alert: identified by its type and its place; a title both sides carry must match
+      const title = titleOf(p, false)
+      if (title !== null && d.title !== null && title !== d.title) {
+        return { status: 'unpaired', reason: `${p.id} is titled ${JSON.stringify(title)} in the capture and ${JSON.stringify(d.title)} in the source (${where(d)})` }
+      }
+    }
+    const served = p.id
+    take(p, d, value, where(d))
+    while (plots[i] && SUB_SLOT_TYPES.has(plots[i].type) && plots[i].target === served) take(plots[i], d, false, `${where(d)} (${plots[i].type} of ${served})`)
   }
+  if (i !== n) return { status: 'unpaired', reason: `the source declares ${i} plot slot(s) and the capture holds ${n}` }
+  return { status: 'ok', slots: out }
+}
+
+/**
+ * ⭐ THE PAIRING, FAIL-CLOSED. The capture's slots are first matched to the source's calls (`captureSlotsOf`); the
+ * VALUE slots (`plot`, `plotshape`, `plotchar`, `plotarrow`) are then paired with OUR value outputs, the n-th of the
+ * one with the n-th of the other, used ONLY when our run emitted exactly as many and of the same calls in the same
+ * order. Every other slot is LISTED (`notCompared`: its id and the call it serves), never dropped. Anything else is
+ * `{status: 'unpaired', reason}` (the grade is INCONCLUSIVE), never paired by position anyway.
+ * @param {{kind:string, points:({time, value}[]|null), missing?:string}[]} ourPlots our value outputs in the order the
+ *   program emits them (`points: null`: our side carried no column for it, `missing` says why)
+ * @returns {{status:'ok', series:object[], notCompared:{slot:string, what:string}[]} | {status:'unpaired', reason:string}}
+ */
+export function valueSeriesOf(capture, ourPlots) {
+  const slots = captureSlotsOf(capture)
+  if (slots.status !== 'ok') return slots
+  const pv = capture.plotValues
+  const values = slots.slots.filter((s) => s.value)
+  const kinds = (xs) => xs.map((x) => x && x.kind).join(', ')
+  if (!Array.isArray(ourPlots) || ourPlots.length !== values.length) {
+    return { status: 'unpaired', reason: `our run emitted ${Array.isArray(ourPlots) ? ourPlots.length : 0} value output(s) and the capture holds ${values.length}` }
+  }
+  if (kinds(ourPlots) !== kinds(values)) {
+    return { status: 'unpaired', reason: `our run emitted its value outputs as [${kinds(ourPlots)}] and the source declares [${kinds(values)}]` }
+  }
+  // an output our side carried no column for is not a series of `na`: nothing of ours exists to compare
+  const missing = ourPlots.findIndex((p) => !Array.isArray(p.points))
+  if (missing >= 0) {
+    const s = values[missing]
+    return { status: 'unpaired', reason: `our side carried no column for ${s.id} (${s.what}): ${ourPlots[missing].missing || 'no column'}` }
+  }
+  const series = values.map((s, k) => ({
+    title: s.title,
+    readsBroker: s.readsBroker,
+    reference: pv.rows.map((r) => ({ time: r[0], value: r[s.column] === undefined ? null : r[s.column] })),
+    ours: ourPlots[k].points,
+  }))
   if (new Set(series.map((x) => x.title)).size !== series.length) return { status: 'unpaired', reason: 'two plots share one title' }
-  return { status: 'ok', series }
+  return { status: 'ok', series, notCompared: slots.slots.filter((s) => !s.value).map((s) => ({ slot: s.id, what: s.what })) }
 }
 
 /** TradingView's label texts by bar time (`objects.records.labels`, each `x` a position in `objects.xIndex`). */
@@ -503,6 +676,9 @@ export function strategyVerdictOf(capture, { captureSha256, queueTargetId, slotM
     rulesExercised: v.rulesExercised,
     ungradedSlots: v.ungradedSlots ?? [],
     ungradedTexts: v.ungradedTexts ?? [],
+    // the capture's slots paired with a source call and not compared as a value (a colour, an alert condition):
+    // present only when there are any, so a verdict of plots alone keeps its shape
+    ...(v.ungradedValues && v.ungradedValues.length ? { ungradedValues: v.ungradedValues } : {}),
     // ruling D11 (null unless the capture DIVERGEs at an event on a bar): see `culpritOf`
     firstDifference: v.firstDifference ?? null,
     prefixExact: v.prefixExact ?? null,

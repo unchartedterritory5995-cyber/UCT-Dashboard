@@ -9,7 +9,7 @@ Storage layout in /data/contract_history.json:
   ],
   "snapshots": {
     "AAPL|C|200.0|3/20": [
-      {"date":"2026-03-14","oi":5000,"price":2.50,"spot":198.0,"volume":1234},
+      {"date":"3/14/2026","oi":5000,"price":2.50,"spot":198.0,"volume":1234,"src":"massive"},
       ...
     ],
     ...
@@ -19,6 +19,14 @@ Storage layout in /data/contract_history.json:
 Registered contracts are replaced each time the dashboard loads new flow data.
 Snapshots accumulate across days — one entry per trading day per contract.
 The cron job runs at 4:30 PM ET Monday–Friday (after close).
+
+Where a day's entry comes from: Massive, the licensed options feed (since
+2026-11-17, when Schwab was retired from the product by the owner's instruction;
+each entry written since carries `src: "massive"`). An entry with no `src` was
+recorded from Schwab, or merged from the Polygon backfill below, and stays as
+recorded. What `price` means differs slightly between the two (Schwab: its mark,
+else its last trade; Massive: the bid/ask midpoint, else the last trade); see
+`top_flow_tracker._massive_entry`, which builds the entry for both recorders.
 """
 
 import asyncio
@@ -131,92 +139,116 @@ def get_all_history() -> dict:
 
 # ─── Snapshot Logic ───────────────────────────────────────────────────────────
 
+# How many registered contracts are priced per run: the first 200, in the order
+# the dashboard registered them. The Schwab read this replaces made one chain
+# call per SYMBOL; Massive makes one small call per CONTRACT (at most 8 at once),
+# so the list is capped, with the same cap the Flow Record sweep uses. A contract
+# past the cap gets no entry that day.
+SNAPSHOT_CAP = 200
+
+
+def _expiry_date(exp_str):
+    """A registered expiry ('M/D', 'M/D/YY' or 'M/D/YYYY') as a date, or None.
+    A year-less expiry is this year, or next year when that date has already
+    passed: the rule this recorder has always used."""
+    from datetime import date
+    parts = str(exp_str or "").split("/")
+    if len(parts) < 2:
+        return None
+    try:
+        m, d = int(parts[0]), int(parts[1])
+        if len(parts) >= 3:
+            y = int(parts[2])
+            if y < 100:
+                y += 2000
+            return date(y, m, d)
+        y = datetime.now().year
+        if date(y, m, d) < date.today():
+            y += 1
+        return date(y, m, d)
+    except (ValueError, TypeError):
+        return None
+
+
 async def store_daily_snapshot() -> dict:
     """
-    Fetch live quotes for all registered contracts and append today's snapshot.
-    Uses Schwab API as primary source, falls back to UW if Schwab fails.
+    Record today's quote for the registered contracts, from Massive, and append
+    it to each contract's history.
     One entry per contract per date — idempotent (re-running today just overwrites today's row).
+    A contract Massive has no price for gets no entry: its history is left as it is.
+    Never raises: a failure is returned as {"status": "error"}.
     Returns a summary dict.
     """
+    try:
+        return await _store_daily_snapshot()
+    except Exception as e:  # noqa: BLE001 - never raise into the scheduler loop
+        logger.error("[tracker] Snapshot failed: %s", type(e).__name__)
+        return {"status": "error", "reason": type(e).__name__}
+
+
+async def _store_daily_snapshot() -> dict:
     contracts = _data.get("registered", [])
     if not contracts:
         logger.info("[tracker] snapshot-now: no registered contracts, skipping.")
         return {"status": "skipped", "reason": "no registered contracts"}
 
-    today_str = datetime.now(ET).strftime("%-m/%-d/%Y")  # e.g. "3/14/2026"
+    from api import massive_oi_snapshots as massive
+    from api import top_flow_tracker as tft
+    if not massive.MASSIVE_API_KEY:
+        return {"status": "error", "reason": "MASSIVE_API_KEY not set"}
 
-    logger.info("[tracker] Fetching quotes for %d contracts via Schwab…", len(contracts))
-    quotes = None
-    source = "unknown"
-
-    # ── Schwab only ─────────────────────────────────────────────────────
-    try:
-        from api.schwab_service import get_batch_option_quotes
-
-        def _exp_to_iso(exp_str: str) -> str:
-            parts = exp_str.split("/")
-            if len(parts) < 2:
-                return ""
-            m, d = int(parts[0]), int(parts[1])
-            if len(parts) >= 3:
-                y = int(parts[2])
-                if y < 100:
-                    y += 2000
-            else:
-                y = datetime.now().year
-                from datetime import date
-                if date(y, m, d) < date.today():
-                    y += 1
-            return f"{y}-{m:02d}-{d:02d}"
-
-        schwab_batch = [
-            {
-                "symbol": c["sym"],
-                "cp": c["cp"],
-                "strike": c["K"],
-                "expDate": _exp_to_iso(c["exp"]),
-            }
-            for c in contracts
-        ]
-        quotes = await get_batch_option_quotes(schwab_batch)
-        source = "Schwab"
-    except Exception as e:
-        logger.error("[tracker] Schwab batch fetch failed: %s", e)
-        return {"status": "error", "reason": f"Schwab failed: {e}"}
+    today_str = tft._et_date_str()  # e.g. "3/14/2026"
+    todo = contracts[:SNAPSHOT_CAP]
+    logger.info("[tracker] Fetching quotes for %d contracts via Massive…", len(todo))
 
     saved = 0
-    skipped = 0
+    failed = 0
     snapshots = _data.setdefault("snapshots", {})
 
-    for c, q in zip(contracts, quotes):
-        if not q or q.get("error") or q.get("expired"):
-            skipped += 1
-            continue
-        k = _key(c["sym"], c["cp"], c["K"], c["exp"])
-        history = snapshots.setdefault(k, [])
-        # Map field names (UW uses mark/openInterest, Schwab uses the same)
-        entry = {
-            "date": today_str,
-            "oi": q.get("openInterest") or q.get("open_interest") or 0,
-            "price": q.get("mark") or q.get("last") or 0,
-            "spot": q.get("underlyingPrice") or q.get("spot") or 0,
-            "volume": q.get("volume") or 0,
-        }
-        # Overwrite today's entry if it already exists (idempotent)
-        existing = next((i for i, h in enumerate(history) if h.get("date") == today_str), None)
-        if existing is not None:
-            history[existing] = entry
-        else:
-            history.append(entry)
-        saved += 1
+    try:
+        for ci in range(0, len(todo), tft.SNAPSHOT_CHUNK):
+            chunk = todo[ci:ci + tft.SNAPSHOT_CHUNK]
+            # the shape top_flow_tracker's Massive read takes: sym / cp / strike + an expiry date
+            asked = [{"sym": c.get("sym"), "cp": c.get("cp"), "strike": c.get("K")} for c in chunk]
+            expiries = [_expiry_date(c.get("exp")) for c in chunk]
+            priced, ok = await tft._massive_chunk(asked, expiries, today_str)
+            if not ok:
+                failed += len(chunk)
+            for i, e in priced.items():
+                c = chunk[i]
+                k = _key(c["sym"], c["cp"], c["K"], c["exp"])
+                history = snapshots.setdefault(k, [])
+                # The stored keys are the ones this file has always written, plus `src`.
+                # A field Massive did not send is null, never 0.
+                entry = {
+                    "date": today_str,
+                    "oi": e.get("oi"),
+                    "price": e.get("price"),
+                    "spot": e.get("spot"),
+                    "volume": e.get("volume"),
+                    "src": "massive",
+                }
+                # Overwrite today's entry if it already exists (idempotent)
+                existing = next((j for j, h in enumerate(history) if h.get("date") == today_str), None)
+                if existing is not None:
+                    history[existing] = entry
+                else:
+                    history.append(entry)
+                saved += 1
+            if ci + tft.SNAPSHOT_CHUNK < len(todo):
+                await asyncio.sleep(tft.SNAPSHOT_CHUNK_PAUSE_S)
+    finally:
+        # whatever was priced is kept, even if a later chunk fails
+        if saved:
+            _save()
 
-    _save()
     result = {
         "status": "ok",
-        "source": source,
+        "source": "Massive",
         "date": today_str,
         "saved": saved,
-        "skipped": skipped,
+        "skipped": len(contracts) - saved,
+        "failed": failed,
         "total": len(contracts),
     }
     logger.info("[tracker] Snapshot complete: %s", result)

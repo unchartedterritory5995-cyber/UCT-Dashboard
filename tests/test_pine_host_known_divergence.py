@@ -30,7 +30,10 @@ from api.services import host_known_divergence as hkd  # noqa: E402
 from api.services import runtime_definitions as rt  # noqa: E402
 from api.services import user_definitions as svc  # noqa: E402
 
-LISTED = (ROOT / "corpus" / "committed" / "contraction-box-doji-lines__1486658151.pine").read_text(encoding="utf-8")
+#: listed: both committed production captures (RDDT and SPY daily) grade DIVERGE, TradingView holds 31 table cells and
+#: ours 30. (contraction-box-doji-lines stood here until engine 78 (#1858), Pine's tolerant compare, re-graded both
+#: its SPY captures to MATCH and its entry was lifted.)
+LISTED = (ROOT / "corpus" / "committed" / "heat-map-seasons__53acdf3223.pine").read_text(encoding="utf-8")
 #: not listed: both committed production captures grade MATCH
 CONTROL = (ROOT / "corpus" / "committed" / "atr-bands__ad60b125e6.pine").read_text(encoding="utf-8")
 
@@ -59,7 +62,7 @@ def test_the_rail_fails_when_a_DIVERGE_script_is_missing_from_the_list():
     sha = hd.source_hash(LISTED)
     assert sha in committed
     probs = hd.disagreements({k: v for k, v in committed.items() if k != sha}, hd.derive())
-    assert probs and all("contraction-box-doji-lines" in p and p.startswith("NOT LISTED") for p in probs), probs
+    assert probs and all("heat-map-seasons" in p and p.startswith("NOT LISTED") for p in probs), probs
 
 
 def test_the_rail_fails_when_the_list_holds_a_script_no_capture_witnesses():
@@ -129,8 +132,8 @@ def test_a_WITHHELD_ONLY_divergence_is_not_listed_and_one_drawn_difference_lists
 
 def test_the_reader_names_a_listed_script_and_not_an_unlisted_one():
     why = hkd.refused(LISTED)
-    assert why and why.startswith(hkd.GUARD + ":") and "204" in why and "withheld until that is fixed" in why
-    assert "capture contraction-box-doji-lines-spy-1d-2026-10-03" in why and "\u2014" not in why
+    assert why and why.startswith(hkd.GUARD + ":") and "TradingView 31, ours 30" in why and "withheld until that is fixed" in why
+    assert "capture heat-map-seasons-rddt-1d-2026-09-28" in why and "\u2014" not in why
     assert hkd.refused(LISTED.replace("\n", "\r\n"))                    # the CRLF form is the same script
     assert hkd.refused(CONTROL) is None
     assert hkd.LIST_PATH == str(hd.LIST)                                # ONE authority: the file the browser imports

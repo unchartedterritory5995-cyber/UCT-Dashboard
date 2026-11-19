@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react'
 import usePreferences from '../../hooks/usePreferences'
 import { TERMINAL_LAYOUT_PREF } from './useTerminalLayout'
+import { STARTER_BOARDS } from './starterBoards'
 import styles from './TerminalShell.module.css'
 
 export const ORIENTATION_PREF = 'terminal_orientation_seen'
@@ -22,6 +23,10 @@ export const FIRST_RUN_NEW = Object.freeze([
   { cmd: 'NVDA SIZE', what: 'sizes it' },
   { cmd: 'REGM', what: 'the market call' },
 ])
+
+/** The ready-made boards, as the card names them: the list's own names, so a board added to or
+ *  renamed in starterBoards.js is never described here from memory. */
+export const readyBoardNames = (boards = STARTER_BOARDS) => boards.map((b) => b.name).join(', ')
 
 export default function FirstRunCard({ onTry }) {
   const { prefs, setPref, loading } = usePreferences()
@@ -45,6 +50,9 @@ export default function FirstRunCard({ onTry }) {
       <ul className={styles.firstRunList}>
         <li>Type a ticker, then a function, and press Enter: {tryIt('NVDA GP')} opens a chart, {tryIt('NVDA DES')} the company.</li>
         <li>{tryIt('HELP')} lists every function in plain words. The list on the left does too.</li>
+        {STARTER_BOARDS.length > 0 && (
+          <li data-testid="terminal-firstrun-boards">No codes needed: the Boards button above opens a ready-made board in one click ({readyBoardNames()}).</li>
+        )}
         <li>Panels of the same color follow each other: change the ticker in one, or click a name in a list, and the rest of its group changes with it.</li>
         <li data-testid="terminal-firstrun-new">New: {FIRST_RUN_NEW.map((n, i) => <span key={n.cmd}>{i ? ' · ' : ''}{tryIt(n.cmd)} {n.what}</span>)}.</li>
       </ul>

@@ -190,6 +190,8 @@ from api.services.pine_capabilities import (  # noqa: E402
     FEATURES, KEYWORD_FEATURE, METHOD_CALL_RX, PINE_JS, conditional_ta_in, engine_order_calls, features_of,
     join_continuations, order_calls_in, strip_code, usage_of, version_of,
 )
+# ⭐ the kill list's ONE rule (a held kill kills nothing), the server's own (`runtime_killed_hashes` below reads it)
+from api.services.runtime_definitions import kill_entry_is_served  # noqa: E402
 
 
 class Inventory:
@@ -352,7 +354,9 @@ def runtime_killed_hashes(path=RUNTIME_KILLLIST):
     ⛔ Fails LOUD when unreadable: a census that silently read "nothing is killed" would count every
     killed script as served, which is the defect this exists to stop."""
     with open(path, encoding="utf-8") as f:
-        return {e["sha256"] for e in json.load(f)["scripts"]}
+        # ⭐ (2026-11-18) a HELD kill (`status: pending`) kills nothing, by the server's ONE rule
+        # (`runtime_definitions.kill_entry_is_served`): the door still draws the script, so it still transfers
+        return {e["sha256"] for e in json.load(f)["scripts"] if kill_entry_is_served(e)}
 
 
 def is_runtime_killed(src, killed):
@@ -366,7 +370,8 @@ def is_runtime_killed(src, killed):
 
 def runtime_on_transfers(census_row, orders, killed=False, host_listed=False):
     """⭐ THE RUNTIME-ON LANE'S PREDICATE, in one place: a runtime-on census row transfers when it
-    transfers fully on the host lane OR attaches on the runtime lane, and it is not a strategy that
+    transfers fully on the host lane OR attaches on the runtime lane OR (⭐⭐ PARITY UNIT 1) is a host
+    document whose lost drawings its run half draws (`cleanByRunHalf`), and it is not a strategy that
     places orders (`orders`: `places_orders` of its usage). Read by `runtime_on_section` below and by
     tools/pine_coverage/coverage_ratchet.py, so the map and the ratchet cannot disagree.
     ⭐ 2026-11-17: `killed` (`is_runtime_killed`). A script on the runtime kill list falls back OFF the
@@ -377,8 +382,15 @@ def runtime_on_transfers(census_row, orders, killed=False, host_listed=False):
     st0 = (r.get("steps") or [{}])[0]
     # ⭐ 2026-11-17: `host_listed` (`is_host_listed`) - the HOST lane refuses a listed script by name, so a
     # clean HOST row is not a transfer; its runtime attach is still judged by the runtime lane's own list.
+    # ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18): `cleanByRunHalf` - the HOST document, clean but for the
+    # drawings its object program lost, whose RUN HALF the census bound served on the reference bars (the
+    # plots the host's, every drawing the run's: `runHalfObjectRail.js`, the lost-drawings rule). A run half
+    # answers to the runtime lane's own gates, so the kill list stops it as it stops a runtime attach, and
+    # the host known-divergence list (which refuses the host document by name) stops it as it stops a clean
+    # host row.
     return not orders and ((bool(r.get("clean")) and not host_listed) or (
-        bool(r.get("attached")) and st0.get("lane") == "runtime" and not killed))
+        bool(r.get("attached")) and st0.get("lane") == "runtime" and not killed) or (
+        bool(r.get("cleanByRunHalf")) and not killed and not host_listed))
 
 
 def order_usage_of(src):

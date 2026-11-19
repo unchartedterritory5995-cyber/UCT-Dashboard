@@ -639,7 +639,12 @@ export function computeWilliamsR(bars, period = 14) {
  *  a hole in real OHLCV would have silently blanked it from that bar on, not
  *  because a fixture caught it. That is a smaller claim than the other three
  *  carry and it is made deliberately smaller. */
-export function computeADX(bars, period = 14) {
+/** ⭐⭐ engine 78 (#1858) — `opts.gt` is the comparison `+DM` / `-DM` are chosen by: IEEE for the native
+ *  chart / screener ADX (the default, byte for byte), `pineCompare.js::pineGt` for Pine's `ta.dmi`, whose
+ *  built-in compares within TradingView's epsilon (vw-fcmp-builtins B32-B34: on AMEX:SPY 1D bar 5,333 the up
+ *  and down moves differ by 2.84e-14 and TradingView counts a tie, DI+ 27.576070967939575). */
+export function computeADX(bars, period = 14, opts = null) {
+  const gt = opts && typeof opts.gt === 'function' ? opts.gt : (a, b) => a > b
   const empty = { adx: [], plusDI: [], minusDI: [] }
   if (!bars || bars.length < 2 * period) return empty
   const plusDI = blank(bars), minusDI = blank(bars), adxOut = blank(bars)
@@ -659,8 +664,8 @@ export function computeADX(bars, period = 14) {
     // directional movement cannot be COMPUTED contributes nothing; it does not
     // contribute a zero.
     if (!Number.isFinite(up) || !Number.isFinite(down) || !Number.isFinite(tr)) continue
-    const pDM = (up > down && up > 0) ? up : 0
-    const mDM = (down > up && down > 0) ? down : 0
+    const pDM = (gt(up, down) && gt(up, 0)) ? up : 0
+    const mDM = (gt(down, up) && gt(down, 0)) ? down : 0
 
     if (!diReady) {
       sPlus += pDM; sMinus += mDM; sTR += tr; diSeen += 1

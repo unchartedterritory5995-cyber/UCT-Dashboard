@@ -1,0 +1,8 @@
+{
+ "_": "THE FISHER TRANSFORM THAT WAS GRADED. Each value is the hash (`astHash`) of the formula tree that was run through this engine and compared with TradingView's built-in Fisher Transform on SPY daily from its listing (8,509 bars; run studio-builtins-2026-11-18; the capture is vendor data and is not in the repository): equal on every bar it has a value for (8,209 of 8,209 at each length). The `fisher(length)` builder must produce exactly these trees, in the window and on the server, so the grade stays the grade of the code. A change to the builder that moves a hash is a new formula and needs a new grade before this file may change.",
+ "contract": "uct.fisher-graded/1",
+ "graded": {
+  "9": "sha256:1d1dad55d260e62b356463eebe1bd412838a4e7445cde8ab56cec7447a933e92",
+  "20": "sha256:97994328259b332b1f4987682a6c9d938e0b4ef200a614145cb2e1dd0938836e"
+ }
+}

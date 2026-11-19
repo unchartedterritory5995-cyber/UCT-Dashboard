@@ -8,6 +8,7 @@ narration_template.
 
 import logging
 import os
+import re
 
 import api.services.voice_tools as _vt
 
@@ -100,20 +101,32 @@ def _theme_performance() -> dict:
     return get_theme_performance() or {}
 
 
-def _options_flow(sym: str | None = None) -> list[dict]:
-    try:
-        from api.flow_router import get_recent_flow
-        return get_recent_flow(sym) or []
-    except (ImportError, AttributeError):
-        return []
+def _options_flow(sym: str) -> tuple[str, bool]:
+    """`(line, read_ok)` for ONE ticker: the latest session's options-flow line.
+
+    The one implementation is `ai_search.flow_ticker_line` — the read AI Search
+    already grounds on (the flow tape, both partitions, a 2.5 s budget, a
+    60-second memo). `read_ok` False means the read failed, which is never the
+    same answer as a quiet tape. No `except` here on purpose: a missing import is
+    a defect the caller logs by type and reports as unavailable.
+    """
+    from api.routers.ai_search import flow_ticker_line
+    return flow_ticker_line(sym)
 
 
-def _dark_pool(sym: str | None = None) -> list[dict]:
-    try:
-        from api.top_flow_router import get_recent_dark_pool
-        return get_recent_dark_pool(sym) or []
-    except (ImportError, AttributeError):
-        return []
+#: How far back the dark pool tool looks, in sessions (the member route's own default).
+DARK_POOL_SESSIONS = 30
+
+
+def _dark_pool(sym: str, limit: int) -> list[dict]:
+    """The most recent dark pool prints for ONE ticker, newest first.
+
+    The one implementation is `darkpool_db.get_ticker_prints` — the read behind
+    the Dark Pool page's ticker drill-down. Raises on a failed read; the caller
+    logs it by type and reports unavailable.
+    """
+    from api.darkpool_db import get_ticker_prints
+    return get_ticker_prints(sym, days=DARK_POOL_SESSIONS, limit=limit) or []
 
 
 def _economic_calendar() -> list[dict]:
@@ -586,26 +599,15 @@ def _reddit_sentiment(ticker: str = "", hours: int = 24) -> dict:
         return {"error": f"reddit unavailable: {e}"}
 
 
-def _stocktwits_sentiment(ticker: str = "", limit: int = 30) -> dict:
-    """Stocktwits bull/bear-tagged messages aggregated for a ticker. Public
-    API, no auth. Returns counts + samples."""
-    if not ticker or not (ticker := ticker.strip()):
-        return {"error": "ticker required"}
-    try:
-        from api.services.stocktwits_sentiment import sentiment_for_ticker
-        return sentiment_for_ticker(ticker, limit=limit or 30)
-    except Exception as e:
-        _log.warning("stocktwits_sentiment failed: %s", e)
-        return {"error": f"stocktwits unavailable: {e}"}
-
-
 def _get_institutional_holders(ticker: str = "", top_n: int = 10) -> dict:
     """Top institutional holders for a ticker + % held by institutions/insiders."""
     if not ticker or not (ticker := ticker.strip()):
         return {"error": "ticker required"}
     try:
-        from api.services.institutional_holdings import get_institutional_holders
-        return get_institutional_holders(ticker, top_n=top_n or 10)
+        # Form 13F first (the read the Charts ownership panel route makes); the answer's
+        # `sources` names where each figure came from.
+        from api.services.institutional_holdings import get_institutional_holders_13f_first
+        return get_institutional_holders_13f_first(ticker, top_n=top_n or 10)
     except Exception as e:
         _log.warning("get_institutional_holders failed: %s", e)
         return {"error": f"institutional holders unavailable: {e}"}
@@ -635,8 +637,8 @@ def _get_insider_clusters(days: int = 7, count: int = 15) -> dict:
 
 
 def _get_social_sentiment(ticker: str = "") -> dict:
-    """Unified social sentiment — combines Twitter trader feed + Reddit + Stocktwits.
-    Single call replaces three. Returns aggregate verdict + agreement signal."""
+    """Unified social sentiment — combines the Twitter trader feed and Reddit.
+    Single call replaces two. Returns aggregate verdict + agreement signal."""
     if not ticker or not (ticker := ticker.strip()):
         return {"error": "ticker required"}
     try:
@@ -802,23 +804,94 @@ def _get_theme_status(period: str = "", count: int = 3) -> dict:
     return get_theme_status(period=period or None, count=count)
 
 
-def _get_options_flow(symbol: str = "", count: int = 3) -> dict:
-    count = max(1, min(5, int(count or 3)))
-    items = _options_flow(symbol or None)[:count]
-    if not items:
-        return {"flow": "no recent options flow available", "count": 0}
-    parts = [f"{i.get('sym', '')} {i.get('option_type', '')} {i.get('strike', '')}".strip()
-             for i in items]
-    return {"flow": ", ".join(p for p in parts if p), "count": len(parts)}
+#: One ticker: letters, dots and dashes, starting with a letter (the flow routes' own shape).
+_FLOW_TOOL_SYMBOL = re.compile(r"^[A-Z][A-Z.\-]{0,9}$")
+#: The longest answer either flow tool gives the model.
+FLOW_TOOL_TEXT_CAP = 600
+#: The most prints the dark pool tool lists.
+DARK_POOL_MAX_PRINTS = 5
+
+FLOW_NEEDS_TICKER = "Options flow is read one ticker at a time. Which ticker?"
+FLOW_UNAVAILABLE = "Options flow is unavailable right now."
+FLOW_QUIET = "No notable options flow on the tape for {sym} in its latest session."
+DARK_POOL_NEEDS_TICKER = "Dark pool prints are read one ticker at a time. Which ticker?"
+DARK_POOL_UNAVAILABLE = "Dark pool prints are unavailable right now."
+DARK_POOL_QUIET = "No dark pool prints on record for {sym} in the last {days} sessions."
+
+
+def _flow_tool_symbol(symbol) -> str:
+    """The ticker a flow tool was asked about, or "" when it is not one ticker."""
+    sym = str(symbol or "").strip().upper().lstrip("$")
+    return sym if _FLOW_TOOL_SYMBOL.match(sym) else ""
+
+
+def _tool_count(count, default: int, most: int) -> int:
+    try:
+        n = int(count or default)
+    except (TypeError, ValueError):
+        n = default
+    return max(1, min(most, n))
+
+
+def _get_options_flow(symbol: str = "", count: int = 3) -> dict:  # noqa: ARG001 — `count` kept for old callers
+    """`{flow, count}`: one ticker's latest-session options flow, in one line.
+
+    Three different answers, never mixed up: no ticker named, the read FAILED
+    (`unavailable: True`, logged by type), or the tape is quiet for that ticker.
+    """
+    sym = _flow_tool_symbol(symbol)
+    if not sym:
+        return {"flow": FLOW_NEEDS_TICKER, "count": 0}
+    try:
+        line, read_ok = _options_flow(sym)
+    except Exception as e:  # noqa: BLE001 — reported as unavailable, never as "no flow"
+        _log.warning("get_options_flow failed: %s", type(e).__name__)
+        return {"flow": FLOW_UNAVAILABLE, "count": 0, "unavailable": True}
+    if not read_ok:
+        _log.warning("get_options_flow: the flow read did not complete")
+        return {"flow": FLOW_UNAVAILABLE, "count": 0, "unavailable": True}
+    if not line:
+        return {"flow": FLOW_QUIET.format(sym=sym), "count": 0}
+    return {"flow": str(line)[:FLOW_TOOL_TEXT_CAP], "count": 1}
+
+
+def _dark_pool_print_text(p: dict) -> str:
+    """One print in words: its date, dollar size, price and shares. A missing
+    number is left out, never written as 0."""
+    def _num(v):
+        return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v else None
+
+    parts = [str(p.get("date") or "").strip()]
+    notional, price, volume = _num(p.get("notional")), _num(p.get("price")), _num(p.get("volume"))
+    if notional and notional > 0:
+        parts.append(f"${notional / 1e6:.1f}M")
+    if price and price > 0:
+        parts.append(f"at ${price:,.2f}")
+    if volume and volume > 0:
+        parts.append(f"({volume:,.0f} shares)")
+    return " ".join(x for x in parts if x)
 
 
 def _get_dark_pool(symbol: str = "", count: int = 3) -> dict:
-    count = max(1, min(5, int(count or 3)))
-    items = _dark_pool(symbol or None)[:count]
-    if not items:
-        return {"prints": "no recent dark pool prints available", "count": 0}
-    parts = [f"{i.get('sym', '')} {i.get('size', '')} shares".strip() for i in items]
-    return {"prints": ", ".join(p for p in parts if p), "count": len(parts)}
+    """`{prints, count}`: one ticker's most recent dark pool prints, newest first.
+
+    Three different answers, never mixed up: no ticker named, the read FAILED
+    (`unavailable: True`, logged by type), or no print is on record.
+    """
+    sym = _flow_tool_symbol(symbol)
+    if not sym:
+        return {"prints": DARK_POOL_NEEDS_TICKER, "count": 0}
+    n = _tool_count(count, 3, DARK_POOL_MAX_PRINTS)
+    try:
+        items = list(_dark_pool(sym, n))[:n]
+    except Exception as e:  # noqa: BLE001 — reported as unavailable, never as "no prints"
+        _log.warning("get_dark_pool failed: %s", type(e).__name__)
+        return {"prints": DARK_POOL_UNAVAILABLE, "count": 0, "unavailable": True}
+    parts = [t for t in (_dark_pool_print_text(i) for i in items if isinstance(i, dict)) if t]
+    if not parts:
+        return {"prints": DARK_POOL_QUIET.format(sym=sym, days=DARK_POOL_SESSIONS), "count": 0}
+    text = f"{sym} dark pool prints, newest first: " + "; ".join(parts)
+    return {"prints": text[:FLOW_TOOL_TEXT_CAP], "count": len(parts)}
 
 
 def _get_economic_calendar() -> dict:
@@ -2834,27 +2907,15 @@ def _register_all() -> None:
     )(_reddit_sentiment)
 
     _vt.voice_tool(
-        name="stocktwits_sentiment",
-        description=(
-            "Stocktwits sentiment for a ticker — recent messages with user-"
-            "tagged Bullish/Bearish counts, net score, sample messages. "
-            "Free public API, no auth required."
-        ),
-        parameters={
-            "ticker": {"type": "string"},
-            "limit": {"type": "integer", "description": "Max messages to analyze (default 30, max 50)."},
-        },
-        contexts=["global"],
-    )(_stocktwits_sentiment)
-
-    _vt.voice_tool(
         name="get_institutional_holders",
         description=(
-            "Top institutional holders for a ticker (from Yahoo Finance 13F "
-            "aggregate). Returns each holder + shares + % of outstanding + "
-            "value, plus overall held_by_institutions_pct and "
-            "held_by_insiders_pct. Call for 'who owns NVDA', 'how much is "
-            "institutional', 'who are the top 5 holders'."
+            "Top institutional holders for a ticker, from Form 13F filings "
+            "(quarterly, filed up to 45 days after the quarter ends). Returns "
+            "each holder + shares + % of outstanding + value + the change "
+            "against its prior filing, plus overall held_by_institutions_pct "
+            "and held_by_insiders_pct; `sources` names where each figure came "
+            "from and `as_of` the filing date. Call for 'who owns NVDA', 'how "
+            "much is institutional', 'who are the top 5 holders'."
         ),
         parameters={
             "ticker": {"type": "string"},
@@ -2894,10 +2955,10 @@ def _register_all() -> None:
         name="get_social_sentiment",
         description=(
             "ONE-CALL unified social sentiment — combines Twitter trader feed "
-            "+ Reddit + Stocktwits in parallel. Returns aggregate verdict "
+            "+ Reddit in parallel. Returns aggregate verdict "
             "(bullish/bearish/mixed) + agreement signal (unanimous_bullish / "
             "unanimous_bearish / mixed_across_sources). Use this INSTEAD of "
-            "calling all three individually."
+            "calling each source individually."
         ),
         parameters={"ticker": {"type": "string"}},
         contexts=["global"],
@@ -3063,20 +3124,19 @@ def _register_all() -> None:
 
     _vt.voice_tool(
         name="get_options_flow",
-        description="Get recent unusual options activity, optionally for a specific ticker.",
+        description="Get one ticker's options flow for its latest session, in one line: how many notable prints, total premium, the call or put lean, the share at the ask and the largest print. Needs a ticker.",
         parameters={
-            "symbol": {"type": "string", "description": "Optional ticker filter."},
-            "count": {"type": "integer", "description": "How many to include (default 3)."},
+            "symbol": {"type": "string", "description": "The ticker (required)."},
         },
         contexts=["global"],
     )(_get_options_flow)
 
     _vt.voice_tool(
         name="get_dark_pool",
-        description="Get recent dark pool prints, optionally for a specific ticker.",
+        description="Get one ticker's most recent dark pool prints (date, dollar size, price, shares). Needs a ticker.",
         parameters={
-            "symbol": {"type": "string"},
-            "count": {"type": "integer", "description": "How many (default 3)."},
+            "symbol": {"type": "string", "description": "The ticker (required)."},
+            "count": {"type": "integer", "description": "How many prints (default 3, max 5)."},
         },
         contexts=["global"],
     )(_get_dark_pool)

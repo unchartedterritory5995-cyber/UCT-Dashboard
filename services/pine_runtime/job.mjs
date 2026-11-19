@@ -86,6 +86,10 @@ export const DECLARED_DIFFERENCES = Object.freeze({
   // the whole document meta, so the run's own runtimeVersionRefusal (runtimeColumns.js) reads the
   // version facts on every document (design 3.2); the browser worker passes runtimeHistory only
   defMeta: 'doc.meta',
+  // (coordinator ruling 2026-11-19) the BROWSER WORKER's budget scales with the bars a run covers
+  // (runtimeColumns.js::runtimePaneBudgetFor, `budgetScales`); this host keeps the per-run 1,000 ms:
+  // a shared process, where a longer run is every queued job's wait, not one member's labels arriving later.
+  optsBrowserOnly: Object.freeze(['budgetScales']),
 })
 
 /** The bundle's per-run wall budget, or a throw: a run with no budget could have a wall-clock stop

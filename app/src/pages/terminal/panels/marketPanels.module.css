@@ -251,6 +251,18 @@
   align-items: start;
 }
 
+/* HILO: its two five-column tables each need about 311px. Side by side from 16rem (256px) the last
+   column of each was cut in a panel 548 to 629px wide; they stack until each has room. */
+.splitRoomy {
+  grid-template-columns: repeat(auto-fit, minmax(19.5rem, 1fr));
+}
+
+/* H52: its two four-column tables each need about 277px, and were cut the same way in a panel 548 to
+   about 590px wide. They stack until each has 280px (a panel of 596px), which keeps every column. */
+.splitFair {
+  grid-template-columns: repeat(auto-fit, minmax(17.5rem, 1fr));
+}
+
 .caption {
   caption-side: top;
   text-align: left;
@@ -282,21 +294,44 @@
   height: 22rem;
 }
 
-/* PHONE: the less-used columns fold away so a 390px panel keeps sym, last and % change. */
+/* PHONE SCREEN: a phone gives the scatter a shorter stage, so the axes and the method line fit one screen. */
 @media (max-width: 640px) {
-  .phoneHide {
-    display: none;
-  }
-
-  /* A phone gives the scatter a shorter stage, so the axes and the method line fit one screen. */
   .scatStage {
     height: 18rem;
   }
+}
 
-  .table td.wrapCell,
-  .table th.wrapCell {
-    min-width: 6rem;
-  }
+/* PANEL FIT (2026-11-18). A table has to fit its PANEL, and a panel can be narrow on a wide screen
+   (three panels side by side on a desktop, two on a laptop). The shell marks every panel body with
+   the fit tier of its own width (`data-fit`, ../panelFit.js, one shared observer), and the rules a
+   table needs to fit key on that mark, never on the screen:
+     data-fit~='narrow'   a phone screen, or a panel at most 460px wide: every table folds, as a
+                          phone always did.
+     data-fit~='fold590'  ... 'fold570', 'fold550', 'fold530', 'fold510', 'fold480': the panel is at
+                          most that wide (a 500px panel carries fold590 down to fold510).
+     data-fit~='snug'     a panel at most 660px wide: the cells of six tables may wrap.
+     data-fit~='medium'   a panel at most 780px wide: the same for RSS, the one table wider than that.
+   A phone screen carries `narrow` alone; a panel wider than 780px carries no mark at all.
+   `:where()` adds no specificity, so each rule sorts exactly as it did inside the old phone query.
+
+   THE FOLD LADDER. Folding a column loses information and wrapping does not, so on a screen wider
+   than a phone a table folds only where it would overflow even with its cells wrapped. Each table
+   says where that is with ONE attribute on its box, `data-fold="550"`: the step just above the
+   width it was measured to need (beside the 5px scrollbar, with room for longer real data). Every
+   fold rule below starts with the same list, `narrow` or a step together with the table's own
+   attribute, so a table folds in a narrow panel, or from its own step down, and nowhere else. A
+   table with no attribute (one that fits a 461px panel, or one with no sample rows to measure)
+   folds only in a narrow panel. The steps live in ../panelFit.js (FOLD_STEPS); the rail holds
+   every fold rule and every `data-fold` to that list.
+
+   FOLD: the less-used columns fold away so the table keeps sym, last and % change. */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .phoneHide {
+  display: none;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td.wrapCell,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th.wrapCell {
+  min-width: 6rem;
 }
 
 /* TOUCH TIER (phone + tablet): finger targets, as MOST (moversPanel.module.css). */
@@ -316,4 +351,58 @@
     display: inline-flex;
     align-items: center;
   }
+}
+
+/* FOLD FIT (2026-11-18, measured with a 390px sweep of every panel: five tables were wider than the
+   screen and scrolled sideways). Two helpers a cell opts into, both only where the table folds, so
+   a wide panel keeps its one-line rows:
+     .phoneWrap   the cell may take two lines (a long "3 (small sample, 10 needed)" or
+                  "Mixed, mostly bullish (68%)") instead of pushing the table past the panel;
+                  On a span inside a cell it lets that ONE line wrap and keeps its neighbours whole
+                  (CONFL: "+$12.4M net" stays together, the long-dated line under it may wrap).
+     .phoneTight  a .wrapCell gives back its floor and breaks BETWEEN WORDS only: the column is then as
+                  wide as its longest word and no wider. (`overflow-wrap: anywhere`, the desktop rule,
+                  lets the browser squeeze a column to a few letters, which at phone width split
+                  "government" and "$640.0M" in the middle; `break-word` does not shrink the column.)
+   Declared AFTER `.table td.wrapCell` with the same specificity, so they win where the table folds only. */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td.phoneWrap,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th.phoneWrap,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td span.phoneWrap {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td.phoneTight,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th.phoneTight {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* SNUG AND MEDIUM FIT (2026-11-18, measured with a panel-width sweep on a 1600px screen: seven
+   tables were wider than a 600px panel: RSS by 161px, FLWL 48, ACCUM 41, PERF 26, HILO 22 and 29,
+   the open flow board 7, CONFL 4). The same two treatments, with every column still showing:
+     .snugWrap   / .mediumWrap    as .phoneWrap: the cell, its header or one span in it may take a
+                                  second line.
+     .snugTight  / .mediumTight   as .phoneTight: a .wrapCell gives back its floor and breaks
+                                  between words only.
+   snug is a panel at most 660px wide: the widest of the six needs 648px (FLWL), 653 beside a
+   scrollbar. medium is at most 780px, for RSS alone, which needs 761px. A cell opts into ONE of the
+   two, so a panel wider than 660px looks exactly as it did for every table but RSS. Both go on
+   applying below 600px (not on a phone screen): wrapping is tried before any column folds. */
+:where([data-fit~='snug']) .table td.snugWrap,
+:where([data-fit~='snug']) .table th.snugWrap,
+:where([data-fit~='snug']) .table td span.snugWrap,
+:where([data-fit~='medium']) .table td.mediumWrap,
+:where([data-fit~='medium']) .table th.mediumWrap,
+:where([data-fit~='medium']) .table td span.mediumWrap {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+:where([data-fit~='snug']) .table td.snugTight,
+:where([data-fit~='snug']) .table th.snugTight,
+:where([data-fit~='medium']) .table td.mediumTight,
+:where([data-fit~='medium']) .table th.mediumTight {
+  min-width: 0;
+  overflow-wrap: break-word;
 }

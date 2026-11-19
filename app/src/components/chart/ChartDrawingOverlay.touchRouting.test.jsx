@@ -446,3 +446,33 @@ describe('feedback through the finger', () => {
     expect(text).toMatch(/Jan 2/)           // its bar
   })
 })
+
+describe('⛔ a pending long-press dies with the overlay (2026-11-18)', () => {
+  // ⚰️ The 450 ms long-press timer was cleared on pointer up, cancel and a second finger, never on unmount, so an
+  // overlay removed mid-press set state on an unmounted component; under jsdom the timer fired after teardown
+  // ("window is not defined") and turned a remote shard red with every test green.
+  it('a press on a drawing, then the overlay unmounts: the long-press never fires', () => {
+    vi.useFakeTimers()
+    try {
+      const rig = mount({ drawings: [HLINE] })
+      fingerDown(rig.chartEl, ON_HLINE)
+      rig.unmount()
+      act(() => { vi.advanceTimersByTime(1000) })
+      expect(navigator.vibrate).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('⛔ CONTROL: the same press, held while mounted, DOES open the menu (the rail can see a long-press)', () => {
+    vi.useFakeTimers()
+    try {
+      const rig = mount({ drawings: [HLINE] })
+      fingerDown(rig.chartEl, ON_HLINE)
+      act(() => { vi.advanceTimersByTime(1000) })
+      expect(navigator.vibrate).toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

@@ -405,3 +405,30 @@ describe('ConverseBox — reopen a saved definition into the conversation', () =
     expect(linesOf(lastUct())[0]).toBe('Saved — version 4.')
   })
 })
+
+// ⭐ 2026-11-18 — a checked library indicator says what it is; its formula in words is one tap away.
+describe('a checked library indicator in the window', () => {
+  it('reads back in one phrase, and offers the full formula in words on request; another formula offers nothing', async () => {
+    const { CHECKED_LIBRARY } = await import('./authoring/checkedLibrary')
+    const kama = CHECKED_LIBRARY.find((e) => e.id === 'kaufman_adaptive_moving_average')
+    const converse = vi.fn(async ({ message, state }) => ({
+      ok: true, disposition: 'change', reply: '', turn: 'patch', notUnderstood: [], unavailable: [],
+      envelope: message === 'kama'
+        ? env(state, [{ op: 'create', name: kama.name, outputs: [{ key: 'kama', label: 'KAMA', tree: kama.outputs[0].tree }] }])
+        : SCRIPT['RSI overbought'](state),
+    }))
+    const first = mount({ converse })
+    await say('kama')
+    expect(readbackLines().some((l) => l.includes('a moving average that speeds up when price moves cleanly and slows down when it chops'))).toBe(true)
+    expect(readbackLines().join(' ')).not.toMatch(/\(\(\(/)                 // never the formula six brackets deep
+    const more = screen.getByTestId('converse-formula-words')
+    expect(more.querySelector('summary').textContent).toBe('The full formula, in words')
+    expect(linesOf(more).length).toBe(1)
+    expect(linesOf(more)[0]).toMatch(/running value/)
+    first.unmount()
+    mount({ converse })
+    await say('RSI overbought')
+    expect(screen.queryByTestId('converse-formula-words')).toBeNull()        // CONTROL: its read-back already is its formula
+  })
+})
+

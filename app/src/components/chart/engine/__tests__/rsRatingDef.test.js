@@ -69,7 +69,7 @@ describe('1 · the identity', () => {
     expect(DEF).toMatchObject({ id: 'rsRating', version: 1, compute: { kind: 'server', fn: 'rsRating', rev: 1 } })
     expect(validateDefinition(DEF).ok).toBe(true)
     // rsExit (UCT RS Exit Warnings, 46705db957 + 4874d226e3) registers last; rsExitDef.test.js pins that
-    expect(SERVER_DEFS.map((d) => d.id)).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'])
+    expect(SERVER_DEFS.map((d) => d.id)).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield'])
     expect(DEF.meta).toMatchObject({ name: 'UCT RS Rating', shortName: 'UCT RS Rating', category: RS.meta.category,
       tier: 'premium', repaint: 'non-repainting', requiresServer: true, quickMenu: false, timeframes: ['D'] })
     expect(DEF.meta.description.split(/[.!?](\s|$)/).filter((s) => s.trim()).length, 'one sentence').toBe(1)

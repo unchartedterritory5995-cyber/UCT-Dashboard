@@ -64,10 +64,13 @@ DECLARED_READS = {
     "app/src/components/chart/engine/runtime/ir.js": "api/services/pine_runtime_client.py: engine identity",
     "app/src/components/chart/engine/ast/pineRuntimeFrontend.js": "api/services/pine_runtime_client.py: engine identity",
     "app/src/components/chart/engine/ast/pineLibraryDeny.json": "api/services/pine_library_store.py: the library deny list (unreadable = every library denied)",
+    "app/src/components/chart/supportLoop/assistantPineReference.json": "api/services/pine_authoring.py: what the assistant may write in a script (unreadable = no script turn is made)",
+    "app/src/components/chart/supportLoop/assistantRecipes.json": "api/services/pine_authoring.py: the proven scripts a script turn is handed, and the run's standing stops",
     "app/src/components/chart/supportLoop/pineBuiltins.json": "api/services/indicator_support.py",
     "app/src/components/chart/supportLoop/doorNameCoverage.json": "api/services/indicator_support_loop.py",
     "app/src/components/chart/engine/scriptEngineVersion.js": "api/services/user_definitions.py: SCRIPT_ENGINE_VERSION",
     "app/src/components/chart/engine/hostKnownDivergence.json": "api/services/host_known_divergence.py: the host lane's known-divergence list (save, served rows, server lanes)",
+    "app/src/components/chart/engine/pineCompare.js": "api/services/pine_compare.py: PINE_EQ_EPSILON / PINE_EQ_INCLUSIVE, Pine's float comparison (unreadable = the import fails)",
 }
 
 #: JavaScript `web` runs under node. Each entry is needed together with everything it imports.
@@ -102,6 +105,9 @@ NOT_RUNTIME = {
 
 #: Single mentions that are not runtime reads, in files that may hold real ones. (file, path) -> reason.
 IGNORED_MENTIONS = {
+    ("api/services/pine_authoring.py", "app/src/components/chart/supportLoop/assistantGaps.json"):
+        "named in the text of the generated gaps document, and read only by `gaps_document` "
+        "(tools/assistant_gaps_build.py and its test); nothing at runtime calls it",
     ("api/services/pine_capabilities.py", "app/src/components/chart/engine/ast/pine.js"):
         "read only by `usage_of`, the census; nothing at runtime calls it",
 }

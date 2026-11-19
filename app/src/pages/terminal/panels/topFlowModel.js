@@ -23,12 +23,13 @@
 //              0 when the tape had no volume for it.
 //     prem     dollars of premium in the flagged trades. hits: how many trades.
 //     history  one entry per daily snapshot, { date ('M/D/YYYY', New York), price (the contract's
-//              mark, else last, else 0), oi (open interest), spot (the stock), volume }. Written
-//              by `snapshot_prices` from SCHWAB option quotes about 4:30 PM ET on weekdays, for
-//              the 200 newest open picks only. A contract with no quote that day gets no entry.
-//              Recorded from Massive first, Schwab as backup, since November 2026 (each new
-//              entry carries `src`); earlier entries came from Schwab alone. When neither source
-//              prices a contract NO entry is written.
+//              price), oi (open interest), spot (the stock), volume, src }. Written by
+//              `snapshot_prices` about 4:30 PM ET on weekdays, for the 200 newest open picks
+//              only. Recorded from Massive since November 2026 (`src: 'massive'`; price = the
+//              bid/ask midpoint, else the last trade; a field Massive did not send is null).
+//              Earlier entries came from Schwab (`src: 'schwab'` or no `src`; price = its mark,
+//              else last, else 0) and stay as recorded. When Massive has no price for a contract
+//              NO entry is written.
 //   archived a pick whose expiry has passed (moved at startup and before each snapshot), with
 //              `archivedDate`, `finalPrice` (its last history price) and `finalPnl` (percent, and
 //              0 when either price is missing). A pick an admin stopped early also carries

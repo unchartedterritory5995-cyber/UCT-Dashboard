@@ -52,7 +52,9 @@ LISTING_DAY = "1980-12-12"
 PROBE_JS = r"""
 (() => {
   const P = window.__probe = { lt: [], loaf: [], gaps: [], chips: [], firstDigit: null, firstDigitText: null,
-    title: null, beats: 0 };
+    title: null, beats: 0,
+    // can a worker be told to stop mid-job? only through a SharedArrayBuffer, which needs isolation
+    isolation: { crossOriginIsolated: self.crossOriginIsolated === true, sharedArrayBuffer: typeof SharedArrayBuffer } };
   try {
     new PerformanceObserver((l) => { for (const e of l.getEntries()) P.lt.push([e.startTime, e.duration]) })
       .observe({ type: 'longtask', buffered: true });
@@ -113,6 +115,11 @@ DEFS_JS = """async () => {
 }"""
 
 ME_JS = """async () => fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json()).catch(e => ({ err: String(e) }))"""
+
+#: ⭐ HOST WORKER (docs/pine/evidence/2026-11-17-host-lane-worker/EVIDENCE.md) — every job the host
+#: lane's worker answered: `[posted at, post -> landed ms, {kind, workerMs, ok, bars}]` (the user-timing
+#: measure `hostLaneAsync.js` records on each landing). Empty on a build without the worker.
+HOST_RUNS_JS = """() => performance.getEntriesByName('host-lane:worker-run').map(e => [Math.round(e.startTime), Math.round(e.duration), e.detail || null])"""
 
 #: The member door as it is today (UCT Signature R2, 2026-11-16): Chart settings -> Indicators ->
 #: "Create indicator" -> "Paste a script". (`pine_member_pane_capture.py`'s OPEN_DOOR_JS still looks
@@ -241,10 +248,89 @@ def sign_in(page, base, email, password):
     return r.ok
 
 
+def _def_id(d):
+    return d.get("id") or (d.get("definition") or {}).get("id")
+
+
+def account_state(page, base):
+    """What a synthetic account holds that the probe may touch: its saved scripts (ids) and its
+    preferences (key -> stored string), with the workspace document's stamp. Held in memory only."""
+    r = page.request.get(f"{base}/api/auth/preferences")
+    prefs = r.json() if r.ok else None
+    defs = page.request.get(f"{base}/api/user-definitions").json().get("definitions", [])
+    return {"prefs": prefs if isinstance(prefs, dict) else {}, "prefsOk": r.ok,
+            "stamp": r.headers.get("x-workspace-doc"), "defs": sorted(str(_def_id(d)) for d in defs if _def_id(d))}
+
+
+def _doc_version(stamp):
+    """`document; v=12` -> 12 (the base a revision-aware write names), else None."""
+    import re  # noqa: PLC0415
+    m = re.search(r"\bv=(\d+)", stamp or "")
+    return int(m.group(1)) if m else None
+
+
+def restore_account(page, base, before):
+    """⛔ LEAVE THE ACCOUNT AS IT WAS FOUND: delete every script this run saved, write back every
+    preference it changed (the product's own write, `POST /api/auth/preferences`, naming the document's
+    version as the app does), and read it all again. Returns what was done (key names only)."""
+    out = {"created": [], "deleted": [], "prefsChanged": [], "restored": [], "added": [], "errors": []}
+    try:
+        now = account_state(page, base)
+        out["created"] = [i for i in now["defs"] if i not in before["defs"]]
+        for i in out["created"]:
+            r = page.request.delete(f"{base}/api/user-definitions/{i}")
+            (out["deleted"] if r.ok else out["errors"]).append(i if r.ok else f"delete {i}: HTTP {r.status}")
+        now = account_state(page, base)
+        keys = sorted(set(before["prefs"]) | set(now["prefs"]))
+        out["prefsChanged"] = [k for k in keys if before["prefs"].get(k) != now["prefs"].get(k)]
+        for k in out["prefsChanged"]:
+            if k not in before["prefs"]:
+                out["added"].append(k)   # no door removes a key; said, never guessed at
+                continue
+            for _attempt in range(3):
+                cur = account_state(page, base)
+                body = {"key": k, "value": before["prefs"][k]}
+                v = _doc_version(cur["stamp"])
+                if v is not None:
+                    body["base_version"] = v
+                r = page.request.post(f"{base}/api/auth/preferences", data=json.dumps(body),
+                                      headers={"Content-Type": "application/json"})
+                if r.ok:
+                    out["restored"].append(k)
+                    break
+                if r.status != 409:
+                    out["errors"].append(f"restore {k}: HTTP {r.status}")
+                    break
+        final = account_state(page, base)
+        out["defsAsFound"] = final["defs"] == before["defs"]
+        out["prefsAsFound"] = all(final["prefs"].get(k) == before["prefs"].get(k) for k in before["prefs"]) \
+            and not [k for k in final["prefs"] if k not in before["prefs"]]
+        out["ok"] = out["defsAsFound"] and out["prefsAsFound"] and not out["errors"]
+    except Exception as exc:  # noqa: BLE001 -- reported, never swallowed
+        out["errors"].append(f"{type(exc).__name__}: {str(exc)[:200]}")
+        out["ok"] = False
+    return out
+
+
+#: ⭐ the workspace is ready: a widget on it, or its "Add widget" door. A cold sandbox can take 40 s
+#: to draw it (measured 2026-11-17: no door at 20 s, the door at 40 s), and a fixed wait read that as
+#: "no chart widget".
+WORKSPACE_READY_JS = """() => document.querySelectorAll('[data-widget-id]').length > 0
+  || [...document.querySelectorAll('button')].some(b => /Add widget/.test(b.textContent || ''))"""
+
+
+def wait_for_workspace(page):
+    try:
+        page.wait_for_function(WORKSPACE_READY_JS, timeout=120000)
+    except Exception:
+        pass
+    page.wait_for_timeout(2000)
+
+
 def install(page, base, source, settle_s=0, expect_runtime=False):
     """The member door, through its UI. Returns what was saved."""
     page.goto(f"{base}/charts", wait_until="domcontentloaded")
-    page.wait_for_timeout(8000)
+    wait_for_workspace(page)
     chart = page.evaluate(ENSURE_CHART_JS)
     print(f"[probe] chart widget: {chart}", flush=True)
     if not chart.get("widgets"):
@@ -293,7 +379,15 @@ def install(page, base, source, settle_s=0, expect_runtime=False):
     return attached
 
 
-def measure_load(browser, base, storage, out_dir, label, title, server, poll, trace):
+def deep_values_landed(runs, deep_bars=1000):
+    """The landing time (ms on the page clock) of the first host-worker VALUES job over the deep
+    history, or None. `runs` is HOST_RUNS_JS's answer: [posted at, post -> landed ms, detail]."""
+    ends = [r[0] + r[1] for r in runs or []
+            if isinstance(r[2], dict) and r[2].get("kind") == "values" and (r[2].get("bars") or 0) >= deep_bars]
+    return min(ends) if ends else None
+
+
+def measure_load(browser, base, storage, out_dir, label, title, server, poll, trace, wait_final=False):
     ctx = browser.new_context(viewport={"width": 1440, "height": 900}, reduced_motion="reduce",
                               storage_state=storage)
     route_bars(ctx, server)
@@ -329,16 +423,21 @@ def measure_load(browser, base, storage, out_dir, label, title, server, poll, tr
         drawn = (p["d"] is not None) or not title
         quiet_for = (p["now"] - (p["lastLt"][0] + p["lastLt"][1])) if p["lastLt"] else p["now"]
         hist_in = any(k == "history" for _, k, _d in server.log)
+        # ⭐ --wait-final: the deep history's VALUES must have landed (the final values), not just the
+        # first paint's; a build or script with no worker values job settles as before after 240 s
+        final_in = (not wait_final) or deep_values_landed(page.evaluate(HOST_RUNS_JS)) is not None \
+            or p["now"] > 240000
         if int(p["now"] / 1000) % 15 == 0:
             print(f"[probe] {label} t={p['now'] / 1000:.0f}s longTasks={p['lt']} drawn={drawn} history={hist_in} "
-                  f"requests={[k for _, k, _d in server.log]}", flush=True)
-        if drawn and hist_in and quiet_for > 5000 and p["now"] > 15000:
+                  f"final={final_in} requests={[k for _, k, _d in server.log]}", flush=True)
+        if drawn and hist_in and final_in and quiet_for > 5000 and p["now"] > 15000:
             break
         if drawn and quiet_for > 5000 and p["now"] > 120000:
             print(f"[probe] {label}: settled without a deep-history request", flush=True)
             break
         last_lt = p
     load = page.evaluate("() => JSON.parse(JSON.stringify(window.__probe))")
+    load["hostLaneRuns"] = page.evaluate(HOST_RUNS_JS)
     load["navToSettleS"] = round(time.time() - t_nav, 1)
     load["requests"] = [(round(t - t_nav, 2), k, d) for t, k, d in server.log]
     load["permission"] = page.evaluate("() => fetch('/api/auth/me').then(r => r.json()).then(j => j.pine_runtime_pane_enabled).catch(() => null)")
@@ -355,10 +454,12 @@ def measure_load(browser, base, storage, out_dir, label, title, server, poll, tr
         t_poll = time.time()
         page.wait_for_timeout(30000)
         after = page.evaluate("() => JSON.parse(JSON.stringify(window.__probe))")
+        host_runs_after = page.evaluate(HOST_RUNS_JS)
         prof2 = cdp.send("Profiler.stop")["profile"]
         (out_dir / f"{label}.poll.cpuprofile").write_text(json.dumps(prof2), encoding="utf-8")
         poll_perf = after["lt"][before:]
         result["poll"] = {"waitedS": round(t_poll - t_wait, 1), "polled": server.tail_polls > polls0,
+                          "hostLaneRuns": host_runs_after[len(load["hostLaneRuns"]):],
                           "longTasks": poll_perf, "gaps": [g for g in after["gaps"] if g not in load["gaps"]],
                           "chips": after["chips"][-3:],
                           "requests": [(round(t - t_nav, 2), k, d) for t, k, d in server.log]}
@@ -374,6 +475,10 @@ def summarise(res):
     s = {"longTasks": len(lt), "longTaskMs": round(sum(d for _, d in lt)), "maxLongTaskMs": round(max([d for _, d in lt] or [0])),
          "maxFrameGapMs": round(max([g for _, g in res["load"]["gaps"]] or [0])),
          "firstDigitMs": round(res["load"]["firstDigit"]) if res["load"]["firstDigit"] is not None else None}
+    s["hostLaneRuns"] = len(res["load"].get("hostLaneRuns") or [])
+    final = deep_values_landed(res["load"].get("hostLaneRuns"))
+    s["finalValuesMs"] = round(final) if final is not None else None
+    s["isolation"] = res["load"].get("isolation")
     if "poll" in res:
         plt = res["poll"]["longTasks"]
         s["poll"] = {"polled": res["poll"]["polled"], "longTasks": len(plt), "longTaskMs": round(sum(d for _, d in plt)),
@@ -394,6 +499,12 @@ def main() -> int:
     ap.add_argument("--password", default="LaneCost2026!")
     ap.add_argument("--poll", action="store_true", help="also measure the next real tf=D poll (up to 6 minutes)")
     ap.add_argument("--trace", action="store_true", help="also record a Chromium performance trace")
+    ap.add_argument("--synthetic", choices=["smoke", "loopback-test"],
+                    help="PRODUCTION: sign in as this synthetic account through tools/synthetic_session.py (signed "
+                         "out at the end); no sign-up, no other script deleted, the account restored as found. "
+                         "`loopback-test` runs the same path on a local sandbox with --email/--password")
+    ap.add_argument("--wait-final", action="store_true",
+                    help="settle only once the deep history's values job has landed (the final values)")
     ap.add_argument("--headed", action="store_true")
     ap.add_argument("--expect-runtime", action="store_true",
                     help="attach only once the preview says it is drawn bar by bar (the cost route moved it)")
@@ -401,6 +512,12 @@ def main() -> int:
                     help="seconds to wait on the preview before attaching (a runtime-on capability verdict lands async)")
     args = ap.parse_args()
 
+    import synthetic_session  # noqa: PLC0415 (tools/ is on sys.path)
+    if not args.synthetic and not synthetic_session.is_loopback(args.base):
+        # ⛔ the plain sign-in (and its sign-up and its clean slate) is for a LOCAL sandbox account only;
+        # anything else signs in as a synthetic account, through the helper that always signs out
+        print(f"[probe] REFUSED: {args.base} is not a local sandbox; use --synthetic smoke")
+        return 2
     from playwright.sync_api import sync_playwright
     out_dir = pathlib.Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -412,8 +529,9 @@ def main() -> int:
             else pathlib.Path(args.script).read_text(encoding="utf-8")
         import re
         m = re.search(r"""(?:indicator|study|strategy)\s*\(\s*(?:title\s*=\s*)?["']([^"']+)["']""", source)
-        title = args.title or (m.group(1) if m else None)
+        title = args.title or (m.group(1).strip() if m else None)   # a title with a trailing space never matched its chip
 
+    account_record = None
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not args.headed)
         # ── sign in, clear any earlier member scripts, attach this one ──
@@ -421,43 +539,83 @@ def main() -> int:
         server = BarsServer(bars)
         route_bars(ctx, server)
         page = ctx.new_page()
-        if not sign_in(page, args.base, args.email, args.password):
+        session = None
+        before = None
+        if args.synthetic:
+            # ⛔ PRODUCTION: the synthetic account only, through the ONE sign-in that always signs out
+            # (`tools/synthetic_session.py`); never a sign-up, never another account's scripts deleted
+            if args.synthetic == "loopback-test":
+                # the same path on a LOCAL sandbox (`synthetic_session` refuses explicit credentials
+                # anywhere else): the account is made if it is not there, then signed in the synthetic way
+                if not synthetic_session.is_loopback(args.base):
+                    print("[probe] INCONCLUSIVE: loopback-test is for a local sandbox only")
+                    return 2
+                warm = browser.new_context()
+                ok = sign_in(warm.new_page(), args.base, args.email, args.password)
+                warm.close()
+                if not ok:
+                    print(f"[probe] INCONCLUSIVE: sign-in failed at {args.base}")
+                    return 2
+                session = synthetic_session.sign_in_playwright(ctx, args.base, credentials=(args.email, args.password))
+            else:
+                session = synthetic_session.sign_in_playwright(ctx, args.base, args.synthetic)
+            if not session.ok:
+                print(f"[probe] INCONCLUSIVE: the {args.synthetic} sign-in answered HTTP {session.status}")
+                return 2
+        elif not sign_in(page, args.base, args.email, args.password):
             print(f"[probe] INCONCLUSIVE: sign-in failed at {args.base}")
             return 2
-        me = page.evaluate("() => null") if False else None
-        page.goto(f"{args.base}/api/auth/me")
-        me = json.loads(page.inner_text("body"))
-        defs = page.request.get(f"{args.base}/api/user-definitions").json().get("definitions", [])
-        for d in defs:
-            did = d.get("id") or (d.get("definition") or {}).get("id")
-            if did:
-                page.request.delete(f"{args.base}/api/user-definitions/{did}")
-        installed = None
-        if source is not None:
-            installed = install(page, args.base, source, args.settle_before_attach, args.expect_runtime)
-            if not installed.get("ok"):
-                print(f"[probe] MEASURED FAILURE: {json.dumps(installed)[:800]}")
-                (out_dir / f"{args.label}.install.json").write_text(json.dumps(installed, indent=1), encoding="utf-8")
-                return 1
-        else:
-            page.goto(f"{args.base}/charts", wait_until="domcontentloaded")
-            page.wait_for_timeout(8000)
-            chart = page.evaluate(ENSURE_CHART_JS)
-            print(f"[probe] chart widget: {chart}", flush=True)
-            if not chart.get("widgets"):
-                print(f"[probe] INCONCLUSIVE: no chart widget ({chart})")
-                return 2
-            page.wait_for_timeout(5000)
-        page.wait_for_timeout(3000)
-        storage = ctx.storage_state()
-        ctx.close()
-        # ── the measured load: a fresh context (cold device cache), the same account ──
-        res = measure_load(browser, args.base, {"cookies": storage["cookies"], "origins": []}, out_dir, args.label,
-                           title, server, args.poll, args.trace)
-        browser.close()
+        try:
+            me = json.loads(page.request.get(f"{args.base}/api/auth/me").text())
+            me = me if isinstance(me, dict) else {}
+            if args.synthetic:
+                # what the account holds BEFORE: restored to exactly this at the end (values never written out)
+                before = account_state(page, args.base)
+                print(f"[probe] account before: {len(before['defs'])} saved scripts, {len(before['prefs'])} preference keys",
+                      flush=True)
+            else:
+                defs = page.request.get(f"{args.base}/api/user-definitions").json().get("definitions", [])
+                for d in defs:
+                    did = d.get("id") or (d.get("definition") or {}).get("id")
+                    if did:
+                        page.request.delete(f"{args.base}/api/user-definitions/{did}")
+            installed = None
+            if source is not None:
+                installed = install(page, args.base, source, args.settle_before_attach, args.expect_runtime)
+                if not installed.get("ok"):
+                    print(f"[probe] MEASURED FAILURE: {json.dumps(installed)[:800]}")
+                    (out_dir / f"{args.label}.install.json").write_text(json.dumps(installed, indent=1), encoding="utf-8")
+                    return 1
+            else:
+                page.goto(f"{args.base}/charts", wait_until="domcontentloaded")
+                wait_for_workspace(page)
+                chart = page.evaluate(ENSURE_CHART_JS)
+                print(f"[probe] chart widget: {chart}", flush=True)
+                if not chart.get("widgets"):
+                    print(f"[probe] INCONCLUSIVE: no chart widget ({chart})")
+                    return 2
+                page.wait_for_timeout(5000)
+            page.wait_for_timeout(3000)
+            storage = ctx.storage_state()
+            # the install page leaves the app, so nothing it holds writes while the load is measured
+            page.goto("about:blank")
+            # ── the measured load: a fresh context (cold device cache), the same account ──
+            res = measure_load(browser, args.base, {"cookies": storage["cookies"], "origins": []}, out_dir, args.label,
+                               title, server, args.poll, args.trace, args.wait_final)
+        finally:
+            if before is not None:
+                account_record = restore_account(page, args.base, before)
+                print(f"[probe] account after: {json.dumps(account_record)}", flush=True)
+            ctx.close()
+            if session is not None:
+                session.close()
+                account_record = dict(account_record or {}, signedOut=session.signed_out)
+            browser.close()
     res["installed"] = installed
-    res["account"] = {"email_domain": args.email.split("@")[-1], "role": me.get("role") if isinstance(me, dict) else None,
-                      "pine_runtime_pane_enabled": me.get("pine_runtime_pane_enabled") if isinstance(me, dict) else None}
+    who = (session.email if session is not None else args.email)
+    res["account"] = {"email_domain": who.split("@")[-1], "role": (me.get("user") or me).get("role") if isinstance(me, dict) else None,
+                      "pine_runtime_pane_enabled": me.get("pine_runtime_pane_enabled") if isinstance(me, dict) else None,
+                      **({"leftAsFound": account_record} if account_record is not None else {})}
     res["title"] = title
     res["summary"] = summarise(res)
     (out_dir / f"{args.label}.json").write_text(json.dumps(res, indent=1), encoding="utf-8")

@@ -15,7 +15,7 @@ asking about the same name cost one walk:
   * dealer_short (FT-052) — contracts our trade-side attribution estimates dealers are net
                           short, read from flow-worker's dealer_positioning table.
 
-⛔ COMPUTED, AND SAID SO. Gamma, delta, OI and volume are the vendor's (Massive or Schwab, named
+⛔ COMPUTED, AND SAID SO. Gamma, delta, OI and volume are the vendor's (Massive, named
   in `chain_source`); every number this module returns is ours and carries `label: "computed"`
   and its method in words.
 ⛔ THE ONE FORMULA. GEX per contract line is `gex_service.contract_gex` — the same function
@@ -65,13 +65,10 @@ def clear_cache() -> None:
 # ── the chain (one per symbol x window) ───────────────────────────────────────
 
 async def _default_fetch(sym: str, from_date: str, to_date: str) -> tuple:
-    """(data, error, source): the chain gex_service reads, by gex_service's own source rule.
-    `shadow` SERVES Schwab there, so it does here."""
+    """(data, error, source): the chain gex_service reads (Massive, its one source)."""
     from api import gex_service as g
     src = g.chain_source()
-    src = "schwab" if src == "shadow" else src
-    fetch = g._fetch_chain_massive if src == "massive" else g._fetch_chain_schwab
-    data, err = await fetch(sym, from_date, to_date)
+    data, err = await g._fetch_chain_massive(sym, from_date, to_date)
     return data, err, src
 
 
@@ -89,7 +86,8 @@ def _exp_of(key: str) -> str:
 
 
 def contracts(data: dict) -> list:
-    """Flatten Schwab's shape into rows: {expiration, strike, cp, oi, gamma, delta, volume}."""
+    """Flatten the chain shape (gex_service.to_schwab_shape) into rows:
+    {expiration, strike, cp, oi, gamma, delta, volume}."""
     out = []
     for side, cp in (("callExpDateMap", "C"), ("putExpDateMap", "P")):
         for exp_key, strikes in (data.get(side) or {}).items():

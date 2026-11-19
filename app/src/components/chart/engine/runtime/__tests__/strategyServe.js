@@ -158,7 +158,14 @@ export function strategyServeOutcome({ source, bars, ctx, Panel }) {
   } finally {
     if (installedOk) { try { registry.uninstallUserDefinition(DEF_ID) } catch { /* nothing installed */ } }
   }
+  // ⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots) — what the member SEES beside the backtest: the drawn plots
+  // whose column holds a value on some bar (a backtest refused by name keeps them, `runtimeColumns.js::disarmedAfter`)
+  out.plotsDrawn = (def.plots || []).filter((p) => p && p.hidden !== true && Array.isArray(cols[p.key])
+    && cols[p.key].some((v) => Number.isFinite(v))).length
   const rec = runtimeStrategyOf(cols)
+  // ⭐ (2026-11-18) the bar the member's report says it is "as of" (the newest bar the run took as closed): the
+  // post-close census holds it to the newest bar, so a run that lost the chart's flag shows as one bar stale
+  out.asOf = rec && rec.window && rec.window.asOfBar != null ? rec.window.asOfBar : null
   if (!rec) {
     out.state = 'third'
     out.third.push('run: a broker document ran and published no strategy record')

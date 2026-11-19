@@ -458,7 +458,7 @@ export function mapPlots(vendorValuePlots, ourPlots) {
  *                                   See `colourWarmupOf`.
  * @param {object} a.tol             from `tolerancePolicy`
  */
-export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null, unsettledBars = null }) {
+export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null, unsettledBars = null, behindBars = null }) {
   const n = times.length
   const res = {
     bars: n,
@@ -512,6 +512,9 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     // OTHER-SYMBOL UNSETTLED (coordinator ruling on #1541): a bar TradingView's own captures disagree about
     // is not compared; it is named on the plot (`otherSymbolUnsettled`) and counted here, never a gap
     if (unsettledBars && unsettledBars[i]) { res.unsettledBars = (res.unsettledBars || 0) + 1; continue }
+    // SUPPLY BEHIND THE CAPTURE (coordinator ruling, 2026-11-18): the forming newest bar a recorded supply cannot
+    // answer (`supplyAttribution.js::supplyBehindOf`) is not compared; it is named on the plot (`supplyBehind`)
+    if (behindBars && behindBars[i]) { res.supplyBehindBars = (res.supplyBehindBars || 0) + 1; continue }
     if (withheldBars && withheldBars[i]) {
       res.withheldBars += 1
       // only a steady-state bar weighs on the verdict; a warm-up bar is reported, as a warm-up
@@ -887,6 +890,9 @@ export function compareCapture(capture, ours, opts = {}) {
   const tol = tolerancePolicy(capture)
   base.tolerance = tol
   const times = capture.bars.rows.map((r) => r[0])
+  // SUPPLY BEHIND THE CAPTURE: ONLY the newest bar, ONLY when `supplyBehindOf` found its supply behind it
+  const supplyBehind = opts.supplyBehind || null
+  const behindBars = supplyBehind && times.length ? times.map((_, i) => i === times.length - 1) : null
   const rowsByTime = new Map((capture.plotValues.rows || []).map((r) => [String(r[0]), r]))
   const roles = vendorPlotRoles(capture)
   for (const p of roles.notDrawn) base.notCompared.push({ id: p.id, title: p.title, type: p.type, why: 'alertcondition — draws nothing on TradingView either; not a visual claim' })
@@ -993,7 +999,7 @@ export function compareCapture(capture, ours, opts = {}) {
     const unreadAfter = [treeShift ? times.length - treeShift : null, o.withheldNewest === true ? times.length - 1 : null]
       .filter((x) => x !== null)
     const plotArgs = { times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : gradedVendorColors, ourColors: colourUngraded ? null : gradedOurColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
-      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null }
+      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null, behindBars }
     let r = comparePlot(plotArgs)
     const verdictOpts = {
       colorMeasured: vc.measured && !colourUngraded,
@@ -1045,7 +1051,7 @@ export function compareCapture(capture, ours, opts = {}) {
       const cr = co ? comparePlot({ times, vendor: vendorVals, ours: leadBy(drawnOnly ? Array.from(co.column, notDrawn) : co.column, treeShift),
         vendorColors: null, ourColors: null, warmupBars, colorWarmupBars, tol,
         oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
-        withheldBars: leadBy(co.withheldBars, treeShift) || null, floatOrderFloor: leadBy(co.floatOrderFloor, treeShift) || null }) : null
+        withheldBars: leadBy(co.withheldBars, treeShift) || null, floatOrderFloor: leadBy(co.floatOrderFloor, treeShift) || null, behindBars }) : null
       if (cr && cr.steady.divergent === 0 && cr.steady.compared > 0) {
         const n = r.steady.divergent
         pv = {
@@ -1056,6 +1062,13 @@ export function compareCapture(capture, ours, opts = {}) {
           supplyAttributed: { ...sa.record, bars: n },
         }
       }
+    }
+    if (supplyBehind && r.supplyBehindBars) {
+      const last = times.length - 1
+      const { sentence, ...rec } = supplyBehind
+      pv = { ...pv,
+        reason: `${pv.reason}; the newest bar INCONCLUSIVE by name: ${sentence} (supplyBehind)`,
+        supplyBehind: { verdict: 'INCONCLUSIVE', bar: last, time: times[last], ...rec } }
     }
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
@@ -1130,6 +1143,10 @@ export function compareCapture(capture, ours, opts = {}) {
     if (out.verdictWithoutPaints) out.verdictWithoutPaints = asSubstituted(out.verdictWithoutPaints)
     if (out.verdictWithoutColour) out.verdictWithoutColour = asSubstituted(out.verdictWithoutColour)
   }
+  // SUPPLY BEHIND THE CAPTURE — the capture names the bar it could not judge and the plots it was withheld from;
+  // the verdict is the other bars' (never lifted to MATCH by it, never lowered)
+  const behind = base.plots.filter((p) => p.supplyBehind)
+  if (behind.length) out.supplyBehind = { ...behind[0].supplyBehind, plots: behind.map((p) => p.title ?? p.id) }
   if (substituted) {
     out.substituted = substituted
     out.verdict = asSubstituted(out.verdict)
@@ -2072,6 +2089,9 @@ export function gradeStrategy(g) {
     if (valuesNow.status !== 'ok') {
       return { verdict: 'INCONCLUSIVE', step: 7, reason: `the value series cannot be paired: ${valuesNow.reason || 'unpaired'}`, first: null, graded: covered, ...extra }
     }
+    // a slot paired by identity whose value is not a series compared here (a colour, an alert condition) is
+    // LISTED with the call it serves, never dropped (2026-11-17: the paint grade grades colours)
+    if (Array.isArray(valuesNow.notCompared) && valuesNow.notCompared.length) extra.ungradedValues = valuesNow.notCompared
     const v = compareValueSeries(valuesNow.series, graded || span)
     if (v.verdict !== 'MATCH') return { ...v, step: 7, graded: covered, ...extra }
     covered.values = valuesNow.series.length

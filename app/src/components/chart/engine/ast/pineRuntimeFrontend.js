@@ -70,7 +70,9 @@ import {
   // uses both words as local variables; an IR constructor shadowed by one would
   // build the wrong node with nothing red.
   record as irRecord, field as irField, fieldSet as irFieldSet,
+  IrError,
 } from '../runtime/ir.js'
+import { constCompareFold, pineConstCompareExact, constantTreeValue } from '../pineCompare.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
 // ⭐⭐ S1 — the strategy broker: its vocabulary, the declaration / argument reader, the gate.
 import { BROKER_VALUE_NAMES, BROKER_TRADE_FNS, BROKER_ORDER_OPS, BROKER_OPS } from '../runtime/broker.js'
@@ -81,9 +83,12 @@ import { readStrategyDeclaration, orderArgsOf, readRiskCall, StrategyOptionError
 import { strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
 const strategyBrokerEnabled = () => strategyBrokerGateOn()
 import { strategyRepaintConstruct } from './strategyRepaint.js'
+// ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what a broker document may draw when its broker run is refused
+import { strategyTaintSinks, strategyDisarmOf, requestNewestReachOf } from './strategyTaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
   timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
+  isTimeframeText, movedTimeframeServed, movedTimeframeRefusal,
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
@@ -109,6 +114,7 @@ import { readFunctionDefs } from './objectFnInline.js'
 // over which drawing calls exist, what they take and what they return.
 import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf, isArmSafeObjectOp } from '../runtime/objectStore.js'
 import { historyHeldOf } from '../objectPool.js'
+import { DEFAULT_BUDGET } from './budget.js'
 import { setterPineParams, setterPineParamsOfAny } from '../objectSetterParams.js'
 // ⭐⭐ ENGINE 54 — the source call a drawing is made at, as the host object pass names it
 import { objectSiteKey } from './objectProgram.js'
@@ -129,7 +135,8 @@ const STRATEGY_OCA_TYPES = Object.freeze({
 
 const ARRAY_READS_ELEMENT = new Set(['array.get', 'array.pop', 'array.shift',
   'array.first', 'array.last', 'array.remove'])
-import { COLOUR_FNS, producesColour, hexToPacked, objectHexToPacked, colourTypedNamesOf } from '../runtime/colours.js'
+import { COLOUR_FNS, producesColour, hexToPacked, objectHexToPacked, colourTypedNamesOf, COLOUR_COMPARABLE } from '../runtime/colours.js'
+import { THEME_NAMES, packedThemeColour } from '../objectTheme.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
  *  Collapsing these into `pine:state` would hide the next dependency, which is
@@ -189,7 +196,16 @@ function fromCanonical(node, tok) {
     // catch a NAMED argument. A bare node in that position answers with its own
     // `name` — so a nested `max(...)` handed to `max` was read as
     // `a named argument \`max\` on \`max\``. Measured, second run.
-    case 'call': return {
+    // ⭐⭐ ENGINE 84 (S14 fix 2) — TWO DIALECTS SPELL `call` AND `offset` WITH ONE `type`, so the
+    // promise above ("A PARSE NODE PASSES THROUGH UNTOUCHED") is kept by SHAPE for those two: a parse call's
+    // arguments are `{name?, value}` records (a canonical one's are nodes), and a parse offset carries `arg` / `n`
+    // (a canonical one `args` / `value`). ⚰️ Both were read as canonical: a caller's `high[2]` handed to
+    // `ta.highestbars` (`negatedBars` embeds its source) lost its operand and threw "Cannot read properties of
+    // undefined (reading 'type')" (S14 relabelled it an engine defect), and a caller's `ta.sma(high, 3)` was
+    // double-wrapped and refused `pine:statement`, "not a shape the translator reads".
+    case 'call':
+      if ((node.args || []).some((x) => x && typeof x === 'object' && x.type === undefined && 'value' in x)) return node
+      return {
       type: 'call',
       name: node.name,
       tok: at,
@@ -199,7 +215,9 @@ function fromCanonical(node, tok) {
     // (`{type:'offset', arg, n}`, as `runtimeRespelling` writes one): the
     // canonical `{value, args}` spelling reached `lowerExpr` with no `n` and was
     // refused "a bar offset counts backwards in whole bars" for a literal shift.
-    case 'offset': return {
+    case 'offset':
+      if (node.arg !== undefined || node.n !== undefined) return node   // ⭐ S14 fix 2: a parse `x[k]`, kept (above)
+      return {
       type: 'offset', arg: fromCanonical((node.args || [])[0], at), n: node.value, tok: at,
     }
     // ⭐ ANYTHING ELSE IS ALREADY A PARSE NODE — a caller's own argument, which
@@ -289,6 +307,14 @@ export const RUNTIME_REFUSALS = Object.freeze({
     'a WINDOWED builtin fed by a mutable variable — this one needs the series bridge',
   'runtime:request-with-state':
     'a data request whose argument is a mutable value',
+  // ⭐⭐ U-REQ-HOIST-COLUMN, THE GUARD HALF (2026-11-18): a requested function whose body is hoisted into the
+  // request's region, and whose lines read one of their own earlier values through a COLUMN, which the
+  // columnar lane computes once over THIS chart's bars (PA ZigZag Fibonacci FAN's `_isUp[1]` at 1W / 1M read
+  // the chart's daily bar j-1 on weekly bar j). Refused by name, never read at the wrong bars.
+  'runtime:request-hoisted-history':
+    "a data request runs a helper's lines that read their own earlier values (such as `x[1]`), and this chart "
+    + "can read that history only from its own bars, not the requested timeframe's or symbol's, so nothing is "
+    + 'drawn rather than a wrong value',
   // ⭐⭐ SPLIT AGAIN IN 2F-1, FOR THE SAME REASON 2E SPLIT THE FIRST ONE (§14).
   // With the pointwise 14 executing, the residual bucket was re-read by name and
   // it was NOT one family either: `str.upper`, `int` and `iff` sat in
@@ -375,7 +401,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:strategy-start': 'a strategy run that does not start from the history window the broker needs',
   'runtime:strategy-repaint': 'a repaint-class input (security, timenow, barstate, varip) in a strategy that places orders',
   'runtime:recursion': 'a function that calls itself — Pine forbids it',
-  'runtime:function-global-state': 'a function body reading a mutable GLOBAL — a frame has no address for one yet',
+  'runtime:function-global-state': 'a function body reading a global in a way this lane does not serve yet',
   // ⭐ P3 WS-B — three guards of this workstream's own, named for what they decline.
   'runtime:chart-clock': 'a clock the columnar lane withholds on this chart — the run does not draw it either',
   'runtime:clock-zone': 'a clock read in a zone this lane cannot answer for on this chart',
@@ -405,6 +431,39 @@ const BUILTIN_WITNESS_REFUSALS = new Set([STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RC
  *  answer a `bool` (the v1-v5 `bool`-`na` rule), as this lane spells them. */
 const RUNTIME_BAR_PRICES = new Set(['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
 const RUNTIME_BOOL_OPS = new Set(['<', '>', '<=', '>=', '==', '!=', '&&', '||'])
+
+/** ⭐ engine 78 (#1858) — the value of an IR CONSTANT expression (a `num`, `-` of one, `+ - * /` of two, a
+ *  `?:` whose test is one, a column the columnar lane computed from a constant tree, a parameterless pure
+ *  function whose result is one), or `null`: what `constCompareFold` may fold on this lane. The arithmetic is
+ *  the VM's own (IEEE), so a folded answer is the one the run would have compared.
+ *  `ctx` = `{ columnTrees, functions }`, the build's own tables. */
+function irConstValue(e, ctx, depth = 0) {
+  if (!e || typeof e !== 'object' || depth > 64) return null
+  if (e.kind === EXPR.COLUMN && ctx && ctx.columnTrees) return constantTreeValue(ctx.columnTrees[e.index])
+  if (e.kind === EXPR.CALL && ctx && ctx.functions) {
+    const f = ctx.functions[e.fn]
+    if (!f || f.params !== 0 || !f.effects || f.effects.pure !== true || (f.body && f.body.length)) return null
+    return irConstValue(f.result, ctx, depth + 1)
+  }
+  if (e.kind === EXPR.NUM) return typeof e.value === 'number' && Number.isFinite(e.value) ? e.value : null
+  if (e.kind === EXPR.UNARY && e.op === 'u-') {
+    const v = irConstValue(e.of, ctx, depth + 1)
+    return v === null ? null : -v
+  }
+  if (e.kind === EXPR.BINARY && ['+', '-', '*', '/'].includes(e.op)) {
+    const x = irConstValue(e.left, ctx, depth + 1)
+    const y = irConstValue(e.right, ctx, depth + 1)
+    if (x === null || y === null) return null
+    const v = e.op === '+' ? x + y : e.op === '-' ? x - y : e.op === '*' ? x * y : x / y
+    return Number.isFinite(v) ? v : null
+  }
+  if (e.kind === EXPR.TERNARY) {
+    const t = irConstValue(e.test, ctx, depth + 1)
+    if (t === null) return null
+    return irConstValue(t !== 0 ? e.then : e.else, ctx, depth + 1)
+  }
+  return null
+}
 
 export class RuntimeRefusal extends Error {
   constructor(guard, detail, at) {
@@ -1615,6 +1674,73 @@ function joinWrappedSwitchArms(list, indents, srcLines = null) {
   return changed ? out : list
 }
 
+/** ⭐⭐ P3 WS-B / ENGINE 56 / ENGINE 57 / RS RATING L11 — WHAT `columnOf` REFUSES FOR A COLUMN IT HAS JUST
+ *  EVALUATED OVER `nBars` BARS, from the codes the columnar lane wrote into that column's own clock sink, or null.
+ *  ⭐⭐ ONE AUTHORITY (2026-11-19, the B5 reuse fix), asked by the build (`columnOf`) and by a session's re-evaluation
+ *  of its kept build over new bars (`runtime/runtimeColumns.js::columnsOver`): a column that would refuse a fresh
+ *  build over those bars sends the run back to a fresh build, which refuses by name exactly as here. ⚰️ The reuse
+ *  path kept its own list (`time-*` only) and served what a cold build refused.
+ *    * a `time-*` code (P3 WS-B): a clock the columnar lane withholds is withheld here too (`runtime:chart-clock`).
+ *      Read as a column it would come back `na` on every bar and the run would DRAW that `na`, which reads as "no
+ *      value" rather than "not answered" (UCTPROBE_VW_TIME_TF on BTCUSD / EURUSD). A NAMED per-bar withholding
+ *      declines the run too (BITSTAMP:BTCUSD's `time("W")`): the host lane leaves those bars undrawn and grades them
+ *      "not compared", and this lane has no per-bar withholding. ⚠️ AN UNNAMED ONE STILL DRAWS `na` (an every-day
+ *      anchor's first partial period, the off-listing early bars, `bar-index:early-bars` write no `time-*` code).
+ *    * ENGINE HL — ⛔ not `window-extreme:left-edge`: those bars depend on where the chart starts, and the
+ *      off-listing curtain (`runtimeColumns.js::computeOffListing`) withholds them. (⚰️ `arg-extreme:holed-window`
+ *      declined here until S17 measured its rule.)
+ *    * ENGINE 57 — `stoch:flat-window`: a column the columnar lane withholds on some bars by a built-in's witness code
+ *      declines the run by that code (drawn here those bars would read `na`). ⛔ Not the off-listing LEFT EDGE codes
+ *      (`stoch:left-edge`, `rci:left-edge`): the curtain withholds those bars already.
+ *    * ENGINE 56 — the `bool`-`na` and tie witness codes decline the run by their code.
+ *    * RS RATING L11 — `request:other-timeframe`: a column holding a daily read of another symbol on a weekly chart
+ *      (its tree carries the DAILY base's gate, `pine.js::securityAsNode`, `below`) is withheld whole by the columnar
+ *      lane; the run reads such a request only through a slot (`requestSupply.js`), never a column. No other chart
+ *      reaches this: the run translates for the chart's own period, so every other gate it writes is this chart's.
+ *  ⛔ Only over bars: a compile-only build (no bars) cannot read a regime and must not refuse for it. */
+export function columnSinkRefusal(clockSink, nBars, at) {
+  if (!(nBars > 0)) return null
+  for (const [code, sentence] of clockSink) {
+    if (String(code).startsWith('time-')) return new RuntimeRefusal('runtime:chart-clock', `${code}: ${sentence}`, at)
+    if (code === STOCH_FLAT_WINDOW) return new RuntimeRefusal(code, sentence, at)
+    if (code === BOOL_NA_UNWITNESSED || code === TIE_UNWITNESSED) return new RuntimeRefusal(code, sentence, at)
+    if (code === 'request:other-timeframe') {
+      return new RuntimeRefusal('runtime:request', 'a value here reads another symbol at `"D"` below this '
+        + 'weekly chart inside an expression the per-bar run hands its columnar lane, which holds no daily '
+        + 'series; the run reads such a request only where it is written as its own variable, so nothing '
+        + 'is drawn rather than a blank line', at)
+    }
+  }
+  return null
+}
+
+/** ⛔⛔ ENGINE 57 (review N1) — NEVER A SILENT BLANK. A column the columnar lane withheld on EVERY bar by a built-in's
+ *  witness code would draw nothing under no name; the run declines by that code instead. Null when the column holds
+ *  a finite value or no such code was written. (Asked by `columnOf` and a session's reuse alike.) */
+export function columnBlankRefusal(clockSink, arr, nBars, at) {
+  if (!(nBars > 0) || arr.some(Number.isFinite)) return null
+  for (const [code, sentence] of clockSink) {
+    if (BUILTIN_WITNESS_REFUSALS.has(code)) return new RuntimeRefusal(code, sentence, at)
+  }
+  return null
+}
+
+/** Pine's history buffer: `max_bars_back`'s ceiling (C18), and the bar count past which a dynamic offset in a pure
+ *  subtree is lowered piecewise (`mbbDynamicColumn`). */
+const MAX_BARS_BACK_CEILING = 5000
+
+/** ⭐⭐ (2026-11-19, the B5 reuse fix) — EVERY FACT ABOUT THE BAR COUNT A BUILD READS, as one key. Outside the column seam the build
+ *  reads `bars.length` only to ask "are there bars at all" (a compile-only build: the C23 symbol fold, the C36 clock
+ *  zone, the C1 exchange zone of an `input.time` default, the column checks) and "are there more bars than Pine's history buffer" (`mbbDynamicColumn`). Two builds
+ *  of one script, with equal options, over bar counts in one class, take the same path wherever the columns they
+ *  evaluate do not refuse (`columnSinkRefusal`, `columnBlankRefusal`) and do not throw. ⛔ A new read of the count
+ *  joins this key, or a session (`runtime/runtimeColumns.js::columnsOver`) reuses a build over a count it never
+ *  saw: `runtime/__tests__/sessionReuseIdentity.test.js` holds every read of `bars` in this file to that list. */
+export function buildBarCountClass(n) {
+  if (!(n > 0)) return 'none'
+  return n > MAX_BARS_BACK_CEILING ? 'past-buffer' : 'within-buffer'
+}
+
 function buildRuntimeIrLinked(source, opts, holder) {
   const bars = opts.bars || []
   const inputs = opts.inputs || {}
@@ -1654,8 +1780,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // only on a source input (a colour only on a colour input).
   const inputDefaults = opts.inputDefaults && typeof opts.inputDefaults === 'object' ? opts.inputDefaults : {}
   const applyMemberDefault = (call, name, at) => {
-    if (!Object.prototype.hasOwnProperty.call(inputDefaults, name)) return
-    const given = inputDefaults[name]
+    // ⭐⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — a TIMEFRAME input's member value is its default node
+    // whichever way the caller handed it: as a default (`runtimeBuildInputs`, which knows the declared
+    // settings) or as a plain value only (a caller that hands no declared inputs, the server service's
+    // `job.mjs::runArgs`). Else the run would read the member's timeframe where the script uses `tf` as text
+    // (`time(tf)`) and the AUTHOR'S where the request's host reader reads it statically: two timeframes in
+    // one run. At the default nothing is handed, and nothing here runs.
+    const timeframeCall = textInputKindOf(call) === 'timeframe'
+    const has = (o) => !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, name)
+    if (!has(inputDefaults) && !(timeframeCall && has(inputs))) return
+    const given = has(inputDefaults) ? inputDefaults[name] : inputs[name]
     const args = call.args || []
     // v4's type rides NAMED or as the THIRD positional argument (`input(close, "Src", input.source)`)
     const typeArg = args.find((a) => a && a.name === 'type') || args.filter((a) => a && !a.name)[2]
@@ -1673,15 +1807,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // default is a string): the member's text replaces the default node (`runtimeBuildInputs`)
     const stringDefault = !!dv && dv.type === 'string' && !legacy
       && (call.name === 'input' || call.name === 'input.string' || call.name === 'input.symbol')
-    const kind = call.name === 'input.color' || legacy === 'input.color' || colourDefault ? 'color'
-      : call.name === 'input.source' || legacy === 'input.source' ? 'source'
-        : stringDefault ? 'string' : null
+    const kind = timeframeCall ? 'timeframe'
+      : call.name === 'input.color' || legacy === 'input.color' || colourDefault ? 'color'
+        : call.name === 'input.source' || legacy === 'input.source' ? 'source'
+          : stringDefault ? 'string' : null
     if (!kind) {
       throw new RuntimeRefusal('runtime:statement',
         '`' + name + '` was given a colour or a source, and it is not a colour or source input', at)
     }
     let node
-    if (kind === 'string') {
+    if (kind === 'timeframe') {
+      // the ONE reader of timeframe text (`runtimeInputs.js::isTimeframeText`, the settings' own): whether this
+      // chart serves the timeframe is the request supply's question, asked per chart, and refused there by name
+      if (!isTimeframeText(given)) {
+        throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given ' + JSON.stringify(given)
+          + ', which is not a timeframe written as text (as TradingView writes one: 60, 1D, 1W, 1M)', at)
+      }
+      // ⛔ a value MOVED off the author's default is drawn only on recorded evidence (`movedTimeframeServed`);
+      // the author's own default handed back is no move at all
+      const moved = !(dv && dv.type === 'string' && dv.value === given)
+      if (moved && !movedTimeframeServed()) throw new RuntimeRefusal('runtime:statement', movedTimeframeRefusal(name, given), at)
+      node = { type: 'string', value: given }
+    } else if (kind === 'string') {
       if (typeof given !== 'string') throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a value that is not text', at)
       node = { type: 'string', value: given }
     } else if (kind === 'color') {
@@ -1727,7 +1874,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const b = env.get(n)
       return b && b.kind === 'expr' && !b.frame ? b.node : null
     }
-    const r = timeInputDefaultOf(call, lookup)
+    // ⭐ C1 — the exchange's zone, where this run is told a New York symbol (the rule `requireNewYorkExchange`
+    // states for every exchange-zone read on this lane): a `timestamp(year, …)` default reads it
+    const exchangeZone = bars.length > 0 && bindConsts['syminfo.timezone'] === 'America/New_York' ? 'America/New_York' : null
+    const r = timeInputDefaultOf(call, lookup, { exchangeZone })
     if (r.skip) throw new RuntimeRefusal('runtime:statement', '`' + name + '` is a time input, and ' + r.skip, at)
     return { type: 'number', value: r.ms, tok: call.tok }
   }
@@ -1794,7 +1944,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   /** ⭐ W4 T1 — the v1–v4 spellings of a data request (`request.*` from v5). */
   const LEGACY_REQUEST_CALLS = new Set(['security', 'security_lower_tf', 'financial'])
-  /** ⭐ NUMBER PENDING (bt) — bare v1–v4 names of a `math.*` call-tree expansion (`callTreeExpansion`):
+  /** ⭐ Engine 66 (#1473) (bt) — bare v1–v4 names of a `math.*` call-tree expansion (`callTreeExpansion`):
    *  the migration guide's `math` table renames `avg()` to `math.avg()`. */
   const LEGACY_MATH_CALL_TREE = new Set(['avg'])
 
@@ -1802,6 +1952,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME, at the pane AND
   // the object door (`pine.js::refuseOffBlockIndent`, the one check both lanes call).
   try { stmts = blockStatements(tokens, indents, 0); refuseOffBlockIndent(stmts, indents) } catch (e) { return fail(e, diagnostics) }
+  // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — W9-OQ-N2's taint (`strategyTaint.js`), in broker mode only, read
+  // on the ORIGINAL statements before any rewrite, as the host lane reads it. It decides what a run WITHOUT the broker
+  // may draw when the broker run is refused by name (`strategyDisarmOf`, carried on the declaration as `disarm`). A
+  // trace that throws is `null`, and the disarmed run then keeps the broker's refusal.
+  let brokerTaint = null
+  if (brokerMode) { try { brokerTaint = strategyTaintSinks(stmts) } catch { brokerTaint = null } }
+  // ⭐⭐ HTF-NEWEST-NARROW — the ORIGINAL statements, for each request site's newest-bar reach (`requestNewestReachOf`)
+  const sourceStmts = stmts
   // ⭐⭐ W34-I6a — a wrapped `switch` arm is one expression (see `wrappedArmOf`); pane only.
   if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents, String(source || '').split(/\r?\n/))
   // ⭐⭐ W34-I4 — a v1/v2 self-referencing definition whose every self read states its
@@ -2597,11 +2755,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  ⭐⭐ W34-I4b — and, the same way, whether this version leaves bar 0's history
    *  unpinned (`interpret.js::listingSeedIsUnpinned`: v1/v2, or no pragma — here
    *  the lex is in hand, so `null` IS "no pragma"). */
+  // ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2, ruling D1) — the runtime lane runs only Pine, so every column
+  // it hands the columnar lane compares the way TradingView does (`interpret.js::binaryFor`, `pineCompare`).
+  const pineCompareOpts = { pineCompare: true }
   const columnInterpretOpts = (opts && opts.historyFromListing === true && !atObjectDoor)
     ? { ...((opts && opts.interpretOpts) || {}), historyFromListing: true,
       ...(pineNaConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}),
-      ...(listingSeedIsUnpinned(pineVersion) ? { listingSeedUnpinned: true } : {}) }
-    : ((opts && opts.interpretOpts) || undefined)
+      ...(listingSeedIsUnpinned(pineVersion) ? { listingSeedUnpinned: true } : {}), ...pineCompareOpts }
+    : { ...((opts && opts.interpretOpts) || {}), ...pineCompareOpts }
   /** ⭐⭐ C23 — WHICH CONTRACT THIS BUILD SERVES, decided by the CALLER, never
    *  guessed here: `opts.pane === true` says the run draws ONE symbol's chart
    *  pane, and the columnar resolver it asks for pure subtrees then answers as the
@@ -2647,6 +2808,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
       basePeriod: basePeriodOf(opts),
       newestBarIsForming: opts.newestBarIsForming === true
         || !!(opts.interpretOpts && opts.interpretOpts.newestBarIsForming === true),
+      // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — the RUN's resolvers read a daily read above an intraday chart (`above`),
+      // the request reader below and this one alike: an expression built on such a read (`na(s) ? 1 : 0`, Fred RS's
+      // seed loop) is folded by this resolver, and one that declined the read refused the whole build
+      // (`pine:request`) though the request itself was served. ⛔ The HOST translator never sets it (C49, C23,
+      // ruling 3.5 keep their refusals there).
+      aboveDailyReads: true,
       ...objectDoorOpts,
     }
     : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts }
@@ -2654,6 +2821,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
     return r
+  }
+  /** ⭐ RS RATING L12 PR 2 — is this call a request the run reads ABOVE an intraday chart (`pine.js`'s `above`
+   *  target, minted only by this lane's resolvers)? Memoised per node; a reading that throws is "no" (the request
+   *  path names its refusal). */
+  const aboveRequestMemo = new WeakMap()
+  const isAboveRequest = (node) => {
+    if (!node || node.type !== 'call' || (node.name !== 'request.security' && node.name !== 'security')) return false
+    if (aboveRequestMemo.has(node)) return aboveRequestMemo.get(node)
+    let yes = false
+    try {
+      const t = makeResolver().requestTargetOf(node)
+      yes = !!(t && t.above === true)
+    } catch {
+      yes = false
+    }
+    aboveRequestMemo.set(node, yes)
+    return yes
   }
 
   /** A resolver that does NOT see the member's values.
@@ -2734,6 +2918,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const columnTrees = []
   const columnByKey = new Map()
   const outputs = []
+  // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — per output, the source line its call is on (broker mode reads it,
+  // `strategyDisarmOf`); kept beside `outputs`, never on them, so no output descriptor changes shape.
+  const outputLines = []
   // ⭐ THE STATIC HISTORY-DEMAND ANALYSIS, accumulated as the body is lowered:
   // one entry per variable that any `[n]` reads, carrying the deepest offset seen.
   // Nothing allocates a ring for a variable nobody looks back at (§16).
@@ -2923,6 +3110,94 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (owner === null || !guardOuter || inRequestValue) return null
     return guardOuter.lookup(name)
   }
+  /** ⭐⭐ U-FGS (libraries chain, 2026-11-19) — THE GLOBALS WHOSE VALUE MOVES: declared `var` / `varip` at the
+   *  root, or written with `:=` / a compound operator anywhere outside a function body (a function cannot assign
+   *  a global). These are the ones a function body may read with history (`g[k]`, a window, `ta.change`), and
+   *  vw-udt-fn-global-history (committed, NYSE:RDDT 1D 2026-11-16) states what Pine reads there: the global's
+   *  value AT THE CALL (G03: the value before a later `:=` on the same bar), with history per CALL SITE (G05: on
+   *  a function called every other bar, `g[1]` is the previous CALL's value, not the previous bar's). G01, G04
+   *  and G06 agree. ⛔ A global bound ONCE (`h = close > open ? close : open`) is not in this set: whether its
+   *  past inside a function is the previous call's or the previous bar's is capture rows W13 / W14
+   *  (`vw-fn-global-window`), and until they are read it keeps its refusal. */
+  const mutableRootGlobals = (() => {
+    const out = new Set()
+    for (const s of stmts || []) {
+      const h = s.header || []
+      if (h.length > 1 && h[0].kind === 'ident' && h[0].value === 'method') continue
+      if (h.length > 1 && isPunct(h[1], '(') && findTop(h, (x) => isPunct(x, '=>')) > 0) continue
+      const eq = findTop(h, (x) => isPunct(x, '='))
+      if (eq > 0 && h.slice(0, eq).some((x) => x.kind === 'ident' && (x.value === 'var' || x.value === 'varip'))) {
+        const n = h[eq - 1]
+        if (n && n.kind === 'ident' && !String(n.value).includes('.')) out.add(String(n.value))
+      }
+      const all = [...h, ...(s.body || [])]
+      for (let i = 0; i + 1 < all.length; i += 1) {
+        const tk = all[i]
+        const nx = all[i + 1]
+        if (tk.kind === 'ident' && !tk.member && !String(tk.value).includes('.')
+            && nx.kind === 'punct' && REASSIGN_OPS.has(nx.value)) out.add(String(tk.value))
+      }
+    }
+    return out
+  })()
+  /** ⭐⭐ U-FGS F2 — THE FRAME'S OWN COPY OF A MUTABLE GLOBAL, taken AT THE CALL: a frame-local slot (so its ring
+   *  is allocated per function and materialised per CALL SITE, `fnHistorySlotFor`), declared by the body's
+   *  first statement from the main frame's slot (`readGlobal`, C11). A global read inside a function is then
+   *  exactly what G01-G06 read: an implicit argument. One copy per global per compiled body. Null where the
+   *  frame cannot take one, and the caller keeps its refusal: outside a function body, inside a request's value
+   *  (its own sub-run, its own main frame), at the object door (master's answer), and for a global bound once. */
+  const frameGlobalCopy = (name) => {
+    if (owner === null || !guardOuter || inRequestValue || atObjectDoor) return null
+    const g = guardOuter.lookup(name)
+    if (g === null || !mutableRootGlobals.has(name)) return null
+    const fn = functions[owner]
+    if (!fn.globalCopies) {
+      fn.globalCopies = new Map()
+      fn.prologue = []
+    }
+    const have = fn.globalCopies.get(g)
+    if (have !== undefined) return have
+    const copy = newSlot(`${name} (at the call)`, false)
+    // the copy is the BODY's, never a block's, wherever its first read stands
+    slotDepth[copy] = 0
+    if (slotTy(g)) setSlotTy(copy, slotTy(g))
+    fn.prologue.push(declare(copy, readGlobal(g)))
+    fn.globalCopies.set(g, copy)
+    return copy
+  }
+  /** (d) — a copy's HISTORY read in a block of the body whose test may vary from call to call: whether Pine's
+   *  `g[1]` there is the previous CALL's value or the previous run of the BLOCK is capture row W08 / V04
+   *  (`vw-fn-global-window`, `-v5`), so it keeps the region rule (`r4Guard`: served where the block is proved
+   *  to run on every call, refused by name elsewhere). */
+  const frameGlobalBlockGuard = (name, at) => {
+    r4Guard(`the history of the global \`${name}\`, read in a block of a function body,`, at)
+  }
+  /** ⭐ U-FGS F1 — a bar series the script names bare and does not bind itself (`low`, filled by the one-argument
+   *  `ta.lowest(n)`): its value is the chart's column. */
+  const chartSeriesName = (name, scope) => BAR_SERIES_DEFAULTS.has(name) && name !== 'bar_index'
+    && scope.lookup(name) === null && !env.has(name) && !(guardOuter && guardOuter.lookup(name) !== null)
+  /** ⭐ U-FGS F1 — THE REFUSAL FOR A NAME A HISTORY READ CANNOT ADDRESS, worded for what the name IS. It said "a
+   *  function body reading a mutable GLOBAL" everywhere, also at the ROOT about a binding the lane holds as an
+   *  expression (breaks-and-retests-hg's `pl`), where there is no function and nothing mutable. */
+  const unaddressedNameRefusal = (name, what, at) => {
+    const global = !!(guardOuter && guardOuter.lookup(name) !== null)
+    if (owner !== null && (global || env.has(name))) {
+      note('runtime:function-global-state')
+      const why = inRequestValue ? 'inside a request\'s value, which runs as its own sub-run with its own main frame'
+        : atObjectDoor ? 'at the object door, which keeps the answer it had'
+        : 'a global bound once: whether its past inside a function is the previous call\'s value or the previous '
+          + 'bar\'s is not captured yet (vw-fn-global-window W13 / W14)'
+      return new RuntimeRefusal('runtime:function-global-state', `${what} reads \`${name}\`, ${why}`, at)
+    }
+    if (env.has(name)) {
+      note('runtime:history-expression')
+      return new RuntimeRefusal('runtime:history-expression', `${what} over \`${name}\`, a binding this lane `
+        + 'evaluates where it is read, needs that value\'s own committed series, and this position has no line '
+        + 'to commit one on', at)
+    }
+    note('runtime:function-global-state')
+    return new RuntimeRefusal('runtime:function-global-state', `\`${name}\``, at)
+  }
   /** `scope.lookup`, falling back to a readable global — for the KIND
    *  questions (`holdsArray`, `holdsText`, a method receiver) that must answer
    *  the same about `strikes` inside a helper as they do at the root. */
@@ -3096,7 +3371,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // a `?:` arm (an expression): the check runs first, then the arm is the value
     return { ...ternary(binary('==', everyBarRunsCall(rec.needs, 'that arm'), num(1)), body, naValue()), lazy: true }
   }
-  // ─── ⭐⭐⭐ HIST-S3 (NUMBER PENDING) — THE HOST LANE'S ENGINE-58 GATE, AS A RUN-TIME CHECK ───
+  // ─── ⭐⭐⭐ HIST-S3 (Engine 64 (#1450)) — THE HOST LANE'S ENGINE-58 GATE, AS A RUN-TIME CHECK ───
   //
   // A call written in a block (or a `?:` arm) keeps the history of the bars that block RUNS on
   // (C48). The every-bar reading of it is exact exactly when the block's runs ARE the chart's
@@ -3697,7 +3972,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       let arms = null
       let test = null
       if (node.type === 'ternary') {
-        // ⭐⭐ HIST-S1 (NUMBER PENDING) — BEFORE PINE v4 A `?:` RUNS BOTH ARMS ON EVERY BAR.
+        // ⭐⭐ HIST-S1 (Engine 64 (#1450)) — BEFORE PINE v4 A `?:` RUNS BOTH ARMS ON EVERY BAR.
         // WITNESSED: `vw-ternary-arm-legacy-{v1,v2,v3}(-cum)-rddt-1d-2026-11-15` (run s17, probe
         // P2: `change`, `sma`, `ema`, `rma`, `barssince`, `cum` in the else arm equal their
         // every-bar values on every bar; a lazy arm misses from bar 4). So the arm's history is
@@ -3770,6 +4045,60 @@ function buildRuntimeIrLinked(source, opts, holder) {
       else if (v && typeof v === 'object' && v.type && armHistoryGuard(v, scope, true, d + 1, childOpaque)) split = true
     }
     return split
+  }
+  // ⭐⭐ ENGINE 82 (U-STMT PR 1) — `ta.change`'s two arguments, read by Pine's own
+  // parameter names (`ta.change(source, length)`): positional first, then named; an unknown name,
+  // a name given twice or a positional argument after a named one refuses by name (the mapping
+  // `servedCondCall` already makes for `ta.sma(source = …, length = …)`, review L3). `length` is
+  // null for the one-argument form. ⛔ At the object door only the one-argument form, as master.
+  const CHANGE_PARAMS = Object.freeze(['source', 'length'])
+  const changeShapeRefusal = (node, at, what) => new RuntimeRefusal('runtime:statement',
+    `\`${node.name}\` is read as \`${node.name}(source)\` or \`${node.name}(source, length)\`, and this call has ${what}`, at)
+  const changeArgsOf = (node, at) => {
+    const placed = []
+    let named = false
+    for (const a of node.args || []) {
+      const v = a && a.value !== undefined ? a.value : a
+      if (a && a.name) {
+        named = true
+        const i = CHANGE_PARAMS.indexOf(String(a.name))
+        if (i < 0) throw changeShapeRefusal(node, at, `a named argument \`${a.name}\``)
+        if (placed[i] !== undefined) throw changeShapeRefusal(node, at, `\`${a.name}\` given twice`)
+        placed[i] = v
+      } else {
+        if (named) throw changeShapeRefusal(node, at, 'a positional argument after a named one')
+        if (placed.length >= CHANGE_PARAMS.length) throw changeShapeRefusal(node, at, `${(node.args || []).length} arguments`)
+        placed.push(v)
+      }
+    }
+    if (placed[0] === undefined) throw changeShapeRefusal(node, at, 'no `source`')
+    const length = placed.length > 1 && placed[1] !== undefined ? placed[1] : null
+    if (length !== null && atObjectDoor) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${node.name}(source, length)\` is served on the value lane; the object door reads the one-argument form only`, at)
+    }
+    return { given: placed[0], length }
+  }
+  /** The length of `ta.change(source, length)`: a whole number of bars, 1 or more, fixed before bar 0
+   *  (`foldConstNode`, the fold `servedCondCall` reads a window length with: a literal, a constant, an
+   *  input at the value in force). ⛔ Anything else keeps `runtime:statement`, with a true sentence;
+   *  a function parameter a call site could fix keeps its own refusal (C35 compiles that call site's
+   *  copy with the parameter answered). */
+  const changeLengthOf = (node, lengthNode, at, scope) => {
+    let n = null
+    try {
+      n = foldConstNode(lengthNode, at, `the length of \`${node.name}\` is only known while the bar is running`, scope)
+    } catch (err) {
+      if (err && err.frameName) throw err
+      if (!(err instanceof RuntimeRefusal) || err.guard !== 'runtime:history-dynamic-offset') throw err
+      n = null
+    }
+    if (!Number.isInteger(n) || n < 1) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${node.name}(source, length)\` is served with a length that is a whole number of bars, 1 or more, `
+        + 'fixed before bar 0 (written in the script, or an input); this length is not', at)
+    }
+    return n
   }
   // ⭐⭐ L4d — THE ONE SERVED SET, FOR BOTH BUILDS, EACH KIND ON ITS OWN WITNESSES: a PLOT
   // (C48 `vw-call-site-history`, vw-arm-history) and a DRAWING (W3N-D1, queue
@@ -3879,8 +4208,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (owner !== null) functions[owner].rt5History = true
       conditionalHistoryGuard('a series with history', at)
     }
-    // WS-C — a constant offset past Pine's history buffer, anywhere in the tree.
-    mbbCanonicalCheck(canonical, at)
     const key = JSON.stringify(canonical)
     if (columnByKey.has(key)) return columnByKey.get(key)
     let value
@@ -3933,27 +4260,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // code here, so nothing declines for them. ⛔ Only the `time-*` codes, and only
     // over bars: a compile-only build (no bars) cannot
     // read a regime and must not refuse for it.
-    if (bars.length > 0) {
-      for (const [code, sentence] of clockSink) {
-        if (String(code).startsWith('time-')) {
-          throw new RuntimeRefusal('runtime:chart-clock', `${code}: ${sentence}`, at)
-        }
-        // ⭐ ENGINE HL — ⛔ not `window-extreme:left-edge`: those bars depend on where the chart
-        // starts, and this lane's own off-listing curtain (`runtimeColumns.js::computeOffListing`)
-        // withholds them. (⚰️ `arg-extreme:holed-window` declined here until S17 measured its rule.)
-        // ⭐⭐ ENGINE 57 — a column the columnar lane withholds on some bars by a built-in's
-        // witness code declines the run by that code: drawn here those bars would read `na`.
-        // ⛔ Not the off-listing LEFT EDGE codes (`stoch:left-edge`, `rci:left-edge`): those bars
-        // depend on where the chart starts, and this lane's own off-listing curtain
-        // (`runtimeColumns.js::computeOffListing`, measured per run) withholds such bars already
-        if (code === STOCH_FLAT_WINDOW) {
-          throw new RuntimeRefusal(code, sentence, at)
-        }
-        // ⭐⭐ ENGINE 56 — a column the columnar lane withholds on some bars by a witness code
-        // declines the run by that code: drawn here those bars would read `na`
-        if (code === BOOL_NA_UNWITNESSED || code === TIE_UNWITNESSED) throw new RuntimeRefusal(code, sentence, at)
-      }
-    }
+    const sinkRefusal = columnSinkRefusal(clockSink, bars.length, at)
+    if (sinkRefusal) throw sinkRefusal
     let arr
     if (typeof value === 'number') arr = new Float64Array(bars.length).fill(value)
     else if (value instanceof Float64Array) arr = value
@@ -3962,19 +4270,29 @@ function buildRuntimeIrLinked(source, opts, holder) {
       throw new RuntimeRefusal('runtime:statement',
         `a column holds ${arr.length} values for ${bars.length} bars`, at)
     }
-    // ⛔⛔ ENGINE 57 (review N1) — NEVER A SILENT BLANK. A column the columnar lane withheld on
-    // EVERY bar by a built-in's witness code would draw nothing here under no name; the run
-    // declines by that code instead.
-    if (bars.length > 0 && !arr.some(Number.isFinite)) {
-      for (const [code, sentence] of clockSink) {
-        if (BUILTIN_WITNESS_REFUSALS.has(code)) throw new RuntimeRefusal(code, sentence, at)
-      }
-    }
+    const blankRefusal = columnBlankRefusal(clockSink, arr, bars.length, at)
+    if (blankRefusal) throw blankRefusal
     columns.push(arr)
     const i = columns.length - 1
     columnTrees[i] = canonical
     columnByKey.set(key, i)
     return i
+  }
+
+  /** ⭐ engine 83 (WS-C M5) — `x[c]` with a constant `c` past the columnar lane's lookback cap
+   *  (`budget.js::DEFAULT_BUDGET.maxLookback`, its warm-up budget and offset ceiling, kept by the compute-cap
+   *  ruling): as a column the read refuses `budget:lookback`; lowered piecewise it is `READ_HIST` over the
+   *  column (or a ring read for a variable), which needs no warm-up. Only the offset is routed: its child
+   *  stays a column when it can be one. */
+  const constantOffsetPastLookbackCap = (node, scope) => {
+    let back = Number(node.n)
+    const e = node.n && typeof node.n === 'object' ? node.n.expr : null
+    if (e) {
+      let c = null
+      try { c = constValueOf(e, scope) } catch { c = null }
+      back = c && Number.isFinite(c.value) ? c.value : NaN
+    }
+    return Number.isInteger(back) && back > DEFAULT_BUDGET.maxLookback
   }
 
   /** THE ROUTE DECISION. Does this subtree need the runtime?
@@ -3993,6 +4311,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  ready rather than acted on. */
   const needsRuntime = (node, scope) => {
     if (!node || typeof node !== 'object') return false
+    // ⭐ engine 83 (WS-C M5) — a constant offset past the columnar lane's lookback cap is read here
+    if (node.type === 'offset' && constantOffsetPastLookbackCap(node, scope)) return true
+    // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — A DAILY READ ABOVE AN INTRADAY CHART IS THE RUN'S REQUEST, NEVER A
+    // COLUMN. The run's supply hands it per site (`requestSupply.js::aboveChartRead`); the columnar lane holds no
+    // daily series, and its translation of the chart's OWN read is a plain gated `close`
+    // (`pine.js::requestBaseNode`), which looked pure: `closeDa = request.security(syminfo.tickerid, 'D', close)`
+    // became a substituted macro and Fred RS's `closeDa[n63]` a column the gate withheld whole
+    // (`runtime:request`). Another symbol's read only escaped by its `sym` tree reading as state.
+    if (isAboveRequest(node)) return true
     // ⭐⭐ W4-T8 — A WINDOW WHOSE v6 `series int` LENGTH THE FOLD CANNOT SETTLE IS A RUNTIME CALL.
     // Left to the columnar lane it refuses `pine:window` ("a Pine length has to reach the engine as a
     // plain whole number"), so `ta.highest(high, bar_index % 7 + 1)` never reached the window path.
@@ -4267,10 +4594,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐ TC — the immutable bindings `holdsColour` is reading through right now (its cycle guard; see
    *  the name arm below). `touchesColour` and `fractionalColourIn` keep their own sets. */
   const colourNamesInFlight = new Set()
+  /** ⭐ CO-2 — does this script name `chart.fg_color` / `chart.bg_color` anywhere (comments and strings stripped)? */
+  let themeInScript = null
+  const THEME_IN_SCRIPT = () => {
+    if (themeInScript === null) {
+      try { themeInScript = /\bchart\.(?:fg|bg)_color\b/.test(strippedForScan(source)) } catch { themeInScript = true }
+    }
+    return themeInScript
+  }
   const holdsColour = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
       if (colourHexByName(node.name, pineVersion) !== null) return true
+      // ⭐ CO-2 — the chart's two theme colours are colours (a script's own binding of the name wins)
+      if (THEME_NAMES.includes(node.name) && lookupReadable(node.name, scope) === null && !env.has(node.name)) return true
       const slot = lookupReadable(node.name, scope)
       // ⭐ WS-E — a name TYPED `color` is one, even when it was declared `na`.
       if (slot !== null) return isColourTy(slotTy(slot)) || colourTypedNames.has(node.name)
@@ -4592,11 +4929,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
    * whole `box.` namespace, so it also answers true for `box.set_bgcolor(b, c)`
    * — an UPDATE, which makes no new drawing and has no handle to be.
    */
-  const mintHandle = (valueNode) => {
+  const mintHandle = (valueNode, scope = null) => {
     if (!objectPassOwnsDrawing) return null
     if (!valueNode || valueNode.type !== 'call') return null
     const m = /^([a-z]+)\.new$/.exec(String(valueNode.name || ''))
     if (!m || !OBJECT_NS.test(`${m[1]}.`)) return null
+    // ⭐ engine 83 — the create is the object program's, so its arguments are not run here:
+    // one that WRITES (`array.push(xs, line.new(…, array.pop(ys), …))`) has nowhere to run inside this
+    // expression, and is refused by name rather than dropped (`skippedDrawingWrites`)
+    if (scope) skippedDrawingWrites(valueNode, scope, locate(valueNode.tok), false)
     // ⭐ THE ORDINAL IS THIS LANE'S OWN, and `handles.js` says plainly that it
     // is NOT joined to the object program's site id. It exists so two creates
     // are not `===`; nothing reads it.
@@ -5030,7 +5371,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'name') {
       const slot = lookupReadable(node.name, scope)
       if (slot !== null) return slotUdt(slot)
-      const path = fieldPathOf(node, scope)
+      // ⭐ S14 fix 3 — the depth travels through `fieldPathOf` and back (below)
+      const path = fieldPathOf(node, scope, depth)
       if (path) return path.type
       const bound = env.get(node.name)
       if (bound && bound.kind === 'expr') return udtTypeOf(bound.node, scope, depth + 1)
@@ -5088,7 +5430,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  the same ruling for the receiver of a method call, and for the same reason:
    *  `a.b.c` addresses `c` OF `a.b`, and reading `a.b` as the head of `c` would
    *  address the wrong object with no error anywhere. */
-  const fieldPathOf = (node, scope) => {
+  // ⭐⭐ ENGINE 84 (S14 fix 3) — THE DEPTH `udtTypeOf` BOUNDS ITS WALK WITH TRAVELS THROUGH HERE.
+  // ⚰️ This called `udtTypeOf(bound.node, scope)` with the depth reset to 0, so a binding whose own value reads
+  // a path with its name as the head (`string timeframe = timeframe.period`, then `timeframe.period` again:
+  // the head is the binding, its value is the same path) went round `udtTypeOf` -> `fieldPathOf` -> the binding
+  // -> `udtTypeOf` until the stack overflowed (an engine defect, S14: 5 walls in 3 sample scripts). With the
+  // depth carried it answers `null` at the bound, which is the answer: a `string` has no fields, so the path
+  // is not a field path and the name is read as what it is (`timeframe.period`, the built-in).
+  const fieldPathOf = (node, scope, depth = 0) => {
     if (!node || node.type !== 'name' || typeof node.name !== 'string') return null
     const parts = node.name.split('.')
     if (parts.length < 2) return null
@@ -5098,7 +5447,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (slot !== null) type = slotUdt(slot)
     else {
       const bound = env.get(head)
-      if (bound && bound.kind === 'expr') type = udtTypeOf(bound.node, scope)
+      if (bound && bound.kind === 'expr') type = udtTypeOf(bound.node, scope, depth + 1)
     }
     if (!type) return null
     const steps = []
@@ -5197,7 +5546,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // with the collection path. Two copies of the `^([a-z]+)\.new$` test is
       // the drift this file pays for most, and the half that drifted would be
       // whichever one a later family (`polyline`) was added to first.
-      const handle = mintHandle(valueNode)
+      const handle = mintHandle(valueNode, scope)
       if (handle) return handle
     }
     if (hit) {
@@ -5909,7 +6258,45 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  Two copies of the arity and named-argument checks would drift, and the one
    *  that drifted would be the statement path, which is the one a member's
    *  watchlist parser is made of. */
-  const admitArrayCall = (node, scope, asStatement) => {
+  /** ⭐⭐ ENGINE 84 (A2) — A NAMED ARGUMENT ON A SERVED BUILT-IN TAKES ITS DECLARED POSITION, by
+   *  Pine's own parameter name (the Pine v6 reference's syntax lines: `color.new(color, transp)`,
+   *  `color.rgb(red, green, blue, transp)`, `color.from_gradient(value, bottom_value, top_value, bottom_color,
+   *  top_color)`, `array.new_<type>(size, initial_value)` and `array.new<type>(size, initial_value)`). The
+   *  review-L3 rule (`ta.sma(source = …, length = …)`) made general for these: positional arguments fill from
+   *  the left, a named one goes to its parameter. ⛔ `null` (the refusal by name stands) for a name the reference
+   *  does not list, a parameter given twice, a positional argument after a named one, or a parameter skipped
+   *  before one that is given (no default is invented here). */
+  const REFERENCE_PARAM_NAMES = Object.freeze({
+    'color.new': Object.freeze(['color', 'transp']),
+    'color.rgb': Object.freeze(['red', 'green', 'blue', 'transp']),
+    'color.from_gradient': Object.freeze(['value', 'bottom_value', 'top_value', 'bottom_color', 'top_color']),
+  })
+  const ARRAY_NEW_PARAM_NAMES = Object.freeze(['size', 'initial_value'])
+  const referenceParamNames = (name) => (
+    REFERENCE_PARAM_NAMES[name] || (/^array\.new(?:_[a-z]+)?$/.test(String(name || '')) ? ARRAY_NEW_PARAM_NAMES : null))
+  const argsInReferenceOrder = (args, names) => {
+    if (!names || atObjectDoor) return null
+    const placed = []
+    let named = false
+    for (const a of args || []) {
+      if (a && a.name) {
+        named = true
+        const i = names.indexOf(String(a.name))
+        if (i < 0 || placed[i] !== undefined) return null
+        placed[i] = { ...a, name: null }
+      } else {
+        if (named) return null   // a positional argument after a named one
+        placed.push(a)
+      }
+    }
+    for (let i = 0; i < placed.length; i += 1) if (placed[i] === undefined) return null
+    return placed
+  }
+  const admitArrayCall = (node0, scope, asStatement) => {
+    // ⭐ A2 — `array.new_float(size = 3, initial_value = 0.0)` is the positional call
+    const reordered = (node0.args || []).some((a) => a && a.name)
+      ? argsInReferenceOrder(node0.args, referenceParamNames(node0.name)) : null
+    const node = reordered ? { ...node0, args: reordered } : node0
     const spec = ARRAY_FNS[node.name]
     for (const arg of node.args) {
       if (arg && arg.name) {
@@ -5956,7 +6343,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       ?? (node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null)
     return arrayCall(
       node.name,
-      given.map((x, i) => (nestedCreateHandle(node.name, i, x) || lowerExpr(x, scope))),
+      given.map((x, i) => (nestedCreateHandle(node.name, i, x, scope) || lowerExpr(x, scope))),
       typeArg,
     )
   }
@@ -5995,10 +6382,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *          the caller then lowers the argument normally, so a shape this does
    *          not recognise behaves exactly as it did before the rule landed.
    */
-  const nestedCreateHandle = (fnName, argIndex, valueNode) => {
+  const nestedCreateHandle = (fnName, argIndex, valueNode, scope = null) => {
     if (!objectPassOwnsDrawing) return null
     if (COLLECTION_VALUE_ARG[fnName] !== argIndex) return null
-    return mintHandle(valueNode)
+    return mintHandle(valueNode, scope)
   }
 
   /** Resolve a TEXT input to the string the script will actually see.
@@ -6297,6 +6684,142 @@ function buildRuntimeIrLinked(source, opts, holder) {
     walk(f.result, 0)
     return ok
   }
+
+  // ── ⭐⭐ engine 83 — WHAT A DRAWING CALL THIS LANE SKIPS STILL DOES TO THE VALUES ──
+  //
+  // Under `objectPassOwnsDrawing` a drawing call is the object program's: skipped as a statement here.
+  // Its ARGUMENTS are still Pine's to evaluate, left to right, and one that WRITES (a collection member
+  // whose `writes` is not `none`, a script function or method that is not effect-free) changes what
+  // every later bar reads. ⚰️ Skipping the call skipped them: `label.delete(array.shift(xs))` deleted
+  // nothing here (right) and never shrank `xs` (wrong), so a script capping its drawings at five kept
+  // every one in the list (the Studio session's probe: 5 on the last bar in Pine, 149 here), and
+  // `while array.size(xs) > 5` never ended. 9 of 9 one-call forms (label / line / box x shift / pop /
+  // remove) were wrong; their two-step forms (`old = array.shift(xs)`, then `label.delete(old)`) right
+  // (`runtime/__tests__/skippedDrawingArgWrites.test.js`).
+  // ⭐ So each argument subtree that writes is lowered and run for its effect, its value dropped, in
+  // the order Pine evaluates it. ⛔ A write that runs only on some evaluations (a `?:` arm, the right
+  // side of `and` / `or`), or where this lane cannot run it at the skip (a `var` initialiser runs
+  // once, a drawing minted inside an expression), is refused BY NAME: run unconditionally it would be
+  // a different program, and dropped it is the wrong value this replaces.
+  const WRITING_MEMBERS = new Set(Object.keys(ARRAY_FNS)
+    .filter((k) => ARRAY_FNS[k].writes !== 'none' && k.includes('.'))
+    .map((k) => k.slice(k.indexOf('.') + 1)))
+  /** Can calling this script function change a value the script reads ELSEWHERE: a collection write
+   *  (its elements are shared by reference) or a field write, in its body or any body it calls? Its own
+   *  `var`s are its call site's, and a drawing is the object program's, so neither counts. ⛔ Unknown (a
+   *  body not compiled) answers from the definition's own tokens: a writing member, a field `:=`, or a
+   *  call to a function that writes. */
+  const fnWritesValues = (name, seen = new Set()) => {
+    if (seen.has(name)) return false
+    seen.add(name)
+    const idx = fnByName.get(name)
+    const f = idx === undefined ? null : functions[idx]
+    if (f && !f.compiling && f.body) {
+      let hit = false
+      const walk = (n, depth) => {
+        if (hit || !n || typeof n !== 'object' || depth > 256) return
+        if (Array.isArray(n)) { for (const x of n) walk(x, depth + 1); return }
+        if (n.kind === EXPR.ARRAY && !(ARRAY_FNS[n.fn] && ARRAY_FNS[n.fn].writes === 'none')) { hit = true; return }
+        if (n.kind === STMT.FIELD_SET) { hit = true; return }
+        if (n.kind === EXPR.CALL && functions[n.fn] && fnWritesValues(functions[n.fn].name, seen)) { hit = true; return }
+        for (const v of Object.values(n)) if (v && typeof v === 'object') walk(v, depth + 1)
+      }
+      walk(f.body, 0)
+      walk(f.result, 0)
+      return hit
+    }
+    const def = deferredFnDefs.get(name)
+    if (!def) return true
+    const toks = []
+    const collect = (x, depth) => {
+      if (!x || typeof x !== 'object' || depth > 64) return
+      if (Array.isArray(x)) { for (const y of x) collect(y, depth + 1); return }
+      if (x.kind !== undefined && x.value !== undefined && !x.header) { toks.push(x); return }
+      for (const v of Object.values(x)) if (v && typeof v === 'object') collect(v, depth + 1)
+    }
+    collect(def, 0)
+    return toks.some((t, i) => {
+      if (t.kind !== 'ident') return isPunct(t, ':=') && i > 0 && String(toks[i - 1].value).includes('.')
+      if (!isPunct(toks[i + 1], '(')) return false
+      const v = String(t.value)
+      if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, v)) return ARRAY_FNS[v].writes !== 'none'
+      if (v !== name && isUserFn(v)) return fnWritesValues(v, seen)
+      return v.includes('.') && WRITING_MEMBERS.has(v.slice(v.lastIndexOf('.') + 1))
+    })
+  }
+  const argumentWrites = (n, scope) => {
+    const name = String(n.name || '')
+    if (n.type === 'call') {
+      if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, name)) return ARRAY_FNS[name].writes !== 'none'
+      if (isUserFn(name)) return fnWritesValues(name)
+      if (OBJECT_NS.test(name)) return false
+      const uf = splitMethodName(name)
+      if (!uf) return false
+      if (drawingHandles.has(uf.recv)) return false
+    }
+    // a receiver call: `xs.shift()`, `f().pop()`, `obj.m()`
+    let rc = null
+    try { rc = receiverCallOf(n, scope) } catch (e) { if (!(e instanceof RuntimeRefusal)) throw e }
+    if (rc && rc.kind === 'array') return !(ARRAY_FNS[rc.name] && ARRAY_FNS[rc.name].writes === 'none')
+    if (rc && rc.kind === 'user') return fnWritesValues(rc.fn)
+    const member = n.type === 'method' ? name : (splitMethodName(name) || {}).method
+    return WRITING_MEMBERS.has(member)
+  }
+  /** The outermost subtrees of `node` that write, in evaluation order, each with whether it runs only
+   *  on some evaluations (`lazy`). A write's own arguments run inside it. */
+  const argumentWriteSites = (node, scope) => {
+    const found = []
+    const visit = (n, lazy, depth) => {
+      if (!n || typeof n !== 'object' || depth > 64) return
+      if (Array.isArray(n)) { for (const x of n) visit(x, lazy, depth + 1); return }
+      if ((n.type === 'call' || n.type === 'method') && argumentWrites(n, scope)) { found.push({ node: n, lazy }); return }
+      if (n.type === 'ternary') {
+        visit(n.test, lazy, depth + 1); visit(n.yes, true, depth + 1); visit(n.no, true, depth + 1)
+        return
+      }
+      if (n.type === 'binary' && (n.op === 'and' || n.op === 'or')) {
+        visit(n.left, lazy, depth + 1); visit(n.right, true, depth + 1)
+        return
+      }
+      for (const [k, v] of Object.entries(n)) {
+        if (k !== 'tok' && k !== 'endTok' && v && typeof v === 'object') visit(v, lazy, depth + 1)
+      }
+    }
+    visit(node, false, 0)
+    return found
+  }
+  /** The statements that run what a skipped drawing's arguments write (`[]` for none), or a refusal
+   *  by name. `hoist: false` — the skip has no place to run them (a `var` initialiser, a minted handle). */
+  const skippedDrawingWrites = (node, scope, at, hoist = true) => {
+    const sites = argumentWriteSites(node, scope)
+    if (!sites.length) return []
+    const lazy = sites.find((s) => s.lazy)
+    if (lazy || !hoist) {
+      const w = (lazy || sites[0]).node
+      const what = w.type === 'method' ? `.${w.name}()` : `${w.name}()`
+      note('runtime:object-op')
+      throw new RuntimeRefusal('runtime:object-op', `a drawing call's argument \`${what}\` changes a value `
+        + `the script reads again${lazy ? ' on only some of the bars the call runs on' : ' where this lane cannot '
+        + 'run it'}; the drawing call is the object program's and is not run here, so that change would be `
+        + 'lost or made on the wrong bars, and nothing is drawn rather than a wrong number', at)
+    }
+    return sites.map(({ node: w }) => {
+      const fnIdx = w.type === 'call' ? fnByName.get(String(w.name)) : undefined
+      const rec = fnIdx === undefined ? null : functions[fnIdx]
+      return exprStmt(lowerExpr(w, scope, { multi: true, effect: true }), rec && rec.returns ? rec.returns : 1)
+    })
+  }
+  /** `skippedDrawingWrites` over a statement's tokens; a line that does not parse as one expression
+   *  refuses if any token names a writing member or a script function, and is skipped otherwise. */
+  const skippedDrawingStmtWrites = (toks, scope, at) => {
+    let node = null
+    try { node = parseWholeExpression(toks) } catch { node = null }
+    if (node) return skippedDrawingWrites(node, scope, at)
+    const hit = toks.slice(1).find((t, i) => t && t.kind === 'ident' && isPunct(toks[i + 2], '(')
+      && (WRITING_MEMBERS.has(String(t.value).slice(String(t.value).lastIndexOf('.') + 1)) || isUserFn(String(t.value))))
+    if (hit) return skippedDrawingWrites({ type: 'call', name: String(hit.value), args: [] }, scope, at, false)
+    return []
+  }
   // `bareIsValue` (W9 9.7, the dark-broker order site only): a BARE builtin call
   // (`crossover(...)`, v1-v4's spelling of `ta.crossover`) is a value call there.
   // Pine's bare builtins that change state are output calls, which no argument
@@ -6348,7 +6871,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const callTreeExpansion = (node) => {
     const name = String(node && node.name || '')
     if (definedNames.has(name) || isUserFn(name)) return null
-    // ⭐ NUMBER PENDING (bt) — THE v1–v4 SPELLING OF `math.avg` IS THE BARE `avg`. The v4→v5
+    // ⭐ Engine 66 (#1473) (bt) — THE v1–v4 SPELLING OF `math.avg` IS THE BARE `avg`. The v4→v5
     // migration guide's `math` table: "`avg()` | `math.avg()`". Before v5 the bare name is Pine's
     // own (no version line = v1, as `LEGACY_REQUEST_CALLS` reads it), so it takes the same
     // expansion; a script's own `avg` never reaches here (the guard above).
@@ -6682,7 +7205,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${name}\` ends on a block rather than a value`, at)
           } else {
-            value = lowerExpr(parseWholeExpression(lt), bodyScope, opts)
+            // ⭐⭐ U-REQ-HOIST-COLUMN (2026-11-18) — THE LAST LINE'S COMMITTED SERIES IS THE REGION'S.
+            // `lowerStmts` above restored the statement sink it found, which is the ROOT's: a
+            // `(d * 2)[1]` here was declared into the main program, which a request's sub-run never
+            // runs, so it read `na` on every requested bar (no column, so the e78 guard could not see it).
+            // The last line runs on every call, so its declaration lands in this body's own sink,
+            // after the statements it reads.
+            const outerStmtSink = stmtHoistSink
+            stmtHoistSink = localSink
+            try {
+              value = lowerExpr(parseWholeExpression(lt), bodyScope, opts)
+            } finally { stmtHoistSink = outerStmtSink }
           }
         } finally {
           hoistSink = outerSink
@@ -6811,7 +7344,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const identity = (() => {
       let t = null
       try {
-        targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod })
+        // ⭐ RS RATING L12 PR 2 — this reader alone reads a daily read above an intraday chart (`above`)
+        targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod, aboveDailyReads: true })
         t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
       if (t && t.lower !== true && !reachesSlotThroughEnv(t.positional[0], scope)
@@ -7010,6 +7544,24 @@ function buildRuntimeIrLinked(source, opts, holder) {
         + 'runs once over the bars of THIS chart — serving it per requested symbol '
         + 'is the next step, not something to approximate', at)
     }
+    // ⭐⭐ U-REQ-HOIST-COLUMN, THE GUARD HALF (2026-11-18) — AND ITS HOISTED STATEMENTS TOO.
+    // A requested function whose body lowers as statements (a `var`, a recurrence such as
+    // `int d = na , d := … nz(d[1])`) is hoisted into this region, and a history read of one of
+    // its bindings (`_isUp[1]`) can be lowered there as a COLUMN: computed once over THIS chart's
+    // bars, then read by the request's sub-run at the REQUESTED bar's index (`vm.js::runRequest`
+    // hands it the chart's columns). ⚰️ The walk above saw the value only, so PA ZigZag Fibonacci
+    // FAN at 1W / 1M read the chart's daily bar j-1 for weekly bar j and drew a different zigzag
+    // than TradingView's (our column reproduced by that model on 140 / 140 weeks, 33 / 33 months).
+    // The same walk, over the statements, refuses it by name. A slot's own history (`d[1]`, committed
+    // per requested bar) and a `var` are the region's, not columns, and keep serving.
+    // ⭐ SERVED SINCE THE LOWERING (engine 82): a STATIC offset over a pure expression in the region is
+    // now the region's own committed series (`case 'offset'`, `history src r<n>`), so this walk finds no
+    // column there. It stays the backstop for every shape still lowered as one (a dynamic offset).
+    if (hoisted.some((s) => carriesColumn(s))) {
+      note('runtime:request-hoisted-history')
+      throw new RuntimeRefusal('runtime:request-hoisted-history',
+        valueNode && valueNode.type === 'call' && typeof valueNode.name === 'string' ? `\`${valueNode.name}()\`` : null, at)
+    }
 
     const results = valueIr && valueIr.kind === EXPR.TUPLE ? valueIr.elements.length : 1
     const site = requests.length
@@ -7021,6 +7573,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         code: hostTarget.code,
         live: hostTarget.live === true,
         line: node.tok ? node.tok.line : null,
+        // ⭐ RS RATING L11 — a daily read of another symbol on a weekly chart (`pine.js::
+        // dailyOnWeeklyTargetOf`): supplied held and sampled per week (`requestSupply.js`)
+        ...(hostTarget.below === true ? { below: true } : {}),
+        // ⭐ RS RATING L12 PR 2 (U-DAILY) — a daily read above an intraday chart (`pine.js`): supplied from the
+        // symbol's held daily rows, each chart bar reading the session it had completed (`requestSupply.js`)
+        ...(hostTarget.above === true ? { above: true } : {}),
       }) : ownUnread ? Object.freeze({
         // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read:
         // `code` is the literal as written, never a served code; `unread` refuses it in the supply
@@ -7731,16 +8289,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⛔ the BOTTOM must always be proved: a negative offset has no answer this lane owes
     if (!r || !Number.isFinite(r.lo) || r.lo < 0) throw refusal
     let depth = Number.isFinite(r.hi) ? Math.ceil(r.hi) : Infinity
-    // ⭐⭐ L4b — NO PROVED TOP (or one past Pine's ceiling): a DECLARED buffer sizes the
-    // ring (`declaredBufferOf`), and a read past it stops the run in the VM (`mbbDyn`'s
-    // limit, or the 5,000 ceiling), never `na`. No declaration: the refusal stands.
+    // ⭐⭐ L4b — NO PROVED TOP (or one past Pine's ceiling): a DECLARATION admits the read
+    // (`declaredBufferOf`); no declaration, the refusal stands. ⭐ (2026-11-18, M2 / Q-MBB,
+    // captured) TradingView answers past a declared buffer, so the ring is Pine's 5,000, never
+    // the declared number: the VM's ceiling stops a read past it before the ring could be
+    // overrun. ⛔ NOT the chart's length: a build is reused over a chart that grows (a live
+    // tail, and a 600-bar first paint backfilled to thousands), and a ring sized at build would
+    // be overrun there (the engine agent's trap A). 5,000 cells are 40 KB; the HISTORY_VALUES
+    // budget still refuses, by name, a script with more such rings than it holds (~52).
     if (depth > MAX_DYNAMIC_HISTORY_DEPTH) {
       const declared = declaredBufferOf(varSlot)
       if (declared === null) throw refusal
-      depth = declared
+      depth = MAX_BARS_BACK_CEILING
     }
-    // a read past a declared `max_bars_back` stops before it reaches the ring's end
-    if (MBB_DECLARED) depth = Math.min(depth, MBB_DECLARED)
     if (depth === 0) return read(varSlot)
     const h = owner !== null
       ? fnHistorySlotFor(owner, varSlot, depth, at)
@@ -8246,7 +8807,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const rebuilt = rebuiltSessionClockCall(node, scope)
       return rebuilt ? column(columnOf(rebuilt, at)) : null
     }
-    // ⭐ NUMBER PENDING (bt) — `timeframe.in_seconds([tf])` with a timeframe fixed before bar 0 (a
+    // ⭐ Engine 66 (#1473) (bt) — `timeframe.in_seconds([tf])` with a timeframe fixed before bar 0 (a
     // parameter a call site fixes, an input at its value, `""`, the chart's own name) is the
     // COLUMNAR lane's own answer (`pine.js::timeframeCallOf`, lengths measured on vw-time-tf
     // T10–T15), rebuilt with a literal argument exactly as `time(tf, …)` is above — one reader
@@ -8350,6 +8911,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  inner binding precedes the outer one, which is the order they must run in.
    */
   let frameHoistSeq = 0
+  /** ⭐ U-REQ-HOIST-COLUMN — the names a request region's own committed series take (`history src r<n>`),
+   *  unique across every region of the script, so two sinks never declare one name twice. */
+  let regionHoistSeq = 0
   /** The ring for a hoisted slot: frame-relative inside a function body, the
    *  main program's otherwise. ONE place, so the three hoist sites cannot drift. */
   const hoistedHistorySlot = (slot, back, at) => (owner !== null
@@ -8710,6 +9274,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
             && scope.lookup(node.name) === null && !env.has(node.name)) {
           return str(ORDER_ENUM[node.name])
         }
+        // ⭐⭐ ENGINE 84 (CO-2) — `chart.fg_color` / `chart.bg_color` ARE COLOUR VALUES HERE, carried as
+        // the SAME theme reference the host reader carries (`objectTheme.js`, one authority), in the number form
+        // this lane's colours take (`packedThemeColour`), and resolved where they are drawn: an object's colour
+        // slot, a per-bar colour column. TradingView: they are the chart's own background and its high-contrast
+        // foreground (the light-theme capture `vw-theme-colours-spy-1d-2026-10-01` reads #0f0f0f on #ffffff),
+        // so they are never folded to a hex here. ⛔ A script's own binding of the name wins.
+        if (THEME_NAMES.includes(node.name) && scope.lookup(node.name) === null && !env.has(node.name)) {
+          return num(packedThemeColour(node.name))
+        }
         // ⭐⭐ S1 — A BROKER VALUE (`strategy.position_size`, ...), read from the run's
         // broker; the two directions are the numbers the broker reads ([B-DIR]).
         if (brokerMode && node.name.startsWith('strategy.')
@@ -8771,7 +9344,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // `request.security(sym, tf, x)` could disagree inside one script.
         // ⛔ AND A BINDING STILL WINS, exactly as it does for the clock fields
         // above and in `ownTimeframeOf`: a script may write `period = "60"`.
-        // ⭐ NUMBER PENDING (bt) — a v4+ script's unbound bare `period` is no Pine name (`legacyPeriodUndeclared`).
+        // ⭐ Engine 66 (#1473) (bt) — a v4+ script's unbound bare `period` is no Pine name (`legacyPeriodUndeclared`).
         if (legacyPeriodUndeclared(node.name, pineVersion) && scope.lookup(node.name) === null && !env.has(node.name)) {
           throw legacyPeriodRefusal(node.tok)
         }
@@ -8956,10 +9529,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
               `\`${node.op}\` over a colour — Pine compares colours with \`==\` and \`!=\` only`, at)
           }
           if (isBuiltinNa(node.left, scope) || isBuiltinNa(node.right, scope)) {
+            // ⭐⭐ ENGINE 82 (CO-1) — PINE v4 IS CAPTURED. vw-tc1-colour-na-compare-rddt-1d-2026-11-16
+            // (v4, NYSE:RDDT 1D, 667 bars): `c != na` (C1) and `c == na` (C2) answer 0 on EVERY bar, where `c`
+            // is a colour (316 bars) and where it is `na` (351), exactly as a NUMBER beside the literal `na`
+            // does (N1 / N2), which this lane already answers 0 (a comparison with an `na` operand reads false,
+            // S1); `na(c)` (C3) is the test that sees the `na`. So in v4 the comparison is lowered as the number
+            // one is. ⛔ Every other version is not captured and keeps the refusal, by name.
+            if (pineVersion === 4) return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))
             note('runtime:colour')
             throw new RuntimeRefusal('runtime:colour',
-              `a colour compared with \`na\` by \`${node.op}\` — what TradingView answers is not captured yet `
-              + '(probe `vw-tc1-colour-na-compare`); `na(x)` is the reference test for `na`', at)
+              `a colour compared with \`na\` by \`${node.op}\` — what TradingView answers is captured for Pine v4 `
+              + 'only (probe `vw-tc1-colour-na-compare`); `na(x)` is the reference test for `na`', at)
           }
           if (!holdsColour(node.left, scope) || !holdsColour(node.right, scope)) {
             note('runtime:colour')
@@ -8972,6 +9552,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
               `\`${node.op}\` over a colour written with a transparency that is not a whole number (or a gradient) — `
               + 'whether TradingView compares such colours by their opacity byte or their transparency is not captured '
               + 'yet (probe `vw-tc1-colour-na-compare`, rows E1-E2)', at)
+          }
+          // ⭐ CO-2 — IN A SCRIPT THAT PAINTS WITH THE CHART'S THEME COLOUR, each operand takes the step that stops
+          // the run by name where it IS one (`colours.js::COLOUR_COMPARABLE`): the chart's colour is not in the
+          // computation. Every other script's comparison is lowered exactly as before.
+          if (THEME_IN_SCRIPT()) {
+            return binary(op, colourCall(COLOUR_COMPARABLE, [lowerExpr(node.left, scope)]),
+              colourCall(COLOUR_COMPARABLE, [lowerExpr(node.right, scope)]))
           }
           return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))
         }
@@ -9000,6 +9587,36 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         const loweredL = lowerExpr(node.left, scope)
         const loweredR = lowerExpr(node.right, scope)
+        // ⭐⭐ engine 78 (#1858) (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly
+        // (`pineCompare.js::constCompareFold`). Here a constant is an IR constant expression: a literal or a
+        // name bound to one is a `num`, an input a parameter read, a reassigned name a slot read, a call a call
+        // (so a function's constant result is the run's tolerant compare on this lane, the host lane folds it).
+        if (pineConstCompareExact(pineVersion)) {
+          // a side the IR cannot read as a constant (a user function's constant result is a call here) is read
+          // through the frozen resolver (`constValueOf`) — only when it names no slot (a reassigned or `var`
+          // name) and no input, which Pine compares at run time
+          const runtimeName = (n, depth = 0) => {
+            if (!n || typeof n !== 'object' || depth > 64) return false
+            if (Array.isArray(n)) return n.some((x) => runtimeName(x, depth + 1))
+            if (n.type === 'name' && typeof n.name === 'string') {
+              if (scope && scope.lookup(n.name) !== null) return true
+              const bound = env.get(n.name)
+              return !!(bound && bound.kind === 'expr' && bound.node && isInputCall(bound.node))
+            }
+            return Object.entries(n).some(([k, v]) => k !== 'tok' && v && typeof v === 'object' && runtimeName(v, depth + 1))
+          }
+          const sideConst = (lowered, pineNode) => {
+            const v = runtimeName(pineNode) ? null : irConstValue(lowered, { columnTrees, functions })
+            if (v !== null) return v
+            if (runtimeName(pineNode)) return null
+            const cv = constValueOf(pineNode, scope)
+            return cv && typeof cv.value === 'number' ? cv.value : null
+          }
+          const a = sideConst(loweredL, node.left)
+          const b = a === null ? null : sideConst(loweredR, node.right)
+          const fold = a !== null && b !== null ? constCompareFold(op, a, b, pineVersion) : null
+          if (fold !== null) return num(fold)
+        }
         const naLate = boolNaOnThisLane(node.op, loweredL, loweredR, locate(node.tok), node.left, node.right)
         const lowered = binary(op, loweredL, loweredR)
         if (naLate) boolNaDeferred.push({ ...naLate, node: lowered })
@@ -9184,15 +9801,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // ⭐ `e[0]` IS `e`. Routing it through the ring would answer with
             // the PREVIOUS bar — one bar wrong in the one case nobody checks.
             if (hb === 0) return read(hoisted.slot)
-            mbbStaticCheck(hb, at, 'an expression')
             slotHistoryGuard(hoisted.slot, at)
             return histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, hb, at), hb)
           }
-          const varSlot = scope.lookup(node.arg.name)
+          let varSlot = scope.lookup(node.arg.name)
+          // ⭐⭐ U-FGS F2 — `g[k]` of a mutable global inside a function body: the history of its value AT THE CALL,
+          // per call site (vw-udt-fn-global-history G01-G06, committed): `frameGlobalCopy`.
           if (varSlot === null) {
-            note('runtime:function-global-state')
-            throw new RuntimeRefusal('runtime:function-global-state', `\`${node.arg.name}\``, at)
+            varSlot = frameGlobalCopy(node.arg.name)
+            if (varSlot !== null) frameGlobalBlockGuard(node.arg.name, at)
           }
+          if (varSlot === null) throw unaddressedNameRefusal(node.arg.name, `\`${node.arg.name}[…]\``, at)
           let back
           try {
             back = foldOffset(node.n, at, scope)
@@ -9205,7 +9824,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // answer with the PREVIOUS bar — one bar wrong in the one case nobody
           // would think to check.
           if (back === 0) return read(varSlot)
-          mbbStaticCheck(back, at, `\`${node.arg.name}\``)
           slotHistoryGuard(varSlot, at)
           // ⭐⭐⭐ P7.2 — FUNCTION-LOCAL HISTORY IS ALLOCATED PER FUNCTION HERE AND
           // MATERIALISED PER CALL SITE BELOW. The index carried on the node is
@@ -9243,12 +9861,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           const hb = foldOffset(node.n, offAt, scope)
           if (hb === 0) return read(hoisted.slot)
-          mbbStaticCheck(hb, offAt, 'a colour')
           slotHistoryGuard(hoisted.slot, offAt)
           return histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, hb, offAt), hb)
         }
         const offExpr = node.n && typeof node.n === 'object' ? node.n.expr : null
-        if (offExpr && (needsRuntime(offExpr, scope) || mbbDynamicColumn(node, scope))) {
+        // ⭐⭐ (2026-11-18, WS-C Q1 M2 / M3 + Q-MBB, captured) — AN OFFSET THAT DOES NOT FOLD IS READ BAR BY BAR,
+        // DECLARATION OR NOT. It took this path only under a declared `max_bars_back` (`mbbDynamicColumn`), so the
+        // declared STOP could run; TradingView answers the real history there (and with no declaration, M3), so the
+        // routing no longer hangs on a declaration (the engine agent's trap B: with none, a chart of 5,000 bars or
+        // fewer refused "counts backwards" while the declared spelling built). An offset that FOLDS keeps the
+        // constant path below, and its refusal when it folds to no whole number.
+        let offConst = null
+        if (offExpr) { try { offConst = constValueOf(offExpr, scope) } catch { offConst = null } }
+        const offFolds = !!(offConst && offConst.value !== undefined)
+        if (offExpr && (needsRuntime(offExpr, scope) || !offFolds || mbbDynamicColumn(node, scope))) {
           // RT5: a run-time offset into a COLUMN reads that column's own history;
           // only `bar_index` changes meaning inside a function body (S02, B01).
           if (owner !== null && node.arg && node.arg.type === 'name' && node.arg.name === 'bar_index') {
@@ -9270,7 +9896,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (!Number.isInteger(back) || back < 0) {
           throw new RuntimeRefusal('runtime:statement', 'a bar offset counts backwards in whole bars', locate(node.tok))
         }
-        mbbStaticCheck(back, locate(node.tok), node.arg && node.arg.type === 'name' ? `\`${node.arg.name}\`` : 'a series')
+        // ⭐⭐ U-REQ-HOIST-COLUMN, THE LOWERING (2026-11-18) — INSIDE A REQUEST, A PURE EXPRESSION'S PAST
+        // IS THE REQUESTED BARS' PAST. A column is computed once, over THIS chart's bars, and a request's
+        // sub-run reads it at the REQUESTED bar's index (`vm.js::runRequest`): PA ZigZag Fibonacci FAN's
+        // `_isUp[1]` at 1W read the chart's daily bar j-1 on weekly bar j, and drew a different zigzag than
+        // TradingView's (the e78 guard, `runtime:request-hoisted-history`, then refused it). So, exactly as
+        // a window's source is (`hoistSink`, below), the expression is declared into the region's OWN
+        // committed series and read through that slot's ring, committed once per REQUESTED bar. It is a
+        // pure expression (a slot read took the `readsSlot` arm above), so its place in the region
+        // cannot change its value. ⛔ Static offsets only: a dynamic one keeps its column above, and the
+        // e78 guard keeps refusing it by name.
+        if (inRequestValue && hoistSink) {
+          const at = locate(node.tok)
+          if (back === 0) return lowerExpr(node.arg, scope)
+          const tmp = `history src r${regionHoistSeq++}`
+          const slot = scope.declare(tmp, newSlot(tmp, false))
+          hoistSink.push(declare(slot, lowerExpr(node.arg, scope)))
+          slotHistoryGuard(slot, at)
+          return histSlot(slot, hoistedHistorySlot(slot, back, at), back)
+        }
         return hist(column(columnOf(node.arg, locate(node.tok))), back)
       }
       case 'call': {
@@ -9449,6 +10093,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           specIndex = simpleSpecialisation(node, scope, held)
           // ⭐ TC — a held `runtime:colour` an untyped parameter caused, settled by this call's colour.
           if (specIndex === null) specIndex = colourSpecialisation(node, scope, held)
+          // ⭐ U-LOOP — a held `runtime:loop` an untyped parameter caused, settled by this call's argument types.
+          if (specIndex === null) specIndex = typeSpecialisation(node, scope, held)
           if (specIndex === null) {
             note(held && held.guard ? held.guard : 'runtime:function')
             throw held
@@ -9831,13 +10477,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // above all, keeps the refusal.
         if (Object.prototype.hasOwnProperty.call(COLOUR_FNS, node.name)) {
           const spec = COLOUR_FNS[node.name]
-          for (const arg of node.args) {
+          // ⭐ A2 — `color.new(color = c, transp = 50)` is the positional call (Pine's own parameter names)
+          const reordered = node.args.some((a) => a && a.name)
+            ? argsInReferenceOrder(node.args, referenceParamNames(node.name)) : null
+          const cargs = reordered || node.args
+          for (const arg of cargs) {
             if (arg && arg.name) {
               throw new RuntimeRefusal('runtime:statement',
                 `a named argument \`${arg.name}\` on \`${node.name}\``, locate(node.tok))
             }
           }
-          const given = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
+          const given = cargs.map((x) => (x && x.value !== undefined ? x.value : x))
           const lo = spec.minArgs === undefined ? spec.args.length : spec.minArgs
           const hi = spec.maxArgs === undefined ? spec.args.length : spec.maxArgs
           if (given.length < lo || given.length > hi) {
@@ -9856,12 +10506,32 @@ function buildRuntimeIrLinked(source, opts, holder) {
           return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
-        // ⛔ REQ (coverage unit, 2026-11-16) — a v1–v4 bare `security(…)` whose value reads this run's
-        // state stays refused `runtime:request-with-state` (below), the identity included. Routing it
-        // through `admitRequest` (which serves the identity as the expression itself, as for
-        // `request.security`) was built and WITHDRAWN by the coordinator's ruling: no committed capture
-        // grades a v1–v4 bare identity over state MATCH, so the shape waits for Q-REQ4
-        // (`docs/pine/capture-queue-2026-11-16-request-security.md`).
+        // ⭐⭐ REQ-B1 (coordinator ruling 2026-11-18) — A v3 / v4 BARE `security(…)` IS THE REQUEST DOOR'S, AS
+        // `request.security` IS. `security(…)` became `request.security(…)` in v5 (a rename; `resolution` →
+        // `timeframe`, which `positionaliseRequest` reads), and v3 and v4 share its look-ahead default.
+        // TradingView's v3 migration guide, verbatim: "We added a parameter to the `security` function (the
+        // fifth one) called `lookahead`. It can take on the form of two different values:
+        // `barmerge.lookahead_off` (and this is the default for Pine Script version 3) or
+        // `barmerge.lookahead_on` (which is the default for Pine Script version 2)." ⭐ WITNESSED for v4 on
+        // `support-and-resistance-multi-time-frame-{rddt,spy}-1d-2026-10-02`: its `security(…, 'D' | 'W' | 'M',
+        // valuewhen(…))` drawn by the runtime lane equals TradingView's six plots on every bar
+        // (`vendorHarness.reqBareSecurityForced.test.js`). ⚰️ It fell to `runtime:request-with-state` below,
+        // about a value that reads none of this run's state (24 of that wall's 39 sample hits were this).
+        // ⛔ v1 / v2 (and a script with no version line) stay refused by name: their look-ahead default is
+        // the other one, and Q-REQ4 owes its capture. ⛔ A value that reads this run's own mutable state is
+        // refused first, whatever the timeframe: TradingView refuses to compile it from v3 (the same guide:
+        // "Cannot use mutable variable as an argument for security function!"). A user function of that
+        // name never reaches here (it is routed above).
+        if (node.name === 'security' && (pineVersion === 3 || pineVersion === 4)) {
+          const asked = positionaliseRequest(node)
+          const pos = (asked.args || []).filter((x) => !x || !x.name)
+          const valueNode = pos[2] && pos[2].value !== undefined ? pos[2].value : pos[2]
+          if (valueNode && readsOuterSlot(valueNode, scope)) {
+            note('runtime:request-with-state')
+            throw new RuntimeRefusal('runtime:request-with-state', '`security`', locate(node.tok))
+          }
+          return admitRequest(node, scope, opts)
+        }
         if (textInputHere(node)) return admitTextInput(node, scope)
         if (heldArray(node.name)) {
           return admitArrayCall(node, scope, false)
@@ -10068,6 +10738,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
             varSlot = slot
             srcLabel = tmp
           }
+          // ⭐⭐ U-FGS F2 — A MUTABLE GLOBAL INSIDE A FUNCTION BODY IS ITS VALUE AT THE CALL, per call site
+          // (`frameGlobalCopy`): the window keeps its own ring of what each call hands it.
+          if (varSlot === null && srcNode && srcNode.type === 'name') {
+            const copy = frameGlobalCopy(srcNode.name)
+            if (copy !== null) varSlot = copy
+          }
           // ⭐⭐⭐ AND THE SAME REWRITE AT THE ROOT STATEMENT LIST. The request
           // region above hoists ANY unresolved source because a member has
           // nowhere to put the binding inside a request; here they do, so only
@@ -10077,7 +10753,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             const hoisted = hoistCommittedSeries(srcNode, scope, node.name)
             if (hoisted) { varSlot = hoisted.slot; srcLabel = hoisted.label }
           }
-          // ⭐⭐ HIST-S2 (NUMBER PENDING) — A WINDOW THAT KEEPS ITS OWN RING NEEDS NO COMMITTED
+          // ⭐⭐ HIST-S2 (Engine 64 (#1450)) — A WINDOW THAT KEEPS ITS OWN RING NEEDS NO COMMITTED
           // SERIES. Only the `propagate` policy (`dev`) reads the source's committed bar ring
           // (`vm.js` `OP.WINDOW`, its last branch); `skip` (sma / stdev / sum / median), `ffill`
           // (wma) and `finite` (highest / lowest / highestbars / lowestbars) each append the value
@@ -10089,7 +10765,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // loop (several steps a bar: H8, unwitnessed) the guards below refuse it. The conditional rules below
           // (`conditionalHistoryGuard`, `r4Guard`) are asked of it like any other window.
           let inlineSrc = null
+          let chartInline = false
           // (a loop is refused below, by `conditionalHistoryGuard` / `r4Guard`: one guard, not two)
+          // ⭐⭐ U-FGS F1 (libraries chain, 2026-11-19) — AND A CHART SERIES NAMED BARE IS THE SAME CASE. The
+          // one-argument `ta.lowest(n)` fills `low` (`PINE_SHORT_FORM`), and with a length only known while the bar
+          // runs it came here; `low` has no slot (it is the chart's own series, a column), so it was refused as "a
+          // function body reading a mutable GLOBAL" at the ROOT of market-structure-break-order-block, about a
+          // price series. Its value on this bar is the column's, so it is handed to the window in place, under
+          // HIST-S2's gates and guards, exactly as an expression is. ⛔ Only a bar series the script does not bind
+          // itself; a name the script binds is a different case (below).
+          if (varSlot === null && srcNode && srcNode.type === 'name' && chartSeriesName(srcNode.name, scope)
+              && !atObjectDoor && !objectsInRun && FINITE_WINDOW[win.table].na !== 'propagate') {
+            inlineSrc = lowerExpr(srcNode, scope)
+            srcLabel = srcNode.name
+            chartInline = true
+          }
           if (varSlot === null && srcNode && srcNode.type !== 'name'
               && !atObjectDoor && !objectsInRun && FINITE_WINDOW[win.table].na !== 'propagate') {
             inlineSrc = lowerExpr(srcNode, scope)
@@ -10101,8 +10791,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
               throw new RuntimeRefusal('runtime:history-expression',
                 `\`${node.name}\` over an expression needs that expression's own committed series`, at)
             }
-            note('runtime:function-global-state')
-            throw new RuntimeRefusal('runtime:function-global-state', `\`${srcNode.name}\``, at)
+            throw unaddressedNameRefusal(srcNode.name, `\`${node.name}\``, at)
           }
           // ⭐ THE LENGTH FOLDS THE SAME WAY A HISTORY OFFSET DOES — literal or
           // input-derived, off the CANONICAL TREE. A length only known while the
@@ -10136,6 +10825,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
           if (n < 1) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${node.name}\` needs a length of at least 1, got ${n}`, at)
+          }
+          // ⛔ U-FGS F1 — NOT WITH A LENGTH READ PER BAR, outside the `skip` policy. Measured 2026-11-19: an
+          // in-place source handed to a `finite` window (`ta.lowest`, `ta.highest`) whose length is read per bar
+          // answers `na` on every bar whose length is above 1, where the same window at the root answers the
+          // low (a ring the in-place path does not keep). F1 does not hand a chart series to that path: it is
+          // refused by the name of the wall it is (the length), never drawn blank.
+          if (chartInline && lenExpr && FINITE_WINDOW[win.table].na !== 'skip') {
+            note('runtime:history-dynamic-offset')
+            throw new RuntimeRefusal('runtime:history-dynamic-offset',
+              `the length of \`${node.name}\` over \`${srcNode.name}\` is read per bar, and this position (a block, `
+              + 'or a function branch) has no line to commit the series it needs', at)
           }
           // ⭐⭐ SPAN COMES FROM `interpret.js`, NOT FROM HERE. `ta.rising(x, n)`
           // spans n+1 bars; asking the table means the runtime cannot disagree
@@ -10201,18 +10901,57 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // stay refused until the family gets its own authoritative step.
         if (changeTarget(node.name)) {
           const at = locate(node.tok)
-          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
-          if (given.length !== 1) {
-            // Pine also has `ta.change(source, length)`; the closed table's
-            // `change` declares ONE argument, so the two-argument form is a
-            // TABLE gap and refuses at the columnar door as `pine:arity`. Saying
-            // so here keeps the runtime from inventing a second answer.
+          // ⭐⭐ ENGINE 82 (U-STMT PR 1) — `ta.change(source, length)`, THE HOST'S OWN RULE.
+          // The closed table declares the one-argument `change`, and since 2026-10-29 the host
+          // translates the two-argument form to Pine's published definition, `source - source[length]`
+          // (`pine.js`, the `mom` expansion; a bool source and a length that is not a whole number
+          // refused). A pure source already reaches that rule here through the columnar resolver; a
+          // source this lane holds in a SLOT (a `var`, a reassigned name, an expression over one) came
+          // to this branch and was refused as "a closed-table gap", which it had stopped being.
+          // Evidence: v6 reference `ta.change(source, length)`: "Compares the current `source` value to
+          // its value `length` bars ago and returns the difference"; v4 `change(source, length)`:
+          // "Difference between current value and previous, x - x[y]"; capture vw-w4-arm-runs row E01
+          // `plot(ta.change(close, 2))` = close - close[2] on every graded bar (RDDT 666, SPY 8507).
+          // ⛔ The object door builds what master builds: it keeps the one-argument form only.
+          const { given, length: lengthNode } = changeArgsOf(node, at)
+          const n = lengthNode === null ? 1 : changeLengthOf(node, lengthNode, at, scope)
+          const srcNode = given
+          // ⛔ A BOOL SOURCE IS NOT A DIFFERENCE. Pine's change of a bool "returns `true` when the current
+          // source is different from the previous source", which says nothing of `length` bars ago; the
+          // host refuses it in the same words. Fail closed: served only over a source this lane can
+          // prove is not a bool (`provablyNonBoolNode`, the classifier the arm and block rules use).
+          if (n !== 1 && !provablyNonBoolNode(srcNode, curTypeScope())) {
             throw new RuntimeRefusal('runtime:statement',
-              `\`${node.name}\` takes one source here; the two-argument form is a closed-table gap`, at)
+              `\`${node.name}\` of a value this lane cannot prove is a number: Pine's change of a true/false `
+              + 'series asks whether it changed, not a difference, and the reference does not say what that '
+              + 'means `length` bars back — TO UNBLOCK: compare it yourself, `x != x[length]`', at)
           }
-          const srcNode = given[0]
+          // ⭐⭐ THE CALL SITE'S HISTORY. Pine keeps a `ta.change` call's history per call site: in a
+          // `?:` arm the one-argument form is the previous RUN's value (vw-arm-history T05 / K03), and
+          // the two-argument form reads the call site's own buffer, bar-indexed and carried over the
+          // bars the arm skips (vw-w4-arm-runs C01 / C02: neither n runs nor n bars back). This branch
+          // used to lower `x - x[1]` off the slot's EVERY-BAR ring wherever it stood, so
+          // `c ? ta.change(x) : 0` over a slot `x` drew the bar-back difference (RDDT bar 2: 13.80
+          // where the call site's rule answers 9.36), with nothing red.
+          // ⭐ The one-argument form in an arm takes the witnessed per-run rule (`servedCondCall`, the
+          // one served set); anything else in a region that does not run on every bar asks `r4Guard`:
+          // drawn only while the region has run on every bar (where both readings are one number) and
+          // the run stops by name at the first bar it skips (HIST-S3), else refused by name.
+          if (!atObjectDoor) {
+            if (n === 1) {
+              const served = servedCondCall(node, scope)
+              if (served) return served
+            }
+            if (objectsInRun && owner === null && r4Level() > 0) {
+              note('runtime:conditional-history')
+              throw new RuntimeRefusal('runtime:conditional-history',
+                `\`${node.name}\` inside a block that does not run on every bar — `
+                + 'Pine keeps that history per call site, and this lane serves only the shapes witnessed so far', at)
+            }
+            r4Guard(`\`${node.name}\``, at)   // the region rule (HIST-S3), asked for a slot source too
+          }
           if (!srcNode || srcNode.type !== 'name') {
-            // ⭐⭐⭐ `x - x[1]` NEEDS THE SAME COMMITTED SERIES, so it gets one
+            // ⭐⭐⭐ `x - x[n]` NEEDS THE SAME COMMITTED SERIES, so it gets one
             // the same way. Nothing about the lowering below changes: the
             // hoisted slot is an ordinary slot and the subtraction is still the
             // one definition of `change` this file has.
@@ -10223,16 +10962,33 @@ function buildRuntimeIrLinked(source, opts, holder) {
                 `\`${node.name}\` over an expression needs that expression's own committed series`, at)
             }
             return binary('-', read(hoisted.slot),
-              histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, 1, at), 1))
+              histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, n, at), n))
           }
-          const varSlot = scope.lookup(srcNode.name)
+          let varSlot = scope.lookup(srcNode.name)
+          // ⭐⭐ U-FGS F2 — a mutable global inside a function body: its value at the call, per call site
           if (varSlot === null) {
-            note('runtime:function-global-state')
-            throw new RuntimeRefusal('runtime:function-global-state', `\`${srcNode.name}\``, at)
+            varSlot = frameGlobalCopy(srcNode.name)
+            if (varSlot !== null) frameGlobalBlockGuard(srcNode.name, at)
           }
+          // ⭐⭐ U-FGS F1 — A BINDING THE ROOT HOLDS AS AN EXPRESSION (`pl = fixnan(ta.pivotlow(…))`: no slot, the
+          // runtime lane evaluates it where it is read) gets its committed series on the line above, exactly as an
+          // expression does a few lines up, and as a window over the same name always did (`hoistCommittedSeries`).
+          // At the root statement list only: that line runs on every bar, as the binding itself does. It was refused
+          // as "a function body reading a mutable GLOBAL" at the ROOT of breaks-and-retests-hg.
+          // ⛔ ENGINE 82 TRAIN (#1930 + #1952 together): `n` bars back, never 1. #1952 wrote this when only the
+          // one-argument form reached the branch; with #1930's `ta.change(source, length)` a literal 1 here drew
+          // `pl - pl[1]` for `ta.change(pl, 3)` (RDDT 1D: 192 of 664 bars), where neither unit alone serves it.
+          if (varSlot === null && owner === null && env.has(srcNode.name) && env.get(srcNode.name).kind === 'expr') {
+            const hoisted = hoistCommittedSeries(srcNode, scope, node.name)
+            if (hoisted) {
+              return binary('-', read(hoisted.slot),
+                histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, n, at), n))
+            }
+          }
+          if (varSlot === null) throw unaddressedNameRefusal(srcNode.name, `\`${node.name}\``, at)
           const prev = owner !== null
-            ? histSlot(varSlot, fnHistorySlotFor(owner, varSlot, 1, at), 1)
-            : histSlot(varSlot, historySlotFor(varSlot, 1, at), 1)
+            ? histSlot(varSlot, fnHistorySlotFor(owner, varSlot, n, at), n)
+            : histSlot(varSlot, historySlotFor(varSlot, n, at), n)
           return binary('-', read(varSlot), prev)
         }
         // ⭐⭐ `ta.atr(n)` IS `ta.rma(trueRange, n)`, AND THAT IS NOT A
@@ -10774,8 +11530,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐ C18 — `max_bars_back(<name>, 5000)`: two positional arguments, a bare
    *  name and the literal 5000 (Pine's history ceiling). Anything else — a
    *  smaller bound, a computed one, a named argument — is not this shape. */
-  const MAX_BARS_BACK_CEILING = 5000
-  const maxBarsBackIsCeiling = (toks) => {
+  /** ⭐ engine 83 (WS-C M4) — `max_bars_back(<name>, <whole number of bars>)`, any bound: served as
+   *  a no-op statement (TradingView: it bounds nothing, M4). Anything else (a computed bound, a named argument, a
+   *  target that is not a bare name) keeps `runtime:directive`. */
+  const maxBarsBackShape = (toks) => {
     let node
     try { node = parseWholeExpression(toks) } catch { return false }
     if (!node || node.type !== 'call' || node.name !== 'max_bars_back') return false
@@ -10783,7 +11541,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (args.length !== 2 || args.some((a) => !a || a.name)) return false
     const [target, bound] = args.map((a) => a.value)
     return !!target && target.type === 'name'
-      && !!bound && bound.type === 'number' && Number(bound.value) === MAX_BARS_BACK_CEILING
+      && !!bound && bound.type === 'number' && Number.isInteger(Number(bound.value)) && Number(bound.value) >= 1
   }
 
   // ─── ⭐⭐ WS-C — PINE'S HISTORY BUFFER: A READ PAST IT IS AN ERROR, NOT `na` ──
@@ -10794,15 +11552,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // the buffer STOPS the script on TradingView ("the requested historical offset
   // is beyond the historical buffer's limit"); this lane used to answer it — a
   // value from its own longer chart, or `na`. Now:
-  //   · a CONSTANT offset past the buffer refuses the build by name;
+  //   · a CONSTANT offset past the buffer is SERVED (engine 83, M1 / M5: TradingView never
+  //     stopped one; see the note above `mbbDynamicColumn`);
   //   · an offset only known while the bar runs carries the buffer into the read
   //     (`limit`, the opcode's second operand), and the VM stops the run there.
   // ⚠️ A read before bar 0 that lies WITHIN the buffer is still `na`, as before.
   // ⚠️ Pine's AUTOMATIC sizing (no declaration, a dynamic offset that grows after
   // the first bars) can stop a script earlier than 5,000; not witnessed, so not
   // modelled (capture queue `capture-queue-2026-10-31-wsc-history.md`).
-  // ⛔ `max_bars_back(x, n)` with n below 5,000 stays refused (`runtime:directive`):
-  // a per-series buffer would bound built-in windows over `x` too, unwitnessed.
+  // ⭐ engine 83 (WS-C M4, `vw-w4-max-bars-back-m4`): `max_bars_back(x, n)` is served for any whole n
+  // and bounds nothing: TradingView drew `x[60]` and `ta.sma(x, 60)` after `max_bars_back(x, 50)` on every bar.
   const MBB_DECLARED = (() => {
     let m = null
     try { m = /\bmax_bars_back\s*=\s*(\d+)/.exec(strippedForScan(source)) } catch { m = null }
@@ -10810,8 +11569,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return Number.isInteger(n) && n >= 1 && n < MAX_BARS_BACK_CEILING ? n : null
   })()
   const MBB_LIMIT = MBB_DECLARED || MAX_BARS_BACK_CEILING
-  // ⭐ L4b — `max_bars_back(x, 5000)` written at the ROOT (the one shape `DIRECTIVE_CALLS`
-  // admits, `maxBarsBackIsCeiling`) declares `x`'s buffer: Pine's ceiling, 5,000 bars.
+  // ⭐ L4b — `max_bars_back(x, 5000)` written at the ROOT (a shape `DIRECTIVE_CALLS` admits,
+  // `maxBarsBackShape`) declares `x`'s buffer: Pine's ceiling, 5,000 bars.
   const MBB_SERIES = (() => {
     const out = new Set()
     let text = ''
@@ -10841,20 +11600,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
       && root.lookup(s.name) === varSlot) return MAX_BARS_BACK_CEILING
     return null
   }
-  const mbbRefusal = (back, at, what) => {
-    note('runtime:directive')
-    return new RuntimeRefusal('runtime:directive',
-      `${what}[${back}] reads past Pine's history buffer of ${MBB_LIMIT} bars `
-      + `(${MBB_DECLARED ? 'the declared `max_bars_back`' : 'its ceiling'}) — TradingView stops the script there`, at)
-  }
-  const mbbStaticCheck = (back, at, what) => {
-    if (Number.isInteger(back) && back > MBB_LIMIT) throw mbbRefusal(back, at, what)
-  }
-  const mbbCanonicalCheck = (n, at, depth = 0) => {
-    if (!n || typeof n !== 'object' || depth > 96) return
-    if (n.type === 'offset' && Number.isInteger(n.value) && n.value > MBB_LIMIT) throw mbbRefusal(n.value, at, 'a series')
-    for (const a of (n.args || [])) mbbCanonicalCheck(a, at, depth + 1)
-  }
+  // ⭐⭐ engine 83 (WS-C M1 / M5, `vw-w4-max-bars-back` / `-m5` on AMEX:SPY 1D from the listing,
+  // packet 6f54e4c81044): a CONSTANT offset is never refused for the buffer. TradingView drew `close[30]` under a
+  // declared `max_bars_back = 20` on every bar it reaches (M1), and `close[6000]` with no declaration on the 2,509
+  // bars past bar 6,000 (M5), `na` only before the offset's bar. So neither a declared buffer nor the 5,000
+  // ceiling checks a constant offset here (the `runtime:directive` refusal of `mbbStaticCheck` /
+  // `mbbCanonicalCheck` is gone): a chart series or a column is read by `READ_HIST` (no ring), a variable from a
+  // ring as deep as the offset (bounded by `HISTORY_VALUES` and the chart's `HISTORY`, as every ring is). A pure
+  // subtree whose constant offset passes the columnar lane's lookback cap is lowered piecewise
+  // (`constantOffsetPastLookbackCap`, read by `needsRuntime`), so the cap that budgets that lane's warm-up does
+  // not refuse a read this lane answers with no warm-up of its own.
   // ⭐ review M2 — A DYNAMIC OFFSET IN A PURE SUBTREE NEVER BECOMES ONE COLUMN
   // when a read could pass the buffer: a declared `max_bars_back`, or a chart
   // longer than the ceiling. As a column it was answered (`close[bar_index %
@@ -10862,7 +11617,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // and the VM's stop never ran; lowered piecewise, the offset reaches the
   // `offset` case (`histDyn` + `mbbDyn`), whose read stops the run there.
   const mbbDynamicColumn = (node, scope) => {
-    if (!MBB_DECLARED && !(Array.isArray(bars) && bars.length > MBB_LIMIT)) return false
+    // (2026-11-18, M2 / Q-MBB) a declared buffer no longer stops a dynamic read, so only a chart longer than
+    // Pine's ceiling sends such a subtree piecewise (where the VM's 5,000 stop runs)
+    if (!(Array.isArray(bars) && bars.length > MAX_BARS_BACK_CEILING)) return false
     const walk = (n, d = 0) => {
       if (!n || typeof n !== 'object' || d > 64) return false
       if (Array.isArray(n)) return n.some((x) => walk(x, d + 1))
@@ -10884,8 +11641,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     return walk(node)
   }
-  // Only a DECLARED buffer rides the node; the ceiling is the VM's own constant.
-  const mbbDyn = (h) => (MBB_DECLARED ? { ...h, limit: MBB_DECLARED } : h)
+  // ⭐⭐ (2026-11-18, WS-C Q1 M2 + Q-MBB-1 / Q-MBB-2, captured) — A DECLARED `max_bars_back` DOES NOT STOP A DYNAMIC
+  // READ. TradingView answered the REAL history past a declared buffer on every bar: `max_bars_back = 20` with an
+  // offset of 25 (M2, SPY 1D, 8,508 bars), `= 50` with offsets to 119 from bar 0 and from bar 300 (close, ta.ema, a
+  // request.seed series; RDDT and SPY 1D), and Fred RS's seed loop past its declared 253 on a 5m chart (delta 423,
+  // labels drawn). So no declared limit rides the node any more: the VM's own 5,000 ceiling is the only stop
+  // (a dynamic read past 5,000 is not witnessed and keeps stopping).
+  const mbbDyn = (h) => h
 
   // ─── ⭐⭐ RT6 — A ROW'S PER-BAR COLOUR, COMPUTED BY THE SAME RUN ─────────────
   //
@@ -11065,6 +11827,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:colour', `\`${callName}()\` draws numbers, and a colour is not one`, at)
       }
       outputs.push({ call: callName, role, group })
+      outputLines[outputs.length - 1] = at && Number.isInteger(at.line) ? at.line : null
       descs.push(outputs[outputs.length - 1])
       out.push(emit(outputs.length - 1, lowerExpr(node, scope)))
     }
@@ -11148,6 +11911,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     outputs.push({ call: callName, ...(extra || {}) })
     const index = outputs.length - 1
+    outputLines[index] = at && Number.isInteger(at.line) ? at.line : null
     out.push(emit(index, lowerExpr(arg0, scope)))
     if (wantColours) {
       const desc = outputs[index]
@@ -11192,8 +11956,26 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
       return n
     }
+    // ⭐⭐ ENGINE 84 (CO-3) — A SIDE WRITTEN AS THE PLOT ITSELF: `fill(plot(a), plot(b))`.
+    // The Pine v6 reference: `plot` "Returns: A plot object, that can be used in fill()", `hline` "Returns: An
+    // hline object, that can be used in fill()"; and the User Manual, *Fills* (pine-script-docs/visuals/fills):
+    // one `fill` call takes two plot IDs or two hline IDs, never one of each. An argument is its value, so
+    // `fill(plot(a), plot(b))` is `p1 = plot(a)`,
+    // `p2 = plot(b)`, `fill(p1, p2)`: each side's plot is emitted where it stands, left to right, before the fill
+    // (the same outputs in the same order as the bound form; railed). Only `plot` and `hline`, the two calls that
+    // return such an ID; never at the object door. A pair with an inline side that mixes the two kinds is refused
+    // by name (the Manual's rule); a pair of two BOUND names keeps master's answer.
+    const INLINE_FILL_SIDES = new Set(['plot', 'hline'])
+    const sideKind = []
+    let inlineSide = false
     const sideOf = (i) => {
-      const node = plotIdNode(argOf(positional[i]))
+      const raw = argOf(positional[i])
+      if (!atObjectDoor && raw && raw.type === 'call' && INLINE_FILL_SIDES.has(raw.name)) {
+        inlineSide = true
+        sideKind[i] = raw.name
+        return emitOutputCall(raw.name, raw, scope, out, at)
+      }
+      const node = plotIdNode(raw)
       const ref = node && node.type === 'name' ? plotRefs.get(node.name) : null
       if (!ref) {
         note('runtime:fill-target')
@@ -11201,10 +11983,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
           `argument ${i + 1} of \`fill()\` is not a plot — a fill spans two, and `
           + 'each is named by binding one (`p = plot(…)`)', at)
       }
+      sideKind[i] = ref.call
       return ref.index
     }
     const upper = sideOf(0)
     const lower = sideOf(1)
+    if (inlineSide && sideKind[0] !== sideKind[1]) {
+      note('runtime:fill-target')
+      throw new RuntimeRefusal('runtime:fill-target',
+        `\`fill()\` spans two plot IDs or two hline IDs, never one of each — this one is given a \`${sideKind[0]}\` and a `
+        + `\`${sideKind[1]}\``, at)
+    }
 
     // ⭐⭐ WS-E — THE GRADIENT FORM IS LOWERED AS AN UNDRAWN FILL, not refused.
     // `fill(p1, p2, top_value, bottom_value, top_color, bottom_color)` shades
@@ -12948,7 +13737,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
       ? FOR_IN_SNAPSHOT_SOURCES[src] : null
     const srcNode = { type: 'name', name: src, tok: srcToks[0] }
     const srcTy = family ? makeTy('array', { elem: makeTy('drawing', { name: family }) }) : exprType(srcNode, scope)
-    if (!srcTy) refuse(`the type of \`${src}\` cannot be told`)
+    if (!srcTy) {
+      // ⭐⭐ ENGINE 84 (U-LOOP) — AN UNTYPED PARAMETER TAKES ITS ARGUMENT'S TYPE, PER CALL.
+      // The Pine v6 User Manual, *User-defined functions* > *Declaring parameter types*: "If a function
+      // parameter does not have a type keyword in its declaration, its type is initially undefined. In
+      // each separate call to the function, the parameter automatically inherits the same type as its
+      // specified argument." The shared body cannot know it; the refusal names the function's untyped
+      // parameters, and a call site whose arguments ARE typed compiles its own copy
+      // (`typeSpecialisation`, the C35 / TC rule), where the walk is typed.
+      note('runtime:loop')
+      const err = new RuntimeRefusal('runtime:loop', `\`for … in\`: the type of \`${src}\` cannot be told`, locate(first))
+      if (owner !== null && !atObjectDoor) {
+        const ps = [...untypedParams].filter((s) => slots[s] && slots[s].owner === owner).map((s) => slots[s].name)
+        if (ps.length) err.typeParams = [...new Set(ps)]
+      }
+      throw err
+    }
     if (srcTy.kind === 'matrix' || srcTy.kind === 'map') refuse(`a walk over a ${srcTy.kind} is not yet captured (W6-F1)`)
     if (srcTy.kind !== 'array') refuse(`\`${src}\` is not an array this lane can walk`)
     if (!forInFnDefs) forInFnDefs = readFunctionDefs(stmts, { isPunct })
@@ -13819,6 +14623,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
             locate(first))
         }
         const slotsOut = nameToks.map((nt) => scope.declare(nt.value, newSlot(nt.value, false)))
+        // ⭐ U-LOOP — `[a, b] = f(…)` over a function that hands back its own slots (`[top, btm]`): each name
+        // holds what that slot holds, so a COLLECTION keeps its type through the destructuring (the values
+        // ARE those slots' values; a collection is the same object). Nothing else is typed: ⛔ a record (a user
+        // type) element stays as it was, because what a record reads is the object lane's ground.
+        if (!atObjectDoor && lowered && lowered.kind === EXPR.CALL) {
+          const res = functions[lowered.fn] ? functions[lowered.fn].result : null
+          if (res && res.kind === EXPR.TUPLE && Array.isArray(res.elements) && res.elements.length === slotsOut.length) {
+            res.elements.forEach((el, k) => {
+              const ty = el && el.kind === EXPR.READ ? slotTy(el.slot) : null
+              if (ty && isCollectionTy(ty)) setSlotTy(slotsOut[k], plainTy(ty))
+            })
+          }
+        }
         out.push(destructure(slotsOut, lowered))
         continue
       }
@@ -14059,7 +14876,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         noteHandle(nameTok.value, value, scope)
         // ⭐ DRAW-1 — `b := box(na)` (the variable lets go of its object) is the object
         // program's step (`reset:target`), skipped here exactly as `b := box.new(…)` is.
-        if (objectPassOwnsDrawing && (holdsObjectCall(value) || drawingCastFamily(value, scope))) continue
+        if (objectPassOwnsDrawing && (holdsObjectCall(value) || drawingCastFamily(value, scope))) {
+          out.push(...skippedDrawingWrites(value, scope, locate(nameTok)))   // engine 83
+          continue
+        }
         const slot = scope.lookup(nameTok.value)
         if (slot === null) refuseUnboundReassign(nameTok, toks)
         // ⭐ W6-T10 — `x := E.field` only into a variable of that enum (`admitEnumAssign`).
@@ -14111,7 +14931,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // a drawing call reads it, instead of quietly yielding `na`.
         noteHandle(nameTok.value, value, scope)
         noteWrittenHandle(nameTok.value, toks, eq)
-        if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
+        if (objectPassOwnsDrawing && holdsObjectCall(value)) {
+          skippedDrawingWrites(value, scope, locate(nameTok), false)   // engine 83
+          continue
+        }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
         if (word === 'varip') slots[slot].varip = true   // ⭐ P3 WS-F — see the `varip` site
         // ⭐ W6-T3a — TYPED AT THE BINDING, BEFORE THE INITIALISER IS LOWERED
@@ -14430,7 +15253,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // chart here holds at most 5,000 bars — the two agree on every read.
           // ⛔ Any SMALLER bound keeps the refusal: Pine would stop the script on
           // a read past it, and this lane would answer the read.
-          if (word === 'max_bars_back' && maxBarsBackIsCeiling(toks)) continue
+          if (word === 'max_bars_back' && maxBarsBackShape(toks)) continue
           note('runtime:directive')
           throw new RuntimeRefusal('runtime:directive', `\`${word}()\``, locate(first))
         }
@@ -14467,7 +15290,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
           continue
         }
         const f = callFamily(word)
-        if (f === 'runtime:object-op' && objectPassOwnsDrawing) continue
+        if (f === 'runtime:object-op' && objectPassOwnsDrawing) {
+          out.push(...skippedDrawingStmtWrites(toks, scope, locate(first)))   // engine 83
+          continue
+        }
         // ⭐⭐ RT5 — the drawing statement, run by this lane.
         if (objectsInRun) {
           const os = objectStmtOf(parseWholeExpression(toks), scope)
@@ -14500,7 +15326,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (uf && !userMethodShadows(uf.method, ufRecv, scope)) {
           const fam = drawingHandles.get(uf.recv)
           if (fam) {
-            if (objectPassOwnsDrawing) continue
+            if (objectPassOwnsDrawing) {
+              out.push(...skippedDrawingStmtWrites(toks, scope, locate(first)))   // engine 83
+              continue
+            }
             note('runtime:object-op')
             throw new RuntimeRefusal('runtime:object-op',
               objectOpDetail(`${fam}.${uf.method}`), locate(first))
@@ -14752,7 +15581,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // array passed to one is refused at its first member call rather than
       // guessed at.
       const ty = declaredTypes.get(p)
-      if (!ty) untypedParams.add(ps)
+      // ⭐ U-LOOP — a parameter this call site's copy types from its argument (`spec.paramTys`) is typed
+      const argTy = !ty && spec && spec.paramTys instanceof Map ? spec.paramTys.get(p) || null : null
+      if (argTy) setSlotTy(ps, argTy)
+      else if (!ty) untypedParams.add(ps)
       // ⭐ W6-T3a — AND ONE DECLARED AS A USER TYPE HOLDS A RECORD — the receiver
       // of `method bump(Point this, …)` — typed from the DECLARED type, exactly as
       // `bindSlotTy` types a binding, so `this.x` reads as a field path.
@@ -15026,7 +15858,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         result = lowerFrameResult(inlineNode, fnScope, (h) => { body = body.concat(h) })
         resultColour = holdsColour(inlineNode, fnScope)
       }
-      record.body = body
+      // ⭐⭐ U-FGS F2 — the copies of the mutable globals this body reads with history, taken AT THE CALL
+      // (`frameGlobalCopy`), run first: the body cannot change a global, so its value at the call is its value
+      // wherever the body reads it.
+      record.body = record.prologue && record.prologue.length ? [...record.prologue, ...body] : body
       record.result = result
       record.colour = resultColour
       // ⭐ HOW MANY VALUES THIS FUNCTION HANDS BACK. A destructuring compares
@@ -15254,6 +16089,71 @@ function buildRuntimeIrLinked(source, opts, holder) {
       loopDepth = 0
       try {
         defineFunction(def.st, def.toks, def.arrow, { colourParams })
+      } catch (err) {
+        rec.error = err
+        // ⛔ the record stays, valid and uncalled (`simpleSpecialisation`'s rule)
+        const r = functions[rec.index]
+        if (r) {
+          r.body = []
+          r.result = naValue()
+          r.returns = 1
+          r.valueless = false
+          r.frameSize = countFor(rec.index, SLOT.LOCAL)
+          r.persistCount = countFor(rec.index, SLOT.PERSIST)
+          r.effects = { pure: false }
+        }
+      } finally {
+        env.clear()
+        for (const [k, v] of saved.env) env.set(k, v)
+        hoistSink = saved.hoistSink
+        stmtHoistSink = saved.stmtHoistSink
+        loopDepth = saved.loopDepth
+      }
+    }
+    if (rec.error) throw rec.error
+    diagnostics.specialisedCalls = (diagnostics.specialisedCalls || 0) + 1
+    return rec.index
+  }
+  /** ⭐⭐ ENGINE 84 (U-LOOP) — A DEFINITION HELD AT `runtime:loop` BECAUSE A WALK'S TYPE COULD
+   *  NOT BE TOLD IN THE SHARED FRAME, COMPILED FOR THE CALL SITE WHOSE ARGUMENTS SAY IT.
+   *
+   *  The User Manual sentence `colourSpecialisation` stands on, applied to a COLLECTION: each untyped
+   *  parameter whose argument here has a collection type (`exprType`: an array, a map or a matrix, with its
+   *  element) takes that type in this copy. A copy is shared by every call site with the same types, each
+   *  keeping its own call site (its own persistent locals), as C35 / TC copies are.
+   *  ⛔ A RECORD (a user type) IS NOT TYPED HERE: what a record reads is the object lane's ground, and this
+   *  copy leaves such a parameter as the shared body has it.
+   *  ⛔ Only a refusal that named untyped parameters (`typeParams`), only when at least one of them is
+   *  typed here, never inside a request's value or at the object door. A copy that refuses again keeps
+   *  that refusal (thrown). `null` = the held refusal stands. */
+  const typeSpecialisation = (node, scope, held) => {
+    if (atObjectDoor || inRequestValue || !held || held.guard !== 'runtime:loop') return null
+    if (!Array.isArray(held.typeParams) || !held.typeParams.length) return null
+    const def = deferredFnDefs.get(node.name)
+    const params = fnParamNamesByName.get(node.name)
+    if (!def || !Array.isArray(params)) return null
+    const given = node.args || []
+    if (given.some((a) => a && a.name) || given.length !== params.length) return null
+    const typed = paramTypeHeads(def.toks, def.arrow)
+    const paramTys = new Map()
+    params.forEach((p, i) => {
+      if (typed.has(p)) return
+      let ty = null
+      try { ty = exprType(argNode(given[i]), scope) } catch { ty = null }
+      if (ty && isCollectionTy(ty)) paramTys.set(p, ty)
+    })
+    if (!held.typeParams.some((p) => paramTys.has(p))) return null
+    const key = `${node.name}|types:${[...paramTys].map(([p, t]) => `${p}=${tyKey(t)}`).sort().join(',')}`
+    let rec = specialisations.get(key)
+    if (!rec) {
+      rec = { index: functions.length }
+      specialisations.set(key, rec)
+      const saved = { env: new Map(env), hoistSink, stmtHoistSink, loopDepth }
+      hoistSink = null
+      stmtHoistSink = null
+      loopDepth = 0
+      try {
+        defineFunction(def.st, def.toks, def.arrow, { paramTys })
       } catch (err) {
         rec.error = err
         // ⛔ the record stays, valid and uncalled (`simpleSpecialisation`'s rule)
@@ -15915,7 +16815,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         for (const c of locals) carried2Main.push({ ...c, site: i })
         c2base += locals.length
       }
-      for (const fn of functions) delete fn.carried2Locals
+      for (const fn of functions) {
+        // ⭐ S14 fix 1 — the count rides the function record, as `carriedCount` does: the IR's check reads a
+        // body's frame-relative `carried2` site against it
+        fn.carried2Count = (fn.carried2Locals || []).length
+        delete fn.carried2Locals
+      }
     }
 
     if (history.length > MAX_HISTORY_SLOTS) {
@@ -15953,6 +16858,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const boolNaLate = boolNaFaithfulness(statements)
   if (boolNaLate) return fail(boolNaLate, diagnostics)
 
+  // ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) — per request site, the outputs a run must withhold on its newest bar when that
+  // site cannot know it (`runtimeColumns.js` reads it; `refused` keeps the whole-bar rule)
+  for (const r of requests) r.newestReach = requestNewestReachOf(sourceStmts, r.target ? r.target.line : null, outputs, outputLines)
+
   let ir
   try {
     ir = makeIrProgram({
@@ -15965,6 +16874,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         effects: f.effects, at: f.at,
         historyCount: f.historyCount || 0, historySlots: f.historySlots || [],
         carriedCount: f.carriedCount || 0,
+        carried2Count: f.carried2Count || 0,
         windowCount: f.windowCount || 0,
       })),
       callSites,
@@ -15975,7 +16885,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       requests,
       // ⭐ RT5 — the declared `max_*_count`s, comments and strings stripped.
       ...(objectsInRun ? { objectCaps: { ...declaredCapsOf(strippedForScan(source)), ...historyHeldOf(strippedForScan(source)) } } : {}),
-      ...(brokerMode ? { broker: brokerDecl } : {}),
+      ...(brokerMode ? { broker: { ...brokerDecl, disarm: strategyDisarmOf(brokerTaint, outputs, outputLines) } } : {}),
     })
   } catch (e) { return fail(e, diagnostics) }
 
@@ -16035,6 +16945,27 @@ const position = (e) => {
   }
 }
 
+/** ⭐⭐ ENGINE 84 (S14, robustness) — WHAT AN EXCEPTION THAT IS NOT A REFUSAL IS CALLED.
+ *
+ *  Anything thrown during a build that is not one of the three refusal classes (`RuntimeRefusal`,
+ *  `PineRefusal`, `TableRefusal`) used to arrive at `fail` as `runtime:statement`, "a statement shape
+ *  this front end does not recognise": a sentence about the SCRIPT, said about whatever was thrown.
+ *  Ten scripts of the coverage sample were filed under the statements unit for it (an IR invariant
+ *  broken by an uncalled helper, `undefined` read as a node, a recursion with no floor). It is
+ *  `runtime:lower` now, the guard `runtimeColumns.js` already gives a lowering that throws, and the
+ *  sentence says which of two things happened:
+ *  - a DEFECT: a JavaScript error (`TypeError`, `RangeError`, ...), a plain `Error`, a thrown
+ *    non-error, or an `IrError` (the program this lane built fails its own invariant). Nothing about
+ *    the script is known; the sentence says the engine failed, and keeps what was thrown;
+ *  - an engine module's own NAMED error (`ColourError`, `ExpansionRefusal`, ...): its message is a
+ *    sentence about the script already ("not a colour this engine can read"), and is kept as it is.
+ *  Nothing that was drawn changes: the script was refused before, and is refused now. */
+const JS_ERROR_TYPES = [TypeError, RangeError, ReferenceError, SyntaxError, EvalError, URIError]
+export const isEngineDefect = (e) => !(e instanceof Error) || e.constructor === Error
+  || e instanceof IrError || JS_ERROR_TYPES.some((T) => e instanceof T)
+export const ENGINE_DEFECT_SENTENCE = 'this lane failed inside the engine while building the script (an engine '
+  + 'defect, not a shape it refuses by name), so none of it runs here'
+
 function fail(e, diagnostics) {
   // ⭐ R1 — an `interpret.js` `TableRefusal` keeps ITS guard too. A value the
   // BINDING could not settle (`interpret:bind-time-text`: a `syminfo.*` read by
@@ -16042,16 +16973,19 @@ function fail(e, diagnostics) {
   // "a statement shape this front end does not recognise", followed by the
   // interpreter's own sentence about a symbol — a guard that contradicted its
   // message, and four corpus scripts filed under the wrong wall.
-  const guard = e instanceof RuntimeRefusal ? e.guard
-    : (e instanceof PineRefusal || e instanceof TableRefusal ? e.guard : 'runtime:statement')
+  // ⭐ S14 — an exception that is not a refusal is `runtime:lower`, never `runtime:statement` (above)
+  const refusal = e instanceof RuntimeRefusal || e instanceof PineRefusal || e instanceof TableRefusal
+  const guard = refusal ? e.guard : 'runtime:lower'
+  const thrown = String((e && e.message) || e)
   return {
     ok: false,
     refusal: {
       guard,
       // ⛔ RULING D2: a shared-vocabulary refusal whose sentence promises
       // something about the OTHER rows is re-stated for this lane, which has none.
-      message: (e instanceof PineRefusal && RUNTIME_LANE_REFUSALS[guard])
-        || String(e.message || e),
+      message: refusal
+        ? ((e instanceof PineRefusal && RUNTIME_LANE_REFUSALS[guard]) || thrown)
+        : (isEngineDefect(e) ? `${ENGINE_DEFECT_SENTENCE} (${thrown})` : thrown),
       // ⛔⛔ TWO REFUSAL CLASSES CARRY THEIR POSITION DIFFERENTLY, and reading
       // only one of them silently dropped it for the other. `RuntimeRefusal`
       // FLATTENS `at` into `line`/`column`/`token` in its constructor;

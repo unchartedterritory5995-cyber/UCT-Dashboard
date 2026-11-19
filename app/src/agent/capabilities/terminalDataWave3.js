@@ -36,6 +36,7 @@ import { stampET } from './marketDataFacts'
 import { gexRead, levelRows, LEVEL_KINDS, REGIME_TEXT, GEX_BAND_PCT } from '../../pages/terminal/panels/levelsModel'
 import { TOP_FLOW_STATUSES, TOP_FLOW_DIRECTIONS, TOP_FLOW_SORTS, OI_RISE_FACTOR } from '../../pages/terminal/panels/topFlowModel'
 import { kindServed, usable, noRead, money, pct, whole, plural, dayText, NO_TURN } from './terminalDataFormat'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 
 export const KINDS = Object.freeze({
   gamma: 'levels.gamma', topPicks: 'flow.topPicks', record: 'flow.record', reactions: 'earnings.reactions',
@@ -60,7 +61,11 @@ export const gain1 = (v) => (num(v) == null ? null : `${v > 0 ? '+' : v < 0 ? '�
 const rate1 = (v) => (num(v) == null ? null : `${v.toFixed(1)}%`)
 
 // ── stock.gammaLevels ──────────────────────────────────────────────────────────────────────────────────────────────────
-const CHAIN_VENDORS = { massive: 'Massive', schwab: 'Schwab' }
+// The option chain a gamma read names. One chain since 2026-11-17 (Schwab was retired); any other value is not named.
+const CHAIN_VENDORS = { massive: 'Massive' }
+// The `src` labels a Top Flow row can carry. Nothing reads Schwab any more: 'schwab' labels the daily prices recorded
+// before November 2026, which stay as recorded.
+const PRICE_VENDORS = { massive: 'Massive', schwab: 'Schwab' }
 export const ZERO_GAMMA_CAVEAT = 'The zero gamma level is an estimate: this read does not say how it was found, and for some stocks it is a stand-in rather than a true flip.'
 
 /** The `levels.gamma` envelope → the member's answer + its facts (pure). Rows: levelsModel `gexRead` / `levelRows`. */
@@ -122,7 +127,7 @@ export async function answerGamma(args = {}) {
 
 // ── the two flow answers: what they share ──────────────────────────────────────────────────────────────────────────────
 export const GAIN_MEANING = "A gain is the option contract's own price change since the pick was flagged, not the stock's move."
-export const FLOW_SOURCES = "Picks and entry prices come from UCT's options flow tape. Daily contract prices are recorded each weekday after the close: from Massive with Schwab as backup since November 2026, from Schwab alone before."
+export const FLOW_SOURCES = "Picks and entry prices come from UCT's options flow tape. Daily contract prices are recorded each weekday after the close, from Massive (prices recorded before November 2026 came from Schwab and stay as recorded)."
 /** What the Flow Record calls "OI confirmed" (flow_scoreboard OI_RISE_FACTOR, by the TOPF panel's own constant), in plain words. */
 export const OI_ROSE = `open interest later rose more than ${Math.round((OI_RISE_FACTOR - 1) * 100)}% above its first reading`
 const contractText = (r) => [num(r.strike) > 0 ? money(r.strike) : null, r.cp === 'C' ? 'call' : r.cp === 'P' ? 'put' : null, r.exp ? `expiring ${r.exp}` : null].filter(Boolean).join(' ') || 'contract not given'
@@ -155,7 +160,7 @@ function pickRow(r) {
     gain_pct: scored ? num(r.current_gain_pct) : null, gain_text: scored ? gain1(r.current_gain_pct) : null,
     peak_pct: scored ? num(r.max_gain_pct) : null, peak_text: scored ? gain1(r.max_gain_pct) : null,
     days_tracked: scored ? int(r.days_tracked) : null, oi_confirmed: scored && r.oi_confirmed === true,
-    priced_by: (Array.isArray(r.src) ? r.src : []).map(s => CHAIN_VENDORS[s]).filter(Boolean),
+    priced_by: (Array.isArray(r.src) ? r.src : []).map(s => PRICE_VENDORS[s]).filter(Boolean),
   }
 }
 
@@ -325,8 +330,15 @@ const REACTIONS_DEFAULT_ROWS = 25
 export const MOVE_MEANING_PAST = "A move is the stock's close-to-close change around the report: for a report before the open or with no confirmed time, that day's close against the prior close; for a report after the close, the next session's close against that day's close."
 export const MOVE_MEANING_TODAY = "For a day still in session a move is the stock's change on the day in one market snapshot, not the settled close-to-close move."
 const epsText = (v) => (num(v) == null ? null : `${v < 0 ? '−' : ''}$${Math.abs(v).toFixed(2)}`)
-/** Revenue arrives in millions (the calendar route's own unit). */
-const revenueText = (v) => (num(v) == null || v <= 0 ? null : v >= 1000 ? `$${(v / 1000).toFixed(2)}B` : `$${v.toFixed(1)}M`)
+/** Revenue arrives in MILLIONS (the calendar route's own unit), so the ladder's thresholds are in millions too:
+ *  1,000 and up reads in B at two decimals ("$52.00B"), below it in M at one ("$520.0M", "$0.4M"). TERM-066: the
+ *  suffix is decided by the shared formatter; `promote: false` keeps "$1000.0M" for 999.96 as it always read. */
+const REVENUE_MILLIONS_TIERS = Object.freeze([
+  Object.freeze({ at: 1000, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1, suffix: 'M', decimals: 1 }),
+])
+export const revenueText = (v) => (num(v) == null || v <= 0 ? null
+  : formatCompact(v, { tiers: REVENUE_MILLIONS_TIERS, prefix: '$', fixedUnit: true, promote: false, absent: null }))
 const weekday = (ymd) => { const d = new Date(`${ymd}T12:00:00Z`); return Number.isNaN(d.getTime()) ? null : d.getUTCDay() }
 
 /** The `earnings.reactions` envelope → the member's answer + its facts (pure). `model` = earningsReactionsModel's exports. */

@@ -581,3 +581,29 @@ def transcript_trend_endpoint(
     except Exception as e:
         _log.warning("[earnings_intel] transcript trend failed for %r: %s", q, e)
         return {"query": q, "months": [], "total": 0, "error": "trend unavailable"}
+
+
+# ── What CEOs are saying: the phrases rising fastest across calls ─────────────
+#
+# The search above answers "who said X". This answers the question before it:
+# which X is worth searching for this month. Words with counts and example
+# tickers only: no transcript text beyond the phrase itself.
+
+@router.get("/api/earnings/call-themes")
+def call_themes_endpoint(
+    month: Optional[str] = Query(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+                                 description="YYYY-MM; omit for the newest month with a list"),
+    user: dict = Depends(require_paid),
+):
+    """The phrases new and rising across a month of earnings calls.
+
+    Never computes on the request: it answers the held lists with their build
+    time, or `{"status": "computing"}` on a server that holds none yet (one
+    background build is started; ask again). See api/services/call_themes.py.
+    """
+    try:
+        from api.services import call_themes
+        return call_themes.get_themes(month)
+    except Exception as e:
+        _log.warning("[earnings_intel] call themes failed: %s", e)
+        return {"status": "error"}

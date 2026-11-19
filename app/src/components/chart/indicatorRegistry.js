@@ -238,6 +238,14 @@ function optionPair(option) {
  * cannot draw — which is why the descriptor and the renderer landed together.
  */
 export function fieldFromInput(input) {
+  const f = fieldOfInput(input)
+  // ⭐ SETTINGS PARITY (timeframe) — a setting its document LOCKS (`locked: '<sentence>'`) is shown READ-ONLY
+  // at its value with that sentence (`disabled`, the reason every settings surface already renders inert),
+  // never as a control that accepts a choice the run would then refuse (`runtimeInputs.withTimeframeInputs`)
+  return f && typeof input.locked === 'string' && input.locked ? { ...f, disabled: input.locked } : f
+}
+
+function fieldOfInput(input) {
   if (!input || typeof input.key !== 'string' || !input.key) return null
   const base = { key: input.key, label: input.label || input.key }
   switch (input.type) {

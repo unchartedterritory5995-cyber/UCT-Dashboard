@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/hostLaneCost.test.js
 //
-// ⭐⭐ ROUTE BY COST (NUMBER PENDING) — the host lane's recurrence estimate and its budget
+// ⭐⭐ ROUTE BY COST (Engine 73 (#1711)) — the host lane's recurrence estimate and its budget
 // (`hostLaneCost.js`, `ast/interpret.js::recurrenceStepsPerBar`), railed. Evidence:
 // docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md.
 import { describe, it, expect } from 'vitest'

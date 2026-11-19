@@ -22,6 +22,9 @@ import { importGaps, gapLogPayload } from '../supportLoop/importGaps'
 import useReportsConfig from '../supportLoop/useReportsConfig'
 import { LazyReportMismatchDialog } from '../supportLoop/reportDoor'
 import Sheet from '../../mobile/Sheet'
+import { afterFirstChartPaint } from '../../../lib/barsPackClient'
+import { runHereWhenLanded, RUN, MIN_BARS, STOPPED_HEADLINE, CHECKING_HEADLINE } from './runsHere'
+import { drawingLossOf, LOST_DRAWINGS_HEADLINE } from './authoring/scriptAnswer'
 import { useIsTouch } from '../../../hooks/useBreakpoint'
 import styles from './PineEditorStatus.module.css'
 
@@ -68,6 +71,41 @@ function ItemRow({ it, source, onGoToLine }) {
         </details>
       )}
     </li>
+  )
+}
+
+/** What a real run on THIS chart said, and the drawings the lane lost: the engine's own sentences. */
+function OnThisChart({ status, shown }) {
+  const run = shown.run
+  const stops = shown.state === SHOWN_STATE.STOPPED_HERE && run ? run.stops : []
+  const lost = shown.state === SHOWN_STATE.DRAWINGS_LOST ? status.lostDrawings : null
+  const notes = run && run.state === RUN.RAN ? [...run.notes, ...run.unchecked.map((u) => `Not checked here (${u.guard}): it is checked when the script is on the chart.`)] : []
+  if (!stops.length && !lost && !notes.length) return null
+  return (
+    <section className={styles.body} aria-label="On this chart" data-testid="pine-status-on-this-chart" data-run={run ? run.state : ''}>
+      <h5 className={styles.subhead}>On this chart</h5>
+      <ul className={styles.items}>
+        {stops.map((s, i) => (
+          <li key={`s${i}`} className={styles.item} data-testid="pine-status-run-stop" data-guard={s.guard}>
+            {/* ⛔ VERBATIM: the engine's own sentence for the stop. */}
+            <p className={styles.itemWhy}>{s.sentence}</p>
+          </li>
+        ))}
+        {lost && (
+          <li className={styles.item} data-testid="pine-status-lost-drawings">
+            <p className={styles.itemWhy}>{lost}</p>
+          </li>
+        )}
+        {notes.map((n, i) => (
+          <li key={`n${i}`} className={styles.item} data-testid="pine-status-run-note">
+            <p className={styles.itemWhy}>{n}</p>
+          </li>
+        ))}
+      </ul>
+      {stops.length > 0 && (
+        <p className={styles.still}>This is about the chart you opened the builder over. The script itself can still be saved.</p>
+      )}
+    </section>
   )
 }
 
@@ -190,12 +228,89 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
   )
 }
 
+// ─── ⭐⭐ "RUNS" MEANS IT RAN (2026-11-19) ─────────────────────────────────────────
+//
+// `editorStatus` is decided before any bar is computed. It says "Runs on the chart" for a script
+// the engine then refuses when it runs it (a value kept since the first bar on a chart that does
+// not reach the listing, a clock read, a loop past its limit), and "runs, with 1 note" for one
+// whose whole drawing program was lost. A member told "Runs" who then gets an empty pane was told
+// something false. So the panel also asks for a REAL RUN on the chart the builder was opened over,
+// through the one function the Create Indicator dock uses (`runsHere.js`), and leads with what it
+// said.
+//
+// ⛔ THE STATUS ITSELF IS NOT CHANGED. `status.state`, `status.headline` and `status.items` are the
+// SCRIPT's (what is saved, what gates the buttons, what is recorded beside a saved version); a stop
+// on THIS chart is a fact about this chart. It rides beside them (`status.run`, `status.lostDrawings`)
+// and only `shownStatus` (what the panel leads with) reads it.
+//
+// ⛔ NEVER ON THE CRITICAL PATH. The run is asked for after the chart's first paint, once per
+// script per (symbol, timeframe, listing fact): a new bar does not re-run it.
+
+/** The display state of a script whose run stopped on this chart / whose drawings were lost. */
+export const SHOWN_STATE = Object.freeze({ STOPPED_HERE: 'stopped-here', DRAWINGS_LOST: 'drawings-lost' })
+
+// ⛔ READ WHEN ASKED, NEVER WHEN THIS FILE LOADS. `editorStatus.js` reaches this file through an import
+// cycle (editorStatus -> memberPaneDefinition -> BuilderSheet -> PineBox -> here), so a test or a page
+// that loads `editorStatus.js` FIRST evaluates this file while `PANEL_STATE` is still undefined. A
+// list built at load crashed two test files on exactly that (`Cannot read properties of undefined`).
+const runsStates = () => [PANEL_STATE.RUNS, PANEL_STATE.RUNS_WITH_NOTES, PANEL_STATE.RUNS_WITHHELD]
+
+/**
+ * A real run of `pane` on `chart` (`{bars, ctx}`), or null while there is nothing to run on.
+ * PENDING from the moment it is asked for until the engine answers.
+ */
+export function useRunOnChart(pane, chart, { run = runHereWhenLanded, after = afterFirstChartPaint } = {}) {
+  const [out, setOut] = useState(null)
+  const bars = chart && Array.isArray(chart.bars) ? chart.bars : null
+  const ctx = chart && chart.ctx ? chart.ctx : null
+  const runnable = !!(pane && pane.ok === true && ctx && bars && bars.length >= MIN_BARS)
+  // one run per script per chart identity, never per bar
+  const key = runnable ? `${ctx.sym}|${ctx.tf}|${ctx.historyFromListing === true ? 'listing' : 'off'}` : null
+  // ⛔ the effect depends on the SCRIPT and the CHART'S IDENTITY only. The bars, the runner and the
+  // "after first paint" hook are read through a ref: a caller that hands a fresh function (or a
+  // fresh bars array) on every render must not start a run on every render.
+  const latest = useRef({ pane, chart, run, after })
+  // (kept current in an effect declared BEFORE the one that reads it: effects run in order)
+  useEffect(() => { latest.current = { pane, chart, run, after } })
+  useEffect(() => {
+    if (!key) { setOut(null); return undefined }
+    let live = true
+    const asked = latest.current.pane
+    setOut({ pane: asked, result: { state: RUN.PENDING, stops: [], unchecked: [], notes: [] } })
+    latest.current.after(() => {
+      if (!live) return
+      Promise.resolve()
+        .then(() => latest.current.run(latest.current.pane, latest.current.chart))
+        .then((result) => { if (live) setOut({ pane: asked, result }) })
+        .catch(() => { if (live) setOut(null) })
+    })
+    return () => { live = false }
+  }, [pane, key])
+  return out && out.pane === pane ? out.result : null
+}
+
+/**
+ * What the panel LEADS with: the script's status, unless this chart says otherwise.
+ *   a run that STOPPED here     -> "It does not run on this chart"
+ *   drawings the lane lost      -> "Its plots run on the chart, but its drawings are not all drawn"
+ *   a run still in flight       -> "Still being checked on this chart" (only where the status said "runs")
+ */
+export function shownStatus(status) {
+  if (!status) return { headline: '', state: null, run: null }
+  const run = status.run || null
+  const says = runsStates().includes(status.state)
+  if (says && run && run.state === RUN.STOPPED) return { headline: STOPPED_HEADLINE, state: SHOWN_STATE.STOPPED_HERE, run }
+  if (says && status.lostDrawings) return { headline: LOST_DRAWINGS_HEADLINE, state: SHOWN_STATE.DRAWINGS_LOST, run }
+  if (says && run && run.state === RUN.PENDING) return { headline: CHECKING_HEADLINE, state: PANEL_STATE.CHECKING, run }
+  return { headline: status.headline, state: status.state, run }
+}
+
 /**
  * The panel's status for PasteBox's report, or null (flag off / not Pine).
  * A hook so PasteBox can hand the SAME status to the panel and to the editor's
  * line marks: one computation, two renderers.
  */
-export function usePineEditorStatus({ enabled, report, inspectedSource = '', savedRow = null, computePane = paneFor }) {
+export function usePineEditorStatus({ enabled, report, inspectedSource = '', savedRow = null, computePane = paneFor, chart = null, runOnChart = undefined }) {
   // ⭐ A Pine paste the translator threw on is the door's controlled error report,
   // stamped `formula` by the auto door; `faultDialect` is the door's own record that
   // it had read the text as Pine (`PineBox.inspectSource`), so the engine-fault
@@ -204,8 +319,12 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
     && (report.dialect === 'pine' || report.faultDialect === 'pine'))
   const pane = useMemo(() => (isPine ? computePane(report, inspectedSource) : null),
     [isPine, report, inspectedSource, computePane])
-  return useMemo(() => (isPine ? editorStatus({ report, pane, savedRow, inspectedSource }) : null),
+  const status = useMemo(() => (isPine ? editorStatus({ report, pane, savedRow, inspectedSource }) : null),
     [isPine, report, pane, savedRow, inspectedSource])
+  // ⭐ the real run, and the drawings the lane lost: beside the status, never inside it (see above)
+  const run = useRunOnChart(status ? pane : null, chart, runOnChart ? { run: runOnChart } : undefined)
+  const lostDrawings = useMemo(() => (status ? drawingLossOf(pane) : null), [status, pane])
+  return useMemo(() => (status && (run || lostDrawings) ? { ...status, run, lostDrawings } : status), [status, run, lostDrawings])
 }
 
 /**
@@ -239,8 +358,9 @@ export default function PineEditorStatus({
 
   if (!isPine || !status || !String(currentText || '').trim()) return null
   const checking = currentText !== inspectedSource
-  const headline = checking ? CHECKING_TEXT : status.headline
-  const state = checking ? PANEL_STATE.CHECKING : status.state
+  const shown = shownStatus(status)
+  const headline = checking ? CHECKING_TEXT : shown.headline
+  const state = checking ? PANEL_STATE.CHECKING : shown.state
   const reportOffered = !!(cfg && cfg.reportsEnabled)
   const goTo = (n) => {
     if (sheetOpen) {
@@ -252,8 +372,11 @@ export default function PineEditorStatus({
   }
 
   const body = checking ? null : (
-    <Body status={status} source={inspectedSource} onGoToLine={goTo}
-      onReport={() => setReportOpen(true)} reportOffered={reportOffered} />
+    <>
+      <OnThisChart status={status} shown={shown} />
+      <Body status={status} source={inspectedSource} onGoToLine={goTo}
+        onReport={() => setReportOpen(true)} reportOffered={reportOffered} />
+    </>
   )
 
   return (

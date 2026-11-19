@@ -659,6 +659,7 @@ def compute_atr(bars: List[dict], period: int = 14) -> List[MaybeNum]:
 def compute_adx_raw(
     bars: List[dict],
     period: int = 14,
+    gt: Optional["Callable[[float, float], bool]"] = None,
 ) -> Tuple[List[MaybeNum], List[MaybeNum], List[MaybeNum]]:
     """Returns (adx, plus_di, minus_di) unrounded. Mirrors ``computeADX``.
 
@@ -666,6 +667,7 @@ def compute_adx_raw(
     of DX and first lands on ``bars[2 * period - 1]``. All three are bar-aligned
     and the same length — the JS lane used to return ``adx`` shorter than its DIs.
     """
+    _gt = gt if callable(gt) else (lambda a, b: a > b)
     n = len(bars)
     adx_out: List[MaybeNum] = [None] * n
     plus_di: List[MaybeNum] = [None] * n
@@ -679,8 +681,10 @@ def compute_adx_raw(
     for i in range(1, n):
         up = bars[i]["h"] - bars[i - 1]["h"]
         down = bars[i - 1]["l"] - bars[i]["l"]
-        plus_dm[i] = up if (up > down and up > 0) else 0.0
-        minus_dm[i] = down if (down > up and down > 0) else 0.0
+        # engine 78 (#1858) -- ``gt`` is IEEE for the native ADX (the default) and
+        # ``pine_compare.pine_gt`` for Pine's ``ta.dmi`` (``indicators.js::computeADX``'s ``opts.gt``)
+        plus_dm[i] = up if (_gt(up, down) and _gt(up, 0)) else 0.0
+        minus_dm[i] = down if (_gt(down, up) and _gt(down, 0)) else 0.0
         prev_c = bars[i - 1]["c"]
         tr[i] = max(
             bars[i]["h"] - bars[i]["l"],

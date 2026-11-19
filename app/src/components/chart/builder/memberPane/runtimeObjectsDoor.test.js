@@ -73,13 +73,15 @@ describe('RT5 — a drawing-only runtime document', () => {
     expect(r.runtimeDeclined).toBeUndefined()
   })
 
-  it('control: a runtime document whose drawing the HOST lane follows keeps the host objects', () => {
+  it('⭐⭐ PARITY UNIT LF — a runtime document whose drawing the HOST lane follows: the run draws it, the clean host program rides beside it', () => {
     flags(true)
     const r = build(RUNTIME_PLOT_HOST_DRAWS)
     expect(r.ok).toBe(true)
     expect(r.definition.compute.kind).toBe('runtime')
-    expect(r.definition.compute.objects).toBeUndefined()
-    expect(r.definition.objects).toBeTruthy()
+    expect(r.definition.compute.objects).toBe(true)
+    expect(r.definition.objects, 'the clean host program, drawn when the run holds back a family it draws').toBeTruthy()
+    const drawings = (r.notes || []).find((n) => n && n.name === 'Drawings')
+    expect(drawings && drawings.note).toMatch(/draws that program’s drawings instead/)
   })
 
   it('control: a drawing the host lane follows keeps the host lane', () => {

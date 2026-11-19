@@ -461,7 +461,8 @@ _add(PAID,
      # handler's docstring calls it "public by design (a trust asset)"; no
      # anonymous page reads it, so that intent is recorded, not honoured, here.
      "/api/flow-scoreboard", "/api/flow-scoreboard/",
-     # Schwab/options (PARTNER router, gated at its include site only)
+     # /api/schwab/* options routes (PARTNER router, gated at its include site only; the prefix is a
+     # historical name, nothing under it reads Schwab since 2026-11-17)
      "/api/schwab/options-quote", "/api/schwab/market-summary",
      "/api/schwab/contract-history", "/api/schwab/chart-bounds",
      "/api/schwab/chart-ohlc", "/api/schwab/ytd-performance",
@@ -549,7 +550,7 @@ _add(ADMIN,
      "/api/darkpool/massive-ingest/status", "/api/darkpool/flatfile-ingest/status",
      "/api/darkpool/intraday-ingest/status",
      "/api/research/ratings-percentile/status", "/api/logos/status",
-     "/api/schwab/status", "/api/schwab/earnings-test",
+     "/api/schwab/earnings-test",
      "/api/debug/earnings-sources/{sym}",           # probes FMP/AV/Finnhub per hit
      "/api/massive/status", "/api/massive/flatfiles/status",
      "/api/ticker-types/replica-push-status", "/api/ticker-types/generation",

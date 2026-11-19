@@ -1104,9 +1104,13 @@ def daily_rows_from_snapshot(tickers: Iterable[dict], today_ymd: int) -> list[tu
     """Today's daily bar per ticker from the provider's whole-market snapshot `day`.
     A ticker with no regular-session print yet (zeros) gets no row: its newest stored
     daily bar (yesterday) is then the truth, exactly as the provider's daily series."""
+    from api.services.vendor_symbols import app_symbol
     out = []
     for t in tickers:
-        sym = t.get("ticker")
+        # ⛔ `BCpC` (Brunswick's preferred C) is not `BCPC` (Balchem): a lowercase-marked vendor
+        # ticker has no app key. Upper-cased, the preferred's day bar replaced Balchem's on every
+        # poll (2026-11-16/17: 20.55 against 171.48; api/services/vendor_symbols.py).
+        sym = app_symbol(t.get("ticker"))
         day = t.get("day") or {}
         try:
             o, h, l, c, v = (float(day.get(k) or 0) for k in ("o", "h", "l", "c", "v"))
@@ -1114,7 +1118,7 @@ def daily_rows_from_snapshot(tickers: Iterable[dict], today_ymd: int) -> list[tu
             continue
         if not sym or min(o, h, l, c) <= 0:
             continue
-        out.append((sym.replace(".", "-").upper(), today_ymd, o, h, l, c, int(v)))
+        out.append((sym, today_ymd, o, h, l, c, int(v)))
     return out
 
 
@@ -1138,7 +1142,8 @@ def _daily_poll_once(last: Optional[dict] = None) -> tuple[int, set]:
     n = _write_rows("D", rows) if rows else 0
     for r in rows:
         last[r[0]] = r
-    seen = {str(t.get("ticker", "")).replace(".", "-").upper() for t in tickers if t.get("ticker")}
+    from api.services.vendor_symbols import app_symbol
+    seen = {s for s in (app_symbol(t.get("ticker")) for t in tickers) if s}
     return n, seen
 
 

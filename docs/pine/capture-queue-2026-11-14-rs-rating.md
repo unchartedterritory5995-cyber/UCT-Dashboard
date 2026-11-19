@@ -32,7 +32,41 @@ owed, and none of it is a TradingView capture:
 | row | what | settles |
 |---|---|---|
 | Q-RS6 | Record the bars `/api/bars/SPX?tf=D` serves from FMP (on the pod, or on a machine with the FMP key) into the three `tests/fixtures/vendor-supply/rs-rating-fred6724-*.json` records, replacing the yfinance record and SPY's `notRecorded`, then regrade runtime-on | Whether the primary SPX source equals TradingView's. If it does, RDDT (and NVDA within the served depth) grade MATCH_SUBSTITUTED, and SPY can be graded. |
-| Q-RS7 (optional) | RS Rating on a WEEKLY chart (RDDT 1W) | What TradingView draws for `request.security(syminfo.tickerid, 'D', close)` below the chart's timeframe. Today it is refused by name (L8 4b). |
+| Q-RS7 (optional) | RS Rating on a WEEKLY chart (RDDT 1W) | What TradingView draws for `request.security(syminfo.tickerid, 'D', close)` below the chart's timeframe. Today it is refused by name (L8 4b). ⭐ **CAPTURED AND GRADED 2026-11-17** (below, and L11 in the program doc). |
+
+**Q-RS7 CAPTURED AND GRADED (2026-11-17, batch `rs-weekly-2026-11-17`, after the close, newest week forming).**
+RS Rating on NYSE:RDDT 1W and NASDAQ:NVDA 1W (committed, MPL-2.0:
+`tests/fixtures/vendor/harness/rs-rating-fred6724-w-{rddt,nvda}-1w-2026-11-17.json`), and the two UCT
+probes on NYSE:RDDT 1W, `rs-spx-daily-w-rddt-1w-2026-11-17` (X01..X04 at `"D"`, X05 at `timeframe.period`)
+and `rs-seed-rsrating-w-rddt-1w-2026-11-17` (local only). They witness four rules, now served
+(`requestWitnesses.json` `periods.W`; program doc L11): R1 `SP:SPX` at `timeframe.period` reads the
+previous week's last daily close (139/139 settled weeks); R2 `SP:SPX` at `"D"` reads the
+previous-session bar at the week's last session (139/139); R3 the chart's own `"D"` close is the weekly
+close (139/139); R4 the seed at `"D"` reads the row of the week's Monday, `na` where none (140/140). Graded:
+RDDT 1W RS line exact on every settled week, NVDA 1W exact on every settled week from 2023-12-05 (earlier,
+Q-RS9's accepted S&P 500 history), both labels drawn (runtime-on objects MATCH). The one difference is the
+forming week, owed to Q-RS7b:
+
+| row | script | symbols / timeframe | settles |
+|---|---|---|---|
+| Q-RS7b | `tools/visual_conformance/probes/rs-spx-daily.pine` and the RS Rating source, DURING the session (a weekly chart whose newest week is forming and whose newest DAILY session is forming) | NYSE:RDDT 1W | What `SP:SPX` at `timeframe.period` and at `"D"` read on the FORMING week. After the close on 2026-11-17 both read the latest SPX value (7340.53), where the settled weeks read the previous week's close (R1) and the previous-session bar (R2); whether in session that is today's forming SPX value, or the previous session's, decides the forming-week rule (PR 2). |
+
+**Q-RS-M CAPTURED AND GRADED (2026-11-18, batch `rs-monthly-2026-11-18c`, pre-market, newest month forming).**
+Fred RS on NYSE:RDDT 1M and NASDAQ:NVDA 1M (committed, MPL-2.0:
+`tests/fixtures/vendor/harness/rs-rating-fred6724-m-{rddt,nvda}-1m-2026-11-18.json`) and the two UCT probes on
+NYSE:RDDT 1M, `rs-spx-daily-m-rddt-1m-2026-11-18` and `rs-seed-rsrating-m-rddt-1m-2026-11-18` (local only), the
+same four scripts as Q-RS7 at 1M. They witness `periods.M` (program doc L13): R1 `previous-month` (32/32), R2
+`month-last-row` (32/32; the forming month the newest SPX row on its next session), R3 the identity (32/32), R4
+`month-first-session`. Graded: RDDT 1M RS line 33/33, NVDA 1M exact from 2023-12-05, labels drawn (objects MATCH).
+(The runs `rs-monthly-2026-11-18` and `-18b` are the same captures under wrong ids; `-18c` is the one graded.)
+
+**Q-L12-1 CAPTURED (2026-11-18, batches `l12-pm-2026-11-18` pre-open and `l12-is-2026-11-18` in session, local).**
+The `rs-spx-daily` probe on NYSE:RDDT 1 / 5 / 15 / 30 / 60 and Fred RS on RDDT 5 / 30 / 60 and NASDAQ:NVDA 60,
+plus the UCT probe `rs-own-daily` (this chart's own symbol at `"D"`) on RDDT 5 / 60. They witness
+`periods.<1|5|15|30|60>` (program doc L12), `latest-at-or-before`: on regular bars the SPX bar that opened at or
+before (1m 2,339 / 2,343, 5m 4,604 / 4,611, 15m 1,534 / 1,535, 30m 767 / 768, 60m 360 / 360), pre-market the
+previous official close, post-market the day's (both from SPX's held daily rows). The `"D"` reads (U-DAILY, PR 2) are measured on the same batch. The Fred RS captures stay
+out of git until one is taken beside a ROUNDED SPX supply (#1868).
 
 ## ⭐ TOP OF THE NEXT CAPTURE SESSION (added 2026-11-16)
 

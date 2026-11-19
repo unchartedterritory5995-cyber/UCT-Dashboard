@@ -215,9 +215,20 @@ export const LAKE_PREFETCH_TARGET_BARS = 20000
  *  the lake brings deeper comes back from the browser's HTTP cache, and a 20,000-row segment would be a
  *  large structured clone on the main thread each time it grows. Exactly today's background depth. */
 export const HIST_PERSIST_MAX_BARS = HISTORY_PREFETCH_TARGET_BARS
-/** The background depth target for a key: deeper when the lake carries it. */
-export function prefetchTargetBars(lakeCarries) {
-  return lakeCarries ? LAKE_PREFETCH_TARGET_BARS : HISTORY_PREFETCH_TARGET_BARS
+// ⭐ ZOOMED ALL THE WAY OUT, AT ONCE (2026-11-18, owner: "on an hourly chart of Apple I can instantly
+// zoom all the way out and scroll back"). A store bar of the lake is any bar the raw data has, pre- and
+// after-hours included, so 20,000 store bars showed only ~10,000 regular-session bars: about 5 years of
+// 60m and 2.5 years of 30m. Hourly and 30-minute are small per year (a lake piece is a whole year, ~10 B
+// a bar over the wire), so they load deep: 60m about 15 years, 30m about 6. Every other intraday
+// timeframe keeps 20,000. Each stays under its registry depth cap (DEFAULT_DEPTH_CAPS).
+export const LAKE_TARGET_BARS_BY_TF = Object.freeze({ '60': 50000, '30': 40000 })
+/** The lake depth (store bars) one load brings for a timeframe ('1', '5', '15', '30', '60'). */
+export function lakeTargetBars(tf) {
+  return LAKE_TARGET_BARS_BY_TF[String(tf)] ?? LAKE_PREFETCH_TARGET_BARS
+}
+/** The background depth target for a key: deeper when the lake carries it (and per timeframe there). */
+export function prefetchTargetBars(lakeCarries, tf) {
+  return lakeCarries ? lakeTargetBars(tf) : HISTORY_PREFETCH_TARGET_BARS
 }
 
 /** True when `hist` can be prepended to `tail` without drawing a hole: it holds bars

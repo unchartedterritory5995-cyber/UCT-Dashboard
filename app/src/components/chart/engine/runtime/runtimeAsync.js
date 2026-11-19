@@ -54,6 +54,14 @@ export const RUNTIME_WORKER_MAX_STARTS = 3
 export const RUNTIME_WORKER_UNRESPONSIVE_GUARD = 'runtime:worker-unresponsive'
 export const RUNTIME_WORKER_FAILED_GUARD = 'runtime:worker-failed'
 
+/** An entry's own enumerable fields whose values are plain data (null, string, number, boolean). */
+function plainFieldsOf(e) {
+  const out = {}
+  if (!e || typeof e !== 'object') return out
+  for (const [k, v] of Object.entries(e)) if (v === null || ['string', 'number', 'boolean'].includes(typeof v)) out[k] = v
+  return out
+}
+
 /** Rebuild the error a worker reported, with EVERY field it carried (`errorImage.js`, the rule: an error
  *  that crosses a worker boundary keeps every field the main thread reads). ⚰️ A hand-picked list here
  *  dropped `pending` (RS Rating L10b): a wait came back as a refusal. */
@@ -289,7 +297,12 @@ function messageOf(id, def, rows, ctx) {
     // the store exchange the bind matches a spelling against (`exchangeOf` is a function and
     // does not cross), rebuilt as a Map on the other side (`runtimeWorker.js`).
     ...(ctx && ctx.secondary && typeof ctx.secondary.entries === 'function' ? {
+      // ⛔ EVERY PLAIN FIELD OF AN ENTRY CROSSES (as `hostLaneWire.entryImageOf` does): a hand-picked
+      // {bars, status, exchange} dropped `newestBarIsForming`, which decides what the chart's newest bar
+      // reads (RS RATING L11 PR 2, `otherSymbols.newestOwnPeriodOf`): the worker's run read the previous
+      // session where the host read today's, and the column rail refused the run half.
       secondaryEntries: [...ctx.secondary.entries()].map(([k, e]) => [k, {
+        ...plainFieldsOf(e),
         bars: e && Array.isArray(e.bars) ? e.bars.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })) : [],
         status: e && e.status,
         exchange: (e && typeof e.exchange === 'string' && e.exchange)

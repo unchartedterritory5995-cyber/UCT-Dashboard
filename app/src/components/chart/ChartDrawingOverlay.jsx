@@ -476,6 +476,13 @@ export default function ChartDrawingOverlay({
   // lets the chart pinch) + a long-press timer that opens the context menu.
   const activePointersRef = useRef(new Set())
   const longPressRef = useRef(null)
+  // ⛔ A PENDING LONG-PRESS DIES WITH THE OVERLAY (2026-11-18): the 450 ms timer was cleared on pointer up,
+  // cancel and a second finger, never on unmount, so an overlay removed within 450 ms of a press set state on an
+  // unmounted component (under jsdom it fired after teardown: "window is not defined", an unhandled error that
+  // turned a remote shard red with every test green).
+  useEffect(() => () => {
+    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null }
+  }, [])
   // True only while a touch that landed ON a drawing is being routed through
   // handlePointerDown (from the wrapper touch listener). Lets the no-tool cursor
   // branch fire on touch the way `hoverActive` does for the mouse. Never true for

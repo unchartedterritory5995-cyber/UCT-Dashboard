@@ -15,7 +15,7 @@ CONTRACT's price gain, never the stock's move. Nothing is re-derived here: every
 
 WHERE THE NUMBERS COME FROM, said on every read: the picks and their entry prices from UCT's options flow tape; every
 gain, win rate and open-interest confirmation from daily contract prices recorded each weekday after the close, from
-Massive with Schwab as backup since November 2026 and from Schwab alone before.
+Massive (prices recorded before November 2026 came from Schwab and stay as recorded).
 
 THE LISTS ARE THE SERVICE'S OWN, AND THEIR CUT IS STATED: its `RECENT_WINNERS_LIMIT` best peak gains among scored picks
 flagged in the last `RECENT_WINDOW_DAYS` days, and its last `RECENT_PICKS_LIMIT` scored picks whatever their result.
@@ -55,7 +55,7 @@ NOTE_WHAT = ("the Flow Record: how every Top Flow pick UCT flagged has done, mea
              "when flagged, and losers are never left out; past results, not a forecast")
 NOTE_SOURCES = ("picks and entry prices come from UCT's options flow tape; every gain, win rate and open-interest "
                 "confirmation is worked out from daily contract prices recorded each weekday after the close, from "
-                "Massive with Schwab as backup since November 2026 and from Schwab alone before")
+                "Massive (prices recorded before November 2026 came from Schwab and stay as recorded)")
 NOTE_TOO_NEW = ("{n} picks have fewer than {min} daily prices and are too new to score: they are counted apart and are "
                 "in no rate, never as 0%")
 NOTE_LISTS = ("the two lists are the service's own cut: its {winners} best peak gains among scored picks flagged in the "

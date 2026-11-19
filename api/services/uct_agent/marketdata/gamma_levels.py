@@ -5,8 +5,8 @@ The call wall, the put wall and the zero gamma level: the options half of the LV
 (api/routers/signature.py `_serve_gxw` → api/services/signature/gex_walls.py → api/gex_service.py).
 
 ⛔ ONLY WHAT THE SERVICE ALREADY HOLDS, NEVER A BUILD (MD-1 §5). `_serve_gxw` builds synchronously when it holds nothing
-for the symbol: a whole option chain read (one request with a 20 second timeout from Schwab, or a first request and a
-paged Massive walk of up to 48 pages under a 25 second budget). That is past a turn's 20 provider requests and a
+for the symbol: a whole option chain read (a first request and a paged Massive walk of up to 48 pages under a 25
+second budget). That is past a turn's 20 provider requests and a
 member's patience, so this adapter never calls `_serve_gxw` or `_gxw_build`. It reads the two places the route itself
 serves from:
   * the route's TTL cache entry for the symbol (`rules.GXW_TTL_S`, 10 minutes)        → `held: "fresh"`;
@@ -18,10 +18,11 @@ provider_calls is always 0.
 api/routers/signature.py. A rail fills them through the route's own `_gxw_build` and reads them back, so a rename fails
 by name.
 
-LICENSING (read api/gex_service.py's own comment, corrected 2026-11-17): the chain behind the arithmetic is Massive's or
-Schwab's, as `GEX_CHAIN_SOURCE` says (`shadow` serves Schwab). Showing Schwab-sourced option data to members is on record
-as approved by the owner (September 2026). MEMBER DISPLAY IS NOT THE SAME AS SENDING DATA TO A MODEL PROVIDER, and no
-record clears either chain for that, so this kind is model-isolated whichever chain is read. `data.chain_source` names it.
+THE CHAIN (read api/gex_service.py's own comment): the chain behind the arithmetic is Massive's, and only Massive's.
+Schwab's chain, the `shadow` comparison mode and the `GEX_CHAIN_SOURCE` switch that chose between them were retired on
+2026-11-17 with Schwab itself; `gex_service.chain_source()` always answers `massive`. MEMBER DISPLAY IS NOT THE SAME AS
+SENDING DATA TO A MODEL PROVIDER, and no record clears the chain for that, so this kind is model-isolated.
+`data.chain_source` still names the chain (`massive`): the field is part of the payload's shape.
 
 TIME (MD-1 §3): the payload's `asOf` is epoch seconds of the BUILD (when UCT read the chain and worked the levels out):
 a computation time, so it is never `as_of`. `as_of` is null with a note, and the build time rides as `data.computed_at`.
@@ -53,8 +54,8 @@ SYMBOL_RE = re.compile(r"^[A-Za-z][A-Za-z.\-]{0,9}$")
 LEVEL_KINDS = ("callWall", "putWall", "zeroGamma")
 REGIMES = ("bullish", "bearish", "choppy", "unbound")
 HELD = ("fresh", "last_good")
-#: `GEX_CHAIN_SOURCE` → the chain a served payload was read from (`shadow` serves Schwab exactly)
-CHAIN_OF_MODE = {"massive": "massive", "schwab": "schwab", "shadow": "schwab"}
+#: what `gex_service.chain_source()` answers → the chain a served payload was read from. One row since 2026-11-17.
+CHAIN_OF_MODE = {"massive": "massive"}
 
 NOTE_WHAT = ("the call wall, the put wall and the zero gamma level UCT works out from the options on {sym} expiring "
              "within a week, each given only when it is within {band}% of the stock price; UCT's own arithmetic on an "
@@ -68,7 +69,7 @@ NOTE_SPOT = ("the stock price given is the one the option chain carried when the
              "current quote")
 NOTE_ZERO = ("the zero gamma level is an estimate of where dealer hedging flips; the held read does not say how it was "
              "found, and for some stocks it is a stand-in level rather than a true flip")
-NOTE_CHAIN = "the option chain behind these levels is the one this server is set to read: {vendor}"
+NOTE_CHAIN = "the option chain behind these levels is Massive's, the one chain UCT reads for them"
 NOTE_NONE = "no gamma level is within {band}% of the stock price for {sym}; that is a healthy answer, not a failed read"
 NOTE_NOT_HELD = ("no gamma levels are held for {sym} in the server's cache (they are kept {minutes} minutes after a "
                  "chart or the Levels panel reads them, and a last good copy for {max_minutes}), and this read never "
@@ -109,7 +110,7 @@ def held_walls(sym: str) -> tuple[Optional[dict], str]:
 
 
 def chain_source() -> Optional[str]:
-    """The chain this server's GEX arithmetic reads (`massive` | `schwab`), or None when it cannot be told."""
+    """The chain this server's GEX arithmetic reads (`massive`), or None when it cannot be told."""
     try:
         from api import gex_service
         return CHAIN_OF_MODE.get(gex_service.chain_source())
@@ -155,7 +156,7 @@ def read_gamma_levels(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no p
         notes.append(NOTE_ZERO)
     chain = chain_source()
     if chain:
-        notes.append(NOTE_CHAIN.format(vendor={"massive": "Massive", "schwab": "Schwab"}[chain]))
+        notes.append(NOTE_CHAIN)
     regime = payload.get("regime") if payload.get("regime") in REGIMES else None
     # `sym` / `levels` / `spot` / `regime` / `asOf` keep the route's own names: the LVL panel's pure helper
     # (levelsModel.js gexRead) reads them

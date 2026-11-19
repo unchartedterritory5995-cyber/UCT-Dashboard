@@ -18,7 +18,8 @@ import { COLUMN_DEFS, descFor } from './columnDefs'
 // ⛔ May only ever go UP — see 'holds the coverage ratchet' below.
 // 127 → 144 on 2026-11-06: the seventeen UCT Relative Strength columns landed WITH their text.
 // 144 → 147 on 2026-11-07: the three Phase 3 RS columns (unit 3-11) landed WITH theirs.
-const RATCHET_FLOOR = 147
+// 147 → 149 on 2026-11-18: the two short-interest columns got theirs when their source moved.
+const RATCHET_FLOOR = 149
 
 // The columns whose DEFINITION is not guessable from the label, or where the
 // audit measured a member-visible trap. Every one of these must carry text.
@@ -57,6 +58,11 @@ const MUST_DOCUMENT = [
   'uct_composite', 'rs_rank', 'rs_return', 'accdis', 'blended_growth',
   'sector_rs_pct', 'rating_eps', 'rating_growth', 'rating_value',
   'rating_smr', 'sponsorship', 'inst_pct',
+  // 2026-11-18 short interest — a twice-a-month FINRA figure on a table that is
+  // rebuilt every night: a member would read it as last night's without the text.
+  // (Listed here, before the RS family, because the two slices below are cut
+  // from this array by position.)
+  'short_float_pct', 'short_ratio',
   // 2026-11-06 UCT Relative Strength (Phase 2a, 2a-08) — every one is daily-bar
   // based where a chart reader may be on another timeframe, Mansfield is a DAILY
   // 200 where the textbook is a weekly 52, and the rating is IBD-STYLE, ours,
@@ -163,6 +169,26 @@ describe('member-facing column descriptions', () => {
     expect(descFor('sponsorship')).toMatch(/not the Inst% column/)
     expect(descFor('rating_smr')).toMatch(/not the Op Mgn and ROE columns/)
     expect(descFor('inst_pct')).toMatch(/DIFFERENT provider/)
+  })
+
+  it('says where the two short-interest columns come from and how often they change', () => {
+    // The table is rebuilt nightly; these two are not. The text is the only
+    // place a member is told the figure is as of a twice-a-month report.
+    for (const key of ['short_float_pct', 'short_ratio']) {
+      const d = descFor(key)
+      expect(d, key).toMatch(/FINRA short interest/)
+      expect(d, key).toMatch(/twice a month/)
+      expect(d, key).toMatch(/not every night/)
+      expect(d, key).toMatch(/nightly data export instead/)
+      expect(d, key).toMatch(/Blank means not known, never zero/)
+    }
+    expect(descFor('short_float_pct')).toMatch(/percent of the float/)
+    expect(descFor('short_ratio')).toMatch(/average daily volume/)
+    // units did not move: a percent with one decimal, a plain day count
+    expect(COLUMN_DEFS.short_float_pct.fmt(30)).toBe('30.0%')
+    expect(COLUMN_DEFS.short_ratio.fmt(6)).toBe('6.0')
+    expect(COLUMN_DEFS.short_float_pct.label).toBe('Short%')
+    expect(COLUMN_DEFS.short_ratio.label).toBe('Days2Cvr')
   })
 
   it('states the two definitions that disagree, on BOTH columns', () => {

@@ -55,7 +55,7 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 /* The shared date box sits in its own slot here, not pushed to an edge. */
 .dateWrap { display: flex; align-items: center; }
 .dateWrap > * { margin-left: 0 !important; }
-.live { display: inline-flex; align-items: center; gap: 6px; color: var(--gain); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
+.live { display: inline-flex; align-items: center; gap: 6px; color: var(--success-ink); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
 .live i { width: 6px; height: 6px; border-radius: 50%; background: var(--gain); }
 
 /* The readouts: label on top, value (with its picture) under it. */
@@ -95,8 +95,8 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 .mixTrack { height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text-muted) 18%, transparent); overflow: hidden; }
 .mixTrack b { display: block; height: 100%; border-radius: 3px; }
 .mixCount { text-align: right; color: var(--text-bright); font-weight: 700; font-variant-numeric: tabular-nums; }
-.up { color: var(--gain); }
-.dn { color: var(--loss); }
+.up { color: var(--success-ink); }
+.dn { color: var(--danger-ink); }
 
 .viewBtn { padding: 5px 12px; font-size: 10.5px; }
 
@@ -181,8 +181,8 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 .mixBar { display: flex; height: 3px; gap: 1px; flex-shrink: 0; }
 .mixBar span { display: block; height: 100%; opacity: .85; }
 
-.up { color: var(--gain); }
-.dn { color: var(--loss); }
+.up { color: var(--success-ink); }
+.dn { color: var(--danger-ink); }
 
 /* Chart column */
 .stage { flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
