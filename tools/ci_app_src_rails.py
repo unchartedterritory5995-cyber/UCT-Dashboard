@@ -3,7 +3,8 @@
     python tools/ci_app_src_rails.py --census            # every app/src-reading pytest file, what it reads, who runs it
     python tools/ci_app_src_rails.py --check             # exit 1 when one is run by no PR job that app/src triggers
     python tools/ci_app_src_rails.py --print-list        # the rails the `app-src-pytest` job runs (all its shards)
-    python tools/ci_app_src_rails.py --write-args a.txt --shard 2/4   # one shard's pytest arguments, one per line
+    python tools/ci_app_src_rails.py --plan --changed changed.txt      # count=/n=/shards= for this PR's diff
+    python tools/ci_app_src_rails.py --write-args a.txt --shard 2/4 --changed changed.txt   # one shard's pytest args
     python tools/ci_app_src_rails.py --json out.json     # the census as JSON
 
 The home: the `app-src-pytest` job of .github/workflows/whole-app-engine-rails.yml (sharded, offline, the production
@@ -40,10 +41,14 @@ needs a glob that matches a file added under it). A job that names the file but 
 app/src does not count, because a PR that changes what the file reads still does not run it.
 
 THE LIST IS DERIVED (print_list): the census, minus EXEMPT (deliberately not run on a PR, whole file), minus a
-KNOWN_RED whole file, minus what another PR job already runs under a covering trigger. KNOWN_RED test ids are
-deselected from the home job by id, so the rest of their files still run. TOOL_CHECKS are tool commands that must run
-as commands on the PR. judge() is the rail; it fails on a reader no PR runs, a stale or reasonless EXEMPT/KNOWN_RED
-entry, a missing home step, and a TOOL_CHECKS command no PR step runs.
+KNOWN_RED whole file, minus what another PR job already runs under a covering trigger. KNOWN_RED test ids run as
+STRICT xfails (this module is the job's pytest plugin), so an entry goes red the day its test goes green. TOOL_CHECKS
+are tool commands that must run as commands on the PR. judge() is the rail; it fails on a reader no PR runs, a stale
+or reasonless EXEMPT/KNOWN_RED entry, a missing home step, and a TOOL_CHECKS command no PR step runs.
+
+PATH-AWARE ON A PR (select): only the rails whose read set, own file, helpers, or imported api/ and services/ modules
+the PR changes run; all of them when it changes something in RUN_ALL_ON or the diff is unknown. What the static scan
+cannot see (above) is the nightly full suite's: full-suite-report.yml runs every file under tests/.
 
 Standard library + PyYAML.
 """
@@ -78,12 +83,15 @@ UNKNOWN_MS = 3000
 #: can argue with; an entry for a file that is no longer an app/src reader, or that a PR job now runs, is an error.
 EXEMPT: dict[str, str] = {}
 
-#: Tests RED on a clean runner on master when this list was cut, deselected from the home step BY NODE ID (the rest of
-#: each file still runs; a key with no `::` drops the whole file, for a file that cannot even be collected there).
+#: Tests RED on a clean runner on master when this list was cut. The home job runs each one as a STRICT xfail (this
+#: module is loaded as a pytest plugin, `-p tools.ci_app_src_rails`): red stays green, and the day one PASSES the job
+#: goes red with "delete its KNOWN_RED line", so an entry cannot outlive its red. A key with no `::` drops the whole
+#: file, for a file that cannot even be collected there.
 #: Measured with `python tools/remote_tests.py --pytest <the list>` on master 7dc696c0eb, 2026-11-19 (runs 44546651483,
 #: 44546724286, 44546805460). Each is a red no PR job used to see, now named instead of hidden: fix the test or what it
 #: checks, then DELETE its line here. ⛔ NOT here, on purpose: tests/test_support_loop_refusal_codes.py, the #1998 red,
-#: which #2021 fixes; this job is red on it until that lands, and that red is the point.
+#: which #2021 fixed. ⚰️ test_support_loop_tools.py's `..\\escape.pine` case left on 2026-11-19: #2035 made a backslash
+#: a separator on every platform, so it is green on Linux now.
 KNOWN_RED: dict[str, str] = {
     "tests/test_canonical_address_book.py":
         "cannot be COLLECTED: _ohlcv_ddl() asserts one ohlcv DDL in CODE and finds 0 (the parametrize runs at import)",
@@ -123,9 +131,6 @@ KNOWN_RED: dict[str, str] = {
         "the client writes the run-half refusal code 'lost-drawings', which the server does not accept",
     "tests/test_scan_not_computable_inputs.py::test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST":
         "openingRangeHigh: the 'computable' fixture produced no value, so the 'holed' assertions would pass vacuously",
-    "tests/test_support_loop_tools.py::TestSourceStaysInTheWorkDir::"
-    "test_the_writer_refuses_any_path_outside_the_report_dir[..\\\\escape.pine]":
-        "Windows path semantics: on Linux `..\\escape.pine` is one file name inside the dir, so nothing escapes",
     "tests/test_terminal_next_kill_switch.py::test_every_frontend_gate_answers_from_the_payload_the_switch_empties":
         "a new frontend Terminal-Next gate exists and is not acknowledged in ACKNOWLEDGED_FRONTEND_GATES",
     "tests/test_user_definition_reproof.py::test_the_PUT_route_is_the_ONE_the_builder_calls":
@@ -631,8 +636,13 @@ def _read_targets(tree, rel_file: str) -> tuple[set, set]:
     return reads, named_py
 
 
+#: the repo's own top-level packages an import can name (api/ and services/ are the product; the rest are helpers)
+_PACKAGES = ("tools", "scripts", "tests", "api", "services")
+_HELPERS = ("tools", "scripts", "tests")
+
+
 def _imports(tree, rel_file: str, repo: pathlib.Path) -> set:
-    """Repo modules this file imports from tools/, scripts/ or tests/ (helpers), as repo-relative .py paths."""
+    """Repo modules this file imports (tools/, scripts/, tests/ helpers and api/, services/), as repo-relative paths."""
     out = set()
     here = posixpath.dirname(rel_file)
 
@@ -655,7 +665,7 @@ def _imports(tree, rel_file: str, repo: pathlib.Path) -> set:
     for node in _walk(tree):
         if isinstance(node, ast.Import):
             for a in node.names:
-                p = mod_to_path(a.name) if a.name.split(".")[0] in ("tools", "scripts", "tests") else bare(a.name)
+                p = mod_to_path(a.name) if a.name.split(".")[0] in _PACKAGES else bare(a.name)
                 if p:
                     out.add(p)
         elif isinstance(node, ast.ImportFrom):
@@ -670,7 +680,7 @@ def _imports(tree, rel_file: str, repo: pathlib.Path) -> set:
                 continue
             top = mod.split(".")[0]
             cands = []
-            if top in ("tools", "scripts", "tests") or node.level:
+            if top in _PACKAGES or node.level:
                 cands.append(mod_to_path(mod))
                 cands += [mod_to_path(f"{mod}.{a.name}") for a in node.names]
             else:
@@ -702,6 +712,7 @@ class Census:
         self._text: dict = {}
         self._direct: dict = {}
         self._mods: dict = {}
+        self._deps: dict = {}
         self._readers: dict | None = None
         self._reader_rx = None
 
@@ -729,8 +740,10 @@ class Census:
             return
         reads, named = _read_targets(tree, rel) if _SPELLS_APP.search(self.text(rel)) else (set(), set())
         mods = _imports(tree, rel, self.repo)
-        mods |= {n for n in named if n.split("/", 1)[0] in ("tools", "scripts", "tests") and (self.repo / n).is_file()}
-        self._direct[rel], self._mods[rel] = reads, {m for m in mods if not _TEST_FILE.search(m)}
+        mods |= {n for n in named if n.split("/", 1)[0] in _PACKAGES and (self.repo / n).is_file()}
+        deps = {m for m in mods if not _TEST_FILE.search(m)}
+        self._direct[rel], self._deps[rel] = reads, deps
+        self._mods[rel] = {m for m in deps if m.split("/", 1)[0] in _HELPERS}
 
     def direct(self, rel: str) -> set:
         if rel not in self._direct:
@@ -738,9 +751,27 @@ class Census:
         return self._direct[rel]
 
     def modules(self, rel: str) -> set:
+        """The tools/, scripts/ and tests/ helper modules `rel` imports or runs (what its reads propagate through)."""
         if rel not in self._mods:
             self._analyse(rel)
         return self._mods[rel]
+
+    def depends_on(self, rel: str) -> set:
+        """Every repo file a change to which can change what the test `rel` checks, short of its app/src reads: the
+        file itself, the helpers it reaches (transitively), and the api/ and services/ modules it or those helpers
+        import by name (one hop: following the product's own imports would reach the whole app)."""
+        out = {rel}
+        seen, frontier = {rel}, [rel]
+        while frontier:
+            cur = frontier.pop()
+            if cur not in self._deps:
+                self._analyse(cur)
+            for d in sorted(self._deps[cur]):
+                out.add(d)
+                if d.split("/", 1)[0] in _HELPERS and d not in seen:
+                    seen.add(d)
+                    frontier.append(d)
+        return out
 
     def _helper_modules(self) -> list[str]:
         out = []
@@ -973,6 +1004,64 @@ def print_list(repo: pathlib.Path = ROOT, census: dict | None = None, exempt: di
     return sorted(t for t in c if t not in exempt and t not in whole_file_red and not cov[t]["runs"])
 
 
+#: A PR that changes one of these runs the WHOLE list: each can change how every listed rail runs (the scan and the
+#: selection, the job, its environment and wrapper, pytest's own configuration, this rail).
+RUN_ALL_ON = (
+    "tools/ci_app_src_rails.py",
+    "tests/test_ci_app_src_rails.py",
+    ".github/workflows/whole-app-engine-rails.yml",
+    ".github/actions/pine-heavy-setup/**",
+    "tools/ci_offline.sh",
+    "requirements.txt",
+    "tests/ci-only-packages.txt",
+    "pytest.ini",
+    "tests/conftest.py",
+    "tests/**/conftest.py",
+)
+#: the most shards a PR run uses, and the recorded time one shard is cut to before another is added
+MAX_SHARDS = 4
+SHARD_TARGET_MS = 300_000
+
+
+def _read_prefix(read: str) -> str:
+    """The path a change must fall under to change what a read sees: a node process run in app/ can import anything
+    there (and its package files), a subprocess that names app/src reads app/src."""
+    if read.endswith("(a process run in app/)"):
+        return "app"
+    return read.split(" (", 1)[0]
+
+
+def touches(read: str, changed: str) -> bool:
+    p = _read_prefix(read)
+    return changed == p or changed.startswith(p + "/")
+
+
+def select(files: list[str], census: dict, changed: list[str], model: "Census") -> tuple[list[str], str]:
+    """The rails of `files` a PR changing `changed` must run, and why. PATH-AWARE: a rail runs when the PR changes a
+    path it reads (its census read set), or the rail itself, a helper it reaches, or an api/ or services/ module it or
+    a helper imports (Census.depends_on). Everything runs when the PR changes something in RUN_ALL_ON, or when what it
+    changed is unknown (an empty list: a check that cannot see the diff must not pass by running nothing).
+    What the static scan cannot see (its LIMITS) is the nightly full suite's: it runs every file under tests/."""
+    changed = sorted({c.strip().replace("\\", "/") for c in changed if c.strip()})
+    if not changed:
+        return list(files), f"ALL {len(files)}: the changed files are unknown"
+    rxs = [glob_rx(g) for g in RUN_ALL_ON]
+    hit = next((c for c in changed if any(rx.match(c) for rx in rxs)), None)
+    if hit:
+        return list(files), f"ALL {len(files)}: the PR changes {hit}, which every listed rail runs through"
+    cset = set(changed)
+    chosen = [t for t in files
+              if any(touches(r, c) for r in census.get(t, {}) for c in changed) or cset & model.depends_on(t)]
+    return chosen, f"{len(chosen)} of {len(files)}: the rails that read, or depend on, what the PR changes"
+
+
+def shard_count(files: list[str], timings: dict) -> int:
+    if not files:
+        return 0
+    total = sum(timings.get(f, UNKNOWN_MS) for f in files)
+    return max(1, min(MAX_SHARDS, len(files), -(-total // SHARD_TARGET_MS)))
+
+
 def load_timings(repo: pathlib.Path = ROOT) -> dict:
     try:
         doc = json.loads((repo / TIMINGS).read_text(encoding="utf-8"))
@@ -994,15 +1083,25 @@ def partition(files: list[str], n: int, timings: dict) -> list[list[str]]:
     return [sorted(s) for s in shards]
 
 
-def shard_args(files: list[str], k: int, n: int, timings: dict, known_red: dict | None = None) -> list[str]:
-    """The pytest arguments of shard k of n: its files, then a `--deselect` for each KNOWN_RED test in them."""
-    known_red = KNOWN_RED if known_red is None else known_red
+PLUGIN = "tools.ci_app_src_rails"
+
+
+def shard_args(files: list[str], k: int, n: int, timings: dict) -> list[str]:
+    """The pytest arguments of shard k of n: its files, then this module as a plugin (KNOWN_RED as strict xfails)."""
     mine = partition(files, n, timings)[k - 1]
-    out = list(mine)
-    for node in sorted(known_red):
-        if "::" in node and node.split("::", 1)[0] in mine:
-            out += ["--deselect", node]
-    return out
+    return list(mine) + ["-p", PLUGIN] if mine else []
+
+
+def pytest_collection_modifyitems(config, items):  # noqa: ARG001 - the pytest hook signature
+    """Active only when the home job loads this module as a plugin (`-p tools.ci_app_src_rails`): every KNOWN_RED test
+    runs as a STRICT xfail. Its known red keeps the job green; the day it PASSES, XPASS(strict) turns the job red and
+    says to delete its line, so a stale entry cannot hide a test that went green."""
+    import pytest
+    for item in items:
+        why = KNOWN_RED.get(item.nodeid)
+        if why:
+            item.add_marker(pytest.mark.xfail(strict=True, reason=(
+                f"KNOWN_RED in tools/ci_app_src_rails.py: {why}. An XPASS means it is green now: delete its line")))
 
 
 def home_step(repo: pathlib.Path = ROOT) -> dict | None:
@@ -1055,11 +1154,38 @@ def judge(repo: pathlib.Path = ROOT, census: dict | None = None, exempt: dict | 
         elif "::" not in node and cov[f]["runs"]:
             bad.append(f"KNOWN_RED drops {f} whole, and {cov[f]['runs'][0]} runs it anyway: drop the entry")
         elif "::" in node and f not in home:
-            bad.append(f"KNOWN_RED deselects {node} from the home job, which does not run {f}: drop the entry")
+            bad.append(f"KNOWN_RED names {node}, which the home job does not run (it runs {f} elsewhere): drop it")
+        elif "::" in node and not _test_exists(repo, node):
+            bad.append(f"KNOWN_RED names {node}, and {f} no longer defines that test: drop the entry")
         if len(why.strip()) < 40:
             bad.append(f"KNOWN_RED without the failure it records: {node}: {why!r}")
     bad += judge_tool_checks(repo, tool_checks)
     return bad
+
+
+def _test_exists(repo: pathlib.Path, node: str) -> bool:
+    """Does `file::[Class::]test[param]` still name a test in its file? Statically: the function (inside the class when
+    one is named) is defined, and a parametrize id's text is in the file's source. (Whether it is still RED, only a
+    run can say: that is the strict xfail's job.)"""
+    path, *names = node.split("::")
+    try:
+        text = (repo / path).read_text(encoding="utf-8", errors="replace")
+        tree = ast.parse(text)
+    except (OSError, SyntaxError, ValueError):
+        return False
+    func, _, param = names[-1].partition("[")
+    scope = tree.body
+    for cls in names[:-1]:
+        found = next((n for n in scope if isinstance(n, ast.ClassDef) and n.name == cls), None)
+        if found is None:
+            return False
+        scope = found.body
+    if not any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == func for n in scope):
+        return False
+    if param:
+        literal = param[:-1].encode("ascii", "backslashreplace").decode("unicode_escape")
+        return any(isinstance(n, ast.Constant) and n.value == literal for n in _walk(tree)) or param[:-1] in text
+    return True
 
 
 def judge_tool_checks(repo: pathlib.Path = ROOT, checks: tuple = TOOL_CHECKS,
@@ -1099,16 +1225,23 @@ def main(argv=None) -> int:
     ap.add_argument("--check", action="store_true", help="exit 1 when an app/src reader runs in no PR job")
     ap.add_argument("--print-list", action="store_true", help="the files the home step runs, space-separated")
     ap.add_argument("--json", type=pathlib.Path, help="write the census + coverage as JSON here")
+    ap.add_argument("--changed", type=pathlib.Path,
+                    help="the PR's changed files, one per line: --plan and --write-args then select the rails that "
+                         "read or depend on them (an empty file selects ALL: the diff is unknown)")
+    ap.add_argument("--plan", action="store_true",
+                    help="print count=, n= and shards= (for $GITHUB_OUTPUT): how many rails this PR runs, in how many "
+                         "shards")
     ap.add_argument("--write-args", type=pathlib.Path,
-                    help="write the pytest arguments of one shard of the home list here, one per line "
-                         "(its files, then `--deselect <id>` for each KNOWN_RED test in them)")
+                    help="write the pytest arguments of one shard of the (selected) list here, one per line "
+                         "(its files, then `-p tools.ci_app_src_rails`: KNOWN_RED tests run as strict xfails)")
     ap.add_argument("--shard", default="1/1", help="K/N: which shard --write-args writes (default the whole list)")
     ap.add_argument("--repo", type=pathlib.Path, default=ROOT)
     a = ap.parse_args(argv)
     repo = a.repo.resolve()
-    if not (a.census or a.check or a.print_list or a.json or a.write_args):
-        ap.error("give --census, --check, --print-list, --write-args or --json")
-    c = Census.of(repo).census()
+    if not (a.census or a.check or a.print_list or a.json or a.write_args or a.plan):
+        ap.error("give --census, --check, --print-list, --plan, --write-args or --json")
+    model = Census.of(repo)
+    c = model.census()
     if not c:
         print("::error::the census found no pytest file that reads app/src: the scan is broken, not the suite clean")
         return 2
@@ -1116,18 +1249,30 @@ def main(argv=None) -> int:
     if a.print_list:
         print(" ".join(home))
         return 0 if home else 1
+    chosen, why = home, f"ALL {len(home)}: no --changed given"
+    if a.changed is not None:
+        chosen, why = select(home, c, a.changed.read_text(encoding="utf-8").splitlines(), model)
+    if a.plan:
+        n = shard_count(chosen, load_timings(repo))
+        print(f"count={len(chosen)}")
+        print(f"n={n}")
+        print(f"shards={json.dumps(list(range(1, n + 1)))}")
+        print(f"app/src pytest rails selected: {why}", file=sys.stderr)
+        for t in chosen:
+            print(f"  {t}", file=sys.stderr)
+        return 0
     if a.write_args:
         m = re.fullmatch(r"(\d+)/(\d+)", a.shard)
         if not m or not 1 <= int(m.group(1)) <= int(m.group(2)):
             ap.error(f"--shard {a.shard!r}: want K/N with 1 <= K <= N")
         k, n = int(m.group(1)), int(m.group(2))
-        args = shard_args(home, k, n, load_timings(repo))
+        args = shard_args(chosen, k, n, load_timings(repo))
         a.write_args.write_text("".join(f"{x}\n" for x in args), encoding="utf-8")
         files = [x for x in args if x.endswith(".py")]
-        print(f"app/src pytest rails, shard {k}/{n}: {len(files)} of {len(home)} files, "
-              f"{args.count('--deselect')} known-red test(s) deselected")
+        print(f"app/src pytest rails, shard {k}/{n}: {len(files)} of {len(chosen)} selected ({why}); "
+              f"{sum(1 for x in KNOWN_RED if x.split('::', 1)[0] in files)} known-red test(s) run as strict xfails")
         if not files:
-            print(f"::error::shard {k}/{n} of the app/src rails list is empty")
+            print(f"::error::shard {k}/{n} of the selected app/src rails is empty (the plan cut more shards than files)")
             return 1
         if not (a.check or a.census or a.json):
             return 0

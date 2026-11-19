@@ -29,10 +29,10 @@
 #
 # ⚰️ THE SAME HOLE, IN PYTEST (2026-11-19). #1998 changed only app/src, all 52 of its PR checks were green, and master
 # went red on tests/test_support_loop_refusal_codes.py: a pytest rail that READS app/src, which no PR job ran. The
-# `app-src-pytest` job (four shards) runs every pytest file under tests/ that reads app/src and that no other PR job
-# already runs under a trigger covering what it reads. The list is DERIVED (tools/ci_app_src_rails.py), never
-# hand-kept, and tests/test_ci_app_src_rails.py (in `rails`) fails when an app/src reader runs on no PR and is not on
-# that tool's reasoned EXEMPT list.
+# `app-src-plan` / `app-src-pytest` jobs run the pytest files under tests/ that read app/src and that no other PR job
+# already runs under a trigger covering what they read: on a PR, the ones whose reads or code the PR changes. The list
+# is DERIVED (tools/ci_app_src_rails.py), never hand-kept, and tests/test_ci_app_src_rails.py (in `rails`) fails when
+# an app/src reader runs on no PR and is not on that tool's reasoned EXEMPT list.
 # No secrets, no pull_request_target, read-only token. tests/test_ci_whole_app_rails.py and
 # tests/test_ci_app_src_rails.py rail this file.
 name: whole-app engine rails (PR)
@@ -136,23 +136,55 @@ jobs:
   # ── THE APP/SRC PYTEST RAILS (2026-11-19) ──────────────────────────────────────────────────────────────────
   # #1998 (a browser-only change) added a refusal-guard literal to builder/runsHere.js without registering it in
   # supportLoop/refusalCodes.json; its 52 PR checks were green and master went red on
-  # tests/test_support_loop_refusal_codes.py, a PYTEST rail that READS app/src and that no PR job ran. This job runs
-  # every such rail on the PR: tools/ci_app_src_rails.py derives them (static, over the AST) and lists the ones no
-  # other PR job already runs under a trigger covering what they read, minus its reasoned EXEMPT and the KNOWN_RED
-  # tests it deselects by id. A new app/src rail joins the list the day it lands, with nothing to edit.
-  # ITS OWN JOB, SHARDED, because the list is ~20 min of tests on one runner (measured on the remote tests lane,
-  # 2026-11-19): four shards of equal recorded time (tools/pytest_shard_timings.json), one partition computed the
-  # same way by every shard. Installed as `remote tests` installs (the production set + the CI-only packages), in pine
-  # heavy's environment, every test under the no-network wrapper. The `rails` job above runs
-  # tests/test_ci_app_src_rails.py, which recomputes the census and fails when a reader runs on no PR.
+  # tests/test_support_loop_refusal_codes.py, a PYTEST rail that READS app/src and that no PR job ran. These two jobs
+  # run such rails on the PR: tools/ci_app_src_rails.py derives them (static, over the AST): the ones no other PR job
+  # already runs under a trigger covering what they read, minus its reasoned EXEMPT. A new app/src rail joins the list
+  # the day it lands, with nothing to edit; a KNOWN_RED test runs as a strict xfail, so it goes red when it goes green.
+  # ⭐ PATH-AWARE (2026-11-19, cost): the whole list is ~41 runner-minutes, and this workflow triggers on most PRs. The
+  # plan runs only the rails whose census read set, own file, helpers or imported api/services modules the PR
+  # changes (all of them when the tool, this file, the setup action, the wrapper, the requirements or a conftest
+  # changes, or when the diff cannot be read); none selected = no shard job at all. Measured over the 20 PRs merged
+  # before it: 176 runner-minutes against 826 for the whole list, median 10.6 per PR. What a static scan cannot see
+  # is the nightly full suite's (full-suite-report.yml runs every file under tests/).
+  # The shards are cut by recorded time (tools/pytest_shard_timings.json), the same partition in every shard, up to
+  # four. Installed as `remote tests` installs (the production set + the CI-only packages), in pine heavy's
+  # environment, every test under the no-network wrapper. The `rails` job above runs tests/test_ci_app_src_rails.py.
+  app-src-plan:
+    name: app/src pytest rails (which ones this PR needs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      count: ${{ steps.plan.outputs.count }}
+      n: ${{ steps.plan.outputs.n }}
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # the PR's merge commit and both its parents: `git diff HEAD^1 HEAD` is what the PR changes against its base
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: The rails whose reads or code this PR changes (tools/ci_app_src_rails.py --plan)
+        id: plan
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml
+          # an empty list means ALL: a plan that cannot see the diff must not pass by running nothing
+          if git rev-parse -q --verify HEAD^2 >/dev/null; then git diff --name-only HEAD^1 HEAD > changed.txt; else : > changed.txt; fi
+          echo "this PR changes $(wc -l < changed.txt) file(s)"
+          python tools/ci_app_src_rails.py --plan --changed changed.txt | tee -a "$GITHUB_OUTPUT"
+
   app-src-pytest:
-    name: app/src pytest rails (shard ${{ matrix.shard }}/4)
+    name: app/src pytest rails (shard ${{ matrix.shard }}/${{ needs.app-src-plan.outputs.n }})
+    needs: app-src-plan
+    if: needs.app-src-plan.outputs.count != '0'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: ${{ fromJSON(needs.app-src-plan.outputs.shards) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -179,12 +211,14 @@ jobs:
       - name: The app/src pytest rails, this shard (tools/ci_app_src_rails.py --write-args)
         env:
           SHARD: ${{ matrix.shard }}
+          N: ${{ needs.app-src-plan.outputs.n }}
         run: |
           set -euo pipefail
-          python tools/ci_app_src_rails.py --write-args app-src-args.txt --shard "$SHARD/4"
+          if git rev-parse -q --verify HEAD^2 >/dev/null; then git diff --name-only HEAD^1 HEAD > changed.txt; else : > changed.txt; fi
+          python tools/ci_app_src_rails.py --write-args app-src-args.txt --shard "$SHARD/$N" --changed changed.txt
           mapfile -t args < app-src-args.txt
           test "${#args[@]}" -gt 0
           start=$(date +%s); rc=0
           bash "$CI_TOOLS/tools/ci_offline.sh" python -m pytest "${args[@]}" -q -p no:cacheprovider -rfE || rc=$?
-          echo "app/src pytest rails, shard $SHARD/4: ${#args[@]} args, wall $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "app/src pytest rails, shard $SHARD/$N: ${#args[@]} args, wall $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $rc

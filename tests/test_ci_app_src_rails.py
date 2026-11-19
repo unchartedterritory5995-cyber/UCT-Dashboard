@@ -24,6 +24,7 @@ Standard library + PyYAML: it imports nothing from api/ and runs before the prod
 from __future__ import annotations
 
 import ast
+import json
 import pathlib
 import re
 import sys
@@ -99,25 +100,34 @@ def _job(name: str = C.HOME_JOB) -> dict:
     return _load(WF)["jobs"][name]
 
 
-def _shards() -> int:
-    run = next(s["run"] for s in _job()["steps"] if s.get("name") == C.HOME_STEP)
-    m = re.search(r'--shard "\$SHARD/(\d+)"', run)
-    assert m, "the home step does not pass --shard \"$SHARD/N\""
-    return int(m.group(1))
+_DIFF = ('if git rev-parse -q --verify HEAD^2 >/dev/null; then git diff --name-only HEAD^1 HEAD > changed.txt; '
+         'else : > changed.txt; fi')
 
 
-def test_the_home_job_runs_every_shard_of_the_derived_list_offline_in_the_production_set():
+def test_the_plan_job_reads_the_prs_own_diff_and_hands_count_n_and_shards_on():
+    job = _job("app-src-plan")
+    assert job["outputs"] == {k: "${{ steps.plan.outputs.%s }}" % k for k in ("count", "n", "shards")}
+    assert next(s for s in job["steps"] if s.get("uses") == "actions/checkout@v4")["with"]["fetch-depth"] == 2
+    plan = next(s for s in job["steps"] if s.get("id") == "plan")
+    assert _DIFF in plan["run"], "the diff must be the merge commit against its base, and unknown -> empty -> ALL"
+    assert 'python tools/ci_app_src_rails.py --plan --changed changed.txt | tee -a "$GITHUB_OUTPUT"' in plan["run"]
+    assert "set -euo pipefail" in plan["run"] and 0 < job["timeout-minutes"] <= 10
+
+
+def test_the_home_job_runs_the_planned_shards_offline_in_the_production_set():
     job = _job()
-    n = _shards()
-    assert job["strategy"]["matrix"]["shard"] == list(range(1, n + 1)), "the matrix and --shard disagree on N"
+    assert job["needs"] == "app-src-plan" and job["if"] == "needs.app-src-plan.outputs.count != '0'"
+    assert job["strategy"]["matrix"]["shard"] == "${{ fromJSON(needs.app-src-plan.outputs.shards) }}"
     assert job["strategy"].get("fail-fast") is False, "one red shard must not cancel the others' answers"
-    assert f"/{n})" in job["name"] and 0 < job["timeout-minutes"] <= 20
+    assert "${{ needs.app-src-plan.outputs.n }}" in job["name"] and 0 < job["timeout-minutes"] <= 20
     steps = job["steps"]
     names = [s.get("name") for s in steps]
     home = steps[names.index(C.HOME_STEP)]
     run = home["run"]
-    assert home["env"]["SHARD"] == "${{ matrix.shard }}"
-    assert "python tools/ci_app_src_rails.py --write-args app-src-args.txt" in run
+    assert home["env"] == {"SHARD": "${{ matrix.shard }}", "N": "${{ needs.app-src-plan.outputs.n }}"}
+    assert _DIFF in run, "a shard must select from the same diff the plan did"
+    assert ('python tools/ci_app_src_rails.py --write-args app-src-args.txt --shard "$SHARD/$N" '
+            '--changed changed.txt') in run
     assert 'mapfile -t args < app-src-args.txt' in run and 'test "${#args[@]}" -gt 0' in run
     assert 'bash "$CI_TOOLS/tools/ci_offline.sh" python -m pytest "${args[@]}"' in run, "not under the offline wrapper"
     assert "|| rc=$?" in run and run.rstrip().endswith("exit $rc") and "set -euo pipefail" in run
@@ -128,11 +138,12 @@ def test_the_home_job_runs_every_shard_of_the_derived_list_offline_in_the_produc
     assert next(s for s in steps if s.get("uses") == "actions/checkout@v4")["with"]["fetch-depth"] == 0
 
 
-def test_the_shards_are_a_partition_of_the_list_and_carry_the_known_reds(census):
+def test_the_shards_are_a_partition_of_the_list_and_load_the_known_red_plugin(census):
     home = C.print_list(ROOT, census)
-    n = _shards()
     timings = C.load_timings(ROOT)
     assert timings, "no recorded timings: every shard would be cut by count"
+    n = C.shard_count(home, timings)
+    assert n == C.MAX_SHARDS, "the whole list must use every shard"
     parts = C.partition(home, n, timings)
     flat = [f for p in parts for f in p]
     assert sorted(flat) == sorted(home) and len(flat) == len(set(flat)), "a file in no shard, or in two"
@@ -141,13 +152,109 @@ def test_the_shards_are_a_partition_of_the_list_and_carry_the_known_reds(census)
     assert max(loads) <= 1.5 * (sum(loads) / n) + max(timings.get(f, C.UNKNOWN_MS) for f in home), loads
     for k in range(1, n + 1):
         args = C.shard_args(home, k, n, timings)
-        files = [a for a in args if a.endswith(".py")]
-        assert files == parts[k - 1]
-        for node in [args[i + 1] for i, a in enumerate(args) if a == "--deselect"]:
-            assert node in C.KNOWN_RED and node.split("::", 1)[0] in files
+        assert args[:-2] == parts[k - 1] and args[-2:] == ["-p", C.PLUGIN]
+    assert C.PLUGIN == "tools.ci_app_src_rails" and C.shard_args([], 1, 1, timings) == []
     for node in C.KNOWN_RED:
         f = node.split("::", 1)[0]
         assert ("::" not in node) == (f not in home), f"{node}: a whole-file entry must leave the list, a test must not"
+    assert C.shard_count([], timings) == 0 and C.shard_count(home[:1], timings) == 1
+
+
+def test_a_known_red_runs_as_a_strict_xfail_so_it_goes_red_when_it_goes_green():
+    class _Item:
+        def __init__(self, nodeid):
+            self.nodeid, self.marks = nodeid, []
+
+        def add_marker(self, mark):
+            self.marks.append(mark)
+
+    red = next(k for k in C.KNOWN_RED if "::" in k)
+    items = [_Item(red), _Item("tests/test_reader.py::test_green")]
+    C.pytest_collection_modifyitems(None, items)
+    assert [m.name for m in items[0].marks] == ["xfail"] and items[0].marks[0].kwargs["strict"] is True
+    assert "delete its line" in items[0].marks[0].kwargs["reason"]
+    assert items[1].marks == [], "a test not on KNOWN_RED is left alone"
+
+
+def test_a_known_red_that_passes_turns_the_run_red(tmp_path):
+    """End to end, under pytest itself: the plugin xfails a KNOWN_RED id strictly, so a test that now PASSES fails the
+    run (XPASS strict), and one that still fails keeps it green."""
+    (tmp_path / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
+    (tmp_path / "test_k.py").write_text("def test_now_green():\n    assert True\n\n"
+                                        "def test_still_red():\n    assert False\n", encoding="utf-8")
+    (tmp_path / "conftest.py").write_text(
+        "import sys\nsys.path.insert(0, %r)\nimport ci_app_src_rails as C\n"
+        "C.KNOWN_RED.update({'test_k.py::test_now_green': 'x' * 40, 'test_k.py::test_still_red': 'x' * 40})\n"
+        "pytest_collection_modifyitems = C.pytest_collection_modifyitems\n" % str(ROOT / "tools"), encoding="utf-8")
+    import subprocess
+    r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "test_k.py"],
+                       cwd=tmp_path, capture_output=True, text=True)
+    assert r.returncode == 1 and "XPASS(strict)" in r.stdout and "1 xfailed" in r.stdout, r.stdout[-600:]
+
+
+def test_every_known_red_still_names_a_test(census):
+    for node in C.KNOWN_RED:
+        if "::" in node:
+            assert C._test_exists(ROOT, node), node
+    assert not C._test_exists(ROOT, REFUSAL_RAIL + "::test_that_was_never_written")
+    assert not C._test_exists(ROOT, next(k for k in C.KNOWN_RED if "[" in k).split("[")[0] + "[no such param]")
+
+
+# ── path-aware: a PR runs the rails that read, or depend on, what it changes ──
+
+@pytest.mark.parametrize("changed, want_refusal_rail, want_all", [
+    (["app/src/components/chart/builder/runsHere.js"], True, False),     # #1998's change
+    (["app/src/components/chart/supportLoop/refusalCodes.json"], True, False),
+    (["tools/support_loop/refusal_codes.py"], True, False),              # the helper it reads through
+    (["tests/test_support_loop_refusal_codes.py"], True, False),         # the rail itself
+    (["docs/somewhere/notes.md"], False, False),                         # nothing any rail reads
+    (["tools/ci_app_src_rails.py"], True, True),                         # the tool: everything
+    ([".github/workflows/whole-app-engine-rails.yml"], True, True),      # the job: everything
+    ([], True, True),                                                    # the diff is unknown: everything
+])
+def test_a_pr_selects_the_rails_that_read_or_depend_on_what_it_changes(census, changed, want_refusal_rail, want_all):
+    home = C.print_list(ROOT, census)
+    chosen, why = C.select(home, census, changed, C.Census.of(ROOT))
+    assert (REFUSAL_RAIL in chosen) is want_refusal_rail, why
+    assert (chosen == home) is want_all, why
+    if changed == ["docs/somewhere/notes.md"]:
+        assert chosen == [], f"a PR touching nothing a rail reads must run none: {chosen[:5]}"
+    if changed == ["tools/support_loop/refusal_codes.py"]:
+        assert len(chosen) < len(home) // 10, "a helper change must not run the world"
+
+
+def test_a_change_to_a_helper_or_an_imported_product_module_selects_the_rail(tmp_path):
+    repo = _repo(tmp_path, home=True)
+    (repo / "api" / "services").mkdir(parents=True)
+    for p in ("api/__init__.py", "api/services/__init__.py", "api/services/codes.py", "api/services/far.py"):
+        (repo / p).write_text("", encoding="utf-8")
+    (repo / "api" / "services" / "codes.py").write_text("from api.services import far\n", encoding="utf-8")
+    (repo / "tools" / "helper.py").write_text("from api.services import codes\n", encoding="utf-8")
+    (repo / "tests" / "test_reader.py").write_text(
+        "import sys\nfrom pathlib import Path\nsys.path.insert(0, 'tools')\nimport helper\n"
+        "ROOT = Path(__file__).resolve().parents[1]\n"
+        "def test(): (ROOT / 'app' / 'src' / 'pages' / 'x.js').read_text()\n", encoding="utf-8")
+    model = C.Census(repo)
+    census = model.census()
+    home = C.print_list(repo, census, exempt={}, known_red={})
+    pick = lambda changed: C.select(home, census, changed, model)[0]  # noqa: E731
+    assert pick(["app/src/pages/x.js"]) == ["tests/test_reader.py"]          # what it reads
+    assert pick(["app/src/pages/y.js"]) == []                                # a sibling it does not read
+    assert pick(["tools/helper.py"]) == ["tests/test_reader.py"]             # a helper it imports
+    assert pick(["api/services/codes.py"]) == ["tests/test_reader.py"]       # a product module the helper imports
+    assert pick(["api/services/far.py"]) == [], "the product's own imports are one hop, not followed"
+    assert pick(["tests/test_reader.py"]) == ["tests/test_reader.py"]        # the rail itself
+
+
+def test_the_plan_prints_what_github_output_takes(tmp_path, capsys):
+    changed = tmp_path / "changed.txt"
+    changed.write_text("docs/somewhere/notes.md\n", encoding="utf-8")
+    assert C.main(["--plan", "--changed", str(changed)]) == 0
+    assert capsys.readouterr().out.splitlines() == ["count=0", "n=0", "shards=[]"]
+    changed.write_text("app/src/components/chart/builder/runsHere.js\n", encoding="utf-8")
+    assert C.main(["--plan", "--changed", str(changed)]) == 0
+    out = dict(line.split("=", 1) for line in capsys.readouterr().out.splitlines())
+    assert int(out["count"]) > 0 and json.loads(out["shards"]) == list(range(1, int(out["n"]) + 1))
 
 
 def test_the_rails_step_runs_this_file_without_the_production_set():
@@ -353,14 +460,13 @@ def test_an_exemption_must_be_live_and_argued(tmp_path):
     assert any("EXEMPT but run" in b for b in _judge(run_anyway, exempt={"tests/test_reader.py": why}, known_red={}))
 
 
-def test_a_known_red_is_deselected_by_id_and_must_name_a_test_the_home_job_runs(tmp_path):
+def test_a_known_red_must_name_a_live_test_the_home_job_runs(tmp_path):
     repo = _repo(tmp_path, home=True)
     why = "red on master on a clean runner: the fixture this pins moved (regenerate it)"
     node = "tests/test_reader.py::test"
     assert _judge(repo, exempt={}, known_red={node: why}) == []
     assert C.print_list(repo, exempt={}, known_red={node: why}) == ["tests/test_reader.py"], "a test id keeps its file"
-    assert C.shard_args(["tests/test_reader.py"], 1, 1, {}, known_red={node: why}) == [
-        "tests/test_reader.py", "--deselect", node]
+    assert any("no longer defines" in b for b in _judge(repo, exempt={}, known_red={node + "_renamed": why}))
     assert C.print_list(repo, exempt={}, known_red={"tests/test_reader.py": why}) == [], "a whole-file entry drops it"
     assert _judge(repo, exempt={}, known_red={"tests/test_reader.py": why}) == []
     assert any("reads no app/src" in b for b in _judge(repo, exempt={}, known_red={"tests/test_bystander.py::t": why}))
