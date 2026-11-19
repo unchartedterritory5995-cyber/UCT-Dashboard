@@ -167,7 +167,7 @@
     "vwap since",
     "anchor a vwap"
    ],
-   "shows": "the anchor date is three whole-number inputs compared with the bar's own `year`, `month` and `dayofmonth` (no `timestamp`, no `input.time`: this engine does not hold an `input.time` default, and `timestamp` reads a clock zone it answers for on few symbols); two running sums start at the first bar on or after that date, and nothing is drawn before it",
+   "shows": "the anchor date is three whole-number inputs compared with the bar's own `year`, `month` and `dayofmonth` (an `input.time` default is not held by this engine, so the date is not one setting); two running sums start at the first bar on or after that date, and nothing is drawn before it",
    "chart": "daily",
    "file": "anchored-vwap-date.pine"
   },

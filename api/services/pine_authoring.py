@@ -126,9 +126,8 @@ RUN_STOP_WORDS: Dict[str, str] = {
                                     "it. PLOT such a value as a line (it simply ends one bar early) and say so in `reply`. "
                                     "Do not build a last-bar table, label or level on it; if that is what was asked, say "
                                     "the newest bar cannot show it yet (disposition `unsupported`)."),
-    "timestamp-clock": ("Do not use `timestamp(...)`: it reads a clock in the exchange's zone, which the engine answers "
-                        "for on few symbols. Compare the bar's own `year`, `month`, `dayofmonth`, `hour` and `minute` "
-                        "with numbers instead."),
+    "timestamp-clock": ("Do not use `timestamp(...)`: this chart's exchange zone is not one the engine answers for. "
+                        "Compare the bar's own `year`, `month`, `dayofmonth`, `hour` and `minute` with numbers instead."),
 }
 
 CONTRACT = """You write ONE complete Pine Script indicator for UCT's chart engine, from a member's plain-words request.

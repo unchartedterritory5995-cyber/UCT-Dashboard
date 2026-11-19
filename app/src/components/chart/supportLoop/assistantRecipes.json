@@ -405,7 +405,7 @@
     "vwap since",
     "anchor a vwap"
    ],
-   "shows": "the anchor date is three whole-number inputs compared with the bar's own `year`, `month` and `dayofmonth` (no `timestamp`, no `input.time`: this engine does not hold an `input.time` default, and `timestamp` reads a clock zone it answers for on few symbols); two running sums start at the first bar on or after that date, and nothing is drawn before it",
+   "shows": "the anchor date is three whole-number inputs compared with the bar's own `year`, `month` and `dayofmonth` (an `input.time` default is not held by this engine, so the date is not one setting); two running sums start at the first bar on or after that date, and nothing is drawn before it",
    "chart": "daily",
    "source": "//@version=5\nindicator(\"Anchored VWAP\", overlay=true)\ny = input.int(2026, \"Anchor year\", minval=1990, maxval=2100)\nmo = input.int(1, \"Anchor month\", minval=1, maxval=12)\nd = input.int(1, \"Anchor day\", minval=1, maxval=31)\nstarted = year > y or (year == y and (month > mo or (month == mo and dayofmonth >= d)))\nsrc = hlc3\nvar float sumV = 0.0\nvar float sumPV = 0.0\nif started\n    sumV += volume\n    sumPV += src * volume\navwap = started and sumV > 0 ? sumPV / sumV : na\nplot(avwap, \"Anchored VWAP\", color=color.orange, width=2)\n",
    "lane": "runtime",
@@ -559,8 +559,8 @@
   {
    "id": "timestamp-clock",
    "history": "fromListing",
-   "standing": true,
-   "guard": "runtime:clock-zone"
+   "standing": false,
+   "guard": null
   }
  ]
 }

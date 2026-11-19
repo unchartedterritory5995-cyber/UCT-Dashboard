@@ -81,9 +81,26 @@ export function recipeBars(kind) {
   return out
 }
 
-/** The compute context a recipe's chart kind runs under. */
+/**
+ * ⛔ THE CHART'S SYMBOL AS THE CHART HANDS IT: AN OBJECT, NEVER A STRING. The run reads `ctx.symbol`
+ * only as `{ticker, exchange, ...}` (`runtimeColumns.symbolOf`), which is `StockChart`'s `symbolMeta`.
+ * The first version of this context passed the string 'AMEX:SPY': the run then had NO symbol, so no
+ * exchange and no time zone, and `timestamp(...)` was refused (`runtime:clock-zone`) on a chart
+ * where a member's is answered. A finding made on a context the member's chart never has is a
+ * finding about the harness. `assistantPineReference.test.js` holds this object's fields, and the
+ * context's, to the ones `StockChart.jsx` builds.
+ */
+export const RECIPE_SYMBOL = Object.freeze({ ticker: 'SPY', exchange: 'NYSE Arca', industry: null, sector: null, securityType: 'ETF' })
+
+/** The compute context a recipe's chart kind runs under: the five facts the chart hands its binder. */
 export function recipeContext(kind, history) {
-  return { tf: kind === 'intraday' ? '5' : 'D', symbol: 'AMEX:SPY', newestBarIsForming: false, historyFromListing: history === 'fromListing' }
+  return {
+    sym: RECIPE_SYMBOL.ticker,
+    symbol: RECIPE_SYMBOL,
+    tf: kind === 'intraday' ? '5' : 'D',
+    newestBarIsForming: false,
+    historyFromListing: history === 'fromListing',
+  }
 }
 
 /**
@@ -113,7 +130,8 @@ export const RUN_STOP_PROBES = Object.freeze({
     history: 'offListing', chart: 'daily',
     source: '//@version=5\nindicator("probe")\nvar float total = 0.0\ntotal += volume\nplot(total, "Total")\n',
   },
-  // `timestamp(...)` reads a clock in the exchange's zone
+  // `timestamp(...)` reads a clock in the exchange's zone. Answered on a chart whose symbol the engine
+  // knows the exchange of (every member chart today); the probe stands only if that ever stops.
   'timestamp-clock': {
     history: 'fromListing', chart: 'daily',
     source: '//@version=5\nindicator("probe", overlay=true)\nplot(time >= timestamp(2026, 1, 1, 0, 0) ? close : na, "After")\n',

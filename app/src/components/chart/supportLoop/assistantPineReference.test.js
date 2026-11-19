@@ -278,8 +278,9 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
     // today both stand, each by the engine's own name for it
     const by = Object.fromEntries(out.stops.map((s) => [s.id, s]))
     expect(by['running-total']).toEqual({ id: 'running-total', history: 'offListing', standing: true, guard: 'runtime:warmup-never-converges' })
-    expect(by['timestamp-clock'].standing).toBe(true)
-    expect(by['timestamp-clock'].guard).toBe('runtime:clock-zone')
+    // ⛔ the clock probe does NOT stand: on the chart's own context (a symbol with its exchange) `timestamp`
+    // is answered. It was "refused" only while this harness passed no symbol (see the context rail below).
+    expect(by['timestamp-clock']).toEqual({ id: 'timestamp-clock', history: 'fromListing', standing: false, guard: null })
     // ⛔ and one is a WRONG VALUE: the run finishes and the list it trims is not five long
     expect(by['delete-in-one-call']).toEqual({ id: 'delete-in-one-call', history: 'fromListing', standing: true, guard: WRONG_VALUE_GUARD })
     const oneCall = computeOf(RUN_STOP_PROBES['delete-in-one-call'].source, 'daily', 'fromListing')
@@ -330,6 +331,38 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
     expect(EXAMPLES.map((e) => e.id)).toContain('another-symbol')
     expect(EXAMPLES.length - Object.keys(NEEDS_THE_CHARTS_OTHER_SYMBOL).length).toBeGreaterThanOrEqual(10)
   }, 600_000)
+
+  it('⛔ the real-run context is the one the CHART builds: the same five facts, and a symbol with the same fields', () => {
+    // read from StockChart.jsx (comments removed): what it hands its binder, and what `symbolMeta` holds
+    const chart = fs.readFileSync(path.join(REPO, 'app/src/components/StockChart.jsx'), 'utf8').split(CR).join('')
+    const code = (text) => text.split(LF).map((l) => l.split('//')[0].trim()).filter(Boolean)
+    const binder = code(chart.slice(chart.indexOf('registry: engineRegistry,'), chart.indexOf('historyWindowBars:')))
+    const FACTS = { sym: 'sym,', symbol: 'symbol: symbolMeta,', tf: 'tf: resolvedTf,', newestBarIsForming: 'newestBarIsForming: data?.newest_bar_is_forming ?? null,', historyFromListing: 'historyFromListing,' }
+    for (const line of Object.values(FACTS)) expect(binder, `StockChart no longer hands its binder: ${line}`).toContain(line)
+    const meta = chart.slice(chart.indexOf('const symbolMeta = useMemo(() => ('), chart.indexOf('), [sym, tickerMeta])'))
+    const fields = [...meta.matchAll(/^\s{6}([a-zA-Z]+):/gm)].map((m) => m[1])
+    expect(fields).toEqual(['ticker', 'exchange', 'industry', 'sector', 'securityType'])
+    for (const kind of RECIPE_CHARTS) {
+      for (const history of RECIPE_HISTORIES) {
+        const ctx = recipeContext(kind, history)
+        expect(Object.keys(ctx).sort()).toEqual(Object.keys(FACTS).sort())
+        expect(typeof ctx.symbol).toBe('object')                       // ⛔ never a string: the run would have no symbol
+        expect(Object.keys(ctx.symbol)).toEqual(fields)
+        expect(ctx.sym).toBe(ctx.symbol.ticker)
+        expect(ctx.historyFromListing).toBe(history === 'fromListing')
+      }
+    }
+    // the exchange is one this engine has a witnessed spelling for
+    const scope = JSON.parse(fs.readFileSync(path.join(REPO, 'app/src/components/chart/engine/ast/symbolScope.json'), 'utf8'))
+    expect(Object.keys(scope.confirmed)).toContain(recipeContext('daily', 'fromListing').symbol.exchange)
+    // CONTROL: the context this harness first used (a string for the symbol) is refused where the chart's is answered
+    const stamp = RUN_STOP_PROBES['timestamp-clock'].source
+    const pane = memberPaneDefinition({ source: stamp, id: `u_ctx_${n += 1}`, name: 'probe' })
+    const withString = nativeRegistry.computeFor(pane.definition, RECIPE_BARS.daily, undefined, { ...recipeContext('daily', 'fromListing'), symbol: 'AMEX:SPY' })
+    expect(Object.values(nativeRegistry.columnErrors(withString) || {}).map((e) => e.guard)).toContain('runtime:clock-zone')
+    const asTheChart = nativeRegistry.computeFor(pane.definition, RECIPE_BARS.daily, undefined, recipeContext('daily', 'fromListing'))
+    expect(Object.values(nativeRegistry.columnErrors(asTheChart) || {}).map((e) => e.guard)).not.toContain('runtime:clock-zone')
+  }, 300_000)
 
   it('the recipe bars are the same bars every time', () => {
     for (const kind of RECIPE_CHARTS) {

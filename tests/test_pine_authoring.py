@@ -346,8 +346,12 @@ def test_the_stops_of_the_run_are_said_only_while_the_engine_still_refuses_them(
     now = pa.document()
     for stop in pa.standing_run_stops():
         assert pa.RUN_STOP_WORDS[stop] in now, stop
-    # today both stand
-    assert "Never keep a value since the chart's first bar" in now and "Do not use `timestamp(...)`" in now
+    # today these stand ...
+    assert "Never keep a value since the chart's first bar" in now
+    assert "Take a drawing out of a list and delete it in TWO steps" in now
+    assert "has NO value on the chart's newest bar" in now
+    # ... and `timestamp` does NOT: on a chart-shaped context the engine answers it, so nothing is said against it
+    assert "timestamp-clock" not in pa.standing_run_stops() and "Do not use `timestamp(...)`" not in now
     # CONTROL: the day the engine computes a probe, its sentence leaves the document
     none = pa.document(run_stops=[])
     assert all(words not in none for words in pa.RUN_STOP_WORDS.values())
@@ -365,7 +369,7 @@ def test_no_recipe_does_what_the_document_says_never_to_do():
     code = lambda src: "\n".join(line.split("//")[0] for line in src.splitlines()[1:])
     for r in pa.recipes():
         body = code(r["source"])
-        assert "timestamp(" not in body and "input.time" not in body and "hline(" not in body, r["id"]
+        assert "input.time" not in body and "hline(" not in body, r["id"]
         assert "fill(" not in body or r["lane"] == "host", r["id"]
         assert "plot(" in body or "plotshape(" in body, r["id"]
         assert not re.search(r"\.delete\(\s*array\.", body), f"{r['id']}: a drawing deleted in one call stays in its list"
