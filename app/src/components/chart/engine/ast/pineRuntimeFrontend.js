@@ -9156,10 +9156,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
               `\`${node.op}\` over a colour — Pine compares colours with \`==\` and \`!=\` only`, at)
           }
           if (isBuiltinNa(node.left, scope) || isBuiltinNa(node.right, scope)) {
+            // ⭐⭐ ENGINE NUMBER PENDING (CO-1) — PINE v4 IS CAPTURED. vw-tc1-colour-na-compare-rddt-1d-2026-11-16
+            // (v4, NYSE:RDDT 1D, 667 bars): `c != na` (C1) and `c == na` (C2) answer 0 on EVERY bar, where `c`
+            // is a colour (316 bars) and where it is `na` (351), exactly as a NUMBER beside the literal `na`
+            // does (N1 / N2), which this lane already answers 0 (a comparison with an `na` operand reads false,
+            // S1); `na(c)` (C3) is the test that sees the `na`. So in v4 the comparison is lowered as the number
+            // one is. ⛔ Every other version is not captured and keeps the refusal, by name.
+            if (pineVersion === 4) return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))
             note('runtime:colour')
             throw new RuntimeRefusal('runtime:colour',
-              `a colour compared with \`na\` by \`${node.op}\` — what TradingView answers is not captured yet `
-              + '(probe `vw-tc1-colour-na-compare`); `na(x)` is the reference test for `na`', at)
+              `a colour compared with \`na\` by \`${node.op}\` — what TradingView answers is captured for Pine v4 `
+              + 'only (probe `vw-tc1-colour-na-compare`); `na(x)` is the reference test for `na`', at)
           }
           if (!holdsColour(node.left, scope) || !holdsColour(node.right, scope)) {
             note('runtime:colour')
