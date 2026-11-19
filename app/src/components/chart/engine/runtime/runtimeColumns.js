@@ -799,6 +799,14 @@ function computeOffListing(def, rows, ctx, opts) {
   const inner = { ...opts, warmupCurtain: false }
   // ⭐⭐ UIE PHASE 3 (M1) — B stops as soon as it is PROVEN to repeat A (`warmupProbe.js`);
   // a drawing program is never probed (its object store is not encoded)
+  // ⛔ (Fred RS filled chart, 2026-11-19: MEASURED, not to re-propose blind) — probing a program that DRAWS (its
+  // object store in the probe's state) was designed and approved, then DROPPED: for Fred RS's run half it pays 0 ms.
+  // (1) Its drawings' x is `bar_index`, a column B reads `shift` lower on every bar, so no column check can pass; a
+  // throwaway hack that drew the store into the state AND excluded that column showed (2): the state never
+  // re-converges. On 60m (an 8,000-bar run half) the first checkpoint past its 5,000-deep ring is A's bar 6,495, and
+  // there `var float[] different_values` ("the first 7 DIFFERENT seed values", in the order the run first meets
+  // them) holds the same set in another order in A and B: the plots agree, the state never does. On 30m (3,840
+  // bars) B never commits 5,000 bars at all. Re-open only with a measured beneficiary whose state does converge.
   const probe = objects || opts.warmupEarlyStop === false ? null : makeWarmupProbe(n, shift)
   // ⭐ UIE PHASE 5 (M2) — each run keeps its own session (`sessionRole`); A is probed only
   // when it runs from scratch (`probeIfCold`): a resumed A visits none of the early bars
