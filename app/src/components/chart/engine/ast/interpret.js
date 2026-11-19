@@ -5463,36 +5463,6 @@ function readsClock(ast, table) {
  *  ⛔ A tree with no switched recurrence takes the single pass unchanged, so no
  *  existing column moves. The returned column is a COPY: the real run's column
  *  may be the memoised one another plot shares. */
-// ⭐ PERF (Fred RS filled chart, C4, coordinator ruling 2026-11-19) — THE CLOCK, ONCE PER BARS. Every tree that reads a
-// clock name computes all thirteen clock columns (`indicators.js::computeClock`) over its bars, so a run whose columns
-// read the clock five times computed it five times (Fred RS's run half: ~39 ms a run on 11,520 5m bars, its
-// `Intl` session maths included). `computeClock` reads the bars' `t` and count alone (`barOpenInstants`), the
-// timeframe and the forming tri-state, so its columns are kept per bars ARRAY and per those two, with the times they
-// came from: a bars array whose times are not those any more is computed again. Each caller is handed its OWN copy, so
-// nothing one caller does to a column can reach another's. Exact by construction.
-const _clockMemo = new WeakMap()
-let _clockMemoOff = false
-/** Tests: compute the clock for every tree, as before (the identity rails compare both). */
-export function __clockMemoOffForTests(off) { _clockMemoOff = !!off }
-const copyClock = (cols) => {
-  const out = {}
-  for (const k of Object.keys(cols)) out[k] = Float64Array.from(cols[k])
-  return out
-}
-export function clockColumnsOf(bars, tf, forming) {   // exported for its rail (`clockMemo.test.js`)
-  if (_clockMemoOff || !Array.isArray(bars)) return computeClock(bars, tf, forming)
-  let byKey = _clockMemo.get(bars)
-  if (!byKey) { byKey = new Map(); _clockMemo.set(bars, byKey) }
-  const key = `${typeof tf}:${tf}|${typeof forming}:${forming}`
-  const hit = byKey.get(key)
-  if (hit && hit.ts.length === bars.length && hit.ts.every((t, i) => Object.is(t, bars[i] ? bars[i].t : undefined))) {
-    return copyClock(hit.cols)
-  }
-  const cols = computeClock(bars, tf, forming)
-  byKey.set(key, { ts: bars.map((b) => (b ? b.t : undefined)), cols: copyClock(cols) })
-  return cols
-}
-
 export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // ⭐ C36 — a tree whose `time(<timeframe>)` / `time_close(<timeframe>)` cannot
   // be answered on THIS chart at all (it is not daily, its daily bars include one
@@ -8154,7 +8124,11 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // `api/services/indicator_compute.py::bar_close_state`, which is the ONE
     // consumer of the NYSE sets, and that function's answer is the tri-state
     // the caller now passes as `newestBarIsForming`.
-    const cols = clockColumnsOf(bars, opts ? opts.tf : undefined,
+    // ⭐ PERF (C4) — a caller may hand in `opts.clockOf`, called exactly as `computeClock` is, with THESE bars,
+    // timeframe and tri-state: the runtime lane hands `clockMemo.js::clockColumnsOf`, which computes the columns once
+    // per bars array and answers each ask with its own copy. The memo is not kept here: this module is pure.
+    const clockOf = opts && typeof opts.clockOf === 'function' ? opts.clockOf : computeClock
+    const cols = clockOf(bars, opts ? opts.tf : undefined,
       opts ? opts.newestBarIsForming : undefined)
     for (const name of Object.keys(TABLE.clock || {})) {
       const col = cols[name]
