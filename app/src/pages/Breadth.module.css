@@ -242,7 +242,7 @@
   box-sizing: border-box;
   padding: 0 var(--br-cell-px);
   line-height: calc(16px * var(--br-scale));
-  text-align: center;
+  text-align: right;
   font-size: var(--br-head-fs);
   font-weight: 600;
   color: var(--br-text);
@@ -275,14 +275,13 @@
 /* ── Body cells ──────────────────────────────────────────────────────────────── */
 .td {
   padding: 0 var(--br-cell-px);
-  /* The value's box (.numBox) is centered; the digits inside it are right-aligned. */
   /* FIXED height (border-box) — every Monitor row is exactly 32px so the virtual
      scroller's scroll-to-index is pixel-exact across all ~4,700 sessions. Content
      is single-line (the table is white-space:nowrap), so nothing pushes past it.
      Must match MONITOR_ROW_H / MONITOR_ROW_H_WIDE in Breadth.jsx (--br-row-h). */
   height: var(--br-row-h);
   box-sizing: border-box;
-  text-align: center;
+  text-align: right;
   color: var(--br-text);
   border-bottom: 1px solid var(--br-row);
   font-variant-numeric: tabular-nums;
@@ -525,10 +524,6 @@
 /* ── Drillable cells ─────────────────────────────────────────────────────── */
 .drillable {
   cursor: pointer;
-}
-/* The dotted underline lives on the value box: text-decoration does not reach into
-   an inline-block child. */
-.drillable .numBox {
   text-decoration: underline;
   text-decoration-style: dotted;
   text-decoration-color: color-mix(in srgb, var(--text-bright) 22%, transparent);
@@ -545,8 +540,10 @@
   color: var(--br-bright);
 }
 
-.drillable:hover { color: var(--br-bright); }
-.drillable:hover .numBox { text-decoration-color: var(--br-rest); }
+.drillable:hover {
+  text-decoration-color: var(--br-rest);
+  color: var(--br-bright);
+}
 tbody tr { cursor: pointer; }
 
 
@@ -1022,11 +1019,13 @@ tbody tr { cursor: pointer; }
 /* Reconciles to roughly 10% rather than to a point — small counts sitting on a
    hard threshold against a 252-day extreme. Directionally right, not a number
    to trade a single name off. */
-.liveRow .liveApprox .numBox::after {
+.liveRow .liveApprox { position: relative; }
+.liveRow .liveApprox::after {
   content: '≈';
-  position: absolute;   /* outside the fixed-width box, so the digits stay aligned */
-  left: 100%;
-  margin-left: 2px;
+  position: absolute;   /* in the cell's right padding, so the digits keep their column */
+  right: 2px;
+  top: 50%;
+  transform: translateY(-60%);
   font-size: var(--text-xs);
   opacity: 0.5;
   vertical-align: super;
@@ -1186,14 +1185,6 @@ tbody tr { cursor: pointer; }
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
-/* The centered value box (owner 2026-11-19): as wide as the column's widest value
-   (set inline from the format), right-aligned digits, centered in the cell. */
-.numBox {
-  position: relative;
-  display: inline-block;
-  text-align: right;
-  white-space: nowrap;
-}
 
 /* 10ch of the cell font, invisible — Breadth.jsx measures it for the equal-width
    column groups (round 11). */

@@ -430,9 +430,6 @@ export const widthGroupOf = (key) => WIDTH_GROUP[key] ?? null
 // +1ch for the live row's "≈" mark; 32px = the cell padding (incl. a family start).
 // `ch` here is the HEADER font's; × --br-fs-ratio makes it the cell font's, and the
 // padding follows --br-cell-px, so the widths scale with the wide-screen size too.
-// The centered value box (owner 2026-11-19): the column's widest value in the CELL
-// font (`ch` of the box itself), so every row's box is the same width.
-const numBoxWidth = (col) => `${valueCh(col)}ch`
 const colMinWidth = (col) => `calc(${valueCh(col) + 1}ch * var(--br-fs-ratio, 1.087) + 2 * var(--br-cell-px, 12px) + 8px)`
 
 function cellClass(col, val, row = null) {
@@ -1729,10 +1726,7 @@ export default function Breadth() {
                             + `${row._live ? ', live session' : `, ${row.date}`} — open the list of stocks`,
                         } : {})}
                       >
-                        {/* The value right-aligned in a box as wide as the column's widest
-                            value, the box centered in the cell: ones stay under ones and
-                            each column's numbers sit in its middle (owner 2026-11-19). */}
-                        <span className={styles.numBox} style={{ width: numBoxWidth(col) }}>{fmtCell(col, val)}</span>
+                        {fmtCell(col, val)}
                       </td>
                     )
                   })}
