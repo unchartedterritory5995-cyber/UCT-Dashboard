@@ -1196,3 +1196,11 @@ tbody tr { cursor: pointer; }
   font-size: var(--br-cell-fs);
   pointer-events: none;
 }
+
+/* ── Universe switcher (owner 2026-11-19) ─────────────────────────────────── */
+/* Off UCT: Health hidden ("—") and the not-yet-available columns ("n/a"). */
+.naCell { color: var(--br-faint); }
+/* A provisional session (the canonical one has not landed yet). */
+.provisionalDate { font-style: italic; color: var(--br-faint); }
+/* The universe line in a column's header menu. */
+.colInfoNote { margin-top: 6px; color: #bdbdbd; }

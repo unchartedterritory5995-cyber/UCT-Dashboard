@@ -625,8 +625,24 @@ def get_library_health(_access: dict = Depends(require_bars_access)):
 _BODY_CACHE_TTL = 300
 
 
-def _body_cache_key(days: int, end: str, anchor: str) -> str:
-    return f"breadth_history_body_{days}_{end or 'latest'}_{anchor}"
+def _body_cache_key(days: int, end: str, anchor: str, universe: str = "uct",
+                    token: str = "") -> str:
+    """⛔ UCT's key is byte-identical to before; every other universe appends `_{universe}` and
+    its store / live identity, so two universes (or two builds of one) can never share a body."""
+    base = f"breadth_history_body_{days}_{end or 'latest'}_{anchor}"
+    if universe == "uct":
+        return base
+    return f"{base}_{universe}|{token}"
+
+
+def _resolve_universe(universe) -> str:
+    """The validated universe id. ⛔ An unknown id is a 400 — never silently UCT."""
+    from api.services import breadth_universes as bu
+    raw = universe if isinstance(universe, str) else "uct"
+    try:
+        return bu.get(raw)["id"]
+    except bu.UnknownUniverse as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── TERM-082 (census rank 5): serve the last good body while one refresh runs ──
@@ -647,7 +663,8 @@ def _body_cache_key(days: int, end: str, anchor: str) -> str:
 #: Bounded at 5x the body TTL: past that a failing refresh degrades to the old
 #: synchronous build instead of pinning the Monitor to a 25-minute-old body.
 HISTORY_STALE_MAX_AGE = 1500
-_HISTORY_STALE_MAX_KEYS = 16
+#: 64 (was 16): the four universes each hold their own windows.
+_HISTORY_STALE_MAX_KEYS = 64
 _GEN_KEY = "breadth_history_generation"
 _GEN_TTL = 7 * 86400
 
@@ -674,14 +691,18 @@ def _history_stale():
     return _HISTORY_STALE
 
 
-def _build_history_body(days: int, end: str, anchor: str, *, timed: bool) -> dict:
+def _build_history_body(days: int, end: str, anchor: str, *, timed: bool,
+                        universe: str = "uct", bk: str = "") -> dict:
     """Read + bound + encode one window, write the body cache, and return a slot
     record `{body, nrows, gen, gen_end}`. `timed` is False on the background refresh
     thread, which must not write into the requesting caller's timing record."""
     from api.services import breadth_timing
     gen = _history_generation(create=True)
     _t0 = time.perf_counter()
-    rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
+    if universe != "uct":
+        rows = svc.get_history_universe(universe, days, end=end or None, anchor=anchor)
+    else:
+        rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
     if timed:
         breadth_timing.note(reader_ms=(time.perf_counter() - _t0) * 1000.0, rows=len(rows),
                             body_cache="miss")
@@ -691,8 +712,12 @@ def _build_history_body(days: int, end: str, anchor: str, *, timed: bool) -> dic
     # encoder.
     with (breadth_timing.phase("route_tail") if timed else _null_phase()):
         top = rows[0]["date"] if rows else None
-        bounds = svc.date_bounds()
-        _next = svc.next_trading_day(top) if end else None
+        if universe != "uct":
+            bounds = svc.universe_date_bounds(universe)
+            _next = svc.universe_next_trading_day(universe, top) if end else None
+        else:
+            bounds = svc.date_bounds()
+            _next = svc.next_trading_day(top) if end else None
     payload = {
         "rows": rows,
         "days": days,
@@ -703,13 +728,16 @@ def _build_history_body(days: int, end: str, anchor: str, *, timed: bool) -> dic
         # window there is nothing newer to step to.
         "next_date": _next,
     }
+    if universe != "uct":
+        # ⛔ Added ONLY off UCT: the UCT body stays byte-identical.
+        payload["universe"] = universe
     with (breadth_timing.phase("serialise") if timed else _null_phase()):
         body = _render_json(payload)
     gen_end = _history_generation(create=False)
     if gen_end == gen:
         # Only a build no writer interrupted may fill the body cache; a straddling
         # one would otherwise pin pre-push bytes for the full TTL.
-        cache.set(_body_cache_key(days, end, anchor), (body, len(rows)), ttl=_BODY_CACHE_TTL)
+        cache.set(bk or _body_cache_key(days, end, anchor), (body, len(rows)), ttl=_BODY_CACHE_TTL)
     return {"body": body, "nrows": len(rows), "gen": gen, "gen_end": gen_end}
 
 
@@ -760,8 +788,13 @@ def _render_json(payload: dict) -> bytes:
 def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
                         end: str = Query(default=""),
                         anchor: str = Query(default="le"),
+                        universe: str = Query(default="uct"),
                         _user: dict = Depends(require_paid)):
     """History window, newest-first.
+
+    `universe` (default `uct`): `us` / `nasdaq` / `nyse` serve the PRE-BUILT per-universe rows
+    (`breadth_universe_monitor`) with the market-wide columns copied from UCT; an unknown id is
+    a 400. The `uct` answer — body and cache keys — is byte-identical to before.
 
     `end`/`anchor` let the Monitor's Time Navigator teleport the window so its
     top row is a chosen date (`anchor=le`) or the start of a chosen year
@@ -786,6 +819,7 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
     # `end` and `days`. Normalise both the same way `anchor` already is.)
     days = days if isinstance(days, int) else 90
     end = end if isinstance(end, str) else ""
+    universe = _resolve_universe(universe)
     # Request-driven self-heal (cooldown-gated, background): any Monitor view
     # re-checks the newest days so a corrupt collection the scheduled passes missed
     # (or ran too early to fix) gets healed from bars promptly.
@@ -798,7 +832,8 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
     breadth_timing.begin(span=days)
     try:
         from api.services.cache import cache as _cache
-        bk = _body_cache_key(days, end, anchor)
+        bk = (_body_cache_key(days, end, anchor) if universe == "uct" else
+              _body_cache_key(days, end, anchor, universe, svc.universe_cache_token(universe)))
         cached = _cache.get(bk)
         if cached is not None:
             # ⭐ THE WARM PATH, AND IT IS THE ONE MEMBERS ARE ON MOST. Measured before
@@ -826,7 +861,8 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
         rec, tier, age = serve_with_tier(
             stale, bk, fresh=lambda: _fresh_body(bk),
             build=lambda: _build_history_body(days, end, anchor,
-                                              timed=threading.current_thread() is _caller),
+                                              timed=threading.current_thread() is _caller,
+                                              universe=universe, bk=bk),
             good=_history_good)
         if rec.get("hit"):
             breadth_timing.note(cache="hit", cache_tier="body", rows=rec["nrows"],
@@ -841,12 +877,15 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
                         headers={"Server-Timing": server_timing(
                             "breadth_monitor", tier,
                             (time.perf_counter() - _t_route) * 1000.0, age)})
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
 
 @router.get("/api/breadth-monitor/service-history")
 def get_breadth_history_service(days: int = Query(default=90, ge=1, le=8000),
+                                universe: str = Query(default="uct"),
                                 _: None = Depends(require_push_secret)):
     """The Monitor's history body, for the SERVICE credential (the `PUSH_SECRET` bearer).
 
@@ -857,7 +896,10 @@ def get_breadth_history_service(days: int = Query(default=90, ge=1, le=8000),
     It calls the members' handler itself, so the two can never answer differently. ⛔ It does
     not loosen the members' route: that one still answers only a paid session.
     """
-    return get_breadth_history(days=days, end="", anchor="le", _user={})
+    universe = _resolve_universe(universe)
+    if universe == "uct":
+        return get_breadth_history(days=days, end="", anchor="le", _user={})
+    return get_breadth_history(days=days, end="", anchor="le", universe=universe, _user={})
 
 
 @router.post("/api/breadth-monitor/heal")
@@ -1190,13 +1232,32 @@ def _log_series(requested, span_days, sessions, cache_hit, t0) -> None:
 
 
 @router.get("/api/breadth-monitor/dates")
-def get_breadth_dates(_user: dict = Depends(require_paid)):
+def get_breadth_dates(universe: str = Query(default="uct"),
+                      _user: dict = Depends(require_paid)):
     """The full merged session timeline (collector + reconstructed), NEWEST-FIRST.
 
     Tiny (~5k date strings) and cached — this is the index the Monitor's virtual
     scroller renders over, so a teleport is an instant scroll-to-index and only
     the visible rows fetch. `min`/`max` bound the navigator's calendar + year list.
+
+    `universe` (default `uct`): a pre-built universe answers ITS sessions (stored + the
+    provisional ones), its own `min`/`max`, and today's provisional `live_row` (or null).
     """
+    universe = _resolve_universe(universe)
+    if universe != "uct":
+        try:
+            tl = svc.universe_timeline(universe)
+            asc = tl["dates"]
+            return {
+                "dates": list(reversed(asc)),
+                "count": len(asc),
+                "min": asc[0] if asc else None,
+                "max": asc[-1] if asc else None,
+                "universe": universe,
+                "live_row": svc.universe_live_row(universe),
+            }
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=str(e))
     try:
         asc = svc.merged_dates()           # oldest-first
         return {
