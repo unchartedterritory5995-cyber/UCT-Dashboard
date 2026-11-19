@@ -357,6 +357,61 @@ def clean_save_refusal(state: dict, original: dict):
     if res_norm(st.get("resolution")) != res_norm((original or {}).get("resolution")):
         return f"the resolution reads {st.get('resolution')!r}, not {(original or {}).get('resolution')!r}"
     return None
+
+
+#: ⭐⭐ ONE SETTLED READ OF THE RIG (coordinator ruling, 2026-11-19): the one definition of what a fresh load READS,
+#: for every clean-check (`Driver.verify_fresh_load`, which the batch end, the repair's verify-before and the guarded
+#: clean-save's verify-after all call, and the scratchpad end-of-batch rail `rig_verify.py`).
+#: ⚰️ THE CONTRADICTION IT ENDS (2026-11-19, 03:07Z and again 21:31Z): run htfform-c's verify_fresh_load took the first
+#: read where the chart handle answered (0 studies) and called the layout clean, so the guarded clean-save never ran;
+#: the end-of-batch rail's new launch, a few seconds later, read the saved leftover UCTPROBE_RS_SEED_RSRATING. The
+#: next batch (nhdot) read it on its own fresh load and repaired it. A handle that answers is not a layout that has
+#: finished attaching its studies: an empty list read too early is not "clean".
+#: A read counts once the handle answers with a studies list and a symbol; the state is SETTLED when (symbol,
+#: resolution, study ids) is unchanged for `RIG_SETTLE_S` straight. Never settled inside `RIG_SETTLE_MAX_S`: NOT
+#: READ, which no caller may report as clean.
+#: ⛔ RIG_SETTLE_S is a CHOICE, not a measured bound: the read-only measurement of 2026-11-19 22:02Z found the layout
+#: already clean (0 studies for 30 s on a new launch and on a reload), so no attach time was measured. Every settled read
+#: records when its state last changed (`lastChangeS`, `changes`), so the ledger measures it from here on.
+RIG_SETTLE_S = 10.0
+RIG_SETTLE_MAX_S = 90.0
+
+
+def rig_state_key(st):
+    """What a settled read compares: the symbol, the resolution and the study ids, in order. None until it counts."""
+    if not st or st.get("handle") is None or st.get("studies") is None or not st.get("symbol"):
+        return None
+    return (st.get("symbol"), str(st.get("resolution")), tuple(str(s.get("id")) for s in st.get("studies") or []))
+
+
+def settled_rig_read(read, clock, poll_s, settle_s=RIG_SETTLE_S, max_s=RIG_SETTLE_MAX_S) -> dict:
+    """⭐⭐ THE settled read (see RIG_SETTLE_S). `read()` returns the page's STATE_JS answer; `clock` has `monotonic()`
+    and `sleep()`. Returns {"state", "settled", "waitedS", "answeredS", "lastChangeS", "changes"}: `changes` is every
+    distinct state seen, with the second it was first seen, so a study that attaches late is on the record."""
+    t0 = clock.monotonic()
+    last_key, since, answered, st = None, None, None, None
+    changes = []
+    while True:
+        st = read()
+        now = clock.monotonic() - t0
+        key = rig_state_key(st)
+        if key is not None:
+            if answered is None:
+                answered = now
+            if key != last_key:
+                last_key, since = key, now
+                changes.append({"atS": round(now, 2), "symbol": key[0], "resolution": key[1],
+                                "studies": [s.get("name") for s in (st.get("studies") or [])]})
+            elif now - since >= settle_s:
+                return {"state": st, "settled": True, "waitedS": round(now, 2), "answeredS": round(answered, 2),
+                        "lastChangeS": round(since, 2), "changes": changes}
+        if now >= max_s:
+            return {"state": st, "settled": False, "waitedS": round(now, 2),
+                    "answeredS": None if answered is None else round(answered, 2),
+                    "lastChangeS": None if since is None else round(since, 2), "changes": changes}
+        clock.sleep(poll_s)
+
+
 VH_CLEANUP_JS = "() => (window.__uctVH ? window.__uctVH.cleanup() : { globalsLeft: [], absent: true })"
 GLOBALS_JS = "() => Object.keys(window).filter((k) => /^__uct/.test(k))"
 
@@ -601,6 +656,9 @@ class Opts:
         self.date = kw.get("date") or _dt.datetime.now().strftime("%Y-%m-%d")
         # ⭐ the guarded clean-save (`Driver.guarded_clean_save`): OFF unless the run asks for it
         self.clean_save = bool(kw.get("clean_save", False))
+        # ⭐⭐ the settled read of the rig (`settled_rig_read`): how long its state must hold still, and the most it waits
+        self.rig_settle_s = float(kw.get("rig_settle_s", RIG_SETTLE_S))
+        self.rig_settle_max_s = float(kw.get("rig_settle_max_s", RIG_SETTLE_MAX_S))
 
 
 class Driver:
@@ -664,18 +722,19 @@ class Driver:
         ⚰️ MEASURED 2026-11-18: run l12-is-2026-11-18's last probe (UCTPROBE_RS_OWN_DAILY_INTRADAY, RDDT 5m) was removed
         and verified gone in the page, the batch restored 1D, and a fresh load read the probe on 5m: the layout had
         saved it at the add. The next batch (Q-FCMP3) stopped at its gate, and the owner's layout carried it until it
-        was cleared by hand. ⛔ Read only: it never removes or sets anything (the only repair is `guarded_clean_save`)."""
+        was cleared by hand. ⛔ Read only: it never removes or sets anything (the only repair is `guarded_clean_save`).
+        ⭐⭐ The read is THE settled read (`settled_rig_read`): the first answer is not the layout (2026-11-19, htfform-c)."""
         self.page.reload(wait_until="domcontentloaded")
-        st, ok = self.poll("verify:state", STATE_JS, None,
-                           lambda s: bool(s and s.get("handle") is not None and s.get("studies") is not None and s.get("symbol")),
-                           max(self.opts.ui_timeout_s * 6, 30))
-        st = st or {}
-        studies = [{"id": s.get("id"), "name": s.get("name")} for s in (st.get("studies") or [])]
+        s = settled_rig_read(lambda: self.ev("verify:state", STATE_JS), self.clock, self.opts.poll_s,
+                             self.opts.rig_settle_s, self.opts.rig_settle_max_s)
+        st, ok = s["state"] or {}, s["settled"]
+        studies = [{"id": x.get("id"), "name": x.get("name")} for x in (st.get("studies") or [])]
         want = {"symbol": original.get("symbol"), "resolution": original.get("resolution")}
         got = {"symbol": st.get("symbol"), "resolution": st.get("resolution")}
         clean = (ok and not studies and sym_match(got["symbol"], want["symbol"])
                  and res_norm(got["resolution"]) == res_norm(want["resolution"]))
-        return {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got}
+        return {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got,
+                "settle": {k: s[k] for k in ("waitedS", "answeredS", "lastChangeS", "changes")}}
 
     def guarded_clean_save(self, original, label="repair") -> dict:
         """⭐⭐ THE GUARDED CLEAN-SAVE (owner ruling, delegated to the coordinator, 2026-11-19: "Save only through the
