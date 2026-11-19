@@ -55,6 +55,14 @@ UNADMITTED_SCRIPT = ("//@version=5\nindicator('u')\nm = matrix.new<float>(2, 2, 
                      "plot(close)\n")
 
 
+#: An object family the committed registry does NOT admit (no runtime-drawn capture): `polyline.*`.
+POLYLINE_SNIPPET = ("var polyline p = na\n"
+                    "p := polyline.new(array.from(chart.point.from_index(0, low), chart.point.from_index(1, high)))\n")
+#: linefill.*, admitted by PARITY UNIT LF.
+LINEFILL_SNIPPET = ("var linefill f = na\n"
+                    "f := linefill.new(line.new(0, low, 1, low), line.new(0, high, 1, high), color.blue)\n")
+
+
 def member_doc(source: str = MEMBER_COPY) -> dict:
     d = copy.deepcopy(ADX)
     d["compute"]["source"] = source
@@ -134,7 +142,7 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "obj:line", "obj:label", "obj:delete", "obj:collection",
         # U3 (2026-11-15): each on the one evidence rule over the S1-era corpus; realtime-state for
         # closed-bar history only (G6); max_bars_back by coordinator ruling (a)
-        # (obj:linefill withdrawn in U3b: no x-graded linefill capture since U13)
+        # (obj:linefill withdrawn in U3b: no x-graded linefill capture since U13; back in PARITY UNIT LF, below)
         "obj:getter", "switch", "for-in", "max_bars_back", "realtime-state",
         # U3b (2026-11-15): S20 supplied the second community scripts; calc-bars HELD (non-binding windows)
         "udt", "generics",
@@ -153,7 +161,13 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "obj:box",
         # (2026-11-18) strategy() run by the simulated broker: Q-SD1 / Q-SD2 (supertrend-strategy, community) and
         # W9-Q-S1p, MATCH runtime-on with the broker armed; a backtest is still served only on pinned broker rules
-        "strategy-decl"])
+        "strategy-decl",
+        # PARITY UNIT LF step 3 (2026-11-18): linefill.* on FVG Finder + AlgoAlpha Trend Targets, each drawn by its RUN
+        # (LF step 1), with the count-at-cap carve-out (LF step 2): test_LF3_obj_linefill_is_admitted_on_run_drawn_captures
+        "obj:linefill",
+        # admit:request-other (coordinator ruling 2026-11-19): PA ZigZag at 1W / 1M (runtime lane) and SR-MTF (the
+        # forced runtime lane, #1985), both community, MATCH at engine 84; for closed-bar history only (G6)
+        "request-other"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -436,18 +450,19 @@ def test_A7_an_x_grade_that_DIVERGES_vetoes_the_family():
 #: U1 (2026-11-15): the object families admitted on objects v2 runtime-on evidence (y graded, G1).
 U1_OBJECT_FAMILIES = ["obj:collection", "obj:delete", "obj:label", "obj:line"]
 #: U3 (2026-11-15): two more object operations met the rule on S1's community scripts.
-U3_OBJECT_FAMILIES = ["obj:getter"]   # obj:linefill withdrawn in U3b (test_U3b_...)
+U3_OBJECT_FAMILIES = ["obj:getter"]   # obj:linefill withdrawn in U3b; back in LF (LF_OBJECT_FAMILIES)
 #: DRAW-1 (2026-11-16): table.* met the rule on two community scripts drawn by the run.
 DRAW1_OBJECT_FAMILIES = ["obj:table", "obj:box"]
+#: PARITY UNIT LF step 3 (2026-11-18): linefill.* met the rule on two community scripts drawn by their runs.
+LF_OBJECT_FAMILIES = ["obj:linefill"]
 
 
 def test_A7_the_committed_object_families_are_U1s_four_and_U3s_two():
     rep = rt.admitted_capabilities()
     assert sorted(c for c in rep["admitted"] if c.startswith("obj:")) == sorted(
-        U1_OBJECT_FAMILIES + U3_OBJECT_FAMILIES + DRAW1_OBJECT_FAMILIES)
-    # polyline has no runtime-drawn evidence at all; linefill has one runtime-drawn script (FVG Finder)
-    for c in ("obj:polyline", "obj:linefill"):
-        assert c not in rep["admitted"], c
+        U1_OBJECT_FAMILIES + U3_OBJECT_FAMILIES + DRAW1_OBJECT_FAMILIES + LF_OBJECT_FAMILIES)
+    # polyline has no runtime-drawn evidence at all
+    assert "obj:polyline" not in rep["admitted"]
 
 
 #: ⭐ DRAW-1 (coordinator ruling 2026-11-16): obj:box was withheld on inside-bar-boxes' COUNT (vendor 52,
@@ -489,16 +504,39 @@ def test_A7_obj_box_is_admitted_with_the_count_at_cap_carve_out():
     assert "COUNT_AT_CAP_GUARD = 'objects:count-at-cap'" in pool
 
 
-def test_U3b_linefill_is_withdrawn_until_an_x_graded_capture_carries_it():
-    """U3b: the three linefill captures U3 admitted on were taken before the x table and now grade
-    objects v2 INCONCLUSIVE, so no evidence is left; the row is gone and the readme says why."""
+#: PARITY UNIT LF step 3: the captures obj:linefill is admitted on, and the ones it is NOT, each for its reason.
+LF3_EVIDENCE = ("fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+                "trend-targets-algoalpha-rddt-1d-2026-11-15", "trend-targets-algoalpha-rddt-1d-2026-11-17")
+#: objects v2 INCONCLUSIVE: taken before the x table (U3b withdrew the row on these three)
+LF3_PRE_X = ("trend-targets-algoalpha-rddt-1d-2026-10-02", "trend-targets-algoalpha-spy-1d-2026-10-02",
+             "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14")
+#: objects v2 MATCH, but the run holds its drawings back by name on SPY (format:tick-unsettled): the HOST program draws them
+LF3_HOST_DRAWN = "trend-targets-algoalpha-spy-1d-2026-11-15"
+
+
+def test_LF3_obj_linefill_is_admitted_on_run_drawn_captures():
+    """U3b withdrew obj:linefill (no x-graded capture); S28 / DRAW-1 kept it out (FVG Finder alone: AlgoAlpha's linefills
+    were its HOST program's). PARITY UNIT LF: step 1 gives a clean host program's runtime document its RUN's drawings
+    (`runtimeObjectsDoor.js` hostFallback), step 2 withholds the linefill family by name once the line collector deletes a
+    filled line, and step 3 admits the row on the regenerated snapshot. Which lane draws each entry is measured by
+    `vendorHarness.objLinefillEvidence.test.js`; this holds the row's shape and the captures it must not count."""
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
-    assert "obj:linefill" not in doc["capabilities"]
-    assert "obj:linefill is WITHDRAWN" in " ".join(doc["_readme"])
+    row = doc["capabilities"]["obj:linefill"]
+    assert rg.pine_capability_admission("obj:linefill", row) == []
+    assert sorted(e["capture"] for e in row["evidence"]) == sorted(LF3_EVIDENCE)
+    assert {e["script"] for e in row["evidence"]} == {"FVG Finder", "AlgoAlpha - Trend Targets"}
+    assert all(e["objectsLane"] == "runtime" for e in row["evidence"])
+    readme = " ".join(doc["_readme"])
+    assert "obj:linefill is ADMITTED" in readme and "LINEFILL_COUNT_AT_CAP_REASON" in readme
     v = _verdicts()
-    for cid in ("trend-targets-algoalpha-rddt-1d-2026-10-02", "trend-targets-algoalpha-spy-1d-2026-10-02",
-                "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14"):
+    for cid in LF3_PRE_X:
         assert v[cid]["objectsV2"]["verdict"] != "MATCH", cid
+    # the host-drawn SPY capture grades MATCH and is still not evidence: its objects are not the run's
+    assert v[LF3_HOST_DRAWN]["objectsV2"]["verdict"] == "MATCH"
+    assert LF3_HOST_DRAWN not in {e["capture"] for e in row["evidence"]}
+    # the carve-out the row rests on is in the run's store, named
+    store = (ROOT / "app/src/components/chart/engine/runtime/objectStore.js").read_text(encoding="utf-8")
+    assert "LINEFILL_COUNT_AT_CAP_REASON" in store
 
 
 #: U3b: calc-bars is HELD. Its evidence passes the count, but a window the chart never exceeds
@@ -523,20 +561,19 @@ def test_U3b_calc_bars_is_held_while_one_script_runs_past_its_window():
 
 
 def test_A7_a_box_drawing_member_script_is_withheld(on):
-    # (DRAW-1: obj:box is admitted; the unadmitted object family here is now linefill)
-    src = (MEMBER_COPY + "var linefill f = na" + chr(10)
-           + "f := linefill.new(line.new(0, low, 1, low), line.new(0, high, 1, high), color.blue)" + chr(10))
+    # (DRAW-1: obj:box is admitted; the unadmitted object family here was linefill until PARITY UNIT LF, now polyline)
+    src = MEMBER_COPY + POLYLINE_SNIPPET
     ok, missing = rt.capability_admitted(src)
-    assert not ok and missing == ["obj:linefill"], missing
+    assert not ok and missing == ["obj:polyline"], missing
 
 
 def test_A7_an_object_drawing_member_script_is_withheld_while_its_family_is(on, monkeypatch):
     monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)   # two fresh runs; a policy rail, not the cool-down
-    src = (MEMBER_COPY + "var linefill f = na\n"
-           + "f := linefill.new(line.new(0, low, 1, low), line.new(0, high, 1, high), color.blue)\n")
+    src = MEMBER_COPY + POLYLINE_SNIPPET
     ok, missing = rt.capability_admitted(src)
-    assert not ok and "obj:linefill" in missing
-    # CONTROL: a line drawing alone now admits (U1), and a table (DRAW-1)
+    assert not ok and "obj:polyline" in missing
+    # CONTROL: a line drawing alone now admits (U1), a table (DRAW-1), and a linefill (PARITY UNIT LF)
+    assert rt.capability_admitted(MEMBER_COPY + LINEFILL_SNIPPET) == (True, [])
     line = MEMBER_COPY + "var line l = na\nl := line.new(bar_index, low, bar_index, high)\n"
     assert rt.capability_admitted(line) == (True, [])
     table = MEMBER_COPY + "var table t = table.new(position.top_right, 1, 1)\n"
@@ -568,7 +605,8 @@ def test_G6_realtime_state_without_the_closed_bar_scope_is_not_admitted():
 def test_G6_the_admitted_set_names_it_history_only(tmp_path, monkeypatch):
     _with_realtime_row(tmp_path, monkeypatch, scope="closed-bar-history")
     rep = rt.admitted_capabilities()
-    assert "realtime-state" in rep["admitted"] and rep["historyOnly"] == ["realtime-state"]
+    # (2026-11-19) request-other is admitted for closed-bar history too (admit:request-other, G6)
+    assert "realtime-state" in rep["admitted"] and rep["historyOnly"] == ["realtime-state", "request-other"]
 
 
 def test_G6_the_door_answers_history_only_for_a_script_that_reads_bar_state(tmp_path, monkeypatch, store, on):
@@ -912,8 +950,11 @@ def test_RT1_the_trend_targets_kill_is_lifted_on_its_own_condition():
         o = r["objectsV2"]
         assert r["verdict"] == "MATCH" and o["verdict"] == "MATCH" and o["pairedNothing"] is False, cid
         assert _x_verdict(o) == "MATCH" and o["x"]["graded"] == 15, (cid, o["x"])
-    # ...and lifting the kill admits nothing: the script still uses capabilities that are not admitted
-    assert not pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
+    # ...and since PARITY UNIT LF admitted obj:linefill, its last unadmitted capability (conditional-ta came with
+    # COND-TA), the script is admitted by capability: REACH holds every capture of it the runtime lane draws to no
+    # DIVERGE (test_REACH_no_runtime_lane_DIVERGE_and_no_MATCH_to_DIVERGE). (Until LF: "lifting the kill admits nothing".)
+    assert pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
+    assert "obj:linefill" in pc.capabilities_of(src)
 
 
 #: ⭐ DRAW-1 (2026-11-16, coordinator ruling): admitting obj:box and obj:table makes scripts servable on
@@ -988,6 +1029,68 @@ def test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_kill
     draw1 = {s["sha256"] for s in doc["scripts"] if s["slug"] in DRAW1_KILLED_SLUGS}
     named = {sha for _cid, sha in _draw1_unkilled_diverging({k: v for k, v in kills.items() if k not in draw1})}
     assert named == draw1, (named, draw1)
+
+
+#: ⭐⭐ admit:request-other (coordinator ruling 2026-11-19): admitting `request-other` admits every source whose only missing
+#: capability it was. Each one with a committed capture grading DIVERGE on either lane is on the committed kill list (the
+#: DRAW-1 rule), by its sha, except rs-rating-fred6724, which is served through its own sha allowlist entry and is NOT
+#: killed (SERVED_BY_OWN_SHA names its differences).
+REQUEST_OTHER_KILLED_SLUGS = {"artemis-oscillator-pro", "average-day-range-adr-pivots",
+                              "dual-view-htf-candlestick-patterns-theultimator5", "ema-ribbon-trend-filter-strixedge",
+                              "htf-liquidity-dashboard-tfo", "pmax-explorer", "position-size-calc",
+                              "request-realtime-alignment", "rs-seed-rsrating", "vold-market-breadth", "vw-other-symbol"}
+
+
+def _request_other_unkilled_diverging(kills: dict) -> list:
+    """Sources using request-other, admitted on capabilities, with a committed capture grading DIVERGE on either lane,
+    whose sha256 is neither in `kills` nor served through its own sha allowlist entry."""
+    admitted = set(rt.admitted_capabilities()["admitted"])
+    own = _allowlisted_shas()
+    lanes = [json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"],
+             json.loads(VERDICTS_PROD.read_text(encoding="utf-8"))["results"]]
+    out = set()
+    for results in lanes:
+        for r in results:
+            if r.get("verdict") != "DIVERGE":
+                continue
+            at = licence_held.fixture_path(r["file"])
+            try:
+                text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+            except (OSError, ValueError):
+                continue
+            if not isinstance(text, str):
+                continue
+            caps = pc.capabilities_of(text)
+            sha = rt.source_hash(text)
+            if "request-other" in caps and caps <= admitted and sha not in kills and sha not in own:
+                out.add((r["id"], sha))
+    return sorted(out)
+
+
+def test_REQOTHER_every_newly_admitted_request_script_with_a_DIVERGE_capture_is_killed():
+    assert "request-other" in rt.admitted_capabilities()["admitted"]
+    kills = rt.committed_kills()
+    assert _request_other_unkilled_diverging(kills) == []
+    doc = json.loads(KILL_DOC.read_text(encoding="utf-8"))
+    assert {s["slug"] for s in doc["scripts"]} >= REQUEST_OTHER_KILLED_SLUGS
+    # CONTROL: without those entries the same scan names exactly their sources
+    mine = {s["sha256"] for s in doc["scripts"] if s["slug"] in REQUEST_OTHER_KILLED_SLUGS}
+    named = {sha for _cid, sha in _request_other_unkilled_diverging({k: v for k, v in kills.items() if k not in mine})}
+    assert named == mine, (named, mine)
+
+
+def test_REQOTHER_rs_rating_is_served_by_its_own_sha_and_its_differences_are_re_proved():
+    rtv = {r["id"]: r for r in json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"]}
+    src = (ROOT / "docs" / "pine" / "rs-rating" / "rs-rating-fred6724__pziQwiT2.pine").read_text(encoding="utf-8")
+    assert rt.source_hash(src) in _allowlisted_shas() and rt.source_hash(src) not in rt.committed_kills()
+    for cid in SERVED_BY_OWN_SHA:
+        assert rtv[cid]["verdict"] == "DIVERGE" and served_by_own_sha(rtv[cid]), cid
+    # CONTROL: a named capture whose PLOT diverges is no longer that shape; an unnamed DIVERGE never is
+    doctored = copy.deepcopy(rtv[next(iter(SERVED_BY_OWN_SHA))])
+    doctored["plots"][0]["verdict"] = "DIVERGE"
+    assert not served_by_own_sha(doctored)
+    other = next(r for r in rtv.values() if r["verdict"] == "DIVERGE" and r["id"] not in SERVED_BY_OWN_SHA)
+    assert not served_by_own_sha(other)
 
 
 def test_RT1_a_broken_committed_file_kills_nothing_extra(tmp_path, monkeypatch):
@@ -1362,6 +1465,47 @@ WITHHELD_WHOLE = {
 }
 
 
+#: ⭐⭐ admit:request-other (coordinator ruling 2026-11-19) — ONE SCRIPT IS SERVED THROUGH ITS OWN SHA ALLOWLIST ENTRY, NOT BY
+#: CAPABILITY, AND IS NOT KILLED: rs-rating-fred6724 (the owner's priority script; `api/data/pine_runtime_allowlist.json`
+#: `scripts`). Admitting `request-other` puts its captures in the reach run; four grade DIVERGE on the runtime-on lane (the
+#: door draws them on the HOST lane under admission, so they list as host-drawn DIVERGE, never a REACH stop). They are its
+#: known differences, named here with why and re-proved on every run (`served_by_own_sha`: its source is the allowlisted sha,
+#: no plot diverges, and the family named does), so the kill rail's exemption for it covers exactly these and nothing else.
+SERVED_BY_OWN_SHA = {
+    "rs-rating-fred6724-pc-agl-1d-2026-11-17": (
+        "objects", "the rating labels are WITHHELD by name (pine:object-removal-lost: the object gate withholds the whole "
+        "drawing program for a lost removal) where TradingView holds 2 labels; the RS line and every plot agree"),
+    "rs-rating-fred6724-pc-nvda-1d-2026-11-17": ("objects", "the same, on NASDAQ:NVDA 1D"),
+    "rs-rating-fred6724-pc-rddt-1d-2026-11-17": ("objects", "the same, on NYSE:RDDT 1D"),
+    "rs-rating-fred6724-pm-alab-1d-2026-11-16": (
+        "objectsV2", "one label's y on the newest bar after the close (vendor 91.67, ours 89.91): TradingView read SP:SPX's "
+        "same-session close there while its own witnesses read the previous session's, three minutes apart "
+        "(docs/pine/capture-queue-2026-11-17-spx-after-close.md, Q-SPX-AFTERCLOSE); every plot agrees"),
+}
+
+
+def _allowlisted_shas() -> set:
+    doc = json.loads((ROOT / "api" / "data" / "pine_runtime_allowlist.json").read_text(encoding="utf-8"))
+    return {s.get("sha256") for s in doc.get("scripts") or [] if isinstance(s, dict)}
+
+
+def served_by_own_sha(record: dict) -> bool:
+    """Is this runtime-on verdict record one of SERVED_BY_OWN_SHA's, still in the shape named (above)?"""
+    if not isinstance(record, dict) or record.get("id") not in SERVED_BY_OWN_SHA:
+        return False
+    at = licence_held.fixture_path(record["file"])
+    try:
+        text = (json.loads((at or ROOT / record["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+    except (OSError, ValueError):
+        return False
+    if not isinstance(text, str) or rt.source_hash(text) not in _allowlisted_shas():
+        return False
+    if any(p.get("verdict") == "DIVERGE" for p in record.get("plots") or []):
+        return False
+    family = SERVED_BY_OWN_SHA[record["id"]][0]
+    return (record.get(family) or {}).get("verdict") == "DIVERGE"
+
+
 def withheld_whole(record: dict) -> bool:
     """Is this runtime-on verdict record a by-name withholding of the WHOLE run (see above)?"""
     if not isinstance(record, dict) or record.get("verdictWithoutPaints") != "INCONCLUSIVE":
@@ -1451,6 +1595,27 @@ def test_REACH_no_runtime_lane_DIVERGE_and_no_MATCH_to_DIVERGE():
     problems = reach_rule_violations(report, json.loads(VERDICTS_RT.read_text(encoding="utf-8")),
                                      json.loads(VERDICTS_PROD.read_text(encoding="utf-8")))
     assert problems == [], problems
+
+
+def test_REACH_the_population_block_is_derived_from_its_rows():
+    """⭐⭐ (2026-11-19, the e84 train's finding) the report's `populations` block is DERIVED from its rows
+    (`capability_admission.py::populations_of`): git merged two units' identical hand-edits to it as one, and master's
+    block was 4 rows off its own rows. Recomputed here; `capture` and `committed` sizes held to what they count."""
+    sys.path.insert(0, str(ROOT / "tools" / "pine_coverage"))
+    import capability_admission as ca  # noqa: PLC0415
+    report = json.loads(REPORT.read_text(encoding="utf-8"))
+    assert report["populations"] == ca.populations_of(report)
+    sizes = report["populationSizes"]
+    assert sizes["capture"] == len(json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"])
+    assert sizes["committed"] == len(list((ROOT / "corpus" / "committed").glob("*.pine")))
+    # CONTROL: one row's lane moved, or one row dropped, and the block no longer derives
+    moved = copy.deepcopy(report)
+    row = next(c for c in moved["captures"] if c["lane"] == "runtime")
+    row["lane"] = "host"
+    assert moved["populations"] != ca.populations_of(moved)
+    dropped = copy.deepcopy(report)
+    dropped["admittedGraded"] = dropped["admittedGraded"][1:]
+    assert dropped["populations"] != ca.populations_of(dropped)
 
 
 def held_kills_or_synthetic(rtv: dict, tmp_path, monkeypatch) -> dict:
@@ -1951,9 +2116,9 @@ def test_F1_a_save_of_an_unadmitted_script_is_refused_not_stored(store, monkeypa
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "admins")
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
-    # (a table was the unadmitted example until DRAW-1 admitted obj:table and obj:box; a linefill is not)
-    doc = member_doc(MEMBER_COPY + "var linefill f = na\n"
-                     + "f := linefill.new(line.new(0, low, 1, low), line.new(0, high, 1, high), color.blue)\n")
+    # (a table was the unadmitted example until DRAW-1 admitted obj:table and obj:box, then a linefill until PARITY
+    # UNIT LF admitted obj:linefill; a polyline is not admitted)
+    doc = member_doc(MEMBER_COPY + POLYLINE_SNIPPET)
     with pytest.raises(ValueError, match="not yet been graded"):
         svc.save(USER, ADX["id"], doc, role="admin")
     assert svc.get(USER, ADX["id"]) is None

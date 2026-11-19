@@ -230,15 +230,23 @@ class TestG2TypedFunctions:
         `data_class="fundamentals"` to make it look researched goes red."""
         assert fc.get_company_profile("AAPL").licensing_class == "U"
 
-    def test_the_registered_pairs_really_do_stamp_R(self, sent):
+    def test_the_registered_pairs_really_do_stamp_their_table_class(self, sent):
         """The control for the test above: if `licensing_class_for` were
         broken or always returned "U", the profile assertion would pass for
-        the wrong reason."""
-        assert fc.get_analyst_estimates("AAPL").licensing_class == "R"
+        the wrong reason.
+
+        ⚰️ This was `..._stamp_R` and pinned "R" on all three. The register's
+        2026-09-19 note put the DDLA column in force and the table followed on
+        2026-11-19, so the registered pairs read LA (T-34, T-38). `get_grades_news`
+        left this control in the same change: it is TheFly-origin (T-45) and
+        now stamps the UNREGISTERED `analyst_actions_news`, so it reads U, and
+        a U cannot be the control for a U."""
+        assert fc.get_analyst_estimates("AAPL").licensing_class == "LA"
         sent.mock.reset_mock()
-        assert fc.get_grades_news("AAPL").licensing_class == "R"
+        assert fc.get_news_general_latest().licensing_class == "LA"
         sent.mock.reset_mock()
-        assert fc.get_news_general_latest().licensing_class == "R"
+        assert fc.get_analyst_grades("AAPL").licensing_class == "LA"
+        # The grade-news feeds' "U", per endpoint: tests/test_provider_licensing_restate.py.
 
     def test_EVERY_typed_function_exposes_a_timeout_parameter(self):
         """⚰️ THESE TWO TESTS USED TO ASSERT THE EXACT OPPOSITE, and they were

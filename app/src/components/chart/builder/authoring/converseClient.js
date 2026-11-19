@@ -269,13 +269,29 @@ export function scriptRefusalBlock(refusal) {
   return { pine: refusal.pine, errors, round: Number.isInteger(refusal.round) && refusal.round >= 1 ? refusal.round : 1 }
 }
 
-/** ⭐ The one action an answer offers, as the server sent it (kind and indicator id only; what
- *  it means here is `builtInOffer.liveOffer`'s to say). Anything else is no offer. */
+/** The settings an offer carries (one setting of a built-in), as a small map of short words, or
+ *  null when what was sent is anything else. */
+export const OFFER_INPUTS_LIMITS = Object.freeze({ max: 4, maxChars: 40 })
+function offerInputs(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const pairs = Object.entries(raw)
+  const short = (s) => typeof s === 'string' && s.length > 0 && s.length <= OFFER_INPUTS_LIMITS.maxChars
+  if (!pairs.length || pairs.length > OFFER_INPUTS_LIMITS.max || !pairs.every(([k, v]) => short(k) && short(v))) return null
+  return Object.fromEntries(pairs)
+}
+
+/** ⭐ The one action an answer offers, as the server sent it (kind and indicator id, and the
+ *  settings of an offer that is one setting of a built-in; what it means here is
+ *  `builtInOffer.liveOffer`'s to say). Anything else is no offer. ⛔ An offer whose `inputs` do
+ *  not read is NO offer, never the same offer without them: adding the built-in without its
+ *  setting would add something other than what the answer said. */
 export function offerOf(body) {
   const o = body && body.offer
   if (!o || typeof o !== 'object' || typeof o.kind !== 'string' || typeof o.indicator !== 'string') return {}
   if (!o.indicator || o.indicator.length > BUILT_INS_LIMITS.maxChars || o.kind.length > 40) return {}
-  return { offer: { kind: o.kind, indicator: o.indicator } }
+  if (!('inputs' in o)) return { offer: { kind: o.kind, indicator: o.indicator } }
+  const inputs = offerInputs(o.inputs)
+  return inputs ? { offer: { kind: o.kind, indicator: o.indicator, inputs } } : {}
 }
 
 /** ⭐ F1: the share of today's allowance left (0 to 1) when the server sent one. */

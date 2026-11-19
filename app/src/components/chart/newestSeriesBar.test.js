@@ -3,7 +3,7 @@
 // and it must never call data() unless `count` is read.
 import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts'
-import { newestSeriesBar } from './newestSeriesBar'
+import { newestSeriesBar, newestRealLogicalIndex } from './newestSeriesBar'
 
 beforeAll(() => {
   const ctx = new Proxy({}, {
@@ -85,5 +85,24 @@ describe('newestSeriesBar', () => {
     const broken = newestSeriesBar({ dataByIndex: () => ({ time: 5, value: 2 }), data: () => { throw new Error('gone') } })
     expect(broken).toMatchObject({ time: 5, close: 2 })
     expect(broken.count).toBe(null)
+  })
+})
+
+describe('newestRealLogicalIndex: one lookup, never a copy', () => {
+  const chartOf = (map) => ({ timeScale: () => ({ timeToIndex: (t) => (t in map ? map[t] : null) }) })
+  const seriesOf = (last) => {
+    const s = { copies: 0, data() { s.copies++; return [] }, dataByIndex: (i, dir) => (i === Number.MAX_SAFE_INTEGER && dir === -1 ? last : null) }
+    return s
+  }
+  it("the newest row's logical index, with no data() copy", () => {
+    const s = seriesOf({ time: 500, open: 1, high: 2, low: 1, close: 2 })
+    expect(newestRealLogicalIndex(chartOf({ 500: 41 }), s)).toBe(41)
+    expect(s.copies).toBe(0)
+  })
+  it('null (the caller falls back) for an empty series, a whitespace row, or a time scale that cannot answer', () => {
+    expect(newestRealLogicalIndex(chartOf({}), seriesOf(null))).toBe(null)
+    expect(newestRealLogicalIndex(chartOf({ 500: 41 }), seriesOf({ time: 500 }))).toBe(null)
+    expect(newestRealLogicalIndex(chartOf({}), seriesOf({ time: 500, value: 3 }))).toBe(null)
+    expect(newestRealLogicalIndex(null, seriesOf({ time: 500, value: 3 }))).toBe(null)
   })
 })

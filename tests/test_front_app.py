@@ -290,6 +290,7 @@ def test_the_app_shell_answers_every_other_read(front, http, path):
     assert r.status_code == 200
     assert r.content == SHELL
     assert r.headers["cache-control"] == "no-cache, no-store, must-revalidate"
+    assert r.headers["document-policy"] == "js-profiling"
     assert r.headers["link"] == (
         "</assets/index-abc123.js>; rel=preload; as=script; crossorigin, "
         "</assets/vendor-BBB.js>; rel=preload; as=script; crossorigin, "

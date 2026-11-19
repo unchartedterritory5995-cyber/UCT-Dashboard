@@ -1,0 +1,23 @@
+//@version=6
+indicator("UCTPROBE_VW_DATA_EARNINGS_FUTURE", overlay = false)
+
+// PROVENANCE: written 2026-11-19 (Pine data unit S4-2, Q-S4-E, docs/pine/capture-queue-2026-11-19-s4-data.md).
+// NEVER COMPILED ON TRADINGVIEW. Kept apart from `vw-data-earnings.pine` so that, if these names do not compile
+// under v6, the placement probe still loads.
+//
+// ─── THE NEXT REPORT AS TRADINGVIEW SERVES IT ───
+//
+// The data unit refuses `earnings.future_*` by name (the next report's time of day is not held). This records
+// what TradingView answers, so the refusal is measured against something rather than assumed.
+//
+//   F01   earnings.future_eps
+//   F02   earnings.future_revenue
+//   F03   earnings.future_time
+//   F04   earnings.future_period_end_time
+//   F05   time (the bar's open)
+
+plot(earnings.future_eps, "F01 future eps")
+plot(earnings.future_revenue, "F02 future revenue")
+plot(earnings.future_time, "F03 future time")
+plot(earnings.future_period_end_time, "F04 future period end time")
+plot(time, "F05 bar time")

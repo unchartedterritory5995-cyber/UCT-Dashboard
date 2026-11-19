@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import re
 from functools import lru_cache
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from api.services import indicator_support
 
@@ -84,6 +84,12 @@ CAPABILITY_WORDS: Dict[str, str] = {
 #: exceptions and no silent ones (`tests/test_pine_authoring.py`).
 NOT_FOR_THE_ASSISTANT: Dict[str, str] = {
     "strategy-decl": "the assistant writes indicators; a strategy is a different document with its own gates",
+    "obj:linefill": ("admitted for a member's own pasted script on the runtime lane (PARITY UNIT LF); the assistant's "
+                     "drawing vocabulary does not teach line fills yet, so it never writes one"),
+    # admit:request-other (2026-11-19): admitted for CLOSED-BAR HISTORY only (G6), so a script that reads another
+    # timeframe or symbol is refused by name on every chart whose newest bar is forming, all session long
+    "request-other": ("admitted for closed-bar history only: a script that requests another timeframe or symbol is "
+                      "refused while the chart's newest bar is forming, so it is not offered until a forming bar is graded"),
 }
 
 #: ⭐ ONE SENTENCE PER PITFALL, keyed by the generator's pitfall id (`PITFALL_PROBES`). Printed only
@@ -121,11 +127,15 @@ RUN_STOP_WORDS: Dict[str, str] = {
                            "as one call, `label.delete(array.shift(marks))`, the drawing is deleted and stays in the list: "
                            "the list never shrinks, and a `while` over its size never ends."),
     "higher-timeframe-newest-bar": ("A weekly or monthly value read with `request.security` has NO value on the chart's "
-                                    "newest bar while that week or month is still forming, and nothing computed from it "
-                                    "has one either: reading it one bar back, `nz()` and `na(x) ? x[1] : x` do not rescue "
-                                    "it. PLOT such a value as a line (it simply ends one bar early) and say so in `reply`. "
-                                    "Do not build a last-bar table, label or level on it; if that is what was asked, say "
-                                    "the newest bar cannot show it yet (disposition `unsupported`)."),
+                                    "newest bar while that week or month is still forming, and nothing that reads it ON "
+                                    "that bar has one either: `nz(x)` and `na(x) ? x[1] : x` do not rescue it. PLOT such "
+                                    "a value as a line (it simply ends one bar early) and say so in `reply`. Do not build "
+                                    "a last-bar table, label or level on the value itself."),
+    # (its own probe: said only while ONE BAR BACK is blank on the newest bar too)
+    "higher-timeframe-one-bar-back": ("Reading that weekly or monthly value one bar back (`x[1]`) does not rescue it "
+                                      "either: it is blank on the newest bar too. If a last-bar table, label or level "
+                                      "on it is what was asked, say the newest bar cannot show it yet (disposition "
+                                      "`unsupported`)."),
     "timestamp-clock": ("Do not use `timestamp(...)`: this chart's exchange zone is not one the engine answers for. "
                         "Compare the bar's own `year`, `month`, `dayofmonth`, `hour` and `minute` with numbers instead."),
 }
@@ -221,7 +231,12 @@ def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[s
     never = [f"- `{name}` is refused by name" for name in ref.get("refusedNames") or []]
     never += [f"- {PITFALL_WORDS[p]}" for p in standing_pitfalls(ref) if p in PITFALL_WORDS]
     stops = standing_run_stops() if run_stops is None else run_stops
-    never += [f"- {RUN_STOP_WORDS[s]}" for s in stops if s in RUN_STOP_WORDS]
+    for s in stops:
+        if s in RUN_STOP_WORDS:
+            never.append(f"- {RUN_STOP_WORDS[s]}")
+        # ⭐ THE WAY THROUGH, said right under the limit it is a way through: only while that limit
+        # stands and the probe that would close the way does NOT (`RUN_STOP_RELIEFS`)
+        never += [f"- {words}" for closed_by, (limit, words) in RUN_STOP_RELIEFS.items() if limit == s and closed_by not in stops]
     out += _lines("NEVER", never)
 
     examples: List[str] = []
@@ -385,6 +400,22 @@ def recipes(doc: Optional[Mapping[str, Any]] = None) -> List[Dict[str, Any]]:
             and isinstance(r.get("source"), str) and r.get("asks")]
 
 
+#: ⭐ A WAY THROUGH A LIMIT, RECORDED AS A PROBE TOO (2026-11-19). {the probe that CLOSES the way:
+#: (the limit it is a way through, the sentence)}. The sentence is said while the limit stands and the
+#: closing probe does not; while both stand the closing probe's own `RUN_STOP_WORDS` sentence is said
+#: instead; with the limit gone neither is.
+#: ⚰️ The reason it is a probe: the limit's sentence used to say "reading it one bar back does not
+#: rescue it". Engine 84 made one bar back draw, and the sentence was false until someone read it.
+RUN_STOP_RELIEFS: Dict[str, Tuple[str, str]] = {
+    "higher-timeframe-one-bar-back": (
+        "higher-timeframe-newest-bar",
+        "The way through: that value ONE BAR BACK, `x[1]` read alone (not inside `nz()` or a condition that "
+        "also reads `x`), DOES have a value on the newest bar: it is the last finished week or month. When "
+        "the script needs the value on the last bar (a table, a label, a level), read `x[1]` and say in "
+        "`reply` that it shows the last finished period."),
+}
+
+
 def standing_run_stops(doc: Optional[Mapping[str, Any]] = None) -> List[str]:
     doc = _recipes_doc() if doc is None else doc
     return [s["id"] for s in doc.get("stops") or [] if isinstance(s, Mapping) and s.get("standing") is True]
@@ -405,6 +436,60 @@ def recipes_for(message: Any, limit: int = RECIPES_MAX, doc: Optional[Mapping[st
         if hits:
             scored.append((-max(len(a) for a in hits), -len(hits), order, r))
     return [r for *_rank, r in sorted(scored, key=lambda t: t[:3])][:max(0, int(limit))]
+
+
+# ⭐ IS THIS SCRIPT ONE OF THE VALUE-CHECKED RECIPES? (coordinator's ruling 2026-11-19). A recipe's numbers
+# are proven against an independent calculation; a script the assistant wrote from the member's words
+# alone runs faithfully and its READING is the assistant's. The member must be told which they got.
+#
+# ⛔ DECIDED HERE, BY COUNTING, NEVER BY THE ASSISTANT. A script is backed by a recipe when the request
+# was HANDED that recipe and the script holds at least `RECIPE_BACKED_SHARE` of the recipe's own tokens,
+# in order (comments and the `indicator(...)` line aside). Measured on the first live scripts
+# (2026-11-19): a script that is its recipe with settings added scores 0.91 to 1.00; one the assistant
+# restructured 0.71; a script against a recipe it has nothing to do with at most 0.58. Both ways of being
+# wrong are soft, and the bar is set so the common one is the safe one: a recipe-backed script that says
+# "check it" (over-told), never an unchecked one that does not.
+RECIPE_BACKED_SHARE = 0.85
+UNCHECKED_LINE = ("Built from your description; there's no checked reference for this pattern, so check it "
+                  "against your own reading.")
+_CODE_TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*|\d+(?:\.\d+)?|[^\sA-Za-z0-9_]")
+
+
+def _code_tokens(source: Any) -> List[str]:
+    """A script as the tokens that compute: no comments, no `indicator(...)` line (its title is the
+    member's), no layout."""
+    lines = str(source or "").replace("\r\n", "\n").split("\n")
+    code = "\n".join(line.split("//")[0] for line in lines if not line.strip().startswith("indicator("))
+    return _CODE_TOKEN.findall(code)
+
+
+def recipe_share(recipe_source: Any, script: Any) -> float:
+    """The share of the recipe's tokens the script holds, in order (0 to 1)."""
+    import difflib
+    own, got = _code_tokens(recipe_source), _code_tokens(script)
+    if not own or not got:
+        return 0.0
+    blocks = difflib.SequenceMatcher(None, own, got, autojunk=False).get_matching_blocks()
+    return sum(b.size for b in blocks) / len(own)
+
+
+def backed_by(message: Any, script: Any, doc: Optional[Mapping[str, Any]] = None) -> Optional[str]:
+    """The id of the value-checked recipe this script IS, or None. Only a recipe this request was
+    handed (`recipes_for`) counts: a script cannot be vouched for by a recipe nobody asked about."""
+    for r in recipes_for(message, doc=doc):
+        if recipe_share(r["source"], script) >= RECIPE_BACKED_SHARE:
+            return r["id"]
+    return None
+
+
+def said_with_disclosure(said: Any, reference: Optional[str]) -> str:
+    """What the member reads beside a script: the assistant's words, and, when no recipe is behind
+    the script, UCT's own line saying so. The line is never cut and never said twice."""
+    text = str(said or "").strip()
+    if reference is not None or UNCHECKED_LINE in text:
+        return text[:REPLY_MAX_CHARS]
+    room = REPLY_MAX_CHARS - len(UNCHECKED_LINE) - 1
+    return (text[:room].rstrip() + " " + UNCHECKED_LINE).strip()
 
 
 def recipes_text(found: List[Mapping[str, Any]]) -> str:

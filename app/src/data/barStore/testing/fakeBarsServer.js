@@ -15,8 +15,13 @@ export function parseBarsUrl(url) {
   return {
     sym, tf: u.searchParams.get('tf'), bars: Number(u.searchParams.get('bars')),
     since: since != null ? Number(since) : null, to: u.searchParams.get('to'), warm: u.searchParams.has('warm'),
+    // the deep sealed D/W/M history (/api/bars-history), with its `d`
+    history: u.pathname.startsWith('/api/bars-history/'), d: u.searchParams.get('d'),
   }
 }
+
+/** The deep sealed daily rows /api/bars-history answers (older than, and overlapping, the D tail). */
+export const HISTORY_DAYS = Object.freeze(['2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-09'])
 
 /** Intraday rows from the open to `now` (unix s) on `tf`, newer than `since`. */
 export function intradayRows(tf, now, { since = null, from = OPEN } = {}) {
@@ -35,6 +40,9 @@ export function serverAnswer(q, mode = 'ok') {
   if (mode === 'nodata') return { body: { bars: [], no_data: true } }
   if (mode === 'shed') return { body: { error: 'warming' }, status: 503, headers: { 'Retry-After': '3' } }
   if (mode === 'fail') return { body: { detail: 'boom' }, status: 500 }
+  if (q.history) {
+    return { body: { ticker: q.sym, tf: q.tf, sealed: true, last_sealed: q.d, bars: HISTORY_DAYS.map((t) => ({ t, o: 10, h: 11, l: 9, c: 10.5, v: 100 })) } }
+  }
   if (['D', 'W', 'M'].includes(q.tf)) {
     return { body: { ticker: q.sym, tf: q.tf, bars: ['2026-11-06', '2026-11-09', '2026-11-10'].map((t) => ({ t, o: 10, h: 11, l: 9, c: 10.5, v: 100 })) } }
   }

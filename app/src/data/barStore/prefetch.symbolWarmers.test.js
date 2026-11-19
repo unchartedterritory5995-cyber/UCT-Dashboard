@@ -41,9 +41,18 @@ async function boot() {
 }
 const tick = (ms) => vi.advanceTimersByTimeAsync(ms)
 
-/** Run one scenario on each side with a warmer registered; return what each side announced. */
-async function both(scenario) {
+/** Run one scenario on each side with a warmer registered; return what each side announced.
+ *  `splitOff`: the deep sealed D/W/M history off (legacy has no deep join; a held daily set's
+ *  scenario then compares the announcements alone, see prefetch.deepDaily.test.js for the join). */
+async function both(scenario, { splitOff = false } = {}) {
   const out = {}
+  if (splitOff) localStorage.setItem('uct.barsHistory.enabled', '0')
+  try {
+    await _both(scenario, out)
+  } finally { if (splitOff) localStorage.removeItem('uct.barsHistory.enabled') }
+  return out
+}
+async function _both(scenario, out) {
   for (const side of ['legacy', 'facade']) {
     fakeDb._clear()
     vi.setSystemTime(NOW)
@@ -111,7 +120,7 @@ describe('the facade announces what the legacy warmer announces', () => {
       api.prefetchBarOnIntent('AA', 'D')
       inFrame[api === w.pf ? 'facade' : 'legacy'] = told.length   // nothing in the pointer's own frame
       await tick(200)
-    })
+    }, { splitOff: true })
     expect(heldOn).toEqual({ legacy: true, facade: true })
     expect(inFrame, 'announced after the debounce, not in the frame of the hover').toEqual({ legacy: 0, facade: 0 })
     for (const side of ['legacy', 'facade']) {
@@ -136,7 +145,7 @@ describe('the facade announces what the legacy warmer announces', () => {
       w.mem.memPut('AA', 'D', held)
       await api.warmTypedSymbol('aa', 'D')
       await tick(50)
-    })
+    }, { splitOff: true })
     for (const side of ['legacy', 'facade']) {
       expect(r[side], side).toEqual([{ syms: ['AA'], tf: 'D', opts: { priority: true } }])
     }

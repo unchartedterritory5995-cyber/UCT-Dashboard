@@ -308,6 +308,8 @@ def test_every_recipe_in_the_file_is_served_and_only_served_ones_are_ever_handed
     ("unfilled gaps", "gap-zones"),
     ("anchored VWAP from March 3", "anchored-vwap-date"),
     ("prior day high and low", "prior-day-levels"),
+    ("Convert the chart to Heikin Ashi candles", "heikin-ashi-candles"),
+    ("heiken ashi", "heikin-ashi-candles"),
 ])
 def test_a_request_is_handed_the_recipe_it_names(words, first):
     found = pa.recipes_for(words)
@@ -376,7 +378,82 @@ def test_no_recipe_does_what_the_document_says_never_to_do():
         body = code(r["source"])
         assert "input.time" not in body and "hline(" not in body, r["id"]
         assert "fill(" not in body or r["lane"] == "host", r["id"]
-        assert "plot(" in body or "plotshape(" in body, r["id"]
+        # (a recipe plots something: a line, a marker, or candles, which are four plotted values and a colour)
+        assert "plot(" in body or "plotshape(" in body or "plotcandle(" in body, r["id"]
         assert not re.search(r"\.delete\(\s*array\.", body), f"{r['id']}: a drawing deleted in one call stays in its list"
         for name in REF["refusedNames"]:
             assert name not in body, (r["id"], name)
+
+
+# ═══ the member's real gate: admission to the bar-by-bar lane ═══════════════════════
+#
+# ⚰️ 2026-11-19. The generator proves every recipe and worked example with a test grant that lets EVERY
+# script onto the bar-by-bar lane (`__allowEveryRuntimeScriptForTests`). A member's window has no such
+# grant: the server admits a script to that lane only when every capability it uses is admitted
+# (`runtime_definitions.capability_admitted`, `PINE_RUNTIME_CAPABILITY_ADMISSION`). A recipe proven
+# under the grant and refused by that rule would be shown to the assistant as "runs" and refused on a
+# member's chart. This asks the server's own rule about each one that needs the lane.
+
+def _shown_scripts():
+    """Every script the assistant is shown: (kind, id, lane, source)."""
+    here = pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "components" / "chart" / "supportLoop"
+    recipes = json.loads((here / "assistantRecipes.json").read_text(encoding="utf-8"))["recipes"]
+    examples = json.loads((here / "assistantPineReference.json").read_text(encoding="utf-8"))["examples"]
+    return ([("recipe", r["id"], r["lane"], r["source"]) for r in recipes]
+            + [("example", e["id"], e["lane"], e["source"]) for e in examples])
+
+
+def test_every_script_the_assistant_is_shown_that_needs_the_bar_by_bar_lane_is_admitted_to_it():
+    from api.services import runtime_definitions as rd
+    shown = _shown_scripts()
+    assert {lane for _k, _i, lane, _s in shown} == {"host", "runtime"}
+    needs = [x for x in shown if x[2] == "runtime"]
+    assert len(needs) >= 10
+    for kind, sid, _lane, source in needs:
+        ok, missing = rd.capability_admitted(source, persist=False, wait=20.0)
+        assert ok, f"{kind} {sid} needs the bar-by-bar lane and is NOT admitted to it for a member: {missing}"
+
+
+def test_control_the_admission_rule_can_say_no(monkeypatch):
+    """With nothing admitted, every one of them is refused, each by the capabilities it uses."""
+    from api.services import runtime_definitions as rd
+    real = rd.admitted_capabilities()
+    assert real["admitted"], "the committed registry admits nothing: the test above could not pass honestly"
+    monkeypatch.setattr(rd, "admitted_capabilities", lambda: {**real, "admitted": []})
+    for kind, sid, lane, source in _shown_scripts():
+        if lane != "runtime":
+            continue
+        ok, missing = rd.capability_admitted(source, persist=False, wait=20.0)
+        assert not ok and missing and rd.PENDING not in missing, (kind, sid, missing)
+
+
+# ═══ a way through a limit is a probe too ═════════════════════════════════════════
+#
+# ⚰️ 2026-11-19. The weekly-read limit's sentence said "reading it one bar back does not rescue it".
+# Engine 84 (#1996) made one bar back draw on the newest bar, and the sentence was false until a person
+# read it. Whether one bar back is blank is its own recorded probe now; the document says the limit
+# while that probe stands and the way through while it does not.
+
+def test_the_way_through_a_limit_is_said_exactly_while_the_limit_stands_and_the_way_is_open():
+    limit, closes = "higher-timeframe-newest-bar", "higher-timeframe-one-bar-back"
+    assert set(pa.RUN_STOP_RELIEFS) == {closes} and pa.RUN_STOP_RELIEFS[closes][0] == limit
+    assert closes in pa.RUN_STOP_WORDS and limit in pa.RUN_STOP_WORDS
+    way = pa.RUN_STOP_RELIEFS[closes][1]
+    said = lambda stops: (pa.RUN_STOP_WORDS[limit] in pa.document(run_stops=stops), way in pa.document(run_stops=stops),
+                          pa.RUN_STOP_WORDS[closes] in pa.document(run_stops=stops))
+    assert said([limit]) == (True, True, False)                 # the limit, and the way through it
+    assert said([limit, closes]) == (True, False, True)         # the limit, and that one bar back does not help
+    assert said([]) == (False, False, False)                    # no limit: nothing to get through
+    assert said([closes]) == (False, False, True)
+    assert said(["running-total"]) == (False, False, False)
+    # the way through is said right under its limit
+    doc = pa.document(run_stops=["running-total", limit])
+    assert doc.index(pa.RUN_STOP_WORDS[limit]) < doc.index(way)
+    assert doc[doc.index(pa.RUN_STOP_WORDS[limit]) + len(pa.RUN_STOP_WORDS[limit]):].lstrip().startswith("- " + way)
+    # ⛔ the limit's own sentence no longer answers for one bar back, either way
+    assert "one bar back" not in pa.RUN_STOP_WORDS[limit] and "x[1]" in pa.RUN_STOP_WORDS[limit]
+    # and today's document follows the recorded probes, whatever they are
+    now, standing = pa.document(), pa.standing_run_stops()
+    assert (way in now) == (limit in standing and closes not in standing)
+    for unknown in pa.RUN_STOP_RELIEFS:
+        assert unknown in {s["id"] for s in pa._recipes_doc()["stops"]}, "a way through whose probe the generator does not record"

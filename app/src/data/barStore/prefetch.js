@@ -199,6 +199,10 @@ export const LAKE_BEHIND_MAX_MS = 1200
  *  after the key (4/4), so a held copy painted alone at ~370 ms and the depth redrew the averages
  *  ~80 ms later. A lake already in the browser joins in tens of ms; only a cold load waits. */
 export const LAKE_JOIN_WAIT_MS = 550
+/** D/W/M: the longest the daily handoff's prepare waits, from Enter, for the deep history to join
+ *  the tail answer (prepareDailyForDisplay). Just under the handoff's own bound (useSymbolHandoff
+ *  DAILY_HOLD_MAX_MS = 400), so the prepare's outcome, not the hang guard, commits. */
+export const DEEP_JOIN_WAIT_MS = 380
 /** The edge warm of a list (edgeWarmList): the chart timeframes that warm (the chart's own, then 60m,
  *  the deepest and slowest cold), the rows per list, the keys per page (each ~1 index GET + 2-23 HEADs),
  *  and how long after the latest list it starts. */
@@ -603,13 +607,41 @@ export function createPrefetch(o = {}) {
     if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
     _own(key)
     try {
-      const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal })
-      return _outcome(s, { aborted: !!signal?.aborted, date: true })
+      // ⭐⭐ ONE PAINT, THE WHOLE DAILY CHART (2026-11-19, owner: "about 200 bars instantly and then
+      // the rest shortly after, definitely in 2 phases. I want that all to load perfectly and
+      // instantly"). Where the deep history is due (network.deepPending) it leaves NOW, beside the
+      // tail (deepPrime), the tail is asked for the chart's full depth so its answer queues the join,
+      // and the handoff commits once the join has settled, waiting at most DEEP_JOIN_WAIT_MS from here
+      // (the handoff's own bound, DAILY_HOLD_MAX_MS, is just above it). The cache read is raced, not
+      // awaited (the intraday prepare's rule, HYDRATE_WAIT_MS): a busy IndexedDB held the daily
+      // request 0.15-0.7 s after Enter (production 2026-11-18). A shallow set already in memory has
+      // its history due for certain, so it leaves before the read; a saved copy that turns out deep
+      // (its history joined on an earlier visit) is not due, and takes the old path.
+      const t0 = now()
+      if (S().peek(key)?.bars?.length && S().deepPending?.(key)) S().deepPrime?.(key, { priority: 'visible', want: true })
+      const hyd = _hydrate(key)
+      const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
+      if (!S().deepPending?.(key)) {
+        const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null })
+        return _outcome(s, { aborted: !!signal?.aborted, date: true })
+      }
+      S().deepPrime?.(key, { priority: 'visible', want: true })   // (joins the one above, if it left)
+      const depth = fullBarsFor(normTf(tf) ?? fetchTf(String(tf))) || 0
+      const s = await ensure(key, { until: DAILY_PREPARED, depth, priority: 'visible', signal, local: false, _s0: s0 ?? S().peek(key) ?? {} })
+      if (!signal?.aborted && s?.restSeen && !s.error) await S().deepJoined?.(key, Math.max(0, DEEP_JOIN_WAIT_MS - (now() - t0)))
+      return _outcome(S().peek(key) ?? s, { aborted: !!signal?.aborted, date: true })
     } catch {
       return 'error'
     } finally {
       _release(key)
     }
+  }
+
+  /** D/W/M: is the deep sealed history still due for the chart `sym` / `tf` would show? The handoff
+   *  then prepares instead of painting a held shallow set at once (see prepareDailyForDisplay). */
+  function deepPending(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    return !!key && !!S().deepPending?.(key)
   }
 
   // ── the legacy warmers, as store prefetches ────────────────────────────────
@@ -958,15 +990,21 @@ export function createPrefetch(o = {}) {
       const s0 = await _hydrate(key)
       if (typed !== mine) return 'superseded'
       // Legacy `_typedCachePaints`: the chart's daily paint authority, with the record's savedAt.
+      // ⭐ THE WHOLE DEPTH BEFORE ENTER (2026-11-19): a real ticker whose deep history is still due
+      // has it fetched now (network.deepPrime) and its tail asked for the chart's depth, so the join
+      // lands while the member is still typing and Enter paints the whole chart at once.
+      const deep = !!s0?.depth && !!S().deepPending?.(key)
+      if (deep) S().deepPrime?.(key, { priority: 'urgent' })
       if (s0?.depth) {
         // A held set exists, so the text IS a ticker (a prefix has none, see below).
         tellSymbolWarmers([typedSym], tf, { priority: true })
         const last = s0.developing ? s0.developing.t : s0.bars[s0.bars.length - 1].t
-        if (_typedCachePaints(key.split('_')[0], String(tf), unixToDateLabel(last), S().persist.savedAtOf?.(key) ?? null)) return 'cache'
+        if (!deep && _typedCachePaints(key.split('_')[0], String(tf), unixToDateLabel(last), S().persist.savedAtOf?.(key) ?? null)) return 'cache'
       }
       // ⛔ A PREFIX IS NOT A TICKER: with the pack held, uncached text is a partial word.
       if (!s0?.depth && !packIngesting()) return 'unknown'
-      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false })
+      const depth = deep ? (fullBarsFor(String(tf)) || 0) : 0
+      const s = await ensure(key, { until: DISPLAYABLE, depth, priority: 'urgent', signal: ctl.signal, local: false })
       if (ctl.signal.aborted && !mine.kept) return false
       const answered = !!(s?.restSeen && !s.error && s.depth)
       if (answered && !s0?.depth && typed === mine) tellSymbolWarmers([typedSym], tf, { priority: true })   // the authority just said it is real
@@ -975,7 +1013,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay, lakePending,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
@@ -996,6 +1034,7 @@ export function peekDisplayable(sym, tf, opts = {}) { return _f().peekDisplayabl
 export function peekBars(sym, tf, opts = {}) { return _f().peekBars(sym, tf, opts) }
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
+export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }

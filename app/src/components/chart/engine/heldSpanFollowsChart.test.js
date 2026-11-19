@@ -84,7 +84,9 @@ describe('the chart feeds the hook the held span (StockChart.jsx), code, not pro
     expect(args[3]).toBe('_heldSpan')
     expect(code).toMatch(/const _heldSpan = heldSpanFor\(_heldLoaded, barCount\)/)
     expect(code).toMatch(/const loaded = barCountRef\.current/)
-    // CONTROL: the matcher sees the real call (a reverted line, `barCount` 4th, would read here)
-    expect(args).toHaveLength(8)
+    // CONTROL: the matcher sees the real call (a reverted line, `barCount` 4th, would read here); the 9th argument is
+    // the chart's symbol binding (`ownDailyFollowsChartSymbol.test.js`, the e83 live capture)
+    expect(args).toHaveLength(9)
+    expect(args[8]).toBe('symbolMeta')
   })
 })

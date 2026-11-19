@@ -171,6 +171,45 @@ def test_schaff_is_refused_by_name_with_the_way_forward(conv):
     assert ni.needs_script(ni.entry("ttm_squeeze")) is None and ni.needs_script(None) is None
 
 
+def test_heikin_ashi_is_a_name_only_a_script_holds(conv):
+    """Found live 2026-11-19: "Convert the chart to Heikin Ashi candles" was refused as an UNKNOWN name
+    before the script lane was asked. It is a held name that needs the script builder now."""
+    from api.services import named_indicators as ni
+    e = ni.entry("heikin_ashi")
+    assert e is not None and ni.needs_script(e) == "each candle is made from the candle before it"
+    assert e not in ni.entries(), "a held name has no formula"
+    for words in ("Convert the chart to Heikin Ashi candles", "add heikin-ashi", "Heiken Ashi", "show heikinashi candles"):
+        u = conv.understand_turn(words, CHART)
+        assert u["refusal"] is not None and u["refusal"]["gate"] == conv.NAMED_UNCHECKED_GATE, words
+        assert u["refusal"]["reason"].startswith(
+            "Heikin Ashi needs the script builder: each candle is made from the candle before it."), words
+        assert u["held"] == ["heikin_ashi"], words
+    # the member's own rule beside the name is still theirs to have built
+    assert conv.understand_turn("heikin ashi close smoothed with a 10 ema", CHART)["refusal"] is None
+
+
+def test_a_name_that_needs_the_script_builder_has_a_value_checked_recipe_behind_it():
+    """⛔ NEVER AN UNKNOWN NAME TO A MODEL. A held name is handed to the script turn only because a
+    recipe whose numbers are proven goes with it: asked by its own name, in every spelling the door
+    knows, the request carries that recipe first, and the recipe is one the engine serves."""
+    import json
+    import pathlib
+    from api.services import named_indicators as ni
+    from api.services import pine_authoring as pa
+    served = {r["id"] for r in json.loads((pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "components" / "chart"
+                                           / "supportLoop" / "assistantRecipes.json").read_text(encoding="utf-8"))["recipes"]
+              if r.get("served") is True}
+    names = [e for e in ni.held_names() if ni.needs_script(e)]
+    assert {e["id"] for e in names} == {"schaff_trend_cycle", "heikin_ashi"}
+    for e in names:
+        firsts = set()
+        for spelled in [e["name"]] + list(e["aliases"]):
+            found = pa.recipes_for("Add " + spelled)
+            assert found, (e["id"], spelled)
+            firsts.add(found[0]["id"])
+        assert len(firsts) == 1 and firsts <= served, (e["id"], firsts)
+
+
 def test_with_the_script_lane_open_the_name_goes_to_a_script_and_closed_it_does_not(conv, monkeypatch):
     """`_with_script_lane`: a refusal BY NAME of a `needs_script` entry is handed to the script turn
     when the lane is open. Every other by-name refusal, and every turn with the lane closed, is the
@@ -195,6 +234,7 @@ def test_with_the_script_lane_open_the_name_goes_to_a_script_and_closed_it_does_
                                       admin=True, accepts=["script"], script_refusal=None, cancelled=None)
 
     assert run(["schaff_trend_cycle"]) == scripted and len(made) == 1
+    assert run(["heikin_ashi"]) == scripted and len(made) == 1
     assert run(["ttm_squeeze"]) == refused and made == []                  # held, and a formula's to describe
     assert run([]) == refused and made == []
     assert run(["schaff_trend_cycle"], lane=False) == refused and made == []
