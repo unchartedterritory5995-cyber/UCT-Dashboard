@@ -878,6 +878,58 @@ def _acronym_rows(ordered: list, recent_ids: set) -> list:
     return _ranked(rows)
 
 
+def bar_field_order_block(definitions: Any, is_admin: Any) -> dict:
+    """⭐ SAVED INDICATORS THAT CARRY THE WRONG ARGUMENT ORDER (coordinator's request, 2026-11-18).
+    Until that day an assistant's `stoch(close, high, low, 14)` (TradingView's order) was accepted
+    as written, though the engine takes high, low, close: a different number on every bar. The door
+    mends new answers. This counts what was SAVED before it did: live saved indicators one of whose
+    formulas calls such a function with the bar's own fields plainly out of order
+    (`definition_conversation.misordered_bar_fields`, the door's own rule).
+
+    READ-ONLY, COUNTS ONLY. ⛔ NOTHING IS CHANGED HERE OR ANYWHERE BY THIS: a saved formula is the
+    member's, and correcting one needs its own ruling. `definitions` are stored rows
+    (`user_definitions.live_definitions`); `is_admin(user_id)` says whose are the builders' own.
+    A row about one or two members withholds its numbers, as every row of this report does."""
+    from api.services import definition_conversation, indicator_habits  # noqa: PLC0415
+    members: dict = {}
+    builders = 0
+    functions: dict = {}
+    seen = 0
+    for row in definitions or ():
+        seen += 1
+        names = [n for tree in indicator_habits._trees_of(row) for n in definition_conversation.misordered_bar_fields(tree)]
+        if not names:
+            continue
+        uid = str(row.get("user_id"))
+        if is_admin(uid):
+            builders += 1
+            continue
+        members[uid] = members.get(uid, 0) + 1
+        for n in set(names):
+            functions[n] = functions.get(n, 0) + 1
+    small = 0 < len(members) < SMALL
+    return {"read": True, "saved_indicators_looked_at": seen,
+            "members": FEWER if small else len(members),
+            "indicators": None if small else sum(members.values()),
+            "by_function": None if small else dict(sorted(functions.items())),
+            "builders_indicators": builders}
+
+
+def _bar_field_order() -> dict:
+    """`bar_field_order_block` over the live store. ⛔ A READ THAT FAILS SAYS SO: it is never a zero
+    (a swallowed error here would read as "no saved indicator is affected")."""
+    try:
+        from api.services import auth_service, user_definitions  # noqa: PLC0415
+
+        def is_admin(uid: str) -> bool:
+            return ((auth_service.get_user_by_id(uid) or {}).get("role")) == "admin"
+
+        return bar_field_order_block(user_definitions.live_definitions(), is_admin)
+    except Exception:  # noqa: BLE001 -- the report still answers; this section says it could not be read
+        log.exception("[indicator-telemetry] the saved indicators could not be read for the argument-order count")
+        return {"read": False}
+
+
 def weekly_report(days: int = 7) -> dict:
     """⭐ THE WEEKLY OWNER REPORT (admin only). What members asked Create Indicator for, and how it
     answered, over the last ``days`` against the ``days`` before. READ-ONLY, AGGREGATES ONLY: every
@@ -964,6 +1016,9 @@ def weekly_report(days: int = 7) -> dict:
         "built_from_an_acronym": _acronym_rows(ordered, recent_ids),
         # 7. turns that failed on OUR side (an internal error), this window against the one before
         "internal_error": {"this": _internal_block(this), "previous": _internal_block(previous)},
+        # 8. saved indicators carrying a function's bar fields in another order than the engine's
+        #    (as of now, not a window: it is a count of what is stored)
+        "bar_field_order": _bar_field_order(),
     }
 
 
@@ -1011,6 +1066,20 @@ def weekly_report_text(report: dict) -> str:
             + (f": {failed['members_turns']} for members, {failed['builders_turns']} for the builders' own accounts"
                if failed["turns"] else "")
             + f" (the {days} days before: {failed_before['turns']})"]
+
+    order = report.get("bar_field_order") or {"read": False}
+    out += ["", "SAVED INDICATORS WITH A FUNCTION'S HIGH, LOW AND CLOSE IN THE WRONG ORDER (stored today; nothing is changed)"]
+    if not order.get("read"):
+        out.append("  Could not be read this time. This is not a zero.")
+    else:
+        if order["members"] == FEWER:
+            out.append(f"  {FEWER} members have one")
+        else:
+            out.append(f"  {order['indicators']} saved indicator{'' if order['indicators'] == 1 else 's'} of "
+                       f"{order['members']} member{'' if order['members'] == 1 else 's'}"
+                       + ("".join(f"; {fn}: {n}" for fn, n in (order["by_function"] or {}).items())))
+        out.append(f"  The builders' own accounts: {order['builders_indicators']}"
+                   f" (of {order['saved_indicators_looked_at']} saved indicators looked at)")
 
     names = report["names"]
     out += ["", "NAMES ASKED FOR THAT ARE NOT BUILT BY NAME (the library's queue)"]

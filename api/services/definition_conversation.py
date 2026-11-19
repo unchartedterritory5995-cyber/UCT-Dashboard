@@ -804,6 +804,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "  A count of bars is never negative here: `highestbars`, `lowestbars` and `barssince` "
     "answer how many bars BACK (0 = this bar, 3 = three bars ago). This is not TradingView's "
     "sign: never negate one, and compare it with numbers of 0 or more.\n"
+    "  THE BAR'S FIELDS GO IN THIS ORDER: high, low, close (then volume for mfi), then the "
+    "length. stoch(high, low, close, 14) is the 14-bar stochastic %K; atr, adx, cci, plusDI, "
+    "minusDI and williamsR take them the same way. This is NOT TradingView's order: its "
+    "ta.stoch takes the source first, and stoch(close, high, low, 14) here is a different, "
+    "wrong number.\n"
     "  SuperTrend and Parabolic SAR are FUNCTIONS, called by name: `supertrend(factor, atrPeriod)` "
     "with `supertrendDirection` (TradingView's sign: -1 while the trend is UP, 1 while it is "
     "DOWN), and `sar(step, maxStep)` with `sarDirection` (1 while the dots are under price, -1 "
@@ -1114,6 +1119,25 @@ def _breakout_open(understood: Mapping[str, Any], words: str, numbers: Any) -> b
     return not (understood.get("named") or understood.get("withheld"))
 
 
+#: The bare word, which is no spelling of the library entry (it is part of other names).
+_STOCHASTIC_WORD = re.compile(r"\bstochastics?\b(?!\s+(?:rsi|momentum|of)\b)", re.I)
+_STOCHASTIC_KIND = re.compile(r"\b(?:slow|fast|full)\b", re.I)
+STOCHASTIC_ENTRY = "stochastic_oscillator"
+
+
+def _stochastic_open(understood: Mapping[str, Any], words: str, numbers: Any) -> bool:
+    """⭐ WHICH STOCHASTIC (ruling 2026-11-18). The slow one (14, 3, 3) is what members write; the fast
+    one (14, 1, 3) is TradingView's default. They are different lines, so a request that says
+    neither a kind nor any number is asked. It is the Stochastic OSCILLATOR that is meant: the
+    library entry by name, or the bare word where it is not part of another name."""
+    if numbers or _STOCHASTIC_KIND.search(words):
+        return False
+    named = [e.get("id") for e in understood.get("named") or []]
+    if STOCHASTIC_ENTRY in named:
+        return True
+    return bool(_STOCHASTIC_WORD.search(words)) and not named and not understood.get("withheld")
+
+
 def open_questions(understood: Mapping[str, Any]) -> List[str]:
     """The registry questions this request leaves OPEN, in the order they are asked.
 
@@ -1141,6 +1165,8 @@ def open_questions(understood: Mapping[str, Any]) -> List[str]:
         found.add("benchmark")
     if _breakout_open(understood, words, numbers):
         found.add("breakout_window")
+    if _stochastic_open(understood, words, numbers):
+        found.add("stochastic_kind")
     found.update(open_acronyms(understood))
     return [qid for qid in clarify_registry() if qid in found]
 
@@ -1282,6 +1308,9 @@ def answer_value(question_id: str, answered: Mapping[str, Any], chart: Any) -> O
     if question.get("acronym"):
         label = meant_by(question, after)
         return (values[label], label) if label in values else None
+    if question_id == "stochastic_kind":
+        # the choice tapped, or the plain word for one (`pending_answer` writes its label beside it)
+        return next(((value, label) for label, value in values.items() if label in answered["answer"]), None)
     if question_id == "benchmark":
         # only one of the question's own symbols is kept; any other ticker settles the turn and is not remembered
         named = {t.lower() for t in conversation_preflight.named_tickers(answered["answer"], chart)}
@@ -1666,7 +1695,7 @@ def described_in_own_words(plain: str, chart: Any) -> bool:
     ⭐ A SMALL, MEASURED TEST, NOT A JUDGEMENT OF MEANING (2026-11-18, fourteen wordings): the rest
     must name at least one thing a formula reads (a vocabulary term, or a ticker) and at least two
     of {terms, tickers, the member's numbers} in all. "Mansfield relative strength versus SPY over
-    52 weeks" is a description (a ticker and a number); "Add the Pocket Pivot", "pocket pivot
+    52 weeks" is a description (a ticker and a number); "Add the TTM Squeeze", "ttm squeeze
     marker in a lower pane" and "TTM Squeeze 20 2 1.5" (numbers and no rule) are not. Both ways of
     being wrong are soft: a description judged missing gets the way forward; one judged present is
     built from the member's words alone and labelled as their own formula."""
@@ -3014,6 +3043,7 @@ MEND_OUTPUT_REF = "output-ref"
 MEND_LIST_AS_TEXT = "list-as-text"
 MEND_ASSUMPTION = "assumption-link"
 MEND_STATE_PAINT = "state-as-paint"
+MEND_BAR_FIELDS = "bar-field-order"
 _MEND_MAX_PASSES = 8
 
 
@@ -3101,6 +3131,78 @@ def _mend_output_refs(envelope: Dict[str, Any], view: Any) -> int:
     return count[0]
 
 
+#: The roles of a function's arguments that are the bar's own fields.
+_BAR_FIELD_ROLES = ("open", "high", "low", "close", "volume")
+
+
+@functools.lru_cache(maxsize=1)
+def bar_field_functions() -> Dict[str, Tuple[str, ...]]:
+    """Every engine function whose FIRST arguments are the bar's fields by position, and the order
+    it takes them in: `{"stoch": ("high", "low", "close"), "mfi": ("high", "low", "close", "volume"),
+    "donchianUpper": ("high", "low"), ...}`. Read from the engine's own table, never typed here."""
+    from api.services import ast_interpret as engine
+    out: Dict[str, Tuple[str, ...]] = {}
+    for name, spec in (engine.TABLE.get("functions") or {}).items():
+        lead: List[str] = []
+        for role in spec.get("argRoles") or ():
+            if role not in _BAR_FIELD_ROLES:
+                break
+            lead.append(role)
+        if len(lead) >= 2 and len(set(lead)) == len(lead):
+            out[name] = tuple(lead)
+    return out
+
+
+def _mend_bar_field_order(envelope: Dict[str, Any]) -> int:
+    """⭐ THE BAR'S FIELDS IN THE ENGINE'S ORDER. `stoch`, `atr`, `adx`, `cci`, the DI pair, Williams
+    %R and `mfi` take high, low, close (then volume) and then the length. TradingView's `ta.stoch`
+    takes the SOURCE first: `stoch(close, high, low, 14)`. Both forms have the same number of
+    arguments, so nothing refuses the wrong one; it computes a different oscillator, and the
+    read-back says "of the close, the high and the low" as if that were the request.
+
+    ⚰️ Measured 2026-11-18 in the answers on file: every Stochastic built from the bar's fields was
+    written in TradingView's order.
+
+    The mend is made ONLY where the intent cannot be anything else: the leading arguments are the
+    bar's own fields, each exactly once, a PERMUTATION of the fields the function takes. Then they
+    are put in the engine's order. Any other argument (an average, another symbol's field, a
+    member's own input, the same field twice) is left exactly as written: there the order may be
+    what was meant. Returns how many calls were reordered."""
+    return sum(len(reorder_bar_fields(tree)) for _path, tree in _trees_of(envelope))
+
+
+def reorder_bar_fields(tree: Any) -> List[str]:
+    """Put the bar's fields in the engine's order, IN PLACE, in every call of `tree` where they are
+    plainly out of it (the rule of `_mend_bar_field_order`). Returns the name of each function
+    reordered, one per call. A caller that only wants to KNOW hands in a copy
+    (`misordered_bar_fields`)."""
+    order = bar_field_functions()
+    found: List[str] = []
+    stack = [tree]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        args = node.get("args")
+        if isinstance(args, list):
+            want = order.get(node.get("name")) if node.get("type") == "call" else None
+            if want and len(args) > len(want):
+                got = [a.get("name") if isinstance(a, dict) and a.get("type") == "series" and set(a) == {"type", "name"}
+                       else None for a in args[:len(want)]]
+                if None not in got and sorted(got) == sorted(want) and tuple(got) != want:
+                    by_name = {a["name"]: a for a in args[:len(want)]}
+                    args[:len(want)] = [by_name[field] for field in want]
+                    found.append(str(node.get("name")))
+            stack.extend(args)
+    return found
+
+
+def misordered_bar_fields(tree: Any) -> List[str]:
+    """Which functions `tree` calls with the bar's fields plainly out of the engine's order, one
+    name per call. READ-ONLY: the tree is not touched."""
+    return reorder_bar_fields(copy.deepcopy(tree))
+
+
 def _mend_single_state_paint(envelope: Dict[str, Any], view: Any) -> int:
     """Re-spell `set_color_states` on a CHANNEL (candles / background) that carries exactly one
     `when` state and no `otherwise` as `set_paint` of the output whose tree is that condition.
@@ -3164,6 +3266,8 @@ def mend(candidate: Any, view: Any) -> Tuple[Any, List[str]]:
             names.append(MEND_OUTPUT_REF)
         if _mend_single_state_paint(work, view):
             names.append(MEND_STATE_PAINT)
+        if _mend_bar_field_order(work):
+            names.append(MEND_BAR_FIELDS)
         if _mend_assumptions(work, view):
             names.append(MEND_ASSUMPTION)
         return (work, names) if names else (candidate, [])
@@ -3453,11 +3557,18 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
     # answered "not available" and handed the request on. A library name (built, or held and
     # refused by name with the way forward) is the better answer, so it takes that bucket. A
     # bucket holding anything else is still never replaced.
+    # ⭐ AND THE PHRASE OF THE ENGINE FUNCTION IT IS THE INDICATOR OF (2026-11-18): "stochastic
+    # oscillator" was the phrase of the raw %K function, so the one name every member uses for the
+    # indicator reached the assistant as a bare function and was built from recollection. An entry
+    # that declares `names_function` takes a bucket holding ONLY that function. Nothing else.
     for phrase, entry_id in named_indicators.phrases():
         words = dc._form_tokens(phrase)
         stems, cost = dc._stem_key(words)
         if stems in index and not all(r.get("kind") == dc.EXCLUDED_ENTRY for r in index[stems]):
-            continue
+            mine = (named_indicators.entry(entry_id) or {}).get("names_function")
+            if not (mine and all(r.get("kind") == dc.TABLE_ENTRY and r.get("section") == ast_table.FUNCTIONS_SECTION
+                                 and r.get("key") == mine for r in index[stems])):
+                continue
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": entry_id, "section": named_indicators.SECTION,
                          "words": words, "cost": cost}]
     # ⭐ THE WITHHELD NAMES (`indicator_names.withheld_spellings`): each is a term, so the planner's

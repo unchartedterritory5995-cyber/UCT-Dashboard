@@ -228,6 +228,9 @@ let _capabilityAdmission = false
 const _verdicts = new Map()        // hash -> { admitted, at }
 const _askedAt = new Map()         // hash -> when a source with NO verdict was last re-asked (bounded)
 const _admissionInFlight = new Map() // hash -> Promise
+// ⭐ (2026-11-18, the first-paste race) the hashes a consult ANSWERED "still being checked" for (bounded): a build
+// minted on that answer is waiting for one, and `runtimeConsultPendingOf` says so until the answer changes
+const _consultedPending = new Set()
 
 /** Latch the server's switch (`capability_admission` on the kill read). Anything but
  *  `true` is OFF, and switching it off forgets every verdict. */
@@ -330,16 +333,63 @@ export function requestRuntimeAdmission(source, _attempt = 0) {
 export function watchRuntimeAdmission(source, onVerdict, { delayMs = 0, recheckMs = RUNTIME_LISTS_RECHECK_MS } = {}) {
   let alive = true
   let timer = null
+  // ⭐ (2026-11-18, the first-paste race) no verdict yet: ask again SOON, then less often, up to the recheck. ⚰️ After
+  // the server's busy detector answered "still being checked" five times (about 6 s), the next ask waited the full
+  // recheck (60 s), and the first paste of a script the server had not met yet stayed the host copy for a minute.
+  let wait = RUNTIME_ADMISSION_PENDING_RETRY_MS * 2
+  const again = () => {
+    const w = Math.min(recheckMs, wait)
+    wait = Math.min(recheckMs, wait * 2)
+    timer = setTimeout(ask, w)
+  }
   const ask = () => {
     if (!alive) return
     Promise.resolve(requestRuntimeAdmission(source)).then((v) => {
       if (!alive) return
       if (v) { onVerdict(v); return }
-      timer = setTimeout(ask, recheckMs)      // no verdict yet: ask again on the recheck
-    }).catch(() => { if (alive) timer = setTimeout(ask, recheckMs) })
+      again()
+    }).catch(() => { if (alive) again() })
   }
   timer = setTimeout(ask, delayMs)
   return () => { alive = false; if (timer) clearTimeout(timer) }
+}
+
+/** ⭐ (2026-11-18, the first-paste race) — whether a CONSULT for this script answered "still being checked" and
+ *  would still answer so: a build minted on that answer is waiting for the admission verdict. False for a script no
+ *  consult asked about (a door that never asked does not wait), and false once the answer changed (a verdict landed,
+ *  the allowlist names it, admission switched off). The condition is `runtimeNotGradedOf`'s own "still being
+ *  checked" branch, and a rail holds the two to each other over every state. */
+export function runtimeConsultPendingOf({ source, hash } = {}) {
+  const h = typeof hash === 'string' && hash ? hash.toLowerCase()
+    : (typeof source === 'string' ? runtimeSourceHash(source) : '')
+  if (!h || !_consultedPending.has(h)) return false
+  if (_allow === ALLOW_ANY || !_capabilityAdmission) return false
+  if (_allow.some((e) => h.startsWith(e))) return false
+  return !_verdicts.has(h)
+}
+
+/** How long an Add pressed before a script's admission answered waits for the answer (MemberPane). */
+export const RUNTIME_ADMISSION_ATTACH_WAIT_MS = 20000
+
+/** ⭐ (2026-11-18, the first-paste race) — wait for this script's admission verdict: at once when no consult is
+ *  waiting on one, else asking (`watchRuntimeAdmission`) until a verdict lands or `timeoutMs` runs out. Resolves to
+ *  the latched verdict or null. Never rejects. */
+export function awaitRuntimeAdmission(source, { timeoutMs = RUNTIME_ADMISSION_ATTACH_WAIT_MS } = {}) {
+  if (!runtimeConsultPendingOf({ source })) return Promise.resolve(runtimeAdmissionOf({ source }))
+  return new Promise((resolve) => {
+    let done = false
+    let cancel = null
+    let timer = null
+    const finish = (v) => {
+      if (done) return
+      done = true
+      if (timer) clearTimeout(timer)
+      if (cancel) cancel()
+      resolve(v || null)
+    }
+    timer = setTimeout(() => finish(runtimeAdmissionOf({ source })), timeoutMs)
+    cancel = watchRuntimeAdmission(source, finish, { delayMs: 0 })
+  })
 }
 
 /** Rails only. */
@@ -348,6 +398,7 @@ export function __resetRuntimeAdmission() {
   _verdicts.clear()
   _admissionInFlight.clear()
   _askedAt.clear()
+  _consultedPending.clear()
 }
 
 /** Why this script is NOT drawn by the runtime lane (not yet graded), or null.
@@ -368,6 +419,9 @@ export function runtimeNotGradedOf({ source, hash } = {}) {
     }
     if (v && v.admitted) return null
     if (!v) {
+      _consultedPending.delete(h)
+      _consultedPending.add(h)
+      while (_consultedPending.size > RUNTIME_ADMISSION_MAX) _consultedPending.delete(_consultedPending.values().next().value)
       // ⭐ re-review F2 — a source with NO verdict is re-asked on the lists' recheck interval (at most
       // once per interval per hash), so the chart's own consults recover too
       if (typeof source === 'string' && Date.now() - (_askedAt.get(h) || 0) >= RUNTIME_LISTS_RECHECK_MS) {

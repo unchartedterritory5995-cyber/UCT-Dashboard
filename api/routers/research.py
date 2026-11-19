@@ -287,20 +287,40 @@ def _timed(legs: dict, name: str, fn, *args):
         legs[name] = time.monotonic() - t0
 
 
+def _consensus_answered(c) -> bool:
+    """True when the FMP consensus holds forward periods to show (the panel's own test)."""
+    return (isinstance(c, dict) and c.get("state") == "ok"
+            and bool((c.get("annual") or []) or (c.get("quarterly") or [])))
+
+
 @router.get("/api/research/estimates/{sym}")
-def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
-    """yfinance forward estimates + revisions. `?consensus=1` (the terminal's EE
-    panel, and the research tab when RESEARCH_FMP_DEPTH_ENABLED is on) adds the
-    FMP multi-year consensus beside them, read CONCURRENTLY with the yfinance leg
-    so a cold load costs the slower of the two, not their sum. Without the
-    parameter the response is exactly what it always was."""
+def research_estimates(sym: str = Depends(sym_path), consensus: int = 0, revisions: int = 0):
+    """Forward estimates and EPS estimate revisions.
+
+    No parameter: the yfinance forward table and revisions, exactly as this route always
+    answered. `?consensus=1` (the terminal's EE panel, the Calendar earnings modal, and the
+    research tab when RESEARCH_FMP_DEPTH_ENABLED is on): the FMP multi-year consensus. The
+    yfinance leg is read ONLY when FMP did not answer with forward periods; its forward table
+    then stands in, and `sources.forward` names it. Estimate revisions are not part of that
+    answer: `?revisions=1` is their own read (yfinance; FMP publishes no revision history),
+    made by the revisions card as a request of its own."""
     # Route-entry line, first 10 min after boot only, BEFORE any import or lock: proves
     # whether the handler started at all when a boot-window open stalls.
     t_start = time.monotonic()
     if boot_probe.in_entry_window():
-        _logger.info("[ee-enter] %s consensus=%s boot+%.0fs threads=%d",
-                     (sym or "").upper(), consensus, boot_probe.boot_age(),
+        _logger.info("[ee-enter] %s consensus=%s revisions=%s boot+%.0fs threads=%d",
+                     (sym or "").upper(), consensus, revisions, boot_probe.boot_age(),
                      threading.active_count())
+    if revisions:
+        # The revisions card's own read. One source, named in the answer; a failed read is
+        # marked, so an empty list is never a finding about the company.
+        out = {"sym": (sym or "").upper(), "revisions": [], "sources": {"revisions": "Yahoo Finance"}}
+        try:
+            out["revisions"] = list((get_estimates(sym) or {}).get("revisions") or [])
+        except Exception as exc:
+            _logger.warning("research estimate revisions failed for %s: %s", sym, exc)
+            out["yf_unavailable"] = True
+        return _fund_marked(out, sym, _EE_FUND_WHY)
     if not consensus:
         try:
             return _fund_marked(get_estimates(sym), sym, _EE_FUND_WHY)
@@ -322,35 +342,45 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0):
     except Exception:                                    # noqa: BLE001 -- a trace never fails a read
         in_flight_at_entry = None
     legs: dict = {}
-    with ThreadPoolExecutor(max_workers=2, thread_name_prefix="ee-route") as ex:
-        f_yf = ex.submit(_timed, legs, "yf", get_estimates, sym)
-        f_fmp = ex.submit(_timed, legs, "fmp", get_consensus, sym)
+    # FMP first. The yfinance leg is read only when the consensus holds no forward periods
+    # (FMP answered empty, or did not answer): then its forward table is the fallback.
+    try:
+        cons = _timed(legs, "fmp", get_consensus, sym)
+    except Exception as exc:
+        _logger.warning("research consensus failed for %s: %s", sym, exc)
+        cons = {"sym": (sym or "").upper(), "state": "error", "annual": [], "quarterly": []}
+    out = {"sym": (sym or "").upper(), "entity": None, "forward": [], "consensus": cons}
+    sources = {"consensus": "FMP"}
+    if _consensus_answered(cons):
         try:
-            out = dict(f_yf.result() or {})
+            from api.services.research.entity_resolution import resolve_entity
+            out["entity"] = resolve_entity(sym)[0]
+        except Exception:                                # noqa: BLE001 -- the entity note is optional
+            pass
+    else:
+        try:
+            est = _timed(legs, "yf", get_estimates, sym) or {}
+            out["sym"] = est.get("sym") or out["sym"]
+            out["entity"] = est.get("entity")
+            out["forward"] = est.get("forward") or []
         except Exception as exc:
             _logger.warning("research estimates failed for %s: %s", sym, exc)
             # `yf_unavailable`: the Yahoo leg FAILED, so an empty forward list is not a finding
             # (the EE panel said "Neither FMP nor Yahoo Finance holds forward estimates").
-            out = {"sym": (sym or "").upper(), "entity": None, "forward": [], "revisions": [],
-                   "yf_unavailable": True}
-        try:
-            out["consensus"] = f_fmp.result()
-        except Exception as exc:
-            _logger.warning("research consensus failed for %s: %s", sym, exc)
-            out["consensus"] = {"sym": (sym or "").upper(), "state": "error",
-                                "annual": [], "quarterly": []}
+            out["yf_unavailable"] = True
+        # Which vendor stands behind the fallback table, for the on-screen source line.
+        sources["forward"] = "Yahoo Finance"
     total = time.monotonic() - t_start
     if total >= _SLOW_EE_SECONDS:
-        _logger.warning("[ee-slow] %s %.1fs: yf %.1fs, fmp %.1fs, estimates key in flight at entry=%s,"
+        _logger.warning("[ee-slow] %s %.1fs: fmp %.1fs, yf %s, estimates key in flight at entry=%s,"
                         " import %.2fs, boot+%.0fs",
-                        (sym or "").upper(), total, legs.get("yf", -1.0), legs.get("fmp", -1.0),
+                        (sym or "").upper(), total, legs.get("fmp", -1.0),
+                        f"{legs['yf']:.1f}s" if "yf" in legs else "not read",
                         in_flight_at_entry, t_imp, boot_probe.boot_age())
-    # Which vendor stands behind each block, for the on-screen source line.
-    out["sources"] = {"forward": "Yahoo Finance", "revisions": "Yahoo Finance",
-                      "consensus": "FMP"}
+    out["sources"] = sources
     # The company's reporting currency (TSM -> "TWD"), read once by the FMP leg and
-    # lifted here so the Yahoo fallback tables can say their revenue is not dollars
-    # either. None = not known.
+    # lifted here so the Yahoo fallback table and the revisions card can say their
+    # figures are not dollars either. None = not known.
     out["reporting_currency"] = (out.get("consensus") or {}).get("currency")
     # `consensus.state` is untouched: the EE panel maps it through a fixed table and an
     # unknown value would read as "FMP did not answer". The marker sits at the top level.

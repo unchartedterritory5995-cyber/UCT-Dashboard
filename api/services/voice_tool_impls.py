@@ -617,8 +617,10 @@ def _get_institutional_holders(ticker: str = "", top_n: int = 10) -> dict:
     if not ticker or not (ticker := ticker.strip()):
         return {"error": "ticker required"}
     try:
-        from api.services.institutional_holdings import get_institutional_holders
-        return get_institutional_holders(ticker, top_n=top_n or 10)
+        # Form 13F first (the read the Charts ownership panel route makes); the answer's
+        # `sources` names where each figure came from.
+        from api.services.institutional_holdings import get_institutional_holders_13f_first
+        return get_institutional_holders_13f_first(ticker, top_n=top_n or 10)
     except Exception as e:
         _log.warning("get_institutional_holders failed: %s", e)
         return {"error": f"institutional holders unavailable: {e}"}
@@ -2934,11 +2936,13 @@ def _register_all() -> None:
     _vt.voice_tool(
         name="get_institutional_holders",
         description=(
-            "Top institutional holders for a ticker (from Yahoo Finance 13F "
-            "aggregate). Returns each holder + shares + % of outstanding + "
-            "value, plus overall held_by_institutions_pct and "
-            "held_by_insiders_pct. Call for 'who owns NVDA', 'how much is "
-            "institutional', 'who are the top 5 holders'."
+            "Top institutional holders for a ticker, from Form 13F filings "
+            "(quarterly, filed up to 45 days after the quarter ends). Returns "
+            "each holder + shares + % of outstanding + value + the change "
+            "against its prior filing, plus overall held_by_institutions_pct "
+            "and held_by_insiders_pct; `sources` names where each figure came "
+            "from and `as_of` the filing date. Call for 'who owns NVDA', 'how "
+            "much is institutional', 'who are the top 5 holders'."
         ),
         parameters={
             "ticker": {"type": "string"},

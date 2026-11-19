@@ -514,7 +514,9 @@ _RS_MANSFIELD_VIEW_BLANKS: tuple[str, ...] = (
 #: plus the three Phase 3 families. Event columns are never blanked here.
 _RS_VIEW_FAMILIES: dict[str, tuple[str, ...]] = {
     "ratio": _RS_MANSFIELD_VIEW_BLANKS,
-    "mansfield": ("mansfield", "dotMansfieldCross"),
+    # 2026-11-18: read from the row the `rsMansfield` split definition serves (the
+    # `rating` entry's precedent below), so this Reading and that row keep ONE list.
+    "mansfield": tuple(registry_defs.RS_MANSFIELD_WIRE_COLUMNS),
     "rotation": ("rsRatio", "rsMomentum"),
     "quality": ("clenowScore", "dotClenowGap"),
     "vars": ("vars", "varsMa"),
@@ -1914,6 +1916,8 @@ _RS_RATING_PAYLOAD_SHAPE = 1
 _RS_PHASES_PAYLOAD_SHAPE = 2
 _RS_VS_EMA_PAYLOAD_SHAPE = 2
 _RS_EXIT_PAYLOAD_SHAPE = 2
+#: rsMansfield 2 (2026-11-18): `payload.evidence` (the rsLine row's block), keyed on the evidence asof.
+_RS_MANSFIELD_PAYLOAD_SHAPE = 2
 
 #: The phase column's words (the legend row; the bgcolor paint reads the number).
 _RS_PHASE_LABELS = {1: "RS rising while the market falls", 0: "RS falling while the market rises"}
@@ -2448,5 +2452,95 @@ def rs_exit_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
     t_built = time.perf_counter()
     if times:
         _rs_split_store(ck, envelope, _rs_split_ttl(core, intraday), "rsExit", sym)
+    _record_timing("cold", t0, _stage_order(stages, (t_built - t_build) * 1000.0))
+    return envelope
+
+
+# ── UCT Mansfield RS (`rsMansfield`, 2026-11-18) ────────────────────────────
+#
+# The Mansfield column the rsLine row ALREADY computes under its Mansfield Reading
+# (`view: "mansfield"`), on a pane of its own. NO NEW MATHS, and nothing restated:
+# the same `relative_strength.compute_mansfield_columns` over the same stock and
+# benchmark bars (the shared core's join, `rs_values`, is `rs_line` over those bars,
+# the function the compute would call), the same cross-up dot at zero
+# (`_rs_zero_cross_dot`), the same readout block (`_rs_mansfield_scalars`), the same
+# four-place rounding (a percent) and the same intraday rule (the line draws, the dot
+# is blank). `tests/test_rs_mansfield_rows.py` holds the wire byte-equal to the rsLine
+# row's own Mansfield Reading and to `tests/fixtures/indicators/rs_mansfield.json`.
+
+def _rs_mansfield_legend(column, scalars: dict, why: str | None) -> dict:
+    """The pane label's words. ``summary`` is the Mansfield reading in words (the rsLine
+    readout's own `+4.1%, above zero, rising`) or the blank state's reason; ``blankReason``
+    is that reason ONLY while there is nothing to draw (no finite cell at all), and null on
+    a live answer, so the label prints the line's own number, never a second one."""
+    if why is None and not any(_rs_num(v) for v in column):
+        why = "not enough bars yet"
+    if why:
+        return {"summary": why, "blankReason": why}
+    return {"summary": scalars.get("summary"), "blankReason": None}
+
+
+def rs_mansfield_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, warm=None) -> dict:
+    """`rsMansfield`: the rsLine row's Mansfield Reading on the shared core. The wire is
+    `RS_MANSFIELD_WIRE_COLUMNS` (the line, and its cross-up dot at 0); the payload is
+    `benchmark`, `mansfield` (the rsLine payload's own block: value, last cross, length),
+    `legend`, `history`, `inputs`, `intraday`, `state`. Every timeframe; intraday the dot
+    is blank (a zero cross on minute bars is the rsLine lane's blank too). Same-symbol and
+    no-benchmark states blank both columns with the RS line's reason."""
+    t0 = time.perf_counter()
+    from api.services import relative_strength as rsmod
+    from api.services.indicator_compute import _round_series
+    src = inputs or {}
+    store = registry_defs.store_tf(tf)
+    intraday = store not in ("D", "W", "M")
+    count = _rs_bars_count(store, rsmod.DEFAULT_LOOKBACK)
+    requested = src.get("benchmark") or registry_defs.RS_LINE_BENCHMARKS[0]
+    custom = _rs_split_picks(requested, src)
+    length = _rs_mansfield_length(src.get("mansfieldLength"))
+    params = {"benchmark": requested, **custom, "mansfieldLength": length}
+    rev = _rs_split_rev("rsMansfield")
+    day = _et_session_day()
+    # the evidence asof rides the key (rsLine's `_rs_data_generation` half): a new 04:30 pull is never hidden
+    # behind a cached card for the rest of the session
+    ev_asof = _rs_evidence_asof()
+    ck = cache_key(f"rsMansfield{rev}p{_RS_MANSFIELD_PAYLOAD_SHAPE}",
+                   f"{sym.upper()}:{store}:{json.dumps(params, sort_keys=True)}:e{ev_asof if ev_asof is not None else '-'}:{day}")
+    hit, tier = _rs_kept(ck, intraday)
+    if hit:
+        _record_timing(tier, t0, {})
+        return hit
+    stages: dict = {"bars": 0.0}
+    t_build = time.perf_counter()
+    core = _rs_core(sym, tf, requested, custom, fetch_bars=_timed_fetch(fetch_bars, stages), warm=warm,
+                    count=count, day=day, memo=fetch_bars)
+    times = core["times"]
+    why = _rs_split_why(core)
+    if why is None:
+        mans = rsmod.compute_mansfield_columns(core["bars"], core["bench"]["bars"], length, rs_values=core["rs"])
+    else:
+        mans = {k: [None] * len(times) for k in rsmod.PHASE2A_COLUMNS}
+    # The readout block is read before the intraday rule blanks the dot: the reading is
+    # true whether or not the dot is drawn (the rsLine order).
+    scalars = _rs_mansfield_scalars(mans, length)
+    dot = [None] * len(times) if intraday else _rs_zero_cross_dot(mans["mansfield"], mans["mansfieldCrossUp"])
+    wire = {"mansfield": _round_series(mans["mansfield"], 4),          # a PERCENT distance: four places
+            "dotMansfieldCross": _round_series(dot, 4)}
+    payload = {
+        "benchmark": _rs_split_benchmark_block(core, _rs_last_finite(core["rs"]), intraday=intraday),
+        "mansfield": scalars,
+        "legend": _rs_mansfield_legend(mans["mansfield"], scalars, why),
+        "history": _rs_split_history(core, count),
+        "inputs": params,
+        "intraday": intraday,
+        "state": _rs_split_state(core, intraday),
+        # ⭐ (2026-11-18) THE CARD'S MEASURED EVIDENCE: the rsLine row's own block (`_rs_evidence`), so the
+        # card reads `scalar:evidence.sentence.mansfield` exactly as rsLine's Mansfield card does (the same
+        # column, so the same measured `mansfield_cross_up` evidence); the honesty line where none is measured
+        "evidence": _timed(stages, "evidence", _rs_evidence),
+    }
+    envelope = {"columns": wire, "times": times, "asOf": time.time(), "payload": payload}
+    t_built = time.perf_counter()
+    if times:
+        _rs_split_store(ck, envelope, _rs_split_ttl(core, intraday), "rsMansfield", sym)
     _record_timing("cold", t0, _stage_order(stages, (t_built - t_build) * 1000.0))
     return envelope

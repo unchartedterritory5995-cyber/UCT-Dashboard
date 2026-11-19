@@ -34,7 +34,7 @@ EXPECTED = {
     "fundamentals-monitor", "nhnl-live", "volume-live", "provider-coverage-monitor",
     "disk-watchdog", "sqlite-integrity", "reuse-map-warm", "bars-bydate-index-builder",
     "weekly-key-purge", "intraday-offgrid-sweep", "memory-prewarm", "web-memwatch",
-    "bars-seeder", "bars-prewarm", "ticker-names-prewarm", "period-preset-warm", "ticker-logos-prewarm",
+    "bars-seeder", "bars-prewarm", "ticker-names-prewarm", "period-preset-warm", "short-data-warm", "ticker-logos-prewarm",
     "index-bars-warm", "breadth-bars-warm", "logo-hires-startup", "breadth-sentiment-seed",
     "naaim-series-seed", "market-indicator-jobs", "pine-seed-jobs", "breadth-self-heal",
     "dashboard-cache-warm", "voice-kb-seed", "daily-tracker-snapshot", "flow-db-seed",

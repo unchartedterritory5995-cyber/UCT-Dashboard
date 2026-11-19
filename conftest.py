@@ -1538,6 +1538,16 @@ if not _INERT_IN_PRODUCTION:
     os.environ.setdefault("RS_ENVELOPE_STORE", "0")
 
 
+# ─── rebuilt deep daily history: OFF under pytest ──────────────────────────
+#
+# `api/services/bars_rebuild.py` serves rebuilt D/W/M history for the tickers a manifest on the volume
+# names. A suite that boots the app with DATA_DIR on a real volume (this PC's C:/data) must never pick
+# that up and see different bars than its fixtures. Opt-IN: `tests/test_bars_rebuild.py` turns it on
+# against its own tmp directory.
+if not _INERT_IN_PRODUCTION:
+    os.environ.setdefault("BARS_REBUILD_SERVE", "0")
+
+
 # ─── prebuilt catalogue memo: cleared between tests ────────────────────────
 #
 # `watchlist_prebuilt._load_committed()` is memoized (TTL + config-file mtime) so

@@ -23,6 +23,10 @@ Lineage:
   - **7 of 70 sampled**: consecutive-updown, rsi-strategy, stochastic-slow, buy-monday-exit-tuesday, scalping-strategy-with-williams-r-macd-and-sma-1-minute-only, supertrend-strategy, golden-cross-sma-200.
   - **3 of 25 committed**: buy-monday-exit-tuesday, scalping-…-1-minute-only, supertrend-strategy.
   - Every other strategy is refused by name, at the door, its run, its report, or no-backtest. There is no third state.
+  - ⚠️ **These counts are for a chart whose newest bar is CLOSED** (the audit's `newestBarIsForming: false`). Corrected after the 2026-11-18 production check:
+    while the newest daily bar is FORMING (in session), the served count is **0** until the rule [B-EXEC] is pinned.
+    Each of the three is refused by name, `runtime:strategy-unpinned` [B-EXEC], and keeps its plots.
+    The census rail now measures that chart too, and derives its expectation from the pins production reads (`strategyServeCensus.test.js`).
 
 ## 2. Nothing a member sees is taken away
 

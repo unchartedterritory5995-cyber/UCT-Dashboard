@@ -835,6 +835,106 @@
      }
     ]
    }
+  ],
+  "clarify-stochastic-kind#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added the fast Stochastic: %K over 14 bars and its 3-bar average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Stochastic Oscillator",
+      "placement": "pane",
+      "primary": "k",
+      "outputs": [
+       {
+        "key": "k",
+        "label": "K",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "call",
+           "name": "stoch",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "key": "d",
+        "label": "D",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "call",
+             "name": "stoch",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              },
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 3
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
   ]
  }
 }

@@ -36,7 +36,7 @@ describe('W9-T1 pinned(): the committed ledger holds the rules the captures witn
   it('ONE AUTHORITY: brokerPins.resolved.json is the resolution of brokerPins.json (2)', () => {
     expect(PINS_SRC.rules).toEqual(RESOLVED.rules)
     expect(Object.keys(RESOLVED.rules).sort()).toEqual([
-      'B-CANCEL', 'B-CLOSE', 'B-COMM-CONTRACT', 'B-COMM-ORDER', 'B-COMM-PCT', 'B-DEFAULTS', 'B-DIR', 'B-ENTRY-ORDER', 'B-EXIT-BIND',
+      'B-CANCEL', 'B-CLOSE', 'B-COMM-CONTRACT', 'B-COMM-ORDER', 'B-COMM-PCT', 'B-DEFAULTS', 'B-DIR', 'B-ENTRY-ORDER', 'B-EXEC', 'B-EXIT-BIND',
       'B-EXIT-LIFE', 'B-FIFO', 'B-FILL', 'B-FUNDS', 'B-FUNDS-REVERSE', 'B-FUNDS-SHORT', 'B-GAP', 'B-MARGIN', 'B-MARGIN-CALL',
       'B-MARGIN-CALL-ALL', 'B-MARKET', 'B-OCA', 'B-ORDER', 'B-PATH', 'B-PYR', 'B-QTY', 'B-QTY-REVERSE',
       'B-REVERSE', 'B-RISK-ALLOW', 'B-RISK-DDOWN', 'B-ROUND', 'B-SIG', 'B-SLIPPAGE', 'B-TICK-HIST',
@@ -129,6 +129,12 @@ describe('W9-T1 the history window and the forming bar', () => {
     expect(Number.isNaN(res.outputs[0][28])).toBe(false)
     expect(attempt(SCRIPT, { pins: (id) => id !== 'B-EXEC', confirmed: false }).err.rule).toBe('B-EXEC')
     expect(attempt(SCRIPT, { pins: (id) => id !== 'B-EXEC', confirmed: true }).err).toBeUndefined()
+    // ⭐⭐ (2026-11-18) THE BROKER ASKS IT, so a run that left the forming bar out RECORDS the rule (`rulesUsed`: what a
+    // capture may pin), dated on the forming bar (ruling D11), and a run of closed bars never asks it.
+    // ⚰️ The vm asked it outside the broker's ledger: no run reported B-EXEC, so no capture could pin it.
+    expect(res.broker.record.rulesUsed).toContain('B-EXEC')
+    expect(res.broker.ruleFirstBars['B-EXEC']).toBe(29)
+    expect(attempt(SCRIPT, { pins: ALL, confirmed: true }).res.broker.record.rulesUsed).not.toContain('B-EXEC')
   })
   it('a run off the listing still stops by name', () => {
     expect(attempt(SCRIPT, { pins: ALL, listing: false }).err.message).toMatch(/Q-S1n/)

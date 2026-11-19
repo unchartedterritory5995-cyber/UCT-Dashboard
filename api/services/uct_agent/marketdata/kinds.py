@@ -28,6 +28,10 @@ Terminal data wave 4 (terminal-data): `earnings.season`, `earnings.callThemes`, 
 ERNS / CEOS / GRP terminal panels. All default OFF, all MODEL-ISOLATED, and none ever starts a build or spends a provider
 call: each reads only the answer its service already holds, through that service's read-only accessor (MD-1 §4.13). The
 UNVOL panel needs no kind of its own: it is the Screener's by-now relative volume, which `screen.run` already scans.
+Terminal data wave 5 (terminal-data): `short.interest`, `short.list` — the Agent half of the SHINT / SHRTS terminal
+panels (FINRA short interest and daily short volume). Both default OFF, both MODEL-ISOLATED, and neither ever starts a
+build, a check or a vendor request: each reads only what `api/services/short_data.py` already holds, through that
+service's read-only accessors (MD-1 §4.14).
 """
 from __future__ import annotations
 
@@ -40,6 +44,7 @@ from api.services.uct_agent.marketdata import (confluence_board, earnings_call_s
                                               themes_rotation, yearly_highs_lows)
 from api.services.uct_agent.marketdata import earnings_reactions, flow_record, flow_top_picks, gamma_levels
 from api.services.uct_agent.marketdata import earnings_call_themes, earnings_season, group_drill
+from api.services.uct_agent.marketdata import short_interest, short_list
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -372,6 +377,33 @@ def register(registry) -> None:
                     f"Params: {{range: {'|'.join(group_drill.RANGES)}, kind?: {'|'.join(group_drill.GROUP_KINDS)}, "
                     f"group? (its exact name; needs kind), sort: {'|'.join(group_drill.SORTS)}, "
                     f"dir: {'|'.join(group_drill.DIRS)}, limit (1-{group_drill.MAX_LIMIT})}}.",
+    ))
+    # Terminal data wave 5 (owner: terminal-data): two more kinds, the Agent half of the SHINT and SHRTS panels. Default OFF
+    # like every kind (UCT_AGENT_DATA_KINDS); BOTH are model-isolated, so each also needs its own UCT_AGENT_ISOLATED_KINDS
+    # entry (ADR-005) and its capability is local-only. Neither starts a build, a check or a vendor request: each member
+    # route can start the service's background build, so each adapter reads the service's own read-only accessor
+    # (`short_data.held_stock`, `short_data.held_market`) and answers `unavailable`, with the reason, when nothing is held.
+    registry.register(Kind(
+        name=short_interest.KIND, fn=short_interest.read_short_interest, validate=short_interest.validate,
+        # declared `periodic` (a report lands twice a month, short volume daily); every read reports the LESS fresh
+        # `historical` (a settled report and completed sessions)
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's FINRA short interest: the newest report (settlement date, shares short, days to cover, "
+                    "average daily volume, the change from the report before), percent of float, its newest reports and "
+                    "its newest days of daily short volume (off-exchange trades only; not short interest). Only the "
+                    "answer the server already holds, never a vendor read ('not held' otherwise); as_of is the "
+                    "settlement date, never today. Shown to the member only. "
+                    f"Params: {{symbol, reports (1-{short_interest.MAX_REPORTS}), days (1-{short_interest.MAX_DAYS})}}.",
+    ))
+    registry.register(Kind(
+        name=short_list.KIND, fn=short_list.read_short_list, validate=short_list.validate,
+        # declared `periodic` (a report lands twice a month); every read reports the LESS fresh `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The newest FINRA short interest report across the stocks UCT follows, each beside its previous "
+                    "report, ranked by days to cover, by the biggest percent increase or decrease in short interest, or "
+                    "by percent of float. Only the list the server already holds, never a vendor read or a look for a "
+                    "newer report ('not held' otherwise); as_of is the settlement date, never today. Shown to the member "
+                    f"only. Params: {{rank: {'|'.join(short_list.RANKS)}, limit (1-{short_list.MAX_LIMIT})}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from
