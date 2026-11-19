@@ -211,6 +211,7 @@
     "core": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "eee9e1490a3a5f00255b926aacf7beba5f2e611e3953068751770fdb81122e3f"},
       "evidence": [
         {"capture": "adx-and-di-for-v4-rddt-1d-2026-09-27", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "adx-and-di-for-v4-spy-1d-2026-10-03", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -244,6 +245,7 @@
     "reassign": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "bb36ef1ac5d70b83cdd990014eba50463752a558f675dff42dffaec0a0e28cd3"},
       "evidence": [
         {"capture": "adx-and-di-for-v4-rddt-1d-2026-09-27", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "adx-and-di-for-v4-spy-1d-2026-10-03", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -275,6 +277,7 @@
     "ternary": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "9dcccf326fbc5664057a90b99f33a4c17ba2bd8278c9e3a3657538c3a0f82881"},
       "evidence": [
         {"capture": "adx-and-di-for-v4-rddt-1d-2026-09-27", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "adx-and-di-for-v4-spy-1d-2026-10-03", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -303,6 +306,7 @@
     "if-block": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "17c1dd41191a001fbad93435bb09c73eee755a28c953de872d3b9f103eab0f42"},
       "evidence": [
         {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -331,6 +335,7 @@
     "var": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "2f3f07f8ff7700fcba10d3affeb0dd5152b12692832feb838a4ff14f8df78269"},
       "evidence": [
         {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -357,6 +362,7 @@
     "fn-single": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "2a7fd8c686734ca4c18cd4df5e09217d15cc371b6052d4075f61154b961e929b"},
       "evidence": [
         {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -383,6 +389,7 @@
     "fn-multi": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "2a7fd8c686734ca4c18cd4df5e09217d15cc371b6052d4075f61154b961e929b"},
       "evidence": [
         {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -409,6 +416,7 @@
     "for": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "fa642df1179c4dce0284c7e13449348fe23fa7fbf533e91fa13b106676ac83b1"},
       "evidence": [
         {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "h3-alma-v4-rddt-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
@@ -428,6 +436,7 @@
     "compound-assign": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "643eb44d34d9fd76d4eecfefbbf9823f4fd98fc38c71bb62a50cdda89200045d"},
       "evidence": [
         {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02", "script": "UCTPROBE_R1_STRATEGY", "community": false, "verdict": "MATCH", "runtimePane": "on"},
@@ -442,6 +451,7 @@
     "history-expr": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "98d739517b7d88d36108d679f4aef0fc508225e6fc35a02027ba0ea1e1a82758"},
       "evidence": [
         {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -452,6 +462,7 @@
     "tuple-destructure": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "d2a9745e9afdf208c633673468969e11bd04d08db1512a26cfd6e7ca619e9b43"},
       "evidence": [
         {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -462,6 +473,7 @@
     "while": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "82adfc4a956d1a74c583ee34da2a5ba123d5e126e0fe2bd1110608249d78109e"},
       "evidence": [
         {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -473,6 +485,7 @@
     "typed-array": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "c1f37a1abdf10da2ec2053ce2e6a09c3edc509c793e113a26f9f484226d0b468"},
       "evidence": [
         {"capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03", "script": "Kalman Price Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"},
@@ -484,6 +497,7 @@
     "method-call": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "7531ca783db5d609ef6985d79c44e33403f43bca6672672753fda204127f9a71"},
       "evidence": [
         {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -495,6 +509,7 @@
     "collections:array": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "cb22d05ab58c8bfd47870e9ec8c9460ad7dd6e85131c9c43571c2ff243df7ce0"},
       "evidence": [
         {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -517,6 +532,7 @@
     "switch": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "aef7076402390817a2fba0570952031463074a10c1e8c0e2f8fbe4ff137cff86"},
       "evidence": [
         {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -527,6 +543,7 @@
     "for-in": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "733808679a6dc47ab56b4f0c8c9087c2dc72d19fac51be6cd1b51e1519834a79"},
       "evidence": [
         {"capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14", "script": "Trendline Pivots [QuantVue]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"}
@@ -536,6 +553,7 @@
     "max_bars_back": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "c7efa6dd4511d10432a3c10141b02851df8df655dbf2914996c8f29a7d1fcd15"},
       "evidence": [
         {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -548,6 +566,7 @@
     "realtime-state": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "68e3c3058f22d31e268128b0946d5f627e2c227b3e2b6747c95c99c4becddc5c"},
       "scope": "closed-bar-history",
       "evidence": [
         {"capture": "fair-value-gap-rddt-1d-2026-11-14", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -563,6 +582,7 @@
     "udt": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "e2da2a6b4715d3dbf4324ddd996a6d557d85c35ad492625a9a5d1b19342e1ec2"},
       "evidence": [
         {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14", "script": "Trendline Pivots [QuantVue]", "community": true, "verdict": "MATCH", "runtimePane": "on"}
@@ -572,6 +592,7 @@
     "generics": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "0abcfda5a4fd6529bb0ab35a928b912ca99071e7cb06c0c1d42e53494b3d8d32"},
       "evidence": [
         {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -586,6 +607,7 @@
     "obj:line": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "3e936c785abe62159eb1a672f8eff87754f0441e0fe0d99411469d46c935fd5d"},
       "evidence": [
         {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"},
         {"capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15", "script": "FVG Finder", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 44, "objectsX": "MATCH"},
@@ -602,6 +624,7 @@
     "obj:label": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "f6151f9218100cbd14b3b050ba798ef25a2672f11133a12cbd1f1bfcdb94ca0e"},
       "evidence": [
         {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 21, "objectsX": "MATCH"},
         {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"},
@@ -617,6 +640,7 @@
     "obj:delete": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "8118830d010139010ab572dd85faa785d4ea3a102b9db09d64fa6c7e86040e77"},
       "evidence": [
         {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
         {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 14, "objectsX": "MATCH"},
@@ -633,6 +657,7 @@
     "obj:collection": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "a7b792732076bb522a9ad48f3ce8baba94c25d5dc3bee2b2795562c6b3b57181"},
       "evidence": [
         {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
         {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 33, "objectsX": "MATCH"},
@@ -646,6 +671,7 @@
     "obj:getter": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "ce6de562709d12101b07928275b9a84aca5db262fc5f5c9c93a2c33c4f8b637c"},
       "evidence": [
         {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
         {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 31, "objectsX": "MATCH"}
@@ -655,6 +681,7 @@
     "obj:table": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "8d83f504f6899f657a586a78fbf8d254f59f149b43cb5eec19a808108a754078"},
       "evidence": [
         {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 1, "objectsX": "MATCH"},
         {"capture": "long_tail__09-signal-follow-through-ledger-spy-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 1, "objectsX": "MATCH"},
@@ -666,6 +693,7 @@
     "obj:box": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "8e9da41f1841c19f54caaff985563108add82ce77174d8c9feaa2f6dbea0bdb5"},
       "evidence": [
         {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 21, "objectsX": "MATCH"},
         {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 11, "objectsX": "MATCH"},
@@ -678,6 +706,7 @@
     "conditional-ta": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "90b22e4e03732a4db0323e2afc730a013ce9196297936858972d2b555b2c31fb"},
       "evidence": [
         {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
@@ -692,6 +721,7 @@
     "strategy-decl": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "16ba99d618b504cfdfbd148b2772d5748c17b37932817a78c5b0ad860efbcb35"},
       "evidence": [
         {"capture": "supertrend-strategy-rddt-1d-2026-11-17", "script": "SuperTrend STRATEGY", "community": true, "verdict": "MATCH", "runtimePane": "on"},
         {"capture": "supertrend-strategy-alab-1d-2026-11-17", "script": "SuperTrend STRATEGY", "community": true, "verdict": "MATCH", "runtimePane": "on"},

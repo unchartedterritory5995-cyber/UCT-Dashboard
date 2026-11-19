@@ -26,7 +26,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
 import { getBarStore } from '../../data/barStore/index'
-import { legacyBars, legacyDevelopingOf } from '../../data/barStore/adapter'
+import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
 import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS } from '../../data/barStore/prefetch'
 import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
@@ -269,6 +269,10 @@ export function useBarSnapshotBars({
       // THE developing bar (store-merged: server developing + push frames + tick fallback).
       // Writer D re-tops from exactly this (StockChart updateChart, BARSTORE branch).
       developing: dev ? { t: dev.t, o: dev.o, h: dev.h, l: dev.l, c: dev.c, v: dev.v } : null,
+      // ⭐⭐ (2026-11-18) the route's tri-state for the newest row, as the legacy source hands it (StockChart reads
+      // `data.newest_bar_is_forming` into every run's context); null = unknown. ⚰️ Absent here, every chart on
+      // this source told its strategies "unknown" at every hour, so a closed newest bar was read as forming.
+      newest_bar_is_forming: newestBarIsFormingOf(snap),
     }
   }, [snap])  // eslint-disable-line react-hooks/exhaustive-deps
   const error = useMemo(() => {

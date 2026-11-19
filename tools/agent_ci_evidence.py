@@ -547,13 +547,31 @@ def cmd_verify(a) -> int:
     return 0 if verdict == "PASS" else 1
 
 
+
+def _this_repo(fallback: str) -> str:
+    """owner/name of this repository: $GITHUB_REPOSITORY in Actions, else this checkout's origin remote.
+
+    Derived, never hardcoded, so moving the repository to another owner needs no edit here. `fallback`
+    is used only when neither answers (no git, no origin)."""
+    env = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if env:
+        return env
+    try:
+        url = subprocess.run(["git", "-C", str(pathlib.Path(__file__).resolve().parent), "remote", "get-url", "origin"],
+                             capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        url = ""
+    m = re.search(r"github\.com[:/]+([^/\s]+/[^/\s]+?)(?:\.git)?/?$", url)
+    return m.group(1) if m else fallback
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     v = sub.add_parser("verify", help="PASS/FAIL the merge-tree evidence of one PR")
     v.add_argument("--pr", type=int, required=True)
     v.add_argument("--tree", required=True, help="the expected merge tree (git rev-parse <merge>^{tree})")
-    v.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", "unchartedterritory5995-cyber/UCT-Dashboard"))
+    v.add_argument("--repo", default=_this_repo("unchartedterritory5995-cyber/UCT-Dashboard"))
     v.add_argument("--root", default=".", help="a MASTER checkout: its agent-ci.yml names the required jobs")
     v.add_argument("--accept-dispatch", action="store_true",
                    help="also accept a repository_dispatch rearm run of this PR (tools/agent_ci_rearm.py); off by default")

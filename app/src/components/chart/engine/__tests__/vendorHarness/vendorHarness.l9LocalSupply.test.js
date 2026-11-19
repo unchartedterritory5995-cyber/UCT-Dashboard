@@ -108,6 +108,17 @@ describe('L9 — recordedSupplyOf reads out-of-git rows only when they are the m
     expect(rec.other.SPX.notOnThisMachine).toBeUndefined()
   })
 
+  it('a DAILY rows file whose `t` is the session date (the OWN~D rows, the seed) is read; its span is checked the same way', () => {
+    // ⚰️ 2026-11-19: `new Date('2024-03-20' * 1000)` threw a RangeError out of the span check and failed the whole
+    // corpus file (the l12-now regrade). A store row's `t` is unix seconds OR the session date; both span-check.
+    const isoBars = BARS.map((b) => ({ ...b, t: new Date(b.t * 1000).toISOString().slice(0, 10) }))
+    const { dir, manifest } = storeWith(rowsDoc({ bars: isoBars }))
+    __setSupplyStoreForTests(dir)
+    expect(recordedSupplyOf(capOf(RDDT), recordWith(manifest)).other.SPX.bars).toEqual(isoBars)
+    // and the span is still CHECKED on date rows: a manifest naming another first day is refused by name
+    expect(() => recordedSupplyOf(capOf(RDDT), recordWith({ ...manifest, first: '1990-01-02' }))).toThrow(/the manifest 3 1990/)
+  })
+
   it('⛔ a file whose bytes are not the manifest\'s is refused', () => {
     const { dir, manifest } = storeWith(rowsDoc())
     __setSupplyStoreForTests(dir)

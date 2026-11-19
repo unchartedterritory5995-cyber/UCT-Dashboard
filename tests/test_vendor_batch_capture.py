@@ -74,6 +74,19 @@ def test_a_captured_script_runs_steps_1_to_12_in_order(first):
     assert tail.index("REMOVE") < tail.index("VH_CLEANUP") < tail.index("GLOBALS")
 
 
+def test_the_probe_leaves_the_chart_the_moment_its_values_are_read(first):
+    """(c) 2026-11-19: on the rig layout the editor's add is autosaved and a widget-API removal is not, so a probe
+    that outlives an autosave stays on the owner's layout (01:17Z, the settled L12 batch). The removal runs right
+    after `vh_capture` (the page has staged the whole capture text; the chunk reads need no study), before the first
+    chunk and the transport check, and `cleanup()` still runs after."""
+    steps = first["results"]["alpha"]["steps"]
+    assert steps.index("vh_capture") < steps.index("removed-at-capture") < steps.index("chunk") < steps.index("verify")
+    names = first["page"].names()
+    cap = names.index("VH_CAPTURE")
+    assert names.index("REMOVE", cap) < names.index("VH_CHUNK", cap), names
+    assert names.count("REMOVE") >= 1 and "VH_CLEANUP" in names[names.index("VH_CHUNK"):]
+
+
 # ── the outcome classes ──────────────────────────────────────────────────────
 def test_each_outcome_class_is_distinct_and_carries_its_reason(first):
     r = first["results"]
@@ -213,7 +226,14 @@ def test_the_driver_never_enters_text():
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
     assert not [c.func.attr for c in calls if c.func.attr in banned]
     presses = [c for c in calls if c.func.attr == "press"]
-    assert presses and all(isinstance(c.args[0], ast.Constant) and c.args[0].value == "Escape" for c in presses)
+    # ⭐ (owner ruling, delegated, 2026-11-19) ONE other key: the layout's Save, pressed ONLY inside the guarded
+    # clean-save (`guarded_clean_save`, behind `clean_save_refusal`); every other press is Escape
+    fns = [f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef)]
+    in_guard = {id(c) for f in fns if f.name == "guarded_clean_save" for c in ast.walk(f) if isinstance(c, ast.Call)}
+    saves = [c for c in presses if isinstance(c.args[0], ast.Name) and c.args[0].id == "SAVE_SHORTCUT"]
+    assert len(saves) == 1 and all(id(c) in in_guard for c in saves), "Save is pressed only by the guarded clean-save"
+    assert all((isinstance(c.args[0], ast.Constant) and c.args[0].value == "Escape") or c in saves for c in presses)
+    assert bc.SAVE_SHORTCUT == "Control+s"
 
 
 def test_a_profile_inside_the_worktree_or_the_owners_browser_is_refused(tmp_path, monkeypatch):
@@ -349,3 +369,82 @@ def test_a_batch_that_stopped_at_its_own_start_gate_keeps_its_code(tmp_path):
     assert code == 1                                            # GATE_FAILED stays the batch's answer
     (v,) = _verify_rows(tmp_path / "run")
     assert v["ok"] is False and [s["name"] for s in v["studies"]] == ["Owner's study"]
+
+
+# ── the guarded clean-save (owner ruling, delegated to the coordinator, 2026-11-19) ──────────────────────────────
+ORIG = {"symbol": "NASDAQ:AAPL", "resolution": "5"}
+
+
+def test_the_guard_saves_only_a_clean_in_page_state():
+    clean = {"studies": [], "symbol": "NASDAQ:AAPL", "resolution": "5"}
+    assert bc.clean_save_refusal(clean, ORIG) is None
+    assert "studies are still on the chart" in bc.clean_save_refusal({**clean, "studies": ["X"]}, ORIG)
+    assert "resolution reads" in bc.clean_save_refusal({**clean, "resolution": "30"}, ORIG)
+    assert "symbol reads" in bc.clean_save_refusal({**clean, "symbol": "NYSE:RDDT"}, ORIG)
+    assert "not read" in bc.clean_save_refusal({"symbol": "NASDAQ:AAPL", "resolution": "5"}, ORIG)
+
+
+def _dirty_batch(tmp_path, clean_save):
+    manifest, beh = bd.make_manifest(tmp_path, [("x", 'indicator("X")\nplot(close)\n', {})])
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, autosave="tradingview")
+    from pine_vendor_capture import acquire
+    assert acquire(page, 5) == 0
+    rd = bc.RunDir(tmp_path / "run", "selfcheck")
+    logged = []
+    code = bc.run_batch(page, manifest, rd, bd.fast_opts(clean_save=clean_save), bd.FakeClock(page), bc.NodeVerifier(),
+                        log=logged.append)
+    return page, code, rd, logged
+
+
+def test_a_dirty_rig_is_repaired_by_the_guarded_clean_save_and_a_fresh_load_proves_it(tmp_path):
+    page, code, rd, logged = _dirty_batch(tmp_path, clean_save=True)
+    assert rd.results()["x"]["outcome"] == bc.CAPTURED and code == 0
+    rows = [r for r in _ledger(tmp_path / "run") if r.get("event") == "clean-save"]
+    assert len(rows) == 1 and rows[0]["saved"] is True and rows[0]["ok"] is True
+    assert rows[0]["before"] == {"studies": [], "symbol": "NASDAQ:AAPL", "resolution": "5"}   # clean IN THE PAGE first
+    assert rows[0]["after"]["ok"] is True and rows[0]["after"]["studies"] == []                 # then a FRESH load
+    # the order: the save, THEN a reload (the fresh-load verify follows every save)
+    kinds = [(k, n) for k, n, _ in page.calls]
+    save_at = kinds.index(("press", bc.SAVE_SHORTCUT))
+    assert any(k == "reload" for k, _ in kinds[save_at:]), kinds[save_at:]
+    assert page.persisted["studies"] == [] and page.persisted["resolution"] == "5"
+
+
+def test_without_clean_save_the_dirty_rig_is_reported_and_never_saved(tmp_path):
+    page, code, rd, logged = _dirty_batch(tmp_path, clean_save=False)
+    assert code == bc.RIG_DIRTY
+    assert ("press", bc.SAVE_SHORTCUT) not in [(k, n) for k, n, _ in page.calls]
+    assert not [r for r in _ledger(tmp_path / "run") if r.get("event") == "clean-save"]
+
+
+def test_the_guard_refuses_a_save_with_a_study_present_and_nothing_is_saved(tmp_path, monkeypatch):
+    # the removal does nothing (a study stays in the page): the guard reads it and refuses; Save is never pressed
+    monkeypatch.setattr(bd.RecordingTVPage, "_remove", lambda self, sid: {"ok": True})
+    page, code, rd, logged = _dirty_batch(tmp_path, clean_save=True)
+    rows = [r for r in _ledger(tmp_path / "run") if r.get("event") == "clean-save"]
+    assert code in (1, bc.RIG_DIRTY) and rows and rows[0]["saved"] is False and "studies are still on the chart" in rows[0]["refused"]
+    assert ("press", bc.SAVE_SHORTCUT) not in [(k, n) for k, n, _ in page.calls]
+
+
+def test_no_save_while_focus_stays_in_an_editor(tmp_path, monkeypatch):
+    # the Pine editor's Ctrl+S saves a SCRIPT to the account: focus that will not leave refuses the save
+    monkeypatch.setattr(bd.RecordingTVPage, "focus_leaves", False, raising=False)
+    page, code, rd, logged = _dirty_batch(tmp_path, clean_save=True)
+    rows = [r for r in _ledger(tmp_path / "run") if r.get("event") == "clean-save"]
+    assert code == bc.RIG_DIRTY and rows and rows[0]["saved"] is False and "focus" in rows[0]["refused"]
+    assert ("press", bc.SAVE_SHORTCUT) not in [(k, n) for k, n, _ in page.calls]
+    names = page.names()
+    assert "FOCUS_BODY" in names
+
+
+def test_a_study_this_batch_did_not_add_is_never_removed_or_saved_over(tmp_path):
+    page, code, rd, logged = _dirty_batch(tmp_path, clean_save=True)
+    # re-run the repair against a layout carrying a stranger's study beside ours
+    stranger = {"id": "owner1", "name": "Owner's study", "sha": "0" * 64, "source": "", "reads": 0}
+    page.persisted = {"studies": [stranger], "symbol": "NASDAQ:AAPL", "resolution": "5"}
+    drv = bc.Driver(page, bd.FakeClock(page), bd.fast_opts(clean_save=True), rd, None, log=lambda *_: None)
+    drv.added_titles = {"X"}
+    drv.verify_fresh_load(ORIG)
+    out = drv.guarded_clean_save(ORIG, "t")
+    assert out["saved"] is False and "did not add" in out["refused"]
+    assert page.persisted["studies"] == [stranger]

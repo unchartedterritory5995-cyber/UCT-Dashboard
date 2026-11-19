@@ -5750,7 +5750,10 @@ const RS_MANSFIELD_RAW = {
     { key: 'mansfield', label: 'Mansfield RS', source: 'scalar:mansfield.summary', format: 'text',
       card: { what: 'Mansfield Relative Strength: the RS line as a percent above or below its own simple moving average, measured over the length set on this chart, in this chart\'s bars; the Length row prints it. 200 is the default; 52 on a weekly chart is Weinstein\'s published length. Above zero, the stock is outperforming its own trend against the benchmark; below zero, it is lagging it. The dot marks a cross up through zero.',
         origin: 'Weinstein, Secrets for Profiting in Bull and Bear Markets; the Mansfield RS line on his charts.',
-        evidence: RS_HONESTY_SENTENCE } },
+        evidence: RS_HONESTY_SENTENCE,
+        // ⭐ (2026-11-18) the MEASURED sentence, as rsLine's Mansfield card reads it: the same column, so the same
+        // `mansfield_cross_up` evidence (the row carries rsLine's `payload.evidence` block)
+        evidenceSource: 'scalar:evidence.sentence.mansfield' } },
     { key: 'mansfieldValue', label: 'Value', source: 'scalar:mansfield.value', format: 'pct', detailOf: 'mansfield' },
     // The last cross in EITHER direction (`up, 57 bars ago`): the pane draws only the
     // crosses up, so the direction is the half the chart does not show.

@@ -707,7 +707,7 @@ function readLtfSentence(s) {
   return { via: 'ltf', ast: { type: 'ltf', value: m[2], args: [readOperand(m[1])] } }
 }
 
-/** ⭐ NUMBER PENDING (2026-11-18) — A BAR-FIELD ARGUMENT NAMED BY ITS ROLE. Hand-typed, like every
+/** ⭐ engine 81 (2026-11-18) — A BAR-FIELD ARGUMENT NAMED BY ITS ROLE. Hand-typed, like every
  *  form in this file, and NOT read from the manifest's `argRoles`: which functions take the bar's
  *  fields by position, and the word the walker says for each place. When a call's leading
  *  arguments are not the bar's own fields in this order, the walker writes `highs from <operand>`

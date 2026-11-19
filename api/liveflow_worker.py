@@ -69,8 +69,9 @@ for ops; no code change needed when the logo file is swapped.
 
 Fallback resolution order:
   1. UCT_LOGO_URL env var (preferred — set on Railway worker service)
-  2. GitHub raw URL pointing at app/public/UCT_logo.jpg in the master branch
-     (permanent, immune to Vite hash rebuilds, requires no Railway config)
+  2. The site's own public route /api/brand/massive-card-logo.png (api/main.py):
+     stable, immune to Vite hash rebuilds, and independent of which GitHub
+     account owns the repository (a GitHub raw URL breaks if the repo moves)
 
 NEVER use:
   - Vite-built /assets/* paths — hashes change every frontend deploy, URL dies
@@ -81,8 +82,7 @@ Image must be PNG/JPG/WebP (AVIF is unreliable in Discord embeds).
 """
 UCT_LOGO_URL = os.getenv(
     "UCT_LOGO_URL",
-    "https://raw.githubusercontent.com/unchartedterritory5995-cyber/"
-    "UCT-Dashboard/master/app/public/UCT_logo_512.png",
+    "https://uctintelligence.com/api/brand/massive-card-logo.png",
 ).strip()
 
 # ─── Config ──────────────────────────────────────────────────────────────────
