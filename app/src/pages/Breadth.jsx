@@ -268,6 +268,13 @@ export const COLS = [
   { key: 'stage4_count', label: 'Stage 4 (MA Stack)', group: G.REGIME,
     rowColorFn: row => pairedDnColor(row.stage2_count, row.stage4_count),
     drillKey: 'stage4_list' },
+  // Round 13 (owner 2026-11-19): metrics already in every stored row, now columns.
+  // Distribution days: the Morning Wire's count (api/services/breadth_eod_extras.py).
+  { key: 'spy_dist_days', label: 'Dist Days', group: G.REGIME, fmt: fmtInt },
+  { key: 'qqq_dist_days', label: 'QQQ Dist Days', group: G.REGIME, fmt: fmtInt },
+  { key: 'rsp_spy_ratio', label: 'RSP/SPY', group: G.REGIME, fmt: v => fmtDec(v, 4) },
+  { key: 'iwm_qqq_ratio', label: 'IWM/QQQ', group: G.REGIME, fmt: v => fmtDec(v, 4) },
+  { key: 'vix_term_structure', label: 'VIX Term', group: G.REGIME, fmt: v => fmtDec(v, 2) },
 
   // ── Highs / Lows ──────────────────────────────────────────────────────────
   { key: 'new_52w_highs', label: '52W Hi', group: G.HIGHS,
@@ -297,6 +304,18 @@ export const COLS = [
   { key: 'atr_ext_7', label: '>7×ATR', group: G.HIGHS,
     colorFn: v => v == null ? '' : v > 50 ? 'g3' : v > 30 ? 'g2' : v > 15 ? 'g1' : '',
     drillKey: 'atr_ext_7_list' },
+  { key: 'net_new_high_low', label: 'Net NH-NL', group: G.HIGHS, fmt: fmtSigned },
+  { key: 'near_52w_high', label: 'Near 52W Hi', group: G.HIGHS },
+  { key: 'hi_ratio', label: '52W Hi %', group: G.HIGHS, fmt: v => fmtDec(v, 2) },
+  { key: 'lo_ratio', label: '52W Lo %', group: G.HIGHS, fmt: v => fmtDec(v, 2) },
+
+  // ── Volume / A-D (round 13) ───────────────────────────────────────────────
+  { key: 'adv_decline', label: 'A/D', group: G.VOLUME, fmt: fmtSigned },
+  { key: 'advancing', label: 'Advancing', group: G.VOLUME },
+  { key: 'declining', label: 'Declining', group: G.VOLUME },
+  { key: 'adv_decline_cum', label: 'A/D Line', group: G.VOLUME, fmt: fmtSigned },
+  // Up volume ÷ down volume (a ratio, not a percent): breadth_live.compute_metrics.
+  { key: 'up_vol_ratio', label: 'Up Vol', group: G.VOLUME, fmt: v => fmtDec(v, 2) },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
   { key: 'cnn_fear_greed', label: 'CNN F/G', group: G.SENTIMENT, fmt: v => fmtDec(v, 0),
@@ -358,6 +377,13 @@ function fmtBool(v) {
   if (v === null || v === undefined) return '—'
   return v === 1 ? '✓' : '✗'
 }
+// Signed counts (A/D, Net NH-NL, the A/D line): "+1,234" / "−663", thousands grouped.
+function fmtSigned(v) {
+  if (v === null || v === undefined) return '—'
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatNumber(Math.abs(n))}`
+}
 export function fmtInt(v) {
   if (v === null || v === undefined) return '—'
   return formatNumber(Number(v))
@@ -391,10 +417,18 @@ function carriedNote(age) {
 const VALUE_CH = {
   sp500_close: 8, qqq_close: 7,           // 0,000.00 · 000.00
   breadth_score: 3, uct_exposure: 3, cnn_fear_greed: 3,
-  ratio_5day: 6, ratio_10day: 6, vix: 6, naaim: 7, cboe_putcall: 5,
+  ratio_5day: 5, ratio_10day: 5, vix: 5, naaim: 7, cboe_putcall: 5,   // 00.00
   mcclellan_osc: 7,                        // -000.0
   aaii_bulls: 5, aaii_neutral: 5, aaii_bears: 5, aaii_spread: 6,
   is_ftd: 3,
+  // round 13
+  net_new_high_low: 6, adv_decline: 6,     // +0,000
+  adv_decline_cum: 8,                      // +000,000
+  up_vol_ratio: 5,                         // 00.00
+  spy_dist_days: 2, qqq_dist_days: 2,
+  rsp_spy_ratio: 6, iwm_qqq_ratio: 6,      // 0.0000
+  vix_term_structure: 4,                   // 0.00
+  hi_ratio: 5, lo_ratio: 5,                // 00.00
 }
 function valueCh(col) {
   if (VALUE_CH[col.key] != null) return VALUE_CH[col.key]
@@ -425,12 +459,29 @@ const WIDTH_GROUP = {
   new_ath: 'lead', hvc_52w: 'lead', atr_ext_7: 'lead',
   aaii_bulls: 'aaii', aaii_neutral: 'aaii', aaii_bears: 'aaii', aaii_spread: 'aaii',
   naaim: 'survey', cboe_putcall: 'survey',
+  // round 13
+  net_new_high_low: 'net', adv_decline: 'net',
+  up_vol_ratio: 'volDist', spy_dist_days: 'volDist', qqq_dist_days: 'volDist',
+  advancing: 'advdec', declining: 'advdec',
+  rsp_spy_ratio: 'idxRatio', iwm_qqq_ratio: 'idxRatio',
+  near_52w_high: 'hilo',
+  hi_ratio: 'hiloPct', lo_ratio: 'hiloPct',
 }
 export const widthGroupOf = (key) => WIDTH_GROUP[key] ?? null
-// +1ch for the live row's "≈" mark; 32px = the cell padding (incl. a family start).
+
+// A header's width: its group's measured need (or, ungrouped, its own natural width),
+// plus the even share of the window's leftover width (round 13). Before the first
+// measurement, the format-based minimum.
+function colWidthStyle(col, isMa, { need, solo, extra }) {
+  const g = widthGroupOf(col.key)
+  const base = g ? need[g] : solo[col.key]
+  if (base) { const w = base + extra; return { minWidth: w, width: w } }
+  return isMa ? undefined : { minWidth: colMinWidth(col) }
+}
+// 32px = the cell padding (incl. a family start). The live "≈" sits in the padding.
 // `ch` here is the HEADER font's; × --br-fs-ratio makes it the cell font's, and the
 // padding follows --br-cell-px, so the widths scale with the wide-screen size too.
-const colMinWidth = (col) => `calc(${valueCh(col) + 1}ch * var(--br-fs-ratio, 1.087) + 2 * var(--br-cell-px, 12px) + 8px)`
+const colMinWidth = (col) => `calc(${valueCh(col)}ch * var(--br-fs-ratio, 1.087) + 2 * var(--br-cell-px, 12px) + 8px)`
 
 function cellClass(col, val, row = null) {
   const s = shadeFor(col.key, row)
@@ -1182,12 +1233,23 @@ export default function Breadth() {
 
   // Equal widths per group (round 11). Measured from the HEADER row only (always
   // mounted), so the result never depends on which rows are on screen: each visible
-  // column's need = max(its label, its widest value box incl. the live "≈" room) + its
+  // column's need = max(its label, its widest value format) + its
   // own padding; each group takes its widest member's need. Re-measured when the
   // visible columns, the sheet size (breakpoint) or the web font change.
   const headRowRef = useRef(null)
   const chProbeRef = useRef(null)
-  const [groupWidths, setGroupWidths] = useState({})
+  // { need: {group: px}, solo: {key: px}, extra: px } — see the effect below.
+  const [colSizing, setColSizing] = useState({ need: {}, solo: {}, extra: 0 })
+  const extraRef = useRef(0)
+  // Round 13: re-measure when the sheet's width changes (window resize, sidebar push).
+  const [wrapW, setWrapW] = useState(0)
+  useEffect(() => {
+    const el = tableWrapRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const ro = new ResizeObserver(() => setWrapW(Math.round(el.clientWidth)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [activeTab, grid.count > 0]) // eslint-disable-line react-hooks/exhaustive-deps
   const [fontsReady, setFontsReady] = useState(0)
   useEffect(() => {
     let live = true
@@ -1213,12 +1275,37 @@ export default function Breadth() {
         r.selectNodeContents(btn)
         label = r.getBoundingClientRect().width
       }
-      const value = (valueCh(COLS_BY_KEY[key]) + 1) * ch
+      // The live "≈" sits in the cell's right padding (round 12), so no extra 1ch.
+      const value = valueCh(COLS_BY_KEY[key]) * ch
       const g = th.getAttribute('data-width-group')
       need[g] = Math.max(need[g] ?? 0, Math.ceil(Math.max(label, value) + pad))
     }
-    setGroupWidths(prev => (JSON.stringify(prev) === JSON.stringify(need) ? prev : need))
-  }, [visibleKeySig, rowH, fontsReady, grid.count > 0, activeTab]) // eslint-disable-line react-hooks/exhaustive-deps -- re-measure on these only
+    // ── Flush right edge (round 13) ──
+    // The leftover window width is spread EVENLY over the real columns (not Date):
+    // every column — so every group — grows by the same amount, capped at 12px each;
+    // past the cap the trailing filler takes the rest. A table wider than the window
+    // gets nothing and scrolls. Natural widths come from the header row only, so
+    // scrolling never changes them; an ungrouped column's natural width is its
+    // current width less the extra already applied.
+    const solo = {}
+    let natural = 0
+    let n = 0
+    let dateW = 0
+    for (const th of row.querySelectorAll('th')) {
+      const key = th.getAttribute('data-col-key')
+      const w = th.getBoundingClientRect().width
+      if (!key) { if (!th.className.includes('fillCol')) dateW += w; continue }
+      n += 1
+      const g = th.getAttribute('data-width-group')
+      if (g) natural += need[g]
+      else { solo[key] = Math.round((w - extraRef.current) * 10) / 10; natural += solo[key] }
+    }
+    const avail = tableWrapRef.current?.clientWidth ?? 0
+    const extra = n ? Math.max(0, Math.min(12, (avail - dateW - natural) / n)) : 0
+    const next = { need, solo, extra: Math.floor(extra * 100) / 100 }
+    extraRef.current = next.extra
+    setColSizing(prev => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+  }, [visibleKeySig, rowH, fontsReady, grid.count > 0, activeTab, wrapW]) // eslint-disable-line react-hooks/exhaustive-deps -- re-measure on these only
 
   const errorBanner = error ? (
     <div className={styles.errorBanner} role="alert">
@@ -1536,9 +1623,7 @@ export default function Breadth() {
                       className={`${styles.th} ${styles.colLabel} ${groupStartKeys.has(col.key) && !widthGroupOf(col.key) ? styles.groupStart : ''} ${isMa ? styles.thMa : ''}`}
                       data-col-key={col.key}
                       data-width-group={widthGroupOf(col.key) ?? undefined}
-                      style={isMa ? undefined : (groupWidths[widthGroupOf(col.key)]
-                        ? { minWidth: groupWidths[widthGroupOf(col.key)], width: groupWidths[widthGroupOf(col.key)] }
-                        : { minWidth: colMinWidth(col) })}
+                      style={colWidthStyle(col, isMa, colSizing)}
                     >
                       {/* The header opens the chart's Signature menu (one ContextPopover
                           for the sheet, below): Enter/Space opens it, Esc closes it and

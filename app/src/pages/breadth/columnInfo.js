@@ -66,6 +66,25 @@ export const COLUMN_INFO = Object.freeze({
   hvc_52w: { name: 'Highest-volume closes', desc: 'Stocks closing above their 10-day average on their highest volume in 52 weeks. A sign of heavy accumulation.' },
   atr_ext_7: { name: 'Extended 7+ ATRs', desc: 'Stocks more than 7 average true ranges above their 50-day moving average. High counts mean the market is stretched.' },
 
+  net_new_high_low: { name: 'Net new highs minus lows', desc: 'New 52-week highs minus new 52-week lows for the session. Positive means highs lead; negative means lows dominate.' },
+  near_52w_high: { name: 'Near 52-week highs', desc: 'Stocks within 5% of their 52-week high. Many names close to their highs means a healthy uptrend.' },
+  hi_ratio: { name: 'New highs, % of universe', desc: 'New 52-week highs as a percent of the stocks measured. Comparable across days with different universe sizes.' },
+  lo_ratio: { name: 'New lows, % of universe', desc: 'New 52-week lows as a percent of the stocks measured. Comparable across days with different universe sizes.' },
+
+  // ── Volume / A-D ──
+  adv_decline: { name: 'Advancers minus decliners', desc: 'Stocks that closed up minus stocks that closed down, versus the prior close. Positive means more stocks rose than fell.' },
+  advancing: { name: 'Advancing stocks', desc: 'Stocks that closed above their prior close.' },
+  declining: { name: 'Declining stocks', desc: 'Stocks that closed below their prior close.' },
+  adv_decline_cum: { name: 'Advance/decline line', desc: 'A running total of each day’s advancers minus decliners. Its direction matters more than its level: a rising line confirms broad participation.' },
+  up_vol_ratio: { name: 'Up volume ratio', desc: 'Volume in rising stocks divided by volume in falling stocks for the session. Above 1 means buyers carried more volume.' },
+
+  // ── Regime (round 13) ──
+  spy_dist_days: { name: 'S&P distribution days', desc: 'SPY distribution days in the last 26 sessions, counted through the prior session: a drop of 0.2% or more on above-average (50-day) volume, or an up or flat close in the bottom quarter of the day’s range on above-average volume. A day drops off once SPY is 5% above that close. Rising counts mean institutional selling.' },
+  qqq_dist_days: { name: 'QQQ distribution days', desc: 'QQQ distribution days in the last 26 sessions, counted the same way as the S&P’s. Rising counts mean institutional selling in tech.' },
+  rsp_spy_ratio: { name: 'Equal-weight vs cap-weight S&P', desc: 'RSP (equal-weight S&P 500) divided by SPY (cap-weight). Rising means the average stock is keeping up with the giants.' },
+  iwm_qqq_ratio: { name: 'Small caps vs Nasdaq 100', desc: 'IWM (Russell 2000) divided by QQQ (Nasdaq 100). Rising means small caps are leading.' },
+  vix_term_structure: { name: 'VIX term structure', desc: 'The 6-month VIX (VIX6M) divided by the VIX. Above 1 is the normal, calm shape; below 1 means near-term fear is higher than longer-term.' },
+
   // ── Sentiment ──
   cnn_fear_greed: { name: 'CNN Fear & Greed', desc: 'CNN’s Fear & Greed Index, from 0 (extreme fear) to 100 (extreme greed).' },
   aaii_bulls: { name: 'AAII bulls', desc: 'Share of AAII survey members who expect stocks to rise over the next six months.', weekly: true },

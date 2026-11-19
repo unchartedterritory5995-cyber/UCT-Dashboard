@@ -21,6 +21,11 @@ export const DEFAULT_COLUMNS = Object.freeze([
   'pct_above_200sma',   // >200SMA
   'vix',                // VIX
   'cnn_fear_greed',     // CNN F/G
+  // round 13 (owner 2026-11-19): fill the wide screen with real internals
+  'net_new_high_low',   // Net NH-NL
+  'adv_decline',        // A/D
+  'up_vol_ratio',       // Up Vol
+  'spy_dist_days',      // Dist Days
 ])
 
 /** The hook's `defaults` for a column list: hidden = everything off the core set;
