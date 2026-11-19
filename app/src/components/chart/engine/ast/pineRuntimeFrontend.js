@@ -113,6 +113,7 @@ import { readFunctionDefs } from './objectFnInline.js'
 // over which drawing calls exist, what they take and what they return.
 import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf, isArmSafeObjectOp } from '../runtime/objectStore.js'
 import { historyHeldOf } from '../objectPool.js'
+import { DEFAULT_BUDGET } from './budget.js'
 import { setterPineParams, setterPineParamsOfAny } from '../objectSetterParams.js'
 // ⭐⭐ ENGINE 54 — the source call a drawing is made at, as the host object pass names it
 import { objectSiteKey } from './objectProgram.js'
@@ -4122,8 +4123,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (owner !== null) functions[owner].rt5History = true
       conditionalHistoryGuard('a series with history', at)
     }
-    // WS-C — a constant offset past Pine's history buffer, anywhere in the tree.
-    mbbCanonicalCheck(canonical, at)
     const key = JSON.stringify(canonical)
     if (columnByKey.has(key)) return columnByKey.get(key)
     let value
@@ -4232,6 +4231,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return i
   }
 
+  /** ⭐ engine NUMBER PENDING (WS-C M5) — `x[c]` with a constant `c` past the columnar lane's lookback cap
+   *  (`budget.js::DEFAULT_BUDGET.maxLookback`, its warm-up budget and offset ceiling, kept by the compute-cap
+   *  ruling): as a column the read refuses `budget:lookback`; lowered piecewise it is `READ_HIST` over the
+   *  column (or a ring read for a variable), which needs no warm-up. Only the offset is routed: its child
+   *  stays a column when it can be one. */
+  const constantOffsetPastLookbackCap = (node, scope) => {
+    let back = Number(node.n)
+    const e = node.n && typeof node.n === 'object' ? node.n.expr : null
+    if (e) {
+      let c = null
+      try { c = constValueOf(e, scope) } catch { c = null }
+      back = c && Number.isFinite(c.value) ? c.value : NaN
+    }
+    return Number.isInteger(back) && back > DEFAULT_BUDGET.maxLookback
+  }
+
   /** THE ROUTE DECISION. Does this subtree need the runtime?
    *
    *  ⭐⭐ TWO REASONS, NOT ONE. It reads a mutable SLOT — or it CALLS a
@@ -4248,6 +4263,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  ready rather than acted on. */
   const needsRuntime = (node, scope) => {
     if (!node || typeof node !== 'object') return false
+    // ⭐ engine NUMBER PENDING (WS-C M5) — a constant offset past the columnar lane's lookback cap is read here
+    if (node.type === 'offset' && constantOffsetPastLookbackCap(node, scope)) return true
     // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — A DAILY READ ABOVE AN INTRADAY CHART IS THE RUN'S REQUEST, NEVER A
     // COLUMN. The run's supply hands it per site (`requestSupply.js::aboveChartRead`); the columnar lane holds no
     // daily series, and its translation of the chart's OWN read is a plain gated `close`
@@ -9664,7 +9681,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
             // ⭐ `e[0]` IS `e`. Routing it through the ring would answer with
             // the PREVIOUS bar — one bar wrong in the one case nobody checks.
             if (hb === 0) return read(hoisted.slot)
-            mbbStaticCheck(hb, at, 'an expression')
             slotHistoryGuard(hoisted.slot, at)
             return histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, hb, at), hb)
           }
@@ -9688,7 +9704,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // answer with the PREVIOUS bar — one bar wrong in the one case nobody
           // would think to check.
           if (back === 0) return read(varSlot)
-          mbbStaticCheck(back, at, `\`${node.arg.name}\``)
           slotHistoryGuard(varSlot, at)
           // ⭐⭐⭐ P7.2 — FUNCTION-LOCAL HISTORY IS ALLOCATED PER FUNCTION HERE AND
           // MATERIALISED PER CALL SITE BELOW. The index carried on the node is
@@ -9726,7 +9741,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           const hb = foldOffset(node.n, offAt, scope)
           if (hb === 0) return read(hoisted.slot)
-          mbbStaticCheck(hb, offAt, 'a colour')
           slotHistoryGuard(hoisted.slot, offAt)
           return histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, hb, offAt), hb)
         }
@@ -9762,7 +9776,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (!Number.isInteger(back) || back < 0) {
           throw new RuntimeRefusal('runtime:statement', 'a bar offset counts backwards in whole bars', locate(node.tok))
         }
-        mbbStaticCheck(back, locate(node.tok), node.arg && node.arg.type === 'name' ? `\`${node.arg.name}\`` : 'a series')
         // ⭐⭐ U-REQ-HOIST-COLUMN, THE LOWERING (2026-11-18) — INSIDE A REQUEST, A PURE EXPRESSION'S PAST
         // IS THE REQUESTED BARS' PAST. A column is computed once, over THIS chart's bars, and a request's
         // sub-run reads it at the REQUESTED bar's index (`vm.js::runRequest`): PA ZigZag Fibonacci FAN's
@@ -11372,7 +11385,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  name and the literal 5000 (Pine's history ceiling). Anything else — a
    *  smaller bound, a computed one, a named argument — is not this shape. */
   const MAX_BARS_BACK_CEILING = 5000
-  const maxBarsBackIsCeiling = (toks) => {
+  /** ⭐ engine NUMBER PENDING (WS-C M4) — `max_bars_back(<name>, <whole number of bars>)`, any bound: served as
+   *  a no-op statement (TradingView: it bounds nothing, M4). Anything else (a computed bound, a named argument, a
+   *  target that is not a bare name) keeps `runtime:directive`. */
+  const maxBarsBackShape = (toks) => {
     let node
     try { node = parseWholeExpression(toks) } catch { return false }
     if (!node || node.type !== 'call' || node.name !== 'max_bars_back') return false
@@ -11380,7 +11396,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (args.length !== 2 || args.some((a) => !a || a.name)) return false
     const [target, bound] = args.map((a) => a.value)
     return !!target && target.type === 'name'
-      && !!bound && bound.type === 'number' && Number(bound.value) === MAX_BARS_BACK_CEILING
+      && !!bound && bound.type === 'number' && Number.isInteger(Number(bound.value)) && Number(bound.value) >= 1
   }
 
   // ─── ⭐⭐ WS-C — PINE'S HISTORY BUFFER: A READ PAST IT IS AN ERROR, NOT `na` ──
@@ -11391,15 +11407,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // the buffer STOPS the script on TradingView ("the requested historical offset
   // is beyond the historical buffer's limit"); this lane used to answer it — a
   // value from its own longer chart, or `na`. Now:
-  //   · a CONSTANT offset past the buffer refuses the build by name;
+  //   · a CONSTANT offset past the buffer is SERVED (engine NUMBER PENDING, M1 / M5: TradingView never
+  //     stopped one; see the note above `mbbDynamicColumn`);
   //   · an offset only known while the bar runs carries the buffer into the read
   //     (`limit`, the opcode's second operand), and the VM stops the run there.
   // ⚠️ A read before bar 0 that lies WITHIN the buffer is still `na`, as before.
   // ⚠️ Pine's AUTOMATIC sizing (no declaration, a dynamic offset that grows after
   // the first bars) can stop a script earlier than 5,000; not witnessed, so not
   // modelled (capture queue `capture-queue-2026-10-31-wsc-history.md`).
-  // ⛔ `max_bars_back(x, n)` with n below 5,000 stays refused (`runtime:directive`):
-  // a per-series buffer would bound built-in windows over `x` too, unwitnessed.
+  // ⭐ engine NUMBER PENDING (WS-C M4, `vw-w4-max-bars-back-m4`): `max_bars_back(x, n)` is served for any whole n
+  // and bounds nothing: TradingView drew `x[60]` and `ta.sma(x, 60)` after `max_bars_back(x, 50)` on every bar.
   const MBB_DECLARED = (() => {
     let m = null
     try { m = /\bmax_bars_back\s*=\s*(\d+)/.exec(strippedForScan(source)) } catch { m = null }
@@ -11407,8 +11424,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return Number.isInteger(n) && n >= 1 && n < MAX_BARS_BACK_CEILING ? n : null
   })()
   const MBB_LIMIT = MBB_DECLARED || MAX_BARS_BACK_CEILING
-  // ⭐ L4b — `max_bars_back(x, 5000)` written at the ROOT (the one shape `DIRECTIVE_CALLS`
-  // admits, `maxBarsBackIsCeiling`) declares `x`'s buffer: Pine's ceiling, 5,000 bars.
+  // ⭐ L4b — `max_bars_back(x, 5000)` written at the ROOT (a shape `DIRECTIVE_CALLS` admits,
+  // `maxBarsBackShape`) declares `x`'s buffer: Pine's ceiling, 5,000 bars.
   const MBB_SERIES = (() => {
     const out = new Set()
     let text = ''
@@ -11438,20 +11455,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
       && root.lookup(s.name) === varSlot) return MAX_BARS_BACK_CEILING
     return null
   }
-  const mbbRefusal = (back, at, what) => {
-    note('runtime:directive')
-    return new RuntimeRefusal('runtime:directive',
-      `${what}[${back}] reads past Pine's history buffer of ${MBB_LIMIT} bars `
-      + `(${MBB_DECLARED ? 'the declared `max_bars_back`' : 'its ceiling'}) — TradingView stops the script there`, at)
-  }
-  const mbbStaticCheck = (back, at, what) => {
-    if (Number.isInteger(back) && back > MBB_LIMIT) throw mbbRefusal(back, at, what)
-  }
-  const mbbCanonicalCheck = (n, at, depth = 0) => {
-    if (!n || typeof n !== 'object' || depth > 96) return
-    if (n.type === 'offset' && Number.isInteger(n.value) && n.value > MBB_LIMIT) throw mbbRefusal(n.value, at, 'a series')
-    for (const a of (n.args || [])) mbbCanonicalCheck(a, at, depth + 1)
-  }
+  // ⭐⭐ engine NUMBER PENDING (WS-C M1 / M5, `vw-w4-max-bars-back` / `-m5` on AMEX:SPY 1D from the listing,
+  // packet 6f54e4c81044): a CONSTANT offset is never refused for the buffer. TradingView drew `close[30]` under a
+  // declared `max_bars_back = 20` on every bar it reaches (M1), and `close[6000]` with no declaration on the 2,509
+  // bars past bar 6,000 (M5), `na` only before the offset's bar. So neither a declared buffer nor the 5,000
+  // ceiling checks a constant offset here (the `runtime:directive` refusal of `mbbStaticCheck` /
+  // `mbbCanonicalCheck` is gone): a chart series or a column is read by `READ_HIST` (no ring), a variable from a
+  // ring as deep as the offset (bounded by `HISTORY_VALUES` and the chart's `HISTORY`, as every ring is). A pure
+  // subtree whose constant offset passes the columnar lane's lookback cap is lowered piecewise
+  // (`constantOffsetPastLookbackCap`, read by `needsRuntime`), so the cap that budgets that lane's warm-up does
+  // not refuse a read this lane answers with no warm-up of its own.
   // ⭐ review M2 — A DYNAMIC OFFSET IN A PURE SUBTREE NEVER BECOMES ONE COLUMN
   // when a read could pass the buffer: a declared `max_bars_back`, or a chart
   // longer than the ceiling. As a column it was answered (`close[bar_index %
@@ -15042,7 +15055,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // chart here holds at most 5,000 bars — the two agree on every read.
           // ⛔ Any SMALLER bound keeps the refusal: Pine would stop the script on
           // a read past it, and this lane would answer the read.
-          if (word === 'max_bars_back' && maxBarsBackIsCeiling(toks)) continue
+          if (word === 'max_bars_back' && maxBarsBackShape(toks)) continue
           note('runtime:directive')
           throw new RuntimeRefusal('runtime:directive', `\`${word}()\``, locate(first))
         }
