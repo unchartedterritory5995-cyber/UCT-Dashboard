@@ -294,14 +294,44 @@ class _DefaultReconnectPolicy:
         return 0
 
 
-async def _run_websocket(on_bar: OnBarCallback, policy=None) -> None:
+# ── HOT STANDBY (2026-11-19) ─────────────────────────────────────────────────────────────────────────
+# INGEST_HOT_STANDBY=1 (stream-ingest only: its runtime passes a second reconnect policy) runs TWO
+# Massive sockets with the same subscriptions. Massive confirmed (support, 2026-11-19) that both of our
+# stocks connections may carry the same channels at once (the plan allows two). While one is down
+# (reconnecting, kicked, a dead socket closed by the liveness watch) the other keeps delivering, so a
+# vendor drop is no longer a gap. Each AM/A/T event arrives twice and is applied once
+# (ingest_core.EventDedup). Only a connect while NO socket was live is a gap: then, and only then, the
+# serving tier starts a new epoch (bars_live_ingest.mark_connected) and the runtime re-seeds its chart
+# symbols (policy.connected(notify=...)); the standby (re)connecting under a live primary changes
+# nothing downstream. One drain task sends every queued (un)subscribe to EVERY live socket; a socket
+# that misses one (closing, or mid-handshake) resubscribes the whole active set when it reconnects, so
+# a (re)connect no longer clears the queue the other socket still has to send.
+#
+# Off (default, and always on the web pod): exactly one connection, exactly as before.
+STANDBY_START_DELAY_S = 3.0
+_live_sockets: set = set()
+_hot: dict = {"enabled": False, "dedup": None, "connects": [0, 0], "gaps": 0}
+
+
+def _hot_standby_enabled() -> bool:
+    return os.environ.get("INGEST_HOT_STANDBY", "0").strip() == "1"
+
+
+def hot_standby_status() -> dict:
+    """Read-only: is the standby on, how many sockets are live, the dedup counters."""
+    d = _hot.get("dedup")
+    return {"enabled": bool(_hot.get("enabled")), "live_sockets": len(_live_sockets),
+            "connects": list(_hot["connects"]), "gaps": _hot["gaps"],
+            "dedup": d.stats() if d is not None else None}
+
+
+async def _run_websocket(on_bar: OnBarCallback, policy=None, standby_policy=None) -> None:
     """Main reconnect loop. Returns only when the process exits.
 
     `policy` decides the waits between connections (and hears each successful
-    connect); None = `_DefaultReconnectPolicy`, the web pod's historic behaviour."""
-    global _ws_connection, _running, _feed_bytes, _feed_frames
-    import websockets
-
+    connect); None = `_DefaultReconnectPolicy`, the web pod's historic behaviour.
+    `standby_policy` (stream-ingest) + INGEST_HOT_STANDBY=1: a second connection with the same
+    subscriptions, its own policy (see HOT STANDBY above)."""
     if policy is None:
         policy = _DefaultReconnectPolicy()
 
@@ -309,14 +339,51 @@ async def _run_websocket(on_bar: OnBarCallback, policy=None) -> None:
         _logger.warning("[bar_stream] MASSIVE_API_KEY not set — bar stream disabled")
         return
 
+    if standby_policy is not None and _hot_standby_enabled():
+        dedup = ingest_core.EventDedup()
+        _hot.update(enabled=True, dedup=dedup)
+        _logger.info("[bar_stream] HOT STANDBY on: two connections, same subscriptions, each event applied once")
+        drain = asyncio.create_task(_drain_pending_broadcast())
+        try:
+            await asyncio.gather(
+                _connection_loop(on_bar, policy, slot=0, dedup=dedup),
+                _connection_loop(on_bar, standby_policy, slot=1, dedup=dedup, start_delay=STANDBY_START_DELAY_S))
+        finally:
+            drain.cancel()
+        return
+    await _connection_loop(on_bar, policy, slot=0, dedup=None)
+
+
+def _socket_down(ws) -> None:
+    """HOT STANDBY: `ws` stopped delivering. The process is "running" while any socket is live."""
+    global _ws_connection, _running
+    _live_sockets.discard(ws)
+    _running = bool(_live_sockets)
+    if _ws_connection is ws:
+        _ws_connection = next(iter(_live_sockets), None)
+
+
+async def _connection_loop(on_bar: OnBarCallback, policy, *, slot: int, dedup, start_delay: float = 0.0) -> None:
+    """One connection's reconnect loop. `dedup` None: the only connection (the historic
+    behaviour, line for line). Otherwise one of the two HOT STANDBY sockets."""
+    global _ws_connection, _running, _feed_bytes, _feed_frames
+    import websockets
+
+    hot = dedup is not None
+    if start_delay:
+        await asyncio.sleep(start_delay)
+    frames = [0]   # this socket's own frame count: its liveness, independent of the other socket
 
     backoff = 1
     while True:
+        cur = None
         try:
-            _logger.info("[bar_stream] Connecting to %s", _WS_URL)
+            _logger.info("[bar_stream] Connecting to %s%s", _WS_URL, f" (socket {slot + 1})" if hot else "")
             # Library keepalive OFF: `_liveness_watch` decides (see LIVENESS_S).
             async with websockets.connect(_WS_URL, ping_interval=None, ping_timeout=None) as ws:
-                _ws_connection = ws
+                cur = ws
+                if not hot:
+                    _ws_connection = ws
 
                 # Auth handshake — block on auth_success before proceeding
                 await ws.send(_build_auth_message(_API_KEY))
@@ -352,14 +419,26 @@ async def _run_websocket(on_bar: OnBarCallback, policy=None) -> None:
                 except (asyncio.TimeoutError, json.JSONDecodeError, RuntimeError) as auth_err:
                     wait = policy.auth_failed_delay(auth_err)
                     _logger.error("[bar_stream] auth handshake failed: %s — backing off %ds", auth_err, wait)
-                    _running = False
-                    _ws_connection = None
+                    if hot:
+                        _socket_down(ws)
+                    else:
+                        _running = False
+                        _ws_connection = None
                     await asyncio.sleep(wait)
                     continue  # back to outer while True; async with closes ws cleanly
 
+                # HOT STANDBY: a connect while no socket was live is a GAP (see above). Live BEFORE
+                # the resubscribe snapshot, so a change after the snapshot reaches this socket too.
+                gap = not _live_sockets
+                if hot:
+                    _live_sockets.add(ws)
+                    _ws_connection = _ws_connection or ws
+                    _hot["connects"][slot] += 1
+                    if gap:
+                        _hot["gaps"] += 1
                 # Resubscribe whatever was active before the disconnect, channel by
                 # channel (the per-channel union every owner currently needs).
-                n_resub, resub_msg = _take_resubscribe_message()
+                n_resub, resub_msg = _take_resubscribe_message(clear_pending=not hot)
                 if resub_msg:
                     await ws.send(resub_msg)
                     _logger.info("[bar_stream] Resubscribed %d symbols on (re)connect", n_resub)
@@ -370,7 +449,8 @@ async def _run_websocket(on_bar: OnBarCallback, policy=None) -> None:
                 universe = _universe_stream_enabled()
                 if universe:
                     from api.services import bars_live_ingest
-                    bars_live_ingest.mark_connected()
+                    if not hot or gap:
+                        bars_live_ingest.mark_connected()
                     bars_live_ingest.start_flusher(asyncio.get_running_loop())
                     await ws.send(json.dumps({"action": "subscribe", "params": "AM.*"}))
                     _logger.info("[bar_stream] universe feed: subscribed AM.*")
@@ -378,7 +458,10 @@ async def _run_websocket(on_bar: OnBarCallback, policy=None) -> None:
                 _running = True
                 backoff = 1
                 try:
-                    policy.connected()
+                    if hot:
+                        policy.connected(notify=gap)
+                    else:
+                        policy.connected()
                 except Exception as e:  # noqa: BLE001 - a hook must never break the reader
                     _logger.warning("[bar_stream] reconnect policy hook failed: %s", e)
 
@@ -389,29 +472,40 @@ async def _run_websocket(on_bar: OnBarCallback, policy=None) -> None:
                     universe=universe,
                     on_universe_am=(bars_live_ingest.on_am if universe else None),
                     count_event=_count_event, note_am_lag=_note_am_lag,
-                    on_status=policy.note_status, logger=_logger)
+                    on_status=policy.note_status, logger=_logger,
+                    dedup=(dedup.first if hot else None))
 
                 # Concurrent tasks: drain pending sub/unsub queue + read messages
-                drain_task = asyncio.create_task(_drain_pending_queue(ws))
-                live_task = asyncio.create_task(_liveness_watch(ws))
+                # HOT STANDBY: one drain for both sockets (_drain_pending_broadcast, started once).
+                drain_task = None if hot else asyncio.create_task(_drain_pending_queue(ws))
+                live_task = asyncio.create_task(_liveness_watch(ws, frames=frames if hot else None))
                 try:
                     async for raw_msg in _timed_frames(ws):
                         # Measurement: frame size + count (cheap; monitoring only).
                         try:
                             _feed_bytes += len(raw_msg)
                             _feed_frames += 1
+                            frames[0] += 1
                         except Exception:
                             pass
                         ingest_core.apply_frame(raw_msg, frame_ctx)
                 finally:
-                    _running = False
-                    drain_task.cancel()
+                    if hot:
+                        _socket_down(ws)
+                    else:
+                        _running = False
+                    if drain_task is not None:
+                        drain_task.cancel()
                     live_task.cancel()
         except Exception as e:
             wait = policy.disconnect_delay(e, backoff)
             _logger.warning("[bar_stream] disconnected: %s — reconnect in %ds", e, wait)
-            _running = False
-            _ws_connection = None
+            if hot:
+                if cur is not None:
+                    _socket_down(cur)
+            else:
+                _running = False
+                _ws_connection = None
             await asyncio.sleep(wait)
             backoff = min(backoff * 2, 60)
         else:
@@ -582,8 +676,10 @@ def _ingest_status(now: Optional[float] = None) -> dict:
     }
 
 
-async def _liveness_watch(ws) -> None:
-    """Close the socket only when it is really dead (see LIVENESS_S)."""
+async def _liveness_watch(ws, frames=None) -> None:
+    """Close the socket only when it is really dead (see LIVENESS_S). `frames` (HOT STANDBY): this
+    socket's own frame count, so the other socket's traffic never makes a dead one look alive."""
+    _frames = (lambda: frames[0]) if frames is not None else (lambda: _feed_frames)
     pongs = [0]
     sent_at = [0.0]
 
@@ -594,7 +690,7 @@ async def _liveness_watch(ws) -> None:
             _liveness["last_pong_rtt_ms"] = round((time.monotonic() - sent_at[0]) * 1000)
 
     pending = None
-    seen = (_feed_frames, 0)
+    seen = (_frames(), 0)
     quiet = 0.0
     last = time.monotonic()
     while True:
@@ -608,7 +704,7 @@ async def _liveness_watch(ws) -> None:
                 pending.add_done_callback(_on_pong)
             except Exception:
                 return  # the socket is closing; the reader loop handles it
-        progress = (_feed_frames, pongs[0])
+        progress = (_frames(), pongs[0])
         if progress != seen:
             seen, quiet = progress, 0.0
         elif dt < _PING_EVERY_S + _STALL_S:
@@ -672,6 +768,32 @@ def _stall_watch() -> None:
             _logger.warning("[bar_stream] stall dump failed: %s", e)
 
 
+async def _drain_pending_broadcast() -> None:
+    """HOT STANDBY's one drain: every 250 ms, each queued subscribe / unsubscribe frame goes to EVERY
+    live socket. A socket that misses one (closing, or mid-handshake) resubscribes the whole active
+    set when it reconnects (`_take_resubscribe_message`), so nothing is re-queued here."""
+    global _pending_subscribe, _pending_unsubscribe
+    while True:
+        await asyncio.sleep(0.25)
+        with _state_lock:
+            sub = {s: set(c) for s, c in _pending_subscribe.items()}
+            unsub = {s: set(c) for s, c in _pending_unsubscribe.items()}
+            _pending_subscribe.clear()
+            _pending_unsubscribe.clear()
+        if not (sub or unsub):
+            continue
+        universe = _universe_stream_enabled()
+        msgs = [m for m in ((_channel_message("subscribe", sub, universe) if sub else None),
+                            (_channel_message("unsubscribe", unsub, universe) if unsub else None)) if m]
+        for ws in list(_live_sockets):
+            for m in msgs:
+                try:
+                    await ws.send(m)
+                except Exception as e:  # noqa: BLE001 - a closing socket resubscribes on reconnect
+                    _logger.warning("[bar_stream] broadcast flush failed on one socket: %s", e)
+                    break
+
+
 async def _drain_pending_queue(ws) -> None:
     """Periodically flush queued subscribe/unsubscribe messages to the live WS.
 
@@ -724,14 +846,16 @@ async def _drain_pending_queue(ws) -> None:
                 return  # Fix 3: stop retrying on dead ws; reconnect loop starts fresh drain task
 
 
-def _take_resubscribe_message() -> tuple[int, Optional[str]]:
+def _take_resubscribe_message(clear_pending: bool = True) -> tuple[int, Optional[str]]:
     """On (re)connect: clear the pending queues (Massive does not persist subs, so the
     full state is resent) and build ONE subscribe frame carrying, per symbol, exactly
-    the channels the owners currently need. Returns (symbol count, frame or None)."""
+    the channels the owners currently need. Returns (symbol count, frame or None).
+    `clear_pending=False` (HOT STANDBY): the queue is the OTHER live socket's to send too."""
     with _state_lock:
         snapshot = {s: set(c) for s, c in _active_channels.items() if c}
-        _pending_subscribe.clear()
-        _pending_unsubscribe.clear()
+        if clear_pending:
+            _pending_subscribe.clear()
+            _pending_unsubscribe.clear()
     if not snapshot:
         return 0, None
     return len(snapshot), _channel_message("subscribe", snapshot)
