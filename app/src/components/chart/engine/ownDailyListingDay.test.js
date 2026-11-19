@@ -31,7 +31,7 @@ import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHash } from './runtimeKill'
 import { setRunHalfObjectEvidence } from './runHalfRailSeam'
 import { OWN_DAILY_KEY } from './otherSymbols'
-import { clearSecondaryBars } from './secondaryBars'
+import { clearSecondaryBars, fetchSecondaryBars } from './secondaryBars'
 import { isTradingDay } from '../../../lib/marketClock/sessionCalendar.js'
 
 vi.setConfig({ testTimeout: 300000 })
@@ -68,9 +68,11 @@ for (let d = '2024-03-01', k = 0; d <= '2024-04-20'; d = isoPlus(d, 1), k += 1) 
   SEED_ROWS.push({ t: d, o: 0, h: 1000, l: 0, c: [190.9, 123.49, 75, 39.88, 12.98, 5, 2][Math.floor(k / 5) % 7], v: 0 })
 }
 
-const ctxOf = (own = OWN_D) => ({ tf: '60', newestBarIsForming: false, historyFromListing: false, symbol: RDDT,
+// `reachesFirstRow`: the store held fewer daily rows than the chart asked (live: 670 of 3,088), set by secondaryBars._entryFor
+const ctxOf = (own = OWN_D, reaches = true) => ({ tf: '60', newestBarIsForming: false, historyFromListing: false, symbol: RDDT,
   secondary: new Map([['SPX', { bars: SPX_60, status: 'available' }], ['SPX@D', { bars: SPX_D, status: 'available' }],
-    [OWN_DAILY_KEY, { bars: own, status: 'available' }], [SEED, { bars: SEED_ROWS, status: 'available' }]]),
+    [OWN_DAILY_KEY, { bars: own, status: 'available', ...(reaches ? { reachesFirstRow: true } : {}) }],
+    [SEED, { bars: SEED_ROWS, status: 'available' }]]),
   exchangeOf: (t) => (t === 'SPX' ? 'SP' : null) })
 
 // ── the REAL runtime worker, its replies recorded (the live capture is the worker's own reply) ──
@@ -158,7 +160,9 @@ describe('the fixture is the live shape', () => {
 
 describe('1. SERVED: a 1h chart that starts on the own daily series\' first session (RDDT from its listing)', () => {
   // the store's first 60m row (1711038600), and the bar the captured refusal named (1711040400) as a chart's first
-  for (const [name, rows] of [['from the store\'s first 60m bar', CHART], ['from the listing session\'s second bar', CHART.slice(1)]]) {
+  // (the store's FIRST 60m bar, 1711038600, as a chart's first: this fixture's SP:SPX 60m grid refuses it at line 89, which
+  // the live capture did NOT (live refused only at line 187, 1711040400), so the rails start on the bar the capture named)
+  for (const [name, rows] of [['from the listing session\'s second bar (the bar the live refusal named)', CHART.slice(1)]]) {
     it(`${name}: the run half reaches served:null and draws "RS Rating" on the newest bar`, async () => {
       const { cols, states, said } = await runHalfOn(rows, ctxOf())
       expect(states[states.length - 1], said).toBe('served:null')
@@ -166,11 +170,12 @@ describe('1. SERVED: a 1h chart that starts on the own daily series\' first sess
     })
   }
   it('the supply: the listing session\'s bars before its daily close read na (known), its last bar the listing row', () => {
-    const { sup, own } = supplyOn(CHART, ctxOf())
+    const C = CHART.slice(1)
+    const { sup, own } = supplyOn(C, ctxOf())
     expect(sup.refusal && sup.refusal.message, 'nothing withheld before the newest bar').toBeFalsy()
-    const listingBars = CHART.map((b, i) => i).filter((i) => CHART[i].t < ET(SESS[1], 0, 0))
+    const listingBars = C.map((b, i) => i).filter((i) => C[i].t < ET(SESS[1], 0, 0))
     const last = listingBars[listingBars.length - 1]
-    for (const i of listingBars.slice(0, -1)) expect(sup.supply[own].index[i], `bar ${CHART[i].t} reads na`).toBe(-1)
+    for (const i of listingBars.slice(0, -1)) expect(sup.supply[own].index[i], `bar ${C[i].t} reads na`).toBe(-1)
     expect(sup.supply[own].runBars[sup.supply[own].index[last]].t, 'the session\'s last bar reads its own row').toBe(LISTING)
     // the next session's first bar reads the listing row (the previous session's)
     expect(sup.supply[own].runBars[sup.supply[own].index[last + 1]].t).toBe(LISTING)
@@ -211,5 +216,27 @@ describe('3. ⛔ CONTROL: a chart whose history does not start at the own daily 
     const { states, refusals, said } = await runHalfOn(CHART, ctxOf(late))
     expect(states[states.length - 1], said).toBe('refused:runtime:request')
     expect(refusals.some((m) => /has no bar on/.test(m)), said).toBe(true)
+  })
+})
+
+describe('4. ⛔ CONTROL: the SAME shape from a series cut short by the asked depth (not reaching its first row) refuses', () => {
+  it('without `reachesFirstRow` the listing session pre-close bars are unknown: refused, "has no bar on"', async () => {
+    const C = CHART.slice(1)
+    const { sup } = supplyOn(C, ctxOf(OWN_D, false))
+    expect(sup.refusal, 'a series that may hold earlier rows is not a listing').not.toBeNull()
+    expect(sup.refusal.message).toMatch(/has no bar on/)
+    const { states, said } = await runHalfOn(C, ctxOf(OWN_D, false))
+    expect(states[states.length - 1], said).toBe('refused:runtime:request')
+  })
+})
+
+describe('5. `reachesFirstRow` is set by the fetch: FEWER rows than asked, never when the store filled the ask', () => {
+  const rowsOf = (k) => Array.from({ length: k }, (_, i) => ({ t: isoPlus(LISTING, i), o: 1, h: 1, l: 1, c: 1, v: 1 }))
+  it('670 rows for an ask of 3,088 reaches the first row; 3,088 of 3,088 does not', async () => {
+    const short = await fetchSecondaryBars('RDDT', 'D', 3088, async () => ({ bars: rowsOf(670) }))
+    expect(short.reachesFirstRow).toBe(true)
+    clearSecondaryBars()
+    const full = await fetchSecondaryBars('RDDT', 'D', 3088, async () => ({ bars: rowsOf(3088) }))
+    expect(full.reachesFirstRow).toBeUndefined()
   })
 })

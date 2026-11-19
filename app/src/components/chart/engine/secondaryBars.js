@@ -241,6 +241,18 @@ export function clearSecondaryBars() {
   _retry.clear()
 }
 
+/** ⭐⭐ RS RATING (2026-11-19, Fred RS on 1h, the e85 live capture) — THE SERIES REACHES ITS FIRST ROW: an entry read for a
+ *  fetch that asked `bars` rows and got FEWER holds the symbol's whole stored history, so its first row is where the
+ *  symbol's history begins (`reachesFirstRow`). `requestSupply.js::aboveChartRead` reads a chart's own first session as
+ *  na by history only then: a series cut short by the asked depth is not a listing. ONE place, every entry read from a
+ *  fetch (`fetchSecondaryBars`, `primeSecondaryBars`, `refreshSecondaryBars`); the live-tail merge keeps the field. */
+function _entryFor(payload, bars) {
+  const entry = _read(payload)
+  const asked = Number.isFinite(bars) && bars > 0 ? Math.floor(bars) : 200
+  if (entry.status === SOURCE_STATUS.AVAILABLE && entry.bars.length < asked) entry.reachesFirstRow = true
+  return entry
+}
+
 /**
  * Read the response the bars route actually returns.
  *
@@ -336,7 +348,7 @@ export function fetchSecondaryBars(symbol, tf, bars, fetcher) {
   const p = Promise.resolve()
     .then(() => get(url))
     .then((payload) => {
-      const entry = _read(payload)
+      const entry = _entryFor(payload, bars)
       _cache.set(url, entry)
       // ⭐ A SUCCESS RESETS THE BACKOFF. Otherwise one bad afternoon leaves the
       // rest of the session waiting a minute for every later blip.
@@ -468,7 +480,7 @@ export function ensureAll(symbols, tf, bars, fetcher) {
 export function primeSecondaryBars(symbol, tf, bars, payload) {
   const url = secondaryBarsUrl(symbol, tf, bars)
   if (!url) return null
-  const entry = _read(payload)
+  const entry = _entryFor(payload, bars)
   // ⛔ An empty prime does NOT overwrite a good entry: Compare's SWR hands back
   // `undefined` on its first render, and caching that would blank a series that
   // is already drawing.
@@ -602,7 +614,7 @@ export function refreshSecondaryBars(symbol, tf, bars, fetcher) {
   const p = Promise.resolve()
     .then(() => get(url))
     .then((payload) => {
-      const entry = _read(payload)
+      const entry = _entryFor(payload, bars)
       // ⛔ AN EMPTY ANSWER DOES NOT REPLACE BARS WE HAVE — same rule as
       // `primeSecondaryBars`: a transient empty payload is not "no history".
       if (!entry.bars.length && keep && keep.bars && keep.bars.length) return keep
