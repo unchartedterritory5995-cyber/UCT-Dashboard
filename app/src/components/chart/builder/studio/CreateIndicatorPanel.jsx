@@ -373,10 +373,11 @@ export default function CreateIndicatorPanel({
    *  list's own write, and says what happened. One tap settles the offer either way. */
   const takeOffer = useCallback((entry) => {
     if (!entry || !entry.offer || busy || saving) return
-    const out = applyOffer(entry.offer, { settings: settingsRef.current, registry: engineRegistry, isOffered: isDefinitionOffered })
+    // (`tf`: so the line can say when a built-in that draws only on some timeframes will not show here)
+    const out = applyOffer(entry.offer, { settings: settingsRef.current, registry: engineRegistry, isOffered: isDefinitionOffered, tf })
     if (out.ok && onChange) onChange(out.next)
     conv.settleOffer(entry.id, out.ok && !onChange ? 'This chart cannot be changed from here, so nothing was added.' : out.line)
-  }, [busy, saving, conv, onChange])
+  }, [busy, saving, conv, onChange, tf])
 
   const submit = useCallback(async (text) => {
     const words = String(text ?? message).trim()

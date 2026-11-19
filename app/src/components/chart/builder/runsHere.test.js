@@ -5,7 +5,7 @@
 // the run. And held to the chart's own notice strip: the sentences are the functions the binder
 // asks, in the binder's order.
 
-import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -19,6 +19,7 @@ import { __permitRuntimePaneForTests } from '../engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../engine/runtimeKill'
 import { setRuntimeRunner, computeRuntimeColumns } from '../engine/runtime/runtimeColumns'
 import { recipeBars, recipeContext, RUN_STOP_PROBES } from '../supportLoop/assistantRecipes'
+import { steadyRunClock } from '../supportLoop/testing/steadyRunClock'
 import {
   runHere, runHereWhenLanded, verdictOnChart, RUN, MIN_BARS, NEEDS_THE_CHART, STOPPED_HEADLINE, CHECKING_HEADLINE,
 } from './runsHere'
@@ -53,6 +54,11 @@ const ENDLESS = ['//@version=5', 'indicator("probe", overlay=true)', 'var label[
 
 beforeAll(() => { __permitRuntimePaneForTests(); __allowEveryRuntimeScriptForTests() })
 afterEach(() => { setRuntimeRunner(null) })
+// a stepping clock (`supportLoop/testing/steadyRunClock.js`): these run whole recipes and assert what the
+// engine SAID, and a run stopped by the wall clock on a busy box would be a stop nobody wrote
+let runClock = null
+beforeEach(() => { runClock = steadyRunClock() })
+afterEach(() => { if (runClock) runClock.restore(); runClock = null })
 
 describe('the member-pane gate is asked before anything is run', () => {
   it('with the gate off there is no run and no verdict from one: the engine is never called', () => {

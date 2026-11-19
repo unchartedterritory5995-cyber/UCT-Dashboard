@@ -33,10 +33,14 @@ def test_the_three_rows_s4_0_adds_restate_their_register_rows():
     assert plc.entry_for("massive", "short_volume").register_row == "T-94"
 
 
-def test_s4_0_restates_no_stale_row():
-    """Coordinator ruling C1 (2026-11-19): the stale rows switch other consumers and are their own unit."""
-    assert plc.licensing_class_for("fmp", "earnings") == "R"
-    assert plc.licensing_class_for("massive", "reference") == "R"
+def test_the_stale_rows_were_restated_in_their_own_unit():
+    """⚰️ Was `test_s4_0_restates_no_stale_row` (coordinator ruling C1, 2026-11-19: the stale rows switch other
+    consumers and are their own unit). That unit landed the same day: the register's 2026-09-19 note puts the DDLA /
+    Bus column in force, so FMP earnings (T-35/T-36) and Massive reference (T-07) read LA. Massive derived analytics
+    stays R: ESC-03 (does the Business grant reach Derived Works) is an open owner question."""
+    assert plc.licensing_class_for("fmp", "earnings") == "LA"
+    assert plc.entry_for("fmp", "earnings").register_row == "T-35/T-36"
+    assert plc.licensing_class_for("massive", "reference") == "LA"
     assert plc.licensing_class_for("massive", "derived_analytics") == "R"
 
 
@@ -112,11 +116,13 @@ def test_unknown_names_and_unserved_fields_refuse_by_name():
 
 
 def test_today_by_name():
-    """What S4-0 leaves served and refused. If a register restatement moves a class (ruling C1's own unit),
-    regenerate the blocks and update this list in that unit, on purpose."""
+    """What the catalogue serves and refuses today. If a register restatement moves a class, regenerate the blocks
+    and update this list in that unit, on purpose. ⚰️ 2026-11-19 (ruling C1's own unit): earnings (T-35/T-36) and
+    dividends / splits (T-07) moved from data:licence to served when the table followed the register's 2026-09-19
+    note. Nothing reads the catalogue at runtime yet (S4-3 onward), so no member sees the change today."""
     got = {fam: (cat.family_refusal(fam) or ("served",))[0] for fam in cat.families()}
     assert got == {
-        "earnings": "data:licence", "dividends": "data:licence", "splits": "data:licence",
+        "earnings": "served", "dividends": "served", "splits": "served",
         "financial": "served",
         "uct_rs_rating": "data:licence", "uct_rs_line": "data:licence", "uct_breadth": "data:licence",
         "uct_cot": "data:licence",

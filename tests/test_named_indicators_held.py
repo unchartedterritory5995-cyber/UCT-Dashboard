@@ -49,12 +49,22 @@ def test_the_held_names_and_what_each_carries():
     # Pocket Pivot was held until 2026-11-18; it is a library entry now (tests/test_library_pocket_pivot.py)
     # and two more are names of UCT's own built-in indicators (tests/test_named_built_ins.py)
     # and one more (2026-11-19) is a name whose published form only a script holds: the Schaff Trend Cycle
-    assert set(HELD) == {"ttm_squeeze", "mansfield_relative_strength", "rs_rating", "rs_phases", "schaff_trend_cycle"}
+    # and one more (2026-11-19) is ONE SETTING of a built-in: VWAP's standard-deviation bands
+    # (tests/test_vwap_bands_offer.py)
+    # and one more (2026-11-19, found live): Heikin Ashi, a second name only a script holds, with a recipe
+    assert set(HELD) == {"ttm_squeeze", "mansfield_relative_strength", "rs_rating", "rs_phases", "schaff_trend_cycle",
+                         "session_vwap_bands", "heikin_ashi"}
     built = {e["id"] for e in ni.entries()}
     built_aliases = {a for e in ni.entries() for a in e["aliases"]}
     for e in ni.held_names():
         assert e["id"] not in built
-        assert e["name"].lower() in e["aliases"] and len(set(e["aliases"])) == len(e["aliases"])
+        if ni.built_in_setting(e) is not None:
+            # ⛔ NEVER matched by a phrase (a phrase would hold "weekly vwap bands" too): the door reads
+            # that request with a closed-form reader of its own, so it has no aliases at all
+            assert e["aliases"] == [] and not e.get("acronyms")
+        else:
+            assert e["name"].lower() in e["aliases"]
+        assert len(set(e["aliases"])) == len(e["aliases"])
         assert not (set(e["aliases"]) & built_aliases)
         for alias in e["aliases"]:
             assert alias == alias.lower().strip()

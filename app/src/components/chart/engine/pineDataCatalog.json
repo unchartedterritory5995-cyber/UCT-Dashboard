@@ -59,8 +59,8 @@
       "vendor": "fmp",
       "dataClass": "earnings",
       "licence": {
-        "class": "R",
-        "registerRow": "A3"
+        "class": "LA",
+        "registerRow": "T-35/T-36"
       },
       "disclosure": "Earnings figures are UCT earnings data, not TradingView's.",
       "definition": "Reported and estimated EPS per report, placed on the bar TradingView places it (the placement is licensed only by the S4 probe captures).",
@@ -78,7 +78,7 @@
       "vendor": "massive",
       "dataClass": "reference",
       "licence": {
-        "class": "R",
+        "class": "LA",
         "registerRow": "T-07"
       },
       "disclosure": "Dividends are UCT corporate-actions data, not TradingView's.",
@@ -97,7 +97,7 @@
       "vendor": "massive",
       "dataClass": "reference",
       "licence": {
-        "class": "R",
+        "class": "LA",
         "registerRow": "T-07"
       },
       "disclosure": "Splits are UCT corporate-actions data, not TradingView's.",

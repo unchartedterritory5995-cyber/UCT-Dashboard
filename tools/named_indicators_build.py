@@ -268,8 +268,14 @@ def browser_copy(doc: Dict[str, Any]) -> str:
             "change the library and run the tool.")
     # ⭐ the names that are UCT's own built-in indicators: the browser tells the door which of these
     # its registry can add right now (`converseClient.offerableBuiltIns`)
+    # (a name that is ONE SETTING of a built-in also carries which input and which values: the window
+    # acts on an offer for it only when the offer names that input and one of those values)
     built_ins = [json.dumps({"id": e["id"], "name": e["name"], "indicator": e["built_in"]["indicator"],
-                             "builtInName": e["built_in"]["name"]}, ensure_ascii=False, separators=(",", ":"))
+                             "builtInName": e["built_in"]["name"],
+                             **({"setting": {"input": ni.built_in_setting(e)["input"],
+                                             "values": list(ni.built_in_setting(e)["values"])}}
+                                if ni.built_in_setting(e) is not None else {})},
+                            ensure_ascii=False, separators=(",", ":"))
                  for e in doc.get("held") or [] if ni.built_in(e) is not None]
     return ('{"_":' + json.dumps(note) + ',"contract":' + json.dumps(BROWSER_CONTRACT) + ',"indicators":[' + NEWLINE
             + ("," + NEWLINE).join(rows) + NEWLINE + '],"builtIns":[' + NEWLINE

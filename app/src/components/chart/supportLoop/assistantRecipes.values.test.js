@@ -14,7 +14,7 @@
 // Drawings (lines, boxes, labels, the table's text) are not compared: what is compared is every
 // PLOTTED column, which for these recipes carries the same state the drawings are made from.
 
-import { describe, it, expect, beforeAll, vi } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -26,6 +26,7 @@ import { __allowEveryRuntimeScriptForTests } from '../engine/runtimeKill'
 import RECIPE_INDEX from './assistantRecipes/index.json'
 import GENERATED from './assistantRecipes.json'
 import { recipeBars, recipeContext } from './assistantRecipes'
+import { steadyRunClock } from './testing/steadyRunClock'
 
 const HERE = path.resolve(process.cwd(), 'src/components/chart/supportLoop')
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8').match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
@@ -109,6 +110,11 @@ const dayKey = (t) => (typeof t === 'string' ? t : new Date(t * 1000).toISOStrin
 const ymd = (t) => dayKey(t).split('-').map(Number)
 
 beforeAll(() => { __permitRuntimePaneForTests(); __allowEveryRuntimeScriptForTests() })
+// ⛔ A STEPPING CLOCK FOR EVERY TEST IN THIS FILE (`testing/steadyRunClock.js`): the engine stops a run past
+// 1,000 ms of wall clock, and these tests assert values, so their verdict must not depend on box load.
+let runClock = null
+beforeEach(() => { runClock = steadyRunClock() })
+afterEach(() => { if (runClock) runClock.restore(); runClock = null })
 
 const CHECKS = {
   'zigzag-percent': () => {
@@ -413,6 +419,31 @@ const CHECKS = {
     same(gotRes, res, 'resistance line here', { rel: 1e-9 })
     same(gotSup, sup, 'support line here', { rel: 1e-9 })
   },
+
+  // Heikin Ashi, by the textbook: close = the average of the bar's four prices; open = halfway between
+  // the previous CANDLE's open and close (the first: the bar's own open and close); high and low reach
+  // the bar's. The four values `plotcandle` is handed, in its own order: open, high, low, close.
+  'heikin-ashi-candles': () => {
+    const b = BARS.daily, wantO = [], wantH = [], wantL = [], wantC = []
+    let o = NAN, c = NAN
+    for (let i = 0; i < b.length; i += 1) {
+      const hc = (b[i].o + b[i].h + b[i].l + b[i].c) / 4
+      const ho = i === 0 ? (b[i].o + b[i].c) / 2 : (o + c) / 2
+      wantO.push(ho); wantC.push(hc); wantH.push(Math.max(b[i].h, ho, hc)); wantL.push(Math.min(b[i].l, ho, hc))
+      o = ho; c = hc
+    }
+    const cols = engineColumns('heikin-ashi-candles')
+    expect(cols).toHaveLength(5)                                    // open, high, low, close, and which colour
+    same(cols[0], wantO, 'HA open', { rel: 1e-9 })
+    same(cols[1], wantH, 'HA high', { rel: 1e-9 })
+    same(cols[2], wantL, 'HA low', { rel: 1e-9 })
+    same(cols[3], wantC, 'HA close', { rel: 1e-9 })
+    // the colour of each candle: up (green) when its close is at or above its open
+    expect(cols[4]).toEqual(wantC.map((v, i) => (v >= wantO[i] ? 1 : 0)))
+    expect(new Set(cols[4]).size).toBe(2)                           // both colours occur on these bars
+    // not the bar's own candles: on most bars the open differs from the bar's open
+    expect(cols[0].filter((v, i) => Math.abs(v - b[i].o) > 1e-9).length).toBeGreaterThan(b.length * 0.9)
+  },
 }
 
 describe('what each recipe plots equals an independent calculation', () => {
@@ -434,12 +465,17 @@ describe('what each recipe plots equals an independent calculation', () => {
   // finish, and must leave the same last-bar numbers. (Found the hard way: a drawing deleted in
   // one call with `array.pop` stays in its list on this engine, and such a loop never ends.)
   const REDRAWS = RECIPE_INDEX.recipes.map((r) => r.id).filter((id) => sourceOf(id).includes('barstate.islast'))
+  const REDRAW_BARS = 300
   it('the recipes that redraw on the last bar are the ones expected', () => {
     expect(REDRAWS.sort()).toEqual(['fibonacci-swings', 'volume-profile', 'weekday-returns-table'])
   })
   for (const id of REDRAWS) {
     it(`${id}: its redraw runs on every bar and ends with the same numbers`, () => {
-      const bars = BARS[chartOf(id)].slice(0, 800)
+      // ⛔ FAR FROM THE ENGINE'S TIME BUDGET, ON PURPOSE. A run is stopped by name past 1,000 ms of wall
+      // clock (`RUNTIME_PANE_TIME_BUDGET_MS`), and a redraw forced onto EVERY bar is the heaviest thing here:
+      // at 800 bars the weekday table took about 1.2 s on a busy machine and this check failed on the clock,
+      // not on the numbers (2026-11-19). 300 bars prove the same path at about a third of the work.
+      const bars = BARS[chartOf(id)].slice(0, REDRAW_BARS)
       const every = sourceOf(id).split('barstate.islast').join('true')
       expect(every).not.toBe(sourceOf(id))
       const once = engineColumns(id, sourceOf(id), bars)
@@ -523,6 +559,27 @@ describe('what each recipe plots equals an independent calculation', () => {
       expect(src).toContain('keep = input.int(40, "Labels kept"')
       expect(Math.max(...got[1].filter(ok))).toBe(40)
     }
+  }, 300_000)
+
+  it('CONTROL: the time budget is real, and it is the stepping clock that keeps it out of these checks', () => {
+    // the heaviest thing in this file: the weekday table's last-bar redraw forced onto every bar
+    const id = 'weekday-returns-table'
+    const every = sourceOf(id).split('barstate.islast').join('true')
+    const bars = BARS[chartOf(id)].slice(0, 300)
+    const run = () => {
+      const pane = memberPaneDefinition({ source: every, id: `u_value_${made += 1}`, name: 'recipe' })
+      expect(pane.ok, pane.reason || '').toBe(true)
+      const cols = registry.computeFor(pane.definition, bars, undefined, recipeContext(chartOf(id), 'fromListing'))
+      return Object.values(registry.columnErrors(cols) || {}).map((e) => e.guard)
+    }
+    // on this file's clock (a thousandth of a millisecond a read) it is computed
+    expect(run()).toEqual([])
+    const reads = runClock.reads()
+    expect(reads).toBeGreaterThan(100)                              // the run does read the clock: the stub is in its path
+    // on a clock that jumps 50 ms a read it is past 1,000 ms within a few reads, and the engine says so by name
+    runClock.restore()
+    runClock = steadyRunClock(50)
+    expect(run()).toContain('runtime:time-budget')
   }, 300_000)
 
   it('CONTROL: the comparison can fail (a recipe with one number changed is a different column)', () => {
