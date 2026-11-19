@@ -1064,6 +1064,9 @@ function EvidenceBody({ editing, rows, source, plotRows }) {
  */
 export default function BuilderSheet({
   open, onClose, onSaved = null, settings = null, onChange = null, bars = null,
+  /* ⭐ the chart the sheet was opened over AS THE ENGINE SEES IT (`StockChart`'s `engineChart`): the script
+     tab's status panel runs a pasted script on it before it says "Runs" */
+  engineChart = null,
   /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
   sym = null, tf = null,
   initialMode = null, editRow = null, initialDraft = null, initialDescription = null,
@@ -2672,6 +2675,13 @@ export default function BuilderSheet({
     setOrigin(mode); setView('editor'); setStoreError(null)
   }, [])
   const writeMyself = useCallback(() => { setView('editor'); setStoreError(null) }, [])
+  /** ⭐ A script the assistant wrote in "Describe it" lands in the SCRIPT EDITOR: the same text field,
+   *  the same check, preview and Save as a script the member pasted (`ConverseBox.onOpenScript`). */
+  const openAssistantScript = useCallback(({ pine } = {}) => {
+    if (typeof pine !== 'string' || !pine.trim()) return
+    setPineText(pine); setPineSeed((n) => n + 1)
+    startFrom('pine'); setBuildMode('pine')
+  }, [startFrom])
   const backToStart = useCallback(() => { setView('start'); setStoreError(null) }, [])
   /** The one-shot describe box's "Use this formula": the formula lands in the editor,
    *  on the Formula tab, exactly as a paste or a starter does. */
@@ -2957,6 +2967,7 @@ export default function BuilderSheet({
                   variant={isEditor ? 'ask' : 'start'}
                   settings={settings} onChange={onChange} sym={sym} tf={tf}
                   editing={editing} disabled={saving} prefill={prefill}
+                  onOpenScript={openAssistantScript} engineChart={engineChart}
                   onCommitState={setConverseCommit} commitRef={converseCommitRef}
                   onSaved={(defId, version) => setConversationSaved({ defId, version, formPrint: formPrintRef.current })} />
               )}
@@ -3218,6 +3229,7 @@ export default function BuilderSheet({
               key={editing && editing.runtime ? `edit:${editing.defId}` : `new:${pineSeed}`}
               dialect="auto"
               disabled={saving}
+              engineChart={engineChart}
               // ⭐ STUDIO R4 — the status panel's sentence and the text it is about
               onStatusHeadline={setStatusHeadline}
               // ⭐ STUDIO R5 — Inspect a bar's `line N` uses this box's own line jump
