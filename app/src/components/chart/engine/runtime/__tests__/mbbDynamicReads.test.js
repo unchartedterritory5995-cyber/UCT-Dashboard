@@ -75,6 +75,18 @@ describe('Q-MBB-1 / Q-MBB-2 / M3 shapes, served and read as the real history', (
       for (let i = 0; i < RDDT.length; i += 1) expect(s[i], `close[${i % 120}] at ${i}`).toBe(RDDT[i - (i % 120)].c)
     })
   }
+  it('⛔ TRAP B AT THE MEMBER DOOR (no bars): Fred RS\'s own shape, `closeDa[n63]` with `n63 = bar_index < 63 ? bar_index : 63`, builds, declared and not', () => {
+    // the shape the door declined ("a bar offset counts backwards in whole bars", runtime:statement) once a declaration
+    // stopped routing it: at the door the daily request folds to the chart's own close, and `n63` folds to no number
+    for (const decl of [', max_bars_back = 253', '']) {
+      const src = v5(decl, 'n63 = bar_index < 63 ? bar_index : 63', 'closeDa = request.security(syminfo.tickerid, "D", close)',
+        'plot(closeDa / closeDa[n63])')
+      const door = buildRuntimeIr(src, { bars: [], inputs: {} })
+      expect(door.ok, `${decl || 'no declaration'}: ${door.ok ? '' : door.refusal.message}`).toBe(true)
+      const [p] = run(src, RDDT)
+      for (const i of [0, 10, 62, 63, 64, 300, 668]) expect(p[i], `bar ${i}`).toBe(RDDT[i].c / RDDT[i - Math.min(i, 63)].c)
+    }
+  })
   it('M3 (no declaration): a 250-bar offset after bar 300 is the real close', () => {
     const [c] = run(v5('', 'n = bar_index > 300 ? 250 : 1', 'plot(close[n])'), RDDT)
     expect(c[400]).toBe(RDDT[150].c)
