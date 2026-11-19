@@ -1,0 +1,19 @@
+//@version=5
+indicator("Opening Range", overlay=true)
+minutes = input.int(30, "Opening minutes", minval=1, maxval=240)
+newDay = ta.change(dayofmonth) != 0
+var int dayStart = na
+var float orHigh = na
+var float orLow = na
+if newDay
+    dayStart := time
+    orHigh := high
+    orLow := low
+inRange = not na(dayStart) and time - dayStart < minutes * 60000
+if inRange and not newDay
+    orHigh := math.max(orHigh, high)
+    orLow := math.min(orLow, low)
+show = timeframe.isintraday and not inRange
+plot(show ? orHigh : na, "Opening range high", color=color.green, style=plot.style_linebr)
+plot(show ? orLow : na, "Opening range low", color=color.red, style=plot.style_linebr)
+alertcondition(show and ta.crossover(close, orHigh), "Opening range breakout", "Price broke above the opening range")

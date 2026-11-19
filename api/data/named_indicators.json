@@ -4769,6 +4769,311 @@
    ]
   },
   {
+   "id": "ichimoku_cloud",
+   "name": "Ichimoku Cloud",
+   "aliases": [
+    "ichimoku cloud",
+    "ichimoku clouds",
+    "ichimoku",
+    "ichimoku kinko hyo",
+    "ichimoku indicator",
+    "the ichimoku cloud"
+   ],
+   "placement": "overlay",
+   "params": [
+    {
+     "key": "conversion",
+     "label": "Conversion line",
+     "default": 9,
+     "min": 1,
+     "max": 5000,
+     "integer": true
+    },
+    {
+     "key": "base",
+     "label": "Base line",
+     "default": 26,
+     "min": 1,
+     "max": 5000,
+     "integer": true
+    },
+    {
+     "key": "span_b",
+     "label": "Leading span B",
+     "default": 52,
+     "min": 1,
+     "max": 5000,
+     "integer": true
+    },
+    {
+     "key": "ahead",
+     "label": "Cloud shift (bars)",
+     "default": 25,
+     "min": 1,
+     "max": 5000,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "conversion",
+     "label": "Conversion line",
+     "type": "value",
+     "formula": "ichimokuTenkan(high, low, {conversion}, {base}, {span_b})",
+     "says": "the midpoint of the highest high and lowest low of the last 9 bars",
+     "tree": {
+      "type": "call",
+      "name": "ichimokuTenkan",
+      "args": [
+       {
+        "type": "series",
+        "name": "high"
+       },
+       {
+        "type": "series",
+        "name": "low"
+       },
+       {
+        "type": "num",
+        "value": 9
+       },
+       {
+        "type": "num",
+        "value": 26
+       },
+       {
+        "type": "num",
+        "value": 52
+       }
+      ]
+     },
+     "sites": {
+      "conversion": [
+       [
+        2
+       ]
+      ],
+      "base": [
+       [
+        3
+       ]
+      ],
+      "span_b": [
+       [
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "key": "base",
+     "label": "Base line",
+     "type": "value",
+     "formula": "ichimokuKijun(high, low, {conversion}, {base}, {span_b})",
+     "says": "the midpoint of the highest high and lowest low of the last 26 bars",
+     "tree": {
+      "type": "call",
+      "name": "ichimokuKijun",
+      "args": [
+       {
+        "type": "series",
+        "name": "high"
+       },
+       {
+        "type": "series",
+        "name": "low"
+       },
+       {
+        "type": "num",
+        "value": 9
+       },
+       {
+        "type": "num",
+        "value": 26
+       },
+       {
+        "type": "num",
+        "value": 52
+       }
+      ]
+     },
+     "sites": {
+      "conversion": [
+       [
+        2
+       ]
+      ],
+      "base": [
+       [
+        3
+       ]
+      ],
+      "span_b": [
+       [
+        4
+       ]
+      ]
+     }
+    },
+    {
+     "key": "span_a",
+     "label": "Leading span A",
+     "type": "value",
+     "formula": "ichimokuSpanA(high, low, {conversion}, {base}, {span_b})[{ahead}]",
+     "says": "the average of the conversion and base lines, drawn 25 bars after the bar it is worked out on",
+     "tree": {
+      "type": "offset",
+      "value": 25,
+      "args": [
+       {
+        "type": "call",
+        "name": "ichimokuSpanA",
+        "args": [
+         {
+          "type": "series",
+          "name": "high"
+         },
+         {
+          "type": "series",
+          "name": "low"
+         },
+         {
+          "type": "num",
+          "value": 9
+         },
+         {
+          "type": "num",
+          "value": 26
+         },
+         {
+          "type": "num",
+          "value": 52
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "conversion": [
+       [
+        0,
+        2
+       ]
+      ],
+      "base": [
+       [
+        0,
+        3
+       ]
+      ],
+      "span_b": [
+       [
+        0,
+        4
+       ]
+      ],
+      "ahead": [
+       []
+      ]
+     }
+    },
+    {
+     "key": "span_b",
+     "label": "Leading span B",
+     "type": "value",
+     "formula": "ichimokuSpanB(high, low, {conversion}, {base}, {span_b})[{ahead}]",
+     "says": "the midpoint of the 52-bar high and low, drawn 25 bars after the bar it is worked out on",
+     "tree": {
+      "type": "offset",
+      "value": 25,
+      "args": [
+       {
+        "type": "call",
+        "name": "ichimokuSpanB",
+        "args": [
+         {
+          "type": "series",
+          "name": "high"
+         },
+         {
+          "type": "series",
+          "name": "low"
+         },
+         {
+          "type": "num",
+          "value": 9
+         },
+         {
+          "type": "num",
+          "value": 26
+         },
+         {
+          "type": "num",
+          "value": 52
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "conversion": [
+       [
+        0,
+        2
+       ]
+      ],
+      "base": [
+       [
+        0,
+        3
+       ]
+      ],
+      "span_b": [
+       [
+        0,
+        4
+       ]
+      ],
+      "ahead": [
+       []
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::ichimoku_cloud",
+    "published": {
+     "by": "Goichi Hosoda",
+     "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/ichimoku-cloud",
+     "sources": [
+      {
+       "title": "StockCharts ChartSchool: Ichimoku Cloud",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/ichimoku-cloud",
+       "kind": "reference"
+      },
+      {
+       "title": "TradingView help center: Ichimoku Cloud",
+       "url": "https://www.tradingview.com/support/solutions/43000589152-ichimoku-cloud/",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "Conversion line = (9-period high + 9-period low) / 2. Base line = (26-period high + 26-period low) / 2. Leading span A = (conversion line + base line) / 2, plotted 26 periods into the future. Leading span B = (52-period high + 52-period low) / 2, plotted 26 periods in the future. Lagging span = the close plotted 26 periods in the past. The page credits Goichi Hosoda, published in his 1969 book; TradingView's page gives the same 26 periods ahead and behind.",
+     "note": "THE TWO SPANS ARE SHIFTED 25 BARS, TradingView's form: its built-in draws them displacement minus one bars ahead, 25 at its default displacement of 26 (UCT ruling 2026-11-19; the published rule says 26). So each span on a bar is the value worked out 25 bars before it. A formula draws on bars that exist: the 25 bars of cloud ahead of the last bar are not drawn. THE LAGGING SPAN IS LEFT OUT: it is the close drawn 26 bars back, and this builder cannot draw backwards; paste the Pine version for it."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:22559c8e951c703fc0117057d4c594bdbdaf507f746540e6dc3ad648a4416806",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ],
+   "names_function": "ichimokuSpanA"
+  },
+  {
    "id": "aroon",
    "name": "Aroon",
    "aliases": [
@@ -8685,9 +8990,10 @@
    ],
    "why": "The Screener has a column of this name. A chart formula for it belongs with the Screener's columns (chart_twins), proved equal to that column; until then there is no checked chart formula.",
    "describe": "the price divided by SPY, as a percent above or below its own 200-day average",
-   "lives_in": {
-    "what": "a Screener column",
-    "where": "the Screener, under Relative Strength, as \"Mansfield RS\""
+   "built_in": {
+    "indicator": "rsMansfield",
+    "name": "UCT Mansfield RS",
+    "what": "the RS line as a percent above or below its own long average, around a zero line"
    },
    "since": "2026-11-18"
   },
@@ -8709,6 +9015,18 @@
     "name": "UCT RS Rating",
     "what": "the stock's RS Rating, 1 to 99, session by session on daily charts"
    },
+   "since": "2026-11-18"
+  },
+  {
+   "id": "schaff_trend_cycle",
+   "name": "Schaff Trend Cycle",
+   "aliases": [
+    "schaff trend cycle",
+    "schaff trend cycle indicator"
+   ],
+   "why": "Its published form has two stochastic stages, each smoothed with a value carried from the bar before. A formula here cannot carry those, and no page that states the calculation was read.",
+   "describe": "where the MACD sits in its own 10-bar range, 0 to 100, smoothed",
+   "needs_script": "its published form has two stochastic stages",
    "since": "2026-11-18"
   },
   {
