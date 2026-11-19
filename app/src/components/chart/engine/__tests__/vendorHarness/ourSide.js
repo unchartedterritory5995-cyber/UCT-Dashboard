@@ -1434,6 +1434,9 @@ function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
       pineVersion: reader.program.pineVersion,
       // ⭐ C36 — why drawings that read `time(<timeframe>)` are withheld here.
       chartClock: reader.chartClock || [],
+      // ⭐ RENDER GAPS (census tools) — the names the run gave each text it withheld (`formatNumberWhy`), by count:
+      // `renderGaps.js` names a withheld-text gap by them. Never graded, never written to a verdict file.
+      ...(run.stats && run.stats.textsWithheldWhy ? { textsWithheldWhy: { ...run.stats.textsWithheldWhy } } : {}),
       // ⭐ W-C22-DEL — families the run withheld WHOLE, by name, because
       // TradingView's collector may have removed objects this run holds
       // (`objectRuntime.js`, `withheldBy['objects:collector']`): graded as a gap.

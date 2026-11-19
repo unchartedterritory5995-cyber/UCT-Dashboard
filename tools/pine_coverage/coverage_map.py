@@ -653,6 +653,30 @@ def read_library_store(cache, what):
     return sorted(rows, key=lambda r: r["path"])
 
 
+RENDER_GAPS_SCHEMA = "uct.pine-render-gaps/v1"
+
+
+def render_gaps_section(path, library_store, sample_keys):
+    """The map's `renderGaps` from a `render_gaps.py` output: refused unless it was swept on the runtime-on lane
+    with THIS census's library store and joined to THIS sample (keys and counts only, as written there)."""
+    if not os.path.exists(path):
+        sys.exit("--render-gaps %s does not exist: run renderGaps.measure.test.js, then render_gaps.py" % path)
+    rg = json.load(open(path, encoding="utf-8"))
+    if rg.get("schema") != RENDER_GAPS_SCHEMA:
+        sys.exit("--render-gaps %s: schema %r, expected %r" % (path, rg.get("schema"), RENDER_GAPS_SCHEMA))
+    if rg.get("lane") != "runtime-on":
+        sys.exit("--render-gaps %s: swept on lane %r, expected runtime-on (the lane members are on)" % (path, rg.get("lane")))
+    if (rg.get("libraryStore") or []) != (library_store or []):
+        sys.exit("--render-gaps %s: swept with another library store than this census (%d versions vs %d)"
+                 % (path, len(rg.get("libraryStore") or []), len(library_store or [])))
+    stray = sorted(set(rg.get("scripts") or {}) - set(sample_keys))
+    if stray:
+        sys.exit("--render-gaps %s: joined to scripts this sample does not hold (%s): another census"
+                 % (path, ", ".join(stray[:5])))
+    return {"schema": rg["schema"], "engine": rg.get("engine"), "lane": rg["lane"],
+            "captures": rg.get("captures"), "scripts": rg.get("scripts") or {}}
+
+
 def read_verdicts(path, lane, what):
     vd = json.load(open(path, encoding="utf-8"))
     got = vd.get("lane") or LANE_PRODUCTION
@@ -1059,6 +1083,8 @@ def main():
     ap.add_argument("--master-sha", default=None)
     ap.add_argument("--runtime-cache", default=None, help="a census cache run with run_census.py --runtime-on")
     ap.add_argument("--runtime-verdicts", default=None, help="verdicts.json from VENDOR_HARNESS_RUNTIME_ON=1")
+    ap.add_argument("--render-gaps", default=None,
+                    help="tools/pine_coverage/render_gaps.py output: per sample script, the drawings left off the chart")
     a = ap.parse_args()
     engine_door = read_engine_door(a.engine_door)   # first: a named file that is not there stops here
     try:
@@ -1399,6 +1425,10 @@ def main():
             None, lambda k: bool(orders_by_key[k]) and decl_by_key[k] == "strategy",
             norm_src, inputs, N, inv=inv) if a.runtime_cache else None,
         "engineTableThroughPineDoor": engine_door,
+        # ⭐ RENDER GAPS (census tools, 2026-11-19), only when measured (`--render-gaps`): per sample script, the
+        # captures the runtime-on render sweep measured and the drawings their charts leave off, by class
+        **({"renderGaps": render_gaps_section(a.render_gaps, library_store, {s["key"] for s in scripts})}
+           if a.render_gaps else {}),
         "scripts": [{k: v for k, v in s.items() if not k.startswith("_")} for s in scripts],
     }
     tmp = a.out + ".tmp"
