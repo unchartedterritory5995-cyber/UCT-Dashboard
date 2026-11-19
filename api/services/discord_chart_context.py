@@ -13,9 +13,10 @@ silently, and the line is capped so Discord never wraps it into a paragraph.
 Sources (read only, all already cached upstream):
   - `earnings_table.get_earnings_table` - the fundamentals widget's table; its
     forward rows carry `report_date`.
-  - `earnings_enrichment.get_implied_move` - front-week ATM straddle; asked
-    only when the report is inside `IMPLIED_WINDOW_DAYS` (that is the window
-    where the straddle prices the event rather than ordinary drift).
+  - `implied_move.report_move` - the ATM straddle off our own option chain
+    read, for the first expiry that settles after the report; asked only when
+    the report is inside `IMPLIED_WINDOW_DAYS` (that is the window where the
+    straddle prices the event rather than ordinary drift).
   - `catalyst.store.get_ticker_for_date` - today's Stock Catalysts row.
 """
 from __future__ import annotations
@@ -67,11 +68,13 @@ def _next_earnings(ticker: str, today: _dt.date) -> Optional[dict]:
 def _implied(ticker: str, report_date: str) -> Optional[dict]:
     """The report's session comes from `implied_move.report_timing` (engine
     weekly calendar, then Finnhub `hour`): an after-close print takes the first
-    expiry STRICTLY after the date. Unknown session = on-or-after (default)."""
-    from api.services import earnings_enrichment
-    from api.services.implied_move import report_timing
-    return earnings_enrichment.get_implied_move(
-        ticker, report_date, timing=report_timing(ticker, report_date))
+    expiry STRICTLY after the date. Unknown session = on-or-after (default).
+
+    `report_move` answers at once when the straddle is already held (the same
+    entry the Terminal's Expected Move panel fills) and otherwise waits a bounded
+    time for one build; None drops this part of the line."""
+    from api.services.implied_move import report_move, report_timing
+    return report_move(ticker, report_date, timing=report_timing(ticker, report_date))
 
 
 def _catalyst(ticker: str, today: _dt.date) -> Optional[dict]:
