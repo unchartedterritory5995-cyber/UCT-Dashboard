@@ -369,7 +369,10 @@ function messageOf(id, def, rows, ctx) {
     ...(ctx && ctx.symbol && typeof ctx.symbol === 'object'
       // ⭐ RS RATING L3 — every field the fold reads (`bind.js::BIND_SYMBOL_FIELDS`), not only
       // `{ticker, exchange}`: the worker's run settles `syminfo.industry` from the same symbol.
-      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol) } } : {}),
+      // ⭐⭐ (2026-11-19, Fred RS 1h) and the symbol's FIRST TRADE day, the listing fact the own-daily read's first
+      // session rests on (`requestSupply.js::aboveChartRead`); absent stays absent (no listing is claimed).
+      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol),
+        ...(typeof ctx.symbol.firstTradeDate === 'string' ? { firstTradeDate: ctx.symbol.firstTradeDate } : {}) } } : {}),
     // ⭐ P3 WS-F — a framed instance's window slides, so the run refuses a `varip` there
     ...(ctx && ctx.framed === true ? { framed: true } : {}),
     // ⭐⭐ W9-T11 — the window a broker run takes (design 3.4), as the context holds it
