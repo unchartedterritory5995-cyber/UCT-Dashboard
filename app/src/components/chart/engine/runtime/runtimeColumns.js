@@ -279,9 +279,23 @@ export const RUNTIME_PANE_TIME_BUDGET_MS = 1000
 /** ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, engine 84) — THE BUDGET OF A RUN IN THE WORKER
  *  SCALES WITH THE BARS IT COVERS. 1,000 ms is a whole-run number that an honest script crosses through chart LENGTH
  *  alone, and the budget's own record (RT1, above) says its job is to bound a RUNAWAY, not to cap honest long work.
- *    budget(n) = min(4,000, 1,000 + 0.35 x max(0, n - 5,000)) ms, `n` the bars the run COVERS (the rows after the depth
- *  cut, a `calc_bars_count` or strategy window's own): 1,000 up to 5,000 bars (today's behaviour), 2,050 at 8,000,
- *  3,282 at 11,520, 4,000 from 13,571 bars.
+ *    budget(n) = min(12,000, 1,000 + 1.2 x max(0, n - 5,000)) ms, `n` the bars the run COVERS (the rows after the
+ *  depth cut, a `calc_bars_count` or strategy window's own): 1,000 up to 5,000 bars (today's behaviour), 4,600 at
+ *  8,000, 8,824 at 11,520, 12,000 from 14,167 bars.
+ *    ⭐⭐ (engine 86, coordinator ruling: option A2) THE SLOPE IS 1.2 MS A BAR AND THE CEILING 12,000 ms (engine 84 shipped
+ *  0.35 and 4,000), AND IN THE WORKER THE VM'S `WALL_TIME` FOLLOWS THIS BUDGET (`runLimitsOf`). Measured: Fred RS's run
+ *  half on 5m (11,520 bars covered) costs about 2 s on the desktop (0.17 ms a bar), 7.5-8.2 s in-process on a CI runner
+ *  (0.67-0.73) and an estimated 5.3-5.7 s on a member's device (0.47-0.49, 2.9x desktop, the e81 ratio). At 0.35 the
+ *  budget sat below that cost at EVERY bar count (3,282 ms at 11,520), so it was refused live, and the refusal was run
+ *  cold again on every update. 1.2 covers the CI cost too (8,824 ms at 11,520, 1.05x); the final slope is to be set
+ *  from the live run-half timing on 5m (ms a bar x 1.5, rounded up to 0.1, never below 1.0).
+ *    WHY THE CEILING ALONE WAS NOT ENOUGH (found building it): the ceiling binds only past 14,167 bars, and the VM's
+ *  `WALL_TIME` (5,000 ms, `limits.js`) stops any one execute past 5 s first, so a budget above 5 s was not real.
+ *  The worker's run now hands the VM `WALL_TIME` = its budget when the budget is larger (`runLimitsOf`); every other
+ *  caller keeps 5,000 (the main-thread doors, the service, the limits census, a test harness).
+ *    What a long budget costs is bounded elsewhere now: a stale run is STOPPED (`runtimeAsync.js`: a symbol or
+ *  timeframe switch terminates it, a hidden tab computes nothing), and a stop the budget made is not re-run on the
+ *  next bars (`runtimeBudgetStops.js`, Retry on the strip).
  *    WHY 0.35 MS A BAR, MEASURED (desktop, 2026-11-19, engine 83 with the depth cut, the array-operation ceiling and
  *  the session-day memo): Fred RS's run half on a filled 5m extended-hours chart covers 11,520 bars and spends
  *  1,029 ms of what this budget counts (A's whole run, 619, and B's VM, 410: `computeOffListing`); 60m (8,000 bars)
@@ -290,14 +304,14 @@ export const RUNTIME_PANE_TIME_BUDGET_MS = 1000
  *  this machine takes about 0.94 s): an ESTIMATE, to be confirmed by the live timing after engine 83, and the margin
  *  resized against the confirmed number. 1,000 + 0.35 x 6,520 = 3,282 ms is 3.2x this desktop's 1,029.
  *    WHAT STILL STOPS A RUNAWAY, unchanged: `INSTRUCTIONS_PER_BAR` (one bar), the whole-run counts and `MEMORY`
- *  (`limits.js`), `WALL_TIME` (5,000 ms per `execute`, the absolute stop), this budget's own 4,000 ms ceiling, and the
- *  worker watchdog (`runtimeAsync.js`, 20 s).
+ *  (`limits.js`), this budget's own 12,000 ms ceiling (in the worker `WALL_TIME` is this budget; elsewhere 5,000 ms per
+ *  `execute`), and the worker watchdog (`runtimeAsync.js`, 20 s).
  *    ⛔ WORKER ONLY (`opts.budgetScales`, passed by `runtimeWorker.js` alone): a run on the MAIN thread (the
  *  synchronous door, `runtimeAsync.js::runHere` where a browser has no Worker, the server entry) keeps 1,000 ms, since
  *  there a longer run is a frozen page. */
 export const RUNTIME_PANE_BUDGET_FLOOR_BARS = 5000
-export const RUNTIME_PANE_BUDGET_PER_BAR_MS = 0.35
-export const RUNTIME_PANE_BUDGET_CEILING_MS = 4000
+export const RUNTIME_PANE_BUDGET_PER_BAR_MS = 1.2
+export const RUNTIME_PANE_BUDGET_CEILING_MS = 12000
 /** The worker's budget for a run covering `bars` bars, `floorMs` the per-run number (1,000). */
 export function runtimePaneBudgetFor(bars, floorMs = RUNTIME_PANE_TIME_BUDGET_MS) {
   const over = Number.isInteger(bars) ? Math.max(0, bars - RUNTIME_PANE_BUDGET_FLOOR_BARS) : 0
@@ -307,6 +321,18 @@ export function runtimePaneBudgetFor(bars, floorMs = RUNTIME_PANE_TIME_BUDGET_MS
  *  passed. Read where the run's rows are final, once: the curtain hands its two runs fixed numbers. */
 const budgetFor = (opts, bars) => (opts && opts.budgetScales === true && Number.isFinite(opts.budgetMs)
   ? runtimePaneBudgetFor(bars, opts.budgetMs) : (opts ? opts.budgetMs : undefined))
+/** ⭐⭐ (engine 86, option A2) — THE LIMITS A RUN HANDS THE VM. In the worker (a run whose budget scales,
+ *  `budgetScales`, and the curtain's two runs of one, `wallFollowsBudget`) the VM's `WALL_TIME` is the run's budget
+ *  where that is the larger, or a budget above 5,000 ms would be stopped at 5,000 by the VM first. Every other caller
+ *  hands exactly what it was handed (`opts.limits`: nothing, so `DEFAULT_LIMITS`, or a measurement's named limits),
+ *  and a limit a caller NAMES always wins. */
+export function runLimitsOf(opts, budgetMs) {
+  const named = opts ? opts.limits : undefined
+  const follows = !!opts && (opts.budgetScales === true || opts.wallFollowsBudget === true)
+  if (!follows || !Number.isFinite(budgetMs) || budgetMs <= DEFAULT_LIMITS.WALL_TIME) return named
+  if (named && Object.prototype.hasOwnProperty.call(named, 'WALL_TIME')) return named
+  return { ...(named || {}), WALL_TIME: budgetMs }
+}
 
 /** The guard a run that passes the budget carries. */
 export const RUNTIME_TIME_BUDGET_GUARD = 'runtime:time-budget'
@@ -893,7 +919,9 @@ function computeOffListing(def, rows, ctx, opts) {
   // ⭐⭐ (coordinator ruling 2026-11-19) the budget of the two runs together, scaled by the bars the chart's run covers
   // (`budgetFor`), then handed to each as a fixed number: A's whole run, then B's VM within what A left
   const budgetMs = budgetFor(opts, n)
-  const inner = { ...opts, warmupCurtain: false, budgetScales: false, ...(Number.isFinite(budgetMs) ? { budgetMs } : {}) }
+  const inner = { ...opts, warmupCurtain: false, budgetScales: false, ...(Number.isFinite(budgetMs) ? { budgetMs } : {}),
+    // ⭐⭐ (engine 86) the worker's `WALL_TIME` follows each run's budget (`runLimitsOf`)
+    ...(opts.budgetScales === true || opts.wallFollowsBudget === true ? { wallFollowsBudget: true } : {}) }
   // ⭐⭐ UIE PHASE 3 (M1) — B stops as soon as it is PROVEN to repeat A (`warmupProbe.js`);
   // a drawing program is never probed (its object store is not encoded)
   // ⛔ (Fred RS filled chart, 2026-11-19: MEASURED, not to re-propose blind) — probing a program that DRAWS (its
@@ -1873,6 +1901,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // own per-bar hook (no VM change): past it the run stops by name.
   // ⭐⭐ (coordinator ruling 2026-11-19) scaled by the bars this run covers when its caller asked (`budgetFor`)
   const budgetMs = Number.isFinite(opts.budgetMs) ? budgetFor(opts, rows.length) : null
+  // ⭐⭐ (engine 86) in the worker the VM's `WALL_TIME` follows this budget (`runLimitsOf`); elsewhere `opts.limits` as passed
+  const runLimits = runLimitsOf(opts, budgetMs)
   const now = clockOf(opts)
   const startedAt = budgetMs !== null ? now() : 0
   if (typeof opts.onProgram === 'function') opts.onProgram(program)
@@ -1949,13 +1979,13 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     if (!Object.values(outputs).some((index) => Number.isInteger(index) && index < built && !held.has(index))) return null
     try {
       finished = -1
-      return execute(runProgram, runCtx, opts.limits, { ...injectedNow(opts), brokerDisarmed: true, onBar })
+      return execute(runProgram, runCtx, runLimits, { ...injectedNow(opts), brokerDisarmed: true, onBar })
     } catch {
       return null
     }
   }
   try {
-    res = execute(runProgram, runCtx, opts.limits, {
+    res = execute(runProgram, runCtx, runLimits, {
       ...injectedNow(opts),
       ...(runProbe ? { probe: runProbe } : {}),
       ...(resumeFrom ? { resume: resumeFrom } : {}),
