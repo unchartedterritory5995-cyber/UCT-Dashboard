@@ -273,7 +273,11 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
   const n = Array.isArray(rows) ? rows.length : 0
   const chartCode = ladderCode(ctx && ctx.tf)
   const supply = []
-  const refuse = (message) => { out.refusal = { guard: REQUEST_GUARD, message }; return out }
+  // ⭐ `knownFrom` (a DEPTH gap only, below): the first chart bar from which every read of this site is known
+  const refuse = (message, knownFrom) => {
+    out.refusal = { guard: REQUEST_GUARD, message, ...(Number.isInteger(knownFrom) && knownFrom > 0 ? { knownFrom } : {}) }
+    return out
+  }
   for (let s = 0; s < sites.length; s += 1) {
     const site = sites[s]
     const target = site && site.target
@@ -399,9 +403,19 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
           : `\`${other}\` has no bar on ${String(earlyT)}, after its history began, so what the `
             + 'request reads there is not known')
       out.codes.push(...sink.keys())
+      // ⭐⭐ (the e81 live capture, 2026-11-19) — A DEPTH GAP ONLY: every withheld bar before the newest lies BEFORE
+      // the first row we hold of the series (an intraday index: our store holds ~60 days of 5m, 730 of 60m, and a
+      // member's chart fills far deeper). The run need not refuse the whole chart for bars our data cannot reach: it
+      // starts where every read is known (`knownFrom`, `runtimeColumns.js::computeRuntimeColumns`), under the off-listing
+      // two-start proof. ⛔ A bar missing AFTER the series began (a hole TradingView holds) still refuses, with no
+      // `knownFrom`: that is a guess, not a depth.
+      let lastEarly = early
+      for (let i = early; i < n - 1; i += 1) if (aligned.withheld[i]) lastEarly = i
+      const lastT = rows[lastEarly] && rows[lastEarly].t
+      const depthOnly = !named.length && firstHeld !== null && typeof lastT === typeof firstHeld && lastT < firstHeld
       return refuse(`a \`request.security\`${at(site)} cannot be read on every bar — ${why} A script drawn bar by `
         + 'bar carries its values forward from bar to bar, so one unknown read reaches every later bar; '
-        + 'nothing is drawn rather than a guess')
+        + 'nothing is drawn rather than a guess', depthOnly ? lastEarly + 1 : undefined)
     }
     if (n && aligned.withheld[n - 1]) {
       out.newestWithheld = true
