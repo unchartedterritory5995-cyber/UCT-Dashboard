@@ -13,7 +13,7 @@ import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.webp'
 
 
-import { renderTokenOk } from '../lib/renderToken'
+import { renderReadError } from '../lib/renderToken'
 
 // "15:00" -> "3:00 PM", "08:30" -> "8:30 AM" (owner ruling 2026-09-29: the letter
 // reads 12-hour ET). Anything that is not HH:MM (e.g. "All Day", "Tentative")
@@ -101,11 +101,11 @@ export default function EconRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
+    // The server checks ?token= on this read; a refused read (401/403) shows "unauthorized".
     fetch(`/api/r/econ?token=${encodeURIComponent(token)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then(setData)
-      .catch(() => setErr('data unavailable'))
+      .catch((e) => setErr(renderReadError(e)))
   }, [token])
 
   useEffect(() => {
