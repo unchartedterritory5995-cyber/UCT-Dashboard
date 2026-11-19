@@ -58,6 +58,7 @@ import {
   runtimeDeclineCodeIn, runtimeDeclinedTag, isGateDecline,
 } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { runHarness, loadCapture, VENDOR_DIR, REPO } from './harness'
+import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
 import { strategyBrokerFlag, strategyEvidenceOf, assertStrategyLaneMeasured } from './strategyLane.js'
 import { runtimePaneEnabled, __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
@@ -151,6 +152,13 @@ const dirs = process.env.VENDOR_HARNESS_DIR
   ? process.env.VENDOR_HARNESS_DIR.split(';').filter(Boolean).map((d) => path.resolve(process.cwd(), d))
   : [VENDOR_DIR]
 const OUT = process.env.VENDOR_HARNESS_OUT ? path.resolve(process.cwd(), process.env.VENDOR_HARNESS_OUT) : null
+// ⭐ LIBRARIES (libraries chain L1, 2026-11-19), OPT-IN AND MEASURE-ONLY: `PINE_LIBRARY_STORE=<store dir>` loads
+// that store into the registry BEFORE the captures are graded (collection time), so a capture of a script that
+// imports a promoted version is graded on what production draws (the roadmap's section 9 runs it with the promoted
+// store). Unset, nothing is loaded and nothing changes; `verdicts.json` names the versions only when a store was
+// loaded, so every run without one writes the file it always did. ⛔ The store is a scratch directory outside the
+// repository (library code is never committed).
+const LIBRARIES_LOADED = loadPineLibraryStoreFromEnv()
 
 describe('the vendor harness over the captures on disk', () => {
   // ⛔ read at COLLECTION, in the same module state that grades the captures
@@ -199,6 +207,7 @@ describe('the vendor harness over the captures on disk', () => {
         dirs: dirs.map((d) => path.relative(REPO, d).replace(/\\/g, '/')),
         lane,
         laneEvidence: { requested: REQUESTED, objectsOnlyPane: objectsOnly, ...evidence, strategy: strategyEvidence },
+        ...(LIBRARIES_LOADED.length ? { libraryStore: LIBRARIES_LOADED } : {}),
         results: run.results,
         inventory: run.inventory,
       }, null, 1) + '\n')

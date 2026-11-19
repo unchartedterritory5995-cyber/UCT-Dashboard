@@ -32,6 +32,21 @@ The lane is set here explicitly (COVERAGE_RUNTIME_ON='1' or '0'), never inherite
 from the caller's environment. Every row names the lane it measured, the census
 refuses to finish when the lane it measured is not the one asked for, and this
 driver refuses a census.jsonl that holds rows of the other lane.
+
+⭐⭐ THE LIBRARY STORE IS PART OF THE MEASUREMENT (libraries chain L1, 2026-11-19).
+Production's store serves the `promote` rows of tools/pine_library/promotion_allowlist.json,
+and the host lane links them for members with no runtime admission. A census run with
+an EMPTY store counts every importer of a promoted version as walled (the 11-18 map
+counted five scripts production serves). So:
+  --library-store <dir>   the store the door links from (`<dir>/<Author>/<Lib>/<N>.json`,
+                          the layout `pine_library_store.py` writes): PINE_LIBRARY_STORE
+                          for the census, set here explicitly, never inherited
+  (left out)              the census measures an EMPTY store, and says so
+Either way the driver writes `<cache>/library_store.json` ([{path, sha256}], what the
+store held), which coverage_map.py records in the map, and it refuses a census whose
+rows did not load every entry the store holds. The official measurement is the
+promoted store (production's truth): build it with
+  PINE_LIBRARY_DIR=<dir> python tools/pine_library/promotion_check.py install --from <scratch store> --apply
 """
 import argparse
 import json
@@ -79,6 +94,63 @@ def safe(name):
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", name)[:80]
 
 
+LIBRARY_STORE_FILE = "library_store.json"
+
+
+def store_manifest(root):
+    """[{path, sha256}] of every version a library store directory holds (`<root>/<Author>/<Lib>/<N>.json`, the
+    layout `api/services/pine_library_store.py` writes), sorted by path. None (or "") is the EMPTY store: [].
+    Identifiers only: the library source never leaves the store. A store that names a missing directory, or an
+    entry that cannot be read as {path, sha256}, refuses the census (CensusRunError): a measurement must never
+    say which store it used from a guess."""
+    if not root:
+        return []
+    if not os.path.isdir(root):
+        raise CensusRunError("--library-store %s is not a directory" % root)
+    out = []
+    for author in sorted(os.listdir(root)):
+        adir = os.path.join(root, author)
+        if not os.path.isdir(adir):
+            continue
+        for name in sorted(os.listdir(adir)):
+            ndir = os.path.join(adir, name)
+            if not os.path.isdir(ndir):
+                continue
+            for f in sorted(os.listdir(ndir)):
+                if not re.match(r"^[1-9][0-9]*\.json$", f):
+                    continue
+                try:
+                    e = json.load(open(os.path.join(ndir, f), encoding="utf-8"))
+                    path, sha = e["path"], str(e["sha256"]).lower()
+                except Exception as err:  # noqa: BLE001
+                    raise CensusRunError("library store entry %s cannot be read: %s" % (os.path.join(ndir, f), err))
+                if path != "%s/%s/%s" % (author, name, f[:-5]) or not re.match(r"^[0-9a-f]{64}$", sha):
+                    raise CensusRunError("library store entry %s names %r / %r" % (os.path.join(ndir, f), path, sha))
+                out.append({"path": path, "sha256": sha})
+    return sorted(out, key=lambda x: x["path"])
+
+
+def assert_store_loaded(cache, expected):
+    """⛔ Every row the census measured must have loaded every version the store holds (the census writes
+    `libraryStore`, the count it loaded, on each row measured with a store; a row of an empty store carries
+    none). A store entry the registry refused (a sha that is not its source's, a malformed entry) would
+    otherwise measure a smaller store than the one named. A killed row is the driver's, not the census's."""
+    want = len(expected)
+    bad = []
+    for l in open(os.path.join(cache, "census.jsonl"), encoding="utf-8"):
+        if not l.strip():
+            continue
+        d = json.loads(l)
+        if d.get("stuck") == "killed":
+            continue
+        got = d.get("libraryStore", 0)
+        if got != want:
+            bad.append((d.get("key"), got))
+    if bad:
+        raise CensusRunError("LIBRARY STORE NOT LOADED: the store holds %d version(s), %d row(s) loaded another "
+                             "number (first: %s)" % (want, len(bad), bad[0]))
+
+
 def build_examples(ref_path, out_dir):
     """Every example that DECLARES a script (indicator/strategy/library/study)."""
     ref = json.load(open(ref_path, encoding="utf-8"))
@@ -113,6 +185,9 @@ def main():
                          "measurement of the instrument itself runs the OLD file beside the new")
     ap.add_argument("--runtime-on", action="store_true",
                     help="measure the RUNTIME-ON lane (runtime pane on at every peel step)")
+    ap.add_argument("--library-store", default=None,
+                    help="the library store the door links from (the official measurement: the promoted store, "
+                         "production's truth). Left out: an EMPTY store, recorded as such")
     a = ap.parse_args()
     lane = LANE_RUNTIME_ON if a.runtime_on else LANE_PRODUCTION
     cache = os.path.abspath(a.cache)
@@ -130,7 +205,8 @@ def main():
     print("census inputs: %d (%d sample, %d examples)" % (
         len(items), sum(1 for i in items if not i["key"].startswith("example:")),
         sum(1 for i in items if i["key"].startswith("example:"))), flush=True)
-    drive(items, cache, lane, census_test=a.census_test, max_restarts=a.max_restarts)
+    drive(items, cache, lane, census_test=a.census_test, max_restarts=a.max_restarts,
+          library_store=a.library_store)
 
 
 class CensusRunError(SystemExit):
@@ -168,7 +244,7 @@ def assert_lane_measured(cache, lane):
     return got[lane]
 
 
-def drive(items, cache, lane, census_test=CENSUS, max_restarts=40):
+def drive(items, cache, lane, census_test=CENSUS, max_restarts=40, library_store=None):
     """THE CENSUS LOOP, in one place (run_census.py's sample census and the coverage ratchet over the
     committed corpus both call it): write `items` ([{key, path, cap}]) as the census input, run the
     census test until every item has a row in <cache>/census.jsonl, restarting past a process death
@@ -187,6 +263,12 @@ def drive(items, cache, lane, census_test=CENSUS, max_restarts=40):
     env = dict(os.environ, COVERAGE_INPUT=inp, COVERAGE_OUT=out,
                COVERAGE_RUNTIME_ON="1" if lane == LANE_RUNTIME_ON else "0",
                NODE_OPTIONS="--max-old-space-size=6144")
+    # ⭐ THE LIBRARY STORE, SET HERE EXPLICITLY (never inherited, as the lane): the store named, or none
+    store = store_manifest(library_store)
+    env.pop("PINE_LIBRARY_STORE", None)
+    if library_store:
+        env["PINE_LIBRARY_STORE"] = os.path.abspath(library_store)
+    write_json(os.path.join(cache, LIBRARY_STORE_FILE), store)
     for attempt in range(max_restarts):
         before = done_keys(out)
         if len(before) >= len(items):
@@ -212,7 +294,9 @@ def drive(items, cache, lane, census_test=CENSUS, max_restarts=40):
     if n < len(items):
         raise CensusRunError("census rows: %d / %d - the census did not answer every input" % (n, len(items)))
     rows = assert_lane_measured(cache, lane)
+    assert_store_loaded(cache, store)
     print("LANE MEASURED: %s (%d rows)" % (lane, rows))
+    print("LIBRARY STORE: %d version(s)%s" % (len(store), (" from " + library_store) if library_store else " (empty)"))
     return rows
 
 
