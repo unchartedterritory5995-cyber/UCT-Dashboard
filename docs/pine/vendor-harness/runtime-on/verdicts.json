@@ -84186,8 +84186,18 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "MATCH",
-   "reason": "all 6 items agree",
+   "verdict": "INCONCLUSIVE",
+   "reason": "all 6 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+   "verdictWithoutStrategy": "MATCH",
+   "strategy": {
+    "broker": true,
+    "tradesRun": 0,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "rulesExercised": [],
+    "graded": null,
+    "reason": "our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against"
+   },
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -84490,8 +84500,18 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "MATCH",
-   "reason": "all 6 items agree",
+   "verdict": "INCONCLUSIVE",
+   "reason": "all 6 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+   "verdictWithoutStrategy": "MATCH",
+   "strategy": {
+    "broker": true,
+    "tradesRun": 0,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "rulesExercised": [],
+    "graded": null,
+    "reason": "our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against"
+   },
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-object-gc-b-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ],

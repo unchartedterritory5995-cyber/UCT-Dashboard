@@ -115,6 +115,12 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // grade DIVERGE (its "Signal Bar BG" background is not drawn). By the REACH stop rule the script is on the committed
 // kill list, no longer admitted, and so no longer in the report
 // (docs/pine/evidence/2026-11-18-co2-theme-colours-runtime/EVIDENCE.md).
+// ⭐ A2 (NUMBER PENDING, feat/pine-named-args-minmax, #1986) re-pinned 2 rows, lane `host` -> `runtime`:
+// optimized-keltner-channels-sltp-strategy-for-btc's RDDT and SPY captures. A named argument on a served built-in
+// (`color.new`, `array.new`) now builds it on the runtime lane, so this rail found the door answering `runtime`. On
+// that PR's run (44482185005) every compared item agrees, but the runtime lane runs the strategy's broker and the
+// captures hold no Strategy Tester report, so both grade INCONCLUSIVE (as seven committed strategy captures already
+// do), not DIVERGE: no stop (docs/pine/evidence/2026-11-19-a2-named-builtin-args/EVIDENCE.md).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {
