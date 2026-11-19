@@ -517,7 +517,57 @@ function computeStrategyWindow(def, rows, ctx, opts) {
  * `runtime.error` and the two run-wide budgets are the run's answer, not the
  * drawings', and stay as they are.
  */
+/** ⭐⭐ (the e81 live capture, 2026-11-19) — the record of a run started where every requested series is known
+ *  (non-enumerable): `{knownFrom, firstKnownT}` in the chart's own indices. */
+export const RUNTIME_KNOWN_FROM_KEY = '__runtimeKnownFrom'
+/** How many times a run may move its start for a depth gap (one per requested series that begins later). */
+const KNOWN_FROM_PASSES = 4
+
+/**
+ * ⭐⭐ (the e81 live capture, 2026-11-19) — A CHART DEEPER THAN OUR DATA IS DRAWN FROM WHERE OUR DATA BEGINS.
+ * ⚰️ On the served build every intraday chart's run half was refused whole: the chart's backfill reached far before
+ * the first SP:SPX row our store holds (5m ~60 days, 60m 730), every bar before it was UNKNOWN, and a run that
+ * carries state bar to bar refused the chart (`runtime:request`). A refusal that names ONLY such a depth gap carries
+ * `knownFrom` (`requestSupply.js`); the run then starts there, as a chart whose history does not reach the listing,
+ * so the off-listing two-start proof decides it (`computeOffListing`): drawn where both starts agree, withheld BY
+ * NAME where they never do. Its columns are widened back to the chart (`NaN` before), its drawings shifted, and its
+ * warm-up record moved by the same cut, so the run half's column rail starts after it. ⛔ A bar missing AFTER a
+ * series began carries no `knownFrom` and refuses as before; a strategy is never moved (its trades would change).
+ */
 export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
+  const strategy = !!(def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
+  let cut = 0
+  for (let pass = 0; ; pass += 1) {
+    try {
+      const cols = computeRuntimeColumnsAll(def, cut ? rows.slice(cut) : rows,
+        cut ? { ...(ctx || {}), historyFromListing: false } : ctx, opts)
+      return cut ? fromKnownDepth(cols, cut, rows[cut]) : cols
+    } catch (err) {
+      const k = err && Number.isInteger(err.knownFrom) ? err.knownFrom : 0
+      if (strategy || pass + 1 >= KNOWN_FROM_PASSES || k <= 0 || cut + k >= rows.length - 1) {
+        if (cut && err && Number.isInteger(err.bar)) err.bar += cut
+        throw err
+      }
+      cut += k
+    }
+  }
+}
+
+/** The run over `rows.slice(cut)`, as the chart reads it: widened (`NaN` before `cut`), drawings shifted, the
+ *  warm-up record moved by `cut`, and the depth recorded. */
+function fromKnownDepth(cols, cut, firstRow) {
+  const out = widenToChart(cols, cut, RUNTIME_OBJECTS_KEY)
+  const warm = cols && cols[RUNTIME_WARMUP_KEY]
+  const moved = warm && Number.isInteger(warm.withheldBars)
+    ? { ...warm, withheldBars: warm.withheldBars + cut, knownFrom: cut }
+    : { withheldBars: cut, knownFrom: cut }
+  Object.defineProperty(out, RUNTIME_WARMUP_KEY, { value: moved, enumerable: false, configurable: true })
+  Object.defineProperty(out, RUNTIME_KNOWN_FROM_KEY, {
+    value: Object.freeze({ knownFrom: cut, firstKnownT: firstRow ? firstRow.t : null }), enumerable: false, configurable: true })
+  return out
+}
+
+function computeRuntimeColumnsAll(def, rows, ctx, opts = {}) {
   // ⭐⭐ W9-T11 — a strategy document runs over the most recent `ctx.historyWindowBars` bars
   if (def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY) return computeStrategyWindow(def, rows, ctx, opts)
   // ⭐ WS-E — `calc_bars_count = N`: the run takes the chart's last N bars, as
@@ -1356,7 +1406,12 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const reqSupply = requestSites.length
     ? runtimeRequestSupply(program.requests, rows, opts && opts.warmupCurtain === false ? { ...ctx, curtained: true } : ctx)
     : null
-  if (reqSupply && reqSupply.refusal) throw refusal(reqSupply.refusal.guard, reqSupply.refusal.message)
+  if (reqSupply && reqSupply.refusal) {
+    const err = refusal(reqSupply.refusal.guard, reqSupply.refusal.message)
+    // ⭐⭐ a DEPTH gap only (`requestSupply.js`): the caller may start the run where every read is known
+    if (Number.isInteger(reqSupply.refusal.knownFrom)) err.knownFrom = reqSupply.refusal.knownFrom
+    throw err
+  }
   if (reqSupply && reqSupply.pending) {
     // PENDING, NOT REFUSED (2026-11-16): the guard is unchanged, and the error says the wait is
     // a wait (`pending`), so a reader that words a refusal does not word this one as final
