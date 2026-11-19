@@ -250,12 +250,64 @@ NEVER_SERVE = [
      lambda f: bool(set(f.get("venues", ())) - US_VENUES - FUNDAMENTAL_VENUES - INDEX_VENUES - BREADTH_VENUES)
      or _starts(_names(f), ("request.currency_rate",))
      or ("other-symbol:bare" in f.get("otherSymbol", ()) and not set(f.get("venues", ())) & BREADTH_VENUES)),
+    # ⭐ libraries chain L1 (2026-11-19): a script that imports a library version under a NON-COMMERCIAL licence
+    # (CC-BY-NC-SA) can never be served on this paid product (U15 ruling 2026-11-15): the store answers it 409
+    # `library:licence` and both lanes refuse the import line by name. The versions are the committed allowlist's
+    # `neverPromoted` (`nc_library_versions`, one reader); the facts name each imported version the server does
+    # not admit (`admission.missing`, `library:<Author>/<Lib>/<N>`). Until this class, such a script was counted
+    # as an unlock of the last unit it needed (admit:collections:matrix, admit:collections:map, admit:enum).
+    ("licence", "A library imported under a non-commercial licence (CC-BY-NC-SA): never served on this paid "
+     "product unless its author relicenses (tools/pine_library/promotion_allowlist.json `neverPromoted`)",
+     "`pine:library-licence` at the import line in both lanes (`pine_library_store.licence_problem`, store answer "
+     "409 `library:licence`); with an empty store `runtime:library` / `pine:module`",
+     lambda f: bool(_imported_versions(f) & nc_library_versions())),
     ("broker", "A live broker: an order alert whose message drives a connected brokerage "
      "({{strategy.order.*}} placeholders). We simulate orders (the strategy unit); we never route them",
      "none at the door: the alert text is a string; the order it would place is the broker's",
      lambda f: bool(f.get("orderAlerts"))),
 ]
 FEATURE_ONLY = frozenset({"broker"})
+
+PROMOTION_ALLOWLIST = os.path.join(ROOT, "tools", "pine_library", "promotion_allowlist.json")
+
+
+def _allowlist():
+    try:
+        doc = json.load(open(PROMOTION_ALLOWLIST, encoding="utf-8"))
+    except (OSError, ValueError) as err:
+        raise SystemExit("tools/pine_library/promotion_allowlist.json cannot be read: %s" % err)
+    if not isinstance(doc, dict):
+        raise SystemExit("tools/pine_library/promotion_allowlist.json is not an object")
+    return doc
+
+
+def nc_library_versions():
+    """The library versions held under a NON-COMMERCIAL licence: the allowlist's `neverPromoted` paths, read only
+    while its reason says so. ⛔ Fails closed (SystemExit) on any other shape: a never-serve class must not be
+    computed from a list nobody can read."""
+    row = _allowlist().get("neverPromoted")
+    paths = row.get("paths") if isinstance(row, dict) else None
+    if (not isinstance(row, dict) or "non-commercial" not in str(row.get("reason", ""))
+            or not isinstance(paths, list) or not all(isinstance(x, str) and x.count("/") == 2 for x in paths)):
+        raise SystemExit("promotion_allowlist.json `neverPromoted` is not {reason: <non-commercial ...>, paths: [...]}")
+    return frozenset(paths)
+
+
+def promoted_store():
+    """[{path, sha256}] of the allowlist's `promote` rows: the store production serves (since 2026-11-17 the store
+    serves ONLY these, `pine_library_store.entry_status`). The official census is measured with exactly this store
+    (run_census.py --library-store), and the rail holds the committed map to it."""
+    rows = _allowlist().get("promote")
+    if not isinstance(rows, list) or not all(isinstance(r, dict) and isinstance(r.get("path"), str)
+                                             and isinstance(r.get("sha256"), str) for r in rows):
+        raise SystemExit("promotion_allowlist.json `promote` is not a list of {path, sha256, ...}")
+    return sorted(({"path": r["path"], "sha256": r["sha256"].lower()} for r in rows), key=lambda r: r["path"])
+
+
+def _imported_versions(f):
+    """The library versions a script imports that the server does not admit, from its facts (identifiers)."""
+    adm = (f or {}).get("admission") or {}
+    return {m[len("library:"):] for m in adm.get("missing") or [] if isinstance(m, str) and m.startswith("library:")}
 # ── RULED BY NAME (coordinator, 2026-11-18): a never-serve script whose class no detector above reads off its
 # source, with the witness that settled it. ⛔ A ruling, never a guess: each names the run that witnessed it.
 # These three read crypto pairs as SYMBOL INPUT DEFAULTS the facts do not hold as venues (a v4 `input('BINANCE:
@@ -739,7 +791,10 @@ def build(m, facts_doc, map_sha=None):
 
     out = {
         "schema": SCHEMA, "generatedBy": "tools/pine_coverage/parity_roadmap.py build",
-        "map": {"measuredOn": m.get("measuredOn"), "masterSha": m.get("masterSha"), "sha256": map_sha},
+        "map": {"measuredOn": m.get("measuredOn"), "masterSha": m.get("masterSha"), "sha256": map_sha,
+                # the library store the census linked from ([{path, sha256}]; null: a census older than the record,
+                # which measured an EMPTY store). The rail holds it to `promoted_store()`: production's truth.
+                "libraryStore": m.get("libraryStore")},
         "engine": facts_doc.get("engine"),
         "headline": {
             "sample": N,

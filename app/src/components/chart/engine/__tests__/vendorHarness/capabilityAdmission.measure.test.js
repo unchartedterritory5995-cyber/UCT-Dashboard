@@ -21,6 +21,12 @@
 //
 // ⛔ Skipped unless CAPADMIT_IN is set: it reads sources from outside the repo (the
 // coverage census cache) and is a measurement, not a rail.
+//
+// ⭐ LIBRARIES (libraries chain L1, 2026-11-19): `PINE_LIBRARY_STORE=<store dir>` loads that store
+// into the registry for the run (the census's own opt-in, `pineLibraryStoreLoader.js`), and every
+// row records the library versions the door LINKED (`libraries`: the document's `meta.libraries`
+// pins, [{path, sha256}]). `capability_admission.py evidence` stamps them on a `library:<path>`
+// row's evidence, the only evidence `rollout_gate` counts for a library version.
 
 import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
@@ -34,10 +40,12 @@ import {
 } from '../../runtimeKill'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import { strategyBrokerFlag } from './strategyLane'
+import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
 
 const IN = process.env.CAPADMIT_IN
 const OUT = process.env.CAPADMIT_OUT
 const MODE = process.env.CAPADMIT_MODE || 'admission'
+const LIBRARIES_LOADED = IN ? loadPineLibraryStoreFromEnv() : []
 
 /** The flag NAMES are read off their gate modules, never typed (the corpus test's rule). */
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
@@ -98,13 +106,16 @@ describe.skipIf(!IN)('WS-I Part 2 — the member door per script', () => {
         guard: d.ok ? null : (d.guard || null),
         declined: d.runtimeDeclined ? d.runtimeDeclined.code : null,
         notGraded: MODE === 'admission' ? !!runtimeNotGradedOf({ hash }) : null,
+        // ⭐ the library versions the door linked, as the document pins them (absent: none linked)
+        libraries: d.ok && d.definition && d.definition.meta && Array.isArray(d.definition.meta.libraries)
+          ? d.definition.meta.libraries.map((x) => ({ path: x.path, sha256: x.sha256 })) : [],
         // the member-visible disclosures (names, and whether one says something is not drawn)
         notes: d.ok ? (d.notes || []).map((x) => (x && x.name) || String(x)) : [],
         notDrawn: d.ok ? (d.notes || []).filter((x) => x && /not drawn|does not draw/i.test(x.note || '')).map((x) => x.note) : [],
         ms: Math.round(performance.now() - t0),
       })
     }
-    const out = { mode: MODE, generatedBy: 'capabilityAdmission.measure.test.js', rows }
+    const out = { mode: MODE, generatedBy: 'capabilityAdmission.measure.test.js', libraryStore: LIBRARIES_LOADED, rows }
     if (OUT) fs.writeFileSync(OUT, JSON.stringify(out, null, 1) + '\n')
     // ⛔ the control the measurement rests on: in admission mode, a script the server did
     // NOT admit never reaches a runtime-lane picture

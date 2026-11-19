@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PATCHES, patchLightweightCharts } from '../../scripts/chartLibraryPatch.mjs'
+import { newestRealLogicalIndex } from '../components/chart/newestSeriesBar'
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const SHIPPED = readFileSync(path.join(APP, 'node_modules', 'lightweight-charts', 'dist', 'lightweight-charts.production.mjs'), 'utf8')
@@ -370,5 +371,154 @@ describe('the patched chart library does the work once per series, not once per 
     expect(no3.rows).toBe(full.rows)
     expect(no1.dates).toBe(full.dates)
     expect(no2.dates).toBe(full.dates)
+  })
+})
+
+// ── edits 4-5: the series markers plugin ────────────────────────────────────
+// `createSeriesMarkers` (the chart's BUY/SELL, earnings and event markers) copied the whole series
+// through `series.data()` on every redraw and after every data change. The markers it draws and
+// reports must be exactly the shipped ones; the copies must be gone.
+function markersChart(lib) {
+  const { chart, S, setAll, done } = build(lib, 3)
+  const counter = { on: false, n: 0 }
+  const realData = S[0].data.bind(S[0])
+  S[0].data = () => { if (counter.on) counter.n++; return realData() }   // the plugin calls the API object's data()
+  const A = symbol(days(320, new Set([4, 40])), 100, 3, 11)
+  const B = symbol(days(200, new Set([9])), 30, 3, 22)
+  setAll(A)
+  const marks = (t, shift = 0) => [
+    { time: t[10 + shift], position: 'belowBar', shape: 'arrowUp', color: '#00aa00', text: 'BUY' },
+    { time: t[150 + shift], position: 'aboveBar', shape: 'arrowDown', color: '#aa0000', text: 'SELL' },
+    { time: t[t.length - 1], position: 'inBar', shape: 'circle', color: '#0000aa', text: 'E' },
+  ]
+  const m = lib.createSeriesMarkers(S[0], marks(A.t))
+  return { chart, S, setAll, done, counter, m, A, B, marks }
+}
+
+/** The same seeded mix as above, plus marker changes; what the chart reports AND its markers, per step. */
+function runMarkers(lib, steps) {
+  const w = markersChart(lib)
+  const sets = [w.A, w.B]
+  const rnd = prng(20261119)
+  const out = []
+  const snap = () => out.push(report(w.chart, w.S, sets) + '|M' + JSON.stringify(w.m.markers()))
+  snap()
+  for (let step = 0; step < steps; step++) {
+    const r = rnd()
+    const d = sets[Math.floor(rnd() * sets.length)]
+    try {
+      if (r < 0.2) w.setAll(d)
+      else if (r < 0.35) w.m.setMarkers(w.marks(d.t, Math.floor(rnd() * 20)))
+      else if (r < 0.55) {
+        const cur = w.S[0].data()
+        if (cur.length) { const last = { ...cur[cur.length - 1] }; last.close *= 1.01; w.S[0].update(last) }
+      } else if (r < 0.65) w.S[0].setData([])
+      else if (r < 0.72) w.m.setMarkers([])
+      else w.chart.timeScale().setVisibleLogicalRange({ from: d.t.length - 40 - Math.floor(rnd() * 200), to: d.t.length + 3 })
+    } catch (e) { out.push('threw: ' + String(e && e.message)) }
+    snap()
+  }
+  w.done()
+  return out
+}
+
+/** `data()` calls the plugin makes while the chart redraws N times, and while N live ticks land. */
+function markerCopies(lib, n = 20) {
+  const w = markersChart(lib)
+  w.chart.takeScreenshot()
+  w.counter.on = true
+  for (let i = 0; i < n; i++) {
+    w.chart.timeScale().setVisibleLogicalRange({ from: 100 + i, to: 300 + i })
+    w.chart.takeScreenshot()
+  }
+  const redraws = w.counter.n
+  w.counter.n = 0
+  w.counter.on = false
+  const last = { ...w.S[0].data().at(-1) }
+  w.counter.on = true
+  for (let i = 0; i < n; i++) {
+    last.close *= 1.001
+    w.S[0].update({ ...last })
+    w.chart.takeScreenshot()
+  }
+  const ticks = w.counter.n
+  w.done()
+  return { redraws, ticks }
+}
+
+describe('the series markers plugin: the same markers, without copying the whole series', () => {
+  it('reports and draws the same markers as the shipped library after every step of a mixed sequence', () => {
+    const shipped = runMarkers(libs.shipped, 160)
+    const patched = runMarkers(libs.patched, 160)
+    expect(patched.length).toBe(shipped.length)
+    for (let i = 0; i < shipped.length; i++) expect(patched[i], `step ${i}`).toBe(shipped[i])
+    // the sequence really drew markers (non-vacuity): their text is among the drawn strings
+    expect(shipped.some((s) => s.includes('"BUY"') && s.includes('"SELL"'))).toBe(true)
+  })
+
+  it('as shipped, every redraw and every live tick copies the whole series', () => {
+    const c = markerCopies(libs.shipped)
+    expect(c.redraws).toBeGreaterThanOrEqual(20)
+    expect(c.ticks).toBeGreaterThanOrEqual(20)
+  })
+
+  it('patched, neither a redraw nor a live tick copies it', () => {
+    expect(markerCopies(libs.patched)).toEqual({ redraws: 0, ticks: 0 })
+  })
+
+  it('each edit is needed: leaving either out puts its copies back', () => {
+    const i4 = PATCHES.findIndex((p) => p.name.startsWith('series markers: the redraw'))
+    const i5 = PATCHES.findIndex((p) => p.name.startsWith('series markers: the re-index'))
+    expect(markerCopies(libs[`without${i4 + 1}`]).redraws, PATCHES[i4].name).toBeGreaterThanOrEqual(20)
+    expect(markerCopies(libs[`without${i5 + 1}`]).ticks, PATCHES[i5].name).toBeGreaterThanOrEqual(20)
+  })
+})
+
+// ── StockChart's newest-candle index, by lookups (2026-11-19) ────────────────
+// `newestRealLogicalIndex` must name the same logical index the old whole-series read did (the last
+// non-whitespace row of data(), mapped by timeToIndex), on the real library: trailing whitespace
+// slots (the D/W/M load reserve), another series adding interior and newer times, and an empty one.
+describe("the newest real candle's logical index, found without copying the series", () => {
+  const isWs = (p) => !!p && p.value === undefined && p.open === undefined
+  const oldWay = (chart, s) => {
+    const d = s.data()
+    let i = d.length - 1
+    while (i >= 0 && isWs(d[i])) i--
+    return i < 0 ? null : chart.timeScale().timeToIndex(d[i].time, false)
+  }
+  const cases = {
+    plain: { ws: 0, compare: false },
+    'three whitespace slots at the end': { ws: 3, compare: false },
+    'a compare series with interior and newer times': { ws: 2, compare: true },
+  }
+  for (const [name, c] of Object.entries(cases)) {
+    it(name, () => {
+      for (const lib of [libs.shipped, libs.patched]) {
+        const { chart, S, done } = build(lib, 3)
+        const A = symbol(days(300, new Set([5, 50])), 100, 3, 9)
+        const ws = []
+        const d = new Date(A.t[A.t.length - 1] + 'T00:00:00Z')
+        for (let k = 0; k < c.ws; k++) { d.setUTCDate(d.getUTCDate() + 1); ws.push({ time: d.toISOString().slice(0, 10) }) }
+        S[0].setData([...A.series[0], ...ws])
+        if (c.compare) {
+          // every calendar day (weekends included) and two days past the candles: interior + newer times
+          const all = []
+          const x = new Date(A.t[0] + 'T00:00:00Z')
+          const end = new Date(A.t[A.t.length - 1] + 'T00:00:00Z'); end.setUTCDate(end.getUTCDate() + 2)
+          for (; x <= end; x.setUTCDate(x.getUTCDate() + 1)) all.push({ time: x.toISOString().slice(0, 10), value: 1 })
+          S[2].setData(all)
+        }
+        const want = oldWay(chart, S[0])
+        expect(want).not.toBe(null)
+        expect(newestRealLogicalIndex(chart, S[0])).toBe(want)
+        done()
+      }
+    })
+  }
+  it('an empty series answers null (the caller falls back)', () => {
+    const { chart, S, done } = build(libs.patched, 2)
+    S[0].setData([])
+    expect(newestRealLogicalIndex(chart, S[0])).toBe(null)
+    done()
   })
 })

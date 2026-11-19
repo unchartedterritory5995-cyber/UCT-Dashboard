@@ -142,3 +142,56 @@ def test_committed_scripts_facts_are_their_sources(docs):
         assert again["historyOnly"] == stored["historyOnly"], key
         checked += 1
     assert checked >= 100, "the committed half must be re-read (%d checked)" % checked
+
+
+def test_a_non_commercial_library_importer_is_never_serve(docs):
+    """Libraries chain L1 (2026-11-19): a script importing a CC-BY-NC-SA library version (the allowlist's
+    `neverPromoted`) can never be served, so it is never-serve `licence` and no unit counts it as an unlock.
+    Before the class, the three NC importers of the sample were credited to admit:collections:matrix,
+    admit:collections:map and admit:enum."""
+    m, rd = docs
+    never = {c["class"]: c for c in rd["neverServe"]}
+    nc = pr.nc_library_versions()
+    assert len(nc) >= 10 and all(p.startswith("Trendoscope/") for p in nc)
+    lic = never["licence"]["scripts"]
+    assert lic, "the sample holds NC importers"
+    for k in lic:
+        assert pr._imported_versions(rd["facts"]["scripts"][k]) & nc, k
+        assert k in rd["scripts"], "an NC importer is not served: %s" % k
+    freed = {k for u in rd["units"] for k in u["soleScripts"] if u["soleServable"] == u["sole"]}
+    assert not set(lic) & freed
+    # CONTROL: with no NC versions the same scripts are counted again, as unlocks of the units they last need
+    saved = pr.nc_library_versions
+    try:
+        pr.nc_library_versions = lambda: frozenset()
+        again = pr.build(m, rd["facts"], rd["map"]["sha256"])
+    finally:
+        pr.nc_library_versions = saved
+    assert {c["class"]: c for c in again["neverServe"]}["licence"]["scripts"] == []
+    assert again["buildOrder"][-1]["cumulativeServed"] - rd["buildOrder"][-1]["cumulativeServed"] == len(lic)
+
+
+def test_the_nc_reader_fails_closed(tmp_path, monkeypatch):
+    p = tmp_path / "allow.json"
+    for doc in ({}, {"neverPromoted": {"reason": "held for a DIVERGE", "paths": ["A/b/1"]}},
+                {"neverPromoted": {"reason": "a non-commercial licence", "paths": "A/b/1"}}, []):
+        p.write_text(json.dumps(doc), encoding="utf-8")
+        monkeypatch.setattr(pr, "PROMOTION_ALLOWLIST", str(p))
+        with pytest.raises(SystemExit):
+            pr.nc_library_versions()
+    # control: a readable row reads
+    p.write_text(json.dumps({"neverPromoted": {"reason": "a non-commercial licence (CC-BY-NC-SA)",
+                                               "paths": ["A/b/1"]}}), encoding="utf-8")
+    assert pr.nc_library_versions() == frozenset({"A/b/1"})
+
+
+def test_the_official_census_is_productions_library_store(docs):
+    """Libraries chain L1 (2026-11-19): production's store serves exactly the allowlist's `promote` rows, and the
+    host lane links them for members with no runtime admission. The map's census must be measured with that store
+    (run_census.py --library-store <promoted store>), or it counts every importer of a promoted version as walled
+    (the 11-18 map counted five scripts production serves). A new promotion turns this red until the census is
+    re-measured."""
+    _m, rd = docs
+    assert rd["map"]["libraryStore"] == pr.promoted_store(), (
+        "the census was measured with another library store than production's: re-run section 9 of the roadmap "
+        "with --library-store <the promoted store>")

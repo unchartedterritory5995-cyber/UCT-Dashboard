@@ -639,6 +639,20 @@ def read_census(cache, lane, what):
     return census
 
 
+def read_library_store(cache, what):
+    """The library store a census was measured with: `<cache>/library_store.json` ([{path, sha256}], written by
+    run_census.py), or None for a census older than the file (2026-11-19), which measured an EMPTY store.
+    ⭐ The map records it (`libraryStore`): production's store serves the promoted versions, and a census measured
+    with another store is another product (libraries chain L1)."""
+    p = os.path.join(cache, "library_store.json")
+    if not os.path.exists(p):
+        return None
+    rows = json.load(open(p, encoding="utf-8"))
+    if not isinstance(rows, list) or any(not isinstance(r, dict) or set(r) != {"path", "sha256"} for r in rows):
+        sys.exit("%s: library_store.json is not a list of {path, sha256}" % what)
+    return sorted(rows, key=lambda r: r["path"])
+
+
 def read_verdicts(path, lane, what):
     vd = json.load(open(path, encoding="utf-8"))
     got = vd.get("lane") or LANE_PRODUCTION
@@ -1058,6 +1072,14 @@ def main():
     manifest = {r["key"]: r for r in json.load(open(os.path.join(cache, "sample_manifest.json"), encoding="utf-8"))["rows"]}
     census = read_census(cache, LANE_PRODUCTION, "--cache")
     inputs = {i["key"]: i for i in json.load(open(os.path.join(cache, "census_input.json"), encoding="utf-8"))}
+    library_store = read_library_store(cache, "--cache")
+    if a.runtime_cache:
+        rt_store = read_library_store(os.path.abspath(a.runtime_cache), "--runtime-cache")
+        if rt_store != library_store:
+            sys.exit("the two lanes were measured with different library stores (--cache %s, --runtime-cache %s): "
+                     "re-run both with the same --library-store" % (
+                         None if library_store is None else len(library_store),
+                         None if rt_store is None else len(rt_store)))
 
     # ── the sample: one row per script
     scripts = []
@@ -1321,6 +1343,9 @@ def main():
         "schema": "uct.pine-coverage-map/v1",
         "generatedBy": "tools/pine_coverage/coverage_map.py",
         "measuredOn": a.measured_on, "masterSha": a.master_sha,
+        # ⭐ libraries chain L1 (2026-11-19): the library store both lanes linked from ([{path, sha256}]); [] an
+        # empty store; null a census older than the record (it measured an empty store)
+        "libraryStore": library_store,
         "headline": {
             "definition": ("A script TRANSFERS FULLY when the production member door "
                            "(memberPaneDefinition -> installUserDefinitions; objects-only pane armed, runtime pane dark) "

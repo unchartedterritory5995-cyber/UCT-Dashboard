@@ -87,6 +87,62 @@ LINE_ITEMS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("buybacks", "cash", ("commonStockRepurchased",)),
 )
 
+# ── The rest of each statement, for the callers that show a whole statement ──
+#
+# Same three responses, same rule (first numeric field wins, a field the vendor
+# does not send is None). These are NOT part of the public series above: the
+# six panels and the statement tables read `LINE_ITEMS` only, so that payload
+# keeps its size and its keys. `get_history(..., full=True)` hands them to the
+# one caller that needs every line (`financial_statements`), from the SAME
+# cached object, so a second fetch or a second cache of one statement cannot
+# exist.
+EXTRA_LINE_ITEMS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    # income statement
+    ("other_expenses", "income", ("otherExpenses",)),
+    ("cost_and_expenses", "income", ("costAndExpenses",)),
+    ("ebit", "income", ("ebit",)),
+    ("interest_income", "income", ("interestIncome",)),
+    ("net_interest_income", "income", ("netInterestIncome",)),
+    ("non_operating_income", "income", ("nonOperatingIncomeExcludingInterest",)),
+    ("net_income_to_common", "income", ("bottomLineNetIncome",)),
+    ("eps_basic", "income", ("eps",)),
+    ("shares_basic", "income", ("weightedAverageShsOut",)),
+    # balance sheet
+    ("other_current_assets", "balance", ("otherCurrentAssets",)),
+    ("intangible_assets", "balance", ("intangibleAssets",)),
+    ("long_term_investments", "balance", ("longTermInvestments",)),
+    ("other_noncurrent_assets", "balance", ("otherNonCurrentAssets",)),
+    ("total_noncurrent_assets", "balance", ("totalNonCurrentAssets",)),
+    ("short_term_debt", "balance", ("shortTermDebt",)),
+    ("other_current_liabilities", "balance", ("otherCurrentLiabilities",)),
+    ("capital_lease_obligations", "balance", ("capitalLeaseObligations",)),
+    ("other_noncurrent_liabilities", "balance", ("otherNonCurrentLiabilities",)),
+    ("total_noncurrent_liabilities", "balance", ("totalNonCurrentLiabilities",)),
+    ("common_stock", "balance", ("commonStock",)),
+    ("additional_paid_in_capital", "balance", ("additionalPaidInCapital",)),
+    ("retained_earnings", "balance", ("retainedEarnings",)),
+    ("treasury_stock", "balance", ("treasuryStock",)),
+    # cash flow
+    ("cf_net_income", "cash", ("netIncome",)),
+    ("change_receivables", "cash", ("accountsReceivables",)),
+    ("change_inventory", "cash", ("inventory",)),
+    ("change_payables", "cash", ("accountsPayables",)),
+    ("change_working_capital", "cash", ("changeInWorkingCapital",)),
+    ("other_non_cash_items", "cash", ("otherNonCashItems",)),
+    ("purchases_of_investments", "cash", ("purchasesOfInvestments",)),
+    ("sales_of_investments", "cash", ("salesMaturitiesOfInvestments",)),
+    ("investing_cash_flow", "cash", ("netCashProvidedByInvestingActivities",
+                                     "netCashUsedForInvestingActivites")),
+    ("net_debt_issuance", "cash", ("netDebtIssuance",)),
+    ("common_stock_issuance", "cash", ("commonStockIssuance",)),
+    ("financing_cash_flow", "cash", ("netCashProvidedByFinancingActivities",
+                                     "netCashUsedProvidedByFinancingActivities")),
+    ("fx_effect_on_cash", "cash", ("effectOfForexChangesOnCash",)),
+    ("net_change_in_cash", "cash", ("netChangeInCash",)),
+    ("cash_at_beginning", "cash", ("cashAtBeginningOfPeriod",)),
+    ("cash_at_end", "cash", ("cashAtEndOfPeriod",)),
+)
+
 SOURCE_ENDPOINTS = ("/stable/income-statement", "/stable/balance-sheet-statement",
                     "/stable/cash-flow-statement")
 
@@ -208,8 +264,19 @@ def _label(date: str, period_field: str, period: str,
     return f"{p} {year}" if p.startswith("Q") else year
 
 
-def get_history(sym: str, period: str = "quarter") -> dict[str, Any]:
-    """Aligned statement series, oldest first. Never raises."""
+def _view(out: dict, full: bool) -> dict:
+    """What a caller gets from the cached object: everything with `full`,
+    otherwise the public payload (no `extra_series`), exactly as before."""
+    if full or "extra_series" not in out:
+        return out
+    return {k: v for k, v in out.items() if k != "extra_series"}
+
+
+def get_history(sym: str, period: str = "quarter", full: bool = False) -> dict[str, Any]:
+    """Aligned statement series, oldest first. Never raises.
+
+    `full=True` also returns `extra_series` (`EXTRA_LINE_ITEMS`, aligned to the
+    same `dates`). It is the same read and the same cache entry either way."""
     sym = (sym or "").upper().strip()
     if not sym:
         return {"sym": "", "period": period, "periods": [], "series": {}}
@@ -221,7 +288,7 @@ def get_history(sym: str, period: str = "quarter") -> dict[str, Any]:
     ck = f"fin_hist::v2::{sym}::{period}"
     hit = _cache().get(ck)
     if hit is not None:
-        return hit
+        return _view(hit, full)
 
     jobs = {
         "income": "income-statement",
@@ -280,6 +347,7 @@ def get_history(sym: str, period: str = "quarter") -> dict[str, Any]:
 
     periods, dates = [], []
     series: dict[str, list] = {key: [] for key, _leg, _names in LINE_ITEMS}
+    extra: dict[str, list] = {key: [] for key, _leg, _names in EXTRA_LINE_ITEMS}
     for r in rows:
         d = r["date"]
         periods.append(_label(d, r.get("period"), period, r.get("fiscalYear")))
@@ -287,6 +355,8 @@ def get_history(sym: str, period: str = "quarter") -> dict[str, Any]:
         legs = {"income": r, "balance": bal.get(d), "cash": cash.get(d)}
         for key, leg, names in LINE_ITEMS:
             series[key].append(num(legs[leg], *names))
+        for key, leg, names in EXTRA_LINE_ITEMS:
+            extra[key].append(num(legs[leg], *names))
 
     # The currency the statements are reported in, passed through as FMP
     # states it (TSM reports TWD, TM reports JPY). Read off the newest row;
@@ -299,7 +369,8 @@ def get_history(sym: str, period: str = "quarter") -> dict[str, Any]:
             break
 
     out = {"sym": sym, "period": period, "periods": periods, "dates": dates,
-           "series": series, "ratios": derive_ratios(series, period),
+           "series": series, "extra_series": extra,
+           "ratios": derive_ratios(series, period),
            "count": len(periods), "currency": currency,
            # Provenance the client shows on screen: who, which endpoints, on
            # what period basis, and when this server read them.
@@ -311,4 +382,4 @@ def get_history(sym: str, period: str = "quarter") -> dict[str, Any]:
     if transient:
         out["partial"] = sorted(transient)
     _cache().set(ck, out, _TTL_FAIL if transient else _TTL)
-    return out
+    return _view(out, full)
