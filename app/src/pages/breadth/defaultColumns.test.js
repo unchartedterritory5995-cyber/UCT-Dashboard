@@ -3,9 +3,9 @@ import { DEFAULT_COLUMNS, defaultsFor } from './defaultColumns'
 import { COLS } from '../Breadth'
 
 // The owner's core Default (2026-11-19), pinned by label so a renamed key fails here.
-const LABELS = ['Health', 'UCT Exp', 'Up 4%+', 'Dn 4%+', '5D Ratio', '10D Ratio', 'Up25%/Qtr', 'Dn25%/Qtr',
-  'Up13%/34d', 'Dn13%/34d', 'Universe', 'SPY MA', 'QQQ MA', '>20SMA', '>50SMA', '>200SMA', 'VIX', 'CNN F/G',
-  'Net NH-NL', 'A/D', 'Up Vol', 'Dist Days']
+const LABELS = ['Health', 'UCT Exp', 'Up 4%+', 'Dn 4%+', '5D Ratio', '10D Ratio', 'Up20%/5d', 'Dn20%/5d',
+  'Up25%/Qtr', 'Dn25%/Qtr', 'Up13%/34d', 'Dn13%/34d', 'Universe', 'SPY MA', 'QQQ MA', '>20SMA', '>50SMA', '>200SMA',
+  'VIX', 'CNN F/G', 'Net NH-NL', 'A/D']
 
 describe('the Monitor default columns', () => {
   const byKey = Object.fromEntries(COLS.map(c => [c.key, c]))

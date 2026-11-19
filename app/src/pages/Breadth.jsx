@@ -448,7 +448,7 @@ const WIDTH_GROUP = {
   breadth_score: 'core', uct_exposure: 'core', up_4pct_today: 'core', down_4pct_today: 'core',
   ratio_5day: 'ratio', ratio_10day: 'ratio',
   up_25pct_quarter: 'moveQ', down_25pct_quarter: 'moveQ', magna_up: 'moveQ', magna_down: 'moveQ',
-  up_20pct_5d: 'move5d', down_20pct_5d: 'move5d',
+  up_20pct_5d: 'moveQ', down_20pct_5d: 'moveQ',   // round 14: with the 25%/13% counts
   up_25pct_month: 'moveMo', down_25pct_month: 'moveMo', up_50pct_month: 'moveMo', down_50pct_month: 'moveMo',
   pct_above_5sma: 'sma', pct_above_10sma: 'sma', pct_above_20sma: 'sma', pct_above_40sma: 'sma',
   pct_above_50sma: 'sma', pct_above_100sma: 'sma', pct_above_150sma: 'sma', pct_above_200sma: 'sma',

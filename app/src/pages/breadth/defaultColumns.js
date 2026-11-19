@@ -9,6 +9,8 @@ export const DEFAULT_COLUMNS = Object.freeze([
   'down_4pct_today',    // Dn 4%+
   'ratio_5day',         // 5D Ratio
   'ratio_10day',        // 10D Ratio
+  'up_20pct_5d',        // Up20%/5d   (round 14: counts run short-term → long-term)
+  'down_20pct_5d',      // Dn20%/5d
   'up_25pct_quarter',   // Up25%/Qtr
   'down_25pct_quarter', // Dn25%/Qtr
   'magna_up',           // Up13%/34d
@@ -24,8 +26,7 @@ export const DEFAULT_COLUMNS = Object.freeze([
   // round 13 (owner 2026-11-19): fill the wide screen with real internals
   'net_new_high_low',   // Net NH-NL
   'adv_decline',        // A/D
-  'up_vol_ratio',       // Up Vol
-  'spy_dist_days',      // Dist Days
+  // round 14: Up Vol and Dist Days left the default (still in Columns)
 ])
 
 /** The hook's `defaults` for a column list: hidden = everything off the core set;
