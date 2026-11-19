@@ -29,7 +29,16 @@ import { isTradingDay, sessionAt, closeTime } from '../../../../../lib/marketClo
 import { recordedSupplyOf, runOurSideWithSupply } from './ourSide'
 
 const HARNESS_DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
-const CAPTURE_ID_RE = /[a-z0-9][a-z0-9-]*-\d{4}-\d{2}-\d{2}/g
+// ⭐ (#2015, 2026-11-19) A capture id may end in a PHASE (`<script>-<sym>-<tf>-<yyyy-mm-dd>[-<phase>]`), from the closed
+// vocabulary `tools/vendor_harness/evidence_ledger.py::CAPTURE_PHASES`. It is restated here only because this reader is
+// JavaScript; `supplyAttributionPhasedId.test.js` holds the two lists equal. ⚰️ Without the suffix a phased witness id was
+// cut at its date and named a capture that does not exist.
+export const CAPTURE_PHASES = Object.freeze(['insession', 'postclose-open', 'postclose-fresh', 'preopen'])
+const CAPTURE_ID_RE = new RegExp(`[a-z0-9][a-z0-9-]*-\\d{4}-\\d{2}-\\d{2}(?:-(?:${CAPTURE_PHASES.join('|')}))?`, 'g')
+/** Every capture id a witness text names, each whole (with its phase when it has one). */
+export function captureIdsIn(text) {
+  return String(text || '').match(CAPTURE_ID_RE) || []
+}
 const CLOSE_TITLE_RE = /_D_close$/
 
 /** The witness row whose `store` is this store ticker, or null. */
@@ -50,7 +59,7 @@ const _witnessMemo = new Map()
 export function witnessCaptures(row, dir = HARNESS_DIR) {
   const key = `${dir}|${row && row.spelling}`
   if (_witnessMemo.has(key)) return _witnessMemo.get(key)
-  const ids = new Set(String((row && row.witness) || '').match(CAPTURE_ID_RE) || [])
+  const ids = new Set(captureIdsIn(row && row.witness))
   const probeFile = row && typeof row.probe === 'string' ? path.resolve(dir, '..', '..', '..', '..', row.probe) : null
   if (probeFile && fs.existsSync(probeFile) && fs.existsSync(dir)) {
     const want = sha256(fs.readFileSync(probeFile, 'utf8'))
