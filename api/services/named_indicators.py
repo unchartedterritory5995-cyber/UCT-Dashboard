@@ -112,6 +112,12 @@ def built_in_answer(e: Mapping[str, Any]) -> str:
     return f"{e['name']} is one of UCT's own indicators, {b['name']}: {b['what']}. It is not a formula to build here."
 
 
+def needs_script(e: Any) -> Optional[str]:
+    """Why a held name can only be a script (its published form is more than a formula holds), or None."""
+    because = e.get("needs_script") if isinstance(e, Mapping) else None
+    return because if isinstance(because, str) and because.strip() else None
+
+
 def way_forward(e: Mapping[str, Any]) -> str:
     """What a member is told when they name something UCT will not build by name yet."""
     example = f" (for example: {e['describe']})" if e.get("describe") else ""
@@ -123,6 +129,10 @@ def way_forward(e: Mapping[str, Any]) -> str:
         # it): where to look, and nothing promised about what that list shows
         return (f"{e['name']} is one of UCT's own indicators ({b['name']}), not a formula this window builds. "
                 f"Look for {b['name']} in the Indicators list.")
+    because = needs_script(e)
+    if because:
+        return (f"{e['name']} needs the script builder: {because}. Paste a Pine version of it into the builder's "
+                f"script tab. Or {describe}")
     lives = e.get("lives_in") if isinstance(e.get("lives_in"), Mapping) else None
     if lives and lives.get("what") and lives.get("where"):
         return (f"{e['name']} is {lives['what']} in UCT today ({lives['where']}), not a chart line yet. To draw "

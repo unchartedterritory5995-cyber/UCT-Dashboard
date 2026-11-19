@@ -1,0 +1,41 @@
+//@version=5
+indicator("Fibonacci Retracement", overlay=true, max_lines_count=50, max_labels_count=50)
+left = input.int(10, "Pivot bars left", minval=1)
+right = input.int(10, "Pivot bars right", minval=1)
+ph = ta.pivothigh(high, left, right)
+pl = ta.pivotlow(low, left, right)
+var float swingHigh = na
+var int highBar = na
+var float swingLow = na
+var int lowBar = na
+if not na(ph)
+    swingHigh := ph
+    highBar := bar_index - right
+if not na(pl)
+    swingLow := pl
+    lowBar := bar_index - right
+levels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)
+prices = array.new_float(0)
+float golden = na
+if not na(swingHigh) and not na(swingLow)
+    up = highBar > lowBar
+    for lv in levels
+        array.push(prices, up ? swingHigh - (swingHigh - swingLow) * lv : swingLow + (swingHigh - swingLow) * lv)
+    golden := array.get(prices, 4)
+var line[] ls = array.new_line(0)
+var label[] lbs = array.new_label(0)
+if barstate.islast and array.size(prices) > 0
+    while array.size(ls) > 0
+        oldLine = array.pop(ls)
+        line.delete(oldLine)
+    while array.size(lbs) > 0
+        oldLabel = array.pop(lbs)
+        label.delete(oldLabel)
+    from = math.min(highBar, lowBar)
+    for i = 0 to array.size(prices) - 1
+        y = array.get(prices, i)
+        array.push(ls, line.new(from, y, bar_index, y, extend=extend.right, color=color.gray))
+        array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, "#.#") + "%", style=label.style_label_left, color=color.gray, textcolor=color.white, size=size.small))
+plot(swingHigh, "Swing high", color=color.new(color.red, 60), style=plot.style_stepline)
+plot(swingLow, "Swing low", color=color.new(color.green, 60), style=plot.style_stepline)
+plot(golden, "61.8% level", color=color.orange)

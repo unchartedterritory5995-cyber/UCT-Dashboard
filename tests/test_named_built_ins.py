@@ -43,7 +43,7 @@ def ask(conv, words, **kw):
 # ═══ 1. the names ════════════════════════════════════════════════════════
 
 def test_the_built_in_names_and_what_each_carries():
-    assert [e["id"] for e in ni.built_ins()] == ["rs_rating", "rs_phases"]
+    assert [e["id"] for e in ni.built_ins()] == ["mansfield_relative_strength", "rs_rating", "rs_phases"]
     for e in ni.built_ins():
         b = ni.built_in(e)
         assert set(b) == {"indicator", "name", "what"}
@@ -51,7 +51,9 @@ def test_the_built_in_names_and_what_each_carries():
         assert not ({"outputs", "formula", "tree", "params", "evidence"} & set(e))
         assert len(ni.built_in_answer(e)) <= ni.SENTENCE_MAX and len(ni.way_forward(e)) <= ni.SENTENCE_MAX
         assert b["name"] in ni.built_in_answer(e) and b["name"] in ni.way_forward(e)
-    assert ni.built_in(ni.entry("ttm_squeeze")) is None and ni.built_in(ni.entry("mansfield_relative_strength")) is None
+    assert ni.built_in(ni.entry("ttm_squeeze")) is None
+    # Mansfield Relative Strength was a Screener-only number for a day; `rsMansfield` draws it now
+    assert ni.built_in(ni.entry("mansfield_relative_strength"))["indicator"] == "rsMansfield"
     assert ni.built_in(ni.entry("mcginley_dynamic")) is None
 
 
@@ -167,8 +169,14 @@ def test_only_a_built_in_name_is_ever_offered(conv, clean_env, model):
     model([])
     r = ask(conv, "Add the TTM Squeeze", accepts=OFFERS, addable=["rsRating", "rsPhases", "ttm_squeeze"])
     assert r["ok"] is False and r["gate"] == conv.NAMED_UNCHECKED_GATE and "offer" not in r
+    # Mansfield Relative Strength IS a built-in name: offered only for ITS indicator, never another
     r = ask(conv, "Add the Mansfield Relative Strength", accepts=OFFERS, addable=["rsRating", "rsLine"])
-    assert r["ok"] is False and r["gate"] == conv.NAMED_UNCHECKED_GATE and "offer" not in r
+    assert r["ok"] is False and r["gate"] == conv.NAMED_BUILT_IN_GATE and "offer" not in r
+    r = ask(conv, "Add the Mansfield Relative Strength", accepts=OFFERS, addable=["rsMansfield"])
+    assert r["ok"] is True and r["offer"]["indicator"] == "rsMansfield"
+    assert r["offer"]["label"] == "Add UCT Mansfield RS to this chart"
+    assert r["reply"] == ("Mansfield Relative Strength is one of UCT's own indicators, UCT Mansfield RS: the RS line as a "
+                          "percent above or below its own long average, around a zero line. It is not a formula to build here.")
 
 
 def test_a_question_about_the_name_is_discussed_not_offered(conv, clean_env, model):

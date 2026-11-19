@@ -68,7 +68,8 @@ def test_an_opener_is_excused_only_where_a_sentence_opens_when_it_comes_to_dropp
     def names(text):
         return [n["key"] for n in dc._named_phrases(text, dc._matches(text, lex), lex)]
     assert names("Add Inside bar") == []
-    assert names("then Add Inside bar") == ["Add Inside"]                   # mid-sentence a capital is not grammar: the older reading
+    assert names("then Add Inside bar") == []                               # "inside bar" is a house term now (chart_twins.PATTERNS)
+    assert names("then Add Brannock bar") == ["Add Brannock"]               # mid-sentence a capital is not grammar: the older reading
     assert names("Add Gann Fan") == ["Gann Fan"]
     assert names("Inside Bar Gann") == ["Inside Bar Gann"]                  # "Inside" opens no request: it stays in the run
     # the pieces

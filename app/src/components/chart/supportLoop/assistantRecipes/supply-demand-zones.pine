@@ -1,0 +1,34 @@
+//@version=5
+indicator("Supply and Demand Zones", overlay=true, max_boxes_count=100)
+left = input.int(10, "Pivot bars left", minval=1)
+right = input.int(10, "Pivot bars right", minval=1)
+depth = input.float(1.0, "Zone depth (ATR)", minval=0.1)
+keep = input.int(6, "Zones kept each side", minval=1)
+atr = ta.atr(14)
+ph = ta.pivothigh(high, left, right)
+pl = ta.pivotlow(low, left, right)
+var box[] supply = array.new_box(0)
+var box[] demand = array.new_box(0)
+if not na(ph)
+    array.push(supply, box.new(bar_index - right, ph, bar_index, ph - depth * atr, extend=extend.right, bgcolor=color.new(color.red, 85), border_color=color.red))
+    if array.size(supply) > keep
+        oldBox = array.shift(supply)
+        box.delete(oldBox)
+if not na(pl)
+    array.push(demand, box.new(bar_index - right, pl + depth * atr, bar_index, pl, extend=extend.right, bgcolor=color.new(color.green, 85), border_color=color.green))
+    if array.size(demand) > keep
+        oldBox = array.shift(demand)
+        box.delete(oldBox)
+if array.size(supply) > 0
+    for i = array.size(supply) - 1 to 0
+        b = array.get(supply, i)
+        if close > box.get_top(b)
+            box.delete(b)
+            array.remove(supply, i)
+if array.size(demand) > 0
+    for i = array.size(demand) - 1 to 0
+        b = array.get(demand, i)
+        if close < box.get_bottom(b)
+            box.delete(b)
+            array.remove(demand, i)
+plot(array.size(supply) + array.size(demand), "Zones standing", display=display.data_window)

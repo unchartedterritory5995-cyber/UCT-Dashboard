@@ -1,0 +1,23 @@
+//@version=5
+indicator("VWAP with Deviation Bands", overlay=true)
+m1 = input.float(1.0, "Inner band (deviations)", minval=0.1)
+m2 = input.float(2.0, "Outer band (deviations)", minval=0.1)
+src = hlc3
+newDay = ta.change(dayofmonth) != 0
+var float sumV = 0.0
+var float sumPV = 0.0
+var float sumP2V = 0.0
+if newDay
+    sumV := 0.0
+    sumPV := 0.0
+    sumP2V := 0.0
+sumV += volume
+sumPV += src * volume
+sumP2V += src * src * volume
+vwap = sumV > 0 ? sumPV / sumV : na
+dev = sumV > 0 ? math.sqrt(math.max(sumP2V / sumV - vwap * vwap, 0)) : na
+plot(vwap, "VWAP", color=color.orange, width=2)
+plot(vwap + m1 * dev, "Upper 1", color=color.gray)
+plot(vwap - m1 * dev, "Lower 1", color=color.gray)
+plot(vwap + m2 * dev, "Upper 2", color=color.silver)
+plot(vwap - m2 * dev, "Lower 2", color=color.silver)

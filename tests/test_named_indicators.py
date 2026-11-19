@@ -167,7 +167,9 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
     one bar of 8,509). Four are not TradingView built-ins and have no capture (the Laguerre pair
     among them: TradingView ran OUR equations for those, which is not a grade against its own).
     One IS a built-in and waits for its capture: the Stochastic Oscillator, on two tiers until then.
-    One follows UCT'S OWN reader and has nothing to do with TradingView: Pocket Pivot."""
+    One follows UCT'S OWN reader and has nothing to do with TradingView: Pocket Pivot.
+    And the Ichimoku Cloud (2026-11-19) IS a built-in and waits for its capture too; until it is
+    graded it claims nothing about TradingView beyond the shift its note states."""
     grade = {e["id"]: (e["evidence"]["capture"] or {}).get("grade") for e in ni.entries()}
     assert sorted(i for i, g in grade.items() if g == "EQUAL") == sorted([
         "awesome_oscillator", "chaikin_money_flow", "choppiness_index", "coppock_curve", "elder_ray",
@@ -200,7 +202,8 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
     assert "TradingView" not in ni.member_sentence(ENTRIES["stochastic_oscillator"], ni.defaults(ENTRIES["stochastic_oscillator"]))
     assert grade["pocket_pivot"] is None and ni.follows_house(ENTRIES["pocket_pivot"]) is not None
     assert "TradingView" not in ni.member_sentence(ENTRIES["pocket_pivot"], {})
-    assert sum(1 for g in grade.values() if g is None) == 6 and len(grade) == 37
+    assert grade["ichimoku_cloud"] is None and not ni.tiers(ENTRIES["ichimoku_cloud"])[2]
+    assert sum(1 for g in grade.values() if g is None) == 7 and len(grade) == 38
     assert not ni.tiers(ENTRIES["mcginley_dynamic"])[2] and "TradingView" not in ni.member_sentence(ENTRIES["mcginley_dynamic"], {})
     assert ni.tiers(ENTRIES["connors_rsi"])[2] and ni.tiers(ENTRIES["vortex_indicator"])[2]
 

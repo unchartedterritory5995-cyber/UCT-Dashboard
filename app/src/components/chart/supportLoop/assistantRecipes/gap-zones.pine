@@ -1,0 +1,33 @@
+//@version=5
+indicator("Unfilled Gaps", overlay=true, max_boxes_count=100)
+minPct = input.float(1.0, "Smallest gap %", minval=0.1)
+keep = input.int(20, "Gaps kept", minval=1)
+var box[] ups = array.new_box(0)
+var box[] downs = array.new_box(0)
+gapUp = low > high[1] and (low - high[1]) / high[1] * 100 >= minPct
+gapDown = high < low[1] and (low[1] - high) / low[1] * 100 >= minPct
+if gapUp
+    array.push(ups, box.new(bar_index - 1, low, bar_index, high[1], extend=extend.right, bgcolor=color.new(color.green, 85), border_color=color.green))
+    if array.size(ups) > keep
+        oldBox = array.shift(ups)
+        box.delete(oldBox)
+if gapDown
+    array.push(downs, box.new(bar_index - 1, low[1], bar_index, high, extend=extend.right, bgcolor=color.new(color.red, 85), border_color=color.red))
+    if array.size(downs) > keep
+        oldBox = array.shift(downs)
+        box.delete(oldBox)
+if array.size(ups) > 0
+    for i = array.size(ups) - 1 to 0
+        b = array.get(ups, i)
+        if low <= box.get_bottom(b) and not gapUp
+            box.delete(b)
+            array.remove(ups, i)
+if array.size(downs) > 0
+    for i = array.size(downs) - 1 to 0
+        b = array.get(downs, i)
+        if high >= box.get_top(b) and not gapDown
+            box.delete(b)
+            array.remove(downs, i)
+plot(array.size(ups) + array.size(downs), "Open gaps", display=display.data_window)
+plotshape(gapUp, "Gap up", shape.triangleup, location.belowbar, color.green, size=size.tiny)
+plotshape(gapDown, "Gap down", shape.triangledown, location.abovebar, color.red, size=size.tiny)

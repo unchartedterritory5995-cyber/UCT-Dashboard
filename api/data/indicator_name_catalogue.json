@@ -124,6 +124,15 @@
    "distinctive": true
   },
   {
+   "id": "ichimoku_cloud",
+   "name": "Ichimoku Cloud",
+   "aliases": [
+    "ichimoku cloud",
+    "ichimoku kinko hyo",
+    "ichimoku"
+   ]
+  },
+  {
    "id": "williams_alligator",
    "name": "Williams Alligator",
    "aliases": [
@@ -204,14 +213,6 @@
    "aliases": [
     "gann hilo activator",
     "gann hilo"
-   ],
-   "distinctive": true
-  },
-  {
-   "id": "schaff_trend_cycle",
-   "name": "Schaff Trend Cycle",
-   "aliases": [
-    "schaff trend cycle"
    ],
    "distinctive": true
   },
