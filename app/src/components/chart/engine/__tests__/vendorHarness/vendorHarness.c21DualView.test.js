@@ -139,9 +139,11 @@ describe('⭐ C21 — dual-view-htf-candlestick-patterns', () => {
     expect(od.loopScalars).toHaveLength(7)
     // ⭐ C25 — five lists diverge (the historical four, `pattern_labels`) and
     // their 18 reads are withheld; C21 measured ten lists and 39 reads.
+    // ⭐ ONCE-EMPTY LIST (#2014, ruling (B), census accepted): the last-bar clean-up over lists nothing has filled
+    // yet is not walked, so 3 reads are withheld where 18 were; the five lists still diverge and nothing is drawn.
     expect(od.collsDiverged).toBe(5)
     expect(od.collsDivergedWhy.filter((e) => /coll:push@4[1-3]\d$/.test(e))).toHaveLength(0)
-    expect(od.dropReasons['coll:diverged']).toBe(18)
+    expect(od.dropReasons['coll:diverged']).toBe(3)
     // ⭐ C23 — the runtime lane now BUILDS the script (was `pine:window-dependent`,
     // the first of seven walls); the drawing still stops on the host walls above.
     expect(od.runtimeRefused ?? null).toBeNull()
