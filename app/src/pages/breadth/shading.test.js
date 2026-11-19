@@ -54,6 +54,9 @@ describe('shadeFor — rarity levels', () => {
     expect(at('cnnish', { cnnish: 20 })).toEqual({ tone: 'bull', level: 2 })
     expect(at('cnnish', { cnnish: 80 })).toEqual({ tone: 'bear', level: 2 })
   })
+  it('shipped spec: sentiment shows the mood (fear = bearish), matching VIX (owner 11-19)', () => {
+    expect(SHADE_SPEC.cols.cnn_fear_greed.bull).toBe('high')
+  })
   it('a basis column ranks another field (closes by day %)', () => {
     expect(at('close', { close: 1, base_pct: 99 })).toEqual({ tone: 'bull', level: 2 })
     expect(at('close', { close: 99, base_pct: 50 })).toBeNull()

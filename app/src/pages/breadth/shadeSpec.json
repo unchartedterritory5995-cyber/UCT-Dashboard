@@ -45,6 +45,6 @@
     "hvc_52w":           { "bull": "high", "sides": "high" },
     "atr_ext_7":         { "bull": "high", "sides": "high" },
 
-    "cnn_fear_greed":    { "bull": "low",  "sides": "both", "floors": { "high": 75, "low": 25 } }
+    "cnn_fear_greed":    { "bull": "high", "sides": "both", "floors": { "high": 75, "low": 25 } }
   }
 }
