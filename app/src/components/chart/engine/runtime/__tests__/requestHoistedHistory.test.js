@@ -67,7 +67,8 @@ const hasKind = (e, kind, seen = new Set()) => {
 /** The periods (`runBars`) and, per chart bar, the period it reads, by the run's own alignment authority
  *  (`requestAlignment`: look-ahead on reads the period the bar is inside; off, the last closed one). */
 const periodsOf = (code, live) => {
-  const a = requestAlignment({ chartBars: CHART, srcBars: CHART, code, live })
+  // the run's own opts (`ctx`): from the listing, the newest bar finished
+  const a = requestAlignment({ chartBars: CHART, srcBars: CHART, code, live, opts: { tf: 'D', newestBarIsForming: false, historyFromListing: true } })
   return { P: a.runBars, onChart: (perPeriod) => CHART.map((_, i) => (a.withheld[i] || a.index[i] < 0 ? NaN : perPeriod[a.index[i]])) }
 }
 /** Every bar equal, `na` included (a missing pivot and an extra one both fail), with enough values compared. */
@@ -160,8 +161,9 @@ describe('⛔ the e78 guard stays the backstop for a shape the lowering does not
   const body = [
     'dyn () =>',
     '    var int k = 0',
-    '    k := bar_index % 2 == 0 ? 1 : 2',
-    '    float x = (close > open)[k] ? 1 : 0',
+    '    k := close > open ? 1 : 2',
+    '    float x = 0.0',
+    '    x := (close > open)[k] ? 1 : 0',
     '    x',
     'plot(request.security(syminfo.tickerid, "W", dyn()))',
   ].join('\n')
