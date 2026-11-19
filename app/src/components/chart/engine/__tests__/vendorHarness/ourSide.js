@@ -1789,7 +1789,10 @@ function runOurSideOnTheParityClock(capture) {
     // reads a monthly merge graded DIVERGE on that one named bar (SR-MTF, graded on the runtime lane forced).
     const runNewest = cols && cols[RUNTIME_REQUEST_WITHHELD_KEY]
     if (runNewest && Array.isArray(runNewest.codes) && runNewest.codes.includes(TF_MERGE_NEWEST_CODE)) {
-      for (const p of (def.plots || [])) if (p && typeof p.key === 'string') newestHeld.add(p.key)
+      // ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) — the plots the run blanked there (`keys`), or every plot (`null`)
+      for (const p of (def.plots || [])) {
+        if (p && typeof p.key === 'string' && (!Array.isArray(runNewest.keys) || runNewest.keys.includes(p.key))) newestHeld.add(p.key)
+      }
     }
     // ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code
     const withheldBarsReport = registry.withheldBarsReport(calcCols)

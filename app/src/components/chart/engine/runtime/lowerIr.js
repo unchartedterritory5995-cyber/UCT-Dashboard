@@ -930,7 +930,9 @@ export function lowerIrProgram(ir, opts = {}) {
     }
     emit(OP.HALT)
     // ⭐ RS RATING L5 — the host's reading of the request (`target`), for the run's supply
-    return { timeframe: r.timeframe, entry, results, target: r.target || null }
+    return { timeframe: r.timeframe, entry, results, target: r.target || null,
+      // ⭐⭐ HTF-NEWEST-NARROW — what the run withholds on its newest bar when this site cannot know it
+      ...(r.newestReach ? { newestReach: r.newestReach } : {}) }
   })
 
   const made = makeProgram({

@@ -83,7 +83,7 @@ import { strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
 const strategyBrokerEnabled = () => strategyBrokerGateOn()
 import { strategyRepaintConstruct } from './strategyRepaint.js'
 // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what a broker document may draw when its broker run is refused
-import { strategyTaintSinks, strategyDisarmOf } from './strategyTaint.js'
+import { strategyTaintSinks, strategyDisarmOf, requestNewestReachOf } from './strategyTaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
   timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
@@ -1874,6 +1874,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // trace that throws is `null`, and the disarmed run then keeps the broker's refusal.
   let brokerTaint = null
   if (brokerMode) { try { brokerTaint = strategyTaintSinks(stmts) } catch { brokerTaint = null } }
+  // ⭐⭐ HTF-NEWEST-NARROW — the ORIGINAL statements, for each request site's newest-bar reach (`requestNewestReachOf`)
+  const sourceStmts = stmts
   // ⭐⭐ W34-I6a — a wrapped `switch` arm is one expression (see `wrappedArmOf`); pane only.
   if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents, String(source || '').split(/\r?\n/))
   // ⭐⭐ W34-I4 — a v1/v2 self-referencing definition whose every self read states its
@@ -16441,6 +16443,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐ ENGINE 56 (round 2) — the deferred `== true / false` sites, now that every write is known
   const boolNaLate = boolNaFaithfulness(statements)
   if (boolNaLate) return fail(boolNaLate, diagnostics)
+
+  // ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) — per request site, the outputs a run must withhold on its newest bar when that
+  // site cannot know it (`runtimeColumns.js` reads it; `refused` keeps the whole-bar rule)
+  for (const r of requests) r.newestReach = requestNewestReachOf(sourceStmts, r.target ? r.target.line : null, outputs, outputLines)
 
   let ir
   try {

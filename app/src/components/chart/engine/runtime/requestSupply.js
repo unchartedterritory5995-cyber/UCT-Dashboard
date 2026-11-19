@@ -263,11 +263,12 @@ export function requestTargetsUnservable(targets, count) {
  * @param {object}   ctx       `{tf, symbol, secondary, exchangeOf, framed, newestBarIsForming,
  *                              historyFromListing}`
  * @returns {{supply: object[]|null, refusal: {guard, message}|null, pending: boolean,
- *            newestWithheld: boolean, codes: string[], sentences: string[]}}
+ *            newestWithheld: boolean, newestWithheldSites: number[], codes: string[], sentences: string[]}}
  */
 export function runtimeRequestSupply(requests, rows, ctx = {}) {
   ctx = withChartNewestDay(ctx, rows)   // ⭐ RS RATING L11 PR 2: the bind reads no bars
-  const out = { supply: null, refusal: null, pending: false, newestWithheld: false, codes: [], sentences: [] }
+  const out = { supply: null, refusal: null, pending: false, newestWithheld: false, newestWithheldSites: [], codes: [],
+    sentences: [] }
   const sites = Array.isArray(requests) ? requests : []
   if (!sites.length) return out
   const n = Array.isArray(rows) ? rows.length : 0
@@ -405,6 +406,8 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
     }
     if (n && aligned.withheld[n - 1]) {
       out.newestWithheld = true
+      // ⭐⭐ HTF-NEWEST-NARROW — WHICH sites: the run withholds only what each one reaches (`runtimeColumns.js`)
+      out.newestWithheldSites.push(s)
       for (const [c, text] of sink) {
         if (!out.codes.includes(c)) { out.codes.push(c); out.sentences.push(text) }
       }

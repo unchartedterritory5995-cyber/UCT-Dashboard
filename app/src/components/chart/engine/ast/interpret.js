@@ -7093,7 +7093,7 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
     varOriginMask(tree, bars, inputs, budget, scalars, opts),
     // ⭐⭐ ENGINE 57 — `ta.rci` / `ta.stoch` bars no capture pins
     builtinWitnessMask(tree, bars, inputs, budget, scalars, opts),
-    tfMergeMask(tree, bars, opts),
+    tfMergeMask(tree, bars, opts, inputs, budget, scalars),
     windowHoleMask(tree, bars, inputs, budget, scalars, opts),
     // ⭐⭐ ENGINE 56 — the two per-bar witness masks (A3, S4-2)
     boolNaMask(tree, bars, inputs, budget, scalars, opts),
@@ -7249,7 +7249,7 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
  *  daily chart with no weekend bars whose first bar follows a weekday in another period —
  *  the mirror of the L3 test). Formula `tf` keeps its own behaviour.
  *  ⛔ NO `try` (`budget.test.js`): a refusal here must reach the caller as itself. */
-export function tfMergeMask(tree, bars, opts) {
+export function tfMergeMask(tree, bars, opts, inputs = {}, budget = undefined, scalars = undefined) {
   const n = Array.isArray(bars) ? bars.length : 0
   const found = []
   const stack = [[tree, false, null]]
@@ -7276,7 +7276,14 @@ export function tfMergeMask(tree, bars, opts) {
   // withheld unless known to be forming, and under another request whatever the chart says.
   const forming = !!opts && opts.newestBarIsForming === true
   const known = forming || newestClosesEveryMergePeriod(bars, found, opts)
-  if (!known || found.some((f) => f.under)) mask[n - 1] = 1
+  // ⭐⭐ HTF-NEWEST-NARROW (coordinator ruling 2026-11-19) — ONLY A ROOT THAT READS THE MERGE ON ITS NEWEST BAR.
+  // The newest bar was withheld for the WHOLE tree, so `x[1]` (the bar before's merge, settled) was blank wherever
+  // `x` was. Which root bars read the unknown merge is engine 56's dependency walk (`witnessMask`), with each
+  // merge a site unknown on its newest bar only: `x[k]` moves it k bars later, so `x[1]` draws; `nz(x)`,
+  // `na(x) ? x[1] : x`, a window or a running value over x read x on that bar and stay withheld. ⛔ A merge under
+  // another request keeps the whole-tree rule (its newest bar is another series').
+  if (found.some((f) => f.under)) mask[n - 1] = 1
+  else if (!known && newestReadsMerge(tree, bars, opts, inputs, budget, scalars)) mask[n - 1] = 1
   const firstMask = firstPeriodPartialMask(bars, found, opts)
   const supplied = (opts && opts.symbols) || {}
   for (const f of found) {
@@ -7401,6 +7408,18 @@ function tfLiveFormingMask(bars, opts) {
   return out
 }
 
+/** ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) — does the ROOT's newest bar read a `tf_merge` on that merge's newest bar
+ *  (the one bar whose merge is unknown when the bar is finished)? Engine 56's walk (`witnessMask`), every merge a
+ *  site flagged on the newest bar only, with the sinks stripped: `tfMergeMask` names the code itself. */
+function newestReadsMerge(tree, bars, opts, inputs, budget, scalars) {
+  const n = bars.length
+  const newestOnly = () => { const c = new Float64Array(n); c[n - 1] = 1; return c }
+  const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
+  const m = witnessMask(tree, bars, inputs, budget, scalars, quiet, (nd) => nd.type === TF_MERGE, newestOnly,
+    TF_MERGE_NEWEST_CODE)
+  return !!m && m[n - 1] === 1
+}
+
 /** ⭐ REVIEW L3 — the weekday of an ISO day, Mon = 1 … Sun = 7, from the day count alone. */
 function isoWeekday(iso) {
   const [y, m, d] = iso.split('-').map(Number)
@@ -7496,7 +7515,7 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
     if (!hasSite(node)) return null
     if (memo.has(node)) return memo.get(node)
     let out = null
-    if (WITNESS_NESTED.has(node.type)) out = ALL
+    if (WITNESS_NESTED.has(node.type) && !isSite(node)) out = ALL
     else {
       const args = Array.isArray(node.args) ? node.args : []
       if (isSite(node)) {
