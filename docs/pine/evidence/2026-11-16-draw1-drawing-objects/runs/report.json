@@ -1,35 +1,35 @@
 {
  "populations": {
   "capture": {
-   "scripts": 940,
-   "admitted": 555,
-   "runtimeLane": 165,
-   "hostLane": 250,
-   "refused": 140,
-   "coreOnly": 44
+   "scripts": 949,
+   "admitted": 580,
+   "runtimeLane": 182,
+   "hostLane": 262,
+   "refused": 136,
+   "coreOnly": 45
   },
   "committed": {
    "scripts": 266,
-   "admitted": 116,
-   "runtimeLane": 42,
-   "hostLane": 43,
+   "admitted": 122,
+   "runtimeLane": 44,
+   "hostLane": 47,
    "refused": 31,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
-   "admitted": 167,
-   "runtimeLane": 36,
-   "hostLane": 87,
-   "refused": 44,
+   "admitted": 171,
+   "runtimeLane": 40,
+   "hostLane": 90,
+   "refused": 41,
    "coreOnly": 7
   },
   "builtin": {
    "scripts": 142,
-   "admitted": 109,
-   "runtimeLane": 27,
+   "admitted": 111,
+   "runtimeLane": 28,
    "hostLane": 69,
-   "refused": 13,
+   "refused": 14,
    "coreOnly": 30
   }
  },
@@ -907,6 +907,46 @@
    ]
   },
   {
+   "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "switch",
+    "var"
+   ]
+  },
+  {
+   "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "switch",
+    "var"
+   ]
+  },
+  {
    "capture": "fvg-trend-rddt-1d-2026-09-27",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -1257,6 +1297,66 @@
    ]
   },
   {
+   "capture": "k-clustering-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:collection",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var",
+    "while"
+   ]
+  },
+  {
+   "capture": "k-clustering-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:collection",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var",
+    "while"
+   ]
+  },
+  {
    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -1423,6 +1523,42 @@
    ]
   },
   {
+   "capture": "liquidity-pools-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "method-call",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "liquidity-pools-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "method-call",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -1499,6 +1635,20 @@
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "reassign",
+    "strategy-decl",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "macd-shortlong-strategy-is-rddt-1d-2026-11-18",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "if-block",
@@ -2200,6 +2350,48 @@
    ]
   },
   {
+   "capture": "price-action-as-in-book-fibonacci-supportresistant-trendline-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "price-action-as-in-book-fibonacci-supportresistant-trendline-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "probe-default-colour-v3-rddt-1d-2026-09-27",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -2427,7 +2619,7 @@
   {
    "capture": "rs-arm-label-last-bar-rddt-1d-2026-11-15",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -2441,7 +2633,7 @@
   {
    "capture": "rs-arm-label-last-bar-spy-1d-2026-11-15",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -3070,6 +3262,20 @@
    ]
   },
   {
+   "capture": "supertrend-strategy-is-rddt-1d-2026-11-18",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": null,
+   "caps": [
+    "core",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "strategy-decl",
+    "ternary"
+   ]
+  },
+  {
    "capture": "supertrend-strategy-rddt-1d-2026-10-02",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
@@ -3531,6 +3737,156 @@
    ]
   },
   {
+   "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "trend-targets-algoalpha-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "trend-targets-algoalpha-rddt-1d-2026-11-17",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "trend-targets-algoalpha-spy-1d-2026-11-17",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -3628,6 +3984,60 @@
     "fn-single",
     "reassign",
     "ternary"
+   ]
+  },
+  {
+   "capture": "vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
+    "if-block",
+    "method-call",
+    "obj:box",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
+   "capture": "vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
+    "if-block",
+    "method-call",
+    "obj:box",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "typed-array",
+    "var"
    ]
   },
   {
@@ -4753,6 +5163,28 @@
     "obj:line",
     "reassign",
     "var"
+   ]
+  },
+  {
+   "capture": "vw-fcmp-arrays-rddt-1d-2026-11-18",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": null,
+   "caps": [
+    "collections:array",
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-fcmp-arrays-spy-1d-2026-11-18",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": null,
+   "caps": [
+    "collections:array",
+    "core",
+    "ternary"
    ]
   },
   {
@@ -6719,6 +7151,57 @@
    ]
   },
   {
+   "capture": "vw-w4-max-bars-back-m1-spy-1d-2026-11-18",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": null,
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w4-max-bars-back-m2-spy-1d-2026-11-18",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": null,
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w4-max-bars-back-m3-spy-1d-2026-11-18",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": null,
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w4-max-bars-back-m4-spy-1d-2026-11-18",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": null,
+   "caps": [
+    "core",
+    "max_bars_back"
+   ]
+  },
+  {
+   "capture": "vw-w4-max-bars-back-m5-spy-1d-2026-11-18",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": null,
+   "caps": [
+    "core"
+   ]
+  },
+  {
    "capture": "vw-w4-session-daymask-btcusd-60-2026-11-16",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
@@ -8335,9 +8818,9 @@
   },
   {
    "key": "reference:auto-length-moving-average-trend-signals-zeiierman__30185ad35b",
-   "lane": null,
-   "guard": "pine:cycle",
-   "declined": "runtime:function-global-state",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "compound-assign",
     "conditional-ta",
@@ -8432,6 +8915,30 @@
    ]
   },
   {
+   "key": "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "typed-array",
+    "var",
+    "while"
+   ]
+  },
+  {
    "key": "reference:best-supertrend-cci__nngZVuIMCz",
    "lane": "runtime",
    "guard": null,
@@ -8496,7 +9003,7 @@
    "key": "reference:breaks-and-retests-with-volatility-stop-hg__ebbd1d4440",
    "lane": null,
    "guard": "pine:reassign",
-   "declined": "runtime:function-global-state",
+   "declined": "runtime:history-dynamic-offset",
    "caps": [
     "collections:array",
     "conditional-ta",
@@ -8732,6 +9239,30 @@
    ]
   },
   {
+   "key": "reference:dynamic-linear-regression-channels__17ec799bc1",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
    "key": "reference:edufx-amd__0ca9b3c747",
    "lane": "runtime",
    "guard": null,
@@ -8803,9 +9334,9 @@
   },
   {
    "key": "reference:engulfing-sinyal__pAgeLQw9kl",
-   "lane": null,
-   "guard": "pine:colour-value",
-   "declined": "runtime:colour",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "core",
     "ternary"
@@ -9007,7 +9538,7 @@
    "key": "reference:fvg-order-blocks-bigbeluga__64decdabc4",
    "lane": null,
    "guard": "pine:object-removal-lost",
-   "declined": "runtime:colour",
+   "declined": "runtime:call-text-state",
    "caps": [
     "collections:array",
     "core",
@@ -9637,9 +10168,9 @@
   },
   {
    "key": "reference:order-block-detector-luxalgo__7c893384eb",
-   "lane": null,
-   "guard": "pine:block",
-   "declined": "runtime:loop",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "collections:array",
     "conditional-ta",
@@ -9725,7 +10256,7 @@
    "key": "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd",
    "lane": null,
    "guard": "pine:fn-history-in-block",
-   "declined": "runtime:lower",
+   "declined": "runtime:output-map",
    "caps": [
     "conditional-ta",
     "core",
@@ -9922,6 +10453,36 @@
     "ternary",
     "tuple-destructure",
     "var"
+   ]
+  },
+  {
+   "key": "reference:rsi-support-resistance-by-dgt__ZkkLVEb1ak",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var",
+    "while"
    ]
   },
   {
@@ -10264,6 +10825,29 @@
     "reassign",
     "strategy-decl",
     "ternary"
+   ]
+  },
+  {
+   "key": "reference:trend-channels-with-liquidity-breaks-chartprime__6cabbffddf",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
@@ -10686,7 +11270,7 @@
    "key": "reference:ytc-swing-highs-lows__H94Z0NbN5P",
    "lane": null,
    "guard": "pine:fn-history-in-block",
-   "declined": "runtime:directive",
+   "declined": "runtime:output-map",
    "caps": [
     "core",
     "fn-multi",
@@ -11280,6 +11864,35 @@
    ]
   },
   {
+   "key": "builtin:linear-regression-channel__Linear_Regre",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "switch",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
    "key": "builtin:macd-strategy__MACD1Strateg",
    "lane": "runtime",
    "guard": null,
@@ -11577,6 +12190,33 @@
     "fn-single",
     "switch",
     "ternary"
+   ]
+  },
+  {
+   "key": "builtin:price-target__Price1Target",
+   "lane": null,
+   "guard": "pine:builtin",
+   "declined": "pine:builtin",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for-in",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
