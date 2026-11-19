@@ -12,11 +12,16 @@ set (``0`` to hold it) is passed as the build arg and wins. Local and test build
 the gate's dark default and stub it on by name.
 
 WHAT IT REACHES. The broker runs only on the per-bar runtime lane, which needs the member's runtime stage
-(``PINE_RUNTIME_STAGE``, admins today) and the lane's admission (kill list, allowlist, capability admission). Today the
-server admits NO strategy: ``strategy-decl`` has no row in the capability registry, so every strategy declines
-``runtime:not-yet-graded`` and is drawn as before with its backtest refused by name. The JS census
-(``strategyServeCensus.test.js``) latches exactly that verdict for its production state; the last rail here holds the
-verdict to the server, so the day ``strategy-decl`` is admitted this file goes red BY NAME and the census is re-measured.
+(``PINE_RUNTIME_STAGE``, admins today) and the lane's admission (kill list, allowlist, capability admission). The server
+admits a strategy by capability when every capability it uses has a conformant registry row: ``strategy-decl`` since
+2026-11-18, and ``request-other`` (closed-bar history) since 2026-11-19 (#2016), so 22 of the 25 committed strategies
+are admitted and the other 3 are withheld by name by a capability with no row. Admission is a door, not a pin: an
+admitted strategy's backtest is served only where every broker rule it rests on is pinned, and is refused by name
+otherwise; a killed source (the kill list, by source hash) falls back off the runtime lane whatever its admission, so
+its backtest is refused by name (the kill named). The JS census
+(``strategyServeCensus.test.js``) latches the server's verdict per committed strategy (``SERVER_ADMITS``) for its
+production state; the last two rails here hold that list to the server, both ways, so a registry change that moves a
+verdict turns this file red BY NAME and the census is re-measured.
 
 WHICH BUNDLE. Members load the bundle ``web-front`` builds and serves (``front/README.md``), not ``web``'s. Both build
 ``Dockerfile.web`` (``front/service.json``, ``railway.web.json``), each from its OWN Railway variables, so the default
@@ -28,7 +33,11 @@ Mutation proofs (run by hand, each restored from a saved copy; recorded in the E
     1b. point ``front/service.json`` at another Dockerfile            -> members' bundle RED
     2. give another VITE_* ARG a default                              -> only-one-default RED
     3. set the ledger row's status to "dark"                          -> ledger RED
-    4. stop the capability detector naming ``strategy-decl``           -> server-admits-no-strategy RED
+    4. stop the capability detector naming ``strategy-decl``           -> server-admits-exactly-the-census-list RED
+    (2026-11-19, the census re-latch after #2016; recorded in the PR)
+    5. drop one of the five request-other admits from ``SERVER_ADMITS`` -> server-admits-exactly-the-census-list RED
+    6. a CONTROL the server admits (pmax-explorer, the old control)    -> CONTROL RED
+    6b. give ``enum`` a (non-admitted) registry row                   -> CONTROL RED (the no-row check)
 """
 from __future__ import annotations
 
@@ -222,5 +231,14 @@ def test_CONTROL_admission_is_a_door_not_a_pin(monkeypatch):
                 "stop-loss-and-take-profit-in-example__YlblCbts4x"):
         assert verdicts[key][0] is True, f"{key}: {verdicts[key][1]}"
         assert key in _census_server_admits()
-    # and the same detector withholds a strategy by name for a capability with no row
-    assert verdicts["pmax-explorer__jN9HBNhynF"] == (False, ["request-other"])
+    # and the same detector withholds a strategy BY NAME for capabilities that have NO registry row (`enum`; a library
+    # version; and `import`, which is never a row of its own: it is met by its libraries). ⚰️ This was pmax-explorer,
+    # withheld by `request-other` alone, until 2026-11-19: #2016 admitted `request-other` (closed-bar history), so the
+    # server admits pmax-explorer by capability, and the kill list (by source hash, DRAW-1 rule) keeps it off the runtime
+    # lane: the host lane draws it and its backtest is refused by name (the census's REQUEST_OTHER_ADMITS).
+    key, missing = ("trailing-take-profit-trailing-stop-loss__41jwaH1ikz",
+                    ["enum", "import", "library:jason5480/chrono_utils/7"])
+    assert verdicts[key] == (False, missing), verdicts[key]
+    assert key not in _census_server_admits()
+    registry = json.loads((ROOT / "api" / "data" / "pine_runtime_allowlist.json").read_text(encoding="utf-8"))
+    assert not set(missing) & set(registry["capabilities"]), "a control capability now has a registry row"
