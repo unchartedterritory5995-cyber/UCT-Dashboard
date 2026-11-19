@@ -616,9 +616,12 @@ def _my_watchlist_today(user_id: str, params: dict, now: datetime) -> dict:
 # -- myNamesReporting ----------------------------------------------------------
 
 def _implied_move_pct(sym: str, day: str | None, timing: str | None) -> float | None:
+    """The straddle for one report as a percent, or None. `report_move` answers at once when the
+    straddle is already held; a cold one is built on its own pool and this waits no longer than the
+    widget's budget, so a slow chain frees this pool's worker instead of holding it."""
     try:
-        from api.services import earnings_enrichment
-        got = earnings_enrichment.get_implied_move(sym, day, timing)
+        from api.services.implied_move import report_move
+        got = report_move(sym, day, timing=timing, timeout=IMPLIED_MOVE_BUDGET_S)
         return _num(got.get("pct")) if isinstance(got, dict) else None
     except Exception as e:  # noqa: BLE001 -- one vendor miss is a null cell, not a dead widget
         _log.info("names reporting: implied move failed for %s: %s", sym, e)

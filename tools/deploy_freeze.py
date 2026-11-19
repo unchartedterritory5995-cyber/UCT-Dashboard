@@ -60,6 +60,15 @@ OVERRIDE_ENV = "DEPLOY_FREEZE_OVERRIDE"
 OVERRIDE_TOKEN = "[freeze-override]"
 #: Weekday rushes, ET wall clock, half-open [start, end). (name, start, end)
 BURST_WINDOWS_ET = (("opening", (9, 20), (9, 45)), ("closing", (15, 30), (16, 15)))
+#: ⭐ THE REGULAR SESSION BETWEEN THE RUSHES (owner, 2026-11-19: "do it all", on holding chart-server deploys
+#: during trading). On 2026-11-18 evening other sessions' merges restarted bars-api four times in 35 min and web
+#: five times in 2.5 h; each restart is a cold cache and a repair pass of every ticker (1.5-3.5 s chart stalls for
+#: minutes) and, for web, ~1 min of 502. With the two rushes this holds 09:20-16:15 ET without a gap: a promotion
+#: that arrives inside waits for the 16:20 ET catch-up (the 09:50 one lands inside and holds again, harmlessly).
+#: The override ships a hotfix inside it. Kept OUT of BURST_WINDOWS_ET, which must equal the app's market rushes
+#: (tests/test_market_rush.py).
+SESSION_HOLD_ET = ("session", (9, 45), (15, 30))
+HOLD_WINDOWS_ET = (BURST_WINDOWS_ET[0], SESSION_HOLD_ET, BURST_WINDOWS_ET[1])
 
 _ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -73,13 +82,13 @@ def _window_module():
 
 
 def burst_window(now: _dt.datetime) -> str | None:
-    """The weekday rush `now` falls in ("opening"/"closing"), or None."""
+    """The weekday hold `now` falls in ("opening"/"session"/"closing"), or None."""
     from zoneinfo import ZoneInfo
     et = now.astimezone(ZoneInfo("America/New_York"))
     if et.weekday() >= 5:
         return None
     hm = (et.hour, et.minute)
-    for name, start, end in BURST_WINDOWS_ET:
+    for name, start, end in HOLD_WINDOWS_ET:
         if start <= hm < end:
             return name
     return None
@@ -114,7 +123,14 @@ def freeze_ends_at(now: _dt.datetime, *, in_window_fn=None, burst_fn=None) -> _d
         ends.append(mw.window_bounds(et.date())[1])
     rush = (burst_fn or burst_window)(now)
     if rush:
-        end = next(b for n, _a, b in BURST_WINDOWS_ET if n == rush)
+        end = next(b for n, _a, b in HOLD_WINDOWS_ET if n == rush)
+        # Back-to-back windows are ONE hold: the opening rush ends where the session starts, and the session where
+        # the closing rush starts, so the freeze ends where the last of a contiguous run ends (16:15 ET).
+        while True:
+            nxt = next((b for _n, a, b in HOLD_WINDOWS_ET if a == end), None)
+            if nxt is None:
+                break
+            end = nxt
         ends.append(_dt.datetime(et.year, et.month, et.day, end[0], end[1], tzinfo=et_zone))
     return max(ends).astimezone(_dt.timezone.utc) if ends else None
 
@@ -154,16 +170,17 @@ def decide(now: _dt.datetime, *, override: str = "", message: str = "",
                            f"({type(e).__name__}: {e})")
     if not inside and not rush:
         return EXIT_OPEN, ("NOT FROZEN: outside Wednesday 09:00-11:00 ET and outside the "
-                           "weekday opening/closing rush")
+                           "weekday session hold (09:20-16:15 ET)")
     if inside:
         what = "the Wednesday 09:00-11:00 ET measurement window (TERM-007)"
         cost = "This week's measurement window is void."
         after = "the held run, after its bounded in-job wait (backup: the scheduled runs after 11:00 ET),"
     else:
-        start, end = next((a, b) for n, a, b in BURST_WINDOWS_ET if n == rush)
-        what = (f"the weekday {rush} rush ({start[0]:02d}:{start[1]:02d}-"
+        start, end = next((a, b) for n, a, b in HOLD_WINDOWS_ET if n == rush)
+        label = "regular session" if rush == "session" else f"{rush} rush"
+        what = (f"the weekday {label} ({start[0]:02d}:{start[1]:02d}-"
                 f"{end[0]:02d}:{end[1]:02d} ET)")
-        cost = "The live bars feed reconnects inside the rush."
+        cost = "Chart servers restart during trading (cold caches, the live bars feed reconnects)."
         after = "the held run, after its bounded in-job wait (backup: the scheduled run after the rush),"
     if override.strip():
         return EXIT_OPEN, (f"NOT FROZEN (OVERRIDE): inside {what}, override reason: "
@@ -198,9 +215,11 @@ def self_check() -> int:
     tue = _dt.datetime(2026, 10, 20, 14, 0, tzinfo=utc)
     winter = _dt.datetime(2026, 12, 2, 15, 0, tzinfo=utc)      # 10:00 EST
     case("a Wednesday 10:00 ET is FROZEN", decide(wed_in)[0] == EXIT_FROZEN)
-    case("11:05 ET is not", decide(wed_out)[0] == EXIT_OPEN)
-    case("11:00 ET exactly is not (half-open)", decide(wed_edge)[0] == EXIT_OPEN)
-    case("a plain Tuesday 10:00 ET is not", decide(tue)[0] == EXIT_OPEN)
+    case("Wed 11:05 ET is FROZEN (the session, after the window)", decide(wed_out)[0] == EXIT_FROZEN)
+    case("Wed 11:00 ET exactly is FROZEN (the session)", decide(wed_edge)[0] == EXIT_FROZEN)
+    case("a plain Tuesday 10:00 ET is FROZEN (the regular session)", decide(tue)[0] == EXIT_FROZEN)
+    case("a Tuesday 16:20 ET is not", decide(_dt.datetime(2026, 10, 20, 20, 20, tzinfo=utc))[0] == EXIT_OPEN)
+    case("a Tuesday 09:19 ET is not", decide(_dt.datetime(2026, 10, 20, 13, 19, tzinfo=utc))[0] == EXIT_OPEN)
     case("the one-off window Tue 2026-10-13 10:00 ET is FROZEN",
          decide(_dt.datetime(2026, 10, 13, 14, 0, tzinfo=utc))[0] == EXIT_FROZEN)
     case("winter (EST) 10:00 ET is FROZEN", decide(winter)[0] == EXIT_FROZEN)
@@ -216,10 +235,10 @@ def self_check() -> int:
          decide(_dt.datetime(2026, 10, 15, 19, 30, tzinfo=utc))[0] == EXIT_FROZEN)
     case("16:15 ET exactly is not (half-open end)",
          decide(_dt.datetime(2026, 10, 15, 20, 15, tzinfo=utc))[0] == EXIT_OPEN)
-    case("15:29 ET is not", decide(_dt.datetime(2026, 10, 15, 19, 29, tzinfo=utc))[0] == EXIT_OPEN)
+    case("15:29 ET is FROZEN (the session)", decide(_dt.datetime(2026, 10, 15, 19, 29, tzinfo=utc))[0] == EXIT_FROZEN)
     case("a Monday 09:30 ET (opening rush) is FROZEN",
          decide(_dt.datetime(2026, 10, 19, 13, 30, tzinfo=utc))[0] == EXIT_FROZEN)
-    case("09:45 ET is not", decide(_dt.datetime(2026, 10, 19, 13, 45, tzinfo=utc))[0] == EXIT_OPEN)
+    case("09:45 ET is FROZEN (the session)", decide(_dt.datetime(2026, 10, 19, 13, 45, tzinfo=utc))[0] == EXIT_FROZEN)
     case("winter (EST) 15:55 ET is FROZEN",
          decide(_dt.datetime(2026, 12, 3, 20, 55, tzinfo=utc))[0] == EXIT_FROZEN)
     case("a Saturday 15:55 ET is not",
@@ -230,24 +249,24 @@ def self_check() -> int:
     # the bounded in-job wait (promote catch-up, 2026-11-10)
     held_1031 = _dt.datetime(2026, 11, 10, 14, 31, tzinfo=utc)   # Tue 09:31 EST, inside the opening rush
     s, _ = wait_plan(held_1031)
-    case("09:31 ET (opening rush) waits until 09:45 ET + margin (14 min + 60 s)", s == 14 * 60 + WAIT_MARGIN_S)
-    case("the rush end is 09:45 ET exactly",
-         freeze_ends_at(held_1031) == _dt.datetime(2026, 11, 10, 14, 45, tzinfo=utc))
-    case("after the wait the freeze is OPEN (half-open end)",
-         decide(held_1031 + _dt.timedelta(seconds=s))[0] == EXIT_OPEN)
+    case("09:31 ET (opening rush) does not wait: the hold runs on to 16:15 ET (HOLD for the 16:20 catch-up)", s == 0)
+    case("the opening rush, the session and the closing rush are one hold ending 16:15 ET",
+         freeze_ends_at(held_1031) == _dt.datetime(2026, 11, 10, 21, 15, tzinfo=utc))
+    case("16:15 ET exactly is OPEN (half-open end)",
+         decide(_dt.datetime(2026, 11, 10, 21, 15, tzinfo=utc))[0] == EXIT_OPEN)
     s2, _ = wait_plan(_dt.datetime(2026, 10, 15, 19, 30, tzinfo=utc))   # Thu 15:30 EDT, closing rush start
     case("15:30 ET waits 45 min + margin", s2 == 45 * 60 + WAIT_MARGIN_S)
     case("a 40-min bound does not wait for a 45-min rush (HOLD)",
          wait_plan(_dt.datetime(2026, 10, 15, 19, 30, tzinfo=utc), max_wait_min=40)[0] == 0)
-    case("a Wednesday 10:00 ET waits until 11:00 ET + margin (61 min, within the bound)",
-         wait_plan(wed_in)[0] == 60 * 60 + WAIT_MARGIN_S)
+    case("a Wednesday 10:00 ET does not wait (the session hold outlasts the window: HOLD)",
+         wait_plan(wed_in)[0] == 0)
     case("Wed 09:00 ET exactly waits the whole window (121 min, within the bound)",
          wait_plan(_dt.datetime(2026, 10, 14, 13, 0, tzinfo=utc))[0] == 120 * 60 + WAIT_MARGIN_S)
     case("a 50-min bound does not wait for the Wednesday window (HOLD)", wait_plan(wed_in, max_wait_min=50)[0] == 0)
-    case("a Wednesday 10:30 ET waits until 11:00 ET + margin",
-         wait_plan(_dt.datetime(2026, 10, 14, 14, 30, tzinfo=utc))[0] == 30 * 60 + WAIT_MARGIN_S)
-    case("Wed 09:30 ET (rush inside the window) ends at the LATER end, 11:00 ET",
-         freeze_ends_at(_dt.datetime(2026, 10, 14, 13, 30, tzinfo=utc)) == _dt.datetime(2026, 10, 14, 15, 0, tzinfo=utc))
+    case("a Wednesday 10:30 ET does not wait (HOLD)",
+         wait_plan(_dt.datetime(2026, 10, 14, 14, 30, tzinfo=utc))[0] == 0)
+    case("Wed 09:30 ET (rush inside the window) ends at the LATER end, the session hold's 16:15 ET",
+         freeze_ends_at(_dt.datetime(2026, 10, 14, 13, 30, tzinfo=utc)) == _dt.datetime(2026, 10, 14, 20, 15, tzinfo=utc))
     case("not frozen: no wait", wait_plan(tue)[0] == 0)
     case("an override: no wait", wait_plan(thu_close, override="hotfix")[0] == 0)
     calls = [0]

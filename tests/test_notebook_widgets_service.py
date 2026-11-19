@@ -25,6 +25,13 @@ def _fresh_widget_pool(monkeypatch):
     monkeypatch.setattr(nw, "_WALKS", nw.SingleFlight(nw.WALK_WAITERS))
     from api.services.cache import cache
     cache.delete_prefix("notebook_earnings_prep_window::")
+    # The implied-move cell reads `implied_move.report_move`. By default it has no answer here (no
+    # test may reach a chain read), and the delayed straddle it used to read fails the test if touched.
+    import api.services.earnings_enrichment as _ee
+    import api.services.implied_move as _im
+    monkeypatch.setattr(_im, "report_move", lambda *a, **k: None)
+    monkeypatch.setattr(_ee, "get_implied_move",
+                        lambda *a, **k: pytest.fail("a widget read earnings_enrichment.get_implied_move"))
     yield
     cache.delete_prefix("notebook_earnings_prep_window::")
 
@@ -159,12 +166,12 @@ def test_reporting_rows_carry_implied_move_or_null(monkeypatch):
          "sources": ["positions", "flagged"], "prepNote": None},
     ]
     _patch_reporting(monkeypatch, items, partial=True)
-    import api.services.earnings_enrichment as ee
+    import api.services.implied_move as im
 
-    def fake_move(sym, earnings_date=None, timing=None):
+    def fake_move(sym, report_date=None, *, timing=None, **_kw):
         return {"pct": 6.4} if sym == "NVDA" else None
 
-    monkeypatch.setattr(ee, "get_implied_move", fake_move)
+    monkeypatch.setattr(im, "report_move", fake_move)
     out = nw.build("myNamesReporting", "u1", {}, now=NOW)
     assert out["partial"] is True
     r = {x["symbol"]: x for x in out["rows"]}
@@ -177,12 +184,12 @@ def test_reporting_rows_carry_implied_move_or_null(monkeypatch):
 def test_reporting_implied_move_error_is_null(monkeypatch):
     _patch_reporting(monkeypatch, [{"symbol": "NVDA", "date": "2026-10-21", "daysAway": 1,
                                     "timing": "bmo", "sources": ["watchlist"]}])
-    import api.services.earnings_enrichment as ee
+    import api.services.implied_move as im
 
     def boom(*a, **k):
         raise RuntimeError("vendor down")
 
-    monkeypatch.setattr(ee, "get_implied_move", boom)
+    monkeypatch.setattr(im, "report_move", boom)
     out = nw.build("myNamesReporting", "u1", {}, now=NOW)
     assert out["rows"][0]["impliedMovePct"] is None
 
@@ -216,14 +223,14 @@ def test_slow_implied_move_is_bounded_by_total_budget(monkeypatch):
     items = [{"symbol": s, "date": "2026-10-21", "daysAway": 1, "timing": "bmo",
               "sources": ["watchlist"]} for s in ("AAA", "SLOW", "CCC")]
     _patch_reporting(monkeypatch, items)
-    import api.services.earnings_enrichment as ee
+    import api.services.implied_move as im
 
-    def fake(sym, earnings_date=None, timing=None):
+    def fake(sym, report_date=None, *, timing=None, **_kw):
         if sym == "SLOW":
             time.sleep(2.0)
         return {"pct": 5.0}
 
-    monkeypatch.setattr(ee, "get_implied_move", fake)
+    monkeypatch.setattr(im, "report_move", fake)
     t0 = time.monotonic()
     out = nw.build("myNamesReporting", "u1", {}, now=NOW)
     assert time.monotonic() - t0 < 0.3 + 1.0
@@ -609,7 +616,7 @@ def _patch_card(monkeypatch, closes=(), window=None, move=None, trades=None, ana
     import api.services.bars_sqlite as bs
     monkeypatch.setattr(nw, "_symbol_footprint", lambda u, s: dict(footprint or _NO_FOOTPRINT))
     import api.services.journal_two.earnings_prep as ep
-    import api.services.earnings_enrichment as ee
+    import api.services.implied_move as im
     bars_seen = []
 
     def fake_bars(ticker, tf, max_bars):
@@ -618,8 +625,8 @@ def _patch_card(monkeypatch, closes=(), window=None, move=None, trades=None, ana
 
     monkeypatch.setattr(bs, "get_bars", fake_bars)
     monkeypatch.setattr(ep, "_window", lambda today: (window or {}, {"NVDA": "amc"}, False, "x"))
-    monkeypatch.setattr(ee, "get_implied_move",
-                        lambda sym, d=None, t=None: {"pct": move} if move is not None else None)
+    monkeypatch.setattr(im, "report_move",
+                        lambda sym, d=None, **_kw: {"pct": move} if move is not None else None)
     _patch_pnl(monkeypatch, analytics or _analytics(), trades or [])
     return bars_seen
 
@@ -2142,9 +2149,9 @@ def test_saturated_pool_names_reporting_answers_partial_at_once(monkeypatch):
     import api.services.journal_two.earnings_prep as ep
     from api.services.cache import cache
     cache.set(ep.cache_key_for_window(date(2026, 10, 20)), {"window": {}, "partial": False, "asOf": "x"}, ttl=60)
-    import api.services.earnings_enrichment as ee
+    import api.services.implied_move as im
     calls = []
-    monkeypatch.setattr(ee, "get_implied_move", lambda *a, **k: calls.append(a) or {"pct": 5.0})
+    monkeypatch.setattr(im, "report_move", lambda *a, **k: calls.append(a) or {"pct": 5.0})
     t0 = time.monotonic()
     out = nw.build("myNamesReporting", "u1", {}, now=NOW)
     assert time.monotonic() - t0 < 0.5
@@ -2185,8 +2192,8 @@ def test_a_request_with_more_names_than_its_share_still_gets_every_answer(monkey
     items = [{"symbol": f"S{i:02d}", "date": "2026-10-21", "daysAway": 1, "timing": "bmo",
               "sources": ["watchlist"]} for i in range(12)]
     _patch_reporting(monkeypatch, items)
-    import api.services.earnings_enrichment as ee
-    monkeypatch.setattr(ee, "get_implied_move", lambda *a, **k: {"pct": 2.0})
+    import api.services.implied_move as im
+    monkeypatch.setattr(im, "report_move", lambda *a, **k: {"pct": 2.0})
     out = nw.build("myNamesReporting", "u1", {}, now=NOW)
     assert out["partial"] is False and all(r["impliedMovePct"] == 2.0 for r in out["rows"])
 
@@ -2222,9 +2229,9 @@ def _wait_walks_done(timeout=5.0):
 
 def _card_seams(monkeypatch):
     import api.services.bars_sqlite as bs
-    import api.services.earnings_enrichment as ee
+    import api.services.implied_move as im
     monkeypatch.setattr(bs, "get_bars", lambda ticker, tf, n: [])
-    monkeypatch.setattr(ee, "get_implied_move", lambda sym, d=None, t=None: {"pct": 4.0})
+    monkeypatch.setattr(im, "report_move", lambda sym, d=None, **_kw: {"pct": 4.0})
     _patch_pnl(monkeypatch, _analytics(trade_count=0, days=[]), [])
     _patch_prices(monkeypatch, {})
 
