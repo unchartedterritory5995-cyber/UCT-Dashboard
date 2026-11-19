@@ -4,7 +4,7 @@
 // program showed: whenever the run holds back a family the program draws (or its drawings whole), the
 // program draws instead.
 import { describe, it, expect } from 'vitest'
-import { drawsRunObjectsOn, drawsRuntimeObjects, withRuntimeObjects } from '../runtimeObjects'
+import { drawsRunObjectsOn, drawsRuntimeObjects, withRuntimeObjects, scriptSettingsMoved } from '../runtimeObjects'
 
 const program = { ops: [{ k: 'create', family: 'line', site: 's1' },
   { k: 'loop', body: [{ k: 'create', family: 'linefill', site: 's2' }] }] }
@@ -48,5 +48,38 @@ describe('drawsRunObjectsOn', () => {
 
   it('an empty host program beside the run is no program', () => {
     expect(drawsRunObjectsOn(runOwned({ ops: [] }), cols(ok({ line: 1 })))).toBe(true)
+  })
+})
+
+// ⭐⭐ LF step 1 (coordinator, 2026-11-18): the host program is the author's-settings picture, so a moved setting of
+// the SCRIPT (never a Style knob) sends the instance to the run's picture.
+describe('scriptSettingsMoved / drawsRunObjectsOn(def, cols, inputs)', () => {
+  const stored = {
+    compute: { kind: 'runtime', objects: true },
+    objects: { ops: [{ k: 'create', family: 'line' }] },
+    inputs: [{ key: 'color', type: 'color', default: '#4CAF50' }, { key: 'lineColor', type: 'color', default: '#B2B5BE' },
+      { key: 'len', type: 'int', default: 10 }],
+    plots: [{ key: 'value', color: '$color' }],
+  }
+  const installed = { ...stored, plots: [{ key: 'value', color: '#4CAF50', $refs: { color: 'color' } }] }
+  const heldBack = cols({ status: 'WITHHELD', live: [] })
+
+  it('no inputs, or every setting at its default (colours without case): not moved', () => {
+    expect(scriptSettingsMoved(stored, null)).toBe(false)
+    expect(scriptSettingsMoved(stored, { lineColor: '#b2b5be', len: 10 })).toBe(false)
+    expect(scriptSettingsMoved(stored, {})).toBe(false)
+  })
+  it('a setting of the script moved: moved, in the stored and the installed form', () => {
+    for (const def of [stored, installed]) {
+      expect(scriptSettingsMoved(def, { lineColor: '#FF00FF' })).toBe(true)
+      expect(scriptSettingsMoved(def, { len: 11 })).toBe(true)
+    }
+  })
+  it('a Style knob is not a setting of the script, in either form', () => {
+    for (const def of [stored, installed]) expect(scriptSettingsMoved(def, { color: '#123456' })).toBe(false)
+  })
+  it('the run held back whole: the host program at the author\'s settings, the run\'s picture once a setting moved', () => {
+    expect(drawsRunObjectsOn(installed, heldBack, { color: '#123456' })).toBe(false)
+    expect(drawsRunObjectsOn(installed, heldBack, { lineColor: '#FF00FF' })).toBe(true)
   })
 })

@@ -1316,8 +1316,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // the run's branch: a document whose run draws its objects, or a strategy with no host program
       // ⭐⭐ PARITY UNIT LF — a run-owned document that carries its clean host program beside the run
       // draws that program instead whenever the run holds back a family it draws (`drawsRunObjectsOn`)
+      // (and never once the member has moved one of the script's own settings: the program is the author's)
       const runObjects = drawsRunObjectsOn(def, (runCols ? runCols.get(inst.instanceId) : null)
-        || (computeMemo.get(inst.instanceId) || {}).cols)
+        || (computeMemo.get(inst.instanceId) || {}).cols, inst.inputs)
       if (runObjects || runHalfDraws || (markersHere && !(def && def.objects))) {
         alive.add(inst.instanceId)
         const memo = computeMemo.get(inst.instanceId)

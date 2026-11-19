@@ -2557,7 +2557,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       note: 'Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way '
         + 'TradingView makes them. A kind of drawing whose result is not known exactly is not drawn.'
         + (own.hostFallback === true ? ' Where the run holds back a kind of drawing that the script’s formula '
-          + 'drawing program draws, this chart draws that program’s drawings instead, so nothing it showed is lost.' : '')
+          + 'drawing program draws, this chart draws that program’s drawings instead, so nothing it showed is lost. '
+          + 'That program is drawn at the author’s settings, so once a setting of the script is changed here it is '
+          + 'not drawn, and a kind of drawing the run holds back is named on the chart instead.' : '')
         + (rep ? ` These replace the drawing program this pane would otherwise use, which could not make `
           + `${Number.isInteger(rep.dropped) && Number.isInteger(rep.attempted) ? `${rep.dropped} of its ${rep.attempted}` : 'some of its'} `
           + 'drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that '
