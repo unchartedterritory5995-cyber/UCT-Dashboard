@@ -477,6 +477,38 @@ def _iso_day(t: Any) -> Optional[str]:
     return None
 
 
+#: ⭐⭐ U-HTF-CALENDAR (2026-11-18) -- the port of ``interpret.js::htfClosesOnNextBar`` (that file's comment
+#: carries the measurement, Q-HTF-CAL-1a / 1b), read off the Python twin of TradingView's session facts,
+#: ``tradingview_session.py`` (``TRADINGVIEW_CLOSURES_FROM_YYYYMMDD``, ``TRADINGVIEW_UNAPPLIED_CLOSURES_YYYYMMDD``; the
+#: twins are held equal by ``tests/test_nyse_calendar_parity.py``): a bar that closes its week or month is late when a
+#: later weekday of that period is one TradingView's session never closed.
+
+
+def htf_closes_on_next_bar(iso: Any, code: str) -> bool:
+    """Does the period (``W`` or ``M``) whose last bar is ``iso`` show its close on the NEXT bar?"""
+    if not isinstance(iso, str) or code not in ("W", "M") or not _ISO_DAY.fullmatch(iso):
+        return False
+    # ⛔ NO try (tests/test_ast_budget.py: this module holds none): an impossible day is answered by arithmetic
+    y, m, d = int(iso[:4]), int(iso[5:7]), int(iso[8:10])
+    if not (1 <= y <= 9998 and 1 <= m <= 12):
+        return False
+    if not 1 <= d <= (datetime.date(y + (m == 12), m % 12 + 1, 1) - datetime.timedelta(days=1)).day:
+        return False
+    day = datetime.date(y, m, d)
+    from api.services.tradingview_session import (  # noqa: PLC0415
+        TRADINGVIEW_CLOSURES_FROM_YYYYMMDD, TRADINGVIEW_UNAPPLIED_CLOSURES_YYYYMMDD)
+    key = _tf_bucket(iso, code)
+    for k in range(1, 32):
+        nxt = day + datetime.timedelta(days=k)
+        if _tf_bucket(nxt.isoformat(), code) != key:
+            return False
+        ymd = nxt.year * 10000 + nxt.month * 100 + nxt.day
+        if nxt.weekday() < 5 and (ymd < TRADINGVIEW_CLOSURES_FROM_YYYYMMDD
+                                  or ymd in TRADINGVIEW_UNAPPLIED_CLOSURES_YYYYMMDD):
+            return True
+    return False
+
+
 def _tf_bucket(iso: str, code: str) -> Any:
     """The higher-timeframe bucket an ISO day falls in.
 
@@ -7249,7 +7281,10 @@ def _interpret_column(ast: Any, bars: List[dict],
                     if i + 1 < length and nxt is None:
                         continue
                     if nxt is None or nxt != k:
-                        out[i] = child[b]
+                        # ⭐⭐ U-HTF-CALENDAR (``interpret.js::tfMergeReads``): a period a later weekday of
+                        # which TradingView's session never closed closes on the NEXT bar.
+                        late = nxt is not None and b > 0 and htf_closes_on_next_bar(iso[i], code)
+                        out[i] = child[b - 1] if late else child[b]
                     elif b > 0:
                         out[i] = child[b - 1]
                 elif b > 0:
