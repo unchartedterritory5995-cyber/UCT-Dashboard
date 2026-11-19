@@ -22,7 +22,7 @@ import {
 } from '../../runtimeKill'
 import { memberPaneDefinition, __forceRuntimeLaneForTests } from '../../../builder/memberPane/memberPaneDefinition'
 import { strategyBrokerFlag } from './strategyLane'
-import { storeHolds } from './storeHeld.js'
+import { heldHolds, heldPinsOf, heldReading } from './storeHeld.js'
 import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
 
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
@@ -41,10 +41,12 @@ const fileOf = Object.fromEntries(verdicts.results.map((r) => [r.id, r.file]))
 // committed, so where the store is not loaded (CI) such a case is SKIPPED BY NAME, saying which versions it needs,
 // exactly as a licence-held capture is; with `PINE_LIBRARY_STORE` set to production's store it runs.
 loadPineLibraryStoreFromEnv()
-const pinsOf = Object.fromEntries(verdicts.results.map((r) => [r.id, Array.isArray(r.storeHeld) ? r.storeHeld : []]))
+// ⭐⭐ (2026-11-19) both kinds of held input: a row graded with a local supply record (`supplyHeld`) is skipped by name
+// where that record is not held, exactly as a store-held row is (`./storeHeld.js::heldHolds`)
+const pinsOf = Object.fromEntries(verdicts.results.map((r) => [r.id, heldPinsOf(r)]))
 function itNeedsHeldAndStore(id, name, fn, timeout) {
   const pins = pinsOf[id] || []
-  if (pins.length && !storeHolds(pins)) return it.skip(`${name} [store-held: ${pins.join(', ')}]`, fn, timeout)
+  if (pins.length && !heldHolds(pins)) return it.skip(`${name} [${heldReading(pins)}]`, fn, timeout)
   return itNeedsHeld(fileOf[id] ? [fileOf[id]] : [], name, fn, timeout)
 }
 const evidence = [...new Set(Object.values(registry)

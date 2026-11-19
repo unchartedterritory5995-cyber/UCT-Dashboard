@@ -106,6 +106,15 @@ versions: `TradingView/ta/7` and `RelativeValue/2` were promoted under the runti
     as the 11-17 map's section 1 did (reproduced: the e71 census through this tool gives 275, the 11-17
     figure).
   - An order-placing strategy is never served (the broker is not armed for members).
+- **Served, by what the chart draws (census tools, 2026-11-19).** Served says the door attaches the script;
+  the render sweep (`renderGaps.measure.test.js` over every capture on disk, runtime-on lane, joined by
+  `render_gaps.py`, folded by `coverage_map.py --render-gaps`) says whether every drawing lands. Member-served
+  splits three ways: **servedFully** (a capture was measured and none leaves a drawing off), **servedWithDisclosedGap**
+  (a measured capture leaves drawings off; the member's drawing note discloses them), **servedUnmeasured** (no capture
+  of it was measured). Each gap class is a ranked wall over the served scripts it touches (`renderWalls`, unit
+  `render`): `render:coordinate-unplaced` (a finite x no bar of the chart places), `render:text-withheld:<kind>`
+  (a text the run withheld, `<kind>` the run's own `format:*` name or `unnamed`), `render:drawings-withheld:<guard>`
+  (a family withheld whole by name). The classes sum to memberServed (`tests/test_pine_render_gaps.py`).
 - **Wall.** For a script that is not served, its walls are labels the census already prints:
   - the runtime lane's own walls over every peel step (`runtimeOn.walls.byScript`);
   - if it has none and the host lane attached it dirty (so the runtime lane was never offered it), the
@@ -1527,6 +1536,12 @@ python tools/pine_coverage/parity_roadmap.py check
 | harness, runtime-on | 11 passed; 915 captures: MATCH 314, MATCH_SUBSTITUTED 23, DIVERGE 71, INCONCLUSIVE 507; 13.8 min |
 | engine door | 26 passed, 1 skipped |
 | the map / roadmap | runtime-on 298/679 (runtime-attached 93); `facts` 453 not served host-only; SERVED 286/679; `check` passes; the five rails that read the map and roadmap: 122 passed |
+
+**The render sweep (census tools, 2026-11-19), after the census.** `renderGaps.measure.test.js` over the committed
+captures and the local capture store (runtime-on lane, the same `PINE_LIBRARY_STORE`), `render_gaps.py` to join the
+rows to the sample, and `coverage_map.py ... --render-gaps <json>`; `build` then splits member-served. Commands,
+results and the members of every class: `docs/pine/evidence/2026-11-19-render-gaps/EVIDENCE.md`
+(294 = fully 262 + disclosed gap 12 + unmeasured 12 + diverging 8).
 
 The `--library-store` flag (and the `libraryStore` it records) is what the 11-18 run below did not have.
 Its census linked no library, so every importer of a promoted version read as walled.

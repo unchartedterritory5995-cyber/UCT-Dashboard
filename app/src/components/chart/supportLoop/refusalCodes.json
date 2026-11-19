@@ -182,6 +182,7 @@
   "pine:operator",
   "pine:paint-pane",
   "pine:plot-offset",
+  "pine:plotarrow-not-drawn",
   "pine:presentation-only",
   "pine:prop-unreadable",
   "pine:reassign",

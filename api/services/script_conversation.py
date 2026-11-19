@@ -286,15 +286,29 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
             # (`scriptAnswer.js`): only the window knows which lane draws the script, and the lanes that draw a
             # lone table, box or label are not asked the forming-bar question. Said here, it was said of
             # scripts that are drawn all session (the same evening's own in-session measurement).
-            waits = pine_authoring.waits_for_the_bar(pine)
+            # ⭐ ONE detector run per script answer (2026-11-19): its set answers this and the admission below.
+            caps = pine_authoring.script_capabilities(pine)
+            waits = pine_authoring.waits_for_the_bar(pine, caps=caps)
             trace["script"]["chars"] = len(pine)
             trace["script"]["reference"] = reference
             trace["script"]["waits_for_the_bar"] = waits
             logger.info("[converse:script] a script of %d characters (round %d, %d call(s), reference %s)",
                         len(pine), rnd, attempts, reference or "none")
+            script_out = {"name": name, "pine": pine, "round": rnd, "reference": reference,
+                          "waits_for_the_bar": waits}
+            # ⭐ AND ITS ADMISSION VERDICT, from that same set (`runtime_definitions.admission_verdict`, the
+            # rule the verdict door reads): the window latches it when its sha256 matches the script, so it
+            # never waits on the verdict door's shared budgets for a script this request already checked.
+            # The set goes into this process's LRU only; nothing is stored. ABSENT while capability
+            # admission is off, so that answer is byte for byte what it was.
+            from api.services import runtime_definitions
+            admission = runtime_definitions.script_answer_admission(pine, caps)
+            if admission is not None:
+                script_out["admission"] = admission
+                trace["script"]["admission"] = {"admitted": admission["admitted"],
+                                                "missing": list(admission["missing"])}
             return {"ok": True, "disposition": "answer", "turn": "script", "reply": said,
-                    "script": {"name": name, "pine": pine, "round": rnd, "reference": reference,
-                               "waits_for_the_bar": waits},
+                    "script": script_out,
                     "envelope": {"contract": contract, "baseRevision": revision, "ops": [], "disposition": "answer",
                                  "reply": said},
                     "answered_by": "assistant", "not_understood": [], "unavailable": [], **extra()}

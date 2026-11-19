@@ -225,6 +225,19 @@ function aboveChartRead(target, rows, ctx) {
   const index = new Int32Array(n).fill(-1)
   const withheld = new Float64Array(n)
   const dayOf = sessionDaysOf(rows)
+  // ⭐⭐ RS RATING (2026-11-19, the e85 live capture: RDDT 1h refused at 1711040400, the listing day's second bar) — THE
+  // OWN SERIES' FIRST SESSION ON A CHART THAT STARTS THERE. When this chart's own first bar is on the first session its
+  // own daily rows hold, the symbol has no earlier day: before that session's close a look-ahead-off read has no
+  // confirmed day to read, so it is na BY HISTORY (known), not unknown. TradingView's witness (RDDT 60, startsAtBar0)
+  // draws Fred RS from that bar. ⛔ Only that session, only for the chart's OWN symbol, only when the chart starts on it,
+  // and ONLY when that first held row IS the symbol's FIRST TRADE (`ctx.symbol.firstTradeDate`, the app's
+  // `/api/ticker-ipo` answer, final only): a store's first row is not a listing. MEASURED 2026-11-19 (smoke@ GETs):
+  // /api/bars/IBM?tf=D serves from 1962-01-02 (IBM listed 1949-01-28) and KO from 1976-12-14; RDDT from 2024-03-21 =
+  // its first_trade_date. A series cut short by the asked depth or by the store is unknown before its first row
+  // (rsIntradayDaily's "a bar before the held daily rows is unknown"); a missing row inside history still withholds.
+  const firstTrade = ctx && ctx.symbol && typeof ctx.symbol.firstTradeDate === 'string' ? ctx.symbol.firstTradeDate : null
+  const firstSessionNa = ownRead && firstTrade !== null && days.length > 0 && days[0] === firstTrade
+    && dayOf.find(Boolean) === days[0]
   for (let i = 0; i < n; i += 1) {
     const d = dayOf[i]
     if (!d) { withheld[i] = 1; continue }
@@ -232,6 +245,7 @@ function aboveChartRead(target, rows, ctx) {
     if (ownRead) {
       const lastOfDay = i === n - 1 || dayOf[i + 1] !== d
       j = lastOfDay && at.has(d) ? at.get(d) : before(d)
+      if (j < 0 && firstSessionNa && d === days[0]) continue   // na by history, never withheld
     } else {
       const close = isTradingDay(d) ? sessionCloseOf(d) : null
       const ownDone = close !== null && rows[i].t >= close && at.has(d) && !(forming && at.get(d) === daily.length - 1)

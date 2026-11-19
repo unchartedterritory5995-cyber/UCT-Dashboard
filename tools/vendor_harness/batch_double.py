@@ -162,12 +162,16 @@ class RecordingTVPage:
     """
 
     def __init__(self, behaviours=None, stays_bound=(), symbol="NASDAQ:AAPL", resolution="5",
-                 studies=None, signed_in=True, visible=True, autosave=None, persisted=None):
+                 studies=None, signed_in=True, visible=True, autosave=None, persisted=None, attach_delay_s=0.0):
         # ⭐ THE LAYOUT'S PERSISTED COPY, what a fresh load reads (`reload`). None: a fresh load reads the page as
         # it is. autosave="tradingview": the MEASURED rig (2026-11-18): an editor add saves the layout as it is
         # then; a widget-API removal or resolution change is never saved.
         self.autosave = autosave
         self.persisted = json.loads(json.dumps(persisted)) if persisted is not None else None
+        # ⭐ A SLOW ATTACH (2026-11-19, htfform-c): after a fresh load the chart handle answers at once, with 0 studies,
+        # and the layout's saved studies attach `attach_delay_s` (virtual) seconds later. 0: they are there at once.
+        self.attach_delay_s = float(attach_delay_s)
+        self.attach_at = None
         self.behaviours = behaviours or {}
         self.stays_bound = set(stays_bound)
         self.symbol, self.resolution = symbol, resolution
@@ -246,6 +250,7 @@ class RecordingTVPage:
         if self.persisted is not None:
             self.studies = json.loads(json.dumps(self.persisted["studies"]))
             self.symbol, self.resolution = self.persisted["symbol"], self.persisted["resolution"]
+        self.attach_at = self.t + self.attach_delay_s if self.attach_delay_s > 0 else None
 
     def _pointer(self, kind, x, y):
         self._check_alive()
@@ -286,9 +291,11 @@ class RecordingTVPage:
         return {"signedOut": [], "signedIn": ["header-user-menu-toggle"], "ambiguous": [], "title": "rig"}
 
     def _state(self, _):
+        attached = self.attach_at is None or self.t >= self.attach_at     # a slow attach: 0 studies until then
         return {"handle": "TradingViewApi", "vis": "visible" if self.visible else "hidden",
                 "symbol": self.symbol, "resolution": self.resolution,
-                "studies": [{"id": s["id"], "name": s["name"]} for s in self.studies], "panes": list(self.panes)}
+                "studies": [{"id": s["id"], "name": s["name"]} for s in self.studies] if attached else [],
+                "panes": list(self.panes)}
 
     def _set_symbol(self, s):
         self.symbol = s
