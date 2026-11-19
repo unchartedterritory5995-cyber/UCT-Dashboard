@@ -169,3 +169,7 @@
 .sheet .prim, .sheet .pill, .sheet .quiet, .sheet .white { min-height: 36px; }
 .sheet .inp, .sheet .find { min-height: 40px; }
 .sheet .sub { background: var(--bg-elevated); border-color: var(--border-accent); }
+
+/* Column names never cut off (owner 2026-11-19): the menu is wide enough for the
+   longest names, and anything longer wraps to a second line instead of an ellipsis. */
+.wrap { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; padding-block: 3px; }

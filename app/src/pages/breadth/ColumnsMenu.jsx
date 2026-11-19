@@ -22,7 +22,7 @@ import { COLUMN_INFO } from './columnInfo'
 import { DEFAULT_PRESET, NAME_MAX, templateLabel, validatePresetName } from './useBreadthCustomize'
 import s from './ColumnsMenu.module.css'
 
-const WIDTH = 328
+const WIDTH = 384
 const ADD = '+add'  // the "+ Save current as template…" row's focus id
 
 // "Primary Breadth" → "Primary breadth"; short all-caps words (MA, A-D) stay.
@@ -344,7 +344,7 @@ export default function ColumnsMenu({
                         aria-description={info?.desc}
                         onClick={() => toggleHidden(c.key)}>
                         <span className={`${s.sq}${on ? ' ' + s.sqOn : ''}`} aria-hidden="true">{on ? '✓' : ''}</span>
-                        <span className={s.name}>{info?.name ?? c.label}</span>
+                        <span className={`${s.name} ${s.wrap}`}>{info?.name ?? c.label}</span>
                         <span className={s.right}>
                           {tag ? <span className={s.tag} title={tag.title}>{tag.label}</span> : <span className={s.short}>{c.label}</span>}
                         </span>
