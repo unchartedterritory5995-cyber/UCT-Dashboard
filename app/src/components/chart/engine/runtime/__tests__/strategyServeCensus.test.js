@@ -121,7 +121,7 @@ const scripts = fs.readdirSync(CORPUS).filter((f) => f.endsWith('.pine')).sort()
 let bars
 let dailyBars
 let ctx
-const results = { granted: [], production: [], grantedDaily: [], grantedInSession: [] }
+const results = { granted: [], production: [], grantedDaily: [], grantedInSession: [], grantedUnknown: [] }
 
 function runAll(mode, onBars = bars, onCtx = null) {
   const out = []
@@ -156,6 +156,8 @@ beforeAll(() => {
   results.grantedDaily = runAll('granted', dailyBars)
   // ⭐ (2026-11-18 live check) the member's chart IN SESSION: the same daily bars, the newest one still forming
   results.grantedInSession = runAll('granted', dailyBars, { ...ctx, newestBarIsForming: true })
+  // ⭐ (2026-11-18 post-close check) the chart that LOST the route's flag: the same closed bars, the newest UNKNOWN
+  results.grantedUnknown = runAll('granted', dailyBars, { ...ctx, newestBarIsForming: null })
 }, 600000)
 afterAll(() => { vi.unstubAllGlobals() })
 
@@ -253,6 +255,34 @@ describe('the serve census over corpus/committed, broker gate on', () => {
     }
     // CONTROL: the same bars CLOSED serve them, so the forming bar alone moves them
     expect(results.grantedDaily.filter((r) => r.state === 'served').map((r) => r.key).sort()).toEqual([...ARMED_COMMITTED])
+  })
+
+  // ⭐⭐ (2026-11-18, the post-close production check) — AFTER THE CLOSE THE REPORT IS AS OF THE NEWEST BAR. The route
+  // says the newest daily bar is closed (`newest_bar_is_forming: false` from 21:00Z); a chart that hands its run that
+  // flag gets a backtest as of that bar. A chart that LOST it hands "unknown", and a run fails closed: it reads the
+  // newest bar as forming and leaves it out. Before engine 80 that was a refusal by name ([B-EXEC], the 22:05Z check
+  // on RDDT 1D); from engine 80 it is a backtest ONE BAR STALE, served in silence. The as-of is what tells them
+  // apart, so it is held here: the closed chart's report is as of its newest bar, and the unknown chart's is the bar
+  // before it (the stale picture the chart must never keep once the flag lands: `binderFormingFlagLands.test.js`).
+  it('after the close the report is as of the NEWEST bar; a chart that lost the flag is one bar stale', () => {
+    const newest = dailyBars[dailyBars.length - 1].t
+    const before = dailyBars[dailyBars.length - 2].t
+    const asDay = (t) => (typeof t === 'string' ? t.slice(0, 10) : new Date(t * 1000).toISOString().slice(0, 10))
+    const closed = results.grantedDaily.filter((r) => r.state === 'served')
+    expect(closed.map((r) => r.key).sort()).toEqual([...ARMED_COMMITTED])
+    for (const r of closed) expect(asDay(r.asOf), r.key).toBe(asDay(newest))
+    const unknown = results.grantedUnknown
+    expect(thirds(unknown)).toEqual([])
+    for (const k of ARMED_COMMITTED) {
+      const r = unknown.find((x) => x.key === k)
+      // served exactly when [B-EXEC] is pinned (as in session), and then one bar stale
+      if (pinned('B-EXEC')) {
+        expect(r.state, k).toBe('served')
+        expect(asDay(r.asOf), k).toBe(asDay(before))
+      } else {
+        expect(r, k).toMatchObject({ state: 'refused', guard: 'runtime:strategy-unpinned', rule: 'B-EXEC' })
+      }
+    }
   })
 
   it('granted admission on a member\'s DAILY bars (ISO date keys): the same strategies served, with the same trades', () => {

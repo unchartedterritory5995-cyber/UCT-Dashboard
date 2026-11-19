@@ -123,6 +123,18 @@ export function legacyDevelopingOf(snapshot, tf = tfOfSnapshot(snapshot, null)) 
   return legacyDeveloping(snapshot, tf, legacySealed(snapshot, tf))
 }
 
+/** ⭐⭐ (2026-11-18) The route's `newest_bar_is_forming` for the snapshot's NEWEST row (the one `legacyBars` ends
+ *  with), or null (UNKNOWN) when no answer stated one or the last statement is about another bar (a newer
+ *  developing bar the live feed opened, an older answer). It is what the legacy source hands the chart
+ *  (`data.newest_bar_is_forming`): the tri-state rides with the bar it describes, never with the wall clock. */
+export function newestBarIsFormingOf(snapshot) {
+  const f = snapshot && snapshot.newestForming
+  if (!f || typeof f.forming !== 'boolean') return null
+  const bars = snapshot.bars || []
+  const newestT = legacyDevelopingOf(snapshot) ? snapshot.developing.t : (bars.length ? bars[bars.length - 1].t : null)
+  return newestT === f.t ? f.forming : null
+}
+
 const _legacyBarsMemo = new WeakMap()
 /** Today's downstream `bars` array for a snapshot: sealed + developing appended, legacy
  *  shape. Memoized per (frozen, identity-stable) snapshot, so indicators / drawings /
