@@ -30,6 +30,7 @@ from functools import lru_cache
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from api.services import indicator_support
+from api.services import pine_capabilities
 
 REFERENCE_PATH = indicator_support.ALLOWLIST_PATH.parent / "assistantPineReference.json"
 
@@ -91,6 +92,18 @@ NOT_FOR_THE_ASSISTANT: Dict[str, str] = {
     "request-other": ("admitted for closed-bar history only: a script that requests another timeframe or symbol is "
                       "refused while the chart's newest bar is forming, so it is not offered until a forming bar is graded"),
 }
+
+#: ⭐ AND ONE OPEN FAMILY, named once, never one entry per id: `library:Author/Library/N` (U15, the libraries
+#: chain), one capability per published library version a member's script imports
+#: (`pine_capabilities.is_library_capability`, the detector's own reader). The assistant writes one
+#: self-contained indicator and never an `import` line, so no admitted library version is offered to it.
+NOT_FOR_THE_ASSISTANT_LIBRARIES = ("an admitted library version serves a member's own pasted script that imports "
+                                   "it; the assistant writes one self-contained indicator and never an `import` line")
+
+
+def not_offered(cap: str) -> bool:
+    """Admitted by the engine and deliberately not offered to the assistant: a named id, or a library version."""
+    return cap in NOT_FOR_THE_ASSISTANT or pine_capabilities.is_library_capability(cap)
 
 #: ⭐ ONE SENTENCE PER PITFALL, keyed by the generator's pitfall id (`PITFALL_PROBES`). Printed only
 #: while the reference says that pitfall still STANDS (its probe did not run fully).
