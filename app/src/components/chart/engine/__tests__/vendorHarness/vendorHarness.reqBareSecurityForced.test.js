@@ -23,6 +23,7 @@ import { __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
 import { __forceRuntimeLaneForTests } from '../../../builder/memberPane/memberPaneDefinition'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { TF_MERGE_NEWEST_CODE } from '../../ast/interpret'
 
 const H = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const CAPS = ['support-and-resistance-multi-time-frame-rddt-1d-2026-10-02.json',
@@ -58,7 +59,10 @@ describe('⭐⭐ SR-MTF on the runtime lane, FORCED: every plot MATCHES TradingV
         expect(plots.length).toBe(6)
         for (const p of plots) {
           expect(p.verdict, `${p.title}: ${p.reason}`).toBe('MATCH')
-          // every bar compared but the warm-up both sides leave blank and a newest bar withheld by name
+          // every bar compared but the warm-up both sides leave blank and the newest bar, which the run withholds
+          // on EVERY plot by name (its monthly read cannot know that bar yet: RS RATING L5's run-wide rule)
+          expect(p.withheldNewest, p.title).toBe(TF_MERGE_NEWEST_CODE)
+          expect(p.stats.oursUnread, p.title).toBe(1)
           expect(p.stats.steady.compared, p.title).toBeGreaterThan(capture.bars.rows.length - 60)
         }
       } finally { __forceRuntimeLaneForTests(false) }
