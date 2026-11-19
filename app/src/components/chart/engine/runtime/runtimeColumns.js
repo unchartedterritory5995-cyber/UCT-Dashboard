@@ -2380,8 +2380,8 @@ registerObjectRuntimeValues(runtimeObjectValues)
 
 /** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — does `source`, built for a `tf` chart as the run builds it, read THIS chart's
  *  own symbol at "D" above the chart (a request target `{own, above}`, `pine.js`)? The chart fetches its daily
- *  rows only then (`useSecondarySources`, `OWN_DAILY_KEY`). Memoised per (timeframe, source); a build that fails
- *  answers false (the run refuses it by name on its own). Only an intraday timeframe can say yes: `pine.js` mints
+ *  rows only then (`useSecondarySources`, `OWN_DAILY_KEY`). Memoised per (timeframe, symbol, source). Only an
+ *  intraday timeframe can say yes: `pine.js` mints
  *  the target on an intraday base only (`isIntradayTf`), and the same predicate is checked FIRST here so a daily /
  *  weekly / monthly chart never compiles for this question. ⛔ It is a cost guard, equal in behaviour to the mint's
  *  own gate (no rail can tell them apart, the mutation proof found): derive it, never restate the timeframe list.
@@ -2390,7 +2390,11 @@ registerObjectRuntimeValues(runtimeObjectValues)
  *  `interpret:bind-time-text`), so this answered false, the chart never fetched `OWN_DAILY_KEY`, and the served
  *  run refused every 5m / 30m / 1h chart: "this run is not handed that symbol's daily bars" (the worker request
  *  carried SPX, SPX@D and the seed only). A symbol the chart has not resolved yet settles nothing, exactly as
- *  the run's own build. Memoised per (timeframe, symbol, source): the classification is in the key. */
+ *  the run's own build. Memoised per (timeframe, symbol, source): the classification is in the key.
+ *  ⛔⛔ A PREDICATE THAT CANNOT ANSWER NEVER SAYS NO. A build that is refused (or throws) answers NEEDED: the
+ *  e83 failure was exactly a refused build read as "not needed". Fetching `OWN_DAILY_KEY` is one bars read; the
+ *  run then decides, and refuses by name if it must. Only a build that SUCCEEDS and names no own daily read
+ *  above the chart answers no. */
 const _ownDailyMemo = new Map()
 export function runtimeReadsOwnDaily(source, tf, symbol = null) {
   const t = tf == null ? '' : String(tf)
@@ -2398,17 +2402,19 @@ export function runtimeReadsOwnDaily(source, tf, symbol = null) {
   const sym = symbolOf({ symbol })
   const k = `${t}|${symbolKey(sym)}|${source}`
   if (_ownDailyMemo.has(k)) return _ownDailyMemo.get(k)
-  let yes = false
+  let yes = true
   try {
     const built = buildRuntimeIr(source, {
       bars: [], inputs: {}, objectsInRun: true, pane: true, plotColours: true, basePeriod: t, tf: t,
       ...(sym ? { symbol: sym } : {}),
       ...runtimeClockOpts(false, { tf: t }),
     })
-    yes = !!(built && built.ok && ((built.ir && built.ir.requests) || [])
-      .some((r) => r && r.target && r.target.own === true && r.target.above === true))
+    if (built && built.ok) {
+      yes = ((built.ir && built.ir.requests) || [])
+        .some((r) => r && r.target && r.target.own === true && r.target.above === true)
+    }
   } catch (err) {
-    yes = false
+    yes = true
   }
   if (_ownDailyMemo.size >= 64) _ownDailyMemo.clear()
   _ownDailyMemo.set(k, yes)

@@ -140,14 +140,19 @@ async function chartEntries(tf, rows, symbolMeta) {
 const ctxOf = (tf, secondary, symbol = RDDT) => ({ tf, newestBarIsForming: false, historyFromListing: false, symbol, secondary,
   exchangeOf: (t) => (t === 'SPX' ? 'SP' : null) })
 
+// a binding the chart holds before (or without) the store's classification: no industry, no sector
+const RDDT_BARE = Object.freeze({ ticker: 'RDDT', exchange: 'NYSE' })
+const pine = (lines) => ['//@version=5', 'indicator("t", overlay = false)', ...lines].join('\n')
+// reads NO own daily row, and branches on a classification field: its build is refused when the binding lacks it
+const SECTOR_BRANCH = pine(['x = 1.0', "if (syminfo.sector == 'Technology')", '    x := 2.0', 'plot(x)'])
+
 describe('the own-daily question is asked with the chart\'s symbol binding (the captured cause)', () => {
-  it('⚰️ without a symbol, Fred RS\'s build refuses at `syminfo.industry`, so the question read "no" (the e83 shape)', () => {
+  it('⚰️ without a symbol, Fred RS\'s build refuses at `syminfo.industry` (what the e83 predicate read as "no")', () => {
     const built = buildRuntimeIr(RS, { bars: [], inputs: {}, objectsInRun: true, pane: true, plotColours: true, basePeriod: '5',
       tf: '5', ...runtimeClockOpts(false, { tf: '5' }) })
     expect(built.ok).toBe(false)
     expect(built.refusal.guard).toBe('interpret:bind-time-text')
     expect(built.refusal.message).toMatch(/syminfo\.industry/)
-    expect(runtimeReadsOwnDaily(RS, '5')).toBe(false)
   })
   it('with RDDT\'s binding: yes on every intraday chart, no on D / W / M (read on the chart\'s own timeframe or below)', () => {
     for (const tf of ['1', '5', '15', '30', '60']) expect(runtimeReadsOwnDaily(RS, tf, RDDT), tf).toBe(true)
@@ -156,7 +161,29 @@ describe('the own-daily question is asked with the chart\'s symbol binding (the 
   it('ownDailyNeeded on the REAL installed definition (the shape the chart\'s registry hands the hook)', () => {
     expect(def.compute.runtimeObjects && def.compute.runtimeObjects.source, 'the run half is minted').toBe(RS)
     expect(ownDailyNeeded(INSTANCES(), registry.getDefinition, '5', RDDT)).toBe(true)
-    expect(ownDailyNeeded(INSTANCES(), registry.getDefinition, '5', null)).toBe(false)   // CONTROL: the e83 answer
+  })
+})
+
+describe('⛔⛔ A PREDICATE THAT CANNOT ANSWER NEVER SAYS NO (the class behind the e83 failure)', () => {
+  it('a REFUSED build answers NEEDED, whatever refused it; only a build that succeeds and reads no own row says no', () => {
+    // the e83 case itself: Fred RS with no binding, or with one that has no industry yet
+    expect(runtimeReadsOwnDaily(RS, '5')).toBe(true)
+    expect(runtimeReadsOwnDaily(RS, '5', RDDT_BARE)).toBe(true)
+    // an UNRELATED refusal (a script that reads no own row, refused at `syminfo.sector`) is still not a "no"
+    const refused = buildRuntimeIr(SECTOR_BRANCH, { bars: [], inputs: {}, objectsInRun: true, pane: true, plotColours: true,
+      basePeriod: '5', tf: '5', symbol: { ...RDDT_BARE }, ...runtimeClockOpts(false, { tf: '5' }) })
+    expect(refused.ok, 'the control build is refused').toBe(false)
+    expect(runtimeReadsOwnDaily(SECTOR_BRANCH, '5', RDDT_BARE)).toBe(true)
+    // CONTROL: the same script, built (its sector settled), reads no own row: the predicate still discriminates
+    expect(runtimeReadsOwnDaily(SECTOR_BRANCH, '5', { ...RDDT_BARE, sector: 'Communication Services' })).toBe(false)
+    expect(runtimeReadsOwnDaily(pine(['plot(close)']), '5', RDDT)).toBe(false)
+    // and no timeframe the read cannot be served on is opened by a refusal
+    expect(runtimeReadsOwnDaily(SECTOR_BRANCH, 'D', RDDT_BARE)).toBe(false)
+  })
+  it('the chart\'s hook fetches OWN_DAILY_KEY for Fred RS while the binding is still missing a field', async () => {
+    const map = await chartEntries('5', chartOf('5'), RDDT_BARE)
+    expect([...map.keys()]).toContain(OWN_DAILY_KEY)
+    expect(ownDailyNeeded(INSTANCES(), registry.getDefinition, '5', null)).toBe(true)
   })
 })
 
@@ -164,10 +191,6 @@ describe('the product path: the chart\'s hook assembles the entries, the REAL wo
   for (const tf of ['5', '30', '60']) {
     it(`${tf}: OWN_DAILY_KEY is handed to the worker and the run half SERVES (was: refused, not handed the daily rows)`, async () => {
       const rows = chartOf(tf)
-      // ⛔ CONTROL: the hook without the binding assembles exactly the e83 live request's keys
-      const e83 = await chartEntries(tf, rows, null)
-      expect([...e83.keys()].sort()).toEqual(['SPX', 'SPX@D', SEED].sort())
-      clearSecondaryBars()
       const map = await chartEntries(tf, rows, RDDT)
       expect([...map.keys()].sort()).toEqual([OWN_DAILY_KEY, 'SPX', 'SPX@D', SEED].sort())
       setRuntimeRunner(workerRunner(await realWorkerFactory()))
