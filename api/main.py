@@ -9011,9 +9011,10 @@ async def lifespan(app: FastAPI):
         # Burst windows (every 2 min) cover the high-value pre-market and
         # post-close trading hours; regular cadence handles mid-day; slow
         # hourly job is a safety net (since_id makes overlap free).
+        _tw_poll_on = False
         if os.environ.get("TWITTERAPI_IO_ENABLED", "").lower() in ("1", "true", "yes"):
+            _tw_poll_on = True
             from api.services.tweet_poller import poll_all_accounts as _tw_poll
-            from api.services.tweet_cleanup import run_cleanup as _tw_cleanup
 
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(day_of_week="mon-fri", hour="4-9", minute="*/2", timezone=_ET),
                                id="tweet_poll_burst_premarket", max_instances=1, replace_existing=True)
@@ -9032,6 +9033,13 @@ async def lifespan(app: FastAPI):
             # makes duplicate fetches free.
             _scheduler.add_job(_tw_poll, trigger=CronTrigger(minute="0", timezone=_ET),
                                id="tweet_poll_slow", max_instances=1, replace_existing=True)
+        # THE EXPIRY JOBS ARE NOT PART OF THE POLLER. They used to be registered inside the `if`
+        # above, so switching the poller off also switched off the 7-day expiry and the check for
+        # posts removed at the source: what was already stored would then have been kept and
+        # served with nothing ever clearing it. Stored posts expire whether or not new ones are
+        # being fetched. `run_cleanup` never raises and does nothing on an empty store.
+        try:
+            from api.services.tweet_cleanup import run_cleanup as _tw_cleanup
             _scheduler.add_job(_tw_cleanup, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                                id="tweet_cleanup_daily", max_instances=1, replace_existing=True)
             # Saved Notebook posts that left X: two checks at least 10 minutes apart. Each job
@@ -9041,7 +9049,12 @@ async def lifespan(app: FastAPI):
                                id="notebook_tweet_capture_sweep", max_instances=1, replace_existing=True)
             _scheduler.add_job(_tw_capture_sync.run_confirm, trigger=CronTrigger(hour=3, minute=25, timezone=_ET),
                                id="notebook_tweet_capture_confirm", max_instances=1, replace_existing=True)
+        except Exception as e:
+            print(f"[scheduler] tweet expiry job registration error: {e}")
+        if _tw_poll_on:
             print("[scheduler] tweet poll jobs registered")
+        else:
+            print("[scheduler] tweet expiry jobs registered (the poller is off)")
 
         # -- The Desk -> Substack articles poller -------------------------------
         # Pulls each configured Substack RSS feed hourly. Free (no API cost), so
