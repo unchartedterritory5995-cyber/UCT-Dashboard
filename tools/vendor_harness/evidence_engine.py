@@ -302,10 +302,14 @@ class World:
                         continue
                     sym = c.get("symbol") or {}
                     cid = c.get("id") or f.stem
+                    # ⭐⭐ (2026-11-19) does it record WHERE its objects sit: the x table (`objects.xIndex`), or an
+                    # xmap sidecar beside it (`<dir>/../xmap/<id>.json`, `harness.js::loadCapture`)?
+                    xi = (c.get("objects") or {}).get("xIndex") or {}
+                    x_table = bool(isinstance(xi, dict) and xi.get("found")) or (f.parent.parent / "xmap" / f"{cid}.json").is_file()
                     out.append({"id": cid, "file": rel(f),
                                 "sha": (c.get("source") or {}).get("sha256"),
                                 "symbol": (sym.get("pro_name") or sym.get("full_name") or sym.get("name") or "").upper(),
-                                "tf": norm_tf(c.get("timeframe")), "phase": el.capture_phase(cid)})
+                                "tf": norm_tf(c.get("timeframe")), "phase": el.capture_phase(cid), "xTable": x_table})
             self._fixtures = out
         return self._fixtures
 
@@ -622,6 +626,30 @@ def row_needs_live(header, cells, rtext: str, where: str) -> bool:
     return bool(LIVE_RX.search(NOT_LIVE_RX.sub(" ", rtext)))
 
 
+#: ⭐⭐ THE ONE x-TABLE MARKER (coordinator ruling 2026-11-19). A row whose table has an `x table` column with `yes` asks
+#: for a capture that records WHERE its objects sit (`objects.xIndex`, or an xmap sidecar): a capture without one never
+#: answers it (`fixture_status`), whatever else matches. ⚰️ htf-candle-footprint-cartel-console's committed captures
+#: predate the x table, so a row asking for its boxes' bars read CAPTURED and would never have been asked again.
+#: Anything but yes / no (or blank) refuses the queue by name.
+X_TABLE_HEAD = "x table"
+
+
+class XTableMarkerError(ValueError):
+    """An `x table` column cell the queue cannot read as yes or no."""
+
+
+def row_needs_x_table(header, cells, where: str) -> bool:
+    col = next((i for i, h in enumerate(header) if h == X_TABLE_HEAD), None)
+    if col is None:
+        return False
+    v = clean_cell(cells[col]).lower() if col < len(cells) else ""
+    if v in LIVE_YES:
+        return True
+    if v in LIVE_NO:
+        return False
+    raise XTableMarkerError(f"{where}: an `x table` cell must be one of {sorted(LIVE_YES | LIVE_NO)}, not {v!r}")
+
+
 #: ⭐ THE ONE PHASE COLUMN (coordinator, 2026-11-19). A table may carry a `phase` column: each cell is one of
 #: `evidence_ledger.CAPTURE_PHASES` (the session state the capture is taken in), or blank / `-` for an unphased row.
 #: Anything else refuses the queue (`PhaseError`). A phased row is its own target (`build_queue`) and its own capture
@@ -798,6 +826,7 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
                 "unparsedCharts": unparsed,
                 "fromListing": listing,
                 "needsLive": row_needs_live(header, cells, rtext, f"{path.name}:{line_no} ({rid!r})"),
+                "needsXTable": row_needs_x_table(header, cells, f"{path.name}:{line_no} ({rid!r})"),
                 "phase": row_phase(header, cells, f"{path.name}:{line_no} ({rid!r})"),
                 "needsProbe": needs_probe,
                 "guards": sorted(set(GUARD_RX.findall(rtext))),
@@ -827,15 +856,17 @@ def licence_of(world: World, kind: str, path: pathlib.Path) -> str:
         return "held"
 
 
-def fixture_status(world: World, path, sha: str, symbol: str, tf: str, phase=None):
+def fixture_status(world: World, path, sha: str, symbol: str, tf: str, phase=None, needs_x_table=False):
     """⛔ BY PHASE TOO: a phased target is answered only by a capture whose id carries THAT phase, an unphased
-    target only by an unphased capture (an in-session capture does not answer a question asked after the close)."""
+    target only by an unphased capture (an in-session capture does not answer a question asked after the close).
+    ⛔ AND BY x TABLE (`X_TABLE_HEAD`): a target a row asks the x table of is answered only by a capture that records
+    one; the local ledger cannot say so, so it never answers such a target."""
     t = norm_tf(tf)
     exact = [f for f in world.fixture_index if f["sha"] == sha and f["symbol"] == symbol.upper() and f["tf"] == t
-             and f["phase"] == phase]
+             and f["phase"] == phase and (not needs_x_table or f.get("xTable"))]
     if exact:
         return "CAPTURED", [f["file"] for f in exact]
-    for r in world.ledger:
+    for r in ([] if needs_x_table else world.ledger):
         has_verdict = r.get("verdict") or any(isinstance(v, dict) and v.get("verdict")
                                               for v in (r.get("verdicts") or {}).values())
         if r.get("sourceSha256") == sha and str(r.get("symbol", "")).upper() == symbol.upper() \
@@ -870,7 +901,7 @@ def build_queue(world: World | None = None) -> dict:
                 "id": tid, "path": path, "source": rel(path), "sourceKind": kind, "sha256": sha, "bytes": len(raw),
                 "stem": path.stem, "symbol": symbol, "tf": rig_tf(tf), "phase": phase, "fromListing": False,
                 "licence": licence_of(world, kind, path), "rows": [], "origins": [],
-                "needsLive": False, "guards": set(), "named": set(), "direct": set(), "stated": [],
+                "needsLive": False, "needsXTable": False, "guards": set(), "named": set(), "direct": set(), "stated": [],
                 "docWaves": set(), "docDates": set(), "chartSources": set(), "unparsed": set(),
             }
         t["fromListing"] = t["fromListing"] or listing
@@ -899,6 +930,7 @@ def build_queue(world: World | None = None) -> dict:
                     t["rows"].append(r["key"])
                     t["unparsed"].update(r["unparsedCharts"])
                     t["needsLive"] = t["needsLive"] or r["needsLive"]
+                    t["needsXTable"] = t["needsXTable"] or r.get("needsXTable", False)
                     t["guards"].update(r["guards"])
                     t["named"].update(f"committed:{x}" for x in r["namedScripts"])
                     if s["kind"] == "corpus":
@@ -937,7 +969,7 @@ def build_queue(world: World | None = None) -> dict:
         by_sha[f["sha"]].add(f"{f['symbol']} {f['tf']}")
     out_targets = []
     for t in targets.values():
-        st, ev = fixture_status(world, t["path"], t["sha256"], t["symbol"], t["tf"], t["phase"])
+        st, ev = fixture_status(world, t["path"], t["sha256"], t["symbol"], t["tf"], t["phase"], t["needsXTable"])
         chart_source = min(t["chartSources"], key=CHART_RANK.__getitem__)
         chart_defaulted = chart_source == "default"     # no row, section, preamble or pool named this chart
         # ⛔ THE CHART GUARD: a target whose chart nobody named is NEEDS_CHART whatever is on disk for the
@@ -958,6 +990,7 @@ def build_queue(world: World | None = None) -> dict:
             "chartDefaulted": chart_defaulted, "chartSource": chart_source, "unparsedCharts": sorted(t["unparsed"]),
             "capturedOn": sorted(by_sha.get(t["sha256"], ())),
             "licence": t["licence"], "needsLive": t["needsLive"],
+            **({"needsXTable": True} if t["needsXTable"] else {}),
             "priority": u["priority"], "unblocks": u,
             "statedUnblocks": max(t["stated"]) if t["stated"] else None,
             "guards": sorted(t["guards"]), "planWave": plan_wave(t["guards"], t["direct"], bucket),

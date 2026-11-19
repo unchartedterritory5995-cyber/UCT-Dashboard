@@ -101,13 +101,26 @@ def _first_diverging(r: dict) -> tuple:
     return "drawn", str(r.get("reason"))
 
 
+#: ⭐⭐ (coordinator ruling 2026-11-19) the grade of a DISCLOSED PARTIAL whose drawn records agree on every field the
+#: capture holds, but whose PLACE (x) no capture witnessed (it predates the x table): `compare.mjs`
+#: `OBJECTS_PARTIAL_UNPOSITIONED_GUARD`. Never a lift: a withhold is never lifted on a field no capture witnessed.
+UNPOSITIONED = "objects:partial-unpositioned"
+
+
+def _unpositioned(r: dict) -> bool:
+    """Does this (non-DIVERGE) production verdict grade a disclosed partial whose drawn records' place is unwitnessed?"""
+    return UNPOSITIONED in str((r.get("objects") or {}).get("withheld") or "").split(",")
+
+
 def is_listed(entry: dict) -> bool:
     """⭐ THE PREDICATE (coordinator ruling on #1541, 2026-11-17): a script is listed when at least one of its
     committed production DIVERGE captures shows a DRAWN difference (our side drew something that differs). A
     capture whose only difference is objects our side already withholds BY NAME is incompleteness that is
     already refused by name, not a wrong drawing, and its plots were not shown to differ: it keeps its
-    engine-gap queue row as work, marked "withheld by name, not listed", and the script is not listed for it."""
-    return any(c.get("kind") == "drawn" for c in (entry.get("evidence") or {}).get("diverge") or [])
+    engine-gap queue row as work, marked "withheld by name, not listed", and the script is not listed for it.
+    ⭐⭐ (2026-11-19) An `unpositioned` capture (a disclosed partial whose drawn records' x no capture witnessed,
+    `UNPOSITIONED`) KEEPS the script listed: only a capture with the x table can lift it."""
+    return any(c.get("kind") in ("drawn", "unpositioned") for c in (entry.get("evidence") or {}).get("diverge") or [])
 
 
 def derive(verdicts_path=VERDICTS, root=ROOT) -> dict:
@@ -143,6 +156,10 @@ def derive_all(verdicts_path=VERDICTS, root=ROOT) -> dict:
             e["diverge"].append({**cap, "kind": kind, "firstDiverging": first})
         elif r.get("verdict") == "MATCH":
             e["match"].append(cap)
+        elif _unpositioned(r):
+            e["diverge"].append({**cap, "kind": "unpositioned", "firstDiverging": (
+                "a disclosed partial whose drawn objects agree with TradingView's on every field this capture holds, "
+                "but where they sit on the chart (x) is not in this capture, so their place is not witnessed")})
         else:
             e["other"].append(cap)
     files = _committed_pine_files()
@@ -154,26 +171,35 @@ def derive_all(verdicts_path=VERDICTS, root=ROOT) -> dict:
         slug = (pathlib.Path(src).stem.split("__")[0] if src else e["diverge"][0]["capture"].rsplit("-1d-", 1)[0])
         d0 = e["diverge"][0]
         drawn = [c for c in e["diverge"] if c["kind"] == "drawn"]
-        named = drawn[0] if drawn else d0
+        unpositioned = [c for c in e["diverge"] if c["kind"] == "unpositioned"]
+        named = drawn[0] if drawn else unpositioned[0] if unpositioned else d0
         what = named["firstDiverging"]
         caps = ", ".join(c["capture"] for c in e["diverge"])
+        if not drawn and unpositioned:
+            reason = (f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) the "
+                      f"objects it draws agree with TradingView's, but no capture has yet shown where they sit on the chart")
+            lift = (f"a capture of {', '.join(sorted({c['symbol'] + ' ' + c['timeframe'] for c in unpositioned}))} WITH the x "
+                    f"table, whose production re-grade leaves none of {caps} DIVERGE or {UNPOSITIONED}")
+        else:
+            reason = (f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) it draws "
+                      f"something that differs from TradingView: {_member_text(what)}"
+                      if drawn else
+                      f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) TradingView "
+                      f"draws objects this lane already withholds by name ({_member_text(what)})")
+            lift = (f"an engine fix to the first diverging item, then a production re-grade that leaves none of "
+                    f"{caps} DIVERGE (MATCH, or INCONCLUSIVE by name)")
         out[sha] = {
             "slug": slug,
             "sha256": sha,
             "title": e["title"],
             "source": src or (pathlib.Path(str(next(r["file"] for r in doc["results"] if r["id"] == d0["capture"]))).as_posix()),
-            "reason": (f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) it draws "
-                       f"something that differs from TradingView: {_member_text(what)}"
-                       if drawn else
-                       f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) TradingView "
-                       f"draws objects this lane already withholds by name ({_member_text(what)})"),
+            "reason": reason,
             "evidence": {
                 "diverge": e["diverge"],
                 "match": sorted(c["capture"] for c in e["match"]),
                 "inconclusive": sorted(c["capture"] for c in e["other"]),
             },
-            "liftWhen": (f"an engine fix to the first diverging item, then a production re-grade that leaves none of "
-                         f"{caps} DIVERGE (MATCH, or INCONCLUSIVE by name)"),
+            "liftWhen": lift,
         }
     return dict(sorted(out.items(), key=lambda kv: (kv[1]["slug"], kv[0])))
 
@@ -189,7 +215,7 @@ def disagreements(committed_list: dict, derived: dict) -> list:
     out = []
     for sha in sorted(set(derived) - set(committed_list)):
         out.append(f"NOT LISTED: {derived[sha]['slug']} ({sha[:12]}) has a committed DIVERGE capture with a drawn "
-                   f"difference ({', '.join(c['capture'] for c in derived[sha]['evidence']['diverge'] if c['kind'] == 'drawn')}) "
+                   f"difference ({', '.join(c['capture'] for c in derived[sha]['evidence']['diverge'] if c['kind'] in ('drawn', 'unpositioned'))}) "
                    "and is not on the list")
     for sha in sorted(set(committed_list) - set(derived)):
         out.append(f"STALE: {committed_list[sha].get('slug')} ({sha[:12]}) is listed but no committed capture of it "
@@ -223,8 +249,20 @@ def render_queue(derived_all: dict) -> str:
     for e in derived_all.values():
         listed = is_listed(e)
         drawn = [c for c in e["evidence"]["diverge"] if c["kind"] == "drawn"]
-        c = (drawn or e["evidence"]["diverge"])[0]
+        unpositioned = [c for c in e["evidence"]["diverge"] if c["kind"] == "unpositioned"]
         rid = queue_row_id(e["slug"])
+        if not drawn and unpositioned:
+            # ⭐⭐ (2026-11-19) listed on a place no capture witnessed: what settles it is a capture WITH the x table, its own row
+            c = unpositioned[0]
+            rows.append(f"| {rid} | none: a re-capture WITH the x table (the capture `{c['capture']}` predates it) "
+                        f"| `{c['symbol']} {c['timeframe']}` | `{GUARD}`: the whole script is refused by name on the host lane "
+                        f"| a capture with the x table whose production re-grade leaves none of its "
+                        f"{len(e['evidence']['diverge'])} capture(s) DIVERGE or {UNPOSITIONED} | capture |")
+            disp.append(f"| {rid} | withheld-ledger | listed: `{c['capture']}` is a disclosed partial whose drawn objects "
+                        f"agree with TradingView's on every field it holds, but not on their place (x), which no capture has "
+                        f"witnessed. The capture that settles it is its own row: a re-capture WITH the x table |")
+            continue
+        c = (drawn or e["evidence"]["diverge"])[0]
         kept = (f"`{GUARD}`: the whole script is refused by name on the host lane" if listed else
                 "withheld by name, not listed: only objects this lane already withholds by name differ; its plots are served")
         rows.append(f"| {rid} | none: engine gap (the capture `{c['capture']}` is in the harness) "

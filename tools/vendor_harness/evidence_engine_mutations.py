@@ -49,6 +49,9 @@ PHASE_MANIFEST = "test_the_manifest_carries_each_phase_as_its_own_script"
 BATCH_ID = "test_the_capture_id_carries_the_phase_and_an_unphased_id_is_unchanged"
 BATCH_VOCAB = "test_a_capture_phase_outside_the_vocabulary_is_refused_before_any_page_step"
 BATCH_CLASH = "test_two_scripts_naming_one_capture_id_refuse_the_batch_before_any_page_step"
+# ── the x-table marker (2026-11-19) ──
+XT_RAIL = "test_a_row_asking_for_the_x_table_is_not_answered_by_a_capture_without_one"
+XT_BAD = "test_an_x_table_cell_outside_yes_no_refuses_the_queue_by_name"
 
 MUTATIONS = [
     # ── the first eight (2026-11-02, tip ec0882c16a) ──
@@ -241,8 +244,8 @@ MUTATIONS = [
      "        if False:\n", PHASE_CHECK),
     ("a repeated phase is admitted", EE, "        elif len(set(phases)) != len(phases):\n", "        elif False:\n",
      PHASE_CHECK),
-    ("a capture of another phase answers the target", EE, 'and f["tf"] == t\n             and f["phase"] == phase]',
-     'and f["tf"] == t]', PHASE_STATUS),
+    ("a capture of another phase answers the target", EE, 'and f["tf"] == t\n             and f["phase"] == phase and (not',
+     'and f["tf"] == t\n             and (not', PHASE_STATUS),
     ("a capture of another phase makes the target stale", EE, ' and f["sha"] != sha and f["phase"] == phase]',
      ' and f["sha"] != sha]', PHASE_STATUS),
     ("a ledger verdict of another phase answers the target", EE,
@@ -260,6 +263,15 @@ MUTATIONS = [
      BATCH_CLASH, BATCH_RAILS),
     ("two scripts naming one capture id are admitted", BC, "        if cid in seen:\n", "        if False:\n",
      BATCH_CLASH, BATCH_RAILS),
+    # ── 2026-11-19: the x-table marker (a row asking where objects sit is answered only by a capture that records it) ──
+    ("a capture without the x table answers a row that asks for it", EE,
+     '             and f["phase"] == phase and (not needs_x_table or f.get("xTable"))]',
+     '             and f["phase"] == phase]', XT_RAIL),
+    ("the x-table column is never read", EE,
+     '                "needsXTable": row_needs_x_table(header, cells, f"{path.name}:{line_no} ({rid!r})"),',
+     '                "needsXTable": False,', XT_RAIL),
+    ("an x-table cell outside yes / no is read as no", EE,
+     '    raise XTableMarkerError(f"{where}: an', '    return False and (f"{where}: an', XT_BAD),
 ]
 
 

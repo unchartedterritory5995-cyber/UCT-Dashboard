@@ -82,6 +82,33 @@
    "to": "  const partialOf = (f) => true",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsPartial.test.js",
    "expectRed": "nobody named the missing lines"
+  },
+  {
+   "id": "H10",
+   "mutant": "a partial whose drawn records' place (x) was not compared grades as a positioned partial (it would lift the withhold)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "      if ([...partial.values()].some((c) => c.unpositioned)) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsPartial.test.js",
+   "expectRed": "a capture with no x table"
+  },
+  {
+   "id": "H11",
+   "mutant": "host_divergence lifts a script on an unpositioned partial (its place never witnessed)",
+   "file": "tools/vendor_harness/host_divergence.py",
+   "from": "    return any(c.get(\"kind\") in (\"drawn\", \"unpositioned\") for c in",
+   "to": "    return any(c.get(\"kind\") in (\"drawn\",) for c in",
+   "rail": "python -B -m pytest tests/test_pine_host_known_divergence.py -q -p no:cacheprovider -k place_no_capture",
+   "expectRed": "place_no_capture"
+  },
+  {
+   "id": "H12",
+   "mutant": "host_divergence reads an unpositioned partial as an ordinary INCONCLUSIVE",
+   "file": "tools/vendor_harness/host_divergence.py",
+   "from": "        elif _unpositioned(r):",
+   "to": "        elif False:",
+   "rail": "python -B -m pytest tests/test_pine_host_known_divergence.py -q -p no:cacheprovider -k place_no_capture",
+   "expectRed": "place_no_capture"
   }
  ]
 }

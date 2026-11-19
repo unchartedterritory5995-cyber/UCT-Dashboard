@@ -1250,6 +1250,10 @@ export function objectColourRows(pairing) {
  *    texts only, exactly as before, and its reason reads as it always did. */
 /** ⭐⭐ DISCLOSED PARTIAL — the guard a partly withheld family is graded under (`compareObjects`). */
 export const OBJECTS_PARTIAL_GUARD = 'objects:partial'
+/** ⭐⭐ …and the one it is graded under when a drawn record's PLACE (x) could not be compared: the capture predates the
+ *  x table and has no sidecar (coordinator ruling 2026-11-19). Never a lift: `host_divergence.py` keeps a script's
+ *  entry on this grade, and only a capture WITH the x table can lift it. */
+export const OBJECTS_PARTIAL_UNPOSITIONED_GUARD = 'objects:partial-unpositioned'
 /** The families a disclosed partial is graded on record by record (the ones v2 pairs by value). */
 const PARTIAL_GRADED = new Set(['lines', 'labels', 'boxes'])
 /** Does every record our side DRAWS in family `f` pair with one of TradingView's and agree field by field?
@@ -1259,12 +1263,14 @@ function drawnRecordsAgree(records, f) {
   const p = records && records.families ? records.families[f] : null
   if (!p) return { agree: false, first: 'no record of it was paired field by field' }
   // (every record of ours is paired: a partial holds fewer than TradingView, and `alignByValue` pairs the smaller side whole)
+  let unpositioned = false
   for (const pair of p.pairs || []) {
     for (const r of pair.fields || []) {
       if (V2_DIFFERS.has(r.state)) return { agree: false, first: { field: r.field, vendor: r.vendor, ours: r.ours, where: pair.where, vendorId: pair.vendorId } }
+      if (r.x === true && V2_X_MISSING.has(r.state)) unpositioned = true
     }
   }
-  return { agree: true, first: null }
+  return { agree: true, first: null, unpositioned }
 }
 /** Is every item of `sub` in `all`, as many times (both sorted)? */
 function subMultiset(sub, all) {
@@ -1337,8 +1343,8 @@ export function compareObjects(vendorObjs, ourObjs, colour = null, records = nul
     if (!agree && o < v && PARTIAL_GRADED.has(f) && partialOf(f)) {
       const drawn = drawnRecordsAgree(records, f)
       if (drawn.agree) {
-        partial.set(f, { vendor: v, ours: o })
-        rows.push({ family: f, vendor: v, ours: o, agree: null, withheld: true, partial: true })
+        partial.set(f, { vendor: v, ours: o, unpositioned: drawn.unpositioned })
+        rows.push({ family: f, vendor: v, ours: o, agree: null, withheld: true, partial: true, ...(drawn.unpositioned ? { unpositioned: true } : {}) })
         continue
       }
       diverge += 1
@@ -1382,9 +1388,15 @@ export function compareObjects(vendorObjs, ourObjs, colour = null, records = nul
         : `our ${names} are withheld by name (${guards.join(', ')}: ${ourObjs.withheldWhy || 'no sentence'})`)
     }
     if (partial.size) {
-      guards.push(OBJECTS_PARTIAL_GUARD)
       const each = [...partial].map(([f, c]) => `${f} ${c.ours} of ${c.vendor}`).join(', ')
-      said.push(`our drawing is a disclosed partial (${each} drawn): each one drawn pairs with a record of TradingView's and agrees field by field, and the rest are withheld by name (${OBJECTS_PARTIAL_GUARD})`)
+      // ⛔ a drawn record whose PLACE (x) this capture cannot compare is not witnessed: its own grade, never a lift
+      if ([...partial.values()].some((c) => c.unpositioned)) {
+        guards.push(OBJECTS_PARTIAL_UNPOSITIONED_GUARD)
+        said.push(`our drawing is a disclosed partial (${each} drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (${OBJECTS_PARTIAL_UNPOSITIONED_GUARD})`)
+      } else {
+        guards.push(OBJECTS_PARTIAL_GUARD)
+        said.push(`our drawing is a disclosed partial (${each} drawn): each one drawn pairs with a record of TradingView's and agrees field by field, and the rest are withheld by name (${OBJECTS_PARTIAL_GUARD})`)
+      }
     }
     return {
       verdict: 'INCONCLUSIVE',

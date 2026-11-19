@@ -18,7 +18,7 @@ import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefi
 import { __objectsReportForTests } from './ourSide'
 import { pairRecords } from './objectRecords'
 import {
-  compareObjects, compareObjectsV2, OBJECTS_PARTIAL_GUARD,
+  compareObjects, compareObjectsV2, OBJECTS_PARTIAL_GUARD, OBJECTS_PARTIAL_UNPOSITIONED_GUARD,
 } from '../../../../../../../tools/vendor_harness/compare.mjs'
 
 const GREEN = 0xff819908 // #089981 packed as TradingView records it (0xAABBGGRR)
@@ -48,8 +48,8 @@ const objs = (held, over = {}) => ({ ok: true, held, pineVersion: 6, xFrame: FRA
 const fam = (r, f) => r.families.find((x) => x.family === f)
 
 /** v1 for the drawn lines, with the door's own statement of what it withheld by name. */
-function v1(held, ourOver = {}, vendorLabels = 2) {
-  const records = pairRecords(capOf(VENDOR), objs(held))
+function v1(held, ourOver = {}, vendorLabels = 2, cap = capOf) {
+  const records = pairRecords(cap(VENDOR), objs(held))
   const vendorObjs = { counts: { lines: VENDOR.lines.length, labels: vendorLabels, boxes: 0, tables: 0, tableCells: 0 },
     texts: { labels: Array.from({ length: vendorLabels }, (_, i) => `L${i}`), tableCells: [] }, records: VENDOR }
   const ourObjs = { drawsObjects: true, ok: true, counts: { lines: held.length, labels: 0, boxes: 0, tables: 0, tableCells: 0 },
@@ -90,6 +90,17 @@ describe('a family drawn in part, BY NAME, is graded on what it draws', () => {
   })
   it('CONTROL: nobody named the missing lines: a count DIVERGE, as before', () => {
     expect(v1(OURS).verdict.verdict).toBe('DIVERGE')
+  })
+  it('a capture with no x table: the drawn records agree on every field it holds, but their PLACE is not witnessed', () => {
+    // coordinator ruling 2026-11-19: never lift a withhold on a field no capture witnessed (htf-candle-footprint's shape)
+    const noX = (records) => { const c = capOf(records); delete c.objects.xIndex; return c }
+    const { verdict } = v1(OURS, NAMED, 2, noX)
+    expect(verdict.verdict, verdict.reason).toBe('INCONCLUSIVE')
+    expect(verdict.withheld).toBe(OBJECTS_PARTIAL_UNPOSITIONED_GUARD)
+    expect(verdict.counts.find((r) => r.family === 'lines')).toMatchObject({ partial: true, unpositioned: true })
+    expect(verdict.reason).toMatch(/where it sits on the chart \(x\) is not in this capture/)
+    // CONTROL: the same records with the x table, the place agreeing: `objects:partial`
+    expect(v1(OURS, NAMED).verdict.withheld).toBe(OBJECTS_PARTIAL_GUARD)
   })
   it('a drawn line at the wrong price is still a DIVERGE, named', () => {
     const wrong = [OURS[0], oLevel(2, LEVELS[1], { y1: 230, y2: 230 }), OURS[2]]

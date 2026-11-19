@@ -1120,3 +1120,37 @@ def test_the_htf_forming_doc_names_one_phase_per_row_and_its_rows_are_distinct_t
     assert by["vw-request-htf-forming@AMEX:SPY@5@insession"]["rows"][0].endswith("Q-HTF-FORM-e")
     assert by["vw-request-htf-forming@AMEX:SPY@W@insession"]["rows"][0].endswith("Q-HTF-FORM-f")
     assert len(by) == 10 and not any(t["capturePhase"] is None for t in by.values())
+
+
+# ── the x-table marker (coordinator ruling 2026-11-19): a row that asks WHERE objects sit is answered only by a
+#    capture that records it (`objects.xIndex`, or an xmap sidecar) ──
+XT_DOC = """# Capture queue - 2026-11-19 x table
+
+| id | probe | chart | question | live | x table |
+|---|---|---|---|---|---|
+| X1 | `alpha.pine` | NYSE:RDDT 1D | where its objects sit | no | yes |
+"""
+
+
+def test_a_row_asking_for_the_x_table_is_not_answered_by_a_capture_without_one(world):
+    (world.docs_dir / "capture-queue-2026-11-19-xt.md").write_text(XT_DOC, encoding="utf-8")
+    target = _by_id(ee.build_queue(world))["alpha@NYSE:RDDT@D"]
+    # alpha-rddt-1d-2026-10-01 (no x table) answers the plain rows, never this one
+    assert (target["status"], target.get("needsXTable")) == ("QUEUED", True), target["status"]
+    # a capture of the same source, symbol and tf WITH the x table answers it
+    p = world.fixtures / "alpha-rddt-1d-2026-11-19.json"
+    _fixture(p, "alpha-rddt-1d-2026-11-19", ALPHA)
+    cap = json.loads(p.read_text(encoding="utf-8"))
+    cap["objects"] = {"xIndex": {"found": True, "indexes": [0], "times": [1]}}
+    p.write_text(json.dumps(cap), encoding="utf-8")
+    w2 = ee.World(docs_dir=world.docs_dir, probe_dirs=world.probe_dirs, corpus=world.corpus, fixtures=world.fixtures,
+                  coverage=world.coverage_path, ledger=world.ledger_path, cache_dir=world.cache_dir)
+    t2 = _by_id(ee.build_queue(w2))["alpha@NYSE:RDDT@D"]
+    assert t2["status"] == "CAPTURED" and t2["evidence"] == [ee.rel(p)]
+
+
+def test_an_x_table_cell_outside_yes_no_refuses_the_queue_by_name(world):
+    (world.docs_dir / "capture-queue-2026-11-19-xt.md").write_text(XT_DOC.replace("| no | yes |", "| no | maybe |"),
+                                                                     encoding="utf-8")
+    with pytest.raises(ee.XTableMarkerError, match="X1"):
+        ee.build_queue(world)
