@@ -1047,56 +1047,6 @@ _PM_VOL_MIN   = 50_000       # min shares in current session (pre-market at open
 _AVG_DVOL_MIN = 5_000_000    # min 5-day avg dollar volume ($5M)
 
 
-def _get_avg_dollar_vol(tickers: list) -> dict[str, float]:
-    """Return 5-day average dollar volume for each ticker via yfinance.
-
-    Fetches all tickers in parallel (ThreadPoolExecutor).
-    Returns float("inf") for any ticker where history cannot be fetched —
-    meaning it will NOT be filtered out if yfinance is unavailable.
-    """
-    if not tickers:
-        return {}
-    try:
-        import yfinance as yf
-
-        def _fetch_one(ticker: str) -> tuple[str, float]:
-            try:
-                # Through the shared guard: the local pool below bounds the
-                # BATCH, the guard bounds how many yfinance calls this whole
-                # process has in flight and stops them entirely on a 429.
-                # `None` is the guard's failure default (timeout, 429, error)
-                # and MUST map to inf — "couldn't fetch, don't filter it out" —
-                # not to 0.0, which means "fetched, no volume, filter it out".
-                hist = yf_util.bounded_call(
-                    lambda: yf.Ticker(ticker).history(period="10d"), None
-                )
-                if hist is None:
-                    return ticker, float("inf")
-                if hist.empty:
-                    return ticker, 0.0
-                dvol = (hist["Close"] * hist["Volume"]).tail(5)
-                return ticker, float(dvol.mean()) if not dvol.empty else 0.0
-            except Exception:
-                return ticker, float("inf")  # can't fetch → don't filter out
-
-        # Bound the whole batch to a hard deadline + non-blocking shutdown so a
-        # hung Yahoo request can't pin this thread forever (2026-07-01 incident).
-        ex = _cf.ThreadPoolExecutor(max_workers=min(len(tickers), 8), thread_name_prefix="yf-dvol")
-        futures = {ex.submit(_fetch_one, t): t for t in tickers}
-        result: dict[str, float] = {}
-        deadline = time.monotonic() + 15.0
-        for fut, t in futures.items():
-            try:
-                k, v = fut.result(timeout=max(0.0, deadline - time.monotonic()))
-                result[k] = v
-            except Exception:
-                result[t] = float("inf")  # timeout/error → don't filter out
-        ex.shutdown(wait=False, cancel_futures=True)
-        return result
-    except Exception:
-        return {t: float("inf") for t in tickers}
-
-
 def _yfinance_snapshot(ticker: str) -> dict:
     """Fetch latest price via yfinance (used for futures/crypto not in Massive equities)."""
     try:
@@ -1113,35 +1063,6 @@ def _yfinance_snapshot(ticker: str) -> dict:
         return _bounded_yf(_work, {})
     except Exception:
         return {}
-
-
-# NOTE: unused since 2026-07-27 — its only caller was the index-futures snapshot
-# path, which was removed. Kept because it is the only .info-based quote helper.
-def _yf_quote_info(ticker: str) -> dict:
-    """Accurate quote via Yahoo's regularMarket* fields.
-
-    For INDEX FUTURES the day-change must be measured against the prior
-    SETTLEMENT — which is `regularMarketPreviousClose`, NOT
-    `fast_info.previous_close` (that reads a different/earlier reference and
-    understates the move badly, e.g. -0.17% vs the true -0.53% on ES).
-    `regularMarketChangePercent` is already in percent units. Falls back to the
-    fast_info snapshot on any failure. (Do NOT use this for ^VIX — Yahoo's
-    regularMarketChangePercent for the index is unreliable.)"""
-    try:
-        import yfinance as yf
-
-        def _work():
-            info = yf.Ticker(ticker).get_info()
-            price = info.get("regularMarketPrice")
-            chg   = info.get("regularMarketChangePercent")
-            if price is None or chg is None:
-                return None
-            return {"close": float(price), "vwap": float(price), "change_pct": round(float(chg), 4)}
-
-        got = _bounded_yf(_work, None)
-        return got if got is not None else _yfinance_snapshot(ticker)
-    except Exception:
-        return _yfinance_snapshot(ticker)
 
 
 def _detect_session() -> str:
