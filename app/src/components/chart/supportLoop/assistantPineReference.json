@@ -24,6 +24,7 @@
   "obj:table",
   "realtime-state",
   "reassign",
+  "request-other",
   "strategy-decl",
   "switch",
   "ternary",
