@@ -41,8 +41,11 @@ export const FAMILY_WORDS = Object.freeze({
 })
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const CALL_RX = new Map(CHART_DRAWING_CALLS.map((c) => [c, new RegExp(`(?<![\\w.])${esc(c)}\\s*\\(`)]))
-const NEW_RX = new Map(OBJECT_DRAWING_FAMILIES.map((f) => [f, new RegExp(`(?<![\\w.])${esc(f)}\\s*\\.\\s*new\\s*\\(`)]))
+// ⛔ NO LOOKBEHIND: Safari before 16.4 throws a SyntaxError on one, and the declared floor is iOS 16 (the whole
+// module would fail to load on an older iPhone). The character before the name is matched as a group instead: the
+// start of the text, or anything that is not part of a name or a namespace (`myplot(`, `m.plot(` never count).
+const CALL_RX = new Map(CHART_DRAWING_CALLS.map((c) => [c, new RegExp(`(?:^|[^\\w.])${esc(c)}\\s*\\(`)]))
+const NEW_RX = new Map(OBJECT_DRAWING_FAMILIES.map((f) => [f, new RegExp(`(?:^|[^\\w.])${esc(f)}\\s*\\.\\s*new\\s*\\(`)]))
 
 /** The families a script's SOURCE declares: every chart-drawing call and every `<family>.new(` outside comments and
  *  strings, in vocabulary order. */
@@ -69,7 +72,9 @@ export function authorHiddenFamiliesOf(t, runOutputs = null) {
   }
   for (const o of (t && t.outputs) || []) add(o && o.kind, !!o && (o._authorHidden === true || o.hiddenReason === 'author'))
   for (const p of ((t && t.presentation) || {}).paints || []) add(p && p.kind, !!p && (p.hidden === true || p.na === true))
-  for (const ro of runOutputs || []) add(ro && ro.call, !!ro && ro.hidden === true)
+  for (const ro of runOutputs || []) {
+    add(ro && ro.call, !!ro && (ro.hidden === true || (!!ro.candle && ro.candle.display === 'display.none')))
+  }
   return new Set([...per].filter(([, e]) => e.all > 0 && e.hidden === e.all).map(([k]) => k))
 }
 
@@ -80,16 +85,20 @@ export function authorHiddenFamiliesOf(t, runOutputs = null) {
  * @param {object[]} [a.runOutputs]    the run's outputs (`probeRuntimeProgram(...).outputs`): a hidden one is the author's
  * @param {Iterable<string>} a.drawn   families the document draws (rows, candles, paints)
  * @param {Iterable<string>} a.named   families a note of the door already names (a withheld row or paint, an undrawn kind)
+ * @param {Iterable<string>} [a.authorSkipped] families of elements the door skipped as hidden by their author
  * @param {boolean} a.objectsAccounted the document's drawings are drawn or named as a whole (a carried program, the run's
  *                                     own drawings, or a drawing note)
  * @returns {{declared: string[], drawn: string[], named: string[], hidden: string[], unnamed: string[]}}
  *   `unnamed`: what the door must name now (declared, and neither drawn, named nor author-hidden).
  */
-export function runtimeFamilyLedger({ source, t, runOutputs = null, drawn = [], named = [], objectsAccounted = false }) {
+export function runtimeFamilyLedger({ source, t, runOutputs = null, drawn = [], named = [], authorSkipped = [],
+  objectsAccounted = false }) {
   const declared = declaredFamiliesOf(source)
   const drawnSet = new Set(drawn)
   const namedSet = new Set(named)
-  const hidden = authorHiddenFamiliesOf(t, runOutputs)
+  // what the translation records as its author's hiding, and what the DOOR skipped for that reason (its own rule:
+  // a candle hidden by its run's `display`, a row the author hid): neither is drawn on TradingView
+  const hidden = new Set([...authorHiddenFamiliesOf(t, runOutputs), ...authorSkipped])
   const objectFamily = new Set(OBJECT_DRAWING_FAMILIES)
   const unnamed = declared.filter((f) => !drawnSet.has(f) && !namedSet.has(f) && !hidden.has(f)
     && !(objectsAccounted && objectFamily.has(f)))

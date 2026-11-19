@@ -2167,6 +2167,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // and the settings a carried displacement pins at the author's default.
   const shiftCtx = runtimeShiftContext(source, t && t.version, runtimeInputSpecsOf(source).specs)
   const shiftPinned = new Set()
+  // the families of elements skipped as hidden BY THEIR AUTHOR (the family ledger: hidden is not "not drawn")
+  const authorSkipped = new Set()
   for (const { o, index } of ofKind) {
     const ord = seen.get(o.kind) || 0
     seen.set(o.kind, ord + 1)
@@ -2180,7 +2182,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // (`paneHides`): ruling 1.2 never OFFERS it, and TradingView DRAWS it unless its own `display`
     // hides it. ⚰️ supertrend-strategy's `mPlot` (Q-SD1 / Q-SD2: `display: 15`, `visible: true`) was
     // "the member pane did not carry this output" here, its value and its colour never drawn.
-    if ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true) continue
+    if ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true) {
+      if (o._authorHidden === true || o.hiddenReason === 'author') authorSkipped.add(o.kind)
+      continue
+    }
     const label = o.title || `${o.kind} ${ord + 1}`
     // ⭐ WS-E — a leftward `offset` is carried (`runtimeRowShift`), the rest withheld.
     const shift = runtimeRowShift(o, shiftCtx)
@@ -2205,7 +2210,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       // price series (`hiddenReason: 'passthrough'`, so it does not draw four lines over the chart),
       // and that is exactly the candle that RECOLOURS the chart's own bars, which TradingView draws.
       if (group.some(({ o }) => o.hiddenReason === 'author' || o._authorHidden === true)
-        || (run.ro.candle && run.ro.candle.display === 'display.none')) return
+        || (run.ro.candle && run.ro.candle.display === 'display.none')) { authorSkipped.add(kind); return }
       const label = (run.ro.candle && run.ro.candle.title) || `${kind} ${ord + 1}`
       const pres = runtimeCandlePresentation(kind, t && t.version, run.ro, !!(t.presentation && t.presentation.overlay === true))
       if (!pres.ok) { withheld.push({ label, why: pres.why, o: group[3] && group[3].o }); return }
@@ -2571,6 +2576,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     t,
     runOutputs: probe.outputs,
     drawn: [...drawnRows.map((r) => r.candle || (r.o && r.o.kind)), ...docPaints.map((p) => p.kind)],
+    authorSkipped,
     named: [...withheld.map((w) => w.o && w.o.kind), ...paintWithheld.map(({ p }) => p.kind), ...undrawn],
     objectsAccounted: drawsObjects || ownObjects || !!drawingNote || (!ownObjects && !!own.hostWithheld && hostWouldDraw),
   })

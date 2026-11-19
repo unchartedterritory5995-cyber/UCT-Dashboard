@@ -24,7 +24,7 @@
    "id": "L3",
    "mutant": "the scanner reads an author's own function or a method as the call",
    "file": "app/src/components/chart/builder/memberPane/runtimeFamilyLedger.js",
-   "from": "const CALL_RX = new Map(CHART_DRAWING_CALLS.map((c) => [c, new RegExp(`(?<![\\\\w.])${esc(c)}\\\\s*\\\\(`)]))",
+   "from": "const CALL_RX = new Map(CHART_DRAWING_CALLS.map((c) => [c, new RegExp(`(?:^|[^\\\\w.])${esc(c)}\\\\s*\\\\(`)]))",
    "to": "const CALL_RX = new Map(CHART_DRAWING_CALLS.map((c) => [c, new RegExp(`${esc(c)}\\\\s*\\\\(`)]))",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/runtimeFamilyLedger.test.js",
    "expectRed": "a function of the author"
