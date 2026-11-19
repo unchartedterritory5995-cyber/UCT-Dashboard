@@ -1194,3 +1194,14 @@ tbody tr { cursor: pointer; }
   text-align: right;
   white-space: nowrap;
 }
+
+/* 10ch of the cell font, invisible — Breadth.jsx measures it for the equal-width
+   column groups (round 11). */
+.chProbe {
+  position: absolute;
+  visibility: hidden;
+  width: 10ch;
+  height: 0;
+  font-size: var(--br-cell-fs);
+  pointer-events: none;
+}

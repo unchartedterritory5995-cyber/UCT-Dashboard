@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef, Suspense } from 'react'
 import { lazyDeferrable } from '../utils/lazyWithRetry'
 import { useSearchParams } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
@@ -399,8 +399,34 @@ const VALUE_CH = {
 function valueCh(col) {
   if (VALUE_CH[col.key] != null) return VALUE_CH[col.key]
   if (col.fmt === fmtPct) return 5          // 100.0
-  return 6                                  // counts: 00,000
+  // Counts: a count of stocks can never exceed the universe (~2,700 names), so the
+  // widest is four digits and a comma, "0,000" — 5ch, not a 6ch "00,000".
+  return 5
 }
+
+// ── Equal widths per visual group (owner 2026-11-19, round 11) ───────────────
+// Columns in one family share ONE width: the widest thing any VISIBLE member needs
+// (its widest value format or its header label), plus its padding. One map, keyed by
+// metric key, covers the default view and every family a member can turn on from
+// Columns. A column with no group keeps its own width (Universe, FTD, McClellan; the
+// SPY/QQQ dot columns are fixed at the same width already).
+const WIDTH_GROUP = {
+  breadth_score: 'core', uct_exposure: 'core', up_4pct_today: 'core', down_4pct_today: 'core',
+  ratio_5day: 'ratio', ratio_10day: 'ratio',
+  up_25pct_quarter: 'moveQ', down_25pct_quarter: 'moveQ', magna_up: 'moveQ', magna_down: 'moveQ',
+  up_20pct_5d: 'move5d', down_20pct_5d: 'move5d',
+  up_25pct_month: 'moveMo', down_25pct_month: 'moveMo', up_50pct_month: 'moveMo', down_50pct_month: 'moveMo',
+  pct_above_5sma: 'sma', pct_above_10sma: 'sma', pct_above_20sma: 'sma', pct_above_40sma: 'sma',
+  pct_above_50sma: 'sma', pct_above_100sma: 'sma', pct_above_150sma: 'sma', pct_above_200sma: 'sma',
+  vix: 'vol', cnn_fear_greed: 'vol',
+  sp500_close: 'close', qqq_close: 'close',
+  stage2_count: 'stage', stage4_count: 'stage',
+  new_52w_highs: 'hilo', new_52w_lows: 'hilo', new_20d_highs: 'hilo', new_20d_lows: 'hilo',
+  new_ath: 'lead', hvc_52w: 'lead', atr_ext_7: 'lead',
+  aaii_bulls: 'aaii', aaii_neutral: 'aaii', aaii_bears: 'aaii', aaii_spread: 'aaii',
+  naaim: 'survey', cboe_putcall: 'survey',
+}
+export const widthGroupOf = (key) => WIDTH_GROUP[key] ?? null
 // +1ch for the live row's "≈" mark; 32px = the cell padding (incl. a family start).
 // `ch` here is the HEADER font's; × --br-fs-ratio makes it the cell font's, and the
 // padding follows --br-cell-px, so the widths scale with the wide-screen size too.
@@ -1157,6 +1183,46 @@ export default function Breadth() {
     return keys
   }, [visibleCols])
 
+  // Equal widths per group (round 11). Measured from the HEADER row only (always
+  // mounted), so the result never depends on which rows are on screen: each visible
+  // column's need = max(its label, its widest value box incl. the live "≈" room) + its
+  // own padding; each group takes its widest member's need. Re-measured when the
+  // visible columns, the sheet size (breakpoint) or the web font change.
+  const headRowRef = useRef(null)
+  const chProbeRef = useRef(null)
+  const [groupWidths, setGroupWidths] = useState({})
+  const [fontsReady, setFontsReady] = useState(0)
+  useEffect(() => {
+    let live = true
+    document.fonts?.ready?.then(() => { if (live) setFontsReady(n => n + 1) })
+    return () => { live = false }
+  }, [])
+  const visibleKeySig = visibleCols.map(c => c.key).join(',')
+  useLayoutEffect(() => {
+    const row = headRowRef.current
+    const probe = chProbeRef.current
+    if (!row || !probe) return
+    const ch = probe.getBoundingClientRect().width / 10   // 1ch of the CELL font
+    if (!ch) return
+    const need = {}
+    for (const th of row.querySelectorAll('th[data-width-group]')) {
+      const key = th.getAttribute('data-col-key')
+      const btn = th.querySelector('button')
+      const cs = getComputedStyle(th)
+      const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+      let label = 0
+      if (btn) {
+        const r = document.createRange()
+        r.selectNodeContents(btn)
+        label = r.getBoundingClientRect().width
+      }
+      const value = (valueCh(COLS_BY_KEY[key]) + 1) * ch
+      const g = th.getAttribute('data-width-group')
+      need[g] = Math.max(need[g] ?? 0, Math.ceil(Math.max(label, value) + pad))
+    }
+    setGroupWidths(prev => (JSON.stringify(prev) === JSON.stringify(need) ? prev : need))
+  }, [visibleKeySig, rowH, fontsReady, grid.count > 0, activeTab]) // eslint-disable-line react-hooks/exhaustive-deps -- re-measure on these only
+
   const errorBanner = error ? (
     <div className={styles.errorBanner} role="alert">
       <span>
@@ -1450,8 +1516,11 @@ export default function Breadth() {
               {/* Single column-label row — the colored group-header strip was
                   retired 2026-08-26; families are separated by a hairline rule
                   on each group's first column instead. */}
-              <tr>
-                <th scope="col" className={`${styles.th} ${styles.dateCol}`} style={{ minWidth: 72 }}>Date</th>
+              <tr ref={headRowRef}>
+                <th scope="col" className={`${styles.th} ${styles.dateCol}`} style={{ minWidth: 72 }}>Date
+                  {/* 10ch of the CELL font, measured for the equal-width groups. */}
+                  <span ref={chProbeRef} className={styles.chProbe} aria-hidden="true" />
+                </th>
                 {visibleCols.map((col, ci) => {
                   const isMa = col.type === 'ma_stack'
                   const label = isMa
@@ -1467,8 +1536,12 @@ export default function Breadth() {
                       key={col.key}
                       // No native title and no hover card: the column's meaning is the
                       // header of its click menu (and the hidden description below).
-                      className={`${styles.th} ${styles.colLabel} ${groupStartKeys.has(col.key) ? styles.groupStart : ''} ${isMa ? styles.thMa : ''}`}
-                      style={isMa ? undefined : { minWidth: colMinWidth(col) }}
+                      className={`${styles.th} ${styles.colLabel} ${groupStartKeys.has(col.key) && !widthGroupOf(col.key) ? styles.groupStart : ''} ${isMa ? styles.thMa : ''}`}
+                      data-col-key={col.key}
+                      data-width-group={widthGroupOf(col.key) ?? undefined}
+                      style={isMa ? undefined : (groupWidths[widthGroupOf(col.key)]
+                        ? { minWidth: groupWidths[widthGroupOf(col.key)], width: groupWidths[widthGroupOf(col.key)] }
+                        : { minWidth: colMinWidth(col) })}
                     >
                       {/* The header opens the chart's Signature menu (one ContextPopover
                           for the sheet, below): Enter/Space opens it, Esc closes it and
@@ -1521,7 +1594,7 @@ export default function Breadth() {
                         className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${styles.skeletonRow}`}>
                       <td className={`${styles.td} ${styles.dateCell}`}>{skelDate}</td>
                       {visibleCols.map(col => (
-                        <td key={col.key} className={`${styles.td} ${groupStartKeys.has(col.key) ? styles.groupStart : ''}`}>
+                        <td key={col.key} className={`${styles.td} ${groupStartKeys.has(col.key) && !widthGroupOf(col.key) ? styles.groupStart : ''}`}>
                           <span className={styles.skelDot} aria-hidden="true">·</span>
                         </td>
                       ))}
@@ -1553,7 +1626,7 @@ export default function Breadth() {
                     )}
                   </td>
                   {visibleCols.map(col => {
-                    const groupStart = groupStartKeys.has(col.key) ? styles.groupStart : ''
+                    const groupStart = groupStartKeys.has(col.key) && !widthGroupOf(col.key) ? styles.groupStart : ''
                     if (col.type === 'sparkline') {
                       const val = row[col.key]
                       const last10 = grid.trail(ri, col.key)
