@@ -26,6 +26,15 @@ The per-service selector (`--service`, 2026-11-19). Mutation proof:
     9. `selected` drops an unknown name instead of refusing it
                                                       -> test_an_unknown_service_is_refused_not_passed RED
    10. `main` drops `--service` on the way to `apply` -> test_the_command_line_passes_the_services_through RED
+
+The streaming services' files equal what Railway stores for them (owner decision 2026-11-19). Mutation proof:
+   11. `"builder": "NIXPACKS"` put back in railway.ingest.json
+                                                      -> test_the_stream_services_files_change_nothing_but_watch_paths
+                                                         and test_the_stream_services_files_name_no_builder RED
+   12. `"builder": "RAILPACK"` put in railway.edge.json (equal to the stored value)
+                                                      -> test_the_stream_services_files_name_no_builder RED
+   13. `"drainingSeconds": 10` put back in railway.edge.json
+                                                      -> test_the_stream_services_files_change_nothing_but_watch_paths RED
 """
 from __future__ import annotations
 
@@ -154,6 +163,51 @@ def test_the_worker_services_keep_a_start_command_and_the_main_server_keeps_its_
     assert rss.to_update(rss.load_config("railway.web.json", ROOT))["dockerfilePath"] == "Dockerfile.web"
 
 
+#: What Railway had STORED for the two streaming services, read 2026-11-19 with
+#: `railway config pull --json --variables unmanaged` (no variable values), watch paths left out.
+#: Both services were created by hand and have never read a config file (every deployment:
+#: `configFile` null, `fileServiceManifest` {}). These are the settings they really run on.
+STREAM_STORED = {
+    "stream-ingest": {
+        "build": {"buildCommand": "pip install -r requirements.txt", "buildEnvironment": "V3", "builder": "RAILPACK"},
+        "deploy": {"drainingSeconds": 15, "healthcheckPath": "/api/health", "healthcheckTimeout": 120,
+                   "ipv6EgressEnabled": False, "multiRegionConfig": {"us-east4-eqdc4a": {"numReplicas": 1}},
+                   "overlapSeconds": 0, "restartPolicyType": "ALWAYS", "runtime": "V2",
+                   "startCommand": "python -m api.stream_ingest_main", "useLegacyStacker": False},
+    },
+    "stream-edge": {
+        "build": {"buildEnvironment": "V3", "builder": "RAILPACK"},
+        "deploy": {"healthcheckPath": "/healthz", "ipv6EgressEnabled": False,
+                   "multiRegionConfig": {"us-east4-eqdc4a": {"numReplicas": 1}}, "restartPolicyType": "ALWAYS",
+                   "runtime": "V2", "startCommand": "python -m api.stream_edge_main", "useLegacyStacker": False},
+    },
+}
+
+
+@pytest.mark.parametrize("service", sorted(STREAM_STORED))
+def test_the_stream_services_files_change_nothing_but_watch_paths(service):
+    """Owner decision 2026-11-19: the two live streaming services' files say what those services
+    really run on, so `--apply --service <it>` can change ONLY watch paths, never how it builds
+    or deploys. Every other setting the file supplies must equal the stored value."""
+    config = rss.load_config(rss.SERVICES[service], ROOT)
+    stored = copy.deepcopy(STREAM_STORED[service])
+    stored["build"]["watchPatterns"] = config["build"]["watchPatterns"]
+    assert rss.differences(config, stored) == [], f"{service}: the file would change a stored setting"
+    assert "watchPatterns" in rss.to_update(config)
+
+
+@pytest.mark.parametrize("service", sorted(STREAM_STORED))
+def test_the_stream_services_files_name_no_builder(service):
+    """Railway STORES `RAILPACK` for both, yet both build with nixpacks-v1.41.0 and /nixpacks.toml
+    (build log of the last successful deployment, 2026-11-19: "using build driver nixpacks-v1.41.0").
+    `tx-recap`, also stored `RAILPACK`, builds with railpack-v0.43.0. So which builder a stored value
+    yields is not settled, and writing either name could change how a live service builds: the file
+    names none, so `--apply` never writes one."""
+    config = rss.load_config(rss.SERVICES[service], ROOT)
+    assert "builder" not in (config.get("build") or {})
+    assert "builder" not in rss.to_update(config)
+
+
 # ── the tool's own answers ────────────────────────────────────────────────────
 
 def test_self_check_passes():
@@ -232,8 +286,8 @@ def _no_railway(monkeypatch):
 
 @pytest.mark.parametrize("services", [None, []])
 def test_apply_without_a_service_refuses_before_touching_railway(monkeypatch, services):
-    """A bare `--apply` would write every differing service, including two (stream-ingest,
-    stream-edge) whose intended builder nobody has decided. It must refuse, and refuse first."""
+    """A bare `--apply` would write every service whose stored settings differ, including ones
+    nobody named (on 2026-11-19: stream-ingest and stream-edge). It must refuse, and refuse first."""
     _no_railway(monkeypatch)
     lines = []
     assert rss.apply(lines.append, root=ROOT, services=services) == 2
@@ -243,7 +297,9 @@ def test_apply_without_a_service_refuses_before_touching_railway(monkeypatch, se
 def test_apply_writes_only_the_named_services(monkeypatch):
     state = _real_stored()
     state["worker"]["deploy"]["healthcheckPath"] = "/internal/health"
-    state["stream-edge"]["build"]["builder"] = "RAILPACK"          # differs too, but is not named
+    state["stream-edge"]["build"]["watchPatterns"] = ["api/stream_edge_main.py"]   # differs too, but is not named
+    assert rss.differences(rss.load_config("railway.edge.json", ROOT), state["stream-edge"]), \
+        "the unnamed service must really differ, or this test proves nothing about skipping it"
     sent = []
     monkeypatch.setattr(rss, "read_stored", lambda cwd=None: copy.deepcopy(state))
     monkeypatch.setattr(rss, "service_ids", lambda cwd=None: (

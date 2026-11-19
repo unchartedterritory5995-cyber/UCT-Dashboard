@@ -40,6 +40,29 @@ deploy ignored `railway.ingest.json` and started the default command (the whole 
 settings were then typed into Railway by hand, and it is in `SERVICES` so the tool compares them
 with `railway.ingest.json` (watch paths included) from now on.
 
+### `stream-ingest` and `stream-edge`: the files follow the services (owner decision 2026-11-19)
+
+Both were created by hand, have never read a config file (every deployment: `configFile` null,
+`fileServiceManifest` empty) and are live (ingest since 2026-11-17, edge serving every member since
+2026-11-19). The cutoff changes nothing for them: they already run on stored settings. Their files
+had drifted from those settings (builder `NIXPACKS`, and on edge a build command, draining 10 s and a
+60 s health-check timeout that Railway never stored). The owner's decision: make the files say what
+the services really run on, so that `--apply --service stream-ingest --service stream-edge` changes
+**only watch paths**. `tests/test_railway_stored_settings.py` pins that against the stored values.
+
+- `railway.ingest.json`: no builder. Build command, start, health check (`/api/health`, 120 s),
+  draining 15 s, overlap 0 and restart policy equal what is stored.
+- `railway.edge.json`: no builder, no build command, no draining, no health-check timeout (Railway
+  stores none of the three). Start, health check (`/healthz`) and restart policy equal what is stored.
+- **Why neither file names a builder.** Railway stores and reports `RAILPACK` for both (stored
+  settings and every deployment's `serviceManifest.build.builder`), yet the build log of each one's
+  last successful deployment says `using build driver nixpacks-v1.41.0` and runs `/nixpacks.toml`'s
+  setup and install. `econ-ingest` is the same; `tx-recap`, also stored `RAILPACK`, builds with
+  `railpack-v0.43.0`. Which builder a stored `RAILPACK` yields is therefore not settled here, and
+  writing either name could change how a live service builds. With no builder in the file the tool
+  neither compares nor writes one. `nixpacks.toml` stays in stream-edge's watch paths for the same
+  reason: it shapes the image.
+
 ## The tool
 
 ```sh
@@ -55,8 +78,8 @@ python tools/railway_stored_settings.py --self-check
   is refused (exit 2), never read as "the same".
 - **`--apply` refuses to run without at least one `--service`** (since 2026-11-19). A bare `--apply`
   wrote every service whose stored settings differed; on 2026-11-19 that included `stream-ingest`
-  and `stream-edge`, whose file says builder `NIXPACKS` while Railway has `RAILPACK` stored, with no
-  decision on which is intended. Name the service you mean to change.
+  and `stream-edge`, whose files then said builder `NIXPACKS` while Railway had `RAILPACK` stored.
+  Name the service you mean to change.
 - `--apply` writes only where something differs, through Railway's `serviceInstanceUpdate` API call.
   Measured four times on 2026-11-14: the call stores the settings and starts **no** deployment. A
   service picks stored settings up at its next deployment.
@@ -115,6 +138,9 @@ NOT proven, because it needs a deploy of the real service with no file read:
   `builder: RAILPACK` and `runtime: UNSPECIFIED` where it showed the real values before (seen on all
   three services; images and containers unchanged). Read the builder from a deployment made after
   the update, not from that record.
+- **The builder field is not proof of the builder.** On 2026-11-19 `stream-ingest`, `stream-edge` and
+  `econ-ingest` all read `RAILPACK` (stored and in the deployment manifest) and all built with
+  `nixpacks-v1.41.0`. The build log's `using build driver ...` line is what says which builder ran.
 - `tools/railway_config_audit.py` still fails two older checks that have nothing to do with this
   (`worker` watch paths, `MASSIVE_WS_ENABLED` on `web`), and no scheduled task runs it.
 - The watch-path table in `docs/runbooks/deploy-windows.md` is from 2026-09-12; its `web` row is wrong.
