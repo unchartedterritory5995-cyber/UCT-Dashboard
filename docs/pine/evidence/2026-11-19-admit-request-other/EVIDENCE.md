@@ -8,8 +8,9 @@ Coordinator rulings (2026-11-18 / 2026-11-19, step C of the request unit). The u
 5. add the row as its own PR, stamped.
 
 Plus the e84 train's finding, folded in here: the REACH report's population block is derived from its rows, never kept
-by hand. Branch `feat/admit-request-other-e84` from master `0edf93b82b` (engine 84). No engine number: data, rails and
-one admission rule.
+by hand. Branch `feat/admit-request-other-e84` from master `0edf93b82b` (engine 84), master `7dc696c0eb` (#2012, LF3) merged in
+once on the coordinator's order, and everything below regenerated on the merged tree. No engine number: data, rails
+and one admission rule.
 
 ## 1. The answer
 
@@ -29,10 +30,11 @@ one admission rule.
   look-ahead-off developing value is witnessed only by an uncommitted probe. Q-HTF-FORM (#1994) is the capture that
   can lift this.
 - **The reach (the tool's three steps, below).**
-  - Admitted captures: 555 -> 753.
+  - Admitted captures: 555 -> 753 on engine 84 alone; 774 on the tree merged with #2012 (obj:linefill admitted too).
   - The one stop: `vw-deadband-ticks-brk-a-1d-2026-09-28`, the named WITHHELD_WHOLE case, unchanged.
   - MATCH -> DIVERGE: none.
-  - Runtime-drawn captures: 182, all MATCH or INCONCLUSIVE but that stop.
+  - Runtime-drawn captures (merged tree): 190, all MATCH or INCONCLUSIVE but that stop. No lane moved on any of
+    master's 578 rows.
 - **Killed, by source hash (the DRAW-1 rule).** Eleven sources this row newly admits have a committed capture grading
   DIVERGE on either lane:
   - **8 corpus sources:** artemis-oscillator-pro, average-day-range-adr-pivots,
@@ -76,6 +78,7 @@ merged two units' identical edits to it as ONE, and after #1941's re-pins master
 | REACH | `capability_admission.py input` (954 captures, 266 corpus, the local 271 reference + 142 built-in sample) -> `capabilityAdmission.measure.test.js CAPADMIT_MODE=admission` (3 min) -> `report` |
 | stamp | `stamp_admission.py request-other`: engine 84 |
 | rails, local | pytest `test_pine_capability_admission`, `test_pine_capabilities`, `test_pine_runtime_switch_on`, `test_pine_parity_roadmap`, `test_runtime_definitions` (346 passed), `test_pine_host_known_divergence` (11), `test_corpus_licence_rail` (20); vitest `capabilityEvidenceLane` + `reqBareSecurityForced` (820 passed: every REACH lane re-asked of the door, both forced entries MATCH) |
+| merged tree (#2012 in) | the snapshots regenerated on the remote lane (stores empty, 954 each) plus the one licence-held row the snapshot has always carried (`supertrend-kivancozbilgic-rddt-1d-2026-10-02`, graded locally at this tree with the store present: MATCH on both lanes), 955 each; against master's runtime-on snapshot no verdict moved (+6 promoted); the production lane unchanged from the engine-84 regeneration above; REACH re-derived: 774 admitted captures, stops the named one only, MATCH -> DIVERGE none, no lane moved on master's 578 rows; stamp check: request-other at 84 |
 | remote lane, pine heavy, mutants | the PR description |
 
 Mutants (`runs/mutants-manifest.json`):

@@ -4643,6 +4643,7 @@ WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 119 captures) �
 CHANGED BY OBJECT COLOUR (0): none
 WITHOUT PAINTS (the verdict before B1; paints graded on 39 captures) — MATCH 223 · DIVERGE 81 · INCONCLUSIVE 650
 CHANGED BY PAINTS (6): supertrend-strategy-alab-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-is-rddt-1d-2026-11-18 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE
+supertrend-kivancozbilgic-rddt-1d-2026-10-02 NYSE:RDDT 1D     7      MATCH             all 8 items agree
 ```
 
 ## Not comparable (97)

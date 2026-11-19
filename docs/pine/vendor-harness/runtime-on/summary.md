@@ -2,7 +2,7 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 514, host refusals 546) · objects-only pane ARMED · runtime drew 211, declined 303 · strategy lane: broker gate ON, 86 graded on their trades, 71 broker run(s)
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 518, host refusals 550) · objects-only pane ARMED · runtime drew 215, declined 303 · strategy lane: broker gate ON, 86 graded on their trades, 71 broker run(s)
 
 Graded at script engine **84**.
 
@@ -1218,15 +1218,15 @@ multicator-table-spy-1d-2026-10-02           AMEX:SPY 1D      28     DIVERGE    
     MACD bear div                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  DIVERGE       TradingView holds 72 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (coll:diverged, coll:push)
 nadaraya-watson-rational-quadratic-kernel-no NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 3 items could not be compared
-    Rational Quadratic Kernel Estimate       MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Rational Quadratic Kernel Estimate       MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.59e-16
     Alert Stream                             INCONCLUSIVE       — our side produced no column for this plot — the translator refused this plot (pine:block)
     objects                                  MATCH         neither side draws an object
 nadaraya-watson-rational-quadratic-kernel-no NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 3 items could not be compared
-    Rational Quadratic Kernel Estimate       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Rational Quadratic Kernel Estimate       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 2.39e-16
     Alert Stream                             INCONCLUSIVE       — our side produced no column for this plot — the translator refused this plot (pine:block)
     objects                                  MATCH         neither side draws an object
 nadaraya-watson-rational-quadratic-kernel-no AMEX:SPY 1D      2      INCONCLUSIVE      1 of 3 items could not be compared
-    Rational Quadratic Kernel Estimate       MATCH             cmp 8509 ok 8258 warm 251/277 steady 0/8232 maxRel 0.00e+0
+    Rational Quadratic Kernel Estimate       MATCH             cmp 8509 ok 8258 warm 251/277 steady 0/8232 maxRel 2.95e-16
     Alert Stream                             INCONCLUSIVE       — our side produced no column for this plot — the translator refused this plot (pine:block)
     objects                                  MATCH         neither side draws an object
 neural-network-buy-and-sell-signals-rddt-1d- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:block-value]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `buy_signal_shortStop[1]` reads what `buy_signal_shortStop` held on an earlier bar, and this script reassigns it
@@ -1341,6 +1341,50 @@ options-max-pain-calculator-backquant-spy-1d AMEX:SPY 1D      0      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 115 paired slots; coordinates are NOT compared by v1
 order-blocks-rddt-1d-2026-11-14              NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
     objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing
+pa-zigzag-fibonacci-fan-altm-rddt-1d-2026-11 NYSE:RDDT 1D     9      MATCH             all 10 items agree
+    zigzag                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+     0.000                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -0.236                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -0.382                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -0.500                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -0.618                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -1.000                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -1.618                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -3.141                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+pa-zigzag-fibonacci-fan-altm-spy-1d-2026-11- AMEX:SPY 1D      9      MATCH             all 10 items agree
+    zigzag                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+     0.000                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -0.236                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -0.382                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -0.500                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -0.618                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -1.000                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -1.618                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -3.141                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+pa-zigzag-fibonacci-fan-altw-rddt-1d-2026-11 NYSE:RDDT 1D     9      MATCH             all 10 items agree
+    zigzag                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+     0.000                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -0.236                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -0.382                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -0.500                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -0.618                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -1.000                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -1.618                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    -3.141                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+pa-zigzag-fibonacci-fan-altw-spy-1d-2026-11- AMEX:SPY 1D      9      MATCH             all 10 items agree
+    zigzag                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+     0.000                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -0.236                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -0.382                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -0.500                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -0.618                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -1.000                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -1.618                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    -3.141                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 pa-zigzag-fibonacci-fan-rddt-1d-2026-10-02   NYSE:RDDT 1D     9      MATCH             all 10 items agree
     zigzag                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
      0.000                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -2152,6 +2196,14 @@ support-and-resistance-multi-time-frame-rddt NYSE:RDDT 1D     6      MATCH      
     Resistance Monthly                       MATCH             cmp 635 ok 635 warm 0/0 steady 0/635 maxRel 0.00e+0
     Support Monthly                          MATCH             cmp 635 ok 635 warm 0/0 steady 0/635 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
+support-and-resistance-multi-time-frame-rddt NYSE:RDDT 1D     6      MATCH             all 7 items agree
+    Resistance Daily                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Support Daily                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Resistance Weekly                        MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Support Weekly                           MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Resistance Monthly                       MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Support Monthly                          MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 support-and-resistance-multi-time-frame-spy- AMEX:SPY 1D      6      MATCH             all 7 items agree
     Resistance Daily                         MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Support Daily                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -2159,6 +2211,14 @@ support-and-resistance-multi-time-frame-spy- AMEX:SPY 1D      6      MATCH      
     Support Weekly                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Resistance Monthly                       MATCH             cmp 1799 ok 1799 warm 0/0 steady 0/1799 maxRel 0.00e+0
     Support Monthly                          MATCH             cmp 1799 ok 1799 warm 0/0 steady 0/1799 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+support-and-resistance-multi-time-frame-spy- AMEX:SPY 1D      6      MATCH             all 7 items agree
+    Resistance Daily                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    Support Daily                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    Resistance Weekly                        MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    Support Weekly                           MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    Resistance Monthly                       MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    Support Monthly                          MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 support-and-resistance-rddt-1d-2026-10-02    NYSE:RDDT 1D     2      MATCH             all 3 items agree
     Plot                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -6903,11 +6963,12 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W13_cum_close_FROM_BAR0                  MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-TOTAL 948 captures — MATCH 331 · DIVERGE 73 · INCONCLUSIVE 521 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 220 captures) — MATCH 332 · DIVERGE 73 · INCONCLUSIVE 520
+TOTAL 954 captures — MATCH 337 · DIVERGE 73 · INCONCLUSIVE 521 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 220 captures) — MATCH 338 · DIVERGE 73 · INCONCLUSIVE 520
 CHANGED BY OBJECT COLOUR (1): w9-d11-late-first-use-rddt-1d-2026-11-16 MATCH → INCONCLUSIVE
-WITHOUT PAINTS (the verdict before B1; paints graded on 82 captures) — MATCH 334 · DIVERGE 67 · INCONCLUSIVE 524
+WITHOUT PAINTS (the verdict before B1; paints graded on 82 captures) — MATCH 340 · DIVERGE 67 · INCONCLUSIVE 524
 CHANGED BY PAINTS (9): machine-learning-moving-average-backquant-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-14 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-17 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
+supertrend-kivancozbilgic-rddt-1d-2026-10-02 NYSE:RDDT 1D     7      MATCH             all 8 items agree
 ```
 
 ## Runtime declines by code (303)
