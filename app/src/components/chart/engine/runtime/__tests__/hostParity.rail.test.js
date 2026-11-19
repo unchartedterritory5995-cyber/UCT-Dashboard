@@ -253,7 +253,7 @@ describe('the corpus', () => {
     expect(sets.m5_32768).toMatchObject({ tf: '5', n: 32768 })
     expect(sets.listing.ctx.historyFromListing).toBe(true)
     expect(sets.forming.ctx.newestBarIsForming).toBe(true)
-    expect(sets.calcbars.calcBars).toBeGreaterThan(0)
+    expect(sets.calcwindow.calcBars).toBeGreaterThan(0)
     const hostile = corpus.scripts.filter((s) => s.hostile)
     expect(hostile.length).toBeGreaterThanOrEqual(9)
     for (const h of hostile) expect(typeof h.expectGuard).toBe('string')
@@ -284,10 +284,10 @@ describe('report-only cases (the V8 sin/cos 1-ulp finding): named, pinned, measu
   const A = { 'x@s': withCols('d1', [1, 2, 3]), 'y@s': withCols('d1', [1, 2, 3]) }
   const B = { 'x@s': withCols('d2', [1, next(2), 3]), 'y@s': withCols('d2', [1, next(2), 3]) }
 
-  // landing train 1 (engine 59): CBC-FMT computes the `calcbars` set on the runtime lane (it was withheld
+  // landing train 1 (engine 59): CBC-FMT computes the window set on the runtime lane (it was withheld
   // `runtime:calc-bars-bar-index` before), so the trig script's third bar set carries sin / cos values too
   it('the list is the three trig cases and nothing else (pinned), each a real corpus case', () => {
-    expect([...hp.reportOnlyOf(corpus).keys()].sort()).toEqual(['transcendental@calcbars', 'transcendental@forming', 'transcendental@listing'])
+    expect([...hp.reportOnlyOf(corpus).keys()].sort()).toEqual(['transcendental@calcwindow', 'transcendental@forming', 'transcendental@listing'])
     expect(corpus.reportOnly.reason).toMatch(/Math\.sin/)
     // ...and every listed case is a case of the ONE trig script (the only corpus script that calls
     // math.sin / math.cos): a case of any other script can never be listed, whatever the pin says
