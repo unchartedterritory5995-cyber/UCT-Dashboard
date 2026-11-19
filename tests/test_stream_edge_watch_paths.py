@@ -37,5 +37,9 @@ def test_every_module_stream_edge_loads_is_a_watch_path():
     assert "api/stream_edge_main.py" in loaded
     missing = sorted(loaded - watched)
     assert not missing, f"add to railway.edge.json watchPatterns: {missing}"
+    # nixpacks.toml stays watched although Railway STORES builder RAILPACK for stream-edge: the build
+    # log of its last successful deployment (2026-11-19) says "using build driver nixpacks-v1.41.0"
+    # and runs nixpacks.toml's own setup and install (python312, nodejs_20, ffmpeg, /opt/venv).
+    # So that file shapes stream-edge's image, and a change to it must rebuild stream-edge.
     for f in ("requirements.txt", "nixpacks.toml", "runtime.txt", "railway.edge.json"):
         assert f in watched

@@ -100,10 +100,20 @@ export function browserRefusalBlock(refusal) {
  * still running an older build never meets a field its own validator refuses.
  *   note.by: a note may say who wrote it (`by: "uct"`).
  *   offer:   an answer may carry one action to take with one tap (`builtInOffer.js`).
- *   script:  an answer may BE a Pine script, which this window puts through its own engine and
- *            shows the verdict of (`scriptAnswer.js`).
  */
-export const ACCEPTS = Object.freeze(['note.by', 'offer', 'script'])
+export const ACCEPTS = Object.freeze(['note.by', 'offer'])
+
+/**
+ * ⭐ `script`: an answer may BE a Pine script. ⛔ NOT every sender of this build accepts one: only a
+ * window that puts the script through its own engine and SHOWS it and its verdict (`scriptAnswer.js`).
+ * A sender says so with `gateCtx.showsScripts === true`; with anything else the word is not sent and
+ * the door answers with the formula turn it always gave.
+ * ⚰️ 2026-11-19, found live while the lane was admin-only: this word was in `ACCEPTS`, so the builder's
+ * own "Describe it" box (`ConverseBox`) and the UCT Agent door told the door they accept a script.
+ * Neither shows one: an admin there read "This draws a zigzag ..." about a script that was nowhere
+ * on the screen. The senders that show one are held by `scriptAccepts.test.js`.
+ */
+export const ACCEPTS_SCRIPT = 'script'
 
 /** The bounds the server reads `addable` under (`definition_conversation.BUILT_INS_MAX`). */
 export const BUILT_INS_LIMITS = Object.freeze({ max: 40, maxChars: 64 })
@@ -121,7 +131,7 @@ export function converseBody({ message, state, gateCtx = {}, snippets = [], brow
   const body = {
     message: String(message || '').slice(0, CONVERSE_LIMITS.maxMessage),
     view,
-    accepts: [...ACCEPTS],
+    accepts: [...ACCEPTS, ...(gateCtx && gateCtx.showsScripts === true ? [ACCEPTS_SCRIPT] : [])],
     authoring: { assumptions: view.assumptions, openQuestions: view.openQuestions },
     snippets: boundedSnippets(snippets),
     chart: {

@@ -21,6 +21,7 @@
   "obj:getter",
   "obj:label",
   "obj:line",
+  "obj:linefill",
   "obj:table",
   "realtime-state",
   "reassign",

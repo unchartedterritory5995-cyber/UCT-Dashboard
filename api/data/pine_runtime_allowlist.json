@@ -117,7 +117,16 @@
     "(rddt, spy), both drawn by the runtime lane, objects v2 MATCH with their tables and cells paired and none differing.",
     "Mann-Kendall's move from DIVERGE (U3b) to MATCH was a PAINT grade (968066d775, landed in engine 59), not its table:",
     "see the row's note. obj:linefill stays withdrawn (re-checked: AlgoAlpha's linefills are still the host program's).",
-    "obj:box is admitted with the count-at-cap carve-out (see above)."
+    "obj:box is admitted with the count-at-cap carve-out (see above).",
+    "",
+    "PARITY UNIT LF (2026-11-18, coordinator order): obj:linefill is ADMITTED. Step 1 (runtimeObjectsDoor.js hostFallback)",
+    "makes a runtime document's drawings its RUN's where the run builds them and its host program is clean; that program rides",
+    "beside the run and is drawn only where the run holds a family back (and never once a script setting is moved), so no",
+    "member loses a drawing. Step 2 withholds the linefill family by name once the run's line collector deletes a filled line",
+    "(the count-at-cap carve-out, LINEFILL_COUNT_AT_CAP_REASON). Step 3: the runtime-on snapshot regenerated at that tree, and",
+    "the row admitted on FVG Finder (rddt 2026-11-15) and AlgoAlpha Trend Targets (rddt 2026-11-15, 2026-11-17), each drawn by",
+    "the run (vendorHarness.objLinefillEvidence.test.js). AlgoAlpha's SPY captures are not evidence: on AMEX:SPY its run holds",
+    "its drawings back by name (format:tick-unsettled) and the host program draws them."
   ],
   "scripts": [
     {
@@ -702,6 +711,17 @@
         {"capture": "long_tail__09-signal-follow-through-ledger-spy-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 20, "objectsX": "MATCH"}
       ],
       "note": "box.* drawings (DRAW-1, 2026-11-16, coordinator ruling): objectsPaired is the capture's paired BOX records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. Carve-out: on the runtime lane a box family whose collector ran in a script that reads a past value of a variable holding a box is withheld by name (objects:count-at-cap; see the readme). Evidence: the committed runtime-on snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes, and the harness's own objects lane, on feat/pine-coverage-drawings); docs/pine/evidence/2026-11-16-draw1-drawing-objects."
+    },
+    "obj:linefill": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 84, "rowSha256": "1391f03e3aea479bc4cb517557b787fd9c218f3878cad148847b1d1b060cd612"},
+      "evidence": [
+        {"capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15", "script": "FVG Finder", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 22, "objectsX": "MATCH"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-11-15", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-11-17", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"}
+      ],
+      "note": "linefill.* drawings (PARITY UNIT LF step 3, 2026-11-18, coordinator order): objectsPaired is the capture's paired LINEFILL records. Each entry: runtime-on MATCH, objects v2 MATCH (x graded, 0 differing) with the RUN drawing its linefills on that chart (vendorHarness.objLinefillEvidence.test.js asks the member door and the binder's own predicate, runtimeObjects.js::drawsRunObjectsOn, capture by capture). AlgoAlpha's drawings became its run's in LF step 1 (runtimeObjectsDoor.js hostFallback: a clean host program rides beside the run and is drawn only where the run holds a family back); FVG Finder's run drew them before. Not evidence: trend-targets-algoalpha-spy-1d-2026-11-15 (the run holds its drawings back by name there, format:tick-unsettled, so the HOST program draws them; the rail's control), the 2026-10-02 captures and fvg-detector RDDT 2026-11-14 (objects v2 INCONCLUSIVE: taken before the x table). Carve-out (LF step 2, runtime/objectStore.js LINEFILL_COUNT_AT_CAP_REASON): once the run's line collector deletes a line a fill spans, the linefill family is withheld by name, as obj:box's count-at-cap (FVG Finder AMEX:SPY 1D 2026-11-18, licence-held: TradingView 289 linefills at the 500-line cap, ours 250). Evidence: the runtime-on snapshot regenerated at this tree (docs/pine/vendor-harness/runtime-on/verdicts.json); docs/pine/evidence/2026-11-18-admit-obj-linefill/EVIDENCE.md section 7."
     },
     "conditional-ta": {
       "status": "conformant",

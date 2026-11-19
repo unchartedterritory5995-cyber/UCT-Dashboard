@@ -1,191 +1,39 @@
 {
  "populations": {
   "capture": {
-   "scripts": 954,
-   "admitted": 753,
+   "scripts": 949,
+   "admitted": 580,
    "runtimeLane": 182,
-   "hostLane": 319,
-   "refused": 252,
+   "hostLane": 262,
+   "refused": 136,
    "coreOnly": 45
   },
   "committed": {
    "scripts": 266,
-   "admitted": 186,
+   "admitted": 122,
    "runtimeLane": 44,
-   "hostLane": 57,
-   "refused": 85,
+   "hostLane": 47,
+   "refused": 31,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
-   "admitted": 236,
+   "admitted": 171,
    "runtimeLane": 40,
-   "hostLane": 109,
-   "refused": 87,
+   "hostLane": 90,
+   "refused": 41,
    "coreOnly": 7
   },
   "builtin": {
    "scripts": 142,
-   "admitted": 116,
-   "runtimeLane": 27,
-   "hostLane": 70,
-   "refused": 19,
+   "admitted": 111,
+   "runtimeLane": 28,
+   "hostLane": 69,
+   "refused": 14,
    "coreOnly": 30
   }
  },
- "populationSizes": {
-  "capture": 954,
-  "committed": 266,
-  "reference": 271,
-  "builtin": 142
- },
  "captures": [
-  {
-   "capture": "3-level-zigzag-semafor-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "3-level-zigzag-semafor-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "3-level-zigzag-semafor-spy-60-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "4c-nyse-market-breadth-ratio-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "4c-nyse-market-breadth-ratio-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "ad-line-of-sp-sectors-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "ad-line-of-sp-sectors-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "advanced-custom-multi-ma-signals-emasmavwmavwap-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "advanced-custom-multi-ma-signals-emasmavwmavwap-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
   {
    "capture": "adx-and-di-for-v4-rddt-1d-2026-09-27",
    "lane": "runtime",
@@ -227,98 +75,6 @@
    "caps": [
     "core",
     "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "anchored-vwap-pinch-handoff-intervals-and-signals-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "capture": "anchored-vwap-pinch-handoff-intervals-and-signals-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "capture": "asianrange-and-killzones-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "asianrange-and-killzones-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
     "ternary"
    ]
   },
@@ -578,34 +334,6 @@
    ]
   },
   {
-   "capture": "blackflag-fts-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "blackflag-fts-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "capture": "bollinger-band-width-percentile-rddt-1d-2026-11-14",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -623,42 +351,6 @@
     "reassign",
     "ternary",
     "var"
-   ]
-  },
-  {
-   "capture": "boom-hunter-entry-point-screener-alerts-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "capture": "boom-hunter-entry-point-screener-alerts-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure"
    ]
   },
   {
@@ -721,54 +413,6 @@
    ]
   },
   {
-   "capture": "camarilla-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "camarilla-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "capture": "candlestick-patterns-identified-update-1-17-26-rddt-1d-2026-09-28",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -808,58 +452,6 @@
    "production": "MATCH",
    "caps": [
     "core"
-   ]
-  },
-  {
-   "capture": "chart-champions-part-1-npoc-levels-vwaps-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "chart-champions-part-1-npoc-levels-vwaps-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "typed-array",
-    "var"
    ]
   },
   {
@@ -931,94 +523,6 @@
    ]
   },
   {
-   "capture": "cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-rddt-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "cumulative-volume-delta-6ba9ad54-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "cumulative-volume-delta-6ba9ad54-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "capture": "cumulative-volume-delta-rddt-1d-2026-09-27",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -1052,68 +556,6 @@
     "if-block",
     "reassign",
     "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "delta-imbalance-map-joat-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var"
-   ]
-  },
-  {
-   "capture": "delta-imbalance-map-joat-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "udt",
     "var"
    ]
   },
@@ -1156,60 +598,6 @@
    ]
   },
   {
-   "capture": "delta-volume-v21-by-kernel-phi-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "delta-volume-v21-by-kernel-phi-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "donchian-channels-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "donchian-channels-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "capture": "double-topbottom-ultimate-os-rddt-1d-2026-11-14",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -1234,108 +622,6 @@
     "reassign",
     "ternary",
     "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "elliot-wave-detector-pro-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "generics",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "udt",
-    "var"
-   ]
-  },
-  {
-   "capture": "elliot-wave-detector-pro-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "generics",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "udt",
-    "var"
-   ]
-  },
-  {
-   "capture": "elliot-wave-detector-pro-spy-60-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "generics",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "udt",
     "var"
    ]
   },
@@ -1427,54 +713,6 @@
     "obj:delete",
     "obj:label",
     "obj:line"
-   ]
-  },
-  {
-   "capture": "fair-value-gap-rddt-1d-2026-11-14",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "var"
-   ]
-  },
-  {
-   "capture": "fair-value-gap-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "var"
    ]
   },
   {
@@ -1644,34 +882,6 @@
    ]
   },
   {
-   "capture": "fibonacci-pivot-points-cc-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "fibonacci-pivot-points-cc-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "capture": "fibonacci-retracement-mtflog-rddt-1d-2026-11-14",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -1697,102 +907,43 @@
    ]
   },
   {
-   "capture": "fibonacci-retracement-statistics-by-volprofex-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
+   "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
-    "collections:array",
-    "compound-assign",
+    "conditional-ta",
     "core",
     "fn-multi",
     "fn-single",
-    "for",
-    "generics",
-    "history-expr",
     "if-block",
     "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
     "obj:label",
     "obj:line",
-    "obj:table",
-    "realtime-state",
+    "obj:linefill",
     "reassign",
-    "request-other",
     "switch",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
+    "var"
    ]
   },
   {
-   "capture": "fibonacci-retracement-statistics-by-volprofex-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
+   "capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
-    "collections:array",
-    "compound-assign",
+    "conditional-ta",
     "core",
     "fn-multi",
     "fn-single",
-    "for",
-    "generics",
-    "history-expr",
     "if-block",
     "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
     "obj:label",
     "obj:line",
-    "obj:table",
-    "realtime-state",
+    "obj:linefill",
     "reassign",
-    "request-other",
     "switch",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "fibonacci-retracement-statistics-by-volprofex-spy-60-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
+    "var"
    ]
   },
   {
@@ -1953,98 +1104,6 @@
    ]
   },
   {
-   "capture": "high-low-open-mid-ranges-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "high-low-open-mid-ranges-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "ict-ipda-look-back-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "ict-ipda-look-back-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "ict-killzone-index-version-rddt-1d-2026-11-14",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -2087,46 +1146,6 @@
     "fn-single",
     "if-block",
     "ternary"
-   ]
-  },
-  {
-   "capture": "initial-balance-ib-and-previous-day-week-high-low-close-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "initial-balance-ib-and-previous-day-week-high-low-close-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -2275,6 +1294,66 @@
     "ternary",
     "typed-array",
     "var"
+   ]
+  },
+  {
+   "capture": "k-clustering-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:collection",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var",
+    "while"
+   ]
+  },
+  {
+   "capture": "k-clustering-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:collection",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var",
+    "while"
    ]
   },
   {
@@ -2444,194 +1523,38 @@
    ]
   },
   {
-   "capture": "liquidity-engulfing-displacement-msf-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "liquidity-engulfing-displacement-msf-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "liquidity-heatmap-nephew-sam-rddt-1d-2026-09-28",
+   "capture": "liquidity-pools-rddt-1d-2026-09-28",
    "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
-    "collections:array",
-    "conditional-ta",
     "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
     "if-block",
-    "max_bars_back",
+    "method-call",
     "obj:label",
     "obj:line",
-    "obj:table",
+    "obj:linefill",
     "realtime-state",
     "reassign",
-    "request-other",
     "ternary",
-    "tuple-destructure",
-    "typed-array",
     "var"
    ]
   },
   {
-   "capture": "liquidity-heatmap-nephew-sam-spy-1d-2026-10-03",
+   "capture": "liquidity-pools-spy-1d-2026-10-03",
    "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
-    "collections:array",
-    "conditional-ta",
     "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
     "if-block",
-    "max_bars_back",
+    "method-call",
     "obj:label",
     "obj:line",
-    "obj:table",
+    "obj:linefill",
     "realtime-state",
     "reassign",
-    "request-other",
     "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "liquidity-levels-sonarlab-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "liquidity-levels-sonarlab-rddt-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "liquidity-levels-sonarlab-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "liquidity-levels-sonarlab-spy-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
     "var"
    ]
   },
@@ -2725,7 +1648,7 @@
    "capture": "macd-shortlong-strategy-is-rddt-1d-2026-11-18",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "if-block",
@@ -2752,50 +1675,6 @@
     "reassign",
     "switch",
     "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "machine-learning-logistic-regression-v3-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "machine-learning-logistic-regression-v3-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
     "var"
    ]
   },
@@ -2849,68 +1728,6 @@
     "fn-single",
     "if-block",
     "obj:box"
-   ]
-  },
-  {
-   "capture": "market-sessions-and-volume-profile-by-leviathan-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "market-sessions-and-volume-profile-by-leviathan-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
    ]
   },
   {
@@ -3023,28 +1840,6 @@
    ]
   },
   {
-   "capture": "mcclellan-indicators-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "mcclellan-indicators-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "capture": "mid_engagement__20-mann-kendall-trend-significance-rddt-1d-2026-11-15",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -3117,463 +1912,6 @@
     "realtime-state",
     "ternary",
     "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "moving-averages-as-support-resistance-mtf-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "moving-averages-as-support-resistance-mtf-rddt-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "moving-averages-as-support-resistance-mtf-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "moving-averages-as-support-resistance-mtf-spy-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "moving-averages-as-support-resistance-mtf-spy-60-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "mtf-dashboard-pro-rsi-fib-sr-volume-strixedge-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "mtf-dashboard-pro-rsi-fib-sr-volume-strixedge-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "mtf-key-levels-support-and-resistance-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "mtf-key-levels-support-and-resistance-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "mtf-watchlist-charts-anan-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "mtf-watchlist-charts-anan-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "mtf-watchlist-charts-anan-spy-60-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "multi-timeframe-fvg-tfo-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "multi-timeframe-fvg-tfo-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "multi-timeframe-rsi-buy-sell-strategy-tradedots-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "request-other",
-    "strategy-decl",
-    "switch",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "multi-timeframe-supply-demand-zones-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "multi-timeframe-supply-demand-zones-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "multi-timeframe-trend-indicator-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:table",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "multi-timeframe-trend-indicator-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:table",
-    "reassign",
-    "request-other",
-    "ternary",
     "var"
    ]
   },
@@ -3882,38 +2220,6 @@
    ]
   },
   {
-   "capture": "pa-zigzag-fibonacci-fan-rddt-1d-2026-10-02",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "pa-zigzag-fibonacci-fan-spy-1d-2026-10-03",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "capture": "parabolic-sar-rddt-1d-2026-10-03",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -3988,82 +2294,6 @@
    ]
   },
   {
-   "capture": "poor-man039s-volume-profile-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "poor-man039s-volume-profile-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "poor-man039s-volume-profile-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "poor-man039s-volume-profile-spy-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "position-size-calculator-rddt-1d-2026-09-28",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -4120,35 +2350,45 @@
    ]
   },
   {
-   "capture": "previous-n-daysweeksmonths-high-low-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "capture": "price-action-as-in-book-fibonacci-supportresistant-trendline-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
-    "history-expr",
+    "fn-multi",
+    "fn-single",
     "if-block",
+    "method-call",
     "obj:delete",
     "obj:label",
+    "obj:line",
+    "obj:linefill",
     "realtime-state",
-    "request-other",
-    "ternary"
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
-   "capture": "previous-n-daysweeksmonths-high-low-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "capture": "price-action-as-in-book-fibonacci-supportresistant-trendline-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
-    "history-expr",
+    "fn-multi",
+    "fn-single",
     "if-block",
+    "method-call",
     "obj:delete",
     "obj:label",
+    "obj:line",
+    "obj:linefill",
     "realtime-state",
-    "request-other",
-    "ternary"
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
@@ -4238,56 +2478,6 @@
    ]
   },
   {
-   "capture": "relative-volume-at-time-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "relative-volume-at-time-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
    "capture": "relative-volume-rddt-1d-2026-11-14",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -4305,105 +2495,6 @@
     "reassign",
     "ternary",
     "var"
-   ]
-  },
-  {
-   "capture": "renderingnature-smc-reversal-engine-v71-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "renderingnature-smc-reversal-engine-v71-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "renderingnature-smc-reversal-engine-v71-spy-60-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var",
-    "while"
    ]
   },
   {
@@ -4551,781 +2642,6 @@
     "obj:label",
     "realtime-state",
     "ternary"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-alab-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-alab-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-crwv-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-crwv-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-m-nvda-1m-2026-11-18",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-m-rddt-1m-2026-11-18",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-nvda-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-pc-agl-1d-2026-11-17",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-pc-nvda-1d-2026-11-17",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-pc-rddt-1d-2026-11-17",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-pm-alab-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-pm-rddt-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-rddt-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-seta-alab-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-seta-rddt-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-setb-alab-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-setb-rddt-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-setc-alab-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-setc-rddt-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-setd-alab-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-setd-rddt-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-sete2-alab-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-sete2-rddt-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-setf-alab-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-setf-rddt-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-spy-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-w-nvda-1w-2026-11-17",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-w-rddt-1w-2026-11-17",
-   "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-spx-daily-pm-alab-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "request-other"
-   ]
-  },
-  {
-   "capture": "rs-spx-daily-pm-rddt-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "request-other"
-   ]
-  },
-  {
-   "capture": "rs-spx-daily-pm-spy-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "request-other"
-   ]
-  },
-  {
-   "capture": "rs-spx-daily-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "request-other"
-   ]
-  },
-  {
-   "capture": "rs-spx-daily-spy-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "request-other"
    ]
   },
   {
@@ -5836,90 +3152,6 @@
    ]
   },
   {
-   "capture": "screener-mean-reversion-channel-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "screener-mean-reversion-channel-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "sector-rotation-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "sector-rotation-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
    "capture": "session-highs-and-lows-indicator-smc-sessions-dst-safe-rddt-60-2026-11-16",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
@@ -6006,417 +3238,12 @@
    ]
   },
   {
-   "capture": "smart-money-volume-activity-algoalpha-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "method-call",
-    "obj:collection",
-    "obj:delete",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "smart-money-volume-activity-algoalpha-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "method-call",
-    "obj:collection",
-    "obj:delete",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var",
-    "while"
-   ]
-  },
-  {
    "capture": "smart-money-volume-index-algoalpha-rddt-1d-2026-11-14",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "smarter-snr-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "smarter-snr-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "smarter-snr-spy-60-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "smoothed-gaussian-trend-filter-algoalpha-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "smoothed-gaussian-trend-filter-algoalpha-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "smt-divergence-ict-01-tradingfinder-smart-money-technique-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "smt-divergence-ict-01-tradingfinder-smart-money-technique-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "smt-divergence-ict-01-tradingfinder-smart-money-technique-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "smt-divergence-ict-01-tradingfinder-smart-money-technique-spy-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "smt-divergence-ict-killzones-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "generics",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "smt-divergence-ict-killzones-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "generics",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "strong-start-rvol-dashboard-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "strong-start-rvol-dashboard-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "sub-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "sub-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "request-other",
     "ternary"
    ]
   },
@@ -6438,7 +3265,7 @@
    "capture": "supertrend-strategy-is-rddt-1d-2026-11-18",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core",
     "fn-single",
@@ -6601,26 +3428,6 @@
    ]
   },
   {
-   "capture": "support-and-resistance-multi-time-frame-rddt-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "request-other"
-   ]
-  },
-  {
-   "capture": "support-and-resistance-multi-time-frame-spy-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "request-other"
-   ]
-  },
-  {
    "capture": "support-and-resistance-rddt-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -6678,60 +3485,6 @@
     "reassign",
     "ternary",
     "var"
-   ]
-  },
-  {
-   "capture": "swing-points-and-liquidity-by-leviathan-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "swing-points-and-liquidity-by-leviathan-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "var",
-    "while"
    ]
   },
   {
@@ -6809,106 +3562,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "capture": "take-profit-multi-timeframe-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "take-profit-multi-timeframe-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "tehthomas-aligned-timeframe-fair-value-gaps-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "generics",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "tehthomas-aligned-timeframe-fair-value-gaps-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "generics",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
    ]
   },
   {
@@ -7084,6 +3737,156 @@
    ]
   },
   {
+   "capture": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "trend-targets-algoalpha-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "trend-targets-algoalpha-rddt-1d-2026-11-17",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "trend-targets-algoalpha-spy-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "trend-targets-algoalpha-spy-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "trend-targets-algoalpha-spy-1d-2026-11-17",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -7184,38 +3987,56 @@
    ]
   },
   {
-   "capture": "ultimate-pivot-points-rddt-1d-2026-09-28",
+   "capture": "vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28",
    "lane": "host",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
+    "collections:array",
+    "conditional-ta",
     "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
     "if-block",
-    "obj:getter",
+    "method-call",
+    "obj:box",
     "obj:label",
     "obj:line",
+    "obj:linefill",
+    "obj:table",
     "realtime-state",
     "reassign",
-    "request-other",
     "ternary",
+    "tuple-destructure",
+    "typed-array",
     "var"
    ]
   },
   {
-   "capture": "ultimate-pivot-points-spy-1d-2026-10-03",
+   "capture": "vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03",
    "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
+    "collections:array",
+    "conditional-ta",
     "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
     "if-block",
-    "obj:getter",
+    "method-call",
+    "obj:box",
     "obj:label",
     "obj:line",
+    "obj:linefill",
+    "obj:table",
     "realtime-state",
     "reassign",
-    "request-other",
     "ternary",
+    "tuple-destructure",
+    "typed-array",
     "var"
    ]
   },
@@ -7280,60 +4101,6 @@
     "for",
     "reassign",
     "ternary"
-   ]
-  },
-  {
-   "capture": "volume-open-interest-footprint-by-leviathan-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "volume-open-interest-footprint-by-leviathan-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
    ]
   },
   {
@@ -7405,140 +4172,6 @@
     "reassign",
     "ternary",
     "tuple-destructure",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "volume-spikes-growing-volume-signals-with-alerts-scanner-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "capture": "volume-spikes-growing-volume-signals-with-alerts-scanner-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "capture": "volume-suite-by-leviathan-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "capture": "volume-suite-by-leviathan-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "capture": "volumized-order-blocks-flux-charts-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "volumized-order-blocks-flux-charts-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "udt",
     "var",
     "while"
    ]
@@ -8536,7 +5169,7 @@
    "capture": "vw-fcmp-arrays-rddt-1d-2026-11-18",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "collections:array",
     "core",
@@ -8547,7 +5180,7 @@
    "capture": "vw-fcmp-arrays-spy-1d-2026-11-18",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "collections:array",
     "core",
@@ -9007,18 +5640,6 @@
    ]
   },
   {
-   "capture": "vw-h5-request-timeframe-text-spy-1d-2026-11-16",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-single",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "capture": "vw-hs2-v3-highestbars-spy-1d-2026-11-16",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -9182,30 +5803,6 @@
    ]
   },
   {
-   "capture": "vw-lower-tf-1-30-spy-1d-2026-10-02",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-lower-tf-1-30-spy-1m-2026-10-02",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "capture": "vw-lower-tf-bars-rddt-15-2026-11-16",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -9239,71 +5836,6 @@
    "production": "MATCH",
    "caps": [
     "core"
-   ]
-  },
-  {
-   "capture": "vw-lower-tf-cava-1d-2026-10-02",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-lower-tf-rddt-1d-2026-09-30",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-lower-tf-spy-1d-2026-09-30",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-lower-tf-spy-1m-2026-10-02",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-lower-tf-spy-1w-2026-09-30",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
    ]
   },
   {
@@ -9528,66 +6060,6 @@
     "fn-multi",
     "fn-single",
     "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-request-htf-alignment-qqq-1d-2026-11-18",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-request-htf-alignment-spy-1d-2026-10-02",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-request-htf-alignment-spy-1d-2026-11-18",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-request-htf-alignment-spy-5-2026-10-02",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-request-htf-alignment-spy-60-2026-10-02",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "realtime-state",
-    "request-other",
     "ternary"
    ]
   },
@@ -10682,7 +7154,7 @@
    "capture": "vw-w4-max-bars-back-m1-spy-1d-2026-11-18",
    "lane": "host",
    "runtimeOn": "MATCH",
-   "production": "MATCH",
+   "production": null,
    "caps": [
     "core",
     "max_bars_back",
@@ -10693,7 +7165,7 @@
    "capture": "vw-w4-max-bars-back-m2-spy-1d-2026-11-18",
    "lane": "host",
    "runtimeOn": "MATCH",
-   "production": "MATCH",
+   "production": null,
    "caps": [
     "core",
     "max_bars_back",
@@ -10704,7 +7176,7 @@
    "capture": "vw-w4-max-bars-back-m3-spy-1d-2026-11-18",
    "lane": "host",
    "runtimeOn": "MATCH",
-   "production": "MATCH",
+   "production": null,
    "caps": [
     "core",
     "ternary"
@@ -10714,7 +7186,7 @@
    "capture": "vw-w4-max-bars-back-m4-spy-1d-2026-11-18",
    "lane": "host",
    "runtimeOn": "MATCH",
-   "production": "MATCH",
+   "production": null,
    "caps": [
     "core",
     "max_bars_back"
@@ -10724,7 +7196,7 @@
    "capture": "vw-w4-max-bars-back-m5-spy-1d-2026-11-18",
    "lane": "runtime",
    "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
+   "production": null,
    "caps": [
     "core"
    ]
@@ -11540,54 +8012,6 @@
    ]
   },
   {
-   "capture": "zigzag-ma-pattern-recognition-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "zigzag-ma-pattern-recognition-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "zigzag-ma-pattern-recognition-spy-60-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -11819,87 +8243,14 @@
    ]
   },
   {
-   "capture": "pa-zigzag-fibonacci-fan-altw-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "pa-zigzag-fibonacci-fan-altw-spy-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "pa-zigzag-fibonacci-fan-altm-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "pa-zigzag-fibonacci-fan-altm-spy-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "support-and-resistance-multi-time-frame-rddt-1d-2026-11-18",
+   "capture": "supertrend-kivancozbilgic-rddt-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "MATCH",
    "production": "MATCH",
    "caps": [
     "core",
-    "request-other"
-   ]
-  },
-  {
-   "capture": "support-and-resistance-multi-time-frame-spy-1d-2026-11-18",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "request-other"
+    "reassign",
+    "ternary"
    ]
   }
  ],
@@ -11927,32 +8278,6 @@
    ]
   },
   {
-   "key": "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "reassign",
-    "request-other",
-    "strategy-decl",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "committed:atr-trailing-stoploss-strategy__oayb1wVXkZ",
    "lane": null,
    "guard": "pine:statement",
@@ -11961,19 +8286,6 @@
     "core",
     "if-block",
     "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-single",
-    "request-other",
     "ternary"
    ]
   },
@@ -11987,41 +8299,6 @@
     "if-block",
     "strategy-decl",
     "ternary"
-   ]
-  },
-  {
-   "key": "committed:camarilla-screener__UsBJPF3MkA",
-   "lane": null,
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:correlation-matrix__dzN3DMCFJL",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "runtime:call-undeclared-builtin-state",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "obj:label",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -12192,97 +8469,6 @@
    ]
   },
   {
-   "key": "committed:multiple-mtf-moving-average-xdecow__aArjfk9ShG",
-   "lane": null,
-   "guard": "pine:builtin",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "key": "committed:one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "runtime:function",
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "request-other"
-   ]
-  },
-  {
-   "key": "committed:open-interest-profile-fixed-range-by-leviathan__875691ab51",
-   "lane": null,
-   "guard": "pine:input-kind",
-   "declined": "runtime:statement",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:optimized-trend-tracker__ZhWiFvtpwE",
-   "lane": null,
-   "guard": "pine:function-def",
-   "declined": "runtime:call-undeclared-builtin-state",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "reassign",
-    "request-other",
-    "strategy-decl",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "committed:order-block-finder__fVSb3j0I87",
    "lane": "runtime",
    "guard": null,
@@ -12428,27 +8614,6 @@
    ]
   },
   {
-   "key": "committed:supertrend-explorer__V4MsmtCeKs",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "committed:volume-profile-v054beta__PNSKf75832",
    "lane": null,
    "guard": "pine:no-output",
@@ -12513,18 +8678,6 @@
    ]
   },
   {
-   "key": "reference:accdist-macd__2931",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "obj:line",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:accumulationdistribution-volume-adv-ci8dh__OC6f7EUAOj",
    "lane": "host",
    "guard": null,
@@ -12545,17 +8698,6 @@
     "core",
     "obj:line",
     "ternary"
-   ]
-  },
-  {
-   "key": "reference:advance-decline-line-nyse-buschi__JFKaFMrPqZ",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "obj:line",
-    "request-other"
    ]
   },
   {
@@ -12607,60 +8749,6 @@
     "ternary",
     "typed-array",
     "var"
-   ]
-  },
-  {
-   "key": "reference:all-in-one-sessions-weekly-monday-previous-highslows__26254838fe",
-   "lane": null,
-   "guard": "pine:reassign",
-   "declined": "lower-tf:store-unmeasured",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:anchored-vwap__u9vU8nIMXA",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:angled-volume-profile-feeblev3__Z9Gy9K2ptd",
-   "lane": null,
-   "guard": "pine:builtin",
-   "declined": "pine:builtin",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "reassign",
-    "request-other",
-    "ternary"
    ]
   },
   {
@@ -12726,17 +8814,6 @@
     "ternary",
     "tuple-destructure",
     "var"
-   ]
-  },
-  {
-   "key": "reference:auto-fibonacci-retracament-levels__8Zm0EBCwa0",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
    ]
   },
   {
@@ -12811,21 +8888,6 @@
    ]
   },
   {
-   "key": "reference:bb-custom-indicator-tradingview-version__Vf3832aju8",
-   "lane": null,
-   "guard": "pine:plot-offset",
-   "declined": "pine:function",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other"
-   ]
-  },
-  {
    "key": "reference:bearish-engulfing__110",
    "lane": "host",
    "guard": null,
@@ -12834,27 +8896,6 @@
     "core",
     "if-block",
     "ternary"
-   ]
-  },
-  {
-   "key": "reference:best-abcd-pattern-screener__ROdc6mWjx4",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
    ]
   },
   {
@@ -12874,45 +8915,27 @@
    ]
   },
   {
-   "key": "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request",
+   "key": "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
-    "conditional-ta",
+    "collections:array",
+    "compound-assign",
     "core",
     "fn-multi",
     "fn-single",
-    "history-expr",
-    "obj:delete",
+    "for",
+    "if-block",
+    "method-call",
+    "obj:collection",
     "obj:label",
-    "realtime-state",
+    "obj:line",
+    "obj:linefill",
     "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:best-rsi-divergences-screener__TmlpugZKr6",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
+    "typed-array",
+    "var",
+    "while"
    ]
   },
   {
@@ -12936,19 +8959,6 @@
    "declined": null,
    "caps": [
     "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:bitcoin-futures-funding-rates-v5__zGOXiHPIn3",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "core",
-    "realtime-state",
-    "reassign",
-    "request-other",
     "ternary"
    ]
   },
@@ -13030,45 +9040,6 @@
    ]
   },
   {
-   "key": "reference:camarilla-levels-intraday__bfb5a2b8db",
-   "lane": null,
-   "guard": "pine:object-removal-lost",
-   "declined": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for-in",
-    "generics",
-    "history-expr",
-    "if-block",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:camarillastrategyv1__1913",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "runtime:strategy-repaint",
-   "caps": [
-    "core",
-    "if-block",
-    "request-other",
-    "strategy-decl"
-   ]
-  },
-  {
    "key": "reference:candles__1055",
    "lane": "host",
    "guard": null,
@@ -13088,18 +9059,6 @@
     "core",
     "fn-multi",
     "fn-single",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:chases-buysell-indicator-advance-decline__37714ef0a5",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "core",
-    "realtime-state",
-    "request-other",
     "ternary"
    ]
   },
@@ -13173,30 +9132,6 @@
    ]
   },
   {
-   "key": "reference:cm-stochastic-mtf__648",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "obj:line",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:cm-ultimate-rsi-mtf__454",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "obj:line",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:cog-double-channel-lazybear__7",
    "lane": "host",
    "guard": null,
@@ -13240,104 +9175,6 @@
    ]
   },
   {
-   "key": "reference:crypto-correlation-matrix__0f59de2d3d",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:cryptosignalscanner-rsi-overboughtoversold-divergence-indicator-new__918919b267",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:ct-displacement-fvg-toolkit__1ae5bb663e",
-   "lane": null,
-   "guard": "pine:reassign",
-   "declined": "pine:drawing",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "reference:cumulative-volume-delta-divergence__fbc538f076",
-   "lane": null,
-   "guard": "pine:builtin",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for-in",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "reference:cumulative-volume-delta__6e0c94af7a",
    "lane": "host",
    "guard": null,
@@ -13355,36 +9192,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "key": "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16",
-   "lane": null,
-   "guard": "pine:function-def",
-   "declined": "pine:window-dependent",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var",
-    "while"
    ]
   },
   {
@@ -13432,33 +9239,27 @@
    ]
   },
   {
-   "key": "reference:dynamic-higher-timeframe-fibonacci-pivot-points__8Hv70DXiZU",
+   "key": "reference:dynamic-linear-regression-channels__17ec799bc1",
    "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
+    "compound-assign",
     "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
     "if-block",
-    "obj:delete",
-    "obj:label",
+    "max_bars_back",
+    "method-call",
     "obj:line",
+    "obj:linefill",
     "realtime-state",
     "reassign",
-    "request-other",
     "ternary",
     "tuple-destructure",
     "var"
-   ]
-  },
-  {
-   "key": "reference:earnings-sr-levels-lazybear__453",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
    ]
   },
   {
@@ -13641,22 +9442,6 @@
    ]
   },
   {
-   "key": "reference:fikira-pivots-fibonacci-retracement-3__z6DqAomUWC",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:filtered-waves__qQY0b4PGLS",
    "lane": "host",
    "guard": null,
@@ -13773,27 +9558,6 @@
    ]
   },
   {
-   "key": "reference:fxn-asian-session-range__jNLZBfpYDO",
-   "lane": null,
-   "guard": "pine:function",
-   "declined": "runtime:statement",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "key": "reference:fxn-week-and-day-separator__ingZSaBNLa",
    "lane": "host",
    "guard": null,
@@ -13809,26 +9573,6 @@
    ]
   },
   {
-   "key": "reference:global-liquidity-index__1b7ae64e24",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:table",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "key": "reference:golden-cross-sma-200-long-only-moving-average-strategy-by-chartart__2811",
    "lane": "runtime",
    "guard": null,
@@ -13838,24 +9582,6 @@
     "if-block",
     "strategy-decl",
     "ternary"
-   ]
-  },
-  {
-   "key": "reference:halftrend-longshort-signal-engine-bigbeluga__07070e14d6",
-   "lane": null,
-   "guard": "pine:state",
-   "declined": "pine:request",
-   "caps": [
-    "compound-assign",
-    "core",
-    "if-block",
-    "obj:label",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -13942,18 +9668,6 @@
    ]
   },
   {
-   "key": "reference:ict-killzone__fE0Mzs0mp0",
-   "lane": null,
-   "guard": "pine:function",
-   "declined": "pine:function",
-   "caps": [
-    "core",
-    "fn-single",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:inside-bar-setup__a1528b4d74",
    "lane": "host",
    "guard": null,
@@ -13991,26 +9705,6 @@
    ]
   },
   {
-   "key": "reference:intraday-power-3-visual__f9b34d80bb",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "var"
-   ]
-  },
-  {
    "key": "reference:kalman-trend-levels-bigbeluga__3fb104b310",
    "lane": null,
    "guard": "pine:state",
@@ -14038,30 +9732,6 @@
     "core",
     "fn-single",
     "reassign"
-   ]
-  },
-  {
-   "key": "reference:kyadvance-decline-line__Y4kq1XL1p2",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "fn-single",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:kz-boxes__zed4AoolEW",
-   "lane": null,
-   "guard": "pine:function",
-   "declined": "pine:function",
-   "caps": [
-    "core",
-    "fn-single",
-    "request-other",
-    "ternary"
    ]
   },
   {
@@ -14159,53 +9829,6 @@
     "reassign",
     "ternary",
     "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:liquidity-sniper-pro__da4b93aa0a",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:table",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:liquidity-swings-luxalgo__780e612168",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for-in",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
     "var"
    ]
   },
@@ -14357,71 +9980,12 @@
    ]
   },
   {
-   "key": "reference:mcclellan-oscillator-advndecl-breadth-indicator-lazybear__FnksDSV3kq",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:mema-bb-parabolic-sar__nurAC4OTMa",
    "lane": null,
    "guard": "pine:function",
    "declined": "runtime:colour",
    "caps": [
     "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb",
-   "lane": null,
-   "guard": "pine:reassign",
-   "declined": "pine:colour-value",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "reference:money-flow-index-mtf-alerts__RkKU95fUai",
-   "lane": null,
-   "guard": "pine:function-def",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "reassign",
-    "request-other",
     "ternary"
    ]
   },
@@ -14433,29 +9997,6 @@
    "caps": [
     "core",
     "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:most-screener__d7d9ae5349",
-   "lane": null,
-   "guard": "pine:state",
-   "declined": "pine:window",
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
     "var"
    ]
   },
@@ -14480,59 +10021,6 @@
    ]
   },
   {
-   "key": "reference:mtf-order-block-finder__ce13bf1b46",
-   "lane": null,
-   "guard": "pine:reassign",
-   "declined": "runtime:request",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:multi-timeframe-support-and-resistance-aba-invest__7d00b883de",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "history-expr",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:multi-timeframe-vwap-v5__Au03ORcOFj",
    "lane": "runtime",
    "guard": null,
@@ -14548,18 +10036,6 @@
     "ternary",
     "tuple-destructure",
     "var"
-   ]
-  },
-  {
-   "key": "reference:my-cme-open-interest__ndAEr9lJjO",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
    ]
   },
   {
@@ -14677,33 +10153,6 @@
    ]
   },
   {
-   "key": "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "reference:orb__xLXe22qQZC",
    "lane": "runtime",
    "guard": null,
@@ -14738,27 +10187,6 @@
     "realtime-state",
     "reassign",
     "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:ot-mtf-trend-dashboard-10__d43fa61404",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:function",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
     "ternary",
     "tuple-destructure",
     "var"
@@ -14821,30 +10249,6 @@
     "obj:label",
     "realtime-state",
     "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:previous-day-high-and-low__j8jsD7neOj",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "obj:line",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:price-action-doji-harami-v02-by-justunclel__4219",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "core",
-    "max_bars_back",
-    "request-other",
     "ternary"
    ]
   },
@@ -14921,27 +10325,6 @@
    ]
   },
   {
-   "key": "reference:range-filter-x-hull-suite__8430e18838",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:rate-of-change-and-rsi-zones__2ff596b2f1",
    "lane": "host",
    "guard": null,
@@ -14973,29 +10356,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "key": "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:label",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -15096,13 +10456,12 @@
    ]
   },
   {
-   "key": "reference:rsi-multi-timeframe-dashboard-by-giua64__cb0cdabd5f",
-   "lane": null,
-   "guard": "pine:prop-unreadable",
-   "declined": "runtime:request",
+   "key": "reference:rsi-support-resistance-by-dgt__ZkkLVEb1ak",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
    "caps": [
     "collections:array",
-    "compound-assign",
     "conditional-ta",
     "core",
     "fn-multi",
@@ -15110,36 +10469,20 @@
     "for",
     "history-expr",
     "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
     "obj:table",
     "realtime-state",
     "reassign",
-    "request-other",
-    "switch",
     "ternary",
     "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:rsi-trend-reversal__8ec0d3e25e",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:history-dynamic-offset",
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "strategy-decl",
-    "ternary",
-    "var"
+    "var",
+    "while"
    ]
   },
   {
@@ -15168,45 +10511,6 @@
     "obj:line",
     "reassign",
     "switch",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:saty-atr-levels__99165984ef",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:screener-for-40-instruments__a009097811",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "request-other",
     "ternary",
     "var"
    ]
@@ -15304,26 +10608,6 @@
    ]
   },
   {
-   "key": "reference:spy-moving-averages-and-signals__KSz0yeOiH2",
-   "lane": null,
-   "guard": "pine:offset-literal",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "key": "reference:squeeze-momentum-indicator-lazybear-vx-by-dgt__bjAASLSxLp",
    "lane": null,
    "guard": "pine:tuple",
@@ -15365,103 +10649,12 @@
    ]
   },
   {
-   "key": "reference:strategyrszigzag-pa-strategy-v41__2186",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "request-other",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:strategyrszigzag-pa-strategy-v4__2134",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "request-other",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:strong-knn-classifier__852c26b11d",
-   "lane": null,
-   "guard": "pine:collection",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "reference:study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA",
    "lane": "runtime",
    "guard": null,
    "declined": null,
    "caps": [
     "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:supertrend-mtf-heatmap__ODcEBlvB3g",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:supertrend__VfOPXWDHDP",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "reassign",
     "ternary"
    ]
   },
@@ -15475,28 +10668,6 @@
     "if-block",
     "reassign",
     "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:supertrendrange-by-dgt__jDAxwdo5u7",
-   "lane": null,
-   "guard": "pine:state",
-   "declined": "pine:function",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
     "var"
    ]
   },
@@ -15522,23 +10693,6 @@
     "obj:table",
     "realtime-state",
     "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "lower-tf:store-unmeasured",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "request-other",
     "ternary",
     "var"
    ]
@@ -15595,26 +10749,6 @@
    ]
   },
   {
-   "key": "reference:support-resistance-fibonacci-retracement__06a1a2c80d",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "if-block",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "key": "reference:swing-highs-lows__pkMwWmV2Mf",
    "lane": "host",
    "guard": null,
@@ -15643,19 +10777,6 @@
    ]
   },
   {
-   "key": "reference:thelark-lma-v2-laguerre__1029",
-   "lane": null,
-   "guard": "pine:state",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:trade-archer-on-balance-volume-moving-averages-v1__897",
    "lane": "host",
    "guard": null,
@@ -15663,25 +10784,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "key": "reference:tradepro039s-trading-idea-cipher-b-divergence-ema-pullback-strategy__98d2ed3472",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:table",
-    "request-other",
-    "strategy-decl",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -15726,13 +10828,26 @@
    ]
   },
   {
-   "key": "reference:trailing-stop-loss__MsDHHzGxlV",
+   "key": "reference:trend-channels-with-liquidity-breaks-chartprime__6cabbffddf",
    "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
+    "conditional-ta",
     "core",
-    "request-other"
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
@@ -15831,26 +10946,6 @@
     "reassign",
     "strategy-decl",
     "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:trendlines-2x__rzuOQrVQWt",
-   "lane": null,
-   "guard": "pine:state",
-   "declined": "pine:arity",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:line",
-    "reassign",
-    "request-other",
     "ternary",
     "tuple-destructure",
     "var"
@@ -15992,20 +11087,6 @@
    ]
   },
   {
-   "key": "reference:ut-bot-strategy__VynMPwQs9U",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:vix-fix-stochrsi-strategy__3173",
    "lane": "runtime",
    "guard": null,
@@ -16039,23 +11120,6 @@
     "switch",
     "ternary",
     "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:volume-pace-pressure-table__235d4849a0",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "fn-single",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
     "var"
    ]
   },
@@ -16112,57 +11176,6 @@
     "realtime-state",
     "reassign",
     "var"
-   ]
-  },
-  {
-   "key": "reference:vumanchu-b-divergences__uA35GeckoT",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "key": "reference:vwap-mtf__2809",
-   "lane": null,
-   "guard": "pine:builtin",
-   "declined": "pine:builtin",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:vwap-stdev-bands-v2-mod__2741",
-   "lane": null,
-   "guard": "pine:builtin",
-   "declined": "pine:builtin",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:vwap-stdev-bands-v2-mod__2744",
-   "lane": null,
-   "guard": "pine:builtin",
-   "declined": "pine:builtin",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
    ]
   },
   {
@@ -16320,19 +11333,6 @@
    ]
   },
   {
-   "key": "builtin:advance-decline-line__Advance1Decl",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-single",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "builtin:advance-decline-ratio-bars__Advance_Decl",
    "lane": "host",
    "guard": null,
@@ -16340,17 +11340,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "key": "builtin:advance-decline-ratio__Advance1Decl",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request-with-state",
-   "caps": [
-    "core",
-    "fn-single",
-    "request-other"
    ]
   },
   {
@@ -16654,27 +11643,6 @@
    ]
   },
   {
-   "key": "builtin:correlation-coefficient__Correlation_",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "request-other"
-   ]
-  },
-  {
-   "key": "builtin:cumulative-volume-index__Cumulative1V",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "pine:request",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
    "key": "builtin:detrended-price-oscillator__DPO",
    "lane": null,
    "guard": "pine:offset-literal",
@@ -16896,6 +11864,35 @@
    ]
   },
   {
+   "key": "builtin:linear-regression-channel__Linear_Regre",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "switch",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
    "key": "builtin:macd-strategy__MACD1Strateg",
    "lane": "runtime",
    "guard": null,
@@ -17071,24 +12068,6 @@
    ]
   },
   {
-   "key": "builtin:open-interest__OpenInterest",
-   "lane": null,
-   "guard": "pine:tuple",
-   "declined": "pine:builtin",
-   "caps": [
-    "core",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "builtin:outside-bar-strategy__OutSide1Bar1",
    "lane": "runtime",
    "guard": null,
@@ -17214,6 +12193,33 @@
    ]
   },
   {
+   "key": "builtin:price-target__Price1Target",
+   "lane": null,
+   "guard": "pine:builtin",
+   "declined": "pine:builtin",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for-in",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "key": "builtin:price-volume-trend__Price_Volume",
    "lane": "host",
    "guard": null,
@@ -17315,18 +12321,6 @@
     "strategy-decl",
     "ternary",
     "tuple-destructure"
-   ]
-  },
-  {
-   "key": "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "lower-tf:lookahead",
-   "caps": [
-    "core",
-    "realtime-state",
-    "request-other",
-    "ternary"
    ]
   },
   {
@@ -17582,26 +12576,6 @@
    ]
   },
   {
-   "key": "builtin:volume-weighted-average-price__VWAP",
-   "lane": null,
-   "guard": "pine:reassign",
-   "declined": "pine:request",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "builtin:volume-weighted-moving-average__VWMA",
    "lane": "host",
    "guard": null,
@@ -17676,2668 +12650,6 @@
    ]
   }
  ],
- "admittedGraded": [
-  {
-   "key": "committed:3-level-zigzag-semafor__3078",
-   "lane": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:4c-nyse-market-breadth-ratio__722410befd",
-   "lane": null,
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:ad-line-of-sp-sectors__af306a4359",
-   "lane": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:adx-and-di-for-v4__932",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "key": "committed:asianrange-and-killzones__ef41eb5ad6",
-   "lane": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:atr-bands__ad60b125e6",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:table",
-    "reassign",
-    "switch",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:atr-god-strategy-by-tradesmart__4369755a29",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for-in",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "switch",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:atr-support-and-resistance__3e9ddb38c4",
-   "lane": "host",
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:line",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:atr-trailing-stoploss__2JLLfrGRHg",
-   "lane": "host",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:auto-harmonic-patterns-open-source__ca6022754b",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:auto-trendline-dojiemoji__c21f83602c",
-   "lane": "host",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "generics",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:collection",
-    "obj:delete",
-    "obj:line",
-    "reassign",
-    "switch",
-    "ternary",
-    "typed-array",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:blackflag-fts__GdkmXaTINI",
-   "lane": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:bollinger-band-width-percentile__03JuGF728K",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "max_bars_back",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:boom-hunter-entry-point-screener-alerts__0fc5982548",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "key": "committed:breaks-and-retests-hg__ddba061af8",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "generics",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a",
-   "lane": "runtime",
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:camarilla__jw9faob08r",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:candlestick-patterns-identified-update-1-17-26__1082",
-   "lane": "host",
-   "caps": [
-    "core",
-    "history-expr"
-   ]
-  },
-  {
-   "key": "committed:cc-yata__bd898a1af0",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:cdc-btc-rainbow-road__d880789793",
-   "lane": "host",
-   "caps": [
-    "core"
-   ]
-  },
-  {
-   "key": "committed:chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:contraction-box-doji-lines__1486658151",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz",
-   "lane": "host",
-   "caps": [
-    "core",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:cumulative-volume-delta__K07lTKE3tP",
-   "lane": "host",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:cumulative-volume-delta__c772250751",
-   "lane": null,
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:deadband-hysteresis-filter-backquant__3fb3d09595",
-   "lane": "runtime",
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:delta-imbalance-map-joat__b80f337fb3",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:delta-rsi-oscillator-strategy__z4Yj46FVTX",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0",
-   "lane": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:donchian-channels__5df15aaa23",
-   "lane": "host",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:double-topbottom-ultimate-os__bd013ff4f5",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:elliot-wave-detector-pro__ce1cc9553e",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "generics",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "udt",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:elliott-wave-3-finder-v2__451cecfc9d",
-   "lane": "host",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:engulfingcandle__0df91dc775",
-   "lane": "host",
-   "caps": [
-    "core"
-   ]
-  },
-  {
-   "key": "committed:extrapolated-pivot-connector__vROeQSQlNs",
-   "lane": "host",
-   "caps": [
-    "core",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "obj:line"
-   ]
-  },
-  {
-   "key": "committed:fair-value-gap__1048fa103a",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:fib-retracement__8XcLscnekw",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:fibonacci-dolphintradebot__d93b208611",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "switch",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:fibonacci-pivot-points-cc__p8DQ3RIR97",
-   "lane": "host",
-   "caps": [
-    "core",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "method-call",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:fvg-trend__21e364f2ed",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:high-low-open-mid-ranges__5715509e0b",
-   "lane": "host",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:ict-ipda-look-back__f85b4c8956",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:ict-killzone-index-version__28962c02dd",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:implied-volatility-suite__CdN3hioOVl",
-   "lane": "host",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:institutional-smc-order-flow-matrix-pro__0b30cae0e6",
-   "lane": "host",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:kalman-price-filter-backquant__47a601e4bc",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "reassign",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:keltner-center-of-gravity-channel__e4a81d76f6",
-   "lane": "host",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:keltner-channels-bands__T5FsnX45Dn",
-   "lane": "host",
-   "caps": [
-    "core"
-   ]
-  },
-  {
-   "key": "committed:kernel-channel-backquant__d8c4b7f75c",
-   "lane": "runtime",
-   "caps": [
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:linear-regression-channel-200__243d67c804",
-   "lane": null,
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:liquidation-levels__pi4nVOJgbV",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:liquidity-engulfing-candles-upslidedown__0a521d089c",
-   "lane": "host",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:liquidity-engulfing-displacement-msf__58824c94f0",
-   "lane": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:liquidity-heatmap-nephew-sam__7628c72c3d",
-   "lane": "host",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:liquidity-levels-sonarlab__bba13c46c4",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:machine-learning-knn-based-strategy__lj1Gjlbycb",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "reassign",
-    "switch",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:machine-learning-logistic-regression-v3__TDlqz0q9TN",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:madrid-moving-average-ribbon__1025",
-   "lane": "host",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:makuchaku039s-trade-tools-fair-value-gaps__b951deedc8",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box"
-   ]
-  },
-  {
-   "key": "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:market-structure-break-order-block__3a1fb6197f",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:market-structure-by-leviathan__9ca1dae1ac",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "switch",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:market-structure-inducements-ict-tradinfinder-choch-bos-sweeps__7569f1043e",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "max_bars_back",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:market-structure-trend-targets-chartprime__d3c06abad6",
-   "lane": null,
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:mcclellan-indicators__29fdf0235d",
-   "lane": "host",
-   "caps": [
-    "core",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:momentum-volatility-scanner__4d1deaa855",
-   "lane": "host",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:moving-averages-as-support-resistance-mtf__gcBksfRvvy",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:mtf-key-levels-support-and-resistance__29f470a089",
-   "lane": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:mtf-watchlist-charts-anan__3453680ea1",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:multi-timeframe-fvg-tfo__adbed9f590",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "request-other",
-    "strategy-decl",
-    "switch",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:multi-timeframe-supply-demand-zones__a98a2ab367",
-   "lane": "host",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:multi-timeframe-trend-indicator__fa4022ecf5",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:table",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:neural-network-buy-and-sell-signals__fbbb11d0c7",
-   "lane": null,
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "reassign",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "reassign",
-    "ternary",
-    "typed-array"
-   ]
-  },
-  {
-   "key": "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
-   "lane": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "reassign",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "key": "committed:opening-range-initial-balance-opening-price__4a7416ab01",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84",
-   "lane": "runtime",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:options-max-pain-calculator-backquant__c904837c16",
-   "lane": "host",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "generics",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:order-blocks__b324078711",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:pa-zigzag-fibonacci-fan__2001",
-   "lane": "runtime",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:parabolic-sar__xoeoPMOWGJ",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:pivot-high-low-points__hoTsDQRY3L",
-   "lane": "host",
-   "caps": [
-    "core"
-   ]
-  },
-  {
-   "key": "committed:pivot-point-supertrend__HN4w1eNW3B",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:poor-man039s-volume-profile__ZnFTCYyvGJ",
-   "lane": "host",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:position-size-calculator__28sGm8JqI3",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "obj:delete",
-    "obj:label",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:previous-n-daysweeksmonths-high-low__78f5b05522",
-   "lane": null,
-   "caps": [
-    "core",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:qqe-signals__EhBrwQPjZ1",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:relative-volume-at-time__gei8CBKbc5",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:relative-volume__LnFmPEoFXQ",
-   "lane": "host",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:renderingnature-smc-reversal-engine-v71__f8734584d9",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:renko-candles-overlay__d76a18d49e",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA",
-   "lane": "host",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:rsi-horizontal-resistance-levels__a3f8454f81",
-   "lane": "host",
-   "caps": [
-    "collections:array",
-    "core",
-    "generics",
-    "if-block",
-    "obj:collection",
-    "obj:delete",
-    "obj:line",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:rsi-swing-indicator__CVZdVmg7ib",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "max_bars_back",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:rvol__05fcd9e160",
-   "lane": "host",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:screener-mean-reversion-channel__nTK2sHWDlB",
-   "lane": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:sector-rotation__0fca060bf4",
-   "lane": "host",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "method-call",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:session-hilo__WM2g5GtC4h",
-   "lane": "host",
-   "caps": [
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:sessions__2677",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:smart-money-interest-index-algoalpha__effdd7852c",
-   "lane": "host",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:smart-money-volume-activity-algoalpha__699c36ad31",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "method-call",
-    "obj:collection",
-    "obj:delete",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:smart-money-volume-index-algoalpha__6663950b80",
-   "lane": "host",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:smarter-snr__ac98ab25d5",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c",
-   "lane": "host",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:smt-divergence-ict-killzones__c932d56665",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "generics",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:strong-start-rvol-dashboard__36140b1cbe",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:sub__1xYROVYMlX",
-   "lane": null,
-   "caps": [
-    "core",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:supertrend-strategy__rcRbtoBiKG",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:support-and-resistance-logistic-regression-flux-charts__9d844269d6",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for-in",
-    "generics",
-    "if-block",
-    "method-call",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:support-and-resistance-multi-time-frame__Ph230jpfC9",
-   "lane": "host",
-   "caps": [
-    "core",
-    "request-other"
-   ]
-  },
-  {
-   "key": "committed:support-and-resistance__1505",
-   "lane": "host",
-   "caps": [
-    "core",
-    "if-block",
-    "realtime-state",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:support-and-resistance__UgNPprOr8h",
-   "lane": "host",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:support-and-resistance__c4792aabd0",
-   "lane": null,
-   "caps": [
-    "core",
-    "for",
-    "max_bars_back",
-    "obj:box",
-    "obj:delete",
-    "realtime-state",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:swing-highlow-zigzag-chartprime__c53f5bc4e2",
-   "lane": "host",
-   "caps": [
-    "core",
-    "if-block",
-    "method-call",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:swing-points-and-liquidity-by-leviathan__919c1fd9c6",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:take-profit-multi-timeframe__8c16588ae9",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "generics",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA",
-   "lane": "host",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:trend-duration-forecast-chartprime__2c5c233f31",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "for",
-    "generics",
-    "if-block",
-    "method-call",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:trend-levels-chartprime__90a5bf4ab1",
-   "lane": null,
-   "caps": [
-    "compound-assign",
-    "core",
-    "if-block",
-    "method-call",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:trend-line-harrybot__vMv5yOQxcA",
-   "lane": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:trendline-pivots-quantvue__3dc9be8b73",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for-in",
-    "if-block",
-    "method-call",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "typed-array",
-    "udt",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:trendlines__43QQg9nDN0",
-   "lane": "runtime",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:line",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:trendlinesample__61d59f90bc",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "for",
-    "if-block",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "realtime-state",
-    "reassign"
-   ]
-  },
-  {
-   "key": "committed:twin-range-filter__xF3L2PeXm7",
-   "lane": "runtime",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:ultimate-pivot-points__vRWbsbkQGe",
-   "lane": "host",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:visualizing-displacement-tfo__5b861441c2",
-   "lane": "host",
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:volume-delta-hapharmonic__d5748870fd",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:delete",
-    "obj:label",
-    "obj:table",
-    "reassign",
-    "ternary",
-    "udt",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:volume-divergence-by-mm__cvG2Djaryv",
-   "lane": "runtime",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:volume-profile-auto-line-v2__b0e947fd20",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:volume-profile__X0dKLxdLh4",
-   "lane": "host",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:collection",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f",
-   "lane": null,
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "key": "committed:volume-suite-by-leviathan__48da793360",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "key": "committed:volumized-order-blocks-flux-charts__1675b2b8e3",
-   "lane": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:box",
-    "obj:delete",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "key": "committed:zigzag-ma-pattern-recognition__1302",
-   "lane": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "realtime-state",
-    "request-other",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
-   "lane": "runtime",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  }
- ],
  "stops": [
   {
    "capture": "vw-deadband-ticks-brk-a-1d-2026-09-28",
@@ -20408,106 +12720,6 @@
     "udt",
     "var",
     "while"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-pc-agl-1d-2026-11-17",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-pc-nvda-1d-2026-11-17",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-pc-rddt-1d-2026-11-17",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "rs-rating-fred6724-pm-alab-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "request-other",
-    "switch",
-    "ternary",
-    "typed-array",
-    "var"
    ]
   },
   {

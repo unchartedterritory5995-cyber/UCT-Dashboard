@@ -101,29 +101,44 @@ export function sameRefusals(a, b) {
  * @param {string} pine
  * @param {object} [deps]  injectable for tests: `{ load }` returns the engine modules
  */
-export async function checkScript(pine, { load = loadEngine } = {}) {
+export async function checkScript(pine, { load = loadEngine, chart = null } = {}) {
   try {
-    const { inspectSource, memberPaneDefinition, editorStatus, prepare } = await load()
+    const { inspectSource, memberPaneDefinition, editorStatus, prepare, runHereWhenLanded, verdictOnChart } = await load()
     await prepare(pine)
     const report = inspectSource(pine, 'pine')
     const pane = memberPaneDefinition({ source: pine, id: SCRIPT_CHECK_ID, name: 'script' })
-    return verdictFrom(editorStatus({ report, pane, savedRow: null, inspectedSource: pine }), pane)
+    const pasted = verdictFrom(editorStatus({ report, pane, savedRow: null, inspectedSource: pine }), pane)
+    // ⭐⭐ 2026-11-19 -- "RUNS" MEANS IT RAN. The status above is decided before any bar is computed, and
+    // says "runs" for scripts the engine refuses when it runs them (a value kept since the first bar on
+    // a chart that does not reach the listing, a clock read, a loop past its limit). So a script the
+    // paste check passes is RUN on the chart's own bars and context (`builder/runsHere.js`, the one
+    // authority both doors use), and the run can only take "runs" away. A run that stopped goes back
+    // to the assistant with the engine's own sentence, like any refusal. With no chart to run on
+    // (an older caller, a chart still loading) the verdict is the paste check's, marked as such.
+    if (!pasted.runs || !chart || typeof runHereWhenLanded !== 'function') return pasted
+    const run = await runHereWhenLanded(pane, chart, { timeoutMs: RUN_WAIT_MS })
+    return verdictOnChart(pasted, run, SCRIPT_REFUSAL_LIMITS)
   } catch {
     return { runs: false, attaches: false, state: 'unchecked', lane: 'host', headline: 'This script could not be checked here',
       withheld: [], notes: [], errors: [] }
   }
 }
 
+/** How long the dock waits for a run handed to a worker before saying "still being checked". */
+export const RUN_WAIT_MS = 8000
+
 /** The definition id a script is checked under (never stored, never installed). */
 export const SCRIPT_CHECK_ID = 'u_script_check'
 
 /** The engine modules, loaded on first use, and what must be read before a script is judged. */
 async function loadEngine() {
-  const [pineBox, paneDef, status, kill, gate] = await Promise.all([
+  const [pineBox, paneDef, status, kill, gate, here] = await Promise.all([
     import('../PineBox'), import('../memberPane/memberPaneDefinition'), import('../editorStatus'),
-    import('../../engine/runtimeKill'), import('../../engine/runtimePaneGate'),
+    import('../../engine/runtimeKill'), import('../../engine/runtimePaneGate'), import('../runsHere'),
   ])
   return {
+    runHereWhenLanded: here.runHereWhenLanded,
+    verdictOnChart: here.verdictOnChart,
     inspectSource: pineBox.inspectSource,
     memberPaneDefinition: paneDef.memberPaneDefinition,
     editorStatus: status.editorStatus,
