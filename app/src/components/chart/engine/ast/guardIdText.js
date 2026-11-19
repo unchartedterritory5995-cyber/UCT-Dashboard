@@ -32,9 +32,10 @@ export const GUARD_NAMESPACES = Object.freeze([
   // HOST WORKER (2026-11-17): `host-lane:worker-unresponsive`, the host lane's background worker held
   // a job past its watchdog (`hostLaneAsync.js`); the member reads its sentence on the strip
   'host-lane',
-  // PINE DATA CATALOG (S4-0, 2026-11-19): `data:licence`, `data:unknown-family`, `data:field-unserved`,
-  // `data:owner-hold` (engine/pineDataCatalog.js), a data family refused by name before any supply exists
-  'data',
+  // PINE DATA CATALOG (S4-0, 2026-11-19; renamed from `data` the same day: `data:` is the URI
+  // scheme, so `data:image` / `data:text` literals read as guard codes): `pine-data:licence`, `pine-data:unknown-family`, `pine-data:field-unserved`,
+  // `pine-data:owner-hold` (engine/pineDataCatalog.js), a data family refused by name before any supply exists
+  'pine-data',
 ])
 
 const GUARD_NS_ALT = GUARD_NAMESPACES.join('|')

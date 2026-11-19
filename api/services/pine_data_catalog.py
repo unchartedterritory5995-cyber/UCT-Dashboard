@@ -32,9 +32,9 @@ from api.services import provider_licensing_class as _plc
 REPO = Path(__file__).resolve().parents[2]
 CATALOG_PATH = REPO / "app" / "src" / "components" / "chart" / "engine" / "pineDataCatalog.json"
 
-LICENCE_GUARD = "data:licence"
-UNKNOWN_GUARD = "data:unknown-family"
-FIELD_GUARD = "data:field-unserved"
+LICENCE_GUARD = "pine-data:licence"
+UNKNOWN_GUARD = "pine-data:unknown-family"
+FIELD_GUARD = "pine-data:field-unserved"
 
 
 def load(path: Path = CATALOG_PATH) -> dict:
