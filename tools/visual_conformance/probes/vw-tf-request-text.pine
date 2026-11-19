@@ -1,0 +1,63 @@
+//@version=6
+indicator("UCTPROBE_VW_TF_REQUEST_TEXT", overlay = false)
+
+// PROVENANCE: written 2026-11-19 (Q-TF-W4-a / Q-TF-W4-b, docs/pine/capture-queue-2026-11-20-text-format.md). Our probe, licence `probe`.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+//
+// ─── W4: A `request.security` VALUE PRINTED AS TEXT, BESIDE THE SAME VALUE PLOTTED ───
+//
+// The engine prints a request value through the same formatter as any number, where it HOLDS the value: on a
+// finished newest bar an AMEX:SPY close in a cell prints. What withholds such a cell is the VALUE: the newest-bar
+// rule for a weekly read (request:htf-newest-unconfirmed, Q-HTF-FORM), a forming chart (request-other is admitted
+// for closed-bar history only), and a symbol no bar store holds (TVC:US10Y, and the bare "US10Y" a corpus script
+// writes, refused by name as other-symbol:venue-foreign / other-symbol:bare). Each value is plotted AND printed,
+// so a capture grades the text against the plot on the same bar, in each state the newest bar can be in.
+//
+//   Q01 / T01  AMEX:SPY close, same timeframe          T02  its value on the bar before ([1])
+//   T03        AMEX:SPY close through format.mintick   T10  the same close through str.format {0,number,#.##}
+//   Q02 / T04  the chart's weekly close, look-ahead off T05  its [1]
+//   Q03 / T06  TVC:US10Y close                          Q04 / T07  "US10Y" with no exchange (which symbol is it?)
+//   Q05 / T09  close (reads no request: the control)
+//   Q06 / T11  barstate.isrealtime, T12 barstate.isconfirmed (which state the newest bar ran in)
+//
+// CAPTURE: the queue doc's rows (NASDAQ:QQQ 1D, in session and before the open). On a FORMING bar read the plot
+// values and the cells on ONE tick (or twice, keeping the pair whose newest row did not change).
+
+s = request.security("AMEX:SPY", timeframe.period, close)
+w = request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_off)
+r = request.security("TVC:US10Y", timeframe.period, close)
+rb = request.security("US10Y", timeframe.period, close)
+
+plot(s, "Q01_spy_close")
+plot(w, "Q02_W_close_lookahead_OFF")
+plot(r, "Q03_tvc_us10y_close")
+plot(rb, "Q04_bare_us10y_close")
+plot(close, "Q05_chart_close_NO_REQUEST")
+plot(barstate.isrealtime ? 1 : 0, "Q06_isrealtime")
+
+if barstate.islast
+    var table t = table.new(position.top_right, 2, 12)
+    table.cell(t, 0, 0, "T01 spy")
+    table.cell(t, 1, 0, str.tostring(s, "#.##"))
+    table.cell(t, 0, 1, "T02 spy[1]")
+    table.cell(t, 1, 1, str.tostring(s[1], "#.##"))
+    table.cell(t, 0, 2, "T03 spy mintick")
+    table.cell(t, 1, 2, str.tostring(s, format.mintick))
+    table.cell(t, 0, 3, "T04 W")
+    table.cell(t, 1, 3, str.tostring(w, "#.##"))
+    table.cell(t, 0, 4, "T05 W[1]")
+    table.cell(t, 1, 4, str.tostring(w[1], "#.##"))
+    table.cell(t, 0, 5, "T06 TVC:US10Y")
+    table.cell(t, 1, 5, str.tostring(r, "##.##"))
+    table.cell(t, 0, 6, "T07 US10Y")
+    table.cell(t, 1, 6, str.tostring(rb, "##.##"))
+    table.cell(t, 0, 7, "T08 US10Y / 100")
+    table.cell(t, 1, 7, str.tostring(rb / 100, "#.####"))
+    table.cell(t, 0, 8, "T09 close")
+    table.cell(t, 1, 8, str.tostring(close, "#.##"))
+    table.cell(t, 0, 9, "T10 spy str.format")
+    table.cell(t, 1, 9, str.format("{0,number,#.##}", s))
+    table.cell(t, 0, 10, "T11 isrealtime")
+    table.cell(t, 1, 10, barstate.isrealtime ? "realtime" : "history")
+    table.cell(t, 0, 11, "T12 isconfirmed")
+    table.cell(t, 1, 11, barstate.isconfirmed ? "confirmed" : "unconfirmed")
