@@ -22,6 +22,8 @@ import { computeRuntimeColumns, setRuntimeRunner } from '../runtimeColumns'
 import { workerRunner, resetRuntimeAsync } from '../runtimeAsync'
 import { withRunHalfState } from '../runtimeObjects'
 import { withColumnErrors } from '../../astColumns'
+// (engine 86 train, #2044 x #2045) the page's remembered time-budget stops, forgotten between cases
+import { resetRuntimeBudgetStops, retryRuntimeBudgetStops } from '../../runtimeBudgetStops'
 
 const REPO = path.resolve(process.cwd(), '..')
 const ADX = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness', 'adx-and-di-for-v4-rddt-1d-2026-09-27.json')
@@ -81,6 +83,9 @@ describe('the strip while a runtime run computes (real binder, real strip)', () 
     resetRuntimeErrorNotices()
     resetRuntimeAsync()
     setRuntimeRunner(null)
+    // (engine 86 train) #2045 remembers a time-budget stop for the PAGE, keyed on document, symbol, timeframe and
+    // settings (never the bars), so the refusal case below would answer the next case's first run without a run
+    resetRuntimeBudgetStops()
     vi.unstubAllEnvs()
   })
   let BARS = makeBars()
@@ -160,6 +165,27 @@ describe('the strip while a runtime run computes (real binder, real strip)', () 
     expect(notes()).toEqual([])
     binder.sync({ ...ctxFor(), enabled: false })
     binder.sync(ctxFor({ bars: makeBars().map((b) => ({ ...b })) }))
+    expect(notes()[0]).toMatch(COMPUTING)
+  })
+
+  it('⛔ (engine 86 train, #2044 x #2045) a picture the time budget stopped says its stop with Retry, never "computing", and posts no run; Retry computes it again', () => {
+    const posted = () => w.made.reduce((n, x) => n + x.posted.length, 0)
+    binder.sync(ctxFor())
+    w.made[0].fail = { guard: 'runtime:time-budget', message: 'this script took more than 1000 ms to draw bar by bar.' }
+    w.made[0].flush()
+    binder.sync(ctxFor())
+    expect(posted()).toBe(1)
+    // the live chart's next update (a new bars array, the same picture): the remembered stop, said by name
+    binder.sync(ctxFor({ bars: makeBars().map((b) => ({ ...b })) }))
+    expect(posted(), 'no run is posted for a remembered stop').toBe(1)
+    expect(notes()).toHaveLength(1)
+    expect(notes()[0]).not.toMatch(COMPUTING)
+    expect(notes()[0]).toMatch(/^not drawn on this chart \(runtime:time-budget\)/)
+    expect(notes()[0]).toMatch(/Retry runs it again/)
+    // Retry: the stop is forgotten; the next sync runs (no picture of it yet, so the strip says it is computing)
+    expect(retryRuntimeBudgetStops(DEF_ID)).toBe(true)
+    binder.sync(ctxFor({ bars: makeBars().map((b) => ({ ...b })) }))
+    expect(posted()).toBe(2)
     expect(notes()[0]).toMatch(COMPUTING)
   })
 
