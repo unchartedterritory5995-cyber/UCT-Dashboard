@@ -50,8 +50,11 @@ describe('⭐⭐ SR-MTF on the runtime lane, FORCED: every plot MATCHES TradingV
         const { verdict } = gradeCapture(capture)
         const plots = verdict.plots || []
         const why = plots.filter((p) => p.verdict !== 'MATCH')
-          .map((p) => `${p.title}: ${p.verdict} ${String(p.reason || '').slice(0, 160)}`).join(' | ')
-        expect(verdict.verdict, `${verdict.reason} :: ${why}`).toBe('MATCH')
+          .map((p) => {
+            const m = String(p.reason || '').match(/(\d+) steady-state bars? disagrees?; first at bar (\d+) \(([^)]*)\)/)
+            return `${p.title.replace(/ /g, '')}:${m ? `${m[1]}@${m[2]}[${m[3].slice(0, 40)}]` : String(p.reason || '').slice(0, 50)}`
+          }).join('|')
+        expect(verdict.verdict, why).toBe('MATCH')
         expect(plots.length).toBe(6)
         for (const p of plots) {
           expect(p.verdict, `${p.title}: ${p.reason}`).toBe('MATCH')
