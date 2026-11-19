@@ -499,6 +499,14 @@ def test_a_price_that_is_not_a_positive_finite_number_is_not_usable(price):
     assert mww._spot_from_snapshot_row(_row(price=price), "AAPL", REGULAR) is None
 
 
+@pytest.mark.parametrize("price", [0, 0.0, -1.0, -231.5])
+@pytest.mark.parametrize("day", [None, {}, {"c": None}, {"c": 0}])
+def test_a_zero_or_negative_price_is_not_usable_when_the_row_has_no_day_close(price, day):
+    """The day-close bound cannot stand in for the price check: a row with no day
+    close has nothing to compare against, and its price must still be positive."""
+    assert mww._spot_from_snapshot_row(_row(price=price, day=day), "AAPL", REGULAR) is None
+
+
 @pytest.mark.parametrize("stamp", [
     None, 0, -1, True, "1795017600000000000",
     int(REGULAR - 2) * 1000,            # milliseconds, not nanoseconds
