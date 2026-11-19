@@ -50,6 +50,8 @@ import { pairRunRows } from './runRowPairing'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { hostKnownDivergenceOf } from '../../engine/hostKnownDivergence'
+import { heldWithholdsOf, heldWithholdSentence, heldDrawingsNote, objectFamiliesOf, HELD_DIVERGENCE_GUARD,
+  HELD_WITHHOLDS_STAMP, heldWithholdsStamp } from '../../engine/heldWithholds'
 import { hostLaneCostOf } from '../../engine/hostLaneCost'
 import { sameDrawnSurface } from './costRoute'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
@@ -440,7 +442,18 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // plot-only document (`objects: null` is every script without drawings), so
   // withholding is a narrowing of what it draws, never a new render path.
   const objectsGate = paneObjectsGate(t)
-  const withholdObjects = !objectsGate.draw
+  // ⭐⭐ HELD WITHHOLDS (coordinator rulings 2026-11-19, `engine/heldWithholds.js`) — the NARROWEST withholds a
+  // licence-held capture asks for on THIS door. A drawing family that differs from TradingView's is withheld by
+  // name (its plots, and every other correct element, keep drawing). A withhold this door cannot yet honour as
+  // narrowly refuses the script by name: never the wrong element drawn because it could not be held back alone.
+  const heldHost = heldWithholdsOf(source, 'host')
+  const heldHostOther = heldHost.filter((w) => w.scope !== 'objectFamily')
+  if (heldHostOther.length) {
+    const what = heldHostOther.map((w) => "`" + (w.title || w.kind || w.scope) + "` " + heldWithholdSentence(w))
+    return no(`this script is not drawn: ${what.join('; ')}`, HELD_DIVERGENCE_GUARD, t)
+  }
+  const heldHostFamilies = heldHost.filter((w) => w.scope === 'objectFamily')
+  const withholdObjects = !objectsGate.draw || heldHostFamilies.length > 0
   // ⭐⭐ CBC-FMT — a `calc_bars_count` document's plots are computed over its window
   // (`engine/calcBarsWindow.js`); the host object program has no window yet (phase 2:
   // `objectReaderFor` over the window), so its drawings are withheld BY NAME rather than
@@ -1076,7 +1089,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // ⭐⭐ ENGINE 53 — THE RUN HALF (`hostPartialRunHalf`): a script whose host object program
   // lost drawings may have them made, complete, by the per-bar run, where every gate passes.
   // Declined, the document is exactly what it was.
-  const runHalf = hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, routeHostPartial })
+  // (a held drawing family is never made by the run half instead: withheld is withheld)
+  const runHalf = heldHostFamilies.length ? null
+    : hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, routeHostPartial })
   if (runHalf && runHalf.runtimeObjects) {
     definition.compute = { ...definition.compute, runtimeObjects: runHalf.runtimeObjects }
     // the document's own script, by hash: what the bind and the store check the run half against
@@ -1110,7 +1125,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // tables are incomplete — or withheld — is the fact a member most needs before
   // reading anything it draws. Worded in `objectLoss.js`, never here; `null` for
   // a clean object program and for a script that draws no objects at all.
-  const lossNote = objectLossNote(objectsGate.loss, { withheld: withholdObjects })
+  const lossNote = heldHostFamilies.length
+    ? heldDrawingsNote(heldHostFamilies, objectFamiliesOf(t.objects))
+    : objectLossNote(objectsGate.loss, { withheld: withholdObjects })
   // ⭐ ENGINE 53 — a document carrying a run half says where its drawings may come from.
   const drawingNote = lossNote && runHalf && runHalf.runtimeObjects
     ? { ...lossNote, note: `${lossNote.note} ${RUN_HALF_DRAWING_SENTENCE}` } : lossNote
@@ -1210,6 +1227,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   definition.meta = {
     ...(definition.meta || {}),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
+    // ⭐⭐ the held withholds this document honours, stamped (the server half reads it; absent when there are none)
+    ...(heldHostFamilies.length ? { [HELD_WITHHOLDS_STAMP]: heldWithholdsStamp(heldHostFamilies) } : {}),
     requirementTags,
     // ⭐⭐ C12w / F1 — the facts this document's TREES are evaluated under
     // (`pineTreeStamps`, the ONE place they are written; the runtime document that
@@ -2109,10 +2128,17 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // ⭐⭐ RT5 — when the host object program would draw nothing here and the run
   // builds WITH its drawings, the document's objects come from its own run.
   const own = runtimeOwnObjectsOf({ source, t })
+  // ⭐⭐ HELD WITHHOLDS (`engine/heldWithholds.js`) on THIS door: a row by title, a row's colour, a paint, a drawing
+  // family, each the narrowest element a licence-held capture found wrong, each named.
+  const heldRun = heldWithholdsOf(source, 'runtime')
+  const heldRunOut = new Map(heldRun.filter((w) => w.scope === 'output').map((w) => [w.title, w]))
+  const heldRunColour = new Map(heldRun.filter((w) => w.scope === 'outputColour').map((w) => [w.title, w]))
+  const heldRunPaints = heldRun.filter((w) => w.scope === 'paint')
+  const heldRunFamilies = heldRun.filter((w) => w.scope === 'objectFamily')
   // ⛔ DRAW-1 — a host picture that lost a create is not drawn in the run's place (`runtimeObjectsDoor.js`)
   if (own.declineHostPartial) return decline(own.guard, own.why)
-  const ownObjects = !!own.probe
-  const probe = own.probe || own.valueProbe || probeRuntimeProgram(source)
+  const ownObjects = !!own.probe && !heldRunFamilies.length
+  const probe = (ownObjects ? own.probe : null) || own.valueProbe || probeRuntimeProgram(source)
   if (!probe.ok) {
     const r = probe.refusal || {}
     // RT5: a drawing the value build cannot hold is the drawing build's to explain.
@@ -2187,12 +2213,20 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       continue
     }
     const label = o.title || `${o.kind} ${ord + 1}`
+    if (o.title && heldRunOut.has(o.title)) { withheld.push({ label, why: heldWithholdSentence(heldRunOut.get(o.title)), o }); continue }
     // ⭐ WS-E — a leftward `offset` is carried (`runtimeRowShift`), the rest withheld.
     const shift = runtimeRowShift(o, shiftCtx)
     if (!shift.ok) { withheld.push({ label, why: shift.why, o }); continue }
     const out = runOutputOf.get(index)
     const pres = runtimeRowPresentation(o, t && t.version, probe.outputs[out])
     if (!pres.ok) { withheld.push({ label, why: pres.why, o }); continue }
+    if (o.title && heldRunColour.has(o.title)) {
+      // its VALUES are right: drawn, in the neutral ink an unread colour uses, its colour named (`colourWithheldNotes`)
+      for (const k of shift.keys) shiftPinned.add(k)
+      carried.push({ o, index, out: runOutputOf.get(index), displace: shift.displace, colourOutput: undefined,
+        p: { ...pres.p, colorWithheld: { code: HELD_DIVERGENCE_GUARD, reason: heldWithholdSentence(heldRunColour.get(o.title)) } } })
+      continue
+    }
     for (const k of shift.keys) shiftPinned.add(k)
     carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput, displace: shift.displace })
   }
@@ -2362,6 +2396,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       hk.forEach((p, i) => {
         // A paint its author hid, or coloured `na`, draws nothing on TradingView either.
         if (p.hidden || p.na) return
+        const heldPaint = heldRunPaints.find((w) => w.kind === kind && w.line === p.line)
+        if (heldPaint) { paintWithheld.push({ p, why: heldWithholdSentence(heldPaint) }); return }
         if (p.withheld && !RUNTIME_PAINT_COLOUR_CODES.has(p.withheld.code)) {
           paintWithheld.push({ p, why: p.withheld.reason })
           return
@@ -2404,6 +2440,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // ⭐⭐ PARITY UNIT LF — a run-owned document whose host program was CLEAN carries that program beside the
   // run (`own.hostFallback`): drawn instead whenever the run holds back a family it draws.
   const drawsObjects = (!ownObjects || own.hostFallback === true) && !own.hostWithheld && hostWouldDraw
+    && !heldRunFamilies.length
   // ⭐ RT5 — a document whose only output is its drawings carries the hidden
   // anchor row an objects-only document carries (never offered, never drawn).
   // ⭐⭐ W9 ARMED ROUTE — a broker document with no row of its own (a tester-only strategy) sits on the PRICE
@@ -2565,7 +2602,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // and nothing said so. Every fill the run lowered — solid or gradient — is named.
     ...(probe.outputs || []).filter((ro) => ro && ro.call === 'fill' && ro.hidden !== true).map(() => 'fill'),
   ])]
-  const drawingNote = ownObjects || own.hostWithheld ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
+  const drawingNote = heldRunFamilies.length
+    ? heldDrawingsNote(heldRunFamilies, objectFamiliesOf(t.objects))
+    : ownObjects || own.hostWithheld ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
   // ⭐⭐ THE FAMILY LEDGER (coordinator ruling 2026-11-19, `runtimeFamilyLedger.js`) — every family the SOURCE
   // declares is drawn, named, or hidden by its author. ⚰️ Only the branches above named anything, so a family no
   // branch was written for left the document silently: luxalgo's market-structure drew its two plots and said
@@ -2653,6 +2692,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // ⭐⭐ CBC-FMT — the same window stamp the host lane's document carries
     ...calcBarsMeta(t),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
+    // ⭐⭐ the held withholds this document honours, stamped (the server half reads it; absent when there are none)
+    ...(heldRun.length ? { [HELD_WITHHOLDS_STAMP]: heldWithholdsStamp(heldRun) } : {}),
     requirementTags: [],
   }
   // Registered only once a runtime document exists, so a chart that never

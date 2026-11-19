@@ -34,6 +34,7 @@ import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
 import { __permitRuntimePaneForTests } from './components/chart/engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from './components/chart/engine/runtimeKill'
 import { __ignoreHostKnownDivergenceForTests } from './components/chart/engine/hostKnownDivergence'
+import { __ignoreHeldWithholdsForTests } from './components/chart/engine/heldWithholds'
 // ⭐ W5-T2 — as in the app, where the registry imports it: the lower-timeframe gate is
 // registered at the door (`lowerTfServing.js`), so a suite that stubs its flag still flips it.
 import './components/chart/engine/lowerTfGate.js'
@@ -56,10 +57,16 @@ import { __setBenchmarkTailFetcherForTests } from './components/chart/engine/liv
 // `components/chart/engine/hostKnownDivergence.test.js`. Also at load: a suite that measures while it is
 // COLLECTED (module scope, before any `beforeEach`) measures the engine too.
 __ignoreHostKnownDivergenceForTests()
+// ── HELD WITHHOLDS (coordinator ruling 2026-11-19): the same, by name, for the narrow withholds licence-held captures
+// ask for (`engine/heldWithholds.js`): the measuring suites and the regrade see the picture the ENGINE draws, so a
+// regrade can lift a withhold when it matches. ⛔ The member door applies them, railed in
+// `components/chart/builder/memberPane/heldWithholds.door.test.js` (both sides).
+__ignoreHeldWithholdsForTests()
 beforeEach(() => {
   __permitRuntimePaneForTests()
   __allowEveryRuntimeScriptForTests()
   __ignoreHostKnownDivergenceForTests()
+  __ignoreHeldWithholdsForTests()
 })
 
 // ── 2026-10-06: the shared research fetchers re-ask a transient first failure once, after a
