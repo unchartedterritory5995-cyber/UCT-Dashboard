@@ -1,0 +1,28 @@
+//@version=6
+indicator("UCTPROBE_VW_DATA_SPLITS", overlay = false)
+
+// PROVENANCE: written 2026-11-19 (Pine data unit S4-2, Q-S4-S, docs/pine/capture-queue-2026-11-19-s4-data.md).
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// ─── WHERE `request.splits` PLACES EACH SPLIT, AND WHICH SIDE IS THE NUMERATOR ───
+//
+// The data unit serves `request.splits` from UCT's corporate-actions data only where a capture says on which bar
+// TradingView places a split (the execution date's bar?) and which of the two numbers is the numerator: a
+// forward split (NASDAQ:NVDA 10-for-1 on 2024-06-10, NASDAQ:AAPL 4-for-1 on 2020-08-31, NASDAQ:TSLA 3-for-1 on
+// 2022-08-25) beside a reverse one (NYSE:GE 1-for-8 on 2021-08-02).
+//
+//   S01   splits.numerator,   gaps_on,  lookahead_on   (the built-in VWAP reads splits.denominator with this pairing)
+//   S02   splits.denominator, gaps_on,  lookahead_on
+//   S03   splits.numerator,   gaps_on,  lookahead_off
+//   S04   splits.denominator, gaps_on,  lookahead_off
+//   S05   splits.numerator,   the defaults           (gaps_off, lookahead_off)
+//   S06   splits.denominator, the defaults
+//   S07   time (the bar's open, to name each bar)
+
+plot(request.splits(syminfo.tickerid, splits.numerator, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol = true), "S01 numerator gaps_on lookahead_on")
+plot(request.splits(syminfo.tickerid, splits.denominator, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol = true), "S02 denominator gaps_on lookahead_on")
+plot(request.splits(syminfo.tickerid, splits.numerator, barmerge.gaps_on, barmerge.lookahead_off, ignore_invalid_symbol = true), "S03 numerator gaps_on lookahead_off")
+plot(request.splits(syminfo.tickerid, splits.denominator, barmerge.gaps_on, barmerge.lookahead_off, ignore_invalid_symbol = true), "S04 denominator gaps_on lookahead_off")
+plot(request.splits(syminfo.tickerid, splits.numerator, ignore_invalid_symbol = true), "S05 numerator defaults")
+plot(request.splits(syminfo.tickerid, splits.denominator, ignore_invalid_symbol = true), "S06 denominator defaults")
+plot(time, "S07 bar time")
