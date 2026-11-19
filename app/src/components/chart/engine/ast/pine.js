@@ -24910,7 +24910,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   for (const [list, via] of [[collected.diagnostics.loopBlocked, 'reader:loop'], [collected.diagnostics.unsupported, 'reader:unsupported']]) {
     for (const name of list || []) {
       const m = /^([a-z]+)\.(set_[a-z0-9_]+)$/.exec(String(name))
-      if (m) lostSetterName(m[1], m[2], via, null)
+      // ⭐⭐ UNTRACED HANDLE (class sweep, 2026-11-19) — `object.<setter>` is a setter whose FAMILY the reader could
+      // not name (a value receiver, a chained element, a field read off an expression): it reaches every family that
+      // has a setter of that name. ⚰️ Read as a family called `object`, it matched no setter table and noted nothing:
+      // the drawing stayed where it was made, with only a "not supported" note.
+      if (m) lostSetterName(m[1] === 'object' ? null : m[1], m[2], via, null)
     }
   }
 
