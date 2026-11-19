@@ -1036,18 +1036,15 @@ function packedOf(plot) {
   return { transparency, theme, sig: `packed|${transparency}|${theme.fg || ''}/${theme.bg || ''}` }
 }
 
-/** ⭐⭐ ENGINE NUMBER PENDING (CO-2) — a colour plan (a plot, a paint, a band's `fill`) whose per-bar colours
+/** ⭐⭐ ENGINE NUMBER PENDING (CO-2) — a colour plan (a plot, a paint, a band's fill spec) whose per-bar colours
  *  come from the run (`colorPacked`), with the chart's own two colours (`objectTheme.chartThemeOf`) on it, so a
  *  bar whose colour is the chart's theme colour (the runtime lane's reference number) is drawn in this chart's
  *  colour by `packedPointColour`. Anything else is returned as it is. */
 export function withPackedTheme(spec, theme) {
   if (!spec || typeof spec !== 'object' || !theme || typeof theme !== 'object') return spec
-  let out = spec
-  if (spec.colorPacked && typeof spec.colorPacked === 'object') out = { ...out, colorPacked: { ...spec.colorPacked, theme } }
-  if (spec.fill && typeof spec.fill === 'object' && spec.fill.colorPacked && typeof spec.fill.colorPacked === 'object') {
-    out = { ...out, fill: { ...spec.fill, colorPacked: { ...spec.fill.colorPacked, theme } } }
-  }
-  return out
+  // (a band's spec is handed in by the binder, the one reader of a plot's band field)
+  if (!spec.colorPacked || typeof spec.colorPacked !== 'object') return spec
+  return { ...spec, colorPacked: { ...spec.colorPacked, theme } }
 }
 
 /** ⭐⭐ RT6 — ONE BAR'S COLOUR FROM A PACKED COLUMN, or null where the run holds

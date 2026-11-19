@@ -560,8 +560,9 @@ function fillColours(fillSpec, instanceId, columns, n, unknownNone = false) {
  * ⛔ The spec's own `opacity` is STRIPPED before the colour rule reads it, so
  * there is exactly one alpha, applied exactly once.
  */
-export function bandColoursFor(plot, instanceId, columns, n, unknownNone = false, inputs = null) {
-  const spec = plot && plot.fill
+export function bandColoursFor(plot, instanceId, columns, n, unknownNone = false, inputs = null, theme = null) {
+  // ⭐ CO-2 — the chart's own colours on the band's plan (`pool.withPackedTheme`)
+  const spec = withPackedTheme(plot && plot.fill, theme)
   if (!spec || typeof spec.colorMode !== 'string') return null
   const { opacity: _ignored, ...rule } = spec
   // ⭐⭐ A BAND COLOUR THAT IS THE SCRIPT'S `input.color` (`colorUpInput` /
@@ -2813,7 +2814,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
             color: colour.color, opacity: colour.opacity,
             // ⛔ a per-point band colour travels with its edges; the door refuses a
             // band whose two edges are displaced differently (memberPaneDefinition).
-            colors: displacedColumn(bandColoursFor(withPackedTheme(b.plot, chartThemeOf(ctx.cs)), b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null), ownShift),
+            colors: displacedColumn(bandColoursFor(b.plot, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null, chartThemeOf(ctx.cs)), ownShift),
           })
         }
       }
@@ -2873,7 +2874,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
             color: hc.color, opacity: hc.opacity,
             // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
             // a `display.none` anchor, so this is the site that colours a cloud.
-            colors: displacedColumn(bandColoursFor(withPackedTheme(hp, chartThemeOf(ctx.cs)), b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null), drawShiftOf(hp)),
+            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null, chartThemeOf(ctx.cs)), drawShiftOf(hp)),
           })
           kept.set(hp.key, h)
         }
@@ -3168,7 +3169,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         h.setOptions({
           upper, lower, times: bars.map((bar) => adjustTime(bar.t)),
           color: hc.color, opacity: hc.opacity,
-          colors: displacedColumn(bandColoursFor(withPackedTheme(hp, chartThemeOf(ctx.cs)), id, columns, bars.length, unknownColourRule(def), inst.inputs || null), drawShiftOf(hp)),
+          colors: displacedColumn(bandColoursFor(hp, id, columns, bars.length, unknownColourRule(def), inst.inputs || null, chartThemeOf(ctx.cs)), drawShiftOf(hp)),
         })
         kept.set(hp.key, h)
       }
