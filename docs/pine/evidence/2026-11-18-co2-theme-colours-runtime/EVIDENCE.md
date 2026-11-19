@@ -106,3 +106,35 @@ Measured with master's front end and this branch's, over the same tree. 15 scrip
 
 The PR's own pine-heavy run is the corpus diff for all three. A capture that moves away from MATCH stops this work, and
 a newly drawn capture that grades DIVERGE is killed by the REACH rule.
+
+## Corpus diff (this PR's pine-heavy run 44482355116, head 106ffa1def, against train e81's run 44452719465)
+
+e81 is the newest train already in this PR's base (5c2aa89822).
+
+- **Production lane:** 938 captures, none moved.
+- **Runtime-on lane:** 3 captures moved, none away from MATCH, all of them volatility-coil-edge-bullbyte. Each went
+  INCONCLUSIVE -> DIVERGE, with 1 of 5 compared items diverging: TradingView paints the script's "Signal Bar BG"
+  background (`bgcolor plot_0`), and the runtime lane does not draw it. The three captures:
+  - RDDT daily, 2026-11-14;
+  - RDDT daily, 2026-11-17;
+  - SPY daily, 2026-11-17.
+- **market-structure-by-leviathan and swing-highlow-zigzag-chartprime:** their captures grade MATCH, unchanged.
+
+Under admission, the door now draws volatility-coil-edge-bullbyte on the runtime lane. `capabilityEvidenceLane.test.js`
+went red on that: the door answers `runtime` where the reach report said refused. Its captures DIVERGE, so it is killed,
+by the coordinator's instruction of 2026-11-19 and the standing ruling of 2026-11-16 (an admitted script with a DIVERGE
+capture is killed by source hash):
+
+- **`api/data/pine_runtime_killlist.json`:** the entry, sha256 `e8c92f7b…` of
+  `corpus/committed/volatility-coil-edge-bullbyte__604f0fd1c6.pine`. It is held to the SPY capture's DIVERGE grade, and
+  its liftWhen is the background drawn and a re-grade to MATCH.
+- **`docs/pine/vendor-harness/runtime-on/verdicts.json`:** the three records, spliced verbatim from run 44482355116.
+- **The reach report:** drops the three captures, because a killed script is not admitted. Its populations follow:
+  - captures admitted 561 -> 558, refused 146 -> 143;
+  - committed scripts admitted 118 -> 117, refused 33 -> 32.
+
+  The reference population is counted from the local reference cache and is not re-measured here; no rail reads it.
+- **`capabilityEvidenceLane.test.js`:** records the change.
+
+Members see what they see today. The script was refused before (`pine:reassign` on the host lane, `runtime:colour` on
+the runtime lane), and it is refused now, by name.

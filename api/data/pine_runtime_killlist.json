@@ -12,7 +12,8 @@
     "DRAW-1 (2026-11-16): seven scripts newly admitted by obj:box / obj:table have a committed capture grading DIVERGE on",
     "either lane, so each is killed here until its liftWhen (rail: test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed).",
     "Engine 68 regrade (feat/pine-host-known-divergence, 2026-11-17): seven probes newly graded DIVERGE are killed until their liftWhen: vw-h5-format-volume, vw-w3-format-date, vw-w3-loop-helper-text, vw-w3-str-repeat-length (admitted by obj:table, DRAW-1 rule) and vw-imp-change-before-reassign, vw-w4-series-length, vw-w4-series-length-v4 (drawn by the runtime lane under admission, the REACH stop rule).",
-    "HELD kills (2026-11-18): an entry with `status: \"pending\"` is recorded here and NOT served (runtime_definitions.kill_entry_is_served is the one rule: committed_kills and the coverage census both skip it; the script still draws); it names its evidence capture, its liftWhen and a hard `expires` date (YYYY-MM-DD), and the REACH rail accepts that one capture as a stop only until then. Past `expires` the rails are red on their own. LIFTED 2026-11-18 on its liftWhen: adx-and-di-for-v4 (Q-FCMP ruled TOLERANCE, packet 56330c15e071; engine 78 #1858 compares within 1e-10; adx-and-di-for-v4-spy-1d-2026-11-17 re-graded MATCH on the runtime-on lane). The list holds no held kill now; the rails show the rule on a synthetic one."
+    "HELD kills (2026-11-18): an entry with `status: \"pending\"` is recorded here and NOT served (runtime_definitions.kill_entry_is_served is the one rule: committed_kills and the coverage census both skip it; the script still draws); it names its evidence capture, its liftWhen and a hard `expires` date (YYYY-MM-DD), and the REACH rail accepts that one capture as a stop only until then. Past `expires` the rails are red on their own. LIFTED 2026-11-18 on its liftWhen: adx-and-di-for-v4 (Q-FCMP ruled TOLERANCE, packet 56330c15e071; engine 78 #1858 compares within 1e-10; adx-and-di-for-v4-spy-1d-2026-11-17 re-graded MATCH on the runtime-on lane). The list holds no held kill now; the rails show the rule on a synthetic one.",
+    "CO-2 (#1984, engine NUMBER PENDING, 2026-11-19): volatility-coil-edge-bullbyte is killed by the REACH stop rule. Theme colours on the runtime lane (`chart.fg_color` / `chart.bg_color`) build it, and under admission the door now draws it on that lane; all three of its captures grade DIVERGE (TradingView paints its \"Signal Bar BG\" background, ours does not). Records spliced from that PR's pine-heavy run 44482355116."
   ],
   "scripts": [
     {
@@ -184,6 +185,20 @@
       },
       "liftWhen": "an engine fix to the flat-window stdev residue, then a runtime-on re-grade to MATCH on vw-w4-series-length-v4-spy-1d-2026-11-16",
       "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture the RUNTIME lane draws under capability admission grades DIVERGE (the REACH stop rule)"
+    },
+    {
+      "slug": "volatility-coil-edge-bullbyte",
+      "sha256": "e8c92f7b76aa240c5be0bd39e61150812eb64bf599ac52d616965bc04bea9fba",
+      "source": "corpus/committed/volatility-coil-edge-bullbyte__604f0fd1c6.pine",
+      "reason": "its \"Signal Bar BG\" background is not drawn on the runtime lane where TradingView paints it, on every capture (RDDT daily twice, SPY daily)",
+      "evidence": {
+        "capture": "volatility-coil-edge-bullbyte-spy-1d-2026-11-17",
+        "verdict": "DIVERGE",
+        "paints": "1 paint differs (first: bgcolor plot_0 \"Signal Bar BG\" notDrawn); the objects INCONCLUSIVE by name (interpret:bind-time-text)",
+        "session": "pine heavy run 44482355116 on PR #1984 (106ffa1def), vendor harness runtime-on lane; the two RDDT captures (2026-11-14, 2026-11-17) grade DIVERGE on the same paint in the same run"
+      },
+      "liftWhen": "the runtime lane draws the script's \"Signal Bar BG\" background as TradingView does, then a runtime-on re-grade to MATCH on volatility-coil-edge-bullbyte-spy-1d-2026-11-17 and both RDDT captures",
+      "addedBy": "coordinator ruling 2026-11-16 (capability admission ON: an admitted script with a DIVERGE capture is killed by source hash), applied by CO-2 (#1984) under the coordinator's instruction of 2026-11-19, which is what lets the runtime lane reach it"
     }
   ]
 }

@@ -98,6 +98,12 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // contraction-box-doji-lines' RDDT and SPY captures. Its runtime kill entry was lifted on its own condition (both SPY
 // captures re-grade MATCH runtime-on, run 44319610649), so the registry now admits it. The door answers `host` for
 // all four, each MATCH on both lanes (docs/pine/evidence/2026-11-18-tolerant-compare/EVIDENCE.md).
+// ⭐ CO-2 (NUMBER PENDING, feat/pine-theme-colours-runtime, #1984) removed 3 rows, lane `null`:
+// volatility-coil-edge-bullbyte's RDDT (2026-11-14, 2026-11-17) and SPY captures. Theme colours on the runtime lane
+// build it, so this rail found the door answering `runtime` for all three; on that PR's run (44482355116) all three
+// grade DIVERGE (its "Signal Bar BG" background is not drawn). By the REACH stop rule the script is on the committed
+// kill list, no longer admitted, and so no longer in the report
+// (docs/pine/evidence/2026-11-18-co2-theme-colours-runtime/EVIDENCE.md).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {
