@@ -601,6 +601,53 @@ def test_G6_without_the_scope_the_door_withholds_it(tmp_path, monkeypatch, store
     assert body["admitted"] is False and "realtime-state" in body["missing"] and "historyOnly" not in body
 
 
+# ═══ G6-VARIP — varip admits for CLOSED-BAR HISTORY only (coordinator ruling 2026-11-18) ══
+# On a closed historical bar a `varip` is a `var`; it differs only within a FORMING bar, and no
+# capture grades that. So any `varip` row needs `scope: closed-bar-history`, exactly as
+# realtime-state does. No varip row is in the registry yet (it needs Q-VARIP-1 / Q-VARIP-2).
+
+VARIP_SCRIPT = MEMBER_COPY + "varip int vipCount = 0" + chr(10) + "vipCount += 1" + chr(10)
+
+
+def _with_varip_row(tmp_path, monkeypatch, **extra):
+    def add(doc):
+        doc["capabilities"]["varip"] = dict(ROW, **extra)
+        return doc
+    _registry_file(tmp_path, monkeypatch, add)
+
+
+def test_G6_varip_without_the_closed_bar_scope_is_not_admitted():
+    assert "varip" in rg.PINE_CAPABILITY_FORMING_UNGRADED
+    for row in (ROW, dict(ROW, scope="all-bars"), dict(ROW, scope=None)):
+        reasons = rg.pine_capability_admission("varip", row)
+        assert reasons and any("closed-bar-history" in r for r in reasons), reasons
+        assert not rg.pine_capability_history_only("varip", row)
+    assert rg.pine_capability_admission("varip", dict(ROW, scope="closed-bar-history")) == []
+    assert rg.pine_capability_history_only("varip", dict(ROW, scope="closed-bar-history"))
+
+
+def test_G6_varip_the_committed_registry_holds_no_varip_row():
+    doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    assert "varip" not in doc["capabilities"]
+
+
+def test_G6_varip_the_door_answers_history_only_with_the_scope(tmp_path, monkeypatch, store, on):
+    _with_varip_row(tmp_path, monkeypatch, scope="closed-bar-history")
+    caps = pc.capabilities_of(VARIP_SCRIPT)
+    assert "varip" in caps and "realtime-state" not in caps, caps   # varip alone carries the rule here
+    rep = rt.admitted_capabilities()
+    assert "varip" in rep["admitted"] and "varip" in rep["historyOnly"]
+    body = _client().post("/api/user-definitions/runtime-admission", json={"source": VARIP_SCRIPT}).json()
+    assert body == {"sha256": rt.source_hash(VARIP_SCRIPT), "admitted": True, "missing": [],
+                    "historyOnly": ["varip"]}
+
+
+def test_G6_varip_without_the_scope_the_door_withholds_it(tmp_path, monkeypatch, store, on):
+    _with_varip_row(tmp_path, monkeypatch)
+    body = _client().post("/api/user-definitions/runtime-admission", json={"source": VARIP_SCRIPT}).json()
+    assert body["admitted"] is False and "varip" in body["missing"] and "historyOnly" not in body
+
+
 # ═══ A8 — every evidence id is a real capture graded MATCH, drawn by the run ═══
 
 def _verdicts():
