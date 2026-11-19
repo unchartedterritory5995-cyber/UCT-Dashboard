@@ -4821,7 +4821,7 @@ def interpret(ast: Any, bars: List[dict],
             column = [math.nan if aligned[i] else v for i, v in enumerate(column)]
     if not probing:
         # ⭐ ENGINE 55 -- ...and its ``tf_merge`` half (``interpret.js::tfMergeMask``).
-        merged = tf_merge_mask(ast, bars, opts)
+        merged = tf_merge_mask(ast, bars, opts, inputs, budget, scalars)
         if merged is not None:
             column = [math.nan if merged[i] else v for i, v in enumerate(column)]
     if not probing:
@@ -4896,7 +4896,8 @@ def reads_tf_merge(tree: Any) -> bool:
 
 
 def tf_merge_mask(tree: Any, bars: List[dict],
-                  opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+                  opts: Optional[Mapping[str, Any]] = None,
+                  inputs: Any = None, budget: Any = None, scalars: Any = None) -> Optional[List[int]]:
     """⭐⭐ ENGINE 55 -- the port of ``interpret.js::tfMergeMask``: the bars of a tree
     whose ``tf_merge`` read is not known (1 = withheld), or ``None``. The newest bar
     unless it is known to be forming, or (review L3) it is a finished daily bar that
@@ -4929,7 +4930,12 @@ def tf_merge_mask(tree: Any, bars: List[dict],
     mask = [0] * n
     forming = (opts or {}).get("newest_bar_is_forming") is True
     known = forming or _newest_closes_every_merge_period(bars, found, opts)
-    if not known or any(u for u, _s, _c in found):
+    # ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) -- the port of ``interpret.js::tfMergeMask``'s narrowing: only a root
+    # that reads the merge on its newest bar (``_newest_reads_merge``, engine 56's walk); a merge under
+    # another request keeps the whole-tree rule.
+    if any(u for u, _s, _c in found):
+        mask[n - 1] = 1
+    elif not known and _newest_reads_merge(tree, bars, opts, inputs, budget, scalars):
         mask[n - 1] = 1
     first_mask = _first_period_partial_mask(bars, found, opts)
     supplied = (opts or {}).get("symbols") or {}
@@ -4955,6 +4961,24 @@ def tf_merge_mask(tree: Any, bars: List[dict],
         _name_chart_clock(opts, [TF_MERGE_FIRST_CODE])
         named_any = True
     return mask if named_any else None
+
+
+def _newest_reads_merge(tree: Any, bars: List[dict], opts, inputs, budget, scalars) -> bool:
+    """⭐⭐ HTF-NEWEST-NARROW -- the port of ``interpret.js::newestReadsMerge``: does the root's newest bar read a
+    ``tf_merge`` on that merge's newest bar? Engine 56's walk, every merge a site flagged on the newest bar only."""
+    n = len(bars)
+
+    def newest_only(_node):
+        col = [0] * n
+        col[n - 1] = 1
+        return col
+
+    quiet = dict(opts or {})
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+    m = _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                      lambda nd: nd.get("type") == "tf_merge", newest_only)
+    return bool(m) and m[n - 1] == 1
 
 
 def _first_period_partial_mask(bars: List[dict], found: list,
@@ -5321,7 +5345,7 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
         kind = node.get("type")
         args = node.get("args") if isinstance(node.get("args"), list) else []
         name = node.get("name")
-        if kind in _WITNESS_NESTED:
+        if kind in _WITNESS_NESTED and not is_site(node):
             out = ALL
         elif is_site(node):
             own = flagged(node)

@@ -1762,11 +1762,20 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   }
   withColumnErrors(out, taintErrors)
   // ⭐ RS RATING L5 — the newest bar a request cannot know yet (`request:htf-newest-unconfirmed`)
-  // is withheld on every column, as the host withholds that bar, and named beside them.
-  if (reqSupply && reqSupply.newestWithheld && rows.length) {
-    for (const k of Object.keys(out)) if (out[k] && out[k].length === rows.length) out[k][rows.length - 1] = NaN
+  // is withheld, as the host withholds that bar, and named beside the columns it blanks.
+  // ⭐⭐ HTF-NEWEST-NARROW (coordinator ruling 2026-11-19) — ONLY on the outputs that request reaches on that bar:
+  // each withheld site's `newestReach` (`strategyTaint.js::requestNewestReachOf`, the same-bar taint from its call,
+  // `x[k]` k >= 1 cut). ⚰️ It blanked EVERY column, plots that never read the request included. ⛔ A site with no
+  // reach, or one whose reach is refused (a `fill` / `hline` / `alert` or a drawing it reaches, an unplaced output, a
+  // trace that failed), keeps the whole-bar rule, every column and every drawing.
+  const newestHeld = reqSupply && reqSupply.newestWithheld && rows.length
+    ? requestNewestHeldOf(runProgram.requests, reqSupply.newestWithheldSites, outputs) : null
+  if (newestHeld) {
+    const keys = newestHeld.keys === null ? Object.keys(out) : newestHeld.keys
+    for (const k of keys) if (out[k] && out[k].length === rows.length) out[k][rows.length - 1] = NaN
     Object.defineProperty(out, RUNTIME_REQUEST_WITHHELD_KEY, { enumerable: false, configurable: true,
-      value: Object.freeze({ bar: rows.length - 1, codes: [...reqSupply.codes], sentences: [...reqSupply.sentences] }) })
+      value: Object.freeze({ bar: rows.length - 1, codes: [...reqSupply.codes], sentences: [...reqSupply.sentences],
+        keys: newestHeld.keys === null ? null : Object.freeze([...newestHeld.keys]) }) })
   }
   Object.defineProperty(out, RUNTIME_INCREMENTAL_KEY, { enumerable: false, configurable: true,
     value: { resumedFrom: Number.isInteger(res.resumedFrom) ? res.resumedFrom : null,
@@ -1789,7 +1798,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     const fin = res.objects ? res.objects.finish() : { status: 'ok', reason: null, live: [], withheld: {} }
     // ⛔ RS RATING L5 — a run whose newest bar read a request it cannot know yet draws no
     // drawing (a last-bar label would carry that read), and says why
-    const held = reqSupply && reqSupply.newestWithheld
+    const held = newestHeld && newestHeld.keys === null
       ? { status: 'WITHHELD', guard: reqSupply.codes[0] || 'runtime:request', reason: reqSupply.sentences[0] || '' }
       : null
     withRuntimeObjects(out, held || { ...fin, pineVersion: Number.isFinite(program.version) ? program.version : null })
@@ -1807,8 +1816,27 @@ export function brokerBarTimes(rows, tf) {
   return opens ? Array.from(opens) : new Array(n).fill(NaN)
 }
 
-/** ⭐ RS RATING L5 — where a run's newest-bar request withholding rides (non-enumerable). */
+/** ⭐ RS RATING L5 — where a run's newest-bar request withholding rides (non-enumerable): `{bar, codes, sentences,
+ *  keys}`, `keys` the plot keys blanked on that bar, or `null` when every column (and every drawing) was. */
 export const RUNTIME_REQUEST_WITHHELD_KEY = '__runtimeRequestWithheld'
+
+/** ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) — which outputs a run blanks on its newest bar for the request sites that
+ *  cannot know it: `{keys: [plot keys]}` (the union of each site's `newestReach.withheld`), or `{keys: null}` (every
+ *  column and every drawing) when any such site carries no reach or a refused one. `outputs` is plot key -> index. */
+export function requestNewestHeldOf(requests, sites, outputs) {
+  const list = Array.isArray(requests) ? requests : []
+  const at = Array.isArray(sites) ? sites : []
+  if (!at.length) return { keys: null }
+  const indices = new Set()
+  for (const s of at) {
+    const reach = list[s] && list[s].newestReach
+    if (!reach || reach.refused || !Array.isArray(reach.withheld)) return { keys: null }
+    for (const w of reach.withheld) if (w && Number.isInteger(w.index)) indices.add(w.index)
+  }
+  const keys = []
+  for (const [k, index] of Object.entries(outputs || {})) if (indices.has(index)) keys.push(k)
+  return { keys }
+}
 
 /** ⭐⭐ RT1 — WHERE A RUN HAPPENS OFF THE MAIN THREAD, when anything does.
  *
