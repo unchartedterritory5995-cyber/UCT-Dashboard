@@ -1,0 +1,65 @@
+{
+ "_": "The worked examples of the assistant's Pine reference. Each is run through the member's own paste path when the reference is generated (assistantPineReference.test.js): one that does not run fully fails there, and is never shown to the assistant.",
+ "examples": [
+  {
+   "id": "table-summary",
+   "title": "A summary table in a corner of the chart",
+   "shows": "table.new once with var, cells written on the last bar, numbers formatted with str.tostring",
+   "file": "table-summary.pine"
+  },
+  {
+   "id": "labels-on-events",
+   "title": "A text label on each bar where something happens",
+   "shows": "label.new inside an if, the text built with str.tostring",
+   "file": "labels-on-events.pine"
+  },
+  {
+   "id": "lines-from-levels",
+   "title": "Horizontal lines at levels that change over time",
+   "shows": "var handles, line.delete before line.new, values carried with var float and :=",
+   "file": "lines-from-levels.pine"
+  },
+  {
+   "id": "box-over-a-range",
+   "title": "A shaded box over a range of bars",
+   "shows": "one box kept in a var, deleted and redrawn on the last bar",
+   "file": "box-over-a-range.pine"
+  },
+  {
+   "id": "plots-colours-markers",
+   "title": "Lines, a fill between them, markers, background and bar colours",
+   "shows": "plot, fill, plotshape, bgcolor and barcolor with a colour chosen per bar",
+   "file": "plots-colours-markers.pine"
+  },
+  {
+   "id": "loops-and-arrays",
+   "title": "A calculation that needs a loop and a list",
+   "shows": "a for loop with +=, an array kept with var, array.push / array.shift / array.max",
+   "file": "loops-and-arrays.pine"
+  },
+  {
+   "id": "pivots-with-labels",
+   "title": "Swing highs marked where they happened",
+   "shows": "ta.pivothigh is known `right` bars late, so the label is placed at bar_index - right",
+   "file": "pivots-with-labels.pine"
+  },
+  {
+   "id": "higher-timeframe",
+   "title": "A weekly value on a daily chart",
+   "shows": "request.security on the chart's own symbol with the weekly timeframe",
+   "file": "higher-timeframe.pine"
+  },
+  {
+   "id": "another-symbol",
+   "title": "This stock against a benchmark",
+   "shows": "request.security on a benchmark symbol at the chart's own timeframe",
+   "file": "another-symbol.pine"
+  },
+  {
+   "id": "levels-from-a-list",
+   "title": "Several levels drawn from a list, with a label on each",
+   "shows": "array.from, for ... in, lines and labels rebuilt on the last bar",
+   "file": "levels-from-a-list.pine"
+  }
+ ]
+}

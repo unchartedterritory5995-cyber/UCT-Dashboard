@@ -593,6 +593,10 @@ class ConverseIn(BaseModel):
     #: (``["note.by"]``). Optional and untrusted: an older tab omits it and gets the answer it
     #: always got; anything that is not a list of known words is ignored, never a 422.
     accepts: Optional[Any] = None
+    #: ⭐ 2026-11-18 — the ids of UCT's own indicators this browser can add to the chart
+    #: right now (its registry and the live server decide). Optional and untrusted: only a browser
+    #: that also accepts an "offer" is ever offered one, and only for an id it listed here.
+    addable: Optional[Any] = None
 
 
 def require_create_indicator_access(user: dict = Depends(require_paid)) -> dict:
@@ -649,7 +653,7 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
         authoring=body.authoring, snippets=body.snippets, chart=chart,
         admin=(user.get("role") == "admin"), conversation_id=body.conversationId,
         examples=body.examples is True, browser_refusal=body.browser_refusal,
-        accepts=body.accepts,
+        accepts=body.accepts, addable=body.addable,
         # ⭐ what THIS member chose when the door asked before (their own account row, no one else's)
         memory=indicator_memory.Memory(user["id"]),
         # ⭐ and what they USUALLY use, read from their own saved indicators only when the door asks

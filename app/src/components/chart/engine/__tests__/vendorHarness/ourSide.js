@@ -349,7 +349,10 @@ function outOfGitRows(ticker, e, bad) {
   const doc = JSON.parse(raw.toString('utf8'))
   if (!doc || doc.schema !== HARNESS_SUPPLY_ROWS_SCHEMA || !Array.isArray(doc.bars)) bad(`other.${ticker}.rows: ${name} is not a ${HARNESS_SUPPLY_ROWS_SCHEMA} file`)
   if (doc.ticker !== ticker) bad(`other.${ticker}.rows: ${name} holds ${JSON.stringify(doc.ticker)}`)
-  const day = (b) => new Date(b.t * 1000).toISOString().slice(0, 10)
+  // ⭐ A daily row's `t` is the store's session DATE (`'2026-11-16'`, the OWN~D rows and the seed's); an intraday
+  // or index row's is unix seconds. ⚰️ `new Date('2026-11-16' * 1000)` is an Invalid Date, and toISOString threw a
+  // RangeError that failed the whole corpus file (l12-now-2026-11-18 regrade, 2026-11-19).
+  const day = (b) => (typeof b.t === 'number' ? new Date(b.t * 1000).toISOString().slice(0, 10) : String(b.t).slice(0, 10))
   if (doc.bars.length !== m.count || day(doc.bars[0]) !== m.first || day(doc.bars[doc.bars.length - 1]) !== m.last) {
     bad(`other.${ticker}.rows: ${name} holds ${doc.bars.length} sessions ${day(doc.bars[0])}..${day(doc.bars[doc.bars.length - 1])}, the manifest ${m.count} ${m.first}..${m.last}`)
   }
