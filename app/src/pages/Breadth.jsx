@@ -442,7 +442,7 @@ function valueCh(col) {
 // Columns in one family share ONE width: the widest thing any VISIBLE member needs
 // (its widest value format or its header label), plus its padding. One map, keyed by
 // metric key, covers the default view and every family a member can turn on from
-// Columns. A column with no group keeps its own width (Universe, FTD, McClellan; the
+// Columns. A column with no group keeps its own width (FTD, McClellan; the
 // SPY/QQQ dot columns are fixed at the same width already).
 const WIDTH_GROUP = {
   breadth_score: 'core', uct_exposure: 'core', up_4pct_today: 'core', down_4pct_today: 'core',
@@ -466,6 +466,9 @@ const WIDTH_GROUP = {
   rsp_spy_ratio: 'idxRatio', iwm_qqq_ratio: 'idxRatio',
   near_52w_high: 'hilo',
   hi_ratio: 'hiloPct', lo_ratio: 'hiloPct',
+  // round 14: Universe sits last in the default; a group of its own drops the family-
+  // start padding it would otherwise carry there (8px that made 2048 overflow by ~1px).
+  universe_count: 'universe',
 }
 export const widthGroupOf = (key) => WIDTH_GROUP[key] ?? null
 

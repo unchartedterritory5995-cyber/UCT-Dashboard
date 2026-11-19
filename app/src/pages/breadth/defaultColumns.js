@@ -15,7 +15,8 @@ export const DEFAULT_COLUMNS = Object.freeze([
   'down_25pct_quarter', // Dn25%/Qtr
   'magna_up',           // Up13%/34d
   'magna_down',         // Dn13%/34d
-  'universe_count',     // Universe
+  'net_new_high_low',   // Net NH-NL  (round 14: the internals before the index dots)
+  'adv_decline',        // A/D
   'spy_ma_stack',       // SPY (dots)
   'qqq_ma_stack',       // QQQ (dots)
   'pct_above_20sma',    // >20SMA
@@ -23,9 +24,7 @@ export const DEFAULT_COLUMNS = Object.freeze([
   'pct_above_200sma',   // >200SMA
   'vix',                // VIX
   'cnn_fear_greed',     // CNN F/G
-  // round 13 (owner 2026-11-19): fill the wide screen with real internals
-  'net_new_high_low',   // Net NH-NL
-  'adv_decline',        // A/D
+  'universe_count',     // Universe   (round 14: at the end)
   // round 14: Up Vol and Dist Days left the default (still in Columns)
 ])
 

@@ -11,8 +11,8 @@ describe('width groups', () => {
     expect(g('up_25pct_quarter', 'down_25pct_quarter', 'magna_up', 'magna_down').size).toBe(1)
     expect(g('pct_above_20sma', 'pct_above_50sma', 'pct_above_200sma').size).toBe(1)
     expect(g('vix', 'cnn_fear_greed').size).toBe(1)
-    // Universe and the dot columns keep their own widths
-    expect(widthGroupOf('universe_count')).toBeNull()
+    // Universe is a group of one (its own width); the dot columns keep theirs
+    expect(widthGroupOf('universe_count')).toBe('universe')
     expect(widthGroupOf('spy_ma_stack')).toBeNull()
   })
   it('hidden families group within themselves', () => {
