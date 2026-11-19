@@ -30,7 +30,7 @@ import {
   RUNTIME_ERROR_GUARD,
 } from '../engine/nativeRegistry'
 import { hostLaneStopOf, isHostLanePending } from '../engine/hostLaneAsync.js'
-import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from '../engine/runtime/runtimeObjects'
+import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf, drawsRunObjectsOn, runHalfOf, carriesRunHalf } from '../engine/runtime/runtimeObjects'
 import { onRuntimeColumnsLanded } from '../engine/runtime/runtimeColumns'
 import { memberPaneEnabled } from '../engine/memberPaneGate'
 import { RUNTIME_FORMING_GUARD } from '../engine/runtimeKill'
@@ -68,6 +68,13 @@ export const NEEDS_THE_CHART = Object.freeze(['other-symbol:bare'])
 export const WAITS_FOR_THE_BAR = Object.freeze([RUNTIME_FORMING_GUARD])
 
 const clean = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim()
+
+/** Does the chart draw this document's objects from its RUN (the binder's own two questions, in its order)? */
+function drawnFromItsRun(def, cols) {
+  if (drawsRunObjectsOn(def, cols, null)) return true
+  const half = carriesRunHalf(def) ? runHalfOf(cols) : null
+  return !!(half && (half.state === 'served' || half.state === 'pending'))
+}
 
 const notRun = (why) => ({ state: RUN.NOT_RUN, stops: [], unchecked: [], waiting: [], notes: [], why })
 
@@ -132,7 +139,13 @@ export function runHere(pane, { bars, ctx, compute = computeFor } = {}) {
     if (e && e.guard && !(ran && ran.guard === e.guard)) add(e.guard, e.message)
   }
   // ── its drawings ──
-  const hostDrawings = runtimeObjectsWithheld(def, cols)
+  // ⛔ ASKED ONLY WHERE THE CHART ASKS IT (master red 2026-11-19, engine 86). `runtimeObjectsWithheld` is the rule
+  // of the HOST PROGRAM's branch of the chart (`engine/binder.js`: "a runtime document's drawings go with its
+  // run"). A document whose RUN draws its objects (`drawsRunObjectsOn`, with or without a clean host program
+  // beside it) or whose run half does is drawn from the run, and the chart never asks this rule about it.
+  // Asked here of every document, it reported "its drawings are not drawn" for a recipe the chart draws in
+  // full, from the day engine 86 gave that recipe a clean host program beside its run.
+  const hostDrawings = drawnFromItsRun(def, cols) ? null : runtimeObjectsWithheld(def, cols)
   if (hostDrawings) add(hostDrawings.guard, hostDrawings.message)
   const run = cols[RUNTIME_OBJECTS_KEY]
   if (run && run.status === 'WITHHELD') add(run.guard || 'runtime:objects-withheld', run.reason)
