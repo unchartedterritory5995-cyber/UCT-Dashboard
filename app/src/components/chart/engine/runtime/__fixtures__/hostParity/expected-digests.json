@@ -759,6 +759,12 @@
     "secondRunStoppedAt": 282
    }
   },
+  "request_fn_history@listing": {
+   "status": "ok",
+   "digest": "e1424cfcefeb289442b013e027b8f6bc0673f856e335121329919820a229c9ca",
+   "guards": [],
+   "warmup": null
+  },
   "rma_alma_hma@calcbars": {
    "status": "ok",
    "digest": "f1c5109012714340c9c78b0f11cc143f17a939f970468af7f1adb16d82df0525",
