@@ -44,7 +44,9 @@ import {
   resolveOtherSymbols, resolveFormulaSymbols, symTickersOf, isPineOriginDoc,
 } from './otherSymbols'
 import { scalarsIn } from './ast/freshness'
-import { TF_MERGE_NEWEST_CODE } from './ast/interpret'
+import { TF_MERGE_NEWEST_CODE, SCOPE_TYPES } from './ast/interpret'
+import { TABLE } from './ast/parse'
+import { readAt } from './paramLiteral'
 import CROSS from '../builder/authoring/crossContext.json'
 
 export const STATUS = Object.freeze({ SUPPORTED: 'supported', REFUSED: 'refused', DISCLOSED: 'disclosed' })
@@ -98,6 +100,83 @@ export function treeReadsLtf(tree) {
 /** ⭐ ENGINE 55 — does a tree contain a `tf_merge` node? */
 export function treeReadsTfMerge(tree) {
   return treeHoldsType(tree, 'tf_merge')
+}
+
+/** The calls the closed table declares `forward` (they read LATER bars: `pivothigh`, `pivotlow`,
+ *  `ichimokuChikou`). Derived from the table, as the Python twin derives it. */
+const FORWARD_CALLS = new Set(Object.keys(TABLE.functions)
+  .filter((k) => !!TABLE.functions[k] && typeof TABLE.functions[k] === 'object'
+    && Object.prototype.hasOwnProperty.call(TABLE.functions[k], 'forward')))
+
+/** A history offset's `k` is a literal whole number >= 1 (`alert_user_series._whole_back`). */
+const wholeBack = (v) => typeof v === 'number' && Number.isInteger(v) && v >= 1
+
+/** The `offset` nodes of `tree` a parameter setting can move: every locator of
+ *  `compute.paramManifest` read against THIS tree, whatever tree it was recorded for (an
+ *  over-read only refuses more), that ends at an offset node or at its `value`
+ *  (`paramInputs.js::writeLiteral`'s two shapes). Twin of `alert_user_series._param_offset_ids`. */
+function paramOffsets(tree, compute) {
+  const out = new Set()
+  const manifest = isObj(compute) ? compute.paramManifest : null
+  if (!isObj(manifest)) return out
+  for (const entry of Object.values(manifest)) {
+    const locators = isObj(entry) ? entry.locators : null
+    if (!Array.isArray(locators)) continue
+    for (const loc of locators) {
+      const path = isObj(loc) ? loc.astPath : null
+      if (!Array.isArray(path) || !path.every((s) => typeof s === 'string' || Number.isInteger(s))) continue
+      const at = readAt(tree, path)
+      if (isObj(at) && at.type === 'offset') out.add(at)
+      if (path.length && path[path.length - 1] === 'value') {
+        const parent = readAt(tree, path.slice(0, -1))
+        if (isObj(parent) && parent.type === 'offset') out.add(parent)
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * ⭐⭐ ALERT TF_MERGE (coordinator ruling 2026-11-19, option A) — does this plot read a `tf_merge` the
+ * alert lane cannot PROVE settled on the bar it reads? Then it is refused, `withheld` /
+ * `request:htf-newest-unconfirmed`, as every `tf_merge` plot was before.
+ *
+ * A STATIC rule, CONSERVATIVE BY CONSTRUCTION (the tree and the parameter manifest, never bars): a merge
+ * is PROVEN when EVERY path from the root to it passes a history offset `x[k]` whose `k` is a literal
+ * whole number >= 1 that no parameter setting moves (#1996's `cutHistory` rule, `strategyTaint.js`), and
+ * nothing on that path or inside the merge is another request (`SCOPE_TYPES`), a call the closed table
+ * declares `forward` (`pivothigh(x, 2, 2)[2]` reads `x` on the newest bar), or an offset a parameter
+ * setting moves. `x` / `x[0]`, a conditional with one arm on `x`, `barsAgo(x, …)` (a dynamic offset,
+ * however spelled) are not proven. The twin of `alert_user_series.merge_newest_unproven` (its docstring
+ * carries the reasoning), held equal case by case by `tests/fixtures/ast/alert_tf_merge_history.json`.
+ */
+export function mergeNewestUnproven(tree, compute) {
+  if (!treeReadsTfMerge(tree)) return false
+  const moved = paramOffsets(tree, compute)
+  const seen = new Map()                                  // node -> bitmask of the states it was walked in
+  const stack = [[tree, false, false, false]]
+  while (stack.length) {
+    const [node, cut0, tainted0, inside0] = stack.pop()
+    if (!isObj(node)) continue
+    const bit = 1 << ((cut0 ? 4 : 0) + (tainted0 ? 2 : 0) + (inside0 ? 1 : 0))
+    const had = seen.get(node) || 0
+    if (had & bit) continue
+    seen.set(node, had | bit)
+    let cut = cut0
+    let tainted = tainted0
+    let inside = inside0
+    const movedHere = node.type === 'offset' && moved.has(node)
+    const blocks = SCOPE_TYPES.has(node.type) || movedHere || (node.type === 'call' && FORWARD_CALLS.has(node.name))
+    if (inside && blocks) return true
+    if (node.type === 'tf_merge') {
+      if (tainted || !cut) return true
+      inside = true
+    }
+    if (node.type === 'offset' && !movedHere && wholeBack(node.value)) cut = true
+    if (blocks) tainted = true
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, cut, tainted, inside])
+  }
+  return false
 }
 
 function treeHoldsType(tree, type) {
@@ -262,7 +341,9 @@ function alertPlotRefusal(compute, key) {
   // ⭐ ENGINE 55 — Pine's merged higher-timeframe read: its newest finished bar is
   // withheld (`interpret.js::tfMergeMask`), and that is the bar an alert reads.
   // Mirrors `alert_user_series._make_value_fn`.
-  if (treeReadsTfMerge(tree)) codes.push(TF_MERGE_NEWEST_CODE)
+  // ⭐⭐ ALERT TF_MERGE (2026-11-19, option A) — unless every merge is read through a history
+  // offset k >= 1 (`mergeNewestUnproven`, static), which the chart draws on the newest bar (#1996).
+  if (mergeNewestUnproven(tree, compute)) codes.push(TF_MERGE_NEWEST_CODE)
   if (codes.length) return { gate: 'withheld', codes }
   return null
 }
