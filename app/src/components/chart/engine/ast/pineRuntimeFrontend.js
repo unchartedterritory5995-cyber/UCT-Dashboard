@@ -44,6 +44,7 @@ import {
   carryShapeVersion,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
+import { clockColumnsOf } from '../clockMemo.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { importLinesOf, linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
@@ -2772,12 +2773,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  the lex is in hand, so `null` IS "no pragma"). */
   // ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2, ruling D1) — the runtime lane runs only Pine, so every column
   // it hands the columnar lane compares the way TradingView does (`interpret.js::binaryFor`, `pineCompare`).
+  // ⭐ PERF (C4) — and the clock is computed once per bars array (`clockMemo.js::clockColumnsOf`, handed to the
+  // interpreter, which calls it with its own bars, timeframe and tri-state; a recorded column replayed over new bars
+  // asks for those bars' clock)
   const pineCompareOpts = { pineCompare: true }
   const columnInterpretOpts = (opts && opts.historyFromListing === true && !atObjectDoor)
     ? { ...((opts && opts.interpretOpts) || {}), historyFromListing: true,
       ...(pineNaConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}),
-      ...(listingSeedIsUnpinned(pineVersion) ? { listingSeedUnpinned: true } : {}), ...pineCompareOpts }
-    : { ...((opts && opts.interpretOpts) || {}), ...pineCompareOpts }
+      ...(listingSeedIsUnpinned(pineVersion) ? { listingSeedUnpinned: true } : {}), ...pineCompareOpts, clockOf: clockColumnsOf }
+    : { ...((opts && opts.interpretOpts) || {}), ...pineCompareOpts, clockOf: clockColumnsOf }
   /** ⭐⭐ C23 — WHICH CONTRACT THIS BUILD SERVES, decided by the CALLER, never
    *  guessed here: `opts.pane === true` says the run draws ONE symbol's chart
    *  pane, and the columnar resolver it asks for pure subtrees then answers as the
