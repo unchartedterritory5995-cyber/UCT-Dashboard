@@ -726,3 +726,49 @@ any vendor.
 **What it is not.** The Screener's Bar Character column has a label for "an up day whose volume tops
 recent selling". That is the volume half alone and was deliberately not named Pocket Pivot there. The
 library's entry is the base structure's, with all six tests.
+
+## Names that are UCT's own built-in indicators: answered, with an offer to add (ruling 2026-11-18)
+
+**What a member met.** "Add the RS Rating" was read as a formula to write. The door asked which symbol to
+compare with, and the assistant then wrote a ratio under a name that means a rank across every stock. The
+RS Rating is one of UCT's own indicators, computed by the server; so is RS Phases. Neither is a formula a
+chart can hold.
+
+**The rule.** Such a name is in the library file under `held` with `built_in` {indicator, name, what}. It
+has no formula. `indicator` and `name` are the native registry's own id and name, read from the registry's
+source by a test, so a rename there fails rather than a member being told to look for a name that is gone.
+
+| the browser | the answer | assistant calls |
+|---|---|---|
+| accepts an offer AND said it can add that indicator now | answered: what it is, and one button, "Add UCT RS Rating to this chart" | 0 |
+| any other (an older tab; a build that does not offer it; a window that cannot write the chart) | told it is one of UCT's own indicators and to look for it in the Indicators list; no button | 0 |
+
+**Only what the build can add is offered.** The window tells the door which of these indicators its own
+registry offers right now, by the question the Indicators list itself asks (a definition the live server
+does not publish is not offered). The door offers nothing else. The tap asks the same question again before
+it writes, never adds a second copy of one already on the chart, and makes the Indicators list's own write.
+
+**An offer names a library built-in or it is nothing.** The answer carries an indicator id. The window acts
+on it only when that id is one of the built-in names it shipped with; the name and the button's words are
+the window's own. A conversation read back from the session keeps the words and has no button.
+
+**The member's own rule beside the name** ("rs rating: the close divided by SPY over 252 bars") is still
+built as their own formula and labelled as theirs.
+
+Deliberate breaks, each turning a test red: seven at the door (an offer to a browser that did not say it
+can add it; a browser that does not accept one; a built-in read as an ordinary held name; a record with a
+field missing; the two sentences; the bound on what a browser may list) and ten in the window (the tap not
+asking again; every built-in listed whether offered or not; a restored offer; a second copy; the door never
+told; a window that cannot write saying it can; any kind of action; any registry definition; a taken offer
+left on the entry; the offer dropped from the answer).
+
+### Mansfield Relative Strength: where it is today
+
+The first plan was to point this name at the built-in Relative Strength indicator's Mansfield reading. Read
+before a word was written: in the build members run, that indicator has no Reading control and no preset,
+and no built-in draws Mansfield on a chart. So the name stays held, and its answer says where the number
+is: "Mansfield Relative Strength is a Screener column in UCT today (the Screener, under Relative Strength,
+as "Mansfield RS"), not a chart line yet", then the member's own words as before. A test holds the label
+and the group to the Screener's own. A chart formula was ruled out: it would be a second join beside the
+Screener's, and after a missing benchmark bar the two would differ. When a built-in that draws the
+Screener's own column exists, the name points at it with the offer above.
