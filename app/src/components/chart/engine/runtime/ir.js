@@ -251,6 +251,19 @@ export function validateIr(p) {
    *  program), so a frame-relative history index is checked against that
    *  function's own per-site entries rather than the main program's. */
   let walkingFn = null
+  // ⭐⭐ ENGINE NUMBER PENDING (S14 fix 1) — A FUNCTION BODY'S STATE SITES ARE NUMBERED IN ITS OWN FRAME.
+  // A carried built-in, a two-input carried built-in and a variable's history ring each live, per call site,
+  // at that site's base plus the body's own index (`carriedBase`, `carried2Base`, `historyBase`). So in a body
+  // the index is checked against the FUNCTION's count (`carriedCount`, `carried2Count`, `historyCount`), and
+  // each call site's block against the table (the `callSites` loop below). ⚰️ It was checked against the WHOLE
+  // table, which holds no instance for a function nothing calls: an uncalled helper with `ta.barssince` or an
+  // `x[1]` failed the whole program ("carried site 0 outside 0", "history over a variable must name the HISTORY
+  // slot"), and six scripts of the coverage sample were refused for a body that never runs. A function record
+  // that states no count (a hand-built program) keeps the whole-table check.
+  const frameBound = (countKey, table) => {
+    const fn = walkingFn === null ? null : p.functions[walkingFn]
+    return fn && Number.isInteger(fn[countKey]) ? fn[countKey] : (table || []).length
+  }
   const walkExpr = (e, where) => {
     if (!isObj(e) || typeof e.kind !== 'string') throw new IrError(`${where}: not an expression node — ${JSON.stringify(e)}`)
     switch (e.kind) {
@@ -381,7 +394,7 @@ export function validateIr(p) {
         // node because they are the same Pine construct, and they are told apart
         // at lowering by what `of` is.
         if (e.of && e.of.kind === EXPR.READ) {
-          if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= (p.history || []).length) {
+          if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= frameBound('historyCount', p.history)) {
             throw new IrError(
               `${where}: history over a variable must name the HISTORY slot the front end `
               + `allocated for it; got ${JSON.stringify(e.slot)} against ${(p.history || []).length} `
@@ -436,7 +449,7 @@ export function validateIr(p) {
         if (!Number.isInteger(e.depth) || e.depth < 1) {
           throw new IrError(`${where}: a bounded dynamic offset carries the depth its bound proved, got ${JSON.stringify(e.depth)}`)
         }
-        if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= (p.history || []).length) {
+        if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= frameBound('historyCount', p.history)) {
           throw new IrError(`${where}: a bounded dynamic offset must name the HISTORY slot the front end `
             + `allocated, got ${JSON.stringify(e.slot)} against ${(p.history || []).length} history slots`)
         }
@@ -490,15 +503,15 @@ export function validateIr(p) {
         return
       }
       case EXPR.CARRIED: {
-        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.carried || []).length) {
-          throw new IrError(`${where}: carried site ${JSON.stringify(e.site)} outside ${(p.carried || []).length}`)
+        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= frameBound('carriedCount', p.carried)) {
+          throw new IrError(`${where}: carried site ${JSON.stringify(e.site)} outside ${frameBound('carriedCount', p.carried)}`)
         }
         walkExpr(e.source, `${where}.source`)
         return
       }
       case EXPR.CARRIED2: {
-        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.carried2 || []).length) {
-          throw new IrError(`${where}: carried2 site ${JSON.stringify(e.site)} outside ${(p.carried2 || []).length}`)
+        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= frameBound('carried2Count', p.carried2)) {
+          throw new IrError(`${where}: carried2 site ${JSON.stringify(e.site)} outside ${frameBound('carried2Count', p.carried2)}`)
         }
         walkExpr(e.cond, `${where}.cond`)
         walkExpr(e.source, `${where}.source`)
@@ -506,8 +519,9 @@ export function validateIr(p) {
         return
       }
       case EXPR.WINDOW: {
-        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.windows || []).length) {
-          throw new IrError(`${where}: window site ${JSON.stringify(e.site)} outside ${(p.windows || []).length}`)
+        // ⭐ S14 fix 1 — frame-relative in a body (`windowBase`), as the carried and history sites are
+        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= frameBound('windowCount', p.windows)) {
+          throw new IrError(`${where}: window site ${JSON.stringify(e.site)} outside ${frameBound('windowCount', p.windows)}`)
         }
         walkExpr(e.source, `${where}.source`)
         // ⭐⭐ W4-T8 — A WINDOW PLANNED `dynamic` READS ITS LENGTH EACH BAR, AND ONLY THAT ONE DOES.
@@ -703,6 +717,14 @@ export function validateIr(p) {
       throw new IrError(`${at}: persistBase must be an index`)
     }
     const fn = p.functions[cs.fn]
+    // ⭐ S14 fix 1 — each call site's block of a body's frame-relative state lies inside its table
+    for (const [base, countKey, table] of [['carriedBase', 'carriedCount', p.carried],
+      ['carried2Base', 'carried2Count', p.carried2], ['historyBase', 'historyCount', p.history],
+      ['windowBase', 'windowCount', p.windows]]) {
+      if (Number.isInteger(cs[base]) && Number.isInteger(fn[countKey]) && cs[base] + fn[countKey] > (table || []).length) {
+        throw new IrError(`${at}: ${base} ${cs[base]} + ${fn[countKey]} lies outside ${(table || []).length}`)
+      }
+    }
     if (fn.persistCount > 0) {
       const prior = seenBase.get(cs.persistBase)
       if (prior !== undefined) {

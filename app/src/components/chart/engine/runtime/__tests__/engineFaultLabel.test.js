@@ -15,6 +15,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
 import { ColourError } from '../colours.js'
+import { IrError } from '../ir.js'
 
 // ⭐ THE ONE INJECTED FAULT: `lexPine` is the build's first step, and its throw goes to `fail` as any other
 // throw does. A marker in the source picks the kind; every other source lexes as it always has.
@@ -22,6 +23,7 @@ const FAULTS = {
   S14_TYPE_ERROR: () => new TypeError("Cannot read properties of undefined (reading 'type')"),
   S14_RANGE_ERROR: () => new RangeError('Maximum call stack size exceeded'),
   S14_PLAIN_ERROR: () => new Error('an invariant nobody named'),
+  S14_IR_ERROR: () => new IrError('functions[0] `f`.body[0].value: a site the IR check refuses'),
   S14_THROWN_TEXT: () => 'a thrown string',
   S14_COLOUR_ERROR: () => new ColourError('not a colour this engine can read: `#0`'),
 }
@@ -48,7 +50,7 @@ const build = (src) => buildRuntimeIr(src, { bars: BARS, inputs: {} })
 const HEAD = '//@version=6\nindicator("t")\n'
 
 describe('S14 — an exception that is not a refusal is `runtime:lower`, never `runtime:statement`', () => {
-  for (const marker of ['S14_TYPE_ERROR', 'S14_RANGE_ERROR', 'S14_PLAIN_ERROR', 'S14_THROWN_TEXT']) {
+  for (const marker of ['S14_TYPE_ERROR', 'S14_RANGE_ERROR', 'S14_PLAIN_ERROR', 'S14_IR_ERROR', 'S14_THROWN_TEXT']) {
     it(`${marker}: a defect, said to be one, with what was thrown`, () => {
       const r = build(`${HEAD}// ${marker}\nplot(close)\n`)
       expect(r.ok).toBe(false)
@@ -66,15 +68,14 @@ describe('S14 — an exception that is not a refusal is `runtime:lower`, never `
     expect(r.refusal.message).not.toContain('engine defect')
   })
 
-  it('END TO END, a real defect: an uncalled helper whose built-in carries state breaks the IR\'s own check', () => {
-    // ⭐ The first root-cause fix in S14's queue: a carried built-in in a function nothing calls is planned
-    // with no call site, and `ir.js` refuses the program it was handed ("carried site 0 outside 0"). When
-    // that fix lands this script builds, and this case moves to the next defect on the list.
-    const r = build(`${HEAD}f(bool c) =>\n    b = ta.barssince(c)\n    b <= 5\nplot(close)\n`)
+  it('END TO END, a real defect: a parse offset handed to `fromCanonical` loses its operand', () => {
+    // ⭐ A defect still on S14's queue. ⚰️ This case was the uncalled helper's IR check ("carried site 0 outside
+    // 0"), which S14 fix 1 settled (`uncalledHelperState.test.js`); it moves along the queue as each fix lands.
+    const r = build(`${HEAD}n = int(math.max(1, nz(ta.barssince(close > open))))\nhb = ta.highestbars(high[2], n)\nplot(hb)\n`)
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:lower')
     expect(r.refusal.message.startsWith(ENGINE_DEFECT_SENTENCE)).toBe(true)
-    expect(r.refusal.message).toMatch(/carried site 0 outside 0/)
+    expect(r.refusal.message).toMatch(/reading 'type'/)
   })
 
   it('END TO END, a named error: an unreadable colour literal keeps "not a colour this engine can read"', () => {

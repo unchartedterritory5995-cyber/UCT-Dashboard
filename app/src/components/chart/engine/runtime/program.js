@@ -546,6 +546,23 @@ export function makeProgram({
  *  and being reported as a runtime failure. */
 export function validateProgram(p) {
   const n = p.instructions
+  // ⭐⭐ S14 fix 1 — EACH STATE INSTANCE'S OWN RULE IS CHECKED OVER ITS TABLE, where every call site's instance
+  // is, rather than at an operand that is frame-relative in a function body (the opcode checks below)
+  ;(p.carried || []).forEach((c, i) => {
+    if (!(c.n >= 1)) throw new ProgramError(`carried[${i}]: CARRIED length ${c.n} — a carried builtin needs a length of at least 1`)
+  })
+  // ⛔ ZERO IS LEGAL HERE, UNLIKE `CARRIED`. A carried builtin's `n` is a LENGTH and must be at least 1; this
+  // one's is an OCCURRENCE INDEX, and occurrence 0 (the most recent firing) is the commonest call in the corpus.
+  ;(p.carried2 || []).forEach((c, i) => {
+    if (!(c.n >= 0)) throw new ProgramError(`carried2[${i}]: CARRIED2 occurrence ${c.n} — an occurrence counts firings back and cannot be negative`)
+  })
+  ;(p.windows || []).forEach((w, i) => {
+    if (!Number.isInteger(w.span) || w.span < 1) throw new ProgramError(`windows[${i}]: WINDOW span ${w.span} — a window spans at least one bar`)
+  })
+  const frameMax = (table, key) => Math.max((table || []).length, ...(p.functions || []).map((f) => f[key] || 0), 0)
+  const maxCarried = frameMax(p.carried, 'carriedCount')
+  const maxCarried2 = frameMax(p.carried2, 'carried2Count')
+  const maxWindows = frameMax(p.windows, 'windowCount')
   for (let pc = 0; pc < n; pc += 1) {
     const op = p.code[pc * 3]
     const a = p.code[pc * 3 + 1]
@@ -591,36 +608,23 @@ export function validateProgram(p) {
     if (op === OP.LOAD_GLOBAL_PERSIST && (a < 0 || a >= maxPersist)) {
       throw new ProgramError(`pc ${pc}: LOAD_GLOBAL_PERSIST ${a} outside ${maxPersist} persist slots`)
     }
-    if (op === OP.CARRIED) {
-      if (a < 0 || a >= p.carried.length) {
-        throw new ProgramError(`pc ${pc}: CARRIED ${a} outside ${p.carried.length} carried sites`)
-      }
-      const c = p.carried[a]
-      if (!(c.n >= 1)) {
-        throw new ProgramError(`pc ${pc}: CARRIED length ${c.n} — a carried builtin needs a length of at least 1`)
-      }
+    // ⭐⭐ S14 fix 1 — A CARRIED OPERAND IS FRAME-RELATIVE IN A FUNCTION BODY (the VM adds the invocation's
+    // `carriedBase`), so, as LOCAL and PERSIST are, it is bounded by the largest frame as well as the main
+    // table, and the instance it names is not `p.carried[a]` there. Each instance's own rule (a length of at
+    // least 1; an occurrence index of at least 0) is checked over the TABLE (above the loop), where every
+    // call site's instance is. ⚰️ This bounded the operand by the table and read `p.carried[a]`: a helper
+    // nothing calls has no instance in the table, so its body failed the program, and a called helper's
+    // body had its operand checked against a main-program entry.
+    if (op === OP.CARRIED && (a < 0 || a >= maxCarried)) {
+      throw new ProgramError(`pc ${pc}: CARRIED ${a} outside ${maxCarried} carried sites`)
     }
-    if (op === OP.CARRIED2) {
-      if (a < 0 || a >= p.carried2.length) {
-        throw new ProgramError(`pc ${pc}: CARRIED2 ${a} outside ${p.carried2.length} two-input carried sites`)
-      }
-      // ⛔ ZERO IS LEGAL HERE, UNLIKE `CARRIED`. A carried builtin's `n` is a
-      // LENGTH and must be at least 1; this one's is an OCCURRENCE INDEX, and
-      // occurrence 0 — the most recent firing — is the commonest call in the
-      // corpus. Copying the neighbouring check would have refused 121 sites.
-      const c = p.carried2[a]
-      if (!(c.n >= 0)) {
-        throw new ProgramError(`pc ${pc}: CARRIED2 occurrence ${c.n} — an occurrence counts firings back and cannot be negative`)
-      }
+    // ⭐ S14 fix 1 — frame-relative in a body, as `CARRIED` (above); the occurrence rule is the table's
+    if (op === OP.CARRIED2 && (a < 0 || a >= maxCarried2)) {
+      throw new ProgramError(`pc ${pc}: CARRIED2 ${a} outside ${maxCarried2} two-input carried sites`)
     }
-        if (op === OP.WINDOW) {
-      if (a < 0 || a >= p.windows.length) {
-        throw new ProgramError(`pc ${pc}: WINDOW ${a} outside ${p.windows.length} window sites`)
-      }
-      const w = p.windows[a]
-      if (!Number.isInteger(w.span) || w.span < 1) {
-        throw new ProgramError(`pc ${pc}: WINDOW span ${w.span} — a window spans at least one bar`)
-      }
+    // ⭐ S14 fix 1 — a WINDOW operand is frame-relative in a body too (`windowBase`); its span is the table's
+    if (op === OP.WINDOW && (a < 0 || a >= maxWindows)) {
+      throw new ProgramError(`pc ${pc}: WINDOW ${a} outside ${maxWindows} window sites`)
     }
     if (op === OP.REQUEST) {
       if (a < 0 || a >= p.requests.length) {
@@ -723,7 +727,9 @@ export function validateProgram(p) {
       // the exact per-frame bound is a property of the function a pc belongs to,
       // which the lowering already guarantees by construction. Checking it here
       // would need a pc→function map, and a wrong one would refuse valid programs.
-      const maxHist = Math.max(p.history.length, 1)
+      // ⭐ S14 fix 1 — and bounded by the largest FRAME's ring count as well as the table: a helper nothing
+      // calls owns no entry in the table, so its body's `x[1]` failed the whole program
+      const maxHist = Math.max(frameMax(p.history, 'historyCount'), 1)
       if (a < 0 || a >= maxHist) {
         throw new ProgramError(`pc ${pc}: READ_HIST_SLOT ${a} outside ${maxHist} history slots`)
       }
@@ -746,7 +752,7 @@ export function validateProgram(p) {
       }
     }
     if (op === OP.READ_HIST_SLOT_DYN) {
-      const maxHist = Math.max(p.history.length, 1)
+      const maxHist = Math.max(1, frameMax(p.history, 'historyCount'))   // ⭐ S14 fix 1, as READ_HIST_SLOT
       if (a < 0 || a >= maxHist) {
         throw new ProgramError(`pc ${pc}: READ_HIST_SLOT_DYN ${a} outside ${maxHist} history slots`)
       }
