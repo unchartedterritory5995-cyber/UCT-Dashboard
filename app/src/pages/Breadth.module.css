@@ -1101,16 +1101,24 @@ tbody tr { cursor: pointer; }
 /* Follow-Through Day — a quiet tag after the date (owner 2026-11-19), replacing
    the FTD column in the default view. Up-colour tinted, never gold. */
 .ftdTag {
+  /* Hangs off the Date cell's right edge over the (right-aligned, so empty) left of
+     the next cell — on that row only. The Date column stays sized for the date alone,
+     so no column ever changes width (owner 2026-11-19). The sticky .dateCell is the
+     containing block; an opaque fill keeps it legible over a shaded neighbour. */
+  position: absolute;
+  top: 50%;
+  left: calc(100% - 8px);
+  transform: translateY(-50%);
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   height: 15px;
-  margin-left: 6px;
   padding: 0 4px;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--br-up) 18%, transparent);
+  background: color-mix(in srgb, var(--br-up) 24%, var(--br-panel));
   color: var(--br-up);
   font-size: 9.5px;
   font-weight: 600;
   line-height: 1;
-  vertical-align: 1px;
+  pointer-events: auto;
 }

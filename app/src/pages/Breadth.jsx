@@ -1366,7 +1366,7 @@ export default function Breadth() {
                   retired 2026-08-26; families are separated by a hairline rule
                   on each group's first column instead. */}
               <tr>
-                <th scope="col" className={`${styles.th} ${styles.dateCol}`} style={{ minWidth: 102 }}>Date</th>
+                <th scope="col" className={`${styles.th} ${styles.dateCol}`} style={{ minWidth: 72 }}>Date</th>
                 {visibleCols.map((col, ci) => {
                   const isMa = col.type === 'ma_stack'
                   const label = isMa
