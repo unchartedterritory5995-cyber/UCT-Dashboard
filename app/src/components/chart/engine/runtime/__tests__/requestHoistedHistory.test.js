@@ -136,7 +136,8 @@ describe('⭐⭐ the PA ZigZag shape serves: its history is the REQUESTED bars\'
 describe('⭐ a pure expression\'s past inside a request is the requested bars\' past', () => {
   it('`(close > open)[1]` as the request\'s value: last week\'s direction', () => {
     const { P, onChart } = periodsOf('W', false)
-    const perWeek = P.map((_, j) => (j > 0 ? (P[j - 1].c > P[j - 1].o ? 1 : 0) : NaN))
+    // the first week has no week before it: `na ? 1 : 0` is 0 (an `na` condition is false)
+    const perWeek = P.map((_, j) => (j > 0 && P[j - 1].c > P[j - 1].o ? 1 : 0))
     expect(new Set(perWeek.filter((v) => !Number.isNaN(v))).size).toBe(2)
     sameEverywhere(run('plot(request.security(syminfo.tickerid, "W", (close > open)[1] ? 1 : 0))'), onChart(perWeek), 200)
   })
