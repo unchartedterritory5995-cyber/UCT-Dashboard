@@ -126,6 +126,17 @@ describe('SP:SPX at timeframe.period on a 5m extended-hours chart: the latest va
     expect(plain ? Array.from(plain.slice(0, 78)) : new Array(78).fill(0)).toEqual(new Array(78).fill(0))
   })
 
+  it('⛔ a chart reaching BEFORE our index depth: the run refuses, and the sentence names the DEPTH (never "after its history began")', () => {
+    // ⚰️ 2026-11-19: Fred RS's 5m bar 0 (2026-04-27) was refused "SPX has no bar on 1777276800, after its history
+    // began", four months BEFORE our first SPX 5m row, and the cause was first misread as an extended-hours gap.
+    const src = pine(['plot(request.security("SP:SPX", timeframe.period, close))'])
+    let msg = ''
+    try { computeRuntimeColumns(runDef(src, ['x']), CHART, ctx5(), { now: () => 0 }) } catch (e) { msg = String(e && e.message) }
+    expect(msg).toMatch(/cannot be read on every bar/)
+    expect(msg).toMatch(new RegExp(`this chart's history reaches ${CHART[0].t}, and the \`SPX\` bars we hold begin at \\d+`))
+    expect(msg).not.toMatch(/after its history began/)
+  })
+
   it('in the run, the same read: every bar from the listing; off it, every bar after the run’s own warm-up curtain', () => {
     const rows = [...PRE, ...rthTimes(D2, 5), ...POST].map((t, i) => ({ t, o: 50, h: 51, l: 49, c: 50 + i * 0.01, v: 1 }))
     const src = pine(['plot(request.security("SP:SPX", timeframe.period, close))'])
