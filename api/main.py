@@ -6674,6 +6674,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] period preset warm scheduling failed (non-fatal): {e}")
 
+    # The market-wide short interest list (SHRTS, and one stock's row for other readers) is kept
+    # built: the first build runs a few minutes after boot, then a cheap look for a newer report
+    # every few hours. The loop starts itself on the web service only (short_data.start_market_warmer).
+    try:
+        from api.services import short_data as _short_data
+        if not _light_skip("short-data-warm"):
+            _short_data.start_market_warmer()
+    except Exception as e:
+        print(f"[startup] short data warm scheduling failed (non-fatal): {e}")
+
     # Company-logo cache prewarm: fill /data/logo_cache for the whole cap_universe
     # so the FIRST view of any watchlist / theme / calendar serves real logos from
     # disk (edge-cacheable, immutable) instead of a cold transparent-pixel-then-retry
