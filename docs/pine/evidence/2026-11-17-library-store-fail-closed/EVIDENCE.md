@@ -200,7 +200,7 @@ move. Host-parity digests do not move either: no engine code changed.
   nothing in it needs removing.
 - **Optional:** re-run `promotion_check.py check` on the pod to read the new statuses.
 - **After 2026-12-01, when Railway's stored settings become the authority:**
-  `python tools/railway_stored_settings.py --apply` stores the new watch pattern.
+  `python tools/railway_stored_settings.py --apply --service web` stores the new watch pattern.
 
 ## Engine number: NUMBER PENDING
 
