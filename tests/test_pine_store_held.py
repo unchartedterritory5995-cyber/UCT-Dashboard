@@ -117,8 +117,10 @@ def _store_less(doc, verdict="INCONCLUSIVE"):
     `verdict` (refused at its import line, INCONCLUSIVE; MATCH and DIVERGE are what a consumer must not count either)."""
     run = copy.deepcopy(doc)
     run.pop("libraryStore", None)
+    run.pop(SH.SUPPLY_STORE, None)          # a held-less run holds neither kind (supply records included)
     for r in run["results"]:
-        if r.pop(SH.FIELD, None):
+        had = [r.pop(f, None) for f in (SH.FIELD, SH.SUPPLY_FIELD)]
+        if any(had):
             r["verdict"] = verdict
     return run
 
@@ -131,7 +133,7 @@ def test_a_store_less_run_never_counts_a_store_held_row(lane, verdict):
     assert held, "no store-held row in the snapshot: this rail would prove nothing"
     d = SH.compare(doc, _store_less(doc, verdict))
     assert sorted(d["storeHeld"]) == held
-    assert all(v.startswith("store-held: ") and "@" in v for v in d["storeHeld"].values())
+    assert all(v.startswith(("store-held: ", "supply-held: ")) and "@" in v for v in d["storeHeld"].values())
     counted = set(d["lost"]) | set(d["toDiverge"]) | {m[0] for m in d["moved"]}
     assert counted.isdisjoint(held)
 
@@ -195,3 +197,64 @@ def test_the_pin_spelling_is_one_rule():
     assert SH.parse_pin(PIN) == ("TradingView/ta/7", "c" * 64)
     for bad in ("TradingView/ta/7", "TradingView/ta/7@" + "c" * 63, "TradingView/ta/0@" + "c" * 64, "a/b@" + "c" * 64, None):
         assert SH.parse_pin(bad) is None
+
+
+# ── 4. HELD INPUTS, TWO KINDS, ONE RULE: a local supply record is held exactly as a library version is (2026-11-19) ──
+
+SUPPLY = SH.supply_pin_of("rs-rating-fred6724-nhdot-adt-1d-2026-11-19", "d" * 64)
+
+
+def _supply_doc(verdict="MATCH"):
+    """A snapshot graded WITH a local supply record: one supply-held row, one plain row."""
+    return {"supplyHeldStore": [{"captureId": "rs-rating-fred6724-nhdot-adt-1d-2026-11-19", "sha256": "d" * 64}],
+            "results": [{"id": "rs-rating-fred6724-nhdot-adt-1d-2026-11-19", "verdict": verdict, SH.SUPPLY_FIELD: [SUPPLY]},
+                        {"id": "plain", "verdict": "MATCH"}]}
+
+
+def test_the_supply_pin_spelling_is_the_same_one_rule():
+    assert SH.parse_pin(SUPPLY) == ("supply/rs-rating-fred6724-nhdot-adt-1d-2026-11-19", "d" * 64)
+    assert SH.kind_of(SUPPLY) == "supply" and SH.kind_of(PIN) == "store" and SH.kind_of("supply/x") is None
+    for bad in ("supply/@" + "d" * 64, "supply/X-UPPER@" + "d" * 64, "supply/a@" + "d" * 63, "supplies/a@" + "d" * 64):
+        assert SH.parse_pin(bad) is None and SH.kind_of(bad) is None
+    assert SH.reading([SUPPLY]) == "supply-held: " + SUPPLY
+    assert SH.reading([PIN, SUPPLY]) == "store-held: %s; supply-held: %s" % (PIN, SUPPLY)
+    assert SH.reading([PIN]) == "store-held: " + PIN                       # a store-only row reads as it always did
+
+
+@pytest.mark.parametrize("verdict", ["INCONCLUSIVE", "MATCH", "DIVERGE"])
+def test_a_supply_less_run_never_counts_a_supply_held_row(verdict):
+    doc = _supply_doc()
+    run = _store_less(doc, verdict)
+    assert SH.SUPPLY_STORE not in run
+    d = SH.compare(doc, run)
+    assert d["storeHeld"] == {"rs-rating-fred6724-nhdot-adt-1d-2026-11-19": "supply-held: " + SUPPLY}
+    counted = set(d["lost"]) | set(d["toDiverge"]) | {m[0] for m in d["moved"]}
+    assert "rs-rating-fred6724-nhdot-adt-1d-2026-11-19" not in counted
+
+
+def test_control_a_run_holding_the_record_judges_the_row_and_an_unmarked_row_is_lost():
+    doc = _supply_doc()
+    same = copy.deepcopy(doc)
+    same["results"][0]["verdict"] = "DIVERGE"                              # the record loaded: judged like any row
+    d = SH.compare(doc, same)
+    assert d["storeHeld"] == {} and "rs-rating-fred6724-nhdot-adt-1d-2026-11-19" in d["toDiverge"]
+    unmarked = copy.deepcopy(doc)
+    unmarked["results"][0].pop(SH.SUPPLY_FIELD)                             # the mark is what keeps the row: without it,
+    run = copy.deepcopy(unmarked)                                           # a supply-less run LOSES it (the rail can fail)
+    run.pop(SH.SUPPLY_STORE)
+    run["results"][0]["verdict"] = "INCONCLUSIVE"
+    assert "rs-rating-fred6724-nhdot-adt-1d-2026-11-19" in SH.compare(unmarked, run)["lost"]
+
+
+def test_the_snapshot_check_holds_supply_pins_to_the_snapshots_own_records():
+    promoted = PROMOTED
+    base = {"libraryStore": promoted, **_supply_doc()}
+    assert SH.snapshot_store_problems(base, promoted) == []                # supply records never disturb the library check
+    missing = dict(base, supplyHeldStore=[])
+    assert any("does not hold" in p for p in SH.snapshot_store_problems(missing, promoted))
+    wrong_kind = copy.deepcopy(base)
+    wrong_kind["results"][0][SH.FIELD] = [SUPPLY]                           # a supply pin in the library field
+    assert any("malformed storeHeld" in p for p in SH.snapshot_store_problems(wrong_kind, promoted))
+    other = copy.deepcopy(base)
+    other["results"][1][SH.SUPPLY_FIELD] = [SUPPLY]                         # a row claiming another capture's record
+    assert any("another capture's supply" in p for p in SH.snapshot_store_problems(other, promoted))
