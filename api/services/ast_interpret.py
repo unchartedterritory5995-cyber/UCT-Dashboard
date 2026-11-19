@@ -477,6 +477,37 @@ def _iso_day(t: Any) -> Optional[str]:
     return None
 
 
+#: ⭐⭐ U-HTF-CALENDAR (2026-11-18) -- the port of ``interpret.js::HTF_CALENDAR_START`` /
+#: ``HTF_CALENDAR_UNSEEN_CLOSES`` / ``htfClosesOnNextBar`` (that file's comment carries the measurement:
+#: Q-HTF-CAL-1a / 1b, AMEX and NASDAQ). A SHORT week or month (its last session is not the period's last
+#: weekday) that ends before 2000-01-01, or on 2001-09-10, shows its close on the NEXT bar with
+#: look-ahead off. ``tests/test_pine_htf_calendar_merge.py`` holds these equal to the JS by reading it.
+HTF_CALENDAR_START = "2000-01-01"
+HTF_CALENDAR_UNSEEN_CLOSES = ("2001-09-10",)
+
+
+def htf_closes_on_next_bar(iso: Any, code: str) -> bool:
+    """Does the period (``W`` or ``M``) whose LAST session is ``iso`` show its close on the NEXT bar?"""
+    if not isinstance(iso, str) or len(iso) != 10:
+        return False
+    if not (iso < HTF_CALENDAR_START or iso in HTF_CALENDAR_UNSEEN_CLOSES):
+        return False
+    try:
+        day = datetime.date.fromisoformat(iso)
+    except ValueError:
+        return False
+    if code == "W":
+        return day.weekday() != 4                      # the week's last weekday is Friday
+    if code == "M":
+        nxt = day + datetime.timedelta(days=1)
+        while nxt.month == day.month:                   # a later weekday of the month held no session
+            if nxt.weekday() < 5:
+                return True
+            nxt += datetime.timedelta(days=1)
+        return False
+    return False
+
+
 def _tf_bucket(iso: str, code: str) -> Any:
     """The higher-timeframe bucket an ISO day falls in.
 
@@ -7249,7 +7280,10 @@ def _interpret_column(ast: Any, bars: List[dict],
                     if i + 1 < length and nxt is None:
                         continue
                     if nxt is None or nxt != k:
-                        out[i] = child[b]
+                        # ⭐⭐ U-HTF-CALENDAR (``interpret.js::tfMergeReads``): a SHORT period that ends
+                        # before TradingView's exchange calendar begins closes on the NEXT bar.
+                        late = nxt is not None and b > 0 and htf_closes_on_next_bar(iso[i], code)
+                        out[i] = child[b - 1] if late else child[b]
                     elif b > 0:
                         out[i] = child[b - 1]
                 elif b > 0:

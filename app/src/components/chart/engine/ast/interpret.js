@@ -7796,10 +7796,52 @@ export function tfMergeReads(isos, code, at) {
     const b = at.get(tfBucket(iso, code))
     const next = i + 1 < length ? isos[i + 1] : null
     if (i + 1 < length && !next) continue
-    if (next === null || tfBucket(next, code) !== tfBucket(iso, code)) out[i] = b
-    else if (b > 0) out[i] = b - 1
+    // ⭐⭐ U-HTF-CALENDAR — a SHORT period that ends before TradingView's exchange calendar begins
+    // closes on the NEXT bar: its last session still reads the period before (`htfClosesOnNextBar`).
+    if (next === null || tfBucket(next, code) !== tfBucket(iso, code)) {
+      out[i] = next !== null && b > 0 && htfClosesOnNextBar(iso, code) ? b - 1 : b
+    } else if (b > 0) out[i] = b - 1
   }
   return out
+}
+
+/** ⭐⭐ U-HTF-CALENDAR (2026-11-18) — WHEN TRADINGVIEW'S EXCHANGE CALENDAR BEGINS, ONE AUTHORITY FOR
+ *  BOTH LANES (`tfMergeReads` is the run's supply pick and the host's `tf_merge` arm; the Python twin
+ *  `ast_interpret.py::HTF_CALENDAR_START` is held equal to these by a rail that reads this file).
+ *
+ *  With look-ahead off a completed week or month is shown on the daily chart on its LAST session, read
+ *  off the next bar (above). A SHORT period (its last session is not the period's last weekday: a
+ *  Friday holiday, Memorial Day on a month's last weekday) that ends before the calendar begins is
+ *  shown one bar LATER, on the next period's first session: TradingView did not know that session was
+ *  the period's last. Read off TradingView's own weekly and monthly close with look-ahead off (A02 / A05)
+ *  on Q-HTF-CAL-1a / 1b (`vw-request-htf-alignment-{spy,qqq}-1d-2026-11-18`, AMEX and NASDAQ alike):
+ *  every short period through 23 Dec 1999 on the NEXT bar (SPY 13 weeks and 2 months, QQQ 2 weeks and
+ *  1 month), every one from 20 Apr 2000 on its LAST bar (46 weeks and 7 months on each, the Friday
+ *  closure of 11 Jun 2004 included), and the week of 10 Sep 2001, whose other sessions closed without
+ *  notice, on the NEXT bar on both. No short period falls between 23 Dec 1999 and 20 Apr 2000, so the
+ *  calendar's first day is read as 1 Jan 2000 (`tests/test_pine_htf_calendar_switch_year.py`). */
+export const HTF_CALENDAR_START = '2000-01-01'
+/** The last sessions of periods the calendar did not see closing (unscheduled closures). */
+export const HTF_CALENDAR_UNSEEN_CLOSES = Object.freeze(['2001-09-10'])
+
+/** Does the period (`W` or `M`) whose LAST session is `iso` show its close on the NEXT bar? */
+export function htfClosesOnNextBar(iso, code) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false
+  if (!(iso < HTF_CALENDAR_START || HTF_CALENDAR_UNSEEN_CLOSES.includes(iso))) return false
+  const [y, m, d] = iso.split('-').map(Number)
+  const z = daysFromCivil(y, m, d)
+  const dow = (zz) => (((zz + 3) % 7) + 7) % 7 + 1               // Mon = 1 … Sun = 7 (`isoWeekKey`)
+  if (code === 'W') return dow(z) !== 5                            // the week's last weekday is Friday
+  if (code === 'M') {
+    // a weekday later in the same month that held no session
+    for (let k = 1; k <= 6; k++) {
+      const [yy, mm] = civilFromDays(z + k)
+      if (yy !== y || mm !== m) return false
+      if (dow(z + k) <= 5) return true
+    }
+    return false
+  }
+  return false
 }
 
 /** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE LOOK-AHEAD PICK, ONE AUTHORITY: for each bar of an
