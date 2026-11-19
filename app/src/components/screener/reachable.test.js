@@ -843,6 +843,14 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/builder/memberPane/costRouteParity.js':
     'Route-by-cost parity checker (#1711, engine 73): compares a host document and its runtime '
     + 'twin bar for bar; read only by routeByCost / costRoute tests. Move under a testing/ path.',
+  // ── PINE DATA CATALOG — S4-0, READ BY THE DATA SUPPLY (2026-11-19) ──────────
+  // Pine data unit S4-0 (coordinator rulings 2026-11-19): the chart's half of the Pine data families,
+  // built with its rails ahead of the request supply that reads it (S4-3 onward). The server half
+  // (api/services/pine_data_catalog.py) and the generated licence blocks are railed by
+  // tests/test_pine_data_catalog.py. The first S4 unit that imports it removes this entry.
+  'app/src/components/chart/engine/pineDataCatalog.js':
+    'Pine data families (S4-0): read by the S4 data supply when it lands; reached today only by '
+    + 'pineDataCatalog.test.js.',
   }
 
 /**
@@ -900,6 +908,7 @@ const PARKING_EXPIRES = {
   // Short on purpose: three of the four were removed by the owner, so the decision is one line each.
   'SEVERED BY A UI REMOVAL, FILE AND TESTS LEFT BEHIND (2026-11-17)': '2026-11-30',
   'TEST HELPERS OUTSIDE A TEST-INFRA PATH (2026-11-17)': '2026-12-31',
+  'PINE DATA CATALOG — S4-0, READ BY THE DATA SUPPLY (2026-11-19)': '2026-12-31',
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
   // `origin/master` carries this parking block and has NO S4 rail; this branch
