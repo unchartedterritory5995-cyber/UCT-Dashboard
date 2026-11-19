@@ -81,7 +81,10 @@ describe('the read is minted as an `above` target for a bare open / high / low /
     expect(runtimeReadsOwnDaily(pine(OWN_SRC), 'W')).toBe(false)
     expect(runtimeReadsOwnDaily(pine(SPX_SRC), '5')).toBe(false)    // another symbol's read is not the chart's own
     expect(runtimeReadsOwnDaily(pine(['plot(request.security(syminfo.tickerid, "D", ta.sma(close, 5)))']), '5')).toBe(false)
-    expect(runtimeReadsOwnDaily(pine(['plot(request.security(syminfo.tickerid, "D", close, lookahead = barmerge.lookahead_on))']), '5')).toBe(false)
+    // ⛔ (2026-11-19) a look-ahead read's build is REFUSED (runtime:request, look-ahead), so the predicate cannot
+    // answer, and a predicate that cannot answer says NEEDED (`ownDailyFollowsChartSymbol.test.js`): the rows are
+    // fetched and the run refuses the read by name
+    expect(runtimeReadsOwnDaily(pine(['plot(request.security(syminfo.tickerid, "D", close, lookahead = barmerge.lookahead_on))']), '5')).toBe(true)
   })
 
   it('the member door does not refuse a script for such a read before a chart is known', () => {
