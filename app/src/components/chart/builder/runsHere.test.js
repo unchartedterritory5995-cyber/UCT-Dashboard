@@ -19,6 +19,7 @@ import { __permitRuntimePaneForTests } from '../engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../engine/runtimeKill'
 import { setRuntimeRunner, computeRuntimeColumns } from '../engine/runtime/runtimeColumns'
 import { recipeBars, recipeContext, RUN_STOP_PROBES } from '../supportLoop/assistantRecipes'
+import GENERATED_RECIPES from '../supportLoop/assistantRecipes.json'
 import { steadyRunClock } from '../supportLoop/testing/steadyRunClock'
 import {
   runHere, runHereWhenLanded, verdictOnChart, RUN, MIN_BARS, NEEDS_THE_CHART, STOPPED_HEADLINE, CHECKING_HEADLINE,
@@ -112,8 +113,10 @@ describe('a script the paste check passes and the run refuses', () => {
     expect(pasteVerdict(ENDLESS, pane).runs).toBe(true)
     const loop = runHere(pane, chart('fromListing'))
     expect(loop.state).toBe(RUN.STOPPED)
-    // two sentences, both the engine's: the run stopped, and its drawings belong to that run
-    expect(loop.stops.map((s) => s.guard)).toEqual(['runtime:limit', 'runtime:objects-without-run'])
+    // ONE sentence, the engine's: the run stopped. (Until 2026-11-19 a second one followed, "its drawings are not
+    // drawn": the host program's rule, asked of a document the chart draws from its run. The chart says the stop
+    // once, and so does this.)
+    expect(loop.stops.map((s) => s.guard)).toEqual(['runtime:limit'])
     expect(loop.stops[0].sentence).toMatch(/number of passes one `while` loop may make/)
   }, 120_000)
 
@@ -266,5 +269,38 @@ describe('the verdict a member sees, joined with the run', () => {
     }
     expect(verdictOnChart(null, { state: RUN.RAN })).toBe(null)
     expect(verdictOnChart(pasted, null)).toBe(pasted)
+  })
+})
+
+// ─── the drawings rule is asked only where the chart asks it (master red 2026-11-19, engine 86) ───────────
+describe('a document whose run draws its objects is not asked the host program\'s rule', () => {
+  it('⛔ every served recipe RUNS on both histories: none is refused drawings the chart draws', () => {
+    const wrong = []
+    for (const r of GENERATED_RECIPES.recipes.filter((x) => x.served)) {
+      for (const history of ['fromListing', 'offListing']) {
+        const out = runHere(paneOf(r.source), { bars: recipeBars(r.chart), ctx: recipeContext(r.chart, history) })
+        if (out.state !== RUN.RAN || out.stops.length) wrong.push(`${r.id} (${history}): ${out.state} ${JSON.stringify(out.stops.map((s) => s.guard))}`)
+      }
+    }
+    expect(wrong).toEqual([])
+    expect(GENERATED_RECIPES.recipes.filter((x) => x.served).length).toBeGreaterThanOrEqual(12)
+  }, 900_000)
+
+  it('the recipe that showed it: a clean host program beside the run, on a chart that does not reach the listing', () => {
+    const pane = paneOf(recipe('market-structure'))
+    // (what made it visible: the document carries a host program AND its run draws; skipped if a later engine
+    // stops handing this recipe a program, the test above still holds every recipe)
+    const out = runHere(pane, chart('offListing'))
+    expect(out.state, JSON.stringify(out.stops)).toBe(RUN.RAN)
+    expect(out.stops).toEqual([])
+  }, 300_000)
+
+  it('CONTROL: a document the HOST program draws is still asked, and a refused run still withholds its drawings', () => {
+    const refused = Object.defineProperty({}, '__columnErrors',
+      { value: Object.freeze({ value: { guard: 'runtime:time-budget', message: 'this script took more than 1000 ms' } }), enumerable: false })
+    const def = { id: 'u_host_branch', compute: { kind: 'runtime', outputs: { value: {} } }, objects: { ops: [{ kind: 'label' }] } }
+    const out = runHere({ ok: true, definition: def }, { ...chart('fromListing'), compute: () => refused })
+    expect(out.state).toBe(RUN.STOPPED)
+    expect(out.stops.map((s) => s.guard)).toContain('runtime:objects-without-run')
   })
 })
