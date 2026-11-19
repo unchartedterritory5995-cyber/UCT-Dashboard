@@ -1,0 +1,106 @@
+//@version=6
+indicator("UCTPROBE_VW_FN_GLOBAL_WINDOW", overlay = false, max_bars_back = 500)
+
+// PROVENANCE: written 2026-11-19 for the Pine parity programme (libraries chain, U-FGS `function-global-state`),
+// capture queue rows Q-FGS-2a / Q-FGS-2b (docs/pine/capture-queue-2026-11-19-libchain.md). NEVER COMPILED ON
+// TRADINGVIEW. No licence-held text.
+//
+// --- A GLOBAL READ INSIDE A FUNCTION: WINDOWS, `ta.change`, AND WHERE THE COPY IS TAKEN ---
+// vw-udt-fn-global-history (committed, RDDT 1D 2026-11-16) read a global's HISTORY inside a function as the value
+// AT EACH CALL, per call site: G03 is the value before a later `:=`, G05 the previous CALL's value. Do the windowed
+// built-ins and `ta.change` over a global inside a function follow the same rule, and where is the copy taken when
+// the read sits in a block of the body? Rows:
+//   A00   bar_index                                                 control
+//   W01   ta.sma(g, 3) in a function, called on every bar          every bar: the root's answer
+//   W02   ta.sma(h, 3) in a function, called on even bars only     a window over CALLS or over BARS?
+//   W03   ta.highest(h, 5), every bar                               every bar
+//   W04   ta.lowest(h, 5), even bars only                           over CALLS or over BARS?
+//   W05   ta.change(h), every bar                                   every bar
+//   W06   ta.change(g), g a var counter, even bars only             2 per call, 1 per bar
+//   W07   ta.change(pv), pv a PURE global binding, every bar        breaks-and-retests' `pl` shape
+//   W08   g[1] inside an `if close > open` of the body              previous CALL's g, or previous BLOCK RUN's?
+//   W09a  g[1] in a `switch` arm on a parameter the call site fixes
+//   W09b  g[2] in the default arm, the other call site
+//   W10   the one-argument ta.lowest(length), series length, root   market-structure-break-order-block's shape
+//   W10b  the same inside a function
+//   W11   ta.rma(g[1], 3) inside a function                         history of a global as a window's source
+//   W12a  ta.change(g), one function, call site 1 on every bar
+//   W12b  the same function, call site 2 on every third bar         one ring per call site?
+// CAPTURE: NYSE:RDDT 1D and AMEX:SPY 1D, each from the listing, inputs at defaults (none), after the close. Read
+// every plot on every bar as full float64 text. If a row does not compile, record the error text and the line,
+// remove only that row, and capture the rest.
+plot(bar_index, "A00_bar_index_CONTROL")
+
+var float g = 0.0
+g += 1
+float h = close > open ? close : open
+pv = fixnan(ta.pivotlow(low, 5, 5))
+
+w01() =>
+    ta.sma(g, 3)
+plot(w01(), "W01_sma_of_var_global_every_bar")
+
+w02() =>
+    ta.sma(h, 3)
+float r02 = na
+if bar_index % 2 == 0
+    r02 := w02()
+plot(r02, "W02_sma_of_global_even_bars")
+
+w03() =>
+    ta.highest(h, 5)
+plot(w03(), "W03_highest_of_global_every_bar")
+
+w04() =>
+    ta.lowest(h, 5)
+float r04 = na
+if bar_index % 2 == 0
+    r04 := w04()
+plot(r04, "W04_lowest_of_global_even_bars")
+
+w05() =>
+    ta.change(h)
+plot(w05(), "W05_change_of_global_every_bar")
+
+w06() =>
+    ta.change(g)
+float r06 = na
+if bar_index % 2 == 0
+    r06 := w06()
+plot(r06, "W06_change_of_var_global_even_bars")
+
+w07() =>
+    ta.change(pv)
+plot(w07(), "W07_change_of_pure_global_every_bar")
+
+w08() =>
+    float r = na
+    if close > open
+        r := g[1]
+    r
+plot(w08(), "W08_global_hist_in_body_block_some_calls")
+
+w09(string mode) =>
+    switch mode
+        "a" => g[1]
+        => g[2]
+plot(w09("a"), "W09a_global_hist_in_switch_arm_param_a")
+plot(w09("b"), "W09b_global_hist_in_default_arm_param_b")
+
+w10(int n) =>
+    ta.lowest(n)
+int n10 = bar_index % 5 + 1
+plot(ta.lowest(n10), "W10_one_arg_lowest_series_len_root")
+plot(w10(n10), "W10b_one_arg_lowest_series_len_in_fn")
+
+w11(int p) =>
+    ta.rma(g[1], p)
+plot(w11(3), "W11_rma_of_global_history_in_fn")
+
+w12() =>
+    ta.change(g)
+plot(w12(), "W12a_change_of_global_site_every_bar")
+float r12 = na
+if bar_index % 3 == 0
+    r12 := w12()
+plot(r12, "W12b_same_fn_second_site_every_third_bar")
