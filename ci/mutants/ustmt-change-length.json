@@ -1,0 +1,69 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "U-STMT PR 1 (feat/pine-statements, engine 82): ta.change(source, length) on the runtime lane and the call site's history for a slot source. Every rule it adds, broken once, must turn its rail in taChangeLength.test.js red.",
+ "mutants": [
+  {
+   "id": "S1",
+   "mutant": "the slot's ring is read one bar back whatever the length (the old one-argument lowering)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            : histSlot(varSlot, historySlotFor(varSlot, n, at), n)",
+   "to": "            : histSlot(varSlot, historySlotFor(varSlot, 1, at), 1)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taChangeLength.test.js",
+   "expectRed": "R1"
+  },
+  {
+   "id": "S2",
+   "mutant": "the difference is taken the wrong way round (x[n] - x)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          return binary('-', read(varSlot), prev)",
+   "to": "          return binary('-', prev, read(varSlot))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taChangeLength.test.js",
+   "expectRed": "R1"
+  },
+  {
+   "id": "S3",
+   "mutant": "the region rule is not asked: a block or arm reads the every-bar ring silently again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            r4Guard(`\\`${node.name}\\``, at)   // the region rule (HIST-S3), asked for a slot source too",
+   "to": "            void 0   // the region rule (HIST-S3), asked for a slot source too",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taChangeLength.test.js",
+   "expectRed": "R4"
+  },
+  {
+   "id": "S4",
+   "mutant": "a source not provably a number is served as a difference (a bool's change of length n)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (n !== 1 && !provablyNonBoolNode(srcNode, curTypeScope())) {",
+   "to": "          if (false && n !== 1 && !provablyNonBoolNode(srcNode, curTypeScope())) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taChangeLength.test.js",
+   "expectRed": "R5"
+  },
+  {
+   "id": "S5",
+   "mutant": "a length known only while the bar runs is served (as 2)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      n = null",
+   "to": "      n = 2",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taChangeLength.test.js",
+   "expectRed": "R6"
+  },
+  {
+   "id": "S6",
+   "mutant": "the one-argument form in an arm skips the witnessed per-run rule",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "              const served = servedCondCall(node, scope)",
+   "to": "              const served = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taChangeLength.test.js",
+   "expectRed": "R3"
+  },
+  {
+   "id": "S7",
+   "mutant": "the drawing build reads the every-bar ring in a block that skips bars",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            if (objectsInRun && owner === null && r4Level() > 0) {",
+   "to": "            if (false && objectsInRun && owner === null && r4Level() > 0) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taChangeLength.test.js",
+   "expectRed": "DRAWING build"
+  }
+ ]
+}

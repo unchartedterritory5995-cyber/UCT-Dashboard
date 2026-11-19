@@ -20,7 +20,7 @@
     {"message": "plot a Hull Moving Average 21", "model": true, "terms": ["hma"]},
     {"message": "Exponential Moving Average 9 and Simple Moving Average 50", "model": true, "terms": ["ema", "sma"]},
     {"message": "show the Donchian Channel 20", "model": true, "terms": ["donchianUpper"]},
-    {"message": "show the Ichimoku Cloud", "model": true, "terms": ["ichimokuSpanA"]},
+    {"message": "show the Ichimoku Cloud", "model": true, "terms": ["ichimoku_cloud"], "not_terms": ["ichimokuSpanA"]},
     {"message": "show the Stochastic Oscillator 14 3 3", "model": true, "terms": ["stochastic_oscillator"]},
     {"message": "add the Average Directional Index", "model": true, "terms": ["adx"]},
     {"message": "plot the Moving Average Convergence Divergence", "model": true, "terms": ["macd"]},
@@ -41,7 +41,7 @@
     {"message": "Add Gann Fan", "refused": "Gann Fan"},
     {"message": "Add the Elliott Wave", "refused": "Elliott Wave"},
     {"message": "show the McClellan Oscillator", "refused": "McClellan Oscillator"},
-    {"message": "Add the Schaff Trend Cycle", "model": true, "terms": ["schaff_trend_cycle"]},
+    {"message": "Add the Schaff Trend Cycle", "gate": "named:unchecked", "says": "Schaff Trend Cycle needs the script builder"},
     {"message": "show the Klinger Oscillator", "model": true, "terms": ["klinger_volume_oscillator"]},
     {"message": "add a klinger oscillator in a lower pane", "model": true, "terms": ["klinger_volume_oscillator"]}
   ]

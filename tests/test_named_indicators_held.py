@@ -48,7 +48,8 @@ def create(tree, key="rule", name="My rule"):
 def test_the_held_names_and_what_each_carries():
     # Pocket Pivot was held until 2026-11-18; it is a library entry now (tests/test_library_pocket_pivot.py)
     # and two more are names of UCT's own built-in indicators (tests/test_named_built_ins.py)
-    assert set(HELD) == {"ttm_squeeze", "mansfield_relative_strength", "rs_rating", "rs_phases"}
+    # and one more (2026-11-19) is a name whose published form only a script holds: the Schaff Trend Cycle
+    assert set(HELD) == {"ttm_squeeze", "mansfield_relative_strength", "rs_rating", "rs_phases", "schaff_trend_cycle"}
     built = {e["id"] for e in ni.entries()}
     built_aliases = {a for e in ni.entries() for a in e["aliases"]}
     for e in ni.held_names():
@@ -92,20 +93,16 @@ def test_a_held_name_alone_is_refused_by_name_before_any_call(conv, clean_env, m
 
 
 @pytest.mark.parametrize("message", ["Add the Mansfield Relative Strength", "mansfield relative performance"])
-def test_a_held_name_that_lives_elsewhere_says_where(conv, clean_env, model, message):
-    """Mansfield Relative Strength is a Screener column today and no built-in draws it on a chart:
-    the answer says where the number is, and still offers the member's own words."""
+def test_a_held_name_that_is_a_built_in_says_so(conv, clean_env, model, message):
+    """Mansfield Relative Strength is one of UCT's own indicators (`rsMansfield`): named alone, it is
+    answered with no assistant call, and a browser that did not say it can add it is told where to
+    look (the offer itself is tests/test_named_built_ins.py)."""
     client = model([])
     r = conv.converse(message, user_id="u1", view=empty_view(0), chart=CHART)
-    assert r["ok"] is False and r["gate"] == UNCHECKED and client.calls == [], r
-    assert r["reason"] == ni.way_forward(HELD["mansfield_relative_strength"])
-    assert r["reason"].startswith('Mansfield Relative Strength is a Screener column in UCT today (the Screener, under '
-                                  'Relative Strength, as "Mansfield RS"), not a chart line yet.')
-    assert "in your own words (for example: " in r["reason"] and len(r["reason"]) < 400
-    # the place it names is the Screener's own label for that column and its group
-    filters = (pathlib.Path(__file__).resolve().parents[1] / "api" / "services" / "screener" / "filters.py").read_text(encoding="utf-8")
-    assert '_open_range("mansfield", "Mansfield RS", "relative_strength", "mansfield"' in filters
-    assert '"relative_strength": {"label": "Relative Strength"' in filters
+    assert r["ok"] is False and r["gate"] == conv.NAMED_BUILT_IN_GATE and client.calls == [], r
+    assert r["reason"] == ni.way_forward(HELD["mansfield_relative_strength"]) == (
+        "Mansfield Relative Strength is one of UCT's own indicators (UCT Mansfield RS), not a formula this window "
+        "builds. Look for UCT Mansfield RS in the Indicators list.")
 
 
 def test_every_held_alias_is_refused_however_it_is_capitalised(conv):

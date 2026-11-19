@@ -1064,9 +1064,15 @@ function EvidenceBody({ editing, rows, source, plotRows }) {
  */
 export default function BuilderSheet({
   open, onClose, onSaved = null, settings = null, onChange = null, bars = null,
+  /* ⭐ the chart the sheet was opened over AS THE ENGINE SEES IT (`StockChart`'s `engineChart`): the script
+     tab's status panel runs a pasted script on it before it says "Runs" */
+  engineChart = null,
   /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
   sym = null, tf = null,
   initialMode = null, editRow = null, initialDraft = null, initialDescription = null,
+  /* ⭐ A SCRIPT TO OPEN ON THE SCRIPT TAB (Create Indicator's assistant wrote it: `authoring/scriptAnswer.js`).
+     A string, so it compares by value; it lands in the ONE script field the paste box owns. */
+  initialPine = null,
   /* ⭐ WHAT THIS WINDOW IS CALLED, BY WHERE IT OPENS (owner decision 2026-11-17, backlog 49). From a
      chart the member pressed "Create indicator", so the window says so; from the Screener the same
      window builds a scan's formula and keeps "New formula". Only the title and the footer's
@@ -1161,6 +1167,8 @@ export default function BuilderSheet({
    *  consistency."* Import was the one tab whose state was purely local, so it
    *  was the one tab that broke the rule the others follow. */
   const [pineText, setPineText] = useState('')
+  /** Bumped when a caller hands in a script (`initialPine`): the paste box mounts again and reads it. */
+  const [pineSeed, setPineSeed] = useState(0)
   // ⭐ STUDIO R4 — the status panel's sentence for the text in the script box (`PineBox` reports
   // it), and the versions it has already been put on record for in this window.
   const [statusHeadline, setStatusHeadline] = useState(null)
@@ -1559,6 +1567,9 @@ export default function BuilderSheet({
     // ⭐ TERM-087: a generated answer's draft lands in the ONE source field, AFTER
     // the reset emptied it (same effect, later line — one writer of the opening
     // state). An `editRow` still wins: `openForEdit` runs after this effect.
+    // ⭐ a script handed in by the caller lands in the script field AFTER the reset emptied it
+    // (the paste box reads its text on MOUNT, so it is given a fresh key to mount again with this one)
+    if (!editRow && typeof initialPine === 'string' && initialPine.trim()) { setPineText(initialPine); setPineSeed((n) => n + 1) }
     if (draftSourceOf(initialDraft)) {
       setSource(draftSourceOf(initialDraft))
       importTelemetryRef.current = initialDraft.importId
@@ -1571,7 +1582,7 @@ export default function BuilderSheet({
     // warning on that prop matters: a string compares by value, an object
     // compares by identity, so a row rebuilt inline per render would empty this
     // form on every parent render.
-  }, [open, editRow, initialMode, initialDraft, initialDescription, resetPlots])
+  }, [open, editRow, initialMode, initialDraft, initialDescription, initialPine, resetPlots])
 
   /** Open a stored formula for editing — its SOURCE, its name, and its id.
    *
@@ -2664,6 +2675,13 @@ export default function BuilderSheet({
     setOrigin(mode); setView('editor'); setStoreError(null)
   }, [])
   const writeMyself = useCallback(() => { setView('editor'); setStoreError(null) }, [])
+  /** ⭐ A script the assistant wrote in "Describe it" lands in the SCRIPT EDITOR: the same text field,
+   *  the same check, preview and Save as a script the member pasted (`ConverseBox.onOpenScript`). */
+  const openAssistantScript = useCallback(({ pine } = {}) => {
+    if (typeof pine !== 'string' || !pine.trim()) return
+    setPineText(pine); setPineSeed((n) => n + 1)
+    startFrom('pine'); setBuildMode('pine')
+  }, [startFrom])
   const backToStart = useCallback(() => { setView('start'); setStoreError(null) }, [])
   /** The one-shot describe box's "Use this formula": the formula lands in the editor,
    *  on the Formula tab, exactly as a paste or a starter does. */
@@ -2949,6 +2967,7 @@ export default function BuilderSheet({
                   variant={isEditor ? 'ask' : 'start'}
                   settings={settings} onChange={onChange} sym={sym} tf={tf}
                   editing={editing} disabled={saving} prefill={prefill}
+                  onOpenScript={openAssistantScript} engineChart={engineChart}
                   onCommitState={setConverseCommit} commitRef={converseCommitRef}
                   onSaved={(defId, version) => setConversationSaved({ defId, version, formPrint: formPrintRef.current })} />
               )}
@@ -3207,9 +3226,10 @@ export default function BuilderSheet({
             <ImportBox
               // ⭐ UIE PHASE 5 (M1) — a script opened for edit seeds a FRESH box (its
               // source is an initial value, read on mount)
-              key={editing && editing.runtime ? `edit:${editing.defId}` : 'new'}
+              key={editing && editing.runtime ? `edit:${editing.defId}` : `new:${pineSeed}`}
               dialect="auto"
               disabled={saving}
+              engineChart={engineChart}
               // ⭐ STUDIO R4 — the status panel's sentence and the text it is about
               onStatusHeadline={setStatusHeadline}
               // ⭐ STUDIO R5 — Inspect a bar's `line N` uses this box's own line jump

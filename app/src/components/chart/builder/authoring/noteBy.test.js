@@ -69,6 +69,6 @@ describe('a note the door wrote', () => {
     expect(body.accepts).toEqual(['note.by', 'offer'])
     expect(ACCEPTS).toEqual(['note.by', 'offer'])
     body.accepts.push('x')
-    expect(ACCEPTS).toEqual(['note.by', 'offer'])                         // each body gets its own copy
+    expect(ACCEPTS).toEqual(['note.by', 'offer'])                                   // each body gets its own copy
   })
 })

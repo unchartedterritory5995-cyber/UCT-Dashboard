@@ -156,6 +156,39 @@ export function makeContext({ bars, series, columns, confirmed = true }) {
  *  weekly read it lagged the bar that closes the week.
  *  ⛔ A nested request is handed no supply: it is recorded in `requested` and answers `na`,
  *  and the caller refuses a run that recorded one (`runtimeColumns.js`). */
+/** The bar fields `runRequest` hands a request's series in, by `READ_SERIES` index (`SERIES_NAMES` order). */
+const REQUEST_SERIES_KEYS = Object.freeze(['o', 'h', 'l', 'c', 'v'])
+const _bareFields = new WeakMap()
+let _bareFieldPickOff = false
+/** Tests: force every request through the VM sub-run (the identity rail compares both paths). */
+export function __bareFieldPickOffForTests(off) { _bareFieldPickOff = !!off }
+/** ⭐ PERF — the series indices a request region only reads and emits, in output order, or null for any other region.
+ *  The shape is exactly what `lowerIr.js` emits for a bare field or a tuple of them: `READ_SERIES s0 … s(r-1)`, then
+ *  `EMIT r-1 … EMIT 0` (a tuple's elements pop in reverse), then `HALT` — no hoisted statement, no other op. */
+export function bareFieldsOf(program, entry, results) {
+  let byEntry = _bareFields.get(program)
+  if (!byEntry) { byEntry = new Map(); _bareFields.set(program, byEntry) }
+  const memo = byEntry.get(entry)
+  if (memo !== undefined) return memo
+  const code = program.code
+  const max = program.instructions
+  const at = (pc, i) => code[pc * 3 + i]
+  let pc = Number.isInteger(entry) ? entry : -1
+  let fields = null
+  if (pc >= 0 && Number.isInteger(results) && results >= 1) {
+    const reads = []
+    while (pc < max && at(pc, 0) === OP.READ_SERIES) { reads.push(at(pc, 1)); pc += 1 }
+    let ok = reads.length === results && reads.every((s) => s >= 0 && s < REQUEST_SERIES_KEYS.length)
+    for (let k = results - 1; ok && k >= 0; k -= 1) {
+      ok = pc < max && at(pc, 0) === OP.EMIT && at(pc, 1) === k
+      pc += 1
+    }
+    if (ok && pc < max && at(pc, 0) === OP.HALT) fields = reads
+  }
+  byEntry.set(entry, fields)
+  return fields
+}
+
 function runRequest(program, site, otherBars, ctx, budget, requested, requestCache, results, requestDepth = 1, now) {
   const plain = Array.isArray(otherBars)
   const supply = plain
@@ -166,6 +199,35 @@ function runRequest(program, site, otherBars, ctx, budget, requested, requestCac
     : otherBars
   const bars = supply.runBars
   const n = bars.length
+  // ⭐⭐ PERF (Fred RS 5m profile, 2026-11-19) — A BARE-FIELD REQUEST NEEDS NO SUB-RUN. Fred RS's four requests
+  // are each `close` (region: READ_SERIES 3 · EMIT 0 · HALT), yet each ran a full VM sub-run over the OTHER series'
+  // whole history: the program's every ring, persist and output allocated at the source's length and committed on
+  // every source bar. 8 sub-runs walked 43,112 source bars for a 2,000-bar 5m chart, 525 ms of the run half's
+  // 1,365 (one alone, SP:SPX on the 11,586-bar 5m grid, 501 ms). A region that only READS fields and EMITS them
+  // answers the same values by a pick through the alignment index, exactly as READ_SERIES + EMIT would: ToNumber
+  // (`Float64Array.from`), then EMIT's laundering (a non-finite value is `na`). Any other region runs as before.
+  // ⛔ The budget the sub-run would have charged for the SERIES (`HISTORY` at the source length, `REQUEST_FANOUT`) is
+  // charged the same; the program-wide peaks it would have re-charged at the source length (rings, memory) are not,
+  // because nothing of them is allocated.
+  const fields = _bareFieldPickOff ? null : bareFieldsOf(program, site.entry, results)
+  if (fields) {
+    budget.peak('HISTORY', n)
+    if (requestDepth > 0) budget.peak('REQUEST_FANOUT', requestDepth)
+    const out = []
+    for (let k = 0; k < results; k += 1) {
+      const key = REQUEST_SERIES_KEYS[fields[k]]
+      const col = new Float64Array(ctx.bars).fill(NaN)
+      for (let i = 0; i < ctx.bars; i += 1) {
+        const j = supply.index[i]
+        if (j >= 0 && j < n) {
+          const v = +bars[j][key]
+          col[i] = Number.isFinite(v) ? v : NaN
+        }
+      }
+      out.push(col)
+    }
+    return out
+  }
   const pick = (k) => Float64Array.from(bars.map((b) => b[k]))
   const sub = execute(program, {
     bars: n,
@@ -187,11 +249,94 @@ function runRequest(program, site, otherBars, ctx, budget, requested, requestCac
   return aligned
 }
 
+// ─── ⭐⭐ (Fred RS filled chart, item 3) — A RUN THAT READS REQUESTS RESUMES ACROSS A NEW SUPPLY ───────────────────
+//
+// A checkpoint of a run that reads requested bars holds state built from the requested values of an EARLIER
+// supply. It is still exact for a run over a NEW supply when every requested value bars [0, cp] read is the same
+// (`runtimeColumns.js::supplyAgreesTo`), and that is decidable WITHOUT running a sub-run when a region's value on
+// requested bar j is a function of the requested bars [0, j] alone (`requestRegionCausal`). The resumed run then
+// re-runs, before bar cp + 1, every sub-run the checkpointed run had made (`resume.requests`, in the order they were
+// first reached) over the NEW supply: its cache, its MEMORY account and its REQUEST_COUNT are then what a full run's
+// are by bar cp, and its cumulative charges are restored exactly (the checkpoint's counts minus what those sub-runs
+// had charged, `charged`, plus what the new ones charge). A peak stays the checkpoint's own or higher: a peak never
+// decides a stop by its stored value (`Budget.peak` compares the value it is handed), and the caller runs in full on
+// any throw of a resumed run (`runtimeColumns.js`), so every stop is the full run's own.
+
+/** The limits a run charges by ADDING (`Budget.charge`, and the VM's hot counters flushed as totals): what a
+ *  sub-run adds to them is subtracted when its checkpoint is resumed over a new supply. Every other limit is a
+ *  peak. `INSTRUCTIONS_PER_BAR` is charged only on the throwing path (a bar past its ceiling) and is a peak.
+ *  ⛔ Railed against every `.charge('…'` in the runtime (`resumeAcrossSupply.test.js`). */
+export const CUMULATIVE_LIMITS = Object.freeze(['TOTAL_INSTRUCTIONS', 'LOOP_ITERATIONS', 'CALL_COUNT',
+  'CARRIED_STEPS', 'WINDOW_CELLS', 'ARRAY_OPERATIONS', 'OBJECT_OPERATIONS'])
+const countsOf = (counts) => {
+  const out = {}
+  for (const k of CUMULATIVE_LIMITS) out[k] = counts[k]
+  return out
+}
+const chargedSince = (before, counts) => {
+  const out = {}
+  for (const k of CUMULATIVE_LIMITS) out[k] = counts[k] - before[k]
+  return out
+}
+
+/** The opcodes a CAUSAL region may reach: each reads only the sub-run's own bars and clock, its constants, its own
+ *  state (locals, persist, rings, windows, carried, iteration buffers) or values on the stack. ⛔ An ALLOWLIST: a
+ *  chart column (`READ_COLUMN`, `READ_HIST`, `READ_HIST_DYN`: the sub-run is handed the chart's columns and indexes
+ *  them by REQUESTED bar), a nested request, a drawing, a broker op or any opcode added later is not causal. */
+const CAUSAL_OPS = new Set([
+  OP.CONST, OP.READ_SERIES, OP.READ_SERIES_HIST, OP.READ_SERIES_HIST_DYN, OP.READ_CLOCK, OP.SESSION,
+  OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG, OP.LT, OP.GT, OP.LE, OP.GE, OP.EQ, OP.NE, OP.AND, OP.OR, OP.NOT, OP.SELECT,
+  OP.HALT, OP.EMIT, OP.EMIT_ITER, OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
+  OP.READ_HIST_SLOT, OP.READ_HIST_SLOT_DYN, OP.WINDOW, OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT, OP.RET,
+  OP.POINTWISE, OP.CARRIED, OP.CARRIED2, OP.CONCAT, OP.TEXT, OP.ARRAY, OP.LOOP_TICK, OP.COLOUR, OP.DROP,
+  OP.RECORD, OP.FIELD_GET, OP.FIELD_SET, OP.LOAD_GLOBAL_LOCAL, OP.LOAD_GLOBAL_PERSIST, OP.WHILE_BOUND, OP.CALL,
+])
+const _causal = new WeakMap()
+/** Is the request region at `entry` CAUSAL: its value on requested bar j a function of the requested bars [0, j]
+ *  (and the program) alone? Reads the region's code and every function body it can call. Memoized per program. */
+export function requestRegionCausal(program, entry) {
+  let byEntry = _causal.get(program)
+  if (!byEntry) { byEntry = new Map(); _causal.set(program, byEntry) }
+  if (!byEntry.has(entry)) byEntry.set(entry, regionCausal(program, entry))
+  return byEntry.get(entry)
+}
+function regionCausal(program, entry) {
+  const code = program.code
+  const max = program.instructions
+  if (!Number.isInteger(entry) || entry <= 0 || entry >= max) return false
+  // a region, and a function body, is a CONTIGUOUS run of code from its entry to the next entry (`lowerIr.js`): the
+  // whole run is a superset of what can execute
+  const starts = [...(program.functions || []).map((f) => f.entry), ...(program.requests || []).map((r) => r.entry)]
+    .filter(Number.isInteger).sort((x, y) => x - y)
+  const endOf = (s) => { for (const e of starts) if (e > s) return e; return max }
+  const fns = program.functions || []
+  const seen = new Set()
+  const work = [entry]
+  while (work.length) {
+    const from = work.pop()
+    if (seen.has(from)) continue
+    seen.add(from)
+    for (let pc = from, to = endOf(from); pc < to; pc += 1) {
+      const op = code[pc * 3]
+      if (!CAUSAL_OPS.has(op)) return false
+      if (op === OP.CALL) {
+        const fn = fns[code[pc * 3 + 1]]
+        if (!fn || !Number.isInteger(fn.entry)) return false
+        work.push(fn.entry)
+      }
+    }
+  }
+  return true
+}
+
 /** ⭐ RT7 — read once at load, not per instruction (see the dispatch note below). */
 const OP_HALT = OP.HALT
 
 export function execute(program, ctx, limits, opts) {
   const budget = (opts && opts.budget) || new Budget(limits)
+  // ⭐⭐ (coordinator ruling 2026-11-19, engine 84) — a ceiling that scales with the chart is set from the bars
+  // THIS top-level run covers, once (`Budget.coverBars`): a request's sub-run shares its caller's
+  if (!(opts && Number.isInteger(opts.entry) && opts.entry > 0)) budget.coverBars(ctx.bars)
   // ⭐ A REQUEST RUNS THE SAME PROGRAM FROM A DIFFERENT ENTRY, over another
   // symbol's series. Sharing the BUDGET is deliberate: a script that requests
   // forty symbols has done forty symbols' worth of work, and a per-run budget
@@ -201,6 +346,9 @@ export function execute(program, ctx, limits, opts) {
   // request made inside a request is reported to the same caller.
   const requested = (opts && opts.requested) || new Set()
   const requestCache = (opts && opts.requestCache) || new Map()
+  // ⭐⭐ (item 3) — THE SUB-RUNS A TOP-LEVEL RUN MADE, in the order it first reached them, with what each charged
+  // (`chargedSince`): a checkpoint carries them, so a resume over a new supply can make them again before bar cp + 1
+  const reqLog = (opts && Number.isInteger(opts.entry) && opts.entry > 0) ? null : []
   // ⭐⭐ THE PER-BAR HOOK — SEE THE END OF THE BAR LOOP FOR WHY IT EXISTS.
   const onBar = (opts && typeof opts.onBar === 'function') ? opts.onBar : null
   // ⭐⭐ P3 WS-F — THE REALTIME HOOKS (`runtimeColumns.js`, `varip` and `barstate.isnew`):
@@ -645,7 +793,17 @@ export function execute(program, ctx, limits, opts) {
     committed = resume.committed
     for (let k = 0; k < nOut; k += 1) outputs[k].set(resume.outputs[k])
     if (store && resume.store) store.restore(resume.store)
-    Object.assign(budget.counts, resume.counts)
+    // a peak this run already reached before the restore (`HISTORY`: the bars it covers, `MEMORY`: what it allocated)
+    // is kept when it is higher than the checkpoint's: a run over one more bar peaks one bar higher, as a full run does
+    for (const k of Object.keys(resume.counts)) {
+      budget.counts[k] = CUMULATIVE_LIMITS.includes(k) ? resume.counts[k] : Math.max(budget.counts[k], resume.counts[k])
+    }
+    // ⭐⭐ (item 3) — the sub-runs the checkpointed run made are made again below, over THIS run's supply: what they
+    // charged then is taken back out first (a peak is kept: see `CUMULATIVE_LIMITS`)
+    for (const e of resume.requests || []) {
+      if (!e.charged) throw new VmError(`resume: the request ${e.a} the checkpoint read had no prepared supply`)
+      for (const k of CUMULATIVE_LIMITS) budget.counts[k] -= e.charged[k]
+    }
     startBar = resume.bar + 1
   }
   const takeCheckpoint = (bar) => {
@@ -657,6 +815,8 @@ export function execute(program, ctx, limits, opts) {
       outputs: outputs.map((o) => o.slice(0, bar + 1)),
       store: store ? store.snapshot() : null,
       counts: { ...budget.counts },
+      // ⭐⭐ (item 3) the sub-runs made by this bar's end, in the order first reached
+      requests: reqLog ? reqLog.map((e) => ({ ...e, charged: { ...e.charged } })) : [],
     }
   }
   // ⭐⭐ UIE PHASE 4 (M3) — THE HOT COUNTERS, KEPT LOCAL. A loop pass, a call, a carried
@@ -733,6 +893,27 @@ export function execute(program, ctx, limits, opts) {
     for (let k = 0; k < nOut; k += 1) outputs[k][sn.bar] = sn.out[k]
     if (store && sn.store) store.restore(sn.store)
     committed = sn.committed
+  }
+  // ⭐⭐ (item 3) — RESUMED OVER A NEW SUPPLY: every sub-run the checkpointed run had made by bar cp is made again,
+  // over THIS run's supply, in the order it first reached them, before bar cp + 1 — the cache, the MEMORY account
+  // and REQUEST_COUNT are then what a full run's are at that bar. A sub-run with no supply here throws (the caller
+  // runs in full).
+  if (resume) {
+    for (const e of resume.requests || []) {
+      const site = program.requests[e.a]
+      const prepared = ctx.requestSupply ? ctx.requestSupply[e.a] : undefined
+      if (!site || !prepared || !prepared.runBars.length || requestCache.has(`${e.a}::${e.key}`)) {
+        throw new VmError(`resume: the request ${e.a} the checkpoint read has no supply in this run`)
+      }
+      budget.peak('REQUEST_COUNT', requestCache.size + 1)
+      flushHot()
+      const before = countsOf(budget.counts)
+      const series2 = runRequest(program, site, prepared, ctx, budget, requested, requestCache, e.b, requestDepth + 1, now)
+      reloadHot()
+      requestBytes += 8 * e.b * ctx.bars
+      requestCache.set(`${e.a}::${e.key}`, series2)
+      reqLog.push({ a: e.a, key: e.key, b: e.b, charged: chargedSince(before, budget.counts) })
+    }
   }
   for (let bar = startBar; bar < runBars; bar += 1) {
     // ⭐⭐ S1 — [B-FILL] the orders the last bar placed fill BEFORE this bar's script runs.
@@ -1525,13 +1706,18 @@ export function execute(program, ctx, limits, opts) {
               budget.peak('REQUEST_COUNT', requested.size + 1)
               requested.add(key)
               series2 = null
+              if (reqLog) reqLog.push({ a, key, b, unprepared: true })
             } else {
               budget.peak('REQUEST_COUNT', requestCache.size + 1)
               flushHot()   // the sub-run shares this budget
+              const before = reqLog && prepared ? countsOf(budget.counts) : null
               series2 = runRequest(program, site, other, ctx, budget, requested, requestCache, b,
                 requestDepth + 1, now)
               reloadHot()
               requestBytes += 8 * b * ctx.bars
+              // ⭐⭐ (item 3) a prepared supply's sub-run, recorded for a resume over a new supply
+              if (before) reqLog.push({ a, key, b, charged: chargedSince(before, budget.counts) })
+              else if (reqLog) reqLog.push({ a, key, b, unprepared: true })
             }
             requestCache.set(`${a}::${key}`, series2)
           }
@@ -1627,8 +1813,16 @@ export function execute(program, ctx, limits, opts) {
           ? (plan.persist ? persist[plan.slot] : locals[plan.slot])
           : held[i]
       }
-      committed += 1
     }
+    // ⭐⭐ engine 82 — `committed` IS THE BAR'S ORDINAL, SO IT ADVANCES ON EVERY BAR, ring or no ring.
+    // ⚰️ It advanced only inside `if (nHist)`. A program with no history slot kept `committed = 0` for the whole
+    // run, and the one reader that needs the ordinal without a ring, the `finite` window policy (`ta.lowest` /
+    // `highest` / `lowestbars` / `highestbars`: `committed < span - 1` is its warm-up, and the `bars` members count
+    // back from it), answered `na` on every bar whose span was above 1. A window over an in-place source (HIST-S2)
+    // keeps its own ring and holds no history slot, so `if show` + `x := ta.lowest(low * 1, k)` read
+    // [95, na, na, na, 91, ...] where the root form (and Pine) read [95, 94, 93, 92, 91, ...], and a fixed length 3
+    // read `na` on every bar (`finiteWindowNoRing.test.js`). Every other reader of `committed` reads a ring.
+    committed += 1
 
     // ─── ⭐⭐⭐ THE BAR IS FINISHED — AND A DRAWING MAY STAND ON IT ────────
     //

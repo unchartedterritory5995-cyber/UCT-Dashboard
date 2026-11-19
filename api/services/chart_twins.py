@@ -155,9 +155,67 @@ SPOKEN: Dict[str, tuple] = {
 }
 
 
+#: ⭐ 2026-11-18 (ruling) -- BAR PATTERNS THAT MEAN ONE THING: WHAT UCT'S OWN READERS SAY. The defect:
+#: one phrase came back as different formulas on different turns (strictly inside, or a touch
+#: allowed), because nothing said which. The product already reads both patterns, so the word on a
+#: chart is the reader's, held to it by `tests/test_house_bar_patterns.py` (the readers are imported
+#: and run there; nothing below is checked against a copy):
+#:   * inside_day: the Screener's member-facing "Inside-Bar Run" (`screener/candles.py::multi_candle`).
+#:     INCLUSIVE (the high at or under the high before, the low at or over the low before), on a bar
+#:     that traded: a bar with no range or no volume ends that run and is not an inside bar.
+#:   * outside_day: the range test of the outside-bar detector
+#:     (`pattern_engine/detectors/classical/outside_bar.py`). STRICT: a higher high AND a lower low.
+#: A pattern is a true/false formula, not a Screener column, so it is not in `TWINS` (whose every
+#: entry is compared with a nightly column).
+PATTERNS: Dict[str, Dict[str, Any]] = {
+    "inside_day": _op("&&", _op("&&", _op("&&",
+                      _op(">", _s("high"), _s("low")),
+                      _op(">", _s("volume"), _n(0))),
+                      _op("<=", _s("high"), _ago(_s("high"), 1))),
+                      _op(">=", _s("low"), _ago(_s("low"), 1))),
+    "outside_day": _op("&&", _op(">", _s("high"), _ago(_s("high"), 1)),
+                       _op("<", _s("low"), _ago(_s("low"), 1))),
+    # ⭐ 2026-11-19 (ruling) -- A NEW 52-WEEK HIGH IS EVERY BAR THAT MAKES ONE: the bar's high is the highest
+    # high of the last 252 bars, this bar included (the window the Screener's 52-week distance uses).
+    # The defect: a mark for new highs came back as "only the first in N bars", which nobody asked
+    # for. "The first in N bars" is the member's to ask for.
+    "new_52w_high": _op(">=", _s("high"), _call("highest", _s("high"), _n(252))),
+    "new_52w_low": _op("<=", _s("low"), _call("lowest", _s("low"), _n(252))),
+}
+
+#: The words members use for each pattern (the chart door's lexicon; added, never replacing).
+PATTERN_SPOKEN: Dict[str, tuple] = {
+    "inside_day": ("inside day", "inside days", "inside bar", "inside bars", "inside candle", "inside candles"),
+    "outside_day": ("outside day", "outside days", "outside bar", "outside bars", "outside candle", "outside candles"),
+    "new_52w_high": ("new 52 week high", "new 52 week highs", "new 52w high", "new 52w highs", "new 52 wk high",
+                     "new yearly high", "new yearly highs", "new one year high", "new one year highs"),
+    "new_52w_low": ("new 52 week low", "new 52 week lows", "new 52w low", "new 52w lows", "new 52 wk low",
+                    "new yearly low", "new yearly lows", "new one year low", "new one year lows"),
+}
+
+
+#: What a pattern is ABOUT, said to the assistant beside its formula. "A new 52 week high" is the
+#: stock's price unless the member names another line; the lexicon matches the phrase either way.
+PATTERN_SUBJECT = {
+    "new_52w_high": ("This formula is the STOCK'S PRICE making the high. If the member names another line "
+                     "(the RS line, an indicator, volume), apply the same shape to THAT line: the line at or "
+                     "above its own highest value of the last 252 bars. Mark every bar it is true on"),
+    "new_52w_low": ("This formula is the STOCK'S PRICE making the low. If the member names another line "
+                    "(the RS line, an indicator, volume), apply the same shape to THAT line: the line at or "
+                    "below its own lowest value of the last 252 bars. Mark every bar it is true on"),
+}
+
+
+def house_formula(name):
+    """The house formula (a tree) a chart term stands for: a Screener column's twin or a bar
+    pattern, or None."""
+    return TWINS.get(name) if name in TWINS else PATTERNS.get(name)
+
+
 def spoken_phrases():
-    """Every (phrase, column) pair of `SPOKEN`, for the chart door's lexicon."""
-    return tuple((phrase, column) for column, phrases in SPOKEN.items() for phrase in phrases)
+    """Every (phrase, term) pair of `SPOKEN` and `PATTERN_SPOKEN`, for the chart door's lexicon."""
+    return (tuple((phrase, column) for column, phrases in SPOKEN.items() for phrase in phrases)
+            + tuple((phrase, key) for key, phrases in PATTERN_SPOKEN.items() for phrase in phrases))
 
 
 def twin_of(column: str):

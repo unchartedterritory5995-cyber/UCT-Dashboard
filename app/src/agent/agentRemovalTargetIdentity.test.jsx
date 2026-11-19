@@ -257,11 +257,17 @@ describe('BACK-REFERENCE · the conversation\'s subject chart', () => {
 
 // ── WHOLE-BOARD / SET controls: no named target needed ──
 describe('FAIL CLOSED · whole-board and set removals still proceed', () => {
-  const SET = ['close all my charts', 'clear the board', 'close the charts', 'remove all the charts', 'close everything', 'get rid of every chart', 'delete both charts']
+  const SET = ['close all my charts', 'clear the board', 'close the charts', 'remove all the charts', 'close everything', 'get rid of every chart']
   const S_CASES = []
   for (const words of SET) for (const n of [2, 3, 4]) for (let j = 0; j < n; j++) S_CASES.push([words, n, j])
   it.each(S_CASES)('"%s" · %i charts · plan closes #%i → applies', (words, n, j) => {
     expect(rail(boardOf(SYMS.slice(0, n)), `c${j + 1}`, words), words).toBeNull()
+  })
+  // (D31 P2 safety, 11-17: "both" says TWO — a set removal on a two-chart board; on three or four charts it is asked, never a pick)
+  it.each([2, 3, 4].flatMap(n => Array.from({ length: n }, (_, j) => [n, j])))('"delete both charts" · %i charts · plan closes #%i → applies only on two charts', (n, j) => {
+    const got = rail(boardOf(SYMS.slice(0, n)), `c${j + 1}`, 'delete both charts')
+    if (n === 2) expect(got).toBeNull()
+    else expect(got).toMatch(/^Which chart should I close\?/)
   })
   it.each([['close everything except the SPY chart', 'c1'], ['close all the charts except SPY', 'c1'], ['remove everything but not the QQQ chart', 'c2']])('"%s" → the excepted chart refused, the others apply', (words, keep) => {
     for (const ref of ['c1', 'c2', 'c3']) {

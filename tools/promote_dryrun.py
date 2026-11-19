@@ -39,6 +39,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--now", required=True)
     ap.add_argument("--summary", default="")
+    # ⭐ WHAT THIS CLOCK MUST DO (2026-11-19, the session hold): "promote" = the gated candidate reaches the
+    # target; "hold" = inside a weekday hold the job neither promotes nor touches production, and records
+    # the candidate PENDING for the 16:20 ET catch-up.
+    ap.add_argument("--expect", choices=("promote", "hold"), default="promote")
     a = ap.parse_args(argv)
     wf = yaml.safe_load((ROOT / ".github/workflows/promote-production.yml").read_text(encoding="utf-8"))
     steps = {s.get("id") or s.get("name"): s for s in wf["jobs"]["promote"]["steps"]}
@@ -124,8 +128,12 @@ def main(argv=None) -> int:
         log.append(f"--- {sid}: exit {p.returncode}\n{(p.stdout + p.stderr).strip()}\n    outputs: {out[sid]}")
     dec = json.loads((runner / "decision.json").read_text()) if (runner / "decision.json").exists() else {}
     prod_after = sh("git ls-remote origin refs/heads/production").split()[0]
-    ok = dec.get("target") == cand and dec.get("target") != tip and prod_after == prod
-    control = (f"CONTROL: target {str(dec.get('target'))[:10]} == gated candidate {cand[:10]}: {dec.get('target') == cand}; "
+    if a.expect == "hold":
+        ok = (dec.get("action") == "HOLD" and not dec.get("target") and prod_after == prod
+              and (dec.get("pending") or {}).get("sha") == cand)
+    else:
+        ok = dec.get("target") == cand and dec.get("target") != tip and prod_after == prod
+    control = (f"CONTROL (expect {a.expect}): action {dec.get('action')}; target {str(dec.get('target'))[:10]} == gated candidate {cand[:10]}: {dec.get('target') == cand}; "
                f"!= ungated master tip {tip[:10]}: {dec.get('target') != tip}; production unchanged: {prod_after == prod}")
     shas = (f"SHAS: target={dec.get('target')} gated={cand} ungated_tip={tip} "
             f"production_before={prod} production_after={prod_after}")

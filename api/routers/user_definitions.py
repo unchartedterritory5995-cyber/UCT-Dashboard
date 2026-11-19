@@ -597,6 +597,10 @@ class ConverseIn(BaseModel):
     #: right now (its registry and the live server decide). Optional and untrusted: only a browser
     #: that also accepts an "offer" is ever offered one, and only for an id it listed here.
     addable: Optional[Any] = None
+    #: ⭐ 2026-11-18 — the browser's own engine refused a SCRIPT this door offered for this same
+    #: request: ``{pine, errors, round}``, the script and the engine's own words. Untrusted and
+    #: optional; `script_conversation.script_refusal` decides whether it is used.
+    script_refusal: Optional[Any] = None
 
 
 def require_create_indicator_access(user: dict = Depends(require_paid)) -> dict:
@@ -653,7 +657,7 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
         authoring=body.authoring, snippets=body.snippets, chart=chart,
         admin=(user.get("role") == "admin"), conversation_id=body.conversationId,
         examples=body.examples is True, browser_refusal=body.browser_refusal,
-        accepts=body.accepts, addable=body.addable,
+        accepts=body.accepts, addable=body.addable, script_refusal=body.script_refusal,
         # ⭐ what THIS member chose when the door asked before (their own account row, no one else's)
         memory=indicator_memory.Memory(user["id"]),
         # ⭐ and what they USUALLY use, read from their own saved indicators only when the door asks

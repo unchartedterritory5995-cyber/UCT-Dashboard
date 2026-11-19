@@ -121,3 +121,37 @@ export function resolveThemeColour(c, theme) {
   const alpha = Math.round((1 - p.transparency / 100) * 255)
   return base + alpha.toString(16).padStart(2, '0').toUpperCase()
 }
+
+// ─── ⭐⭐ ENGINE 84 (CO-2) — THE SAME REFERENCE, CARRIED AS A NUMBER ON THE RUNTIME LANE ─────
+//
+// The runtime lane holds a colour as a NUMBER, the packed `0xTTBBGGRR` integer (`runtime/colours.js`), so a
+// reference string cannot ride its stack. It rides as a number OUTSIDE every packed colour instead: a 32-bit
+// colour is at most 0xFFFFFFFF, and a reference is `THEME_PACKED_BASE` (2^32) + 256·which + transparency, exact
+// in a float64. It is turned back into the SAME reference string (`themeColourOfPacked`) wherever the run's
+// colour leaves the run for a drawing — an object's colour slot (`colours.js::packedToObjectHex`) or a per-bar
+// colour column (`pool.js::packedPointColour`) — and resolved there, as every other reference is, by
+// `resolveThemeColour` against the chart it is drawn on. One rule, one resolver, two carriers of one name.
+// ⛔ A number in this range is never a colour's components: what reads components (a gradient's endpoints, a
+// comparison) stops by name where a reference reaches it (`colours.js`), because the chart's colour is not in
+// the computation.
+
+/** The first number above every packed colour: a theme reference on the runtime lane. */
+export const THEME_PACKED_BASE = 2 ** 32
+const PACKED_BG = 256
+
+/** A reference string (`chart.fg_color`, `chart.bg_color@40`) as the runtime lane's number, or null. */
+export function packedThemeColour(c) {
+  const p = parseThemeColour(c)
+  if (!p) return null
+  return THEME_PACKED_BASE + (p.which === 'bg' ? PACKED_BG : 0) + p.transparency
+}
+
+/** The runtime lane's number back as its reference string, or null for anything that is not one. */
+export function themeColourOfPacked(v) {
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < THEME_PACKED_BASE) return null
+  const k = v - THEME_PACKED_BASE
+  const which = k >= PACKED_BG ? 'bg' : 'fg'
+  const t = which === 'bg' ? k - PACKED_BG : k
+  if (t < 0 || t > 100) return null
+  return themeColourWithTransparency(which === 'fg' ? THEME_FG : THEME_BG, t)
+}

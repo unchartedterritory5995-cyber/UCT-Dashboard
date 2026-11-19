@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as registry from './nativeRegistry'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
-import { runtimeColumnsFor, computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeWarmupOf } from './runtime/runtimeColumns'
+import { runtimeColumnsFor, computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeWarmupOf, RUNTIME_KNOWN_FROM_KEY } from './runtime/runtimeColumns'
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList } from './runtimeKill'
 import {
@@ -126,6 +126,19 @@ describe('SP:SPX at timeframe.period on a 5m extended-hours chart: the latest va
     expect(plain ? Array.from(plain.slice(0, 78)) : new Array(78).fill(0)).toEqual(new Array(78).fill(0))
   })
 
+  it('a chart reaching BEFORE our index depth: the run is drawn from where our data begins, never refused whole', () => {
+    // ⚰️ 2026-11-19: Fred RS's 5m bar 0 (2026-04-27) was refused "SPX has no bar on 1777276800, after its history
+    // began", four months BEFORE our first SPX 5m row; on the served e81 build every intraday chart's run half was
+    // refused that way. The supply now names the DEPTH (`knownFrom`; its sentence is railed in
+    // `runHalfFromKnownDepth.test.js`) and the run starts there under the two-start proof.
+    const src = pine(['plot(request.security("SP:SPX", timeframe.period, close))'])
+    const cols = computeRuntimeColumns(runDef(src, ['x']), CHART, ctx5(), { now: () => 0 })
+    expect(cols.x.length).toBe(CHART.length)
+    const known = CHART.findIndex((b) => expectAt(b.t) !== null)
+    expect(cols[RUNTIME_KNOWN_FROM_KEY]).toMatchObject({ knownFrom: known })
+    for (let i = 0; i < known; i += 1) expect(Number.isNaN(cols.x[i]), `${CHART[i].t} is before our index depth`).toBe(true)
+  })
+
   it('in the run, the same read: every bar from the listing; off it, every bar after the run’s own warm-up curtain', () => {
     const rows = [...PRE, ...rthTimes(D2, 5), ...POST].map((t, i) => ({ t, o: 50, h: 51, l: 49, c: 50 + i * 0.01, v: 1 }))
     const src = pine(['plot(request.security("SP:SPX", timeframe.period, close))'])
@@ -199,7 +212,8 @@ describe('which intraday timeframes are served, and what the chart fetches', () 
     const rows = requestWitnessRows()
     for (const tf of ['1', '5', '15', '30', '60']) {
       expect(heldFetchOf('SPX', tf), tf).toEqual({ symbol: 'SPX', tf, key: 'SPX' })
-      expect(rows['SP:SPX'].periods[tf].reads).toEqual({ period: 'latest-at-or-before' })
+      // ⭐ L12 PR 2 — and its daily read above the chart (U-DAILY, `rsIntradayDaily.test.js`)
+      expect(rows['SP:SPX'].periods[tf].reads).toEqual({ period: 'latest-at-or-before', D: 'session-completed' })
       expect(rows['SP:SPX'].periods[tf].alsoHeld).toBe('D')
       expect(rows['SP:SPX'].periods[tf].witness, tf).toMatch(/2026-11-18/)
     }
@@ -230,12 +244,17 @@ describe('which intraday timeframes are served, and what the chart fetches', () 
     expect(r.refused[0].pending).toBe(true)
   })
 
-  it('⛔ a "D" read on an intraday chart is not this unit: refused by name', () => {
+  it('⭐ L12 PR 2 — a "D" read on an intraday chart is handed the daily rows keyed by session, unplaced (the run places them)', () => {
     const def = { compute: { kind: 'ast', ast: { type: 'sym', value: 'SPX', args: [{ type: 'num', value: 0 }] } },
       meta: { recurrenceOrigin: 'pine', otherSymbols: [{ ticker: 'SPX', spellings: ['SP'] }] } }
     const r = resolveOtherSymbols(def, { ...ctx5(), requestCode: 'D' })
-    expect(r.served).toEqual([])
-    expect(r.refused[0].code).toBe(R.WITNESS_TIMEFRAME)
+    expect(r.served).toEqual(['SPX'])
+    expect(r.samples.SPX).toBe('session-completed')
+    expect(r.symbols.SPX.map((b) => [b.t, b.c])).toEqual(SPX_D.map((b) => [new Date(b.t * 1000).toISOString().slice(0, 10), b.c]))
+    // ⛔ a read at another code is still refused by name
+    const w = resolveOtherSymbols(def, { ...ctx5(), requestCode: 'W' })
+    expect(w.served).toEqual([])
+    expect(w.refused[0].code).toBe(R.WITNESS_TIMEFRAME)
   })
 })
 

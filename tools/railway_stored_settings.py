@@ -13,9 +13,16 @@ from a file and had stored settings that would have changed them on that day:
 The other services already ran with no config file. The stored settings of these three were
 written to match their files on 2026-11-14, with no deploy. This tool keeps it that way:
 
-    python tools/railway_stored_settings.py            # compare; exit 0 same / 1 different / 2 could not tell
-    python tools/railway_stored_settings.py --apply    # store what the files say (does NOT deploy)
+    python tools/railway_stored_settings.py                          # compare every service; exit 0 same / 1 different / 2 could not tell
+    python tools/railway_stored_settings.py --service web            # compare only the named service(s)
+    python tools/railway_stored_settings.py --apply --service web    # store what web's file says (does NOT deploy)
     python tools/railway_stored_settings.py --self-check
+
+`--service` may be repeated. `--apply` REFUSES to run without at least one `--service`: a bare
+`--apply` would write every service whose stored settings differ, and on 2026-11-19 that list held
+two services (`stream-ingest`, `stream-edge`) whose file and stored builder disagreed with nobody
+having decided which one was intended (settled the same day: their files now equal what Railway
+stores, except watch paths). Naming the services makes the write's reach a decision, not a side effect. Comparing (no `--apply`) stays all-services by default: it writes nothing.
 
 The config files stay in the repo as the declared settings: review a change there, merge it,
 then run `--apply`. Until 2026-12-01 Railway also still reads them at deploy time. After it,
@@ -47,6 +54,8 @@ SERVICES = {
     "flow-worker": "railway.json",
     # Created 2026-11-14 as a NEW service, which never reads a config file: its first
     # deploy ran the default start command. Its stored settings were typed in by hand.
+    # The two stream files name no builder on purpose (owner decision 2026-11-19): Railway
+    # stores RAILPACK for both yet builds them with Nixpacks; see the runbook.
     "stream-ingest": "railway.ingest.json",
     "stream-edge": "railway.edge.json",
 }
@@ -80,6 +89,17 @@ class UnknownSetting(ValueError):
 
 class Inconclusive(RuntimeError):
     """Railway could not be asked. Not a pass and not a difference."""
+
+
+def selected(services=None) -> dict:
+    """The `SERVICES` entries a run covers, in `SERVICES` order. None or empty = every service.
+    Raises ValueError on a name `SERVICES` does not hold, so a typo is never "nothing differs"."""
+    if not services:
+        return dict(SERVICES)
+    unknown = sorted(set(services) - set(SERVICES))
+    if unknown:
+        raise ValueError(f"no such service in SERVICES: {', '.join(unknown)} (known: {', '.join(SERVICES)})")
+    return {name: SERVICES[name] for name in SERVICES if name in set(services)}
 
 
 # ── pure: what a file means, and where stored settings differ ─────────────────
@@ -201,14 +221,19 @@ def store(service_id: str, environment_id: str, update: dict, cwd: str | None = 
 
 # ── the commands ──────────────────────────────────────────────────────────────
 
-def check(out=print, cwd: str | None = None, root: str = ROOT) -> int:
+def check(out=print, cwd: str | None = None, root: str = ROOT, services=None) -> int:
+    try:
+        chosen = selected(services)
+    except ValueError as exc:
+        out(f"REFUSED: {exc}")
+        return 2
     try:
         stored = read_stored(cwd)
     except Inconclusive as exc:
         out(f"INCONCLUSIVE: {exc}")
         return 2
     total = 0
-    for service, name in SERVICES.items():
+    for service, name in chosen.items():
         if service not in stored:
             out(f"INCONCLUSIVE: Railway reports no service named {service}")
             return 2
@@ -217,17 +242,29 @@ def check(out=print, cwd: str | None = None, root: str = ROOT) -> int:
         out(f"{'same     ' if not found else 'DIFFERENT'} {service:12} {name}")
         for line in found:
             out(f"    {line}")
-    out("RESULT: Railway's stored settings equal the config files" if not total else
-        f"RESULT: {total} stored setting(s) differ from the config files. `--apply` stores what the files say "
-        "(it does not deploy); or correct the file.")
+    scope = "" if len(chosen) == len(SERVICES) else f" (only {', '.join(chosen)})"
+    out(f"RESULT: Railway's stored settings equal the config files{scope}" if not total else
+        f"RESULT: {total} stored setting(s) differ from the config files{scope}. `--apply --service <name>` "
+        "stores what that service's file says (it does not deploy); or correct the file.")
     return 1 if total else 0
 
 
-def apply(out=print, cwd: str | None = None, root: str = ROOT) -> int:
+def apply(out=print, cwd: str | None = None, root: str = ROOT, services=None) -> int:
+    """Store what the named services' files say. Refuses with no service named: see the module
+    docstring. Nothing is read from or written to Railway before that refusal."""
+    if not services:
+        out("REFUSED: --apply needs at least one --service, so a write never reaches a service nobody named. "
+            f"Services: {', '.join(SERVICES)}. Example: --apply --service web")
+        return 2
+    try:
+        chosen = selected(services)
+    except ValueError as exc:
+        out(f"REFUSED: {exc}")
+        return 2
     try:
         stored = read_stored(cwd)
         ids, environment = service_ids(cwd)
-        for service, name in SERVICES.items():
+        for service, name in chosen.items():
             config = load_config(name, root)
             if not differences(config, stored.get(service) or {}):
                 out(f"same      {service:12} nothing to store")
@@ -242,7 +279,7 @@ def apply(out=print, cwd: str | None = None, root: str = ROOT) -> int:
         out(f"INCONCLUSIVE: {exc}")
         return 2
     out("stored settings do not deploy anything: a service picks them up at its next deployment.")
-    return check(out, cwd, root)
+    return check(out, cwd, root, services=list(chosen))
 
 
 def self_check(out=print) -> int:
@@ -278,12 +315,16 @@ def self_check(out=print) -> int:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("--apply", action="store_true", help="store what the config files say (does not deploy)")
+    p.add_argument("--apply", action="store_true",
+                   help="store what the named services' files say (does not deploy); needs --service")
+    p.add_argument("--service", action="append", choices=list(SERVICES), metavar="NAME",
+                   help=f"limit to this service; repeatable. One of: {', '.join(SERVICES)}. "
+                        "Required with --apply; without it a compare covers every service")
     p.add_argument("--self-check", action="store_true", help="prove the comparison can report both answers")
     args = p.parse_args(argv)
     if args.self_check:
         return self_check()
-    return apply() if args.apply else check()
+    return apply(services=args.service) if args.apply else check(services=args.service)
 
 
 if __name__ == "__main__":

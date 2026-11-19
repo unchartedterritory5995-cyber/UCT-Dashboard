@@ -125,8 +125,15 @@ describe('⭐ colours compared, and a colour\'s past', () => {
     expect(out[1].values).toEqual([0, 1, 1, 1])
     expect(out[2].values).toEqual([0, 1, 0, 1])
   })
-  it('⛔ a colour against the literal `na` is refused by name (probe vw-tc1-colour-na-compare)', () => {
-    const r = refusalOf('//@version=4\nstudy("t")\nc = close > open ? color.yellow : na\nplot(c != na ? 1 : 0)\n')
+  // ⚰️ THIS ASSERTED THE v4 FORM REFUSED until probe vw-tc1-colour-na-compare was captured. It is
+  // (RDDT 1D, 2026-11-16: `c != na` and `c == na` read 0 on every bar, as a number's do), and since
+  // engine 82 (CO-1, `colourNaCompareV4.test.js`) v4 is served. Every other version keeps
+  // the refusal by name.
+  it('a v4 colour against the literal `na` reads false on every bar; any other version is refused by name', () => {
+    const out = run('//@version=4\nstudy("t")\nc = close > open ? color.yellow : na\nplot(c != na ? 1 : 0)\nplot(c == na ? 1 : 0)\n')
+    expect(out[0].values).toEqual([0, 0, 0, 0])
+    expect(out[1].values).toEqual([0, 0, 0, 0])
+    const r = refusalOf('//@version=5\nindicator("t")\nc = close > open ? color.yellow : na\nplot(c != na ? 1 : 0)\n')
     expect(r.guard).toBe('runtime:colour')
     expect(r.message).toMatch(/compared with `na`/)
     expect(r.message).toMatch(/vw-tc1-colour-na-compare/)

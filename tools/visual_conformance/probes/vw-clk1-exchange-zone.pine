@@ -1,0 +1,33 @@
+//@version=6
+indicator("UCTPROBE_VW_CLK1_EXCHANGE_ZONE", overlay = false, max_labels_count = 5)
+
+// PROVENANCE: written 2026-11-19 for capture queue row Q-CLK-1 (docs/pine/capture-queue-2026-11-19-clock-zone.md).
+// NEVER COMPILED ON TRADINGVIEW.
+// The runtime lane reads `timestamp(year, month, day, hour, minute)` with its zone left implicit, and the clock
+// fields (`hour`, `dayofweek`, ...), in the EXCHANGE's zone. The v6 reference states it for `timestamp`: "The default
+// is syminfo.timezone". This engine answers that zone only on a New York symbol (witnessed for NYSE, NASDAQ and NYSE
+// Arca: `pineRuntimeFrontend.js::requireNewYorkExchange`) and refuses by name everywhere else (`runtime:clock-zone`).
+// This probe reads what TradingView answers on a crypto symbol and an FX symbol:
+//   Z00  syminfo.timezone, as a label's text on the newest bar (the zone's name, verbatim)
+//   T01  timestamp(2024, 1, 1, 0, 0)          zone implicit: the exchange's
+//   T02  timestamp("UTC", 2024, 1, 1, 0, 0)   control: the same wall time in UTC
+//   D01  T01 - T02, in minutes                 0 when the exchange's zone is UTC; the offset otherwise
+//   H01  hour                                   the clock field in the exchange's zone, per bar
+//   H02  hour(time, "UTC")                      control: the same field in UTC
+//   W01  dayofweek                              the exchange zone's weekday, per bar
+// CAPTURE: BITSTAMP:BTCUSD 1D and FX:EURUSD 1D, each from the listing, inputs at defaults (there are none).
+// If a row does not compile, record the error text and the line, remove only that row, and capture the rest.
+
+t1 = timestamp(2024, 1, 1, 0, 0)
+t2 = timestamp("UTC", 2024, 1, 1, 0, 0)
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(t1, "T01_timestamp_implicit_zone_ms")
+plot(t2, "T02_timestamp_utc_ms_CONTROL")
+plot((t1 - t2) / 60000, "D01_implicit_minus_utc_minutes")
+plot(hour, "H01_hour_exchange_zone")
+plot(hour(time, "UTC"), "H02_hour_utc_CONTROL")
+plot(dayofweek, "W01_dayofweek_exchange_zone")
+
+if barstate.islast
+    label.new(bar_index, close, "Z00 " + syminfo.timezone)

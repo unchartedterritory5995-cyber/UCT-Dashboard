@@ -67,6 +67,10 @@ const REMOVAL_METHOD = /^(?:delete|clear)$/
 const COLLECTION_NS = /^(?:array|matrix|map)\./
 const COLLECTION_MUTATOR = /^(?:push|unshift|insert|set|fill|concat|put|put_all|add_row|add_col|reverse|sort|remove|pop|shift|clear|swap_rows|swap_columns)$/
 const ASSIGN_OPS = new Set(['=', ':=', '+=', '-=', '*=', '/=', '%='])
+/** The built-in namespaces: a dotted name rooted here is never a user value (a collection, an object). */
+const BUILTIN_NS = /^(?:array|matrix|map|math|str|ta|color|request|input|line|label|box|table|polyline|linefill|chart|strategy|syminfo|timeframe|ticker|barstate|session|runtime|log|time|plot|hline|display|format|position|size|shape|location|text|xloc|yloc|extend|font|order|scale|currency|dayofweek|earnings|dividends|splits|adjustment|backadjustment|settlement_as_close)$/
+/** A value that holds a REFERENCE (a collection, an object, a drawing): its `[k]` names the same object. */
+const REF_MAKER = /^(?:array|matrix|map)\.|\.(?:new|copy)$/
 const CONTROL_WORDS = new Set(['if', 'else', 'for', 'while', 'switch'])
 const DECL_WORDS = new Set(['var', 'varip', 'const', 'simple', 'series', 'export'])
 
@@ -140,12 +144,13 @@ function callsIn(toks) {
  * @returns {Map<string, {word: string, name: string, tok: object}>} keyed `line:column` of the
  *   sink's call token; empty when the program reads no broker state.
  */
-export function strategyTaintSinks(stmts) {
+export function strategyTaintSinks(stmts, { isSource = (t) => isStrategyStateWord(t.value), cutHistory = false,
+  mustConverge = false } = {}) {
   const sinks = new Map()
   const all = []
   const flat = (list) => { for (const s of list || []) { all.push(s); flat(s.sub) } }
   flat(stmts)
-  if (!all.some((s) => s.header.some((t) => isIdent(t) && isStrategyStateWord(t.value)))) return sinks
+  if (!all.some((s) => s.header.some((t) => isIdent(t) && isSource(t)))) return sinks
 
   const fns = new Map() // name -> { params }
   for (const s of all) {
@@ -154,6 +159,31 @@ export function strategyTaintSinks(stmts) {
   }
   const names = new Map() // tainted name -> source word
   const fnRet = new Map() // tainted function result -> source word
+  // ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) — `cutHistory`: a SCALAR name read `name[k]`, k a whole number >= 1, reads a
+  // value an EARLIER bar committed, so a source that is unknown on the newest bar only does not reach it there.
+  // ⛔ Never for a name that may hold a REFERENCE (a collection, an object, a drawing: `a[1]` is the same object,
+  // mutated on this bar too): any name used as a collection call's first argument, with a member (`a.x`), or
+  // assigned from an `array.*` / `matrix.*` / `map.*` / `.new` / `.copy` expression.
+  const refNames = new Set()
+  if (cutHistory) {
+    for (const s of all) {
+      const h = s.header
+      for (let i = 0; i < h.length; i++) {
+        const t = h[i]
+        if (!isIdent(t)) continue
+        const dot = t.value.indexOf('.')
+        if (dot > 0 && !BUILTIN_NS.test(t.value.slice(0, dot))) refNames.add(t.value.slice(0, dot))
+        if (COLLECTION_NS.test(t.value) && isP(h[i + 1], '(') && isIdent(h[i + 2])) refNames.add(h[i + 2].value.split('.')[0])
+      }
+      const at = topIndex(h, (t) => t.kind === 'punct' && ASSIGN_OPS.has(t.value))
+      if (at > 0 && h.slice(at + 1).some((t) => isIdent(t) && REF_MAKER.test(t.value))) {
+        for (const t of h.slice(0, at)) if (isIdent(t) && !DECL_WORDS.has(t.value)) refNames.add(t.value.split('.')[0])
+      }
+    }
+  }
+  /** `toks[i]` (a tainted scalar name) read k >= 1 bars back: `name [ k ]` */
+  const historyCut = (toks, i) => cutHistory && !refNames.has(toks[i].value) && isP(toks[i + 1], '[')
+    && toks[i + 2] && toks[i + 2].kind === 'number' && /^[1-9]\d*$/.test(String(toks[i + 2].value)) && isP(toks[i + 3], ']')
 
   /** the first source word an expression reaches, or null */
   const wordOf = (toks) => {
@@ -161,8 +191,8 @@ export function strategyTaintSinks(stmts) {
       const t = toks[i]
       if (!isIdent(t)) continue
       const v = t.value
-      if (isStrategyStateWord(v)) return v
-      if (names.has(v)) return names.get(v)
+      if (isSource(t)) return v
+      if (names.has(v)) { if (historyCut(toks, i)) continue; return names.get(v) }
       const dot = v.indexOf('.')
       if (dot > 0) {
         const root = v.slice(0, dot)
@@ -214,7 +244,7 @@ export function strategyTaintSinks(stmts) {
       if (COLLECTION_NS.test(c.name) && COLLECTION_MUTATOR.test(meth) && w) {
         const first = args[0]
         if (isIdent(first) && (isP(args[1], ',') || args.length === 1)) taint(names, first.value.split('.')[0], w)
-      } else if (root && !/^(?:array|matrix|map|math|str|ta|color|request|input|line|label|box|table|polyline|linefill|chart|strategy|syminfo|timeframe|ticker|barstate|session|runtime|log|time|plot|hline|display|format|position|size|shape|location|text|xloc|yloc|extend|font|order|scale|currency|dayofweek|earnings|dividends|splits|adjustment|backadjustment|settlement_as_close)$/.test(root)
+      } else if (root && !BUILTIN_NS.test(root)
           && COLLECTION_MUTATOR.test(meth) && !fns.has(meth) && w) {
         taint(names, root, w) // method form `a.push(x)`
       }
@@ -285,13 +315,47 @@ export function strategyTaintSinks(stmts) {
     }
   }
 
+  let converged = false
   for (let round = 0; round < 64; round++) {
     changed = false
     walk(stmts, null, false)
-    if (!changed) break
+    if (!changed) { converged = true; break }
   }
+  // ⛔ a trace that has not settled may miss a name: a caller that serves on its answer refuses instead
+  if (mustConverge && !converged) throw new Error('taint did not converge in 64 rounds')
   walk(stmts, null, true)
   return sinks
+}
+
+/** The request calls a site's line holds: the SOURCE of `requestNewestReachOf`'s trace. */
+const isRequestCallWord = (v) => v === 'request.security' || v === 'security'
+
+/**
+ * ⭐⭐ HTF-NEWEST-NARROW (coordinator ruling 2026-11-19) — WHAT A RUN MUST WITHHOLD ON ITS NEWEST BAR WHEN ONE
+ * REQUEST SITE CANNOT KNOW THAT BAR (`requestSupply.js`, `request:htf-newest-unconfirmed`).
+ *
+ * The run withheld that bar on EVERY output and every drawing (RS RATING L5), plots that never read the request
+ * included. This is the same-bar taint of the host lane's own analysis (`strategyTaintSinks`), seeded by the site's
+ * call on its source line, with `cutHistory`: a scalar's `x[k]` (k >= 1) was committed on an earlier bar, which the
+ * request knew. Then `strategyDisarmOf`'s matching, unchanged: each tainted ROW sink withholds the outputs its call
+ * emitted, and a tainted sink with no row (`fill`, `hline`, `alert`), a tainted drawing, an unplaced output, a trace
+ * that threw or did not settle, or a site whose call is not found on its line keeps the whole-bar rule (`refused`).
+ * @param {Array} stmts  the build's ORIGINAL statements (`blockStatements`), as the broker taint reads them
+ * @param {?number} line  the site's source line (`target.line`)
+ * @returns {{refused: null | {why: string}, withheld: Array<{index: number}>}}
+ */
+export function requestNewestReachOf(stmts, line, outputs, lines) {
+  const refuse = (why) => ({ refused: { word: null, name: null, line: Number.isInteger(line) ? line : null, why },
+    withheld: [] })
+  if (!Number.isInteger(line)) return refuse('unplaced-site')
+  const isSource = (t) => isIdent(t) && t.line === line && isRequestCallWord(t.value)
+  let seeded = false
+  const look = (list) => { for (const s of list || []) { if (s.header.some(isSource)) seeded = true; look(s.sub) } }
+  look(stmts)
+  if (!seeded) return refuse('unseeded')
+  let taint
+  try { taint = strategyTaintSinks(stmts, { isSource, cutHistory: true, mustConverge: true }) } catch { taint = null }
+  return strategyDisarmOf(taint, outputs, lines)
 }
 
 /**

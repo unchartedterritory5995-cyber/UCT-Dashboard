@@ -6908,8 +6908,7 @@ function barReadsOf(tree) {
 /** ⭐ C9 — the declaration's `max_bars_back = N` (code, never prose — the same
  *  stripped scan as the `max_*_count` ceilings), and whether the script calls
  *  the per-series `max_bars_back(x, n)` form. ⭐ C38 — ONE reader for both
- *  lanes: the object lane's `historyReadRef` and the plot lane's
- *  `Resolver.historyReadOf` size a per-bar read from this and nothing else. */
+ *  lanes, through `historyReadBufferOf` below. */
 function declaredMaxBarsBackOf(source) {
   const code = strippedForScan(String(source || ''))
   const m = /\bmax_bars_back\s*=\s*(\d+)/.exec(code)
@@ -6918,6 +6917,28 @@ function declaredMaxBarsBackOf(source) {
     limit: Number.isInteger(n) && n >= 1 && n <= MAX_BARS_BACK_CAP ? n : null,
     call: /\bmax_bars_back\s*\(/.test(code),
   }
+}
+
+/** ⭐⭐ engine 83 (WS-C; coordinator ruling 2026-11-19) — THE BUFFER A PER-BAR READ `x[e]` MAY
+ *  REACH INTO, the ONE authority both lanes that build one size it from: the plot lane's
+ *  `Resolver.historyReadOf` (`barsAgo`'s window) and the object lane's `historyReadRef` (`{v:'at'}`).
+ *
+ *  ⭐ A DECLARED `max_bars_back` NEVER SHRINKS IT BELOW THE AUTOMATIC BUFFER: it is
+ *  max(declared, `AUTO_MAX_BARS_BACK`). TradingView read past the declaration, each read equal to the bar it names:
+ *    · `close[25]` under `max_bars_back = 20` on every bar past 100 (`vw-w4-max-bars-back-m2`, AMEX:SPY 1D);
+ *    · `close[k]` and `ta.ema(close, 5)[k]`, k = `bar_index % 120`, under `max_bars_back = 50` (Q-MBB-1,
+ *      `uctprobe-mbb-dyn` / `-late`, AMEX:SPY and NYSE:RDDT 1D, licence-held, graded locally).
+ *  ⚰️ Both lanes took `declared.limit || AUTO_MAX_BARS_BACK`, so those reads were withheld (or, on the object lane,
+ *  a runtime error) where TradingView draws them.
+ *
+ *  `auto` marks the automatic bound: past it is UNMEASURED, so the read is withheld on that bar, never a runtime
+ *  error and never a guess (`objectRuntime.js::atCheck`; the plot lane's root mask). A declaration AT OR ABOVE
+ *  it is the buffer, exactly as before. */
+function historyReadBufferOf(source) {
+  const declared = declaredMaxBarsBackOf(source).limit
+  return declared !== null && declared >= AUTO_MAX_BARS_BACK
+    ? { limit: declared, auto: false }
+    : { limit: AUTO_MAX_BARS_BACK, auto: true }
 }
 
 function foldWindow(node) {
@@ -8421,6 +8442,10 @@ export class Resolver {
      *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
      *  below is PROVABLE rather than merely present. */
     this.basePeriod = basePeriodOf(opts)
+    /** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — the RUNTIME lane's request reader (`pineRuntimeFrontend.js`, its
+     *  `targetReader`) reads a daily read above an intraday chart as an `above` target its supply serves. Every
+     *  other resolver (the host's translation, the screen) keeps the refusal it always had (ruling 3.5, C49). */
+    this.aboveDailyReads = opts.aboveDailyReads === true
     /** ⭐⭐ C10 (2026-09-29) — THE TIMEFRAME A `request.security` CHILD IS BEING
      *  RESOLVED FOR, while `securityAsNode` resolves one at another timeframe;
      *  `null` everywhere else. Pine evaluates the requested expression IN that
@@ -11927,9 +11952,10 @@ export class Resolver {
    *  it evaluates is the object lane's own, stated once in `interpret.js` (`historyReadable`)
    *  (measured, `vw-offset-na` / `vw-mbb-auto` 2026-09-30).
    *
-   *  The buffer is the script's declared `max_bars_back`, else
-   *  `AUTO_MAX_BARS_BACK` (the reach TradingView's automatic buffer was measured
-   *  to cover) — read by the SAME `declaredMaxBarsBackOf` the object lane reads —
+   *  The buffer is `historyReadBufferOf`'s, the SAME one the object lane reads: the
+   *  script's declared `max_bars_back` when it is at least `AUTO_MAX_BARS_BACK` (the
+   *  reach TradingView's automatic buffer was measured to cover), else that
+   *  automatic buffer (WS-C: a declaration never shrinks the read) —
    *  and never more than the index can take (`maxHistoryBack`), so
    *  `close[cond ? na : 1]` asks for two bars rather than four hundred, and
    *  `bar_index[-ta.lowestbars(low, 100)]` for a hundred rather than the 5,000 a
@@ -11944,6 +11970,10 @@ export class Resolver {
    *  parameter map (`docs/pine/param-ids.json`), an owner-ruled act this lane
    *  does not take. Deleting this arm is the whole change, once ruled.
    *
+   *  ⭐ engine 83 (WS-C M4): a script that calls `max_bars_back(x, n)` is read like any other.
+   *  TradingView drew `x[60]` and `ta.sma(x, 60)` after `max_bars_back(x, 50)` on every bar
+   *  (`vw-w4-max-bars-back-m4`): the per-series form bounds nothing, so it no longer refuses this read.
+   *
    *  Answers null (the caller keeps `pine:offset-literal`) for a CONSTANT index
    *  that is not a whole number of bars; for an index that reads NO bar — an
    *  expression over inputs and literals the window fold could not reduce
@@ -11952,8 +11982,6 @@ export class Resolver {
    *  and on the screener lane — a saved scan
    *  is evaluated where the root is not withheld around an unreadable count
    *  (`interpret.js::historyReadMask` is the chart lanes'). Refuses by name:
-   *    · `max_bars_back(x, n)` — the per-series form sizes one buffer, a rule
-   *      this read does not model (the object lane's `max-bars-back-call`);
    *    · a source the script REASSIGNS — its history is the value it held when
    *      each earlier bar finished, which the binding in scope here is not. */
   historyReadOf(node, back) {
@@ -11966,20 +11994,13 @@ export class Resolver {
         `${REFUSALS['pine:offset-literal']} — this one moves only with \`barstate.*\` (whether `
         + 'the bar is still forming), and a per-bar index was measured on closed bars only', at)
     }
-    const declared = declaredMaxBarsBackOf(this.source)
-    if (declared.call) {
-      throw new PineRefusal('pine:offset-literal',
-        `${REFUSALS['pine:offset-literal']} — this one changes from bar to bar, and the script `
-        + 'sizes a series\' history with `max_bars_back(x, n)`, a per-series buffer this read '
-        + 'does not model', at)
-    }
     const arg = node.arg
     if (arg && arg.type === 'name' && (this.mutated.has(arg.name) || this.buildingRecurrence === arg.name)) {
       throw new PineRefusal('pine:state',
         `${REFUSALS['pine:state']} — \`${arg.name}[…]\` reads what \`${arg.name}\` held a `
         + 'changing number of bars ago, and this script reassigns it', at)
     }
-    const limit = declared.limit || AUTO_MAX_BARS_BACK
+    const { limit } = historyReadBufferOf(this.source)
     // `-(-x)` is `x`, exactly (an `na` stays `na`): Pine's `x[-ta.lowestbars(…)]`
     // negates a count this table already answers as bars back
     let count = back
@@ -14666,7 +14687,8 @@ export class Resolver {
     // no merge: its `sym` keeps the DAILY base's gate below, so on this chart the host lane withholds it
     // whole by name (`request:other-timeframe`) and only the run, handed the held series per request
     // (`requestSupply.js`), reads it.
-    if (code && target.below !== true) out = { type: live ? 'tf_live' : 'tf_merge', value: code, args: [out] }
+    // ⭐ RS RATING L12 PR 2 — and a daily read ABOVE an intraday chart (`above`), the same way
+    if (code && target.below !== true && target.above !== true) out = { type: live ? 'tf_live' : 'tf_merge', value: code, args: [out] }
     // ⭐⭐ C49 — A REQUEST FOR ANOTHER TIMEFRAME CARRIES THE GATE OF THE BASE IT
     // WAS TRANSLATED FOR, ON A CHART PANE. The pane translates once (for a daily
     // base) and its tree is bound on every chart; on any chart but the base's the
@@ -14679,7 +14701,7 @@ export class Resolver {
     // ⭐ ANOTHER SYMBOL TOO, and the gate goes OUTSIDE its `sym`: the merge is a
     // property of the request, not of the instrument, and `sym` hands the other
     // listing's bars at the CHART's timeframe — its 5-minute bars on a 5-minute chart.
-    const gateBase = target.below === true ? 'D'
+    const gateBase = (target.below === true || target.above === true) ? 'D'
       : this.strict ? (target.folded || (code ? this.basePeriod : null)) : null
     if (gateBase && !other) out = requestBaseNode(gateBase, out)
     if (other) {
@@ -14915,6 +14937,18 @@ export class Resolver {
         // week by the supply (R2 / R4); anything else declines as it always did.
         // ⭐ L13 (Q-RS-M) — and on a MONTHLY chart, per month (R3 witnessed 32 of 32 RDDT months).
         return this.dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue)
+      } else if (code === 'D' && isIntradayTf(this.basePeriod) && this.aboveDailyReads) {
+        // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — A DAILY READ ABOVE AN INTRADAY CHART, look-ahead off: this chart's
+        // own symbol or another one, served by the run from the symbol's HELD daily rows, each chart bar reading
+        // the daily row its session had completed (`requestSupply.js::aboveChartRead`). The host lane never draws
+        // it (the daily gate below); a look-ahead read declines as it always did.
+        // ⛔ A BARE open / high / low / close only: the probes witnessed those four (rs-own-daily D01..D04, rs-spx
+        // X01..X04 on 1 / 5 / 15 / 30 / 60m); any other expression at "D" declines, refused by name as before.
+        if (this.requestLookaheadOf(args, placed) !== false) return null
+        const v = positional[2]
+        const bare = !!v && v.type === 'name' && ['open', 'high', 'low', 'close'].includes(v.name) && !(this.env && this.env.has(v.name))
+        if (!bare) return null
+        return { own, other, venue, code: 'D', live: false, positional, folded: null, above: true }
       } else if (isLowerTfRequest(code, this.basePeriod)) {
         // ⭐⭐ C41 — A TIMEFRAME BELOW THE CHART'S OWN. Whether it is served is
         // `lowerTf.js`'s answer alone (`lowerTfDeclineOf` — the ONE reader, also
@@ -21126,9 +21160,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  (`rawTrees`/`iterTrees`, `runtime/objectLane.js`): that lane evaluates each
    *  pass itself and keeps exactly the program it had. */
   const hostPasses = !rawTrees && !iterTrees
-  /** ⭐ C9 — the script's declared history buffer (`declaredMaxBarsBackOf`, the
-   *  one reader both lanes use). See `historyReadRef`. */
-  const declaredMaxBarsBack = declaredMaxBarsBackOf(source)
+  /** ⭐ C9 — the buffer a per-bar history read may reach into (`historyReadBufferOf`, the
+   *  one authority both lanes use). See `historyReadRef`. */
+  const historyReadBuffer = historyReadBufferOf(source)
   /** tree index → the counter it must be evaluated for. */
   const iteratedTrees = {}
   const collected = collectObjectOps(stmts, {
@@ -24547,8 +24581,6 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *    · `no-max-bars-back`: how far back TradingView lets the read reach is the
    *      buffer it sizes the series to, and without a declared `max_bars_back`
    *      that size is TradingView's own detection, which no capture measures;
-   *    · `max-bars-back-call`: `max_bars_back(x, n)` sizes one series, a rule
-   *      this read does not model;
    *    · `source`: the value read back is not a plain name (`(a + b)[e]`), or is a
    *      name the script reassigns (its history is the end-of-bar value, which a
    *      column read at this op's position would not be);
@@ -24560,22 +24592,22 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const arg = node.arg
     if (!arg || arg.type !== 'name') return historyRefused('source')
     if (objectOpts.mutableNames && objectOpts.mutableNames.has(arg.name)) return historyRefused('source')
-    if (declaredMaxBarsBack.call) return historyRefused('max-bars-back-call')
     // ⭐⭐ C29 (C9, measured 2026-09-30, `vw-mbb-auto-spy-1d-2026-09-30.json`): with
     // NO `max_bars_back` declared TradingView ran dynamic offsets up to 399 with no
     // error, `close[k]` equal to its own bar every time — its automatic sizing
     // covers at least `AUTO_MAX_BARS_BACK` (400). So an undeclared read is served
     // up to that measured bound, `auto` marking that past it is UNMEASURED: the
     // runtime withholds (never errors, never guesses) an offset at or beyond it.
-    const autoBuffer = !declaredMaxBarsBack.limit
+    // ⭐ WS-C — so is a script whose declared buffer is SMALLER: a declaration never
+    // shrinks the read (`historyReadBufferOf`, measured on M2 and Q-MBB-1).
     const src = arg.name === 'bar_index' ? { v: 'bar' } : resolveTree(arg)
     if (!src) return historyRefused('unreadable')
     const back = internTree(idx)
     if (!back) return historyRefused('unreadable')
     diagnostics.historyReads = (diagnostics.historyReads || 0) + 1
-    return autoBuffer
-      ? { v: 'at', args: [src, back], limit: AUTO_MAX_BARS_BACK, auto: true }
-      : { v: 'at', args: [src, back], limit: declaredMaxBarsBack.limit }
+    return historyReadBuffer.auto
+      ? { v: 'at', args: [src, back], limit: historyReadBuffer.limit, auto: true }
+      : { v: 'at', args: [src, back], limit: historyReadBuffer.limit }
   }
   const historyRefused = (why) => {
     if (!diagnostics.historyReadRefusals) diagnostics.historyReadRefusals = {}

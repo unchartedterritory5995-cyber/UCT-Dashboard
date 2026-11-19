@@ -37,12 +37,12 @@ import { evaluateObjects } from '../../objectRuntime'
 import { NOT_SHOWN, runtimeWithheldWhy, runtimeWithheldCause, runtimeUnknownSentence } from '../../ast/objectLoss'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
-import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRunObjectsOn, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
-import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
+import { setRuntimeDoorClock, RUNTIME_REQUEST_WITHHELD_KEY } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
-import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import { storeExchangeOfCapture } from './storeExchange.js'
 import { createFakeChart } from '../fakeChart'
@@ -413,6 +413,20 @@ export function otherSymbolSupply(def, capture) {
           + (flagged ? `; newest bar forming: ${rec.newestBarIsForming}` : '')
           + (held ? `; held at ${held.tf} on this ${tf} chart` : '')
           + (rec.rows ? `; kept out of git, read from the local supply store as ${rec.rows.file} (sha256 ${rec.rows.sha256.slice(0, 12)})` : ''))
+        // ⭐ RS RATING L12 — a block held at a SECOND timeframe too (an intraday chart holds SP:SPX's daily rows
+        // beside its intraday bars, `heldFetchesOf`): the record keeps them under that key (`SPX@D`), as the chart
+        // files them
+        for (const h of row ? heldFetchesOf(storeKey, tf).slice(1) : []) {
+          const second = recorded.other[h.key]
+          if (second && Array.isArray(second.bars)) {
+            const f2 = Object.prototype.hasOwnProperty.call(second, 'newestBarIsForming')
+            secondary.set(h.key, { bars: second.bars, status: 'available', ...(f2 ? { newestBarIsForming: second.newestBarIsForming } : {}) })
+            notes.push(`other symbol ${ticker}: its ${h.tf} rows our server serves, recorded beside the capture (${second.servedBy}; ${second.source})`)
+          } else {
+            secondary.set(h.key, { bars: [], status: 'no_data' })
+            unrecorded.push(`other symbol ${ticker}: its ${h.tf} rows (${h.key}) were not recorded beside this capture`)
+          }
+        }
       } else if (rec.notOnThisMachine) {
         secondary.set(cacheKey, { bars: [], status: 'no_data' })
         notes.push(`other symbol ${ticker}: not supplied: ${rec.notOnThisMachine}`)
@@ -434,6 +448,14 @@ export function otherSymbolSupply(def, capture) {
       notes.push(`other symbol ${ticker}: no committed capture of ${ticker} at ${capture.timeframe} — `
         + 'the vendor bars (and listing) this read would need')
     }
+  }
+  // ⭐ RS RATING L12 PR 2 (U-DAILY) — this chart symbol's own daily rows, for a run that reads them above an intraday
+  // chart (`OWN_DAILY_KEY`), when the record carries them (the chart fetches them only then: `ownDailyNeeded`)
+  const ownRec = recorded && recorded.other ? recorded.other[OWN_DAILY_KEY] : null
+  if (ownRec && Array.isArray(ownRec.bars)) {
+    const f3 = Object.prototype.hasOwnProperty.call(ownRec, 'newestBarIsForming')
+    secondary.set(OWN_DAILY_KEY, { bars: ownRec.bars, status: 'available', ...(f3 ? { newestBarIsForming: ownRec.newestBarIsForming } : {}) })
+    notes.push(`this chart symbol's own daily rows our server serves, recorded beside the capture (${ownRec.servedBy}; ${ownRec.source})`)
   }
   const exchangeOf = (t) => {
     const e = secondary.get(t)
@@ -1322,9 +1344,14 @@ function objectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
   return r && half ? { ...r, ...tag } : r
 }
 
+/** Rails only (PARITY UNIT LF): the object report the grader builds for one instance's columns. */
+export const __objectsReportForTests = (...args) => hostObjectsOf(...args)
+
 /** The object lane's LIVE set at the last bar, as counts and texts. */
 function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
-  if (drawsRuntimeObjects(def)) return runtimeObjectsReport(def, bars, ctx, cols)
+  // ⭐⭐ PARITY UNIT LF — the binder's own answer (`drawsRunObjectsOn`): a run-owned document carrying its
+  // clean host program draws that program when the run holds back a family it draws
+  if (drawsRunObjectsOn(def, cols)) return runtimeObjectsReport(def, bars, ctx, cols)
   if (!def.objects || !(def.objects.ops || []).length) {
     const w = drawingWithheldBy(built)
     return w ? { drawsObjects: false, withheld: w.guard, reason: w.reason } : { drawsObjects: false }
@@ -1755,6 +1782,18 @@ function runOurSideOnTheParityClock(capture) {
     // not compared (`compare.mjs`, `withheldNewest`), every other bar is.
     const newestHeld = new Set(((registry.chartClockReport(cols) || {}).withheld || [])
       .filter((r) => r.code === TF_MERGE_NEWEST_CODE).flatMap((r) => r.plots))
+    // ⭐ REQ-B1 (2026-11-18) — AND THE RUNTIME LANE'S OWN. A run whose request cannot know its newest bar
+    // yet withholds that bar on EVERY column, by the same name (`runtimeColumns.js`,
+    // `RUNTIME_REQUEST_WITHHELD_KEY`, RS RATING L5): the member reads it blank and named on every plot, so
+    // it is not compared on any of them. ⚰️ Unread here, a daily plot of a runtime document that also
+    // reads a monthly merge graded DIVERGE on that one named bar (SR-MTF, graded on the runtime lane forced).
+    const runNewest = cols && cols[RUNTIME_REQUEST_WITHHELD_KEY]
+    if (runNewest && Array.isArray(runNewest.codes) && runNewest.codes.includes(TF_MERGE_NEWEST_CODE)) {
+      // ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) — the plots the run blanked there (`keys`), or every plot (`null`)
+      for (const p of (def.plots || [])) {
+        if (p && typeof p.key === 'string' && (!Array.isArray(runNewest.keys) || runNewest.keys.includes(p.key))) newestHeld.add(p.key)
+      }
+    }
     // ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code
     const withheldBarsReport = registry.withheldBarsReport(calcCols)
     let colours

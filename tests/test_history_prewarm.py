@@ -47,17 +47,19 @@ def edge(monkeypatch):
     monkeypatch.setattr(HP, "_universe", lambda: ["AAA", "BBB"])
     monkeypatch.setattr(HP, "_PACE", 0)
     monkeypatch.setattr(HP.time, "sleep", lambda s: None)
+    from api.routers import bars as _B
+    monkeypatch.setattr(_B, "calendar_last_sealed_day", lambda: "2026-11-17")   # D is stamped by the calendar
     return c
 
 
 def test_the_boundary_read_carries_the_service_token(edge):
-    assert HP._market_last_sealed(edge, "D") == "2026-11-17"
+    assert HP._market_last_sealed(edge, "W") == "2026-11-17"   # W/M are read from a reference symbol
     assert edge.calls[0][1] == AUTH
 
 
 def test_a_pass_warms_every_symbol_and_timeframe_on_the_browser_s_url(edge):
     stats = HP.prewarm_pass()
-    assert stats["requests"] == 6 and stats["err"] == 0
+    assert stats["requests"] == 6 and stats["ok"] == 6 and stats["err"] == 0
     warmed = [u for u, h in edge.calls if "&d=" in u]
     assert "https://uctintelligence.com/api/bars-history/AAA?tf=D&bars=12500&d=2026-11-17" in warmed
     assert all(h == AUTH for _u, h in edge.calls)
@@ -67,6 +69,22 @@ def test_a_pass_that_warms_nothing_is_an_error_not_complete(edge, monkeypatch, c
     monkeypatch.setattr(HP, "_svc_headers", lambda: {})          # the token missing: every read refused
     with caplog.at_level(logging.INFO, logger="history_prewarm"):
         stats = HP.prewarm_pass()
-    assert stats["requests"] == 0
+    assert stats["ok"] == 0                                    # D is still asked (calendar), and refused
     assert any(r.levelno == logging.ERROR and "warmed NOTHING" in r.getMessage() for r in caplog.records)
     assert not any("sweep complete" in r.getMessage() for r in caplog.records)
+
+
+# ── when a pass runs: on the daily rollover, not 24 h after boot (2026-11-19) ──────────────────────
+
+def test_a_pass_is_due_when_the_daily_boundary_moves():
+    t = 1_000_000.0
+    assert HP.pass_due("2026-11-17", "", 0.0, t)                       # the first pass after a boot
+    assert not HP.pass_due("2026-11-17", "2026-11-17", t, t + 600)     # warmed, nothing moved
+    assert HP.pass_due("2026-11-18", "2026-11-17", t, t + 600)         # midnight ET: every daily URL is new
+    assert not HP.pass_due("", "2026-11-17", t, t + 600)               # an unreadable boundary decides nothing
+
+
+def test_the_interval_is_only_a_backstop():
+    t = 1_000_000.0
+    assert HP.pass_due("2026-11-17", "2026-11-17", t, t + 24 * 3600, interval=24 * 3600)
+    assert not HP.pass_due("", "", 0.0, t, interval=24 * 3600)         # never warmed and blind: wait

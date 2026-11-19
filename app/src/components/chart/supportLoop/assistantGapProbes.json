@@ -1,0 +1,155 @@
+{
+ "_": "The gap probes of the assistant's Pine reference: the smallest script that shows each thing a member might ask for and the engine may not serve. assistantGaps.test.js RUNS each through the member's paste path; a probe that runs fully is not a gap and is left out of docs/pine/assistant-writes-pine/GAPS.md. No request wording and no counts live here: this is what the ENGINE says about a script.",
+ "probes": [
+  {
+   "id": "hline",
+   "cannot": "A horizontal level drawn with hline",
+   "kind": "output",
+   "source": "//@version=5\nindicator(\"probe\")\nplot(ta.rsi(close, 14), \"RSI\")\nhline(70, \"Overbought\")\n"
+  },
+  {
+   "id": "untitled-fill-anchor",
+   "cannot": "A shaded area between two plots that have no title",
+   "kind": "output",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\na = plot(high)\nb = plot(low)\nfill(a, b, color=color.new(color.blue, 90))\n"
+  },
+  {
+   "id": "plotarrow-colours",
+   "cannot": "Up and down arrows in their own colours (plotarrow)",
+   "kind": "output",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nplotarrow(close - open, \"Move\", colorup=color.green, colordown=color.red)\n"
+  },
+  {
+   "id": "plotcandle",
+   "cannot": "Candles drawn from computed values (Heikin Ashi, plotcandle)",
+   "kind": "output",
+   "source": "//@version=5\nindicator(\"probe\")\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nplotcandle(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClose), haClose, \"Heikin Ashi\", color=haClose > haOpen ? color.green : color.red)\n"
+  },
+  {
+   "id": "plotbar",
+   "cannot": "Bars drawn from computed values (plotbar)",
+   "kind": "output",
+   "source": "//@version=5\nindicator(\"probe\")\nplotbar(open, high, low, close, \"Bars\", color=close > open ? color.green : color.red)\n"
+  },
+  {
+   "id": "vwap-deviation-bands",
+   "cannot": "VWAP with its own standard deviation bands",
+   "kind": "calculation",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\n[v, up, dn] = ta.vwap(hlc3, timeframe.change(\"D\"), 1)\nplot(v, \"VWAP\")\nplot(up, \"Upper\")\nplot(dn, \"Lower\")\n"
+  },
+  {
+   "id": "regression-channel-deviation",
+   "cannot": "A regression channel whose bands are the deviation around the line",
+   "kind": "calculation",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nn = input.int(100, \"Length\")\nmid = ta.linreg(close, n, 0)\ndev = ta.dev(close, n)\nplot(mid, \"Line\")\nplot(mid + 2 * dev, \"Upper\")\nplot(mid - 2 * dev, \"Lower\")\n"
+  },
+  {
+   "id": "schaff-trend-cycle",
+   "cannot": "The Schaff Trend Cycle in its published two-stage form",
+   "kind": "calculation",
+   "source": "//@version=5\nindicator(\"probe\")\nfast = input.int(23, \"Fast\")\nslow = input.int(50, \"Slow\")\ncycle = input.int(10, \"Cycle\")\nfactor = input.float(0.5, \"Factor\")\nm = ta.ema(close, fast) - ta.ema(close, slow)\nlo1 = ta.lowest(m, cycle)\nr1 = ta.highest(m, cycle) - lo1\nvar float k1 = na\nk1 := r1 > 0 ? (m - lo1) / r1 * 100 : nz(k1[1])\nvar float d1 = na\nd1 := na(d1[1]) ? k1 : d1[1] + factor * (k1 - d1[1])\nlo2 = ta.lowest(d1, cycle)\nr2 = ta.highest(d1, cycle) - lo2\nvar float k2 = na\nk2 := r2 > 0 ? (d1 - lo2) / r2 * 100 : nz(k2[1])\nvar float stc = na\nstc := na(stc[1]) ? k2 : stc[1] + factor * (k2 - stc[1])\nplot(stc, \"STC\")\n"
+  },
+  {
+   "id": "rsi-divergence-pivots",
+   "cannot": "A divergence between price and an oscillator, read pivot to pivot",
+   "kind": "calculation",
+   "source": "//@version=5\nindicator(\"probe\")\nlen = input.int(14, \"RSI length\")\nlbL = input.int(5, \"Pivot left\")\nlbR = input.int(5, \"Pivot right\")\nosc = ta.rsi(close, len)\nplFound = not na(ta.pivotlow(osc, lbL, lbR))\noscHL = osc[lbR] > ta.valuewhen(plFound, osc[lbR], 1)\npriceLL = low[lbR] < ta.valuewhen(plFound, low[lbR], 1)\nbull = priceLL and oscHL and plFound\nplot(osc, \"RSI\")\nplotshape(bull, \"Bullish divergence\", shape.triangleup, location.bottom, color.green)\n"
+  },
+  {
+   "id": "regression-channel-residual",
+   "cannot": "A regression channel whose bands are the deviation of price around the line",
+   "kind": "calculation",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nn = input.int(100, \"Length\")\nmid = ta.linreg(close, n, 0)\nslope = mid - ta.linreg(close, n, 1)\nfloat sq = 0.0\nfor i = 0 to n - 1\n    sq += math.pow(close[i] - (mid - slope * i), 2)\ndev = math.sqrt(sq / n)\nplot(mid, \"Line\")\nplot(mid + 2 * dev, \"Upper\")\nplot(mid - 2 * dev, \"Lower\")\n"
+  },
+  {
+   "id": "zigzag-lines",
+   "cannot": "A zigzag that joins swing highs and lows with lines",
+   "kind": "drawing",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nn = input.int(5, \"Bars each side\")\nph = ta.pivothigh(high, n, n)\npl = ta.pivotlow(low, n, n)\nvar float lastY = na\nvar int lastX = na\nif not na(ph)\n    if not na(lastY)\n        line.new(lastX, lastY, bar_index - n, ph, color=color.red)\n    lastY := ph\n    lastX := bar_index - n\nif not na(pl)\n    if not na(lastY)\n        line.new(lastX, lastY, bar_index - n, pl, color=color.green)\n    lastY := pl\n    lastX := bar_index - n\n"
+  },
+  {
+   "id": "volume-profile-boxes",
+   "cannot": "A volume profile: volume stacked by price level, drawn sideways",
+   "kind": "drawing",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nn = input.int(60, \"Bars\")\nrows = input.int(12, \"Rows\")\nvar box[] bs = array.new_box(0)\nif barstate.islast\n    for b in bs\n        box.delete(b)\n    array.clear(bs)\n    hi = ta.highest(high, n)\n    lo = ta.lowest(low, n)\n    step = (hi - lo) / rows\n    for r = 0 to rows - 1\n        float vol = 0.0\n        for i = 0 to n - 1\n            if close[i] >= lo + r * step and close[i] < lo + (r + 1) * step\n                vol += volume[i]\n        array.push(bs, box.new(bar_index - n, lo + (r + 1) * step, bar_index - n + math.round(vol / ta.highest(volume, n) * 3), lo + r * step, bgcolor=color.new(color.blue, 70)))\n"
+  },
+  {
+   "id": "zones-extended-right",
+   "cannot": "Zones as boxes that start at a past bar and extend to the right",
+   "kind": "drawing",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nn = input.int(5, \"Bars each side\")\nph = ta.pivothigh(high, n, n)\nif not na(ph)\n    box.new(bar_index - n, ph, bar_index, ph - ta.atr(14), extend=extend.right, bgcolor=color.new(color.red, 85), border_color=color.red)\n"
+  },
+  {
+   "id": "weekday-table",
+   "cannot": "A table of the average return of each weekday",
+   "kind": "drawing",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nvar float[] sums = array.new_float(7, 0.0)\nvar int[] counts = array.new_int(7, 0)\nr = close / close[1] - 1\nif not na(r)\n    array.set(sums, dayofweek - 1, array.get(sums, dayofweek - 1) + r)\n    array.set(counts, dayofweek - 1, array.get(counts, dayofweek - 1) + 1)\nvar table t = table.new(position.top_right, 2, 7)\nif barstate.islast\n    for d = 0 to 6\n        table.cell(t, 0, d, str.tostring(d + 1))\n        table.cell(t, 1, d, array.get(counts, d) > 0 ? str.tostring(array.get(sums, d) / array.get(counts, d) * 100, \"#.##\") + \"%\" : \"-\")\n"
+  },
+  {
+   "id": "earnings-data",
+   "cannot": "Earnings dates or earnings numbers on the chart",
+   "kind": "data",
+   "source": "//@version=5\nindicator(\"probe\")\ne = request.earnings(syminfo.tickerid, earnings.actual)\nplot(e, \"EPS\")\n"
+  },
+  {
+   "id": "financial-data",
+   "cannot": "A fundamental number on the chart (sales, margins)",
+   "kind": "data",
+   "source": "//@version=5\nindicator(\"probe\")\ns = request.financial(syminfo.tickerid, \"TOTAL_REVENUE\", \"FQ\")\nplot(s, \"Revenue\")\n"
+  },
+  {
+   "id": "dividends-data",
+   "cannot": "Dividends on the chart",
+   "kind": "data",
+   "source": "//@version=5\nindicator(\"probe\")\nd = request.dividends(syminfo.tickerid)\nplot(d, \"Dividend\")\n"
+  },
+  {
+   "id": "lower-timeframe",
+   "cannot": "A value read from a lower timeframe than the chart's",
+   "kind": "data",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nv = request.security(syminfo.tickerid, \"5\", close)\nplot(v, \"5 minute close\")\n"
+  },
+  {
+   "id": "linefill",
+   "cannot": "A shaded area between two drawn lines (linefill)",
+   "kind": "language",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\na = line.new(bar_index - 10, high, bar_index, high)\nb = line.new(bar_index - 10, low, bar_index, low)\nif barstate.islast\n    linefill.new(a, b, color.new(color.blue, 80))\n"
+  },
+  {
+   "id": "polyline",
+   "cannot": "A free shape drawn through many points (polyline)",
+   "kind": "language",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nif barstate.islast\n    pts = array.new<chart.point>()\n    pts.push(chart.point.from_index(bar_index - 10, low))\n    pts.push(chart.point.from_index(bar_index, high))\n    polyline.new(pts)\n"
+  },
+  {
+   "id": "matrix",
+   "cannot": "A calculation that needs a matrix",
+   "kind": "language",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nm = matrix.new<float>(2, 2, 0.0)\nmatrix.set(m, 0, 0, close)\nplot(matrix.get(m, 0, 0), \"m\")\n"
+  },
+  {
+   "id": "map",
+   "cannot": "A calculation that needs a key-value map",
+   "kind": "language",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nvar map<string, float> m = map.new<string, float>()\nmap.put(m, \"c\", close)\nplot(map.get(m, \"c\"), \"c\")\n"
+  },
+  {
+   "id": "varip",
+   "cannot": "A value that updates inside the forming bar (varip)",
+   "kind": "language",
+   "source": "//@version=5\nindicator(\"probe\")\nvarip int ticks = 0\nticks += 1\nplot(ticks, \"ticks\")\n"
+  },
+  {
+   "id": "method-definition",
+   "cannot": "A user-defined method",
+   "kind": "language",
+   "source": "//@version=5\nindicator(\"probe\")\nmethod double(float x) => x * 2\nplot(close.double(), \"double\")\n"
+  },
+  {
+   "id": "input-text-area",
+   "cannot": "A multi-line text setting (input.text_area)",
+   "kind": "language",
+   "source": "//@version=5\nindicator(\"probe\", overlay=true)\nnote = input.text_area(\"hello\", \"Note\")\nif barstate.islast\n    label.new(bar_index, high, note)\n"
+  }
+ ]
+}

@@ -544,8 +544,42 @@ export function makeProgram({
 /** ⛔ VALIDATED BEFORE IT CAN RUN, per §44 — a malformed program is a compiler
  *  bug and must say so at the boundary rather than reaching the dispatch loop
  *  and being reported as a runtime failure. */
+/** ⭐⭐ engine 82 — WHICH FUNCTION A PC BELONGS TO, or `null` for the main program and a request
+ *  region (both read history at base 0). The lowering lays the code out as ONE array: the main program, its HALT,
+ *  then each function body from its `entry`, then each request region from its `entry` (`lowerIr.js`). So the
+ *  owner of a pc is the region whose start is the last one at or below it. */
+function regionOwnerOf(p) {
+  const starts = []
+  ;(p.functions || []).forEach((f, i) => { if (Number.isInteger(f.entry)) starts.push([f.entry, i]) })
+  ;(p.requests || []).forEach((r) => { if (Number.isInteger(r.entry)) starts.push([r.entry, null]) })
+  starts.sort((x, y) => x[0] - y[0])
+  return (pc) => {
+    let owner = null
+    for (const [at, fn] of starts) { if (at <= pc) owner = fn; else break }
+    return owner
+  }
+}
+
 export function validateProgram(p) {
   const n = p.instructions
+  const ownerOf = regionOwnerOf(p)
+  // ⭐⭐ S14 fix 1 — EACH STATE INSTANCE'S OWN RULE IS CHECKED OVER ITS TABLE, where every call site's instance
+  // is, rather than at an operand that is frame-relative in a function body (the opcode checks below)
+  ;(p.carried || []).forEach((c, i) => {
+    if (!(c.n >= 1)) throw new ProgramError(`carried[${i}]: CARRIED length ${c.n} — a carried builtin needs a length of at least 1`)
+  })
+  // ⛔ ZERO IS LEGAL HERE, UNLIKE `CARRIED`. A carried builtin's `n` is a LENGTH and must be at least 1; this
+  // one's is an OCCURRENCE INDEX, and occurrence 0 (the most recent firing) is the commonest call in the corpus.
+  ;(p.carried2 || []).forEach((c, i) => {
+    if (!(c.n >= 0)) throw new ProgramError(`carried2[${i}]: CARRIED2 occurrence ${c.n} — an occurrence counts firings back and cannot be negative`)
+  })
+  ;(p.windows || []).forEach((w, i) => {
+    if (!Number.isInteger(w.span) || w.span < 1) throw new ProgramError(`windows[${i}]: WINDOW span ${w.span} — a window spans at least one bar`)
+  })
+  const frameMax = (table, key) => Math.max((table || []).length, ...(p.functions || []).map((f) => f[key] || 0), 0)
+  const maxCarried = frameMax(p.carried, 'carriedCount')
+  const maxCarried2 = frameMax(p.carried2, 'carried2Count')
+  const maxWindows = frameMax(p.windows, 'windowCount')
   for (let pc = 0; pc < n; pc += 1) {
     const op = p.code[pc * 3]
     const a = p.code[pc * 3 + 1]
@@ -591,36 +625,23 @@ export function validateProgram(p) {
     if (op === OP.LOAD_GLOBAL_PERSIST && (a < 0 || a >= maxPersist)) {
       throw new ProgramError(`pc ${pc}: LOAD_GLOBAL_PERSIST ${a} outside ${maxPersist} persist slots`)
     }
-    if (op === OP.CARRIED) {
-      if (a < 0 || a >= p.carried.length) {
-        throw new ProgramError(`pc ${pc}: CARRIED ${a} outside ${p.carried.length} carried sites`)
-      }
-      const c = p.carried[a]
-      if (!(c.n >= 1)) {
-        throw new ProgramError(`pc ${pc}: CARRIED length ${c.n} — a carried builtin needs a length of at least 1`)
-      }
+    // ⭐⭐ S14 fix 1 — A CARRIED OPERAND IS FRAME-RELATIVE IN A FUNCTION BODY (the VM adds the invocation's
+    // `carriedBase`), so, as LOCAL and PERSIST are, it is bounded by the largest frame as well as the main
+    // table, and the instance it names is not `p.carried[a]` there. Each instance's own rule (a length of at
+    // least 1; an occurrence index of at least 0) is checked over the TABLE (above the loop), where every
+    // call site's instance is. ⚰️ This bounded the operand by the table and read `p.carried[a]`: a helper
+    // nothing calls has no instance in the table, so its body failed the program, and a called helper's
+    // body had its operand checked against a main-program entry.
+    if (op === OP.CARRIED && (a < 0 || a >= maxCarried)) {
+      throw new ProgramError(`pc ${pc}: CARRIED ${a} outside ${maxCarried} carried sites`)
     }
-    if (op === OP.CARRIED2) {
-      if (a < 0 || a >= p.carried2.length) {
-        throw new ProgramError(`pc ${pc}: CARRIED2 ${a} outside ${p.carried2.length} two-input carried sites`)
-      }
-      // ⛔ ZERO IS LEGAL HERE, UNLIKE `CARRIED`. A carried builtin's `n` is a
-      // LENGTH and must be at least 1; this one's is an OCCURRENCE INDEX, and
-      // occurrence 0 — the most recent firing — is the commonest call in the
-      // corpus. Copying the neighbouring check would have refused 121 sites.
-      const c = p.carried2[a]
-      if (!(c.n >= 0)) {
-        throw new ProgramError(`pc ${pc}: CARRIED2 occurrence ${c.n} — an occurrence counts firings back and cannot be negative`)
-      }
+    // ⭐ S14 fix 1 — frame-relative in a body, as `CARRIED` (above); the occurrence rule is the table's
+    if (op === OP.CARRIED2 && (a < 0 || a >= maxCarried2)) {
+      throw new ProgramError(`pc ${pc}: CARRIED2 ${a} outside ${maxCarried2} two-input carried sites`)
     }
-        if (op === OP.WINDOW) {
-      if (a < 0 || a >= p.windows.length) {
-        throw new ProgramError(`pc ${pc}: WINDOW ${a} outside ${p.windows.length} window sites`)
-      }
-      const w = p.windows[a]
-      if (!Number.isInteger(w.span) || w.span < 1) {
-        throw new ProgramError(`pc ${pc}: WINDOW span ${w.span} — a window spans at least one bar`)
-      }
+    // ⭐ S14 fix 1 — a WINDOW operand is frame-relative in a body too (`windowBase`); its span is the table's
+    if (op === OP.WINDOW && (a < 0 || a >= maxWindows)) {
+      throw new ProgramError(`pc ${pc}: WINDOW ${a} outside ${maxWindows} window sites`)
     }
     if (op === OP.REQUEST) {
       if (a < 0 || a >= p.requests.length) {
@@ -717,13 +738,14 @@ export function validateProgram(p) {
       // `x[5]` against a ring the front end sized for 2 would answer `na` on
       // every bar — a wrong number that looks exactly like a warm-up, forever.
       // Refusing it at the boundary makes it a compiler bug, which is what it is.
-      // ⚠️ P7.2 LOOSENED THIS, DELIBERATELY AND FOR THE SAME REASON THE PERSIST
+      // ⚠️ P7.2 LOOSENED THE SLOT BOUND, DELIBERATELY AND FOR THE SAME REASON THE PERSIST
       // BOUND ABOVE IS LOOSE. `a` is now FRAME-RELATIVE: the main program reads
       // at base 0 and an invocation reads at its call site's `historyBase`, so
-      // the exact per-frame bound is a property of the function a pc belongs to,
-      // which the lowering already guarantees by construction. Checking it here
-      // would need a pc→function map, and a wrong one would refuse valid programs.
-      const maxHist = Math.max(p.history.length, 1)
+      // the exact per-frame bound is a property of the function a pc belongs to
+      // (`regionOwnerOf`, the pc→function map the DEPTH check below now uses).
+      // ⭐ S14 fix 1 — and bounded by the largest FRAME's ring count as well as the table: a helper nothing
+      // calls owns no entry in the table, so its body's `x[1]` failed the whole program
+      const maxHist = Math.max(frameMax(p.history, 'historyCount'), 1)
       if (a < 0 || a >= maxHist) {
         throw new ProgramError(`pc ${pc}: READ_HIST_SLOT ${a} outside ${maxHist} history slots`)
       }
@@ -733,20 +755,33 @@ export function validateProgram(p) {
           `pc ${pc}: READ_HIST_SLOT offset ${b2} — history counts whole bars BACKWARDS from 1; `
           + '`x[0]` is the live value and lowers to a slot read, never to this opcode')
       }
-      // ⛔ THE DEPTH CHECK STAYS EXACT FOR MAIN-FRAME READS, where `a` IS the
-      // entry. A read deeper than its planned ring would answer `na` on every
-      // bar — a wrong number wearing a warm-up's clothes — so where the bound can
-      // be proved it still is.
-      const mainEntry = p.history[a]
-      if (mainEntry && mainEntry.site === null && b2 > mainEntry.depth) {
-        throw new ProgramError(
-          `pc ${pc}: READ_HIST_SLOT reads \`${mainEntry.name}\`[${b2}] but its ring was `
-          + `planned for depth ${mainEntry.depth} — the static demand analysis and the `
-          + 'lowering disagree about how far back this program looks')
+      // ⛔ THE DEPTH CHECK IS EXACT, AND FRAME-AWARE. A read deeper than its planned ring would answer `na` on
+      // every bar — a wrong number wearing a warm-up's clothes — so the bound is proved for every read.
+      // ⭐⭐ engine 82 — ⚰️ it compared EVERY read with `p.history[a]`, the main frame's entry, even
+      // inside a function body where `a` is FRAME-relative. A body's `s[4]` whose frame index collided with a main
+      // ring of depth 1 (`m[1]`) was refused at lowering, naming `m`, a variable the function never reads: a wrong
+      // refusal of a valid program (`frameHistoryDepth.test.js`). Now the owner of the pc decides: the main
+      // program and a request region read at base 0, so `a` IS the entry; a function body is checked against its
+      // own ring at EVERY call site (`historyBase + a`), each of which must exist.
+      const fn = ownerOf(pc)
+      const entries = fn === null
+        ? [p.history[a]]
+        : (p.callSites || []).filter((c) => c.fn === fn).map((c) => p.history[(c.historyBase || 0) + a])
+      for (const entry of entries) {
+        if (!entry) {
+          throw new ProgramError(`pc ${pc}: READ_HIST_SLOT ${a} of \`${p.functions[fn].name}\` has no ring at one `
+            + 'of its call sites')
+        }
+        if (b2 > entry.depth) {
+          throw new ProgramError(
+            `pc ${pc}: READ_HIST_SLOT reads \`${entry.name}\`[${b2}] but its ring was `
+            + `planned for depth ${entry.depth} — the static demand analysis and the `
+            + 'lowering disagree about how far back this program looks')
+        }
       }
     }
     if (op === OP.READ_HIST_SLOT_DYN) {
-      const maxHist = Math.max(p.history.length, 1)
+      const maxHist = Math.max(1, frameMax(p.history, 'historyCount'))   // ⭐ S14 fix 1, as READ_HIST_SLOT
       if (a < 0 || a >= maxHist) {
         throw new ProgramError(`pc ${pc}: READ_HIST_SLOT_DYN ${a} outside ${maxHist} history slots`)
       }

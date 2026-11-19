@@ -159,7 +159,7 @@ def test_a_word_that_only_contains_the_name_is_not_the_name(conv):
     assert caught.value.gate == "named:withheld"
     # a word that is the name's alone is the name in part; a word the product also uses is not
     assert conv._own_words_of("klinger_volume_oscillator") == frozenset({"klinger"})
-    assert "schaff" in conv._own_words_of("schaff_trend_cycle") and "index" not in conv._own_words_of("stochastic_momentum_index")
+    assert "qstick" in conv._own_words_of("qstick") and "index" not in conv._own_words_of("stochastic_momentum_index")
     with pytest.raises(conv._Refused):
         conv.check_withheld(build(label="Klinger line"), [KLINGER])
     conv.check_withheld(build(label="Volume oscillator, 34 against 55"), [KLINGER])     # the product's own words: fine
@@ -188,17 +188,21 @@ def test_the_pieces(conv):
 
 def test_the_words_of_a_withheld_name_are_not_vocabulary(conv):
     vocabulary = dc._lexicon_vocabulary(conv.CHART_LEXICON)
-    for word in ("klinger", "camarilla", "schaff", "qstick"):
+    # (the Schaff Trend Cycle was one of these until 2026-11-19: it is a held LIBRARY name now)
+    for word in ("klinger", "camarilla", "qstick"):
         stems, _cost = dc._stem_key(dc._form_tokens(word))
         assert not all(s in vocabulary for s in stems), word
     # so another name that borrows one is still an unknown name ...
+    r = conv.understand_turn("Add the Qstick Momentum Ribbon", CHART)
+    assert r["refusal"] is not None and r["refusal"]["not_understood"][0]["phrase"] == "Qstick Momentum Ribbon"
+    # and a name that borrows a word of a HELD library name is not that name either
     r = conv.understand_turn("Add the Schaff Momentum Ribbon", CHART)
-    assert r["refusal"] is not None and r["refusal"]["not_understood"][0]["phrase"] == "Schaff Momentum Ribbon"
+    assert r["refusal"] is not None and r["refusal"].get("gate") != conv.NAMED_UNCHECKED_GATE
     r = conv.understand_turn("Add the Brannock Klinger Oscillator", CHART)
     assert r["refusal"] is not None
     # ... while the name itself, whole, is accounted for, with the product's own words beside it
-    r = conv.understand_turn("Add the Schaff Trend Cycle Of The Close", CHART)
-    assert r["refusal"] is None and [w["id"] for w in r["withheld"]] == ["schaff_trend_cycle"]
+    r = conv.understand_turn("Add the Klinger Volume Oscillator Of The Close", CHART)
+    assert r["refusal"] is None and [w["id"] for w in r["withheld"]] == ["klinger_volume_oscillator"]
     # (the Fisher Transform stood here until it joined the checked library, 2026-11-18: a name
     # leaves this list by being checked, and is then a library name)
     r = conv.understand_turn("Add the Fisher Transform", CHART)
@@ -209,7 +213,7 @@ def test_the_planner_shared_with_the_screener_is_unchanged(conv):
     """`names_only` is the CHART door's lexicon. The shared one has none, and refuses as before."""
     assert "names_only" not in dc.LEXICON and "names_only_section" not in dc.LEXICON
     assert not (set(conv.CHART_LEXICON["names_only"]) & set(dc.LEXICON["index"]))
-    for words in ("Add the Klinger Volume Oscillator", "add the schaff trend cycle"):
+    for words in ("Add the Klinger Volume Oscillator", "add the qstick"):
         told = dc.plan(words, dc.INDICATOR_KIND)
         assert all(t.get("section") != conv.WITHHELD_SECTION for t in told.get("terms") or []), words
     assert dc.plan("Add the Qstick", dc.INDICATOR_KIND) == dc.plan("Add the Qstick", dc.INDICATOR_KIND, lexicon=dc.LEXICON)
