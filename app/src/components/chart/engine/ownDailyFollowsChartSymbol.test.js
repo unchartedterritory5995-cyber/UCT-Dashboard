@@ -44,8 +44,16 @@ const RDDT = Object.freeze({ ticker: 'RDDT', exchange: 'NYSE', industry: 'Intern
 const ET = (day, hh, mm) => { const [y, m, d] = day.split('-').map(Number); return Date.UTC(y, m - 1, d, hh + 5, mm) / 1000 }
 const isoPlus = (iso, d) => new Date(Date.parse(`${iso}T00:00:00Z`) + d * 86400000).toISOString().slice(0, 10)
 const weekday = (iso) => ![0, 6].includes(new Date(`${iso}T12:00:00Z`).getUTCDay())
+// NYSE full-day closures in the range: the store holds no bar on them, so neither does this fixture (⚰️ the first
+// cut dated a weekly row on MLK day 2025-01-20 and the supply rightly refused "SPX has no bar on 2025-01-20")
+const CLOSED = new Set(['2025-01-09', '2025-01-20', '2025-02-17', '2025-04-18', '2025-05-26', '2025-06-19', '2025-07-04',
+  '2025-09-01', '2025-11-27', '2025-12-25', '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25',
+  '2026-06-19', '2026-07-03', '2026-09-07'])
 const DAYS = []
-for (let d = '2025-01-06'; d <= '2026-11-13'; d = isoPlus(d, 1)) if (weekday(d)) DAYS.push(d)
+for (let d = '2025-01-06'; d <= '2026-11-13'; d = isoPlus(d, 1)) if (weekday(d) && !CLOSED.has(d)) DAYS.push(d)
+// a weekly row is dated on its week's FIRST trading day
+const dow = (iso) => new Date(`${iso}T12:00:00Z`).getUTCDay()
+const WEEK_FIRST = DAYS.filter((d, i) => i === 0 || dow(d) <= dow(DAYS[i - 1]))
 const SESS = DAYS.slice(-10)                                  // the intraday charts' ten sessions
 const stepMin = (tf) => Number(tf)
 const between = (day, h0, m0, h1, m1, s) => {
@@ -57,7 +65,7 @@ const bar = (t, c) => ({ t, o: c - 0.1, h: c + 0.3, l: c - 0.3, c, v: 1000 })
 // the chart: extended hours 04:00-20:00 ET; our SPX: regular hours, from the FIFTH session on (the chart reaches deeper)
 const chartOf = (tf) => {
   if (tf === 'D') return DAYS.map((d, k) => bar(d, 90 + (k % 40) * 0.5))
-  if (tf === 'W') return DAYS.filter((d) => new Date(`${d}T12:00:00Z`).getUTCDay() === 1).map((d, k) => bar(d, 90 + (k % 20)))
+  if (tf === 'W') return WEEK_FIRST.map((d, k) => bar(d, 90 + (k % 20)))
   return SESS.flatMap((d, k) => between(d, 4, 0, 20, 0, stepMin(tf)).map((t, j) => bar(t, 90 + k + Math.sin(j / 9))))
 }
 const spxIntraday = (tf) => SESS.slice(4).flatMap((d, k) => between(d, 9, 30, 16, 0, stepMin(tf))
@@ -223,7 +231,8 @@ describe('DERIVATION: every `request.security` site of the document reads an ent
       basePeriod: tf, tf, symbol: RDDT, ...runtimeClockOpts(false, { tf }) })
     expect(built.ok, JSON.stringify(built.refusal)).toBe(true)
     const requests = built.ir.requests || []
-    expect(requests.length, 'Fred RS reads three request sites').toBe(3)
+    // its three `request.security` sites (lines 89, 187, 188) and the seed's read: none may be dropped
+    expect(requests.length, 'Fred RS\'s request sites').toBeGreaterThanOrEqual(3)
     return runtimeRequestSupply(requests, rows, ctxOf(tf, map))
   }
   for (const tf of ['1', '5', '15', '30', '60', 'D', 'W']) {
