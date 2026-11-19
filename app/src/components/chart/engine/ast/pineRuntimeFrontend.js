@@ -9118,6 +9118,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if ((!(condHistory && r4Level() > 0) || everyBarColumn) && !splitForArms && !mbbDynamicColumn(node, scope)) try {
         return column(columnOf(node, locate(node.tok)))
       } catch (e) {
+        // ⭐ (cold-load series, C3, 2026-11-19) — THIS IS AN EXCEPTION PATH ON PURPOSE, AND A HOT ONE. `columnOf` asks
+        // the columnar resolver (`makeResolver().resolve`) whether this subtree is a column, and the resolver says "no"
+        // only by THROWING a `PineRefusal` (text, a clock, a colour, a name it does not hold); this catch is how the
+        // runtime lane hears that answer and lowers the node itself. Measured on Fred RS (5m): the Error construction
+        // (stack capture) here is ~17 ms a curtain, ~8.5 ms a cold build once the build memo holds. ⛔ Not made cheap,
+        // by ruling: `Error.stackTraceLimit = 0` around the probe would take the stack from a GENUINE bug thrown inside
+        // it, and a non-throwing "is this a column?" predicate would be a second authority beside the resolver.
+        //
         // ⛔ ONLY over a subtree that really does carry text, and only for the
         // two verdicts that mean "this lane has no text for you":
         //
