@@ -14,7 +14,6 @@ from __future__ import annotations
 import datetime
 import json
 import pathlib
-import re
 
 import pytest
 
@@ -39,13 +38,13 @@ def bars_on(dates):
     return [{"t": t, "o": i + 1, "h": i + 1.5, "l": i + 0.5, "c": i + 1, "v": 100} for i, t in enumerate(dates)]
 
 
-def test_the_constants_are_the_js_authoritys_own():
+def test_both_lanes_read_tradingviews_own_session_calendar_never_a_copy_of_it():
     text = JS.read_text(encoding="utf-8")
-    start = re.search(r"export const HTF_CALENDAR_START = '([0-9-]+)'", text)
-    unseen = re.search(r"export const HTF_CALENDAR_UNSEEN_CLOSES = Object\.freeze\(\[([^\]]*)\]\)", text)
-    assert start and unseen, "interpret.js no longer declares the calendar constants this lane mirrors"
-    assert ast_interpret.HTF_CALENDAR_START == start.group(1)
-    assert tuple(re.findall(r"'([0-9-]+)'", unseen.group(1))) == ast_interpret.HTF_CALENDAR_UNSEEN_CLOSES
+    assert "TRADINGVIEW_CLOSURES_FROM" in text and "TRADINGVIEW_UNAPPLIED_CLOSURES" in text
+    assert "HTF_CALENDAR_START" not in text and "'2001-09-10'" not in text
+    py = pathlib.Path(ast_interpret.__file__).read_text(encoding="utf-8")
+    assert "TRADINGVIEW_CLOSURES_FROM_YYYYMMDD" in py and "TRADINGVIEW_UNAPPLIED_CLOSURES_YYYYMMDD" in py
+    assert "HTF_CALENDAR_START" not in py
 
 
 @pytest.mark.parametrize("iso,code,want", [

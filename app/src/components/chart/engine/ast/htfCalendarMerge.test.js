@@ -12,7 +12,8 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
-import { interpret, TF_MERGE, htfClosesOnNextBar, HTF_CALENDAR_START, HTF_CALENDAR_UNSEEN_CLOSES } from './interpret'
+import { interpret, TF_MERGE, htfClosesOnNextBar } from './interpret'
+import { TRADINGVIEW_CLOSURES_FROM, TRADINGVIEW_UNAPPLIED_CLOSURES } from '../../../../lib/marketClock/tradingViewSession.js'
 
 const CLOSE = { type: 'series', name: 'close' }
 const merge = (code) => ({ type: TF_MERGE, value: code, args: [CLOSE] })
@@ -22,9 +23,10 @@ const col = (tree, bars) => Array.from(interpret(tree, bars, {}, undefined, unde
 const barsOn = (dates) => dates.map((t, i) => ({ t, o: i + 1, h: i + 1.5, l: i + 0.5, c: i + 1, v: 100 }))
 
 describe('htfClosesOnNextBar — the rule, case by case', () => {
-  it('the calendar begins on 2000-01-01, and 2001-09-10 is the one unseen close after it', () => {
-    expect(HTF_CALENDAR_START).toBe('2000-01-01')
-    expect([...HTF_CALENDAR_UNSEEN_CLOSES]).toEqual(['2001-09-10'])
+  it('it reads TradingView's own session calendar: closures applied from 2000, not 11-14 September 2001', () => {
+    expect(TRADINGVIEW_CLOSURES_FROM).toBe('2000-01-01')
+    expect(TRADINGVIEW_UNAPPLIED_CLOSURES.map((e) => e.date)).toContain('2001-09-14')
+    expect(htfClosesOnNextBar('2012-10-26', 'W')).toBe(false)   // the Friday before Hurricane Sandy: a full week
   })
   it('a week whose last session is not a Friday, before 2000: the next bar', () => {
     expect(htfClosesOnNextBar('1999-04-01', 'W')).toBe(true)    // Good Friday 1999

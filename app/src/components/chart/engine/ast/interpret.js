@@ -60,6 +60,7 @@ import {
 // `export function` bindings are hoisted; `budget.js`'s header states the whole
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget, REFUSALS as BUDGET_REFUSALS } from './budget.js'
+import { TRADINGVIEW_CLOSURES_FROM, TRADINGVIEW_UNAPPLIED_CLOSURES } from '../../../../lib/marketClock/tradingViewSession.js'
 import { EXACT_CMP, PINE_CMP, compareRange, compareNarrow, pineGt, pineLt, pineLe } from '../pineCompare.js'
 import { barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, FIRST_BAR_TEST } from './barIndexShift.js'
 
@@ -7796,8 +7797,8 @@ export function tfMergeReads(isos, code, at) {
     const b = at.get(tfBucket(iso, code))
     const next = i + 1 < length ? isos[i + 1] : null
     if (i + 1 < length && !next) continue
-    // ⭐⭐ U-HTF-CALENDAR — a SHORT period that ends before TradingView's exchange calendar begins
-    // closes on the NEXT bar: its last session still reads the period before (`htfClosesOnNextBar`).
+    // ⭐⭐ U-HTF-CALENDAR — a period a later weekday of which TradingView's session never closed
+    // closes on the NEXT bar: this bar still reads the period before (`htfClosesOnNextBar`).
     if (next === null || tfBucket(next, code) !== tfBucket(iso, code)) {
       out[i] = next !== null && b > 0 && htfClosesOnNextBar(iso, code) ? b - 1 : b
     } else if (b > 0) out[i] = b - 1
@@ -7805,41 +7806,35 @@ export function tfMergeReads(isos, code, at) {
   return out
 }
 
-/** ⭐⭐ U-HTF-CALENDAR (2026-11-18) — WHEN TRADINGVIEW'S EXCHANGE CALENDAR BEGINS, ONE AUTHORITY FOR
- *  BOTH LANES (`tfMergeReads` is the run's supply pick and the host's `tf_merge` arm; the Python twin
- *  `ast_interpret.py::HTF_CALENDAR_START` is held equal to these by a rail that reads this file).
+/** ⭐⭐ U-HTF-CALENDAR (2026-11-18) — A PERIOD CLOSES WHERE TRADINGVIEW'S SESSION SAYS IT DOES. One rule for
+ *  both lanes (`tfMergeReads` is the run's supply pick and the host's `tf_merge` arm; the Python twin is
+ *  `ast_interpret.py::htf_closes_on_next_bar`), read off the one authority on TradingView's session,
+ *  `lib/marketClock/tradingViewSession.js` (never restated here): it applies no closure before
+ *  `TRADINGVIEW_CLOSURES_FROM`, nor the ones listed in `TRADINGVIEW_UNAPPLIED_CLOSURES` (11-14 September 2001,
+ *  Hurricane Sandy).
  *
- *  With look-ahead off a completed week or month is shown on the daily chart on its LAST session, read
- *  off the next bar (above). A SHORT period (its last session is not the period's last weekday: a
- *  Friday holiday, Memorial Day on a month's last weekday) that ends before the calendar begins is
- *  shown one bar LATER, on the next period's first session: TradingView did not know that session was
- *  the period's last. Read off TradingView's own weekly and monthly close with look-ahead off (A02 / A05)
- *  on Q-HTF-CAL-1a / 1b (`vw-request-htf-alignment-{spy,qqq}-1d-2026-11-18`, AMEX and NASDAQ alike):
- *  every short period through 23 Dec 1999 on the NEXT bar (SPY 13 weeks and 2 months, QQQ 2 weeks and
- *  1 month), every one from 20 Apr 2000 on its LAST bar (46 weeks and 7 months on each, the Friday
- *  closure of 11 Jun 2004 included), and the week of 10 Sep 2001, whose other sessions closed without
- *  notice, on the NEXT bar on both. No short period falls between 23 Dec 1999 and 20 Apr 2000, so the
- *  calendar's first day is read as 1 Jan 2000 (`tests/test_pine_htf_calendar_switch_year.py`). */
-export const HTF_CALENDAR_START = '2000-01-01'
-/** The last sessions of periods the calendar did not see closing (unscheduled closures). */
-export const HTF_CALENDAR_UNSEEN_CLOSES = Object.freeze(['2001-09-10'])
-
-/** Does the period (`W` or `M`) whose LAST session is `iso` show its close on the NEXT bar? */
+ *  With look-ahead off a completed week or month is shown on the bar that closes it (read off the next bar). When a
+ *  later weekday of that period is one TradingView's session never closed, that bar was not the period's last session
+ *  to TradingView, and it shows the period's close one bar LATER, on the next period's first session. Measured on
+ *  Q-HTF-CAL-1a / 1b (`vw-request-htf-alignment-{spy,qqq}-1d-2026-11-18`, AMEX and NASDAQ alike): every short period
+ *  through 23 Dec 1999 on the NEXT bar (SPY 13 weeks and 2 months, QQQ 2 weeks and 1 month), every one from 20 Apr
+ *  2000 on its LAST bar (46 weeks and 7 months on each, the closure of 11 Jun 2004 included), and the week of 10 Sep
+ *  2001 on the NEXT bar on both (`tests/test_pine_htf_calendar_switch_year.py`). The same session facts answer C49's
+ *  `time()` / `time_close()` anchors (`indicators.js::computePeriodCalendar`). ⛔ A weekday our bars merely lack
+ *  (a gap after 2000) moves nothing: only a day TradingView's session never closed does. */
+const TV_UNAPPLIED_CLOSURE_DAYS = new Set(TRADINGVIEW_UNAPPLIED_CLOSURES.map((e) => e.date))
 export function htfClosesOnNextBar(iso, code) {
   if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false
-  if (!(iso < HTF_CALENDAR_START || HTF_CALENDAR_UNSEEN_CLOSES.includes(iso))) return false
+  if (code !== 'W' && code !== 'M') return false
   const [y, m, d] = iso.split('-').map(Number)
   const z = daysFromCivil(y, m, d)
-  const dow = (zz) => (((zz + 3) % 7) + 7) % 7 + 1               // Mon = 1 … Sun = 7 (`isoWeekKey`)
-  if (code === 'W') return dow(z) !== 5                            // the week's last weekday is Friday
-  if (code === 'M') {
-    // a weekday later in the same month that held no session
-    for (let k = 1; k <= 6; k++) {
-      const [yy, mm] = civilFromDays(z + k)
-      if (yy !== y || mm !== m) return false
-      if (dow(z + k) <= 5) return true
-    }
-    return false
+  const key = tfBucket(iso, code)
+  for (let k = 1; k <= 31; k++) {
+    const [yy, mm, dd] = civilFromDays(z + k)
+    const next = `${String(yy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+    if (tfBucket(next, code) !== key) return false
+    const weekday = ((((z + k + 3) % 7) + 7) % 7) + 1 <= 5             // Mon = 1 ... Fri = 5 (`isoWeekKey`)
+    if (weekday && (next < TRADINGVIEW_CLOSURES_FROM || TV_UNAPPLIED_CLOSURE_DAYS.has(next))) return true
   }
   return false
 }
