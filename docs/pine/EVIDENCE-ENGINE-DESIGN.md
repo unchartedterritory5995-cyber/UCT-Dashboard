@@ -275,7 +275,25 @@ added, restore symbol / resolution / stretch, no `__uct*` globals).
   minutes of the owner's account doing what a person would do by hand, slower than a person.
 - Daily captures run after the close (`newestBarIsForming` derived by `tv_capture.js`).
   `needsLive` rows are never batched.
-- Nothing is saved to the account: every script goes into an unsaved `Create new` buffer.
+- No script is saved to the account: every script goes into an unsaved `Create new` buffer.
+- ⛔ **The rig LAYOUT is saved ONLY through the guarded clean-save step** (owner ruling,
+  delegated to the coordinator, 2026-11-19; it replaces "never Save"). Why: on `01f1AcIj`
+  the editor's add is AUTOSAVED and a widget-API removal or resolution change is NOT, so a
+  probe that outlives an autosave stays on the layout (2026-11-19 01:17Z, the settled L12
+  batch: `UCTPROBE_RS_SEED_RSRATING` on a fresh load, resolution `30`).
+  `Driver.guarded_clean_save`, and only it, presses the layout's Save (`SAVE_SHORTCUT`):
+  1. remove only the studies THIS batch added (by title); any other study on the layout
+     refuses the save and is never touched;
+  2. restore symbol and resolution;
+  3. the guard (`clean_save_refusal`) reads the IN-PAGE state: anything but exactly 0 studies
+     on the original symbol and resolution, NO SAVE (a dirty layout is never saved);
+  4. Save, wait for TradingView's "All changes saved";
+  5. a FRESH load decides (`verify_fresh_load`): only a clean read is CLEAN, else `RIG_DIRTY`.
+  Every attempt is a `clean-save` ledger row (time, the state before, the fresh load after).
+  It runs only with `run --clean-save`, or as the one-shot `repair --remove-title <title>`.
+  Two mitigations stand beside it: each probe is removed the moment its values are read
+  (`remove_added_now`, step `removed-at-capture`), and every batch STARTS with the fresh-load
+  gate that refuses a dirty rig.
 
 ### 4.4 Resumability (unchanged)
 

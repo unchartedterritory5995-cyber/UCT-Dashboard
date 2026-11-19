@@ -111,9 +111,12 @@ export function buildSeriesOption(periods, series, { mode = 'line', valueFormatt
     const vals = [...(s0.values || [])].reverse().map(num)
     return {
       grid: { ...GRID_BASE, left: 4, right: 18, top: 10, bottom: 22, containLabel: true },
-      xAxis: { type: 'value', ...axisBase({
+      // The value axis here is often narrow (the names take most of a small card), so it asks
+      // for few ticks and drops any label that would print over its neighbour. The label keeps
+      // the kit's muted 10px ink: passing `axisLabel` alone to axisBase would replace it.
+      xAxis: { type: 'value', splitNumber: 3, ...axisBase({
         splitLine: { show: true, lineStyle: { color: CHART_INK.grid } },
-        axisLabel: { formatter: (v) => fmt(v) },
+        axisLabel: { ...axisBase().axisLabel, formatter: (v) => fmt(v), hideOverlap: true },
       }) },
       yAxis: { type: 'category', data: cats, ...axisBase() },
       tooltip: {

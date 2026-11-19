@@ -8299,9 +8299,7 @@
    "acronyms": [
     "dpo"
    ]
-  }
- ],
- "held": [
+  },
   {
    "id": "pocket_pivot",
    "name": "Pocket Pivot",
@@ -8311,10 +8309,359 @@
     "pocket pivot point",
     "pocket pivot buy point"
    ],
-   "why": "The authors' own rules page states the volume rule only. Whether the day must itself be an up day, and how a down-volume day is defined, were not confirmed on a page read. UCT's own readers (the Screener's Bar Character, Chart IQ) use 'an up day on more volume than any down day of the prior 10'; a chart formula should be proved equal to that before it is offered under the name.",
-   "describe": "an up day on more volume than any down day of the last 10 days",
-   "since": "2026-11-18"
-  },
+   "placement": "overlay",
+   "params": [],
+   "outputs": [
+    {
+     "key": "pocket_pivot",
+     "label": "Pocket Pivot",
+     "type": "condition",
+     "formula": "close > close[1] && (close - low) / (high - low) >= 0.5 && highest(close < close[1] ? 1 : 0, 10)[1] > 0 && volume > highest(close < close[1] ? volume : 0, 10)[1] && close >= sma(close, 50) && close >= sma(close, 200) && low <= sma(close, 10) && close > close[105]",
+     "says": "true on an up day closing in its top half on more volume than any down day of the prior 10, in an uptrend, not stretched",
+     "tree": {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "&&",
+          "args": [
+           {
+            "type": "op",
+            "name": "&&",
+            "args": [
+             {
+              "type": "op",
+              "name": "&&",
+              "args": [
+               {
+                "type": "op",
+                "name": "&&",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "&&",
+                  "args": [
+                   {
+                    "type": "op",
+                    "name": ">",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     },
+                     {
+                      "type": "offset",
+                      "value": 1,
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "close"
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "op",
+                    "name": ">=",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "/",
+                      "args": [
+                       {
+                        "type": "op",
+                        "name": "-",
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         },
+                         {
+                          "type": "series",
+                          "name": "low"
+                         }
+                        ]
+                       },
+                       {
+                        "type": "op",
+                        "name": "-",
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "high"
+                         },
+                         {
+                          "type": "series",
+                          "name": "low"
+                         }
+                        ]
+                       }
+                      ]
+                     },
+                     {
+                      "type": "num",
+                      "value": 0.5
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                   {
+                    "type": "offset",
+                    "value": 1,
+                    "args": [
+                     {
+                      "type": "call",
+                      "name": "highest",
+                      "args": [
+                       {
+                        "type": "op",
+                        "name": "?:",
+                        "args": [
+                         {
+                          "type": "op",
+                          "name": "<",
+                          "args": [
+                           {
+                            "type": "series",
+                            "name": "close"
+                           },
+                           {
+                            "type": "offset",
+                            "value": 1,
+                            "args": [
+                             {
+                              "type": "series",
+                              "name": "close"
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "type": "num",
+                          "value": 1
+                         },
+                         {
+                          "type": "num",
+                          "value": 0
+                         }
+                        ]
+                       },
+                       {
+                        "type": "num",
+                        "value": 10
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "num",
+                    "value": 0
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "op",
+                "name": ">",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "volume"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "call",
+                    "name": "highest",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "?:",
+                      "args": [
+                       {
+                        "type": "op",
+                        "name": "<",
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         },
+                         {
+                          "type": "offset",
+                          "value": 1,
+                          "args": [
+                           {
+                            "type": "series",
+                            "name": "close"
+                           }
+                          ]
+                         }
+                        ]
+                       },
+                       {
+                        "type": "series",
+                        "name": "volume"
+                       },
+                       {
+                        "type": "num",
+                        "value": 0
+                       }
+                      ]
+                     },
+                     {
+                      "type": "num",
+                      "value": 10
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "op",
+              "name": ">=",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "num",
+                  "value": 50
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": ">=",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "num",
+                "value": 200
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "<=",
+          "args": [
+           {
+            "type": "series",
+            "name": "low"
+           },
+           {
+            "type": "call",
+            "name": "sma",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 10
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "offset",
+          "value": 105,
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {}
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::pocket_pivot",
+    "published": null,
+    "capture": null,
+    "house": {
+     "reader": "api/services/screener/base_catalog.py::_detect_pocket_pivot",
+     "proof": "tests/test_library_pocket_pivot.py",
+     "whose": "UCT's own Pocket Pivot, the one the Screener's base structures use",
+     "what": "Morales and Kacher's volume rule with their stated conditions",
+     "note": "Six tests, every one a fact of the bar: an up day; the close in the top half of the bar's range; at least one down day in the 10 sessions before, and volume above the largest volume of those down days; the close at or above its 50- and 200-day simple averages; the low not above the 10-day average; the close above where it was 105 bars ago. The numbers are the detector's own and are not settings. What the authors leave to judgement (the fundamentals, a constructive base) is not in the detector and is not in this formula."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:2e45632a4bf1b0e3660dabf6b61af09a146ccdb18c3c2a9f2e536bab23aec045",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  }
+ ],
+ "held": [
   {
    "id": "ttm_squeeze",
    "name": "TTM Squeeze",
@@ -8338,6 +8685,48 @@
    ],
    "why": "The Screener has a column of this name. A chart formula for it belongs with the Screener's columns (chart_twins), proved equal to that column; until then there is no checked chart formula.",
    "describe": "the price divided by SPY, as a percent above or below its own 200-day average",
+   "lives_in": {
+    "what": "a Screener column",
+    "where": "the Screener, under Relative Strength, as \"Mansfield RS\""
+   },
+   "since": "2026-11-18"
+  },
+  {
+   "id": "rs_rating",
+   "name": "RS Rating",
+   "aliases": [
+    "rs rating",
+    "uct rs rating",
+    "relative strength rating",
+    "ibd rs rating",
+    "ibd relative strength rating",
+    "rs rating line"
+   ],
+   "why": "A rank of this stock's past return against every other stock, computed nightly from UCT's own bars. A formula on one chart cannot rank a stock against the market, so it is not a formula in this library.",
+   "describe": "this stock's 12-month change divided by SPY's 12-month change",
+   "built_in": {
+    "indicator": "rsRating",
+    "name": "UCT RS Rating",
+    "what": "the stock's RS Rating, 1 to 99, session by session on daily charts"
+   },
+   "since": "2026-11-18"
+  },
+  {
+   "id": "rs_phases",
+   "name": "RS Phases",
+   "aliases": [
+    "rs phases",
+    "uct rs phases",
+    "relative strength phases",
+    "rs phase indicator"
+   ],
+   "why": "UCT's own reading of where the RS line and the market pull apart, computed by the server from the RS line. It is one of UCT's indicators, not a formula in this library.",
+   "describe": "the bars where this stock rises while SPY falls",
+   "built_in": {
+    "indicator": "rsPhases",
+    "name": "UCT RS Phases",
+    "what": "shaded bars where the RS line and the market pull apart"
+   },
    "since": "2026-11-18"
   }
  ]

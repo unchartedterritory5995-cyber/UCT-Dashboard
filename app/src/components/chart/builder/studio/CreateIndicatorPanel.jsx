@@ -17,7 +17,7 @@
 // `onChange` — the chart's own settings writer, exactly as BuilderSheet does.
 
 import { withoutGuardIds } from '../../engine/ast/guardIdText'
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import UIcon from '../../../ui/UIcon'
 import * as engineRegistry from '../../engine/nativeRegistry'
@@ -25,6 +25,8 @@ import { presentationLines, vocabularyLines } from '../authoring'
 import { colorRuleWords, outputNamer } from '../authoring/readback'
 import { helpersOfDefinition, plotColorRule } from '../authoring/colorRules'
 import { converseTurn } from '../authoring/converseClient'
+import { offerableBuiltIns, applyOffer } from '../authoring/builtInOffer'
+import { isDefinitionOffered, subscribeServerDefinitions, serverDefinitionsVersion } from '../../engine/serverCompute'
 import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
 import { claimPreview, releasePreview, installPreview, removePreview } from './previewChannel'
 import { withPendingInputs } from './editPreview'
@@ -239,7 +241,15 @@ export default function CreateIndicatorPanel({
   const editMode = !!open
   const editability = useMemo(() => (open ? conversationEditability(open.def) : null), [open])
   const blocked = !!(editability && !editability.editable)
-  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open,
+  // ⭐ WHAT THIS WINDOW CAN ADD TO THE CHART RIGHT NOW (`builtInOffer.js`, rule 1): the library's
+  // built-in names this build's registry offers, re-read when the live server's list arrives.
+  // Nothing while the chart cannot be written from here.
+  const serverVersion = useSyncExternalStore(subscribeServerDefinitions, serverDefinitionsVersion, () => 0)
+  const builtIns = useMemo(
+    () => offerableBuiltIns({ registry: engineRegistry, isOffered: isDefinitionOffered, canWrite: !!onChange }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- serverVersion is the re-read signal
+    [serverVersion, onChange])
+  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open, builtIns,
     ...(readHistory ? { readHistory } : {}) })
   const { state, transcript, rb, busy, saving, previewDefinition } = conv
   const previewCalcTf = (state && state.requests && state.requests.calculationTimeframe) || null
@@ -347,6 +357,15 @@ export default function CreateIndicatorPanel({
       || (panelRef.current && panelRef.current.contains(active) && !isEditable(active))   // e.g. Send, which disabled itself
     if (lost) panelRef.current?.querySelector('[data-testid="create-indicator-choices"] button:not(:disabled)')?.focus({ preventScroll: true })
   }, [busy, hasChoices, focusComposer])
+
+  /** ⭐ THE TAP ON AN OFFER: asks again whether this build offers it, makes the Indicators
+   *  list's own write, and says what happened. One tap settles the offer either way. */
+  const takeOffer = useCallback((entry) => {
+    if (!entry || !entry.offer || busy || saving) return
+    const out = applyOffer(entry.offer, { settings: settingsRef.current, registry: engineRegistry, isOffered: isDefinitionOffered })
+    if (out.ok && onChange) onChange(out.next)
+    conv.settleOffer(entry.id, out.ok && !onChange ? 'This chart cannot be changed from here, so nothing was added.' : out.line)
+  }, [busy, saving, conv, onChange])
 
   const submit = useCallback(async (text) => {
     const words = String(text ?? message).trim()
@@ -543,6 +562,12 @@ export default function CreateIndicatorPanel({
                       <span className={styles.saidLabel}>What the assistant says it built</span>
                       {t.said}
                     </span>
+                  )}
+                  {/* ⭐ AN OFFER — the one action this answer is about (add one of UCT's own built-in
+                      indicators). One tap; the entry stops offering once it is settled. */}
+                  {t.offer && (
+                    <button type="button" className={styles.chip} data-testid="create-indicator-offer"
+                      disabled={busy || saving} onClick={() => takeOffer(t)}>{t.offer.label}</button>
                   )}
                   {/* P3 UX — the engine's code, for support, behind the member sentence */}
                   {Array.isArray(t.details) && t.details.length > 0 && (

@@ -23,12 +23,33 @@ import argparse
 import collections
 import datetime as dt
 import json
+import os
+import pathlib
 import random
+import re
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
-REPO = "unchartedterritory5995-cyber/UCT-Dashboard"
+
+def _this_repo(fallback: str) -> str:
+    """owner/name of this repository: $GITHUB_REPOSITORY in Actions, else this checkout's origin remote.
+
+    Derived, never hardcoded, so moving the repository to another owner needs no edit here. `fallback`
+    is used only when neither answers (no git, no origin)."""
+    env = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if env:
+        return env
+    try:
+        url = subprocess.run(["git", "-C", str(pathlib.Path(__file__).resolve().parent), "remote", "get-url", "origin"],
+                             capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        url = ""
+    m = re.search(r"github\.com[:/]+([^/\s]+/[^/\s]+?)(?:\.git)?/?$", url)
+    return m.group(1) if m else fallback
+
+
+REPO = _this_repo("unchartedterritory5995-cyber/UCT-Dashboard")
 SAMPLE = 8                 # runs read per workflow before deciding whether to read it in full
 FULL_AT = 3                # a workflow with a sampled run of this many jobs is read in full
 BUDGET_MARGIN = 1000       # requests left for every other session after this run

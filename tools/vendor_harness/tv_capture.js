@@ -93,6 +93,9 @@
   // ── reading helpers ────────────────────────────────────────────────────────
   const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null)
   const tryOr = (fn, dflt) => { try { const v = fn(); return v === undefined ? dflt : v } catch (e) { return dflt } }
+  // A model array / object as a plain JSON copy (no functions, no cycles), or null when the model holds none.
+  const arrOrNull = (x) => (Array.isArray(x) ? tryOr(() => JSON.parse(JSON.stringify(x)), null) : null)
+  const objOrNull = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? tryOr(() => JSON.parse(JSON.stringify(x)), null) : null)
 
   /** A TradingView property node → a plain object. `properties().state()` throws
    *  on some studies ("(e ?? []) is not iterable"), hence the walker
@@ -748,6 +751,24 @@
         styleState: (state && state.styles) || null,
         palettes,
         paletteState: (state && state.palettes) || null,
+        // ⭐ HLINES AND FILLS (objects agent, 2026-11-19, the output-contract unit): an `hline` is a metaInfo BAND and
+        // a `fill` a metaInfo FILLED AREA, neither a plot, so `plots` / `styles` / `styleState` never carried them and
+        // an hline's style, colour and level or a fill's colour could not be graded. Recorded the way plots are: what
+        // the script declares (`metaInfo().bands` / `.filledAreas`), its declared defaults (`metaInfo().defaults.bands`
+        // / `.filledAreasStyle`) and the chart's live values (`properties().state().bands` / `.filledAreasStyle`).
+        // ⛔ null = the model held no such key on this study (a script with no hline / fill), never "unread".
+        bands: arrOrNull(mi.bands),
+        bandDefaults: arrOrNull(mi.defaults && mi.defaults.bands),
+        bandState: arrOrNull(state && state.bands),
+        filledAreas: arrOrNull(mi.filledAreas),
+        filledAreaDefaults: objOrNull(mi.defaults && mi.defaults.filledAreasStyle),
+        filledAreaState: objOrNull(state && state.filledAreasStyle),
+        // ⭐ CANDLES (objects agent, W4-P1): a `plotcandle` / `plotbar` is a metaInfo OHLC PLOT (keyed by its id), its
+        // body, wick and border colours and drawWick / drawBorder in `defaults.ohlcPlots`, the chart's live values in
+        // the state's `ohlcPlots`. Same three layers, same null rule; the keys are unwitnessed until the first capture.
+        ohlcPlots: objOrNull(mi.ohlcPlots),
+        ohlcPlotDefaults: objOrNull(mi.defaults && mi.defaults.ohlcPlots),
+        ohlcPlotState: objOrNull(state && state.ohlcPlots),
         inputs,
       },
       window: {

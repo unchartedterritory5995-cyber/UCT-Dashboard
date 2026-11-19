@@ -14,8 +14,25 @@ on its own loop; `web` mirrors its feed (`api/services/feed_client.py`, `STREAM_
 
 ## The one rule
 
-**Massive allows ONE stocks connection per key. Never two.** A second connect evicts the first (the June
-`max_connections` incident). So the cutover is break-before-make, in both directions:
+**Massive allows TWO stocks connections per key since 2026-11-18** (the $75/month add-on, Kyle at Massive
+support; same key, same `wss://socket.massive.com/stocks`). One more than the limit kicks the OLDEST with
+`max_connections`. ⚠️ Measured that day: a raise applies only to sessions authenticated AFTER it. ingest's
+session predated the add-on, and a test socket kicked it; once ingest had reconnected, a second socket
+coexisted with it. After any change to the Massive plan, reconnect ingest before relying on the new limit.
+
+What the second connection is for, and what it is not:
+- **Faster restarts and reconnects.** A closed session stays counted on Massive's side for 10-30 s. With
+  one connection that blocked the next connect, hence the 45 s `INGEST_CONNECT_GRACE_S` and the 10 s
+  `INGEST_RECONNECT_MIN_GAP_S`. With two, the leftover session fits under the limit, so both come down
+  (values on `stream-ingest`: grace 10 s, min gap 2 s; set 2026-11-18 after 20:00 ET).
+- **NOT two copies of ingest posting at once.** Each ingest sends bars-api its universe minutes under its
+  own epoch, and bars-api restarts its repair on every epoch change: two live senders would flip it every
+  flush. So a restart stays break-before-make, just with a short grace. A hot standby needs its own design.
+- Nothing else may hold a stocks socket on the key (a local dev server with the key would take the spare
+  slot; census 2026-11-18: only stream-ingest does).
+
+Before 2026-11-18 the rule was ONE connection: a second connect evicted the first (the June
+`max_connections` incident). The cutover below was written for that, break-before-make in both directions:
 
 - `web` in remote mode refuses to open the socket (`bar_stream.start_stream`, "invariant 11").
 - `stream-ingest` connects only with `STREAM_INGEST_CONNECT=1`, after `INGEST_CONNECT_GRACE_S` (45 s) from
@@ -23,7 +40,7 @@ on its own loop; `web` mirrors its feed (`api/services/feed_client.py`, `STREAM_
 - A `web` redeploy keeps the OLD pod serving until the new one is healthy. The old pod holds the socket
   until it exits. Do not turn ingest on until the old `web` deployment is gone.
 
-(A second connection, $75 a month from Massive, would allow make-before-break. Not bought as of this writing.)
+(The second connection was bought on 2026-11-18; see the top of this section for what it changes.)
 
 ## Preconditions
 

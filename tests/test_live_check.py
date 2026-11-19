@@ -114,3 +114,19 @@ def test_runs_queue_instead_of_cancelling_each_other():
     # a skipped promotion run cancelled the first real run while cancel-in-progress was true
     doc = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     assert doc["concurrency"]["cancel-in-progress"] is False
+
+
+def test_repo_is_derived_not_hardcoded(monkeypatch):
+    # the repo is moving to an organization: the tool must follow the checkout, not a baked-in owner
+    mod = _tool()
+    monkeypatch.setenv("GITHUB_REPOSITORY", "some-org/UCT-Dashboard")
+    assert mod._this_repo("fallback/x") == "some-org/UCT-Dashboard"
+    monkeypatch.delenv("GITHUB_REPOSITORY")
+    for url, want in [("https://github.com/northstar-quarry/UCT-Dashboard.git", "northstar-quarry/UCT-Dashboard"),
+                      ("git@github.com:northstar-quarry/UCT-Dashboard.git", "northstar-quarry/UCT-Dashboard"),
+                      ("https://github.com/a/b", "a/b"),
+                      ("", "fallback/x"),
+                      ("https://example.com/not/github.git", "fallback/x")]:
+        monkeypatch.setattr(mod.subprocess, "run", lambda *a, url=url, **k: type("R", (), {"stdout": url + "\n"})())
+        assert mod._this_repo("fallback/x") == want, url
+

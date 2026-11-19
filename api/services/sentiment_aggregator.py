@@ -1,7 +1,7 @@
 """Unified social sentiment for a ticker — combines Twitter (curated
-trader feed), Reddit (r/wsb / r/stocks / etc), and Stocktwits.
+trader feed) and Reddit (r/wsb / r/stocks / etc).
 
-Single voice call replaces three. Each source is fetched in parallel
+Single voice call replaces two. Each source is fetched in parallel
 and degrades gracefully if its API is unavailable.
 """
 
@@ -40,7 +40,7 @@ def aggregate(ticker: str) -> dict[str, Any]:
     if not sym:
         return {"error": "ticker required"}
 
-    # Fire all three in parallel
+    # Fire both in parallel
     def _twitter():
         try:
             from api.services import tweet_store
@@ -73,18 +73,9 @@ def aggregate(ticker: str) -> dict[str, Any]:
             _log.warning("reddit aggregate failed: %s", e)
             return None
 
-    def _stocktwits():
-        try:
-            from api.services.stocktwits_sentiment import sentiment_for_ticker
-            return sentiment_for_ticker(sym)
-        except Exception as e:
-            _log.warning("stocktwits aggregate failed: %s", e)
-            return None
-
-    with ThreadPoolExecutor(max_workers=3) as ex:
+    with ThreadPoolExecutor(max_workers=2) as ex:
         futures = {"twitter": ex.submit(_twitter),
-                   "reddit":  ex.submit(_reddit),
-                   "stocktwits": ex.submit(_stocktwits)}
+                   "reddit":  ex.submit(_reddit)}
         results: dict[str, Any] = {}
         for name, fut in futures.items():
             try:
@@ -130,5 +121,4 @@ def aggregate(ticker: str) -> dict[str, Any]:
         "sources_failed": [k for k, v in results.items() if not v or (isinstance(v, dict) and v.get("error"))],
         "twitter": results.get("twitter"),
         "reddit": results.get("reddit"),
-        "stocktwits": results.get("stocktwits"),
     }

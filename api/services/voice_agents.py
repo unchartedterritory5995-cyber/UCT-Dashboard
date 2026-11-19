@@ -410,11 +410,10 @@ def _compass_tool_union() -> set[str]:
     # Phase 3 Sprint 4: new data sources — social sentiment + institutional
     # ownership + short interest + insider buying clusters.
     out.add("reddit_sentiment")          # PRAW r/wsb + r/stocks + etc
-    out.add("stocktwits_sentiment")      # public ST API, user-tagged bull/bear
     out.add("get_institutional_holders") # yfinance 13F aggregate
     out.add("get_short_interest")        # yfinance + FINRA
     out.add("get_insider_clusters")      # OpenInsider scrape
-    out.add("get_social_sentiment")      # one-call aggregate of all three social
+    out.add("get_social_sentiment")      # one-call aggregate of the social sources
     # Phase 3 Sprint 5: proactive layer — Discord relay, morning briefing,
     # voice persona introspection.
     out.add("post_to_discord")

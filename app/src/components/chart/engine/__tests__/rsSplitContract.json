@@ -43,5 +43,18 @@
       "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
       "inputs.themeBenchmark",
       "inputs.fastLength", "inputs.slowLength", "inputs.maType", "intraday", "state"]
+  },
+  "rsMansfield": {
+    "columns": ["mansfield", "dotMansfieldCross"],
+    "inputs": ["benchmark", "customBenchmark", "sectorBenchmark", "themeBenchmark", "mansfieldLength"],
+    "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
+      "benchmark.note", "benchmark.bars", "benchmark.name",
+      "mansfield.value", "mansfield.aboveZero", "mansfield.state", "mansfield.stateLabel",
+      "mansfield.crossBarsAgo", "mansfield.length", "mansfield.lengthText", "mansfield.slope",
+      "mansfield.crossDirection", "mansfield.lastCross", "mansfield.summary",
+      "legend.summary", "legend.blankReason",
+      "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
+      "inputs.themeBenchmark", "inputs.mansfieldLength", "intraday", "state",
+      "evidence.sentence.mansfield"]
   }
 }

@@ -1,8 +1,16 @@
-"""Institutional ownership for a ticker via yfinance.
+"""Institutional ownership for a ticker.
 
-yfinance exposes Yahoo Finance's quarterly institutional holders table
-(top holders from 13F filings) — much simpler than parsing SEC 13F XML
-directly. Returns top N holders + total institutional ownership %.
+Two readers, and one order between them:
+
+  `get_ownership`                        FMP's per-holder Form 13F list first (holders with the
+                                         change against each filer's prior filing); Yahoo Finance's
+                                         holders table only when FMP holds no rows for the ticker.
+                                         The Charts ownership panel route reads it.
+  `get_institutional_holders_13f_first`  the same holders in the voice tool's shape, with the
+                                         institutional percent and the float from the research
+                                         ownership record.
+  `get_institutional_holders`            the Yahoo Finance table on its own: the fallback the two
+                                         above use, never the first read.
 
 For deeper 13F deltas across all filers (who's adding / cutting), see
 the SEC EDGAR full-text search tool (`search_sec_filings`).
@@ -21,7 +29,15 @@ _CACHE = TTLCache()
 _CACHE_TTL = 21600  # 6 hours — 13F data updates quarterly
 
 
+YAHOO_SOURCE = "yfinance (Yahoo Finance 13F aggregate)"
+FMP_13F_SOURCE = "Form 13F filings, through FMP"
+#: How many holders the fallback read asks Yahoo for (one read, shared by both callers).
+_FALLBACK_TOP_N = 15
+
+
 def get_institutional_holders(ticker: str, top_n: int = 10) -> dict[str, Any]:
+    """The Yahoo Finance holders table: the FALLBACK for a ticker FMP holds no 13F holder rows
+    for. Callers reach it through `get_ownership` / `get_institutional_holders_13f_first`."""
     sym = (ticker or "").upper().strip()
     if not sym:
         return {"error": "ticker required"}
@@ -84,10 +100,97 @@ def get_institutional_holders(ticker: str, top_n: int = 10) -> dict[str, Any]:
         "float_shares": float_shares,
         "top_holders_count": len(holders),
         "top_holders": holders,
-        "source": "yfinance (Yahoo Finance 13F aggregate)",
+        "source": YAHOO_SOURCE,
     }
     _CACHE.set(cache_key, dict(result), _CACHE_TTL)
     return result
+
+
+def _insider_held_pct(sym: str):
+    """Percent of the shares held by insiders, or None.
+
+    Form 13F covers institutions only, so the 13F data has no such figure and no other
+    source in the code carries it: this ONE number is still read from Yahoo Finance, on its
+    own, and the answer that carries it says so. Cached like the rest (6h); a failed read is
+    None and is not cached."""
+    ckey = f"insider_pct::{sym}"
+    hit = _CACHE.get(ckey)
+    if hit is not None:
+        return hit.get("pct")
+    try:
+        frac = yf_util.bounded_call(lambda: (yf.Ticker(sym).info or {}).get("heldPercentInsiders"), None)
+        pct = round(float(frac) * 100.0, 2)
+    except Exception as e:  # noqa: BLE001 -- None when the read failed or the field is absent
+        if not isinstance(e, (TypeError, ValueError)):
+            _log.warning("yfinance insider percent failed for %s: %s", sym, e)
+        return None
+    _CACHE.set(ckey, {"pct": pct}, _CACHE_TTL)
+    return pct
+
+
+def _record_percent_and_float(sym: str):
+    """(institutional percent, float shares) from the research ownership record: the Form 13F
+    summary's percent and FMP's float. (None, None) when that record cannot be read."""
+    try:
+        from api.services.research.ownership import get_ownership as research_ownership
+        rec = research_ownership(sym) or {}
+    except Exception as e:  # noqa: BLE001 -- the holders still answer without the two figures
+        _log.warning("research ownership record failed for %s: %s", sym, e)
+        return None, None
+    return ((rec.get("institutional") or {}).get("pct_held"),
+            (rec.get("share_counts") or {}).get("float_shares"))
+
+
+def get_institutional_holders_13f_first(ticker: str, top_n: int = 10) -> dict[str, Any]:
+    """Top institutional holders in the voice tool's shape, read the way the Charts ownership
+    panel route reads them: FMP's per-holder Form 13F list first, the Yahoo Finance table only
+    when FMP holds no rows for the ticker (then the answer is `get_institutional_holders`'s,
+    unchanged).
+
+    From 13F the answer also carries each holder's change against its prior filing and the
+    biggest buyers and sellers. `sources` names where each figure came from: the institutional
+    percent and the float are the research ownership record's; the insider percent has
+    no 13F equivalent and is the one figure still read from Yahoo Finance (`_insider_held_pct`).
+    A figure that could not be read is None, never 0."""
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return {"error": "ticker required"}
+    top_n = max(1, min(25, int(top_n or 10)))
+
+    own = _ownership_result(sym)
+    if own.get("_source") != "fmp":
+        # No 13F holder rows at FMP: the Yahoo answer `get_ownership` just read (cached).
+        out = get_institutional_holders(sym, top_n=_FALLBACK_TOP_N)
+        if "error" in out:
+            return out
+        holders = (out.get("top_holders") or [])[:top_n]
+        return {**out, "top_holders_count": len(holders), "top_holders": holders}
+
+    def _row(h):
+        return {"holder": h.get("holder"), "shares": h.get("shares"), "pct_out": h.get("pct_out"),
+                "value_usd": h.get("value"), "change": h.get("change"),
+                "change_shares": h.get("change_shares")}
+
+    holders = [_row(h) for h in (own.get("top_holders") or [])[:top_n]]
+    inst_pct, float_shares = _record_percent_and_float(sym)
+    return {
+        "ticker": sym,
+        "held_by_institutions_pct": inst_pct,
+        "held_by_insiders_pct": _insider_held_pct(sym),
+        "float_shares": float_shares,
+        "top_holders_count": len(holders),
+        "top_holders": holders,
+        "biggest_buyers": [_row(h) for h in own.get("biggest_buyers") or []],
+        "biggest_sellers": [_row(h) for h in own.get("biggest_sellers") or []],
+        "as_of": own.get("as_of"),
+        "source": FMP_13F_SOURCE,
+        "sources": {
+            "top_holders": FMP_13F_SOURCE,
+            "held_by_institutions_pct": FMP_13F_SOURCE,
+            "float_shares": "FMP shares float",
+            "held_by_insiders_pct": "Yahoo Finance (Form 13F covers institutions only)",
+        },
+    }
 
 
 # ── 13F ownership with position-change deltas (FMP Ultimate first) ──────────
@@ -173,6 +276,13 @@ def _fmp_ownership(ticker):
 def get_ownership(ticker, debug=False):
     """Top institutional holders + position-change deltas (new/added/reduced/
     sold_out) + biggest buyers/sellers. FMP first, yfinance fallback (no deltas)."""
+    result = _ownership_result(ticker, debug=debug)
+    return result if debug else {k: v for k, v in result.items() if k != "_source"}
+
+
+def _ownership_result(ticker, debug=False):
+    """`get_ownership`'s answer WITH `_source` ('fmp' | 'yfinance'), so a caller that must say
+    where the holders came from can. Held in the cache with it; `get_ownership` strips it."""
     ticker = (ticker or "").upper().strip()
     empty = {"ticker": ticker, "inst_pct": None, "inst_holders_count": None, "as_of": None,
              "top_holders": [], "biggest_buyers": [], "biggest_sellers": []}
@@ -203,7 +313,7 @@ def get_ownership(ticker, debug=False):
                   "as_of": as_of, "top_holders": holders[:15],
                   "biggest_buyers": buyers, "biggest_sellers": sellers, "_source": "fmp"}
     else:
-        yf_data = get_institutional_holders(ticker, top_n=15) or {}
+        yf_data = get_institutional_holders(ticker, top_n=_FALLBACK_TOP_N) or {}
         raw = yf_data.get("top_holders") or []
         if ("error" in yf_data) and not raw:
             result = dict(empty, **{"_source": "yfinance"})
@@ -217,8 +327,6 @@ def get_ownership(ticker, debug=False):
                       "as_of": as_of, "top_holders": holders,
                       "biggest_buyers": [], "biggest_sellers": [], "_source": "yfinance"}
 
-    if debug:
-        return result
-    out = {k: v for k, v in result.items() if k != "_source"}
-    _CACHE.set(ckey, dict(out), _OWN_TTL)
-    return out
+    if not debug:
+        _CACHE.set(ckey, dict(result), _OWN_TTL)
+    return result

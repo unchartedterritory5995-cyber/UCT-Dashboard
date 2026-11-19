@@ -108,9 +108,9 @@ def test_a_change_that_brings_no_formula_builds_no_library_indicator(store, conv
 
 def test_a_held_name_refused_is_recorded_by_its_entry_with_no_call(store, conv, clean_env, model):
     client = model([])
-    r = conv.converse("Add a Pocket Pivot", user_id="u1", view=empty_view(0), chart=CHART)
+    r = conv.converse("Add the TTM Squeeze", user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is False and r["gate"] == conv.NAMED_UNCHECKED_GATE and client.calls == []
-    assert learned(last_turn()) == {"named_held": "pocket_pivot"}
+    assert learned(last_turn()) == {"named_held": "ttm_squeeze"}
     assert "held" not in r                                    # the response carries none of the record's own keys
 
 
@@ -184,7 +184,7 @@ def test_the_pieces(conv):
 @pytest.mark.parametrize("key,value", [
     ("asked", "average_kind"), ("asked", "assistant"), ("answered", "cross_meaning"),
     ("remembered", "average_kind,cross_meaning"), ("named_built", "mcginley_dynamic,connors_rsi"),
-    ("named_held", "pocket_pivot"), ("unknown_name", "klinger_volume_oscillator,other"),
+    ("named_held", "ttm_squeeze"), ("unknown_name", "klinger_volume_oscillator,other"),
 ])
 def test_a_real_id_is_kept(key, value):
     assert tel._prop_violation("converse_turn", key, value) is None
@@ -386,12 +386,12 @@ def test_the_builders_own_turns_are_counted_apart_and_never_as_members(store):
 
 def test_held_names_and_library_builds_are_reported_by_entry(store):
     for u in ("m1", "m2", "m3"):
-        turn(u, named_held="pocket_pivot")
+        turn(u, named_held="ttm_squeeze")
         turn(u, named_built="mcginley_dynamic,connors_rsi", built=True)
     turn("m4", named_built="mcginley_dynamic", built=True)
     r = tel.weekly_report(7)
     assert r["names"]["held_and_refused"] == [
-        {"id": "pocket_pivot", "name": "Pocket Pivot", "members": 3, "turns": 3, "builders_turns": 0}]
+        {"id": "ttm_squeeze", "name": "TTM Squeeze", "members": 3, "turns": 3, "builders_turns": 0}]
     assert [(b["id"], b["members"], b["turns"]) for b in r["named_built"]] == [
         ("mcginley_dynamic", 4, 4), ("connors_rsi", 3, 3)]
     assert r["named_built"][0]["name"] == "McGinley Dynamic"
@@ -484,7 +484,7 @@ def test_the_report_in_plain_words_says_what_the_report_says(store):
         turn(u, unknown_name="klinger_volume_oscillator")
     for u in ("m1", "m2", "m3"):
         turn(u, unknown_name="wave_trend_oscillator", built=u != "m3")
-        turn(u, named_held="pocket_pivot")
+        turn(u, named_held="ttm_squeeze")
         turn(u, named_built="mcginley_dynamic", built=True)
     turn("m1", unknown_name="half_trend,other")
     turn("admin-1", admin=True, unknown_name="half_trend")
@@ -506,7 +506,7 @@ def test_the_report_in_plain_words_says_what_the_report_says(store):
         "  Wave Trend Oscillator: 3 members, 3 requests; 1 refused; 2 built unchecked, from the assistant's own recollection",
         "  Half Trend: fewer than 3 members; 1 by the builders' own accounts",
         "  Names in no list: fewer than 3 members",
-        "  Pocket Pivot: 3 members, 3 requests",
+        "  TTM Squeeze: 3 members, 3 requests",
         "  McGinley Dynamic: 3 members, 3 builds",
     ):
         assert line in text.split("\n"), line

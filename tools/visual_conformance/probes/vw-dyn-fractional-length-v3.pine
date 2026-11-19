@@ -1,0 +1,20 @@
+//@version=3
+study("UCTPROBE_VW_DYN_FRACTIONAL_LENGTH_V3", overlay = false)
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (parity2, U-DYN), capture queue rows
+// Q-DYN-3a/b (docs/pine/capture-queue-2026-11-18-parity2.md). NEVER COMPILED ON TRADINGVIEW. The v3 sibling of
+// `vw-dyn-fractional-length.pine`; reference:range-filter-v1 is v3 and passes `25 / 3 - 1` as an sma length.
+length = input(9, "length")
+plot(wma(close, 9 / 2), title = "W01_wma_9div2")
+plot(wma(close, 4), title = "W02_wma_4")
+plot(wma(close, 5), title = "W03_wma_5")
+plot(sma(close, 11 / 2), title = "S01_sma_11div2")
+plot(sma(close, 5), title = "S02_sma_5")
+plot(sma(close, 6), title = "S03_sma_6")
+plot(sma(close, 25 / 3 - 1), title = "S08_sma_25div3m1")
+plot(sma(close, 7), title = "S05_sma_7")
+plot(sma(close, 8), title = "S07_sma_8")
+plot(close[21 / 2 + 1], title = "H01_close_21div2p1")
+plot(close[11], title = "H02_close_11")
+plot(close[12], title = "H03_close_12")
+plot(wma(close, length / 2), title = "W07_wma_input9div2")

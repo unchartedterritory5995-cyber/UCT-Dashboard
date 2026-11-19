@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import json
 
+import pathlib
+
 import pytest
 
 from api.services import definition_concierge as dc
@@ -44,7 +46,9 @@ def create(tree, key="rule", name="My rule"):
 # ═══ 1. the held names ═══════════════════════════════════════════════════════
 
 def test_the_held_names_and_what_each_carries():
-    assert set(HELD) == {"pocket_pivot", "ttm_squeeze", "mansfield_relative_strength"}
+    # Pocket Pivot was held until 2026-11-18; it is a library entry now (tests/test_library_pocket_pivot.py)
+    # and two more are names of UCT's own built-in indicators (tests/test_named_built_ins.py)
+    assert set(HELD) == {"ttm_squeeze", "mansfield_relative_strength", "rs_rating", "rs_phases"}
     built = {e["id"] for e in ni.entries()}
     built_aliases = {a for e in ni.entries() for a in e["aliases"]}
     for e in ni.held_names():
@@ -65,9 +69,9 @@ def test_the_held_names_and_what_each_carries():
 
 
 def test_the_way_forward_is_what_the_member_reads():
-    said = ni.way_forward(HELD["pocket_pivot"])
-    assert said == ("Pocket Pivot isn't in UCT's checked library yet. Describe the rule itself in your own words "
-                    "(for example: an up day on more volume than any down day of the last 10 days) and the assistant "
+    said = ni.way_forward(HELD["ttm_squeeze"])
+    assert said == ("TTM Squeeze isn't in UCT's checked library yet. Describe the rule itself in your own words "
+                    "(for example: the Bollinger Bands inside the Keltner Channels) and the assistant "
                     "will build exactly that, as your own formula.")
     assert "(for example" not in ni.way_forward({"name": "Zeta Wave"})
     for e in ni.held_names():
@@ -75,10 +79,9 @@ def test_the_way_forward_is_what_the_member_reads():
 
 
 @pytest.mark.parametrize("message", [
-    "Add the Pocket Pivot", "add a pocket pivot", "POCKET PIVOT", "show pocket pivots", "add a pocket pivot marker in a lower pane",
-    "Add the TTM Squeeze", "ttm squeeze please", "TTM squeeze with dots on the zero line",
-    "Add the Mansfield Relative Strength", "mansfield relative performance",
-    "pocket pivot on NVDA", "Add the Pocket Pivot with a 50 day average", "TTM Squeeze 20 2 1.5",
+    "Add the TTM Squeeze", "add a ttm squeeze", "TTM SQUEEZE", "add a ttm squeeze marker in a lower pane",
+    "ttm squeeze please", "TTM squeeze with dots on the zero line",
+    "ttm squeeze on NVDA", "Add the TTM Squeeze with a 50 day average", "TTM Squeeze 20 2 1.5",
 ])
 def test_a_held_name_alone_is_refused_by_name_before_any_call(conv, clean_env, model, message):
     client = model([])
@@ -88,12 +91,30 @@ def test_a_held_name_alone_is_refused_by_name_before_any_call(conv, clean_env, m
     assert "(for example: " in r["reason"]
 
 
+@pytest.mark.parametrize("message", ["Add the Mansfield Relative Strength", "mansfield relative performance"])
+def test_a_held_name_that_lives_elsewhere_says_where(conv, clean_env, model, message):
+    """Mansfield Relative Strength is a Screener column today and no built-in draws it on a chart:
+    the answer says where the number is, and still offers the member's own words."""
+    client = model([])
+    r = conv.converse(message, user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is False and r["gate"] == UNCHECKED and client.calls == [], r
+    assert r["reason"] == ni.way_forward(HELD["mansfield_relative_strength"])
+    assert r["reason"].startswith('Mansfield Relative Strength is a Screener column in UCT today (the Screener, under '
+                                  'Relative Strength, as "Mansfield RS"), not a chart line yet.')
+    assert "in your own words (for example: " in r["reason"] and len(r["reason"]) < 400
+    # the place it names is the Screener's own label for that column and its group
+    filters = (pathlib.Path(__file__).resolve().parents[1] / "api" / "services" / "screener" / "filters.py").read_text(encoding="utf-8")
+    assert '_open_range("mansfield", "Mansfield RS", "relative_strength", "mansfield"' in filters
+    assert '"relative_strength": {"label": "Relative Strength"' in filters
+
+
 def test_every_held_alias_is_refused_however_it_is_capitalised(conv):
     for e in ni.held_names():
         for alias in e["aliases"]:
             for words in (alias, alias.title(), alias.upper()):
                 got = conv.understand_turn(f"add the {words}", CHART)
-                assert got["refusal"] is not None and got["refusal"]["gate"] == UNCHECKED, words
+                gate = conv.NAMED_BUILT_IN_GATE if ni.built_in(e) is not None else UNCHECKED
+                assert got["refusal"] is not None and got["refusal"]["gate"] == gate, words
                 assert got["refusal"]["reason"] == ni.way_forward(e), words
 
 
@@ -132,29 +153,29 @@ def test_a_library_name_never_takes_a_phrase_that_already_means_something(conv, 
 
 def test_a_question_about_a_held_name_is_discussed_and_cannot_come_back_as_a_change(conv, clean_env, model):
     client = model([emits(env(0, [], disposition="answer", reply="A volume signature near a moving average."))])
-    r = conv.converse("What is the Pocket Pivot?", user_id="u1", view=empty_view(0), chart=CHART)
+    r = conv.converse("What is the TTM Squeeze?", user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is True and r["disposition"] == "answer" and len(client.calls) == 1
     sent = json.dumps(client.calls[0]["messages"][0]["content"])
     assert "NOT CHECKED YET" in sent
     model([emits(env(0, [create(VOLUME_RULE)], disposition="change", reply="Done."))])
-    r = conv.converse("What is the Pocket Pivot?", user_id="u2", view=empty_view(0), chart=CHART)
+    r = conv.converse("What is the TTM Squeeze?", user_id="u2", view=empty_view(0), chart=CHART)
     assert r["ok"] is False and r.get("backstop") is True and "envelope" not in r
-    assert r["reason"] == ni.way_forward(HELD["pocket_pivot"])
+    assert r["reason"] == ni.way_forward(HELD["ttm_squeeze"])
 
 
 # ═══ 2. the name plus the member's own description ═══════════════════════════
 
 DESCRIBED = [
     "Mansfield relative strength versus SPY over 52 weeks",
-    "Pocket Pivot: an up day on more volume than any down day of the last 10 days",
+    "TTM Squeeze: the bollinger bands inside the keltner channels over 20 bars",
     "ttm squeeze: bollinger bands inside the keltner channels",
-    "pocket pivot when volume is above the highest down day volume in 10 days",
+    "ttm squeeze when volume is above the highest volume in 10 days",
     "mansfield relative strength, the price divided by SPY as a percent above its 200-day average",
 ]
 NOT_DESCRIBED = [
-    "Add the Pocket Pivot", "add a pocket pivot marker in a lower pane", "pocket pivot on NVDA",
-    "show me the ttm squeeze please", "a pocket pivot scanner", "pocket pivot in green",
-    "Add the Pocket Pivot with a 50 day average",       # a number and no thing a formula reads
+    "Add the TTM Squeeze", "add a ttm squeeze marker in a lower pane", "ttm squeeze on NVDA",
+    "show me the ttm squeeze please", "a ttm squeeze scanner", "ttm squeeze in green",
+    "Add the TTM Squeeze with a 50 day average",        # a number and no thing a formula reads
     "TTM Squeeze 20 2 1.5",                             # numbers and no rule
     "TTM squeeze with dots on the zero line",
 ]
@@ -178,26 +199,26 @@ def test_the_name_without_a_rule_does_not(conv, message):
 
 
 def test_the_test_of_a_description_itself(conv):
-    assert conv.described_in_own_words("pocket pivot when volume is above the highest volume in 10 days", CHART)
-    assert not conv.described_in_own_words("pocket pivot", CHART)
+    assert conv.described_in_own_words("ttm squeeze when volume is above the highest volume in 10 days", CHART)
+    assert not conv.described_in_own_words("ttm squeeze", CHART)
     assert not conv.described_in_own_words("  ", CHART)
     # a ticker counts as a thing a formula reads; the chart's own symbol does not
     assert conv.described_in_own_words("mansfield relative strength versus SPY over 52 weeks", CHART)
     assert not conv.described_in_own_words("mansfield relative strength versus NVDA over 52 weeks", CHART)
     # one thing read and nothing else is not a rule
-    assert not conv.described_in_own_words("pocket pivot on volume", CHART)
+    assert not conv.described_in_own_words("ttm squeeze on volume", CHART)
     # the words of the NAME itself are never counted as the description
     assert not conv.described_in_own_words("mansfield relative strength mansfield relative performance", CHART)
 
 
 def test_built_from_the_members_words_and_labelled_as_their_own(conv, clean_env, model):
     client = model([emits(env(0, [create(VOLUME_RULE, "pp", "Volume above the 10 day high")], reply="Built your rule."))])
-    r = conv.converse("pocket pivot when volume is above the highest volume in 10 days", user_id="u1",
+    r = conv.converse("ttm squeeze when volume is above the highest volume in 10 days", user_id="u1",
                       view=empty_view(0), chart=CHART)
     assert r["ok"] is True and r["attempts"] == 1 and len(client.calls) == 1
     (note,) = r["envelope"]["assumptions"]
     assert note == {"output": "pp", "text": "Built from your own description, as your own formula. "
-                                            "UCT has not checked a formula for Pocket Pivot."}
+                                            "UCT has not checked a formula for TTM Squeeze."}
     sent = json.dumps(client.calls[0]["messages"][0]["content"])
     assert "UCT has NO checked formula for this name" in sent and "Build ONLY the rule the member's own words" in sent
     assert "NOT CHECKED YET" not in sent                                  # the authoring rule, not the discussion one
@@ -207,12 +228,12 @@ def test_built_from_the_members_words_and_labelled_as_their_own(conv, clean_env,
 def test_own_words_notes_directly(conv):
     patch = env(0, [create(VOLUME_RULE, "a"), {"op": "add_output", "key": "b", "tree": VOLUME_RULE},
                     {"op": "rename_definition", "name": "X"}])
-    notes = conv.own_words_notes(patch, [HELD["pocket_pivot"]])
-    assert [n["output"] for n in notes] == ["a", "b"] and all("Pocket Pivot" in n["text"] for n in notes)
-    both = conv.own_words_notes(patch, [HELD["pocket_pivot"], HELD["ttm_squeeze"]])
-    assert "for Pocket Pivot or TTM Squeeze." in both[0]["text"] and len(both[0]["text"]) <= ni.SENTENCE_MAX
+    notes = conv.own_words_notes(patch, [HELD["ttm_squeeze"]])
+    assert [n["output"] for n in notes] == ["a", "b"] and all("TTM Squeeze" in n["text"] for n in notes)
+    both = conv.own_words_notes(patch, [HELD["ttm_squeeze"], HELD["mansfield_relative_strength"]])
+    assert "for TTM Squeeze or Mansfield Relative Strength." in both[0]["text"] and len(both[0]["text"]) <= ni.SENTENCE_MAX
     assert conv.own_words_notes(patch, []) == []
-    assert conv.own_words_notes(env(0, [{"op": "rename_definition", "name": "X"}]), [HELD["pocket_pivot"]]) == []
+    assert conv.own_words_notes(env(0, [{"op": "rename_definition", "name": "X"}]), [HELD["ttm_squeeze"]]) == []
 
 
 def test_a_checked_name_beside_a_held_one_keeps_its_gate(conv, clean_env, model):
@@ -222,7 +243,7 @@ def test_a_checked_name_beside_a_held_one_keeps_its_gate(conv, clean_env, model)
     patch = env(0, [{"op": "create", "name": "Mine", "placement": "pane", "outputs": [
         {"key": "pp", "tree": VOLUME_RULE}, {"key": "md", "tree": mcg["outputs"][0]["tree"]}]}])
     model([emits(patch)])
-    r = conv.converse("the McGinley Dynamic, and a pocket pivot when volume is above the highest volume in 10 days",
+    r = conv.converse("the McGinley Dynamic, and a ttm squeeze when volume is above the highest volume in 10 days",
                       user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is True, r
     texts = [a["text"] for a in r["envelope"]["assumptions"]]
@@ -230,7 +251,7 @@ def test_a_checked_name_beside_a_held_one_keeps_its_gate(conv, clean_env, model)
     assert any(t.startswith("Built to UCT's checked formula for McGinley Dynamic") for t in texts)
     wrong = env(0, [create(VOLUME_RULE, "pp")])                           # the McGinley Dynamic left out
     model([emits(wrong), emits(wrong)])
-    r = conv.converse("the McGinley Dynamic, and a pocket pivot when volume is above the highest volume in 10 days",
+    r = conv.converse("the McGinley Dynamic, and a ttm squeeze when volume is above the highest volume in 10 days",
                       user_id="u2", view=empty_view(0), chart=CHART)
     assert r["ok"] is False and r["gate"] == "named:formula"
 
