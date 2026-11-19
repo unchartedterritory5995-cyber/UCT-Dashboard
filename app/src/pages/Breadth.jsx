@@ -1399,7 +1399,7 @@ export default function Breadth() {
                   c => drillTarget(row, c, liveBreadth),
                 )?.key ?? null
                 return (
-                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''}`}>
+                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${row._live ? styles.liveRow : ''}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>
                     {row._live
                       ? (
