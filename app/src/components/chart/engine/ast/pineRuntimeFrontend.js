@@ -16579,7 +16579,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         for (const c of locals) carried2Main.push({ ...c, site: i })
         c2base += locals.length
       }
-      for (const fn of functions) delete fn.carried2Locals
+      for (const fn of functions) {
+        // ⭐ S14 fix 1 — the count rides the function record, as `carriedCount` does: the IR's check reads a
+        // body's frame-relative `carried2` site against it
+        fn.carried2Count = (fn.carried2Locals || []).length
+        delete fn.carried2Locals
+      }
     }
 
     if (history.length > MAX_HISTORY_SLOTS) {
@@ -16629,6 +16634,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         effects: f.effects, at: f.at,
         historyCount: f.historyCount || 0, historySlots: f.historySlots || [],
         carriedCount: f.carriedCount || 0,
+        carried2Count: f.carried2Count || 0,
         windowCount: f.windowCount || 0,
       })),
       callSites,

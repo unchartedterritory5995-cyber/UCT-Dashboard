@@ -267,9 +267,9 @@ const DOORS_AGREE_V12 = {
   unreadTop: ['OK', 'OK', 'OK', 'OK'],
   unreadFn: ['OK', 'OK', 'OK', 'OK'],
   unreadIfStmt: ['OK', 'OK', 'OK', 'OK'],
-  // ⭐ S14 (NUMBER PENDING): the runtime door's answer here is the uncalled-helper IR defect ("history over a
-  // variable must name the HISTORY slot"), an exception, so it reads `runtime:lower` now, not `runtime:statement`
-  uncalledFn: ['OK', 'OK', 'runtime:lower', 'OK'],
+  // ⭐ S14 fix 1 (NUMBER PENDING): the runtime door answered the uncalled-helper IR defect here (`runtime:statement`,
+  // then S14's `runtime:lower`); a function nothing calls is checked in its own frame now, and the door builds
+  uncalledFn: ['OK', 'OK', 'OK', 'OK'],
   fnName: ['pine:state', 'OK', 'OK', 'OK'],
   fnNameBlockFn: ['pine:state', 'OK', 'OK', 'OK'],
   fnNameUnread: ['OK', 'OK', 'OK', 'OK'],
@@ -368,10 +368,10 @@ describe('⭐⭐ engine 50 (review PR #1141 finding 1) — a variable stays decl
   const NAMESPACE = {
     varThenFnShadow: [['x = close', 'x(a) => a * 2', 'f(s) =>', '    x = nz(x[1]) + s', '    x', 'plot(f(close) + x(1))'], ['pine:state', 'pine:state', 'OK', 'pine:state']],
     varThenFnShadowBlock: [['x = close', 'x(a) => a * 2', 'f(s) =>', '    x = if s > 100', '        nz(x[1]) + 1', '    else', '        0.0', '    x', 'plot(f(close) + x(1))'], ['OK', 'OK', 'OK', 'OK']],
-    // ⭐ S14 (NUMBER PENDING): the two uncalled rows' runtime door hits the uncalled-helper IR defect, an exception,
-    // so it reads `runtime:lower` now, not `runtime:statement`
-    varThenFnUncalled: [['x = close', 'x(a) => a * 2', 'f(s) =>', '    x = nz(x[1]) + s', '    x', 'plot(close)'], ['OK', 'OK', 'runtime:lower', 'OK']],
-    varThenNoArgFnShadowBlockUncalled: [['x = close', 'x() => 2.0', 'f(s) =>', '    x = if s > 100', '        nz(x[1]) + 1', '    else', '        0.0', '    x', 'plot(close + x())'], ['OK', 'OK', 'runtime:lower', 'OK']],
+    // ⭐ S14 fix 1 (NUMBER PENDING): the two uncalled rows' runtime door hit the uncalled-helper IR defect (S14 read it
+    // `runtime:lower`); a function nothing calls is checked in its own frame now, and the door builds
+    varThenFnUncalled: [['x = close', 'x(a) => a * 2', 'f(s) =>', '    x = nz(x[1]) + s', '    x', 'plot(close)'], ['OK', 'OK', 'OK', 'OK']],
+    varThenNoArgFnShadowBlockUncalled: [['x = close', 'x() => 2.0', 'f(s) =>', '    x = if s > 100', '        nz(x[1]) + 1', '    else', '        0.0', '    x', 'plot(close + x())'], ['OK', 'OK', 'OK', 'OK']],
     // inside the body of the function NAMED `x`: the global variable beneath it is still declared
     varThenFnBodyShadow: [['x = close', 'x(a) =>', '    x = nz(x[1]) + a', '    x', 'plot(x(1))'], ['pine:state', 'OK', 'OK', 'OK']],
     // the same beneath an OVERLOADED function (its second definition is an opaque `isFunction`
