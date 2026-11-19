@@ -1790,8 +1790,15 @@ def own_words_notes(envelope: Mapping[str, Any], own_words: Any) -> List[Dict[st
     described the rule: it is THEIR formula. UCT has checked none under that name."""
     if not own_words:
         return []
-    names = " or ".join(e["name"] for e in own_words)
-    text = f"Built from your own description, as your own formula. UCT has not checked a formula for {names}."
+    # (a name that is one of UCT's own BUILT-INS: the built-in exists and is on the list; what was built here is
+    # the member's own version, and it is not that built-in)
+    own = [e for e in own_words if named_indicators.built_in(e) is None]
+    built = [named_indicators.built_in(e)["name"] for e in own_words if named_indicators.built_in(e) is not None]
+    text = "Built from your own description, as your own formula."
+    if own:
+        text += f" UCT has not checked a formula for {' or '.join(e['name'] for e in own)}."
+    if built:
+        text += f" UCT's own {' and '.join(built)} {'is' if len(built) == 1 else 'are'} in the Indicators list."
     return [{"output": key, "text": text[:named_indicators.SENTENCE_MAX]}
             for key, _tree in _patch_outputs(envelope) if isinstance(key, str)]
 

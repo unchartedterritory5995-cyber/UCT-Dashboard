@@ -44,11 +44,17 @@ def ask(conv, words, **kw):
 
 def test_the_built_in_names_and_what_each_carries():
     # (the fourth is ONE SETTING of a built-in, with `setting` beside the three: tests/test_vwap_bands_offer.py)
-    assert [e["id"] for e in ni.built_ins()] == ["mansfield_relative_strength", "rs_rating", "rs_phases", "session_vwap_bands"]
+    # (and, since 2026-11-19, every built-in on the Indicators list that no checked formula or grammar function
+    # answers by name: `builtin_*`, tests/test_built_in_names_census.py)
+    ids = [e["id"] for e in ni.built_ins()]
+    assert [i for i in ids if not i.startswith("builtin_")] == ["mansfield_relative_strength", "rs_rating", "rs_phases",
+                                                                "session_vwap_bands"]
+    assert len(ids) == len(set(ids)) and len([i for i in ids if i.startswith("builtin_")]) >= 10
     assert [e["id"] for e in ni.built_ins() if ni.built_in_setting(e) is not None] == ["session_vwap_bands"]
     for e in ni.built_ins():
         b = ni.built_in(e)
-        assert set(b) == {"indicator", "name", "what"} | ({"setting"} if ni.built_in_setting(e) is not None else set())
+        assert {"indicator", "name", "what"} <= set(b) <= {"indicator", "name", "what", "setting", "own_version"}, e["id"]
+        assert ("setting" in b) == (ni.built_in_setting(e) is not None) and b.get("own_version", True) is True
         assert not ni.passes(e) and e in ni.held_names()             # never a formula the assistant is handed
         assert not ({"outputs", "formula", "tree", "params", "evidence"} & set(e))
         assert len(ni.built_in_answer(e)) <= ni.SENTENCE_MAX and len(ni.way_forward(e)) <= ni.SENTENCE_MAX
@@ -68,9 +74,13 @@ def test_the_indicator_and_its_name_are_the_native_registrys_own():
         b = ni.built_in(e)
         blocks = re.findall(r"\n  id: '" + re.escape(b["indicator"]) + r"',\n(.{0,900}?)\n    name: '([^']+)'", registry, re.S)
         # (a definition written with the registry's `nativeDef(id, fn, {name: ...})` helper)
-        blocks += re.findall(r"nativeDef\('" + re.escape(b["indicator"]) + r"', '[^']+',(\s*)\{\s*name: '([^']+)'", registry)
+        # (comment lines may sit between the helper's arguments and the object that carries the name)
+        blocks += re.findall(r"nativeDef\('" + re.escape(b["indicator"]) + r"', '[^']+',((?:\s*//[^\n]*)*\s*)\{\s*name: '([^']+)'",
+                             registry)
         assert blocks, f"no definition with id {b['indicator']} in the native registry"
-        assert {name for _between, name in blocks} == {b["name"]}, (b["indicator"], blocks)
+        # (one id may be DECLARED twice, an older and a newer version of the definition, each with its own name:
+        # which one the registry SERVES is held where the registry runs, `builtInNames.test.js`)
+        assert b["name"] in {name for _between, name in blocks}, (b["indicator"], blocks)
     # CONTROL: the reader can miss
     assert not re.findall(r"\n  id: 'rsNoSuchThing',\n(.{0,900}?)\n    name: '([^']+)'", registry, re.S)
 
@@ -183,8 +193,11 @@ def test_only_a_built_in_name_is_ever_offered(conv, clean_env, model):
     r = ask(conv, "Add the Mansfield Relative Strength", accepts=OFFERS, addable=["rsMansfield"])
     assert r["ok"] is True and r["offer"]["indicator"] == "rsMansfield"
     assert r["offer"]["label"] == "Add UCT Mansfield RS to this chart"
-    assert r["reply"] == ("Mansfield Relative Strength is one of UCT's own indicators, UCT Mansfield RS: the RS line as a "
-                          "percent above or below its own long average, around a zero line. It is not a formula to build here.")
+    # (2026-11-19: a formula can hold a member's own version of it, so the answer says so:
+    # tests/test_built_in_names_census.py, "build your own is said exactly where the door takes one")
+    assert r["reply"] == ("Mansfield Relative Strength (UCT Mansfield RS) is one of UCT's own indicators: the RS line as "
+                          "a percent above or below its own long average, around a zero line. Add it with one tap, or "
+                          "describe what you'd change and I'll build your own.")
 
 
 def test_a_question_about_the_name_is_discussed_not_offered(conv, clean_env, model):

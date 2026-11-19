@@ -141,7 +141,10 @@ export function applyOffer(offer, { settings, registry, isOffered, tf } = {}) {
     if (there) return { ok: false, line: `${live.name} is already on this chart.` }
     const next = addInstance(settings, live.indicator, registry)
     if (next === settings) return { ok: false, line: `${live.name} could not be added to this chart.` }
-    return { ok: true, next: { ...next, preset: 'custom' }, line: `Added ${live.name} to this chart.` }
+    // (a built-in that draws only on some timeframes, Historical Volatility on daily and up, say: the line says so
+    // when this chart is not on one, by the chart's own eligibility rule, instead of an add that shows nothing)
+    const added = onChart(next, live.indicator).pop() || null
+    return { ok: true, next: { ...next, preset: 'custom' }, line: `Added ${live.name} to this chart.${whereItDraws(live.name, added, registry, tf)}` }
   }
 
   // ⭐ rule 4: the built-in WITH the setting, or nothing

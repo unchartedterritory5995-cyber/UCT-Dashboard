@@ -20,7 +20,12 @@ const instancesOf = (cs, defId) => (cs.indicatorInstances || []).filter((i) => i
 
 describe('the library names that are UCT\'s own built-in indicators', () => {
   it('each names a definition of this registry, by the registry\'s own name', () => {
-    expect(BUILT_IN_NAMES.map((b) => b.id)).toEqual(['mansfield_relative_strength', 'rs_rating', 'rs_phases', 'session_vwap_bands'])
+    // the four named by hand, and (2026-11-19) one `builtin_*` row for every built-in on the Indicators list that
+    // no checked formula or grammar function answers by name (the census is `tests/test_built_in_names_census.py`)
+    const ids = BUILT_IN_NAMES.map((b) => b.id)
+    expect(ids.filter((id) => !id.startsWith('builtin_'))).toEqual(['mansfield_relative_strength', 'rs_rating', 'rs_phases', 'session_vwap_bands'])
+    expect(ids.filter((id) => id.startsWith('builtin_')).length).toBeGreaterThanOrEqual(10)
+    expect(new Set(ids).size).toBe(ids.length)
     for (const b of BUILT_IN_NAMES) {
       const def = registry.getDefinition(b.indicator)
       expect(def, b.indicator).toBeTruthy()
@@ -34,8 +39,13 @@ describe('rule 1: only what this build can add is ever offered', () => {
     const asked = []
     const got = offerableBuiltIns({ registry, isOffered: (def) => { asked.push(def.id); return def.id === 'rsRating' } })
     expect(got).toEqual(['rsRating'])
-    expect(asked.sort()).toEqual(['rsMansfield', 'rsPhases', 'rsRating', 'vwap'])
-    expect(offerableBuiltIns({ registry, isOffered: yes })).toEqual(['rsMansfield', 'rsRating', 'rsPhases', 'vwap'])
+    // every indicator the library names is asked about, each once, in the library's order
+    const named = BUILT_IN_NAMES.map((b) => b.indicator).filter((id, i, all) => all.indexOf(id) === i)
+    expect(named).toEqual(expect.arrayContaining(['rsMansfield', 'rsRating', 'rsPhases', 'vwap', 'atrBands', 'historicalVolatility']))
+    expect([...asked].sort()).toEqual([...named].sort())
+    expect(offerableBuiltIns({ registry, isOffered: yes })).toEqual(named)
+    // ⛔ and the door's bound on how many it reads holds them all (a list cut short would drop offers silently)
+    expect(named.length).toBeLessThanOrEqual(BUILT_INS_LIMITS.max)
   })
 
   it('lists nothing when none is offered, when the chart cannot be written, or with no registry', () => {
@@ -246,8 +256,18 @@ describe('rule 4: a setting\'s offer is the built-in with that setting, or it is
     // with no timeframe handed in, nothing is said about one
     expect(applyOffer(BANDS2, { settings: mergeChartSettings({}), registry, isOffered: yes }).line)
       .toBe('Added Session VWAP to this chart with Std dev bands: ±1σ, ±2σ.')
-    // a plain built-in's line is what it was, whatever the timeframe
-    expect(applyOffer(RATING, { settings: mergeChartSettings({}), registry, isOffered: yes, tf: '5' }).line).toBe('Added UCT RS Rating to this chart.')
+    // a plain built-in says the same, by the same rule: Historical Volatility draws on daily charts and up
+    const HV = { kind: OFFER_ADD_BUILT_IN, indicator: 'historicalVolatility' }
+    expect(registry.getDefinition('historicalVolatility').meta.timeframes).toEqual(['D', 'W', 'M'])
+    expect(applyOffer(HV, { settings: mergeChartSettings({}), registry, isOffered: yes, tf: '5' }).line)
+      .toBe('Added Historical Volatility to this chart. Historical Volatility does not draw on this timeframe: it will show when the chart is on one it does.')
+    expect(applyOffer(HV, { settings: mergeChartSettings({}), registry, isOffered: yes, tf: 'D' }).line).toBe('Added Historical Volatility to this chart.')
+    expect(applyOffer(HV, { settings: mergeChartSettings({}), registry, isOffered: yes }).line).toBe('Added Historical Volatility to this chart.')
+    // and one with no timeframe rule says nothing about one, on any chart
+    const BANDS = { kind: OFFER_ADD_BUILT_IN, indicator: 'atrBands' }
+    for (const tf of ['1', '5', 'D', 'W']) {
+      expect(applyOffer(BANDS, { settings: mergeChartSettings({}), registry, isOffered: yes, tf }).line).toBe('Added ATR Bands to this chart.')
+    }
   })
 
   it('a registry that does not take the asked value: nothing is written, and the line says so', () => {

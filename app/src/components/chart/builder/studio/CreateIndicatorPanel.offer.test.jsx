@@ -6,6 +6,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import * as registry from '../../engine/nativeRegistry'
 import { mergeChartSettings } from '../../chartDefaults'
 import { _resetSessions, createKey } from '../authoring/conversationSessions'
+import { BUILT_IN_NAMES } from '../authoring/checkedLibrary'
 
 // rsRating is `requiresServer`: offered only once the live server lists it. The switch below
 // stands in for that answer, so both sides of rule 1 are exercised.
@@ -50,7 +51,10 @@ describe('an answer that offers to add one of UCT\'s own built-in indicators', (
   it('the window tells the door what it can add; the answer shows one button; one tap adds it and says so', async () => {
     const { spy, writes } = mount()
     await say('Add the RS Rating')
-    expect(spy.mock.calls[0][0].gateCtx.builtIns).toEqual(['rsMansfield', 'rsRating', 'rsPhases', 'vwap'])
+    // every built-in the library names (this build offers them all: the switch above says so), in its order
+    expect(spy.mock.calls[0][0].gateCtx.builtIns).toEqual(
+      BUILT_IN_NAMES.map((b) => b.indicator).filter((id, i, all) => all.indexOf(id) === i))
+    expect(spy.mock.calls[0][0].gateCtx.builtIns).toEqual(expect.arrayContaining(['rsMansfield', 'rsRating', 'rsPhases', 'vwap', 'atrBands']))
     expect(lastUct().textContent).toContain('RS Rating is one of UCT\'s own indicators')
     expect(offerButton().textContent).toBe('Add UCT RS Rating to this chart')
     expect(writes).toHaveLength(0)                                          // the answer itself changes nothing

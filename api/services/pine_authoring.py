@@ -151,7 +151,29 @@ THE RULES
 6. Stay inside the limits listed below. A script is at most a few hundred lines.
 7. If you are sent an engine refusal for a script you wrote, fix exactly what it names and return the whole corrected script. Do not change what the member asked for to make the refusal go away; if the engine cannot do it, say so.
 8. When the request comes with RECIPES, start from the closest one: each is a whole script this engine runs as written and whose numbers were checked. Keep its structure, change what the request needs (the numbers, the condition, the colours, the title), and never import a habit from another platform that the recipe does not use.
-9. Say what the script MEANS by a term that has more than one reading (which pivot rule, which window, which average) in `reply`, in plain words."""
+9. Say what the script MEANS by a term that has more than one reading (which pivot rule, which window, which average) in `reply`, in plain words.
+10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function: do not re-derive its maths by hand. {own_functions}When this document lists none, write the published calculation yourself and say in `reply` which definition you used."""
+
+#: Pine's own functions for well-known indicators, as candidates for rule 10's examples. ⛔ ONLY the ones
+#: the generated reference lists as served are ever named to the assistant (`_own_functions_said`): naming a
+#: function this engine refuses would teach a script the engine refuses.
+OWN_FUNCTION_CANDIDATES = ("ta.supertrend", "ta.sar", "ta.kc", "ta.kcw", "ta.bb", "ta.bbw", "ta.accdist", "ta.vwap",
+                           "ta.cmo", "ta.tsi", "ta.mfi", "ta.cci", "ta.obv", "ta.rsi", "ta.macd", "ta.atr", "ta.stoch",
+                           "ta.dmi", "ta.wpr", "ta.hma", "ta.linreg")
+
+
+def served_names(ref: Optional[Mapping[str, Any]] = None) -> frozenset:
+    """The value functions and variables the document lists as served: the SAME rows it prints under
+    "VALUE FUNCTIONS AND VARIABLES" (`ref["values"]`), so rule 10 can never name one the document does not."""
+    ref = reference() if ref is None else ref
+    return frozenset(v["name"] for v in ref.get("values") or [] if isinstance(v, Mapping) and isinstance(v.get("name"), str))
+
+
+def _own_functions_said(ref: Optional[Mapping[str, Any]] = None) -> str:
+    """Rule 10's examples: the candidates this engine serves, or '' when it serves none of them."""
+    served = served_names(ref)
+    said = [f"`{name}`" for name in OWN_FUNCTION_CANDIDATES if name in served]
+    return f"The ones listed here: {', '.join(said)}. " if said else ""
 
 
 @lru_cache(maxsize=1)
@@ -197,6 +219,11 @@ def _lines(title: str, rows: List[str]) -> List[str]:
     return [f"## {title}", *rows, ""] if rows else []
 
 
+def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
+    """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
+    return CONTRACT.replace("{own_functions}", _own_functions_said(ref))
+
+
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:
     """The assistant's instructions for a script turn. Deterministic: the same reference gives the
     same text (it is sent as a cached system block)."""
@@ -204,7 +231,7 @@ def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[s
     if not available(ref):
         raise ValueError("the Pine reference is not available: no script turn may be made")
     admitted = list(ref.get("admitted") or [])
-    out: List[str] = [CONTRACT, ""]
+    out: List[str] = [contract(ref), ""]
 
     out += _lines("LANGUAGE YOU MAY USE", [f"- {CAPABILITY_WORDS[c]}" for c in admitted if c in CAPABILITY_WORDS])
 

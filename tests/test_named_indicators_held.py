@@ -52,8 +52,12 @@ def test_the_held_names_and_what_each_carries():
     # and one more (2026-11-19) is ONE SETTING of a built-in: VWAP's standard-deviation bands
     # (tests/test_vwap_bands_offer.py)
     # and one more (2026-11-19, found live): Heikin Ashi, a second name only a script holds, with a recipe
-    assert set(HELD) == {"ttm_squeeze", "mansfield_relative_strength", "rs_rating", "rs_phases", "schaff_trend_cycle",
-                         "session_vwap_bands", "heikin_ashi"}
+    # and (2026-11-19) every built-in on the Indicators list that nothing else answers by name: `builtin_*`
+    # (tests/test_built_in_names_census.py holds which, and why each)
+    assert {i for i in HELD if not i.startswith("builtin_")} == {
+        "ttm_squeeze", "mansfield_relative_strength", "rs_rating", "rs_phases", "schaff_trend_cycle",
+        "session_vwap_bands", "heikin_ashi"}
+    assert all(ni.built_in(HELD[i]) is not None for i in HELD if i.startswith("builtin_"))
     built = {e["id"] for e in ni.entries()}
     built_aliases = {a for e in ni.entries() for a in e["aliases"]}
     for e in ni.held_names():
@@ -68,7 +72,9 @@ def test_the_held_names_and_what_each_carries():
         assert not (set(e["aliases"]) & built_aliases)
         for alias in e["aliases"]:
             assert alias == alias.lower().strip()
-            assert any(len(w) >= 4 for w in alias.split()), alias       # never a bare short acronym
+            # never a bare short acronym: a word of four letters or more, or (2026-11-19: "uct rs vs 21 ema", the
+            # registry's own name for a built-in) a phrase of at least four words, which no acronym is
+            assert any(len(w) >= 4 for w in alias.split()) or len(alias.split()) >= 4, alias
         assert e["why"] and e["describe"] and e["since"]
         # ⛔ NO FORMULA AT ALL: nothing a model could be handed, nothing to approximate from
         assert not ({"outputs", "formula", "tree", "params", "evidence"} & set(e))
@@ -238,7 +244,14 @@ def test_own_words_notes_directly(conv):
     notes = conv.own_words_notes(patch, [HELD["ttm_squeeze"]])
     assert [n["output"] for n in notes] == ["a", "b"] and all("TTM Squeeze" in n["text"] for n in notes)
     both = conv.own_words_notes(patch, [HELD["ttm_squeeze"], HELD["mansfield_relative_strength"]])
-    assert "for TTM Squeeze or Mansfield Relative Strength." in both[0]["text"] and len(both[0]["text"]) <= ni.SENTENCE_MAX
+    # a name that is one of UCT's own BUILT-INS is said as that: the built-in exists, and this is not it
+    assert both[0]["text"] == ("Built from your own description, as your own formula. UCT has not checked a formula for "
+                               "TTM Squeeze. UCT's own UCT Mansfield RS is in the Indicators list.")
+    assert len(both[0]["text"]) <= ni.SENTENCE_MAX
+    only_built = conv.own_words_notes(patch, [HELD["mansfield_relative_strength"], HELD["rs_rating"]])
+    assert only_built[0]["text"] == ("Built from your own description, as your own formula. UCT's own UCT Mansfield RS and "
+                                     "UCT RS Rating are in the Indicators list.")
+    assert "checked" not in only_built[0]["text"]
     assert conv.own_words_notes(patch, []) == []
     assert conv.own_words_notes(env(0, [{"op": "rename_definition", "name": "X"}]), [HELD["ttm_squeeze"]]) == []
 
