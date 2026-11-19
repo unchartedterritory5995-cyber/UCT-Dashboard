@@ -37,7 +37,7 @@ import { evaluateObjects } from '../../objectRuntime'
 import { NOT_SHOWN, runtimeWithheldWhy, runtimeWithheldCause, runtimeUnknownSentence } from '../../ast/objectLoss'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
-import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRunObjectsOn, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
 import { setRuntimeDoorClock, RUNTIME_REQUEST_WITHHELD_KEY } from '../../runtime/runtimeColumns'
@@ -1344,9 +1344,14 @@ function objectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
   return r && half ? { ...r, ...tag } : r
 }
 
+/** Rails only (PARITY UNIT LF): the object report the grader builds for one instance's columns. */
+export const __objectsReportForTests = (...args) => hostObjectsOf(...args)
+
 /** The object lane's LIVE set at the last bar, as counts and texts. */
 function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
-  if (drawsRuntimeObjects(def)) return runtimeObjectsReport(def, bars, ctx, cols)
+  // ⭐⭐ PARITY UNIT LF — the binder's own answer (`drawsRunObjectsOn`): a run-owned document carrying its
+  // clean host program draws that program when the run holds back a family it draws
+  if (drawsRunObjectsOn(def, cols)) return runtimeObjectsReport(def, bars, ctx, cols)
   if (!def.objects || !(def.objects.ops || []).length) {
     const w = drawingWithheldBy(built)
     return w ? { drawsObjects: false, withheld: w.guard, reason: w.reason } : { drawsObjects: false }

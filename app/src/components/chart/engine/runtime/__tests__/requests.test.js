@@ -255,14 +255,13 @@ describe('request.security', () => {
     expect(r).toBeTruthy()
   })
 
-  it("⛔ a column reached WITHOUT a call is refused the same way", () => {
-    // `(high - low)[1]` inside a request is not a bare series read, so it
-    // lowers through the columnar seam — the non-call half of the same guard.
-    const r = refusalOf(
-      'y = request.security(\"OTHER\", \"D\", (high - low)[1])\n'
-      + 'plot(y)\n')
-    expect(r.guard).toBe('runtime:request')
-    expect(r.message).toMatch(/columnar lane/)
+  it("⭐ a pure expression's past inside a request is the REQUESTED symbol's past, never a column", () => {
+    // `(close * 2)[1]` inside a request is not a bare series read. It used to lower through the columnar seam and
+    // refuse here (a column holds THIS chart's bars). Since the U-REQ-HOIST-COLUMN lowering it is the request
+    // region's own committed series, read through its ring: the OTHER symbol's previous close, doubled.
+    const { out } = run('y = request.security("OTHER", "D", (close * 2)[1])\nplot(y)\n', { 'OTHER|D': OTHER })
+    expect(Number.isNaN(out[0])).toBe(true)
+    for (let i = 1; i < N; i += 1) expect(out[i]).toBe(OTHER[i - 1].c * 2)
   })
 
   it('CONTROL: a script with no request is unaffected', () => {

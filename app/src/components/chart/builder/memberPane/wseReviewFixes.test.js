@@ -142,12 +142,14 @@ describe('WS-E review M1 — a windowed document and the host object program', (
     expect(runtimeObjectsOf(r.cols).live.map((o) => o.props.x)).toEqual(want)
   })
 
-  it('⛔ CONTROL — the same script without `calc_bars_count` keeps its clean host program', () => {
+  // ⭐⭐ PARITY UNIT LF step 1 (coordinator ruling 2026-11-18): without `calc_bars_count` the clean host
+  // program is CARRIED (beside the run's drawings, as their fallback); under it, it is not (above).
+  it('⛔ CONTROL — the same script without `calc_bars_count` carries its clean host program', () => {
     flags()
     const d = door(`//@version=6\nindicator("t", overlay = true)\n${ACC}${TURN}`)
     expect(d.ok, d.reason).toBe(true)
     expect(d.definition.objects).toBeTruthy()
-    expect(d.definition.compute.objects).toBeUndefined()
+    expect(d.definition.compute.objects).toBe(true)
   })
 })
 

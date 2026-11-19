@@ -239,12 +239,17 @@ describe('WS-E 2 — the run draws what the host object program lost', () => {
     expect(d.runtimeDeclined.why).toMatch(/one arm of `\?:`/)
   })
 
-  it('⛔ CONTROL — a host object program that is CLEAN keeps drawing; the run does not take it', () => {
+  // ⭐⭐ PARITY UNIT LF step 1 (coordinator ruling 2026-11-18): this control said "a host object program
+  // that is CLEAN keeps drawing; the run does not take it". The contract it pinned was reversed on
+  // purpose: the run's drawings are the document's and the clean program rides beside them as the
+  // fallback (`runtimeObjectsDoor.js`, `runtimeObjects.js::drawsRunObjectsOn`). What it still guards:
+  // the clean program is never dropped from the document.
+  it('⛔ CONTROL — a host object program that is CLEAN is carried beside the run\'s drawings, never dropped', () => {
     flags()
     const d = door(`${H}${ACC}${HOST_LABELS}`)
     expect(d.ok, d.reason).toBe(true)
     expect(d.lane).toBe('runtime')
-    expect(d.definition.compute.objects).toBeUndefined()
+    expect(d.definition.compute.objects).toBe(true)
     expect(d.definition.objects).toBeTruthy()
   })
 })
