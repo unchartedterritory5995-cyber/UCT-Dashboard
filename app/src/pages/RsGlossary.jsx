@@ -95,6 +95,11 @@ export const RS_INDICATORS = Object.freeze([
   Object.freeze({ id: 'rsRating', name: 'UCT RS Rating', lesson: null, what: glossaryDefinition('uctRsRating'), more: 'Daily charts only: the rating is a once-a-day rank.' }),
   Object.freeze({ id: 'rsPhases', name: 'UCT RS Phases', lesson: 'rsLine', what: glossaryDefinition('uctRsPhases'), more: null }),
   Object.freeze({ id: 'rsVsEma', name: 'UCT RS vs 21 EMA', lesson: 'phase', what: glossaryDefinition('uctRsVsEma'), more: null }),
+  // ⭐ (2026-11-18) the Mansfield reading on a pane of its own (`rsMansfield`, the rsLine row's own column)
+  Object.freeze({
+    id: 'rsMansfield', name: 'UCT Mansfield RS', lesson: null, what: glossaryDefinition('mansfieldRs'),
+    more: 'Its length is a setting: 200 bars by default on a daily chart; Weinstein used 52 on a weekly chart.',
+  }),
   Object.freeze({
     id: 'rsExit', name: 'UCT RS Exit Warnings', lesson: null, what: glossaryDefinition('uctRsExit'),
     more: 'Daily and weekly charts only. The names and meanings are Mike Webster\'s; the exact rules are UCT\'s reading of them.',
