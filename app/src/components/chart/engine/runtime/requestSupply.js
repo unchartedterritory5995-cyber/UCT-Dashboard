@@ -27,7 +27,20 @@
 import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js'
 import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay,
   OWN_DAILY_KEY, SERIES_NEWEST_FORMING, etSessionDayOf, sessionCloseOf, sessionKeyedRowsOf, WITNESS_PERIOD_READS } from '../otherSymbols.js'
-import { isTradingDay } from '../../../../lib/marketClock/sessionCalendar.js'
+import { isTradingDay, covers } from '../../../../lib/marketClock/sessionCalendar.js'
+
+/** ⭐⭐ (2026-11-19, no carried value) The exchange session strictly before `day` ('YYYY-MM-DD') by the published
+ *  calendar, or null where the calendar does not cover it: no guess. */
+function prevSessionDay(day) {
+  let t = Date.parse(`${day}T00:00:00Z`)
+  for (let k = 0; k < 14; k += 1) {
+    t -= 86400000
+    const d = new Date(t).toISOString().slice(0, 10)
+    if (!covers(d)) return null
+    if (isTradingDay(d)) return d
+  }
+  return null
+}
 
 export const REQUEST_GUARD = 'runtime:request'
 
@@ -238,18 +251,45 @@ function aboveChartRead(target, rows, ctx) {
   const firstTrade = ctx && ctx.symbol && typeof ctx.symbol.firstTradeDate === 'string' ? ctx.symbol.firstTradeDate : null
   const firstSessionNa = ownRead && firstTrade !== null && days.length > 0 && days[0] === firstTrade
     && dayOf.find(Boolean) === days[0]
+  // ⭐⭐ (coordinator, 2026-11-19: NEVER A CARRIED VALUE) — EACH BAR READS THE ROW IT READS, OR NOTHING. `before(d)` is the
+  // newest HELD row before `d`: with the previous session's row missing it is an OLDER row, a value TradingView never
+  // shows on that bar (`dailyReadNoCarry.test.js`). The row a bar reads is named first, then looked up; a row that is
+  // not held is withheld (the supply's rules below name it), never replaced by the one before it.
+  //   * ANOTHER SYMBOL (SP:SPX, an exchange-calendar series): the calendar's previous session, or the session's own from
+  //     its close; outside the calendar's coverage the session is not known (withheld).
+  //   * THE OWN SYMBOL: the latest of the chart's own previous session (the chart is this symbol's sessions: a 24/7
+  //     chart keeps its weekends) and, on a chart whose every session is an exchange session, the calendar's previous
+  //     session (a chart missing a day still reads the day before). With neither (a 24/7 chart's first session) there is
+  //     nothing to check the held row against, and `before(d)` stands. The day's own row on its last bar is that row.
+  const onCalendar = dayOf.every((d) => !d || isTradingDay(d))
+  const prevOf = new Map()
+  const calendarPrev = (d) => {
+    if (!prevOf.has(d)) prevOf.set(d, prevSessionDay(d))
+    return prevOf.get(d)
+  }
+  const rowOf = (day) => (day !== null && at.has(day) ? at.get(day) : -1)
+  let curDay = null
+  let chartPrev = null
   for (let i = 0; i < n; i += 1) {
     const d = dayOf[i]
     if (!d) { withheld[i] = 1; continue }
+    if (d !== curDay) { if (curDay !== null) chartPrev = curDay; curDay = d }
     let j = -1
     if (ownRead) {
       const lastOfDay = i === n - 1 || dayOf[i + 1] !== d
-      j = lastOfDay && at.has(d) ? at.get(d) : before(d)
+      if (lastOfDay) {
+        j = rowOf(d)
+      } else {
+        const want = [chartPrev, onCalendar ? calendarPrev(d) : null].filter(Boolean).sort().pop() || null
+        j = want === null ? before(d) : rowOf(want)
+      }
       if (j < 0 && firstSessionNa && d === days[0]) continue   // na by history, never withheld
     } else {
       const close = isTradingDay(d) ? sessionCloseOf(d) : null
-      const ownDone = close !== null && rows[i].t >= close && at.has(d) && !(forming && at.get(d) === daily.length - 1)
-      j = ownDone ? at.get(d) : before(d)
+      const fromClose = close !== null && rows[i].t >= close
+      if (fromClose && at.has(d) && !(forming && at.get(d) === daily.length - 1)) j = at.get(d)
+      else if (fromClose && !at.has(d)) j = -1                // the session's own row is the read, and it is not held
+      else j = rowOf(calendarPrev(d))
     }
     if (j < 0) withheld[i] = 1
     else index[i] = j
