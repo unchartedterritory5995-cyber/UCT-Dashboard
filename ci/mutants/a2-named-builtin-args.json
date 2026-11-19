@@ -1,0 +1,60 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "A2 (feat/pine-named-args-minmax, NUMBER PENDING): a named argument on color.new / color.rgb / color.from_gradient / array.new_<type> / array.new<type> takes its declared position by Pine's own parameter name (the Pine v6 reference's syntax lines); an unknown name, a duplicate, a positional after a named one, or a skipped parameter keeps the refusal. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "P1",
+   "mutant": "no named argument is mapped at all",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (!names || atObjectDoor) return null",
+   "to": "    return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/namedBuiltinArgs.test.js",
+   "expectRed": "color.new(color =, transp =)"
+  },
+  {
+   "id": "P2",
+   "mutant": "a parameter given twice is accepted (the later wins)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (i < 0 || placed[i] !== undefined) return null",
+   "to": "        if (i < 0) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/namedBuiltinArgs.test.js",
+   "expectRed": "given twice"
+  },
+  {
+   "id": "P3",
+   "mutant": "a positional argument after a named one is accepted",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (named) return null   // a positional argument after a named one",
+   "to": "        if (false) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/namedBuiltinArgs.test.js",
+   "expectRed": "positional argument after a named one"
+  },
+  {
+   "id": "P4",
+   "mutant": "a skipped parameter is let through",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    for (let i = 0; i < placed.length; i += 1) if (placed[i] === undefined) return null",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/namedBuiltinArgs.test.js",
+   "expectRed": "skipped"
+  },
+  {
+   "id": "P5",
+   "mutant": "an array constructor's named arguments are not mapped",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      ? argsInReferenceOrder(node0.args, referenceParamNames(node0.name)) : null",
+   "to": "      ? null : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/namedBuiltinArgs.test.js",
+   "expectRed": "array.new_float(size =, initial_value =)"
+  },
+  {
+   "id": "P6",
+   "mutant": "a colour built-in's named arguments are not mapped",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            ? argsInReferenceOrder(node.args, referenceParamNames(node.name)) : null",
+   "to": "            ? null : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/namedBuiltinArgs.test.js",
+   "expectRed": "color.new(color =, transp =)"
+  }
+ ]
+}

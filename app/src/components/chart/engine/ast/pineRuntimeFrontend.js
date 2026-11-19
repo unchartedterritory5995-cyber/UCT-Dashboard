@@ -6029,7 +6029,45 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  Two copies of the arity and named-argument checks would drift, and the one
    *  that drifted would be the statement path, which is the one a member's
    *  watchlist parser is made of. */
-  const admitArrayCall = (node, scope, asStatement) => {
+  /** ⭐⭐ ENGINE NUMBER PENDING (A2) — A NAMED ARGUMENT ON A SERVED BUILT-IN TAKES ITS DECLARED POSITION, by
+   *  Pine's own parameter name (the Pine v6 reference's syntax lines: `color.new(color, transp)`,
+   *  `color.rgb(red, green, blue, transp)`, `color.from_gradient(value, bottom_value, top_value, bottom_color,
+   *  top_color)`, `array.new_<type>(size, initial_value)` and `array.new<type>(size, initial_value)`). The
+   *  review-L3 rule (`ta.sma(source = …, length = …)`) made general for these: positional arguments fill from
+   *  the left, a named one goes to its parameter. ⛔ `null` (the refusal by name stands) for a name the reference
+   *  does not list, a parameter given twice, a positional argument after a named one, or a parameter skipped
+   *  before one that is given (no default is invented here). */
+  const REFERENCE_PARAM_NAMES = Object.freeze({
+    'color.new': Object.freeze(['color', 'transp']),
+    'color.rgb': Object.freeze(['red', 'green', 'blue', 'transp']),
+    'color.from_gradient': Object.freeze(['value', 'bottom_value', 'top_value', 'bottom_color', 'top_color']),
+  })
+  const ARRAY_NEW_PARAM_NAMES = Object.freeze(['size', 'initial_value'])
+  const referenceParamNames = (name) => (
+    REFERENCE_PARAM_NAMES[name] || (/^array\.new(?:_[a-z]+)?$/.test(String(name || '')) ? ARRAY_NEW_PARAM_NAMES : null))
+  const argsInReferenceOrder = (args, names) => {
+    if (!names || atObjectDoor) return null
+    const placed = []
+    let named = false
+    for (const a of args || []) {
+      if (a && a.name) {
+        named = true
+        const i = names.indexOf(String(a.name))
+        if (i < 0 || placed[i] !== undefined) return null
+        placed[i] = { ...a, name: null }
+      } else {
+        if (named) return null   // a positional argument after a named one
+        placed.push(a)
+      }
+    }
+    for (let i = 0; i < placed.length; i += 1) if (placed[i] === undefined) return null
+    return placed
+  }
+  const admitArrayCall = (node0, scope, asStatement) => {
+    // ⭐ A2 — `array.new_float(size = 3, initial_value = 0.0)` is the positional call
+    const reordered = (node0.args || []).some((a) => a && a.name)
+      ? argsInReferenceOrder(node0.args, referenceParamNames(node0.name)) : null
+    const node = reordered ? { ...node0, args: reordered } : node0
     const spec = ARRAY_FNS[node.name]
     for (const arg of node.args) {
       if (arg && arg.name) {
@@ -10016,13 +10054,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // above all, keeps the refusal.
         if (Object.prototype.hasOwnProperty.call(COLOUR_FNS, node.name)) {
           const spec = COLOUR_FNS[node.name]
-          for (const arg of node.args) {
+          // ⭐ A2 — `color.new(color = c, transp = 50)` is the positional call (Pine's own parameter names)
+          const reordered = node.args.some((a) => a && a.name)
+            ? argsInReferenceOrder(node.args, referenceParamNames(node.name)) : null
+          const cargs = reordered || node.args
+          for (const arg of cargs) {
             if (arg && arg.name) {
               throw new RuntimeRefusal('runtime:statement',
                 `a named argument \`${arg.name}\` on \`${node.name}\``, locate(node.tok))
             }
           }
-          const given = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
+          const given = cargs.map((x) => (x && x.value !== undefined ? x.value : x))
           const lo = spec.minArgs === undefined ? spec.args.length : spec.minArgs
           const hi = spec.maxArgs === undefined ? spec.args.length : spec.maxArgs
           if (given.length < lo || given.length > hi) {
