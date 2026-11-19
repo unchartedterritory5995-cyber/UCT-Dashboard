@@ -95,7 +95,7 @@ for (const lane of Object.keys(LANES)) {
   })
 }
 
-// ⭐ engine NUMBER PENDING (Q-FCMP3, packet b400024aa71d, run fcmp3b-2026-11-18): vw-fcmp-arrays on AMEX:SPY and
+// ⭐ engine 81 (Q-FCMP3, packet b400024aa71d, run fcmp3b-2026-11-18): vw-fcmp-arrays on AMEX:SPY and
 // NYSE:RDDT 1D from the listing. Arrays run on the runtime lane only: the production lane (runtime dark) refuses the
 // script by name (`pine:collection`); the runtime-on lane draws it, and every row agrees with TradingView on every
 // bar: array.lastindexof within the epsilon (A02-A04), the three binary searches exactly (A07-A14).

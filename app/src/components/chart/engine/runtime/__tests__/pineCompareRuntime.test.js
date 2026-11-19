@@ -104,7 +104,7 @@ describe('v1-v4 compare two compile-time constants exactly; v5 tolerantly (vw-fc
   }
 })
 
-// ⭐ engine NUMBER PENDING (Q-FCMP3): vw-fcmp-arrays, rows A01-A16, READ OFF the committed captures (AMEX:SPY 1D,
+// ⭐ engine 81 (Q-FCMP3): vw-fcmp-arrays, rows A01-A16, READ OFF the committed captures (AMEX:SPY 1D,
 // 8,510 bars, and NYSE:RDDT 1D, 669 bars, from the listing; run fcmp3b-2026-11-18, packet sha256
 // b400024aa71d2d2c895f04bf449f4cb310dd28e49d25f988cd002d2a9f0ad0ef). array.lastindexof reads TOLERANT (A02-A04), the
 // three binary searches EXACT (A07-A09, A11-A14); the rest are controls both rules answer alike.

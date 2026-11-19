@@ -358,7 +358,7 @@ const unmeasuredReduction = (name) => ({
 //  ⭐⭐ engine 78 (#1858) (Q-FCMP2 vw-fcmp-builtins-v2 B27 / B28 / Z12): a NUMBER is found where it is equal
 //  within TradingView's epsilon (`pineCompare.js::pineEq`): `array.indexof([1.0, 2.0], 1 + 3e-14)` is 0 and
 //  `array.includes` true, at 9e-11 too. Text, colours and handles keep strict equality.
-//  ⭐ engine NUMBER PENDING (Q-FCMP3 vw-fcmp-arrays A02-A04, AMEX:SPY and NYSE:RDDT 1D, run fcmp3b-2026-11-18):
+//  ⭐ engine 81 (Q-FCMP3 vw-fcmp-arrays A02-A04, AMEX:SPY and NYSE:RDDT 1D, run fcmp3b-2026-11-18):
 //  `array.lastindexof` finds a number the same way, from the end (`lastIndexOfValue`):
 //  `array.lastindexof([1.0, 2.0, 1.0 + 3e-14], 1.0)` is 2 and `array.lastindexof([1.0, 2.0], 1.0 + 9e-11)` is 0.
 //  ⛔ The three BINARY SEARCHES stay EXACT, as measured (A07-A14): a built-in is not the operator rule.

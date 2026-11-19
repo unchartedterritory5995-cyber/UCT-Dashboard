@@ -181,7 +181,7 @@ ACCEPTANCE, on the committed captures (Q-FCMP `56330c15e071`, Q-FCMP2 `d0641f765
 - Phase 2 (native formulas tolerant too) is a separate PR, decided on a measurement (ruling D1).
 
 
-## 6. Q-FCMP3: the array searches (engine NUMBER PENDING, `feat/pine-tolerant-lastindexof`)
+## 6. Q-FCMP3: the array searches (engine 81, `feat/pine-tolerant-lastindexof`)
 
 The capture: `vw-fcmp-arrays` on AMEX:SPY 1D (8,510 bars) and NYSE:RDDT 1D (669 bars), from the listing.
 

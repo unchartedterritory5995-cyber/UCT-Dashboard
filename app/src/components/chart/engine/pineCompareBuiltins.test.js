@@ -122,7 +122,7 @@ describe('array.indexof / array.includes find a number within the epsilon (B27 B
   })
 })
 
-// ⭐ engine NUMBER PENDING (Q-FCMP3, vw-fcmp-arrays, run fcmp3b-2026-11-18, packet b400024aa71d: AMEX:SPY and
+// ⭐ engine 81 (Q-FCMP3, vw-fcmp-arrays, run fcmp3b-2026-11-18, packet b400024aa71d: AMEX:SPY and
 // NYSE:RDDT 1D from the listing, the same reading on every bar of both). TradingView's readings, row by row: the
 // first describe holds the kernels' answers to the committed captures' own rows.
 const ARR = (sym) => JSON.parse(readFileSync(`../tests/fixtures/vendor/harness/vw-fcmp-arrays-${sym}-1d-2026-11-18.json`, 'utf8'))

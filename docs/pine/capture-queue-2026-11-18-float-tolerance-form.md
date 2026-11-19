@@ -169,7 +169,7 @@ Results:
   (Q-FCMP2 B27 / B28 / Z12).
 - The three binary searches compare exactly.
 - No reading falls outside the two predicted columns.
-- The engine change follows these readings (engine NUMBER PENDING, `feat/pine-tolerant-lastindexof`).
+- The engine change follows these readings (engine 81, `feat/pine-tolerant-lastindexof`).
 
 ## Readings each model predicts (what each plot answers)
 

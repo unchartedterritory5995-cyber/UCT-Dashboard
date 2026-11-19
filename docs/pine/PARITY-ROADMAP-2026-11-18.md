@@ -1344,7 +1344,7 @@ Probe rows this page adds (no sample script stands for them):
 - **Q-FCMP3-1 / -2: READ 2026-11-18, flag off.** Captured as run `fcmp3b-2026-11-18`, packet `b400024aa71d`
   (committed):
   `tools/visual_conformance/probes/vw-fcmp-arrays.pine` on AMEX:SPY 1D from the listing and NYSE:RDDT 1D.
-  - `array.lastindexof` reads TOLERANT, and moves onto `pineCompare.js` (engine NUMBER PENDING,
+  - `array.lastindexof` reads TOLERANT, and moves onto `pineCompare.js` (engine 81,
     `feat/pine-tolerant-lastindexof`).
   - `array.binary_search` / `_leftmost` / `_rightmost` read EXACT, and stay exact (now pinned).
   - Readings: `docs/pine/capture-queue-2026-11-18-float-tolerance-form.md`, section Q-FCMP3.
