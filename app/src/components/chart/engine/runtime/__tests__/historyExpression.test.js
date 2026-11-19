@@ -207,7 +207,9 @@ describe('⛔⛔ WHAT STILL REFUSES — every wall named', () => {
     // would make this compile, and it must not: a function reading a mutable
     // global is a separate capability with its own measurement. Only a node
     // that is genuinely NOT A NAME may hoist.
-    const r = refusalOf(`${head}${state}f() =>\n    ta.sma(x, 5)\nplot(f())\n`)
+    // ⭐ U-FGS F2 (2026-11-19) serves a MUTABLE global's window inside a function (its own frame copy, never a
+    // hoist); a global bound ONCE is what still refuses, and the hoist must not lift it.
+    const r = refusalOf(`${head}${state}y = x + 1\nf() =>\n    ta.sma(y, 5)\nplot(f())\n`)
     expect(r.guard).toBe('runtime:function-global-state')
   })
 

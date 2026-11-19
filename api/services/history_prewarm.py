@@ -76,8 +76,19 @@ def _universe() -> list[str]:
 
 
 def _market_last_sealed(cli, tf: str) -> str:
-    """The market's current sealed boundary for `tf`, read from a reference active symbol so
-    every symbol's pre-warm URL carries the SAME `d` the browser sends (an immutable match)."""
+    """The market's current sealed boundary for `tf`, so every symbol's pre-warm URL carries the SAME `d` the
+    browser sends (an immutable match). D comes from the NYSE calendar (`bars.calendar_last_sealed_day`), the
+    rule the browser's tail follows: the store this sweep reads can lag a day after a restart, and a sweep
+    stamped with the store's day warms URLs no browser asks for (2026-11-19: it warmed d=2026-11-17 while
+    browsers asked d=2026-11-18). W/M are read from a reference active symbol."""
+    if tf == "D":
+        try:
+            from api.routers.bars import calendar_last_sealed_day
+            d = calendar_last_sealed_day()
+            if d:
+                return d
+        except Exception:  # noqa: BLE001 - fall back to the reference read below
+            pass
     # ⛔ WITH THE SERVICE TOKEN, like every sweep request. `/api/bars-history` is paid: this read
     # without it was refused (401) on every pass, so the boundary was "" for D, W and M and the
     # sweep warmed NOTHING (2026-11-18 worker log: 3,639 symbols, 0 requests, "complete in 3s"),
@@ -97,7 +108,7 @@ def _market_last_sealed(cli, tf: str) -> str:
 def prewarm_pass() -> dict:
     """One full sweep of the universe × D/W/M through Cloudflare. Returns counts."""
     syms = _universe()
-    stats = {"symbols": len(syms), "requests": 0, "hit": 0, "miss": 0, "err": 0}
+    stats = {"symbols": len(syms), "requests": 0, "ok": 0, "hit": 0, "miss": 0, "err": 0}
     if not syms:
         _log.warning("[history_prewarm] empty universe — nothing to warm")
         return stats
@@ -113,6 +124,8 @@ def prewarm_pass() -> dict:
                 try:
                     r = cli.get(url, headers=_svc_headers())
                     stats["requests"] += 1
+                    if r.status_code == 200:
+                        stats["ok"] += 1   # a refused (401/5xx) answer is never cached: it warms nothing
                     cf = (r.headers.get("cf-cache-status") or "").upper()
                     if cf == "HIT":
                         stats["hit"] += 1
@@ -123,9 +136,9 @@ def prewarm_pass() -> dict:
                 time.sleep(_PACE)
             _log.info("[history_prewarm] tf=%s done (d=%s): %s", tf, d, stats)
     stats["secs"] = round(time.time() - t0)
-    if syms and not stats["requests"]:
+    if syms and not stats["ok"]:
         # A pass that warmed nothing is a failure, never a quiet "complete" (it read as one for weeks).
-        _log.error("[history_prewarm] sweep warmed NOTHING (no sealed boundary for any timeframe): %s", stats)
+        _log.error("[history_prewarm] sweep warmed NOTHING (no boundary, or every answer refused): %s", stats)
     else:
         _log.info("[history_prewarm] sweep complete in %ss: %s", stats["secs"], stats)
     return stats
@@ -169,7 +182,7 @@ def start_history_prewarm() -> None:
                 try:
                     stats = prewarm_pass()
                     last_pass = time.time()
-                    if stats.get("requests"):
+                    if stats.get("ok"):
                         warmed = boundary or warmed
                 except Exception:
                     _log.exception("[history_prewarm] sweep error")

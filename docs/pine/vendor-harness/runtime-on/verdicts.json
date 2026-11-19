@@ -67736,12 +67736,708 @@
    "script": "Machine Learning Moving Average [BackQuant]",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "ML MA",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 666,
+      "colorWithheld": 0,
+      "colorComparable": 666,
+      "valued": 666,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_2",
+     "title": "Regime Change",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_3",
+     "title": "Bullish Regime",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_4",
+     "title": "Bearish Regime",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_5",
+     "title": "High Confidence Prediction",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_6",
+     "title": "Bar Color",
+     "type": "bar_colorer",
+     "why": "plot type bar_colorer is not compared by v1"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:reassign) [runtime declined: runtime:statement]: a name that is reassigned later cannot be folded into one expression — `currentCluster` — a running total built inside a `for` is not folded into one expression on this lane — of 1,004 counted `for` loops in the reference corpus 379 do this, and only 1 of 379 has a seed, an update shape, an iteration count and a scope this engine can settle all at once (ruling R7). The binding constraint is the ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "verdictWithoutColour": "MATCH",
+    "reason": "object counts and texts agree; colours agree on 53 paired slots; coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 2,
+      "ours": 2,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 3,
+      "ours": 3,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 20,
+      "ours": 20,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ],
+    "colours": [
+     {
+      "family": "lines colour",
+      "agree": true,
+      "slots": 1,
+      "agreeing": 1,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "labels colour",
+      "agree": true,
+      "slots": 4,
+      "agreeing": 4,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "boxes colour",
+      "agree": true,
+      "slots": 6,
+      "agreeing": 6,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "tables colour",
+      "agree": true,
+      "slots": 3,
+      "agreeing": 3,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "tableCells colour",
+      "agree": true,
+      "slots": 39,
+      "agreeing": 39,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     }
+    ],
+    "colourUnpaired": {
+     "ours": 0,
+     "vendor": 0
+    }
+   },
+   "paints": {
+    "verdict": "MATCH",
+    "reason": "1 paint agree bar for bar",
+    "agreeing": 1,
+    "differing": 0,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_6",
+      "kind": "barcolor",
+      "state": "agree"
+     }
+    ]
+   },
+   "verdict": "MATCH",
+   "reason": "all 3 items agree",
+   "verdictWithoutPaints": "MATCH",
+   "verdictWithoutColour": "MATCH",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
+    "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "objectsV2": {
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": false,
+    "differsOnlyByCreationOrder": false,
+    "reason": "every paired record agrees on 211 graded fields; x: 0 graded (0 differ), 10 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 53 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
+    "x": {
+     "graded": 0,
+     "agreeing": 0,
+     "differing": 0,
+     "missing": 10,
+     "missingWhy": {
+      "the capture records no x table (taken before U13)": 10
+     },
+     "incompleteFamilies": [
+      "lines",
+      "labels",
+      "boxes"
+     ]
+    },
+    "families": [
+     {
+      "family": "lines",
+      "paired": 1,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 6,
+      "agreeing": 6,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "x1": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "y1": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "x2": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "y2": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "extend": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "style": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "width": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "color": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 2,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 2
+       },
+       "first": null
+      },
+      "xIncomplete": true,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "labels",
+      "paired": 2,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 18,
+      "agreeing": 18,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "x": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 2
+       },
+       "y": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "yloc": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "style": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "size": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "textalign": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "tooltip": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "color": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "textcolor": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 2,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 2
+       },
+       "first": null
+      },
+      "xIncomplete": true,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "boxes",
+      "paired": 3,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 24,
+      "agreeing": 24,
+      "differing": 0,
+      "notGraded": 15,
+      "undecoded": {},
+      "byField": {
+       "left": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "top": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "right": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "bottom": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "extend": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "border_style": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "border_width": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_size": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "text_halign": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "text_valign": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "text_wrap": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "border_color": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "bgcolor": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_color": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 6,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 6
+       },
+       "first": null
+      },
+      "xIncomplete": true,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tables",
+      "paired": 1,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 8,
+      "agreeing": 8,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "position": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "columns": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "rows": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "frame_width": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "border_width": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "bgcolor": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "frame_color": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "border_color": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tableCells",
+      "paired": 20,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 155,
+      "agreeing": 155,
+      "differing": 0,
+      "notGraded": 5,
+      "undecoded": {},
+      "byField": {
+       "text": {
+        "agree": 20,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_halign": {
+        "agree": 19,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "text_valign": {
+        "agree": 19,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "text_size": {
+        "agree": 19,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "tooltip": {
+        "agree": 20,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_font_family": {
+        "agree": 19,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "text_color": {
+        "agree": 19,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "bgcolor": {
+        "agree": 20,
+        "differ": 0,
+        "notGraded": 0
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "linefills",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     }
+    ],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/machine-learning-moving-average-backquant-rddt-1d-2026-11-17.json",
@@ -67750,12 +68446,696 @@
    "script": "Machine Learning Moving Average [BackQuant]",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "ML MA",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "668 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 668,
+      "compared": 668,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 668,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 668,
+      "colorWithheld": 0,
+      "colorComparable": 668,
+      "valued": 668,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 668,
+       "compared": 668,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_2",
+     "title": "Regime Change",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_3",
+     "title": "Bullish Regime",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_4",
+     "title": "Bearish Regime",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_5",
+     "title": "High Confidence Prediction",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_6",
+     "title": "Bar Color",
+     "type": "bar_colorer",
+     "why": "plot type bar_colorer is not compared by v1"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:reassign) [runtime declined: runtime:statement]: a name that is reassigned later cannot be folded into one expression — `currentCluster` — a running total built inside a `for` is not folded into one expression on this lane — of 1,004 counted `for` loops in the reference corpus 379 do this, and only 1 of 379 has a seed, an update shape, an iteration count and a scope this engine can settle all at once (ruling R7). The binding constraint is the ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "verdictWithoutColour": "MATCH",
+    "reason": "object counts and texts agree; colours agree on 53 paired slots; coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 2,
+      "ours": 2,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 3,
+      "ours": 3,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 20,
+      "ours": 20,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ],
+    "colours": [
+     {
+      "family": "lines colour",
+      "agree": true,
+      "slots": 1,
+      "agreeing": 1,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "labels colour",
+      "agree": true,
+      "slots": 4,
+      "agreeing": 4,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "boxes colour",
+      "agree": true,
+      "slots": 6,
+      "agreeing": 6,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "tables colour",
+      "agree": true,
+      "slots": 3,
+      "agreeing": 3,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "tableCells colour",
+      "agree": true,
+      "slots": 39,
+      "agreeing": 39,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 0,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     }
+    ],
+    "colourUnpaired": {
+     "ours": 0,
+     "vendor": 0
+    }
+   },
+   "paints": {
+    "verdict": "MATCH",
+    "reason": "1 paint agree bar for bar",
+    "agreeing": 1,
+    "differing": 0,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_6",
+      "kind": "barcolor",
+      "state": "agree"
+     }
+    ]
+   },
+   "verdict": "MATCH",
+   "reason": "all 3 items agree",
+   "verdictWithoutPaints": "MATCH",
+   "verdictWithoutColour": "MATCH",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
+    "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": false,
+    "differsOnlyByCreationOrder": false,
+    "reason": "every paired record agrees on 211 graded fields; x: 10 graded, 0 differ (exact bar); v1: object counts and texts agree; colours agree on 53 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
+    "x": {
+     "graded": 10,
+     "agreeing": 10,
+     "differing": 0,
+     "missing": 0,
+     "missingWhy": {},
+     "incompleteFamilies": []
+    },
+    "families": [
+     {
+      "family": "lines",
+      "paired": 1,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 6,
+      "agreeing": 6,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "x1": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "y1": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "x2": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "y2": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "extend": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "style": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "width": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "color": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 2,
+       "agreeing": 2,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "labels",
+      "paired": 2,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 18,
+      "agreeing": 18,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "x": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "y": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "yloc": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "style": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "size": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "textalign": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "tooltip": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "color": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "textcolor": {
+        "agree": 2,
+        "differ": 0,
+        "notGraded": 0
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 2,
+       "agreeing": 2,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "boxes",
+      "paired": 3,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 24,
+      "agreeing": 24,
+      "differing": 0,
+      "notGraded": 15,
+      "undecoded": {},
+      "byField": {
+       "left": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "top": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "right": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "bottom": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "extend": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "border_style": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "border_width": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_size": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "text_halign": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "text_valign": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "text_wrap": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       },
+       "border_color": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "bgcolor": {
+        "agree": 3,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_color": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 3
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 6,
+       "agreeing": 6,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tables",
+      "paired": 1,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 8,
+      "agreeing": 8,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {
+       "position": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "columns": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "rows": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "frame_width": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "border_width": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "bgcolor": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "frame_color": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "border_color": {
+        "agree": 1,
+        "differ": 0,
+        "notGraded": 0
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tableCells",
+      "paired": 20,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 155,
+      "agreeing": 155,
+      "differing": 0,
+      "notGraded": 5,
+      "undecoded": {},
+      "byField": {
+       "text": {
+        "agree": 20,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_halign": {
+        "agree": 19,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "text_valign": {
+        "agree": 19,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "text_size": {
+        "agree": 19,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "tooltip": {
+        "agree": 20,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "text_font_family": {
+        "agree": 19,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "text_color": {
+        "agree": 19,
+        "differ": 0,
+        "notGraded": 1
+       },
+       "bgcolor": {
+        "agree": 20,
+        "differ": 0,
+        "notGraded": 0
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "linefills",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     }
+    ],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/machine-learning-moving-average-backquant-spy-1d-2026-11-17.json",
@@ -67764,12 +69144,120 @@
    "script": "Machine Learning Moving Average [BackQuant]",
    "symbol": "AMEX:SPY",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "ML MA",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (runtime:limit)"
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_2",
+     "title": "Regime Change",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_3",
+     "title": "Bullish Regime",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_4",
+     "title": "Bearish Regime",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_5",
+     "title": "High Confidence Prediction",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_6",
+     "title": "Bar Color",
+     "type": "bar_colorer",
+     "why": "plot type bar_colorer is not compared by v1"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:reassign) [runtime declined: runtime:statement]: a name that is reassigned later cannot be folded into one expression — `currentCluster` — a running total built inside a `for` is not folded into one expression on this lane — of 1,004 counted `for` loops in the reference corpus 379 do this, and only 1 of 379 has a seed, an update shape, an iteration count and a scope this engine can settle all at once (ruling R7). The binding constraint is the ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "INCONCLUSIVE",
+    "reason": "our object lane did not run: the run drew nothing (runtime:limit: this script went past the number of array operations a script may make over the whole chart (at most 2,000,000, it reached 2,000,262) on bar 2,805 of 8,509, so it is stopped and nothing is drawn rather than part of it.)"
+   },
+   "paints": {
+    "verdict": "DIVERGE",
+    "reason": "1 paint differs (first: barcolor plot_6 \"Bar Color\" notDrawn)",
+    "agreeing": 0,
+    "differing": 1,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_6",
+      "kind": "barcolor",
+      "state": "notDrawn"
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 3 compared items diverge",
+   "verdictWithoutPaints": "INCONCLUSIVE",
+   "ourNotes": [
+    "plots/objects: cold: no committed capture of SPY|D holds bars before 728317800, cold replay",
+    "paints: cold: no committed capture of SPY|D holds bars before 728317800, cold replay"
+   ],
+   "objectsV2": {
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "INCONCLUSIVE",
+    "v1": "INCONCLUSIVE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: our object lane did not run: the run drew nothing (runtime:limit: this script went past the number of array operations a script may make over the whole chart (at most 2,000,000, it reached 2,000,262) on bar 2,805 of 8,509, so it is stopped and nothing is drawn rather than part of it.)",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/machine-learning-rsi-bullvision-rddt-1d-2026-11-15.json",
