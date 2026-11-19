@@ -55,6 +55,7 @@ export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 export { RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION }
 // ⭐⭐ CBC-FMT — `calc_bars_count`: ONE window for both lanes (`engine/calcBarsWindow.js`), read
 // off the document's own stamp (`meta.calcBarsCount`, `pine.js::declarationCalcBars`).
+import { rememberRuntimeBudgetStop, runtimeBudgetStopAt, runtimeBudgetGeneration, onRuntimeBudgetStopsChange, resetRuntimeBudgetStops } from '../runtimeBudgetStops.js'
 import { calcBarsWindowOf, widenToChart, windowContext, withCalcBarsRecord,
   CALC_BARS_REQUEST_GUARD, CALC_BARS_REQUEST_SOURCE, calcBarsRequestSentence } from '../calcBarsWindow.js'
 import { strippedForScan, withTranslateClock } from '../ast/pine.js'
@@ -1047,7 +1048,7 @@ function buildBytes(build) {
   return bytes
 }
 /** Drop every session (tests; a host that wants a cold start). */
-export function resetRuntimeSessions() { _sessions.clear(); _buildMemo.clear(); _probeSites.clear() }
+export function resetRuntimeSessions() { _sessions.clear(); _buildMemo.clear(); _probeSites.clear(); resetRuntimeBudgetStops() }
 /** ⭐ What the sessions hold (diagnostics, the resource measurement): how many, and an
  *  ESTIMATE of their bytes — 8 a number (bars, columns, outputs, numeric state), 16 an
  *  array element, plus 256 a live drawing. */
@@ -2226,6 +2227,11 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
   const key = runKey(def, ctx)
   let perBars = _memo.get(rows)
   if (!perBars) { perBars = new Map(); _memo.set(rows, perBars) }
+  // ⭐ (engine 86) a budget stop remembered before a Retry is dropped here, and the bars run again
+  if (perBars.has(key) && perBars.get(key) && perBars.get(key).budgetGen !== undefined
+      && perBars.get(key).budgetGen !== runtimeBudgetGeneration()) {
+    perBars.delete(key)
+  }
   if (perBars.has(key)) {
     const hit = perBars.get(key)
     // ⭐ C43 — a run the script stopped is remembered as that stop, not re-run;
@@ -2233,6 +2239,23 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
     if (hit && hit.stoppedBy) throw hit.stoppedBy
     if (hit && hit.pending) return {}
     return hit
+  }
+  // ⭐⭐ (engine 86) — A TIME-BUDGET STOP IS REMEMBERED FOR THIS PAGE, per document, symbol, timeframe, settings and
+  // history fact (`runKey` WITHOUT the other-symbol supply, which moves every tick): a live chart's next bars are not
+  // run cold again only to be stopped again (they were, on every update, each burning the whole budget and drawing
+  // nothing). ⛔ Never persisted: a reload, another setting or symbol, or Retry on the strip
+  // (`retryRuntimeBudgetStops`) runs it again, so a stop that came from a busy machine is never permanent.
+  const stopKey = runKey(def, ctx, false)
+  const remembered = runtimeBudgetStopAt(stopKey)
+  if (remembered) {
+    perBars.set(key, { stoppedBy: remembered.err, budgetGen: runtimeBudgetGeneration() })
+    throw remembered.err
+  }
+  const stopOf = (err) => {
+    if (!(err && err.guard === RUNTIME_TIME_BUDGET_GUARD)) return { stoppedBy: err }
+    const kept = budgetStopOf(err)
+    rememberRuntimeBudgetStop(stopKey, def && def.id, kept)
+    return { stoppedBy: kept, budgetGen: runtimeBudgetGeneration() }
   }
   if (_runner) {
     // ⭐⭐ RT1 — OFF THE MAIN THREAD. The run is handed to the worker and this
@@ -2242,7 +2265,7 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
     const pending = { pending: true }
     perBars.set(key, pending)
     _runner(def, rows, ctx, (err, columns) => {
-      perBars.set(key, err ? { stoppedBy: err } : columns)
+      perBars.set(key, err ? stopOf(err) : columns)
       for (const fn of [..._landed]) {
         try { fn(key) } catch { /* a bad listener must not break the lane */ }
       }
@@ -2259,10 +2282,28 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
     perBars.set(key, out)
     return out
   } catch (err) {
-    perBars.set(key, { stoppedBy: err })
-    throw err
+    const stop = stopOf(err)
+    perBars.set(key, stop)
+    throw stop.stoppedBy
   }
 }
+
+// ─── ⭐⭐ (engine 86) the time-budget stops this page remembers (`runtimeColumnsFor`; the store is
+// `../runtimeBudgetStops.js`, which the strip reads without loading this lane) ─────────────────────────────────────
+/** The stop as the strip says it: the run's own sentence, and that it is not run again until a retry. */
+function budgetStopOf(err) {
+  const kept = new Error(`${String((err && err.message) || '').trim()} It is not run again on this chart's next bars `
+    + '(each would be stopped the same way); Retry runs it again.')
+  for (const [k, v] of Object.entries(err || {})) if (k !== 'message' && k !== 'stack') kept[k] = v
+  kept.guard = RUNTIME_TIME_BUDGET_GUARD
+  kept.retryable = true
+  return kept
+}
+// a Retry repaints: the chart asks again, and the forgotten stops run
+onRuntimeBudgetStopsChange((retried) => {
+  if (!retried) return
+  for (const fn of [..._landed]) { try { fn('retry') } catch { /* a bad listener must not break the lane */ } }
+})
 
 // ─── ⭐⭐ C18 — VALUES A DRAWING READS FROM THE RUNTIME LANE ─────────────────
 //
