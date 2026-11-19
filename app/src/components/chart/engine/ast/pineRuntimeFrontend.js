@@ -1874,7 +1874,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const b = env.get(n)
       return b && b.kind === 'expr' && !b.frame ? b.node : null
     }
-    const r = timeInputDefaultOf(call, lookup)
+    // ⭐ C1 — the exchange's zone, where this run is told a New York symbol (the rule `requireNewYorkExchange`
+    // states for every exchange-zone read on this lane): a `timestamp(year, …)` default reads it
+    const exchangeZone = bars.length > 0 && bindConsts['syminfo.timezone'] === 'America/New_York' ? 'America/New_York' : null
+    const r = timeInputDefaultOf(call, lookup, { exchangeZone })
     if (r.skip) throw new RuntimeRefusal('runtime:statement', '`' + name + '` is a time input, and ' + r.skip, at)
     return { type: 'number', value: r.ms, tok: call.tok }
   }

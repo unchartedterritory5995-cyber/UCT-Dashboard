@@ -171,10 +171,11 @@ ${RT}plot(acc * (time >= startDate ? 1 : 0))
 
   // ⚰️ RULING-0927 r1 (2026-11-07): this served a literal default at the edge of the range. A
   // literal millisecond default is not a form any capture holds, so it is refused by name now.
-  it('⛔ RULING-0927 r1 — a literal millisecond default, even inside the range, is refused by name', () => {
-    const { specs, skipped } = runtimeInputSpecsOf(SRC.replace('timestamp("01 Jan 2021 00:00 +0000")', '8640000000000000'))
-    expect(specs.find((x) => x.key === 'startDate')).toBeUndefined()
-    expect(skipped.find((x) => x.key === 'startDate').reason).toMatch(/literal count of milliseconds.*RULING-0927 r1/)
+  // ⚰️ C1 (NUMBER PENDING, coordinator ruling 2026-11-19): a literal millisecond default was refused here under
+  // RULING-0927 r1; it IS the UNIX time the input returns (`defval (const int)`), so it serves, at the range's edge too
+  it('C1 — a literal millisecond default inside the range is served as itself', () => {
+    const { specs } = runtimeInputSpecsOf(SRC.replace('timestamp("01 Jan 2021 00:00 +0000")', '8640000000000000'))
+    expect(specs.find((x) => x.key === 'startDate').default).toBe(8640000000000000)
   })
 
   it('⛔ a member value outside the JS Date range is refused by name', () => {
@@ -185,7 +186,10 @@ ${RT}plot(acc * (time >= startDate ? 1 : 0))
 
   // ⚰️ RULING-0927 r1 (2026-11-07): `timestamp(timezone, y, m, d, …)` was SERVED here. It is
   // read exactly by our arithmetic, but no capture holds the form, so it is refused by name.
-  it.each(['"UTC", 2021, 1, 1, 0, 0', '"GMT+10", 2021, 1, 1, 9, 30', '"UTC-5", 2021, 6, 1, 0, 0, 15',
+  // ⚰️ C1 (NUMBER PENDING, coordinator ruling 2026-11-19): `"UTC", 2021, 1, 1, 0, 0` stood first here; a zone that
+  // names UTC itself is settled by the reference alone and serves (`inputTimeReferenceDefaults.test.js`). An offset
+  // keeps waiting for its sign (CR-S1), the named-argument spelling for Q-D2.
+  it.each(['"GMT+10", 2021, 1, 1, 9, 30', '"UTC-5", 2021, 6, 1, 0, 0, 15',
     'timezone = "UTC", year = 2021, month = 1, day = 1, hour = 0, minute = 0'])(
     '⛔ RULING-0927 r1 — timestamp(%s) is refused by name', (args) => {
       const { specs, skipped } = runtimeInputSpecsOf(`//@version=5
