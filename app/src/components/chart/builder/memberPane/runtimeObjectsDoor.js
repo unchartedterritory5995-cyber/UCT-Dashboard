@@ -40,8 +40,12 @@
 // withholds by name any family whose answer no capture settles (`objectStore.js`),
 // so the replacement is never a guess presented as a drawing.
 //
-// ⛔ A CLEAN host program is never replaced: it already draws everything the
-// script draws, and the vendor harness grades it.
+// ⭐⭐ PARITY UNIT LF (2026-11-18) — AND A CLEAN host program is replaced too, but never TAKEN AWAY:
+// the run's drawings are the document's, the clean program rides beside them (`hostFallback`), and it is
+// drawn instead whenever the run holds back a family it draws (`runtimeObjects.js::drawsRunObjectsOn`).
+// ⚰️ This said "a CLEAN host program is never replaced: it already draws everything the script draws";
+// it did, but then the run's drawings were never graded on such a script, and capability admission
+// (`obj:linefill`) needs graded RUN-drawn captures.
 import { paneObjectsGate } from '../../engine/ast/paneGate'
 import { probeRuntimeProgram } from '../../engine/runtime/runtimeColumns'
 
@@ -93,7 +97,20 @@ export function runtimeOwnObjectsOf({ source, t }) {
     // ⭐⭐ CBC-FMT — the declaration's own count, as the translation read it (`pine.js::
     // declarationCalcBars`); a `request.security(calc_bars_count = …)` argument is not one.
     windowed = Number.isInteger(t && t.calcBarsCount)
-    if (!refusedForDrawing && !hostPartial && !windowed) return { probe: null, why: null, valueProbe }
+    if (!refusedForDrawing && !hostPartial && !windowed) {
+      // ⭐⭐ PARITY UNIT LF (2026-11-18, coordinator ruling) — A CLEAN HOST PROGRAM NO LONGER DRAWS A
+      // RUNTIME DOCUMENT'S OBJECTS ON ITS OWN. The run executes every drawing call the script makes, in
+      // source order, on every bar (TradingView's model: `line.new`, "Creates new line object."), so
+      // when it builds WITH its drawings and lowers at least one, its drawings are the document's
+      // (`compute.objects: true`), and its graded captures are evidence of the RUN's drawings. The host
+      // program rides beside them (`hostFallback`): the binder and the harness draw it instead
+      // whenever the run holds back a family it draws (`runtimeObjects.js::drawsRunObjectsOn`), so no
+      // member loses a drawing the host program showed. Otherwise the host program keeps drawing,
+      // exactly as before.
+      const runOwn = probeRuntimeProgram(source, { objectsInRun: true })
+      if (runOwn && runOwn.ok && runOwn.objectOps > 0) return { probe: runOwn, hostFallback: true, valueProbe }
+      return { probe: null, why: null, valueProbe }
+    }
     if (hostPartial && gate.loss) replaced = { dropped: gate.loss.dropped, attempted: gate.loss.attempted }
   }
   const probe = probeRuntimeProgram(source, { objectsInRun: true })

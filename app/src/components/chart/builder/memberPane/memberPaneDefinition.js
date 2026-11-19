@@ -2364,7 +2364,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const hostWouldDraw = objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
   // ⭐ WS-E review M1 — a `calc_bars_count` document never carries the host program
   // (it would draw over every bar beside plots drawn over the window); named below.
-  const drawsObjects = !ownObjects && !own.hostWithheld && hostWouldDraw
+  // ⭐⭐ PARITY UNIT LF — a run-owned document whose host program was CLEAN carries that program beside the
+  // run (`own.hostFallback`): drawn instead whenever the run holds back a family it draws.
+  const drawsObjects = (!ownObjects || own.hostFallback === true) && !own.hostWithheld && hostWouldDraw
   // ⭐ RT5 — a document whose only output is its drawings carries the hidden
   // anchor row an objects-only document carries (never offered, never drawn).
   // ⭐⭐ W9 ARMED ROUTE — a broker document with no row of its own (a tester-only strategy) sits on the PRICE
@@ -2554,6 +2556,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       name: 'Drawings',
       note: 'Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way '
         + 'TradingView makes them. A kind of drawing whose result is not known exactly is not drawn.'
+        + (own.hostFallback === true ? ' Where the run holds back a kind of drawing that the script’s formula '
+          + 'drawing program draws, this chart draws that program’s drawings instead, so nothing it showed is lost.' : '')
         + (rep ? ` These replace the drawing program this pane would otherwise use, which could not make `
           + `${Number.isInteger(rep.dropped) && Number.isInteger(rep.attempted) ? `${rep.dropped} of its ${rep.attempted}` : 'some of its'} `
           + 'drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that '

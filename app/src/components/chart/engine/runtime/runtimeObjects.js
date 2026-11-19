@@ -44,6 +44,47 @@ export function runtimeObjectsWithheldOf(cols) {
 export const drawsRuntimeObjects = (def) => !!(def && def.compute
   && def.compute.kind === 'runtime' && def.compute.objects === true)
 
+/** The families a host object program creates (loop bodies included). */
+function programFamilies(program) {
+  const out = new Set()
+  const walk = (ops) => {
+    for (const op of ops || []) {
+      if (!op) continue
+      if (op.k === 'create' && typeof op.family === 'string') out.add(op.family)
+      if (Array.isArray(op.body)) walk(op.body)
+    }
+  }
+  walk(program && program.ops)
+  return out
+}
+
+/**
+ * ⭐⭐ PARITY UNIT LF (2026-11-18) — DOES THIS INSTANCE DRAW THE RUN'S OBJECTS ON THESE COLUMNS?
+ *
+ * A runtime document whose host object program was CLEAN now draws the run's own drawings
+ * (`runtimeObjectsDoor.js::runtimeOwnObjectsOf`, `hostFallback`), and carries that host program
+ * beside them (`definition.objects`). ⛔ A CHANGE NEVER TAKES AWAY WHAT A MEMBER SEES: the run's
+ * store holds back by name a family whose answer no capture settles (`objectStore.js`), and the host
+ * program drew that family. So whenever the run withholds its drawings whole, or holds back a family
+ * the host program draws, THIS chart draws the host program instead, exactly as before the change.
+ * A run still in flight (no record yet) is the run's branch: the layer stays empty until it lands
+ * (never the host picture first and a swap after). A document with no host program beside the run
+ * (every other run-owned document) is unchanged: the run's objects, whatever it holds back.
+ * The binder and the vendor harness both ask THIS, so the graded picture is the drawn one.
+ */
+export function drawsRunObjectsOn(def, cols) {
+  if (!drawsRuntimeObjects(def)) return false
+  const program = def && def.objects
+  if (!program || !Array.isArray(program.ops) || !program.ops.length) return true
+  if (!cols || typeof cols !== 'object') return true
+  const p = cols[RUNTIME_OBJECTS_KEY]
+  if (!p || typeof p !== 'object') return true
+  if (p.status === 'WITHHELD') return p.pending === true
+  const fams = programFamilies(program)
+  // (the run half's own reading of a family held back: any key of `withheld`, `nativeRegistry.js::withRunHalf`)
+  return !Object.keys(p.withheld || {}).some((fam) => fams.has(fam))
+}
+
 /** ⭐ UIE PHASE 2 — where a run's withheld WARM-UP rides (`runtimeColumns.js::
  *  computeOffListing`): the same non-enumerable shape, so a column walk never sees it. */
 export const RUNTIME_WARMUP_KEY = '__runtimeWarmup'
