@@ -192,6 +192,33 @@ def ledger_runtime_evidence(inp, lanes, ledger_rows, verdict_ids, engine):
     return out
 
 
+def library_pin(lane_row, cap):
+    """⭐ libraries chain L1 (2026-11-19): {path, sha256} of the library version `cap` (`library:<Author>/<Lib>/<N>`)
+    as the member door LINKED it for this script (the lanes measurement's `libraries`, the document's own
+    `meta.libraries` pins), or None. `rollout_gate.pine_capability_admission` counts a library row's evidence ONLY
+    when the entry names that path AND the sha the row pins, so evidence must say which code it graded; an entry
+    whose library the door did not link (no store, a refused version) is no evidence for it and is dropped."""
+    path = cap[len(pc.LIBRARY_PREFIX):]
+    for pin in (lane_row or {}).get("libraries") or []:
+        if isinstance(pin, dict) and pin.get("path") == path and isinstance(pin.get("sha256"), str):
+            return {"path": path, "sha256": pin["sha256"].lower()}
+    return None
+
+
+def _evidence_entries(caps, lane_row, base):
+    """One evidence entry per capability, a library capability carrying the pin it was graded with (or none)."""
+    out = []
+    for cap in caps:
+        if pc.is_library_capability(cap):
+            pin = library_pin(lane_row, cap)
+            if pin is None:
+                continue
+            out.append((cap, dict(base, library=pin)))
+        else:
+            out.append((cap, dict(base)))
+    return out
+
+
 def cmd_evidence(a):
     inp = {s["key"]: s for s in json.load(open(a.input, encoding="utf-8"))["scripts"]}
     lanes = {r["key"]: r for r in json.load(open(a.lanes, encoding="utf-8"))["rows"]}
@@ -202,11 +229,12 @@ def cmd_evidence(a):
     for key, hits in ledger_runtime_evidence(inp, lanes, ledger_rows, set(v), el.engine_version()).items():
         for cid, title, engine_at in hits:
             family, community = rg.pine_evidence_script(title, cid)
-            for cap in inp[key]["caps"]:
-                # `ledger` + `scriptEngineVersion`: the registry rule re-asks freshness at every admission
-                # (`rollout_gate._pine_capability_evidence_counts`), so an engine bump retires it
-                per[cap].append({"capture": cid, "script": family, "community": community, "title": title,
-                                 "ledger": True, "scriptEngineVersion": engine_at})
+            # `ledger` + `scriptEngineVersion`: the registry rule re-asks freshness at every admission
+            # (`rollout_gate._pine_capability_evidence_counts`), so an engine bump retires it
+            base = {"capture": cid, "script": family, "community": community, "title": title,
+                    "ledger": True, "scriptEngineVersion": engine_at}
+            for cap, entry in _evidence_entries(inp[key]["caps"], lanes.get(key), base):
+                per[cap].append(entry)
     for key, s in inp.items():
         if s["population"] != "capture":
             continue
@@ -216,9 +244,10 @@ def cmd_evidence(a):
         if lane != "runtime" or not el.is_match(verdict):
             continue
         family, community = rg.pine_evidence_script(v[s["capture"]].get("script"), s["capture"])
-        for cap in s["caps"]:
-            per[cap].append({"capture": s["capture"], "script": family, "community": community,
-                             "title": v[s["capture"]].get("script")})
+        base = {"capture": s["capture"], "script": family, "community": community,
+                "title": v[s["capture"]].get("script")}
+        for cap, entry in _evidence_entries(s["caps"], lanes.get(key), base):
+            per[cap].append(entry)
     out = {}
     for cap in sorted(pc.CAPABILITY_IDS | set(per)):
         ev = per.get(cap, [])

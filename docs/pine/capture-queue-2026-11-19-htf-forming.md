@@ -30,14 +30,14 @@ newest bar's week and month are both still forming. On a FORMING bar, read the b
 tick, or capture twice and keep the pair whose newest row did not change. The in-session probe
 `vw-htf-window-sites-spy-1d-2026-11-16` read a weekly close of 743.35 against a captured daily row of 743.34.
 
-| id | probe | chart | question | live |
-|---|---|---|---|---|
-| Q-HTF-FORM-a | `vw-request-htf-forming.pine` | AMEX:SPY 1D, NYSE:RDDT 1D | during regular hours, the newest daily bar forming: F01-F05 on the newest bar (the period so far, for look-ahead off and on?), F06-F11 there, and F13 / F14 | yes |
-| Q-HTF-FORM-b | `vw-request-htf-forming.pine` | AMEX:SPY 1D, NYSE:RDDT 1D | after the close, on a chart LEFT OPEN across the close (no reload), captured 5 and 30 minutes after the close: is the newest bar still realtime (F13), and is F02 the month so far? | yes |
-| Q-HTF-FORM-c | `vw-request-htf-forming.pine` | AMEX:SPY 1D, NYSE:RDDT 1D | after the close, a FRESH load (a new tab or a reload), 30 minutes after the close: does the newest bar read realtime without a tick, and which F01 / F02 does it show? | yes |
-| Q-HTF-FORM-d | `vw-request-htf-forming.pine` | AMEX:SPY 1D, NYSE:RDDT 1D | the next morning before the open, a fresh load: F13 = 0, F01 / F02 the last confirmed periods, F06 (the settled `x[1]`) on the newest bar | no |
-| Q-HTF-FORM-e | `vw-request-htf-forming.pine` | AMEX:SPY 5 | during regular hours: a weekly and a monthly read on an intraday chart, whose newest bar is always inside its week | yes |
-| Q-HTF-FORM-f | `vw-request-htf-forming.pine` | AMEX:SPY 1W | during regular hours, the newest weekly bar forming: the monthly read (F02 / F04) on a weekly chart; F01 / F03 are the chart's own period | yes |
+| id | probe | chart | question | live | phase |
+|---|---|---|---|---|---|
+| Q-HTF-FORM-a | `vw-request-htf-forming.pine` | AMEX:SPY 1D, NYSE:RDDT 1D | during regular hours, the newest daily bar forming: F01-F05 on the newest bar (the period so far, for look-ahead off and on?), F06-F11 there, and F13 / F14 | yes | insession |
+| Q-HTF-FORM-b | `vw-request-htf-forming.pine` | AMEX:SPY 1D, NYSE:RDDT 1D | after the close, on a chart LEFT OPEN across the close (no reload), captured 5 and 30 minutes after the close: is the newest bar still realtime (F13), and is F02 the month so far? | yes | postclose-open |
+| Q-HTF-FORM-c | `vw-request-htf-forming.pine` | AMEX:SPY 1D, NYSE:RDDT 1D | after the close, a FRESH load (a new tab or a reload), 30 minutes after the close: does the newest bar read realtime without a tick, and which F01 / F02 does it show? | yes | postclose-fresh |
+| Q-HTF-FORM-d | `vw-request-htf-forming.pine` | AMEX:SPY 1D, NYSE:RDDT 1D | the next morning before the open, a fresh load: F13 = 0, F01 / F02 the last confirmed periods, F06 (the settled `x[1]`) on the newest bar | no | preopen |
+| Q-HTF-FORM-e | `vw-request-htf-forming.pine` | AMEX:SPY 5 | during regular hours: a weekly and a monthly read on an intraday chart, whose newest bar is always inside its week | yes | insession |
+| Q-HTF-FORM-f | `vw-request-htf-forming.pine` | AMEX:SPY 1W | during regular hours, the newest weekly bar forming: the monthly read (F02 / F04) on a weekly chart; F01 / F03 are the chart's own period | yes | insession |
 
 **What each answer moves.**
 - Q-HTF-FORM-a grading F03 / F04 MATCH on the forming bar serves the look-ahead-on read there (engine number: yes).

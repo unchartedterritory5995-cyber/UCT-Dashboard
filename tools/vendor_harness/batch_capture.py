@@ -89,6 +89,9 @@ from pine_vendor_capture import (  # noqa: E402
 from pine_member_pane_capture import TIERS, _gate  # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from evidence_ledger import CAPTURE_PHASES  # noqa: E402 — the ONE phase vocabulary: imported, never restated
+
 TV_CAPTURE = HERE / "tv_capture.js"
 VERIFY = HERE / "verify_capture.mjs"
 DEFAULT_MANIFEST = REPO / "docs" / "pine" / "vendor-harness" / "batch-manifest.json"
@@ -419,6 +422,42 @@ def throttle_refusal(throttle_s) -> str | None:
         return f"--throttle-s {throttle_s} is not a finite number of seconds"
     if t < MIN_THROTTLE_S:
         return f"--throttle-s {throttle_s} is below {MIN_THROTTLE_S:.0f}s (this is the owner's own account)"
+    return None
+
+
+def capture_id_for(script: dict, o: Opts) -> str:
+    """⭐ THE capture id the driver writes for `script` on the chart `o` names (`Driver.opts_for`):
+    `<captureStem>-<sym>-<tf>-<yyyy-mm-dd>`, then `-<capturePhase>` when the manifest entry carries one. ONE authority:
+    `Driver.capture` names its file with it and `run_batch` checks every script's before the first capture.
+    ⛔ A capturePhase outside `evidence_ledger.CAPTURE_PHASES` is refused (GATE_FAILED, the batch stops): an id the
+    gate cannot read back is never written."""
+    phase = script.get("capturePhase")
+    if phase is not None and phase not in CAPTURE_PHASES:
+        raise GateFailed(f"capturePhase {phase!r} of {script.get('slug')} is not one of {list(CAPTURE_PHASES)}",
+                         abort=True)
+    sym_slug = slugify(o.symbol.split(":")[-1])
+    tf_slug = slugify(res_norm(o.tf) if re.fullmatch(r"\d+", res_norm(o.tf)) else "1" + res_norm(o.tf))
+    capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}-{o.date}"
+    return f"{capture_id}-{phase}" if phase else capture_id
+
+
+def capture_id_refusal(scripts, opts_for) -> str | None:
+    """None when every script of the manifest names its own capture id, else why the batch may not start.
+    ⛔ Checked at BATCH START over the WHOLE manifest (a `--only` / `--limit` run writes into the same run dir), before
+    any page step: two scripts naming one id would write one capture file twice (2026-11-19: rows Q-HTF-FORM-a and -c,
+    one probe on AMEX:SPY 1D in two session states on one day, named the same capture)."""
+    seen, clashes = {}, []
+    for s in scripts:
+        try:
+            cid = capture_id_for(s, opts_for(s))
+        except StepOutcome as so:
+            return so.reason
+        if cid in seen:
+            clashes.append(f"{seen[cid]} and {s.get('slug')} both name {cid}")
+        else:
+            seen[cid] = s.get("slug")
+    if clashes:
+        return "two scripts would write the same capture id (give each a distinct capturePhase): " + "; ".join(clashes)
     return None
 
 
@@ -887,6 +926,8 @@ class Driver:
 
     def capture(self, script) -> dict:
         o = self.opts
+        # ⛔ the id first, before any page step: a capturePhase outside the vocabulary stops here, nothing touched
+        capture_id = capture_id_for(script, o)
         self.gate("script start")
         self.step("signin")
         verdict, detail = layout_access(self.page)
@@ -930,9 +971,6 @@ class Driver:
             raise Inconclusive("the one indicator on the chart has no title to select it by", listed)
         self.added_titles.add(title)
         forming, forming_why = newest_bar_forming(o.newest_bar_forming)
-        sym_slug = slugify(o.symbol.split(":")[-1])
-        tf_slug = slugify(res_norm(o.tf) if re.fullmatch(r"\d+", res_norm(o.tf)) else "1" + res_norm(o.tf))
-        capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}-{o.date}"
         cap_opts = {
             "study": title, "source": text, "id": capture_id,
             "newestBarIsForming": forming, "startsAtBar0": starts, "startsAtBar0Why": why,
@@ -1194,6 +1232,10 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
     original = None
     try:
         try:
+            # ⛔ BEFORE ANY PAGE STEP: every script's capture id, and no two the same (nothing is captured otherwise)
+            clash = capture_id_refusal(manifest["scripts"], drv.opts_for)
+            if clash:
+                raise GateFailed(f"capture ids: {clash}", abort=True)
             drv.gate("batch start")
             original = drv.read_state("state_original")
             drv.provenance = batch_provenance(page, rd, opts)

@@ -1,0 +1,28 @@
+//@version=6
+indicator("UCTPROBE_VW_DATA_DIVIDENDS", overlay = false)
+
+// PROVENANCE: written 2026-11-19 (Pine data unit S4-2, Q-S4-D, docs/pine/capture-queue-2026-11-19-s4-data.md).
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// ─── WHERE `request.dividends` PLACES EACH DIVIDEND, AND ON WHICH BASIS ───
+//
+// The data unit serves `request.dividends` from UCT's corporate-actions data only where a capture says on which bar
+// TradingView places a dividend (the ex-date's bar?), for each `gaps` / `lookahead` pairing, and on which basis the
+// amount is given: as declared, or divided by the splits after it (NASDAQ:AAPL, the 2020 4-for-1; NASDAQ:NVDA, the
+// 2021 4-for-1 and 2024 10-for-1). `dividends.net` is served only if every US row shows it equal to `gross`.
+//
+//   D01   dividends.gross, gaps_on,  lookahead_on   (the built-in VWAP's own pairing)
+//   D02   dividends.gross, gaps_on,  lookahead_off
+//   D03   dividends.gross, gaps_off, lookahead_on
+//   D04   dividends.gross, the defaults               (gaps_off, lookahead_off)
+//   D05   dividends.net,   gaps_on,  lookahead_on
+//   D06   dividends.net,   the defaults
+//   D07   time (the bar's open, to name each bar)
+
+plot(request.dividends(syminfo.tickerid, dividends.gross, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol = true), "D01 gross gaps_on lookahead_on")
+plot(request.dividends(syminfo.tickerid, dividends.gross, barmerge.gaps_on, barmerge.lookahead_off, ignore_invalid_symbol = true), "D02 gross gaps_on lookahead_off")
+plot(request.dividends(syminfo.tickerid, dividends.gross, barmerge.gaps_off, barmerge.lookahead_on, ignore_invalid_symbol = true), "D03 gross gaps_off lookahead_on")
+plot(request.dividends(syminfo.tickerid, dividends.gross, ignore_invalid_symbol = true), "D04 gross defaults")
+plot(request.dividends(syminfo.tickerid, dividends.net, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol = true), "D05 net gaps_on lookahead_on")
+plot(request.dividends(syminfo.tickerid, dividends.net, ignore_invalid_symbol = true), "D06 net defaults")
+plot(time, "D07 bar time")

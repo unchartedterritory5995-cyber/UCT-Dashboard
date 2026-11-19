@@ -96,6 +96,24 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
     ("sec_edgar", "ownership"): LicensingClassEntry(
         "A", "Form 13F information tables read from EDGAR — public domain, same row as Form 4 (TERM-045).", "T-83",
     ),
+    # ── Rows added 2026-11-19 (Pine data unit S4-0): three pairs the register classifies but this table did not
+    # carry, so each fell to `_DEFAULT` ("U"). They restate the register's rows; none is a ruling. The stale rows
+    # above (the FMP "no DDLA assumed" rows, Massive "reference" / "derived_analytics") are NOT restated here: that
+    # switches other consumers and is its own unit (coordinator ruling C1, 2026-11-19).
+    ("sec_edgar", "fundamentals"): LicensingClassEntry(
+        "A", "XBRL company facts and the submissions index read from EDGAR into the point-in-time fundamentals store "
+             "(api/services/fundamentals_pit) — public domain, the same row as Form 4 / 13F; the declared User-Agent and "
+             "the ~10 req/s fair-access rule are etiquette, not display restrictions (TERM-045).", "T-83",
+    ),
+    ("massive", "short_interest"): LicensingClassEntry(
+        "LA", "FINRA short interest per ticker, redistributed by Massive (/stocks/v1/short-interest, "
+              "api/services/short_data.py) — T-93: listed by Massive as included in every Stocks plan; the Business "
+              "display grant T-01/T-04 rest on. FINRA's own terms for its files were not read (T-93).", "T-93",
+    ),
+    ("massive", "short_volume"): LicensingClassEntry(
+        "LA", "FINRA daily short sale volume per ticker (off-exchange venues only), redistributed by Massive "
+              "(/stocks/v1/short-volume, api/services/short_data.py) — T-94, as T-93.", "T-94",
+    ),
     ("finviz", "short_interest"): LicensingClassEntry(
         "LA", "Short float / short ratio (and short interest derived from them) off the Finviz Elite whole-market export — T-48, ANSWERED (see T-47): LA. Still single-sourced; the owner ruling of 2026-09-29 makes it the short-interest source (TERM-046).", "T-48",
     ),

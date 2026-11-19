@@ -11,6 +11,7 @@ loud. Every guard's mutation proof: `tools/vendor_harness/evidence_engine_mutati
 """
 from __future__ import annotations
 
+import ast
 import hashlib
 import hmac
 import json
@@ -928,3 +929,194 @@ def test_the_committed_live_rows_are_exactly_the_session_rows():
     for tid in ("w9-p3-every-tick-history@NYSE:RDDT@D", "w9-q-s1e-live-past@NYSE:RDDT@D"):
         assert by[tid] == "CAPTURED", tid
     assert by["w9-q-s1o-every-tick@AMEX:SPY@5"] == by["s1-broker-core@AMEX:SPY@5"] == "NEEDS_LIVE"
+
+
+# ── the capture phase (coordinator, 2026-11-19): two rows of ONE probe on one chart and one day named one capture ──
+PHASES = ee.el.CAPTURE_PHASES
+
+PHASE_DOC = """# Capture queue - 2026-11-19 phases
+
+| id | probe | chart | question | phase |
+|---|---|---|---|---|
+| P1 | `foxtrot.pine` | AMEX:SPY 1D | in session | insession |
+| P2 | `foxtrot.pine` | AMEX:SPY 1D | after the close, a fresh load | postclose-fresh |
+| P3 | `foxtrot.pine` | AMEX:SPY 5 | one row on another chart, no phase | - |
+"""
+PHASE_DOC_NAME = "capture-queue-2026-11-19-phases.md"
+
+
+def _phase_world(world, extra_rows=""):
+    (world.docs_dir / PHASE_DOC_NAME).write_text(PHASE_DOC + extra_rows, encoding="utf-8")
+    return world
+
+
+def test_a_capture_id_parses_with_and_without_a_phase_and_an_unknown_phase_is_refused():
+    base = "vw-request-htf-forming-spy-1d-2026-11-19"
+    assert PHASES == ("insession", "postclose-open", "postclose-fresh", "preopen")
+    for cid in [base] + [f"{base}-{p}" for p in PHASES]:
+        assert ee.ID_RX.match(cid), cid
+        assert ee.TAIL_RX.fullmatch(cid[len("vw-request-htf-forming-"):]), cid
+        assert ee.ID_TOKEN_RX.search(f"`{cid}.json`").group(1) == cid
+        # ⭐ the phase is never part of the script key: two phases of one probe are one script
+        assert ee.el.script_key(cid) == "vw-request-htf-forming", cid
+    assert [ee.el.capture_phase(f"{base}-{p}") for p in PHASES] == list(PHASES)
+    assert ee.el.capture_phase(base) is None
+    for bad in ("midday", "postclose", "in-session", "Insession", "insession-2"):
+        cid = f"{base}-{bad}"
+        assert not ee.ID_RX.match(cid), cid
+        assert not ee.TAIL_RX.fullmatch(cid[len("vw-request-htf-forming-"):]), cid
+        assert ee.el.script_key(cid) == cid and ee.el.capture_phase(cid) is None, cid   # not an id at all
+
+
+def test_the_gate_admits_a_phased_id_on_its_capture_stem_and_refuses_an_unknown_phase(tmp_path, world):
+    rd = _run_dir(tmp_path, world, [("alpha-rddt-1d-2026-11-19-preopen", ALPHA), ("alpha-rddt-1d-2026-11-19-midday", ALPHA)])
+    by = {i["id"]: i for i in ee.build_packet(rd, world, OkVerifier(), tmp_path / "fixtures")["items"]}
+    assert (by["alpha-rddt-1d-2026-11-19-preopen"]["action"], by["alpha-rddt-1d-2026-11-19-preopen"]["problems"]) == \
+        ("PROMOTE", [])
+    bad = by["alpha-rddt-1d-2026-11-19-midday"]
+    assert bad["action"] == "REFUSE" and any("capture stem of its source" in p for p in bad["problems"])
+
+
+def test_a_phase_cell_outside_the_vocabulary_refuses_the_queue_by_name(world):
+    _phase_world(world, "| P4 | `foxtrot.pine` | AMEX:SPY 15 | a word that is no phase | midday |\n")
+    with pytest.raises(ee.PhaseError, match=r"capture-queue-2026-11-19-phases\.md:\d+ \('P4'\).*'midday'"):
+        ee.parse_doc(world, world.docs_dir / PHASE_DOC_NAME)
+    with pytest.raises(ee.PhaseError):
+        ee.build_queue(world)
+
+
+def test_phased_rows_of_one_probe_and_chart_are_distinct_targets_and_unphased_ones_merge_as_before(world):
+    _, rows = _doc_rows(_phase_world(world), PHASE_DOC_NAME)
+    assert (rows["P1"]["phase"], rows["P2"]["phase"], rows["P3"]["phase"]) == ("insession", "postclose-fresh", None)
+    t = _by_id(ee.build_queue(world))
+    assert "foxtrot@AMEX:SPY@D" not in t
+    for ph, row in (("insession", "P1"), ("postclose-fresh", "P2")):
+        x = t[f"foxtrot@AMEX:SPY@D@{ph}"]
+        assert x["capturePhase"] == ph and x["rows"] == [f"capture-queue-2026-11-19-phases#{row}"] and x["status"] == "QUEUED"
+    assert t["foxtrot@AMEX:SPY@5"]["capturePhase"] is None
+    # an unphased target is exactly what it was: the same id, no phase (the test doc's own targets, untouched)
+    assert t["bravo@NYSE:RDDT@D"]["capturePhase"] is None and t["bravo@NYSE:RDDT@D"]["rows"] == \
+        ["capture-queue-2026-11-02-test#Q1"]
+
+
+def test_queue_check_refuses_phased_rows_that_would_collide_and_passes_distinct_phases(world, monkeypatch, capsys):
+    monkeypatch.setattr(ee, "World", lambda *a, **k: world)
+    # ✅ CONTROL: distinct phases (and an unphased row on ANOTHER chart) pass the check
+    _phase_world(world)
+    assert ee.main(["queue", "--check"]) == 0 and "VERDICT: PASS" in capsys.readouterr().out
+    # ⛔ a repeated phase: one capture asked twice
+    _phase_world(world, "| P4 | `foxtrot.pine` | AMEX:SPY 1D | in session again | insession |\n")
+    with pytest.raises(ee.PhaseError, match=r"repeated.*phases\.md:\d+ P1 \(insession\).*phases\.md:\d+ P4 \(insession\)"):
+        ee.main(["queue", "--check"])
+    # ⛔ phased and unphased mixed on one probe and chart, across docs: every row is named with its doc
+    _phase_world(world)
+    (world.docs_dir / "capture-queue-2026-11-20-other.md").write_text(
+        "# Capture queue - 2026-11-20 other\n\n| id | probe | chart |\n|---|---|---|\n"
+        "| O1 | `foxtrot.pine` | AMEX:SPY 1D |\n", encoding="utf-8")
+    with pytest.raises(ee.PhaseError, match=r"mixed.*phases\.md:\d+ P1 \(insession\).*other\.md:\d+ O1 \(no phase\)"):
+        ee.main(["queue", "--check"])
+
+
+def test_fixture_status_matches_a_capture_by_its_phase(world):
+    probe = world.probes["foxtrot"]
+    sha = _sha(FOXTROT)
+    _fixture(world.fixtures / "foxtrot-spy-1d-2026-11-19-insession.json", "foxtrot-spy-1d-2026-11-19-insession",
+             FOXTROT, "AMEX:SPY", "D")
+    world._fixtures = None
+    assert [f["phase"] for f in world.fixture_index if f["id"].startswith("foxtrot-")] == ["insession"]
+    st = lambda ph: ee.fixture_status(world, probe, sha, "AMEX:SPY", "1D", ph)[0]   # noqa: E731
+    # a phased capture answers ITS phase only, never another phase and never the unphased question
+    assert (st("insession"), st("postclose-fresh"), st(None)) == ("CAPTURED", None, None)
+    # an unphased capture answers only the unphased question
+    _fixture(world.fixtures / "foxtrot-spy-1d-2026-11-18.json", "foxtrot-spy-1d-2026-11-18", FOXTROT, "AMEX:SPY", "D")
+    world._fixtures = None
+    assert (st(None), st("preopen")) == ("CAPTURED", None)
+    # STALE by phase too: an older capture of the in-session leg does not make the post-close leg stale
+    _fixture(world.fixtures / "foxtrot-spy-1d-2026-11-01-postclose-open.json", "foxtrot-spy-1d-2026-11-01-postclose-open",
+             "an older foxtrot", "AMEX:SPY", "D")
+    world._fixtures = None
+    assert (st("postclose-open"), st("postclose-fresh")) == ("STALE", None)
+    # a licence-held verdict in the ledger answers by its capture id's phase the same way
+    world.ledger_path.write_text(json.dumps({"sourceSha256": sha, "symbol": "AMEX:SPY", "timeframe": "5",
+                                             "verdict": "MATCH", "captureId": "foxtrot-spy-5-2026-11-19-preopen"}) + "\n",
+                                 encoding="utf-8")
+    world._ledger = None
+    st5 = lambda ph: ee.fixture_status(world, probe, sha, "AMEX:SPY", "5", ph)[0]   # noqa: E731
+    assert (st5("preopen"), st5("insession"), st5(None)) == ("VERDICT_LOCAL", None, None)
+    # and through the queue: the in-session target is CAPTURED, its sibling phase is still QUEUED
+    t = _by_id(ee.build_queue(_phase_world(world)))
+    assert (t["foxtrot@AMEX:SPY@D@insession"]["status"], t["foxtrot@AMEX:SPY@D@postclose-fresh"]["status"]) == \
+        ("CAPTURED", "QUEUED")
+
+
+def test_the_manifest_carries_each_phase_as_its_own_script(world):
+    q = ee.build_queue(_phase_world(world))
+    man = ee.build_manifest(q, top=None, only={"foxtrot@AMEX:SPY@D@insession", "foxtrot@AMEX:SPY@D@postclose-fresh",
+                                               "foxtrot@AMEX:SPY@5"}, world=world)
+    by = {s["queueTargetId"]: s for s in man["scripts"]}
+    assert len(by) == 3 and len({s["slug"] for s in man["scripts"]}) == 3
+    assert by["foxtrot@AMEX:SPY@D@insession"]["capturePhase"] == "insession"
+    assert by["foxtrot@AMEX:SPY@D@postclose-fresh"]["capturePhase"] == "postclose-fresh"
+    assert by["foxtrot@AMEX:SPY@D@insession"]["captureStem"] == by["foxtrot@AMEX:SPY@D@postclose-fresh"]["captureStem"]
+    assert "capturePhase" not in by["foxtrot@AMEX:SPY@5"]        # an unphased entry is byte-for-byte as before
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is required for verify_capture.mjs")
+def test_two_phases_of_one_probe_on_one_chart_run_to_two_promotable_captures(world, tmp_path, monkeypatch):
+    import batch_capture as bc
+    import batch_double as bd
+    monkeypatch.setattr(ee, "REPO", tmp_path)
+    monkeypatch.setattr(bc, "REPO", tmp_path)
+    q = ee.build_queue(_phase_world(world))
+    man = ee.build_manifest(q, top=None, only={"foxtrot@AMEX:SPY@D@insession", "foxtrot@AMEX:SPY@D@postclose-fresh"},
+                            world=world)
+    code, rd, _ = bd.run(bd.RecordingTVPage(), man, tmp_path / "run", bd.fast_opts())
+    res = rd.results()
+    assert code == 0 and all(r["outcome"] == bc.CAPTURED for r in res.values()), res
+    assert sorted(r["captureId"] for r in res.values()) == ["foxtrot-spy-1d-2026-09-28-insession",
+                                                           "foxtrot-spy-1d-2026-09-28-postclose-fresh"]
+    run = tmp_path / "run"
+    bc.write_json_atomic(run / "manifest.json", man)
+    (run / "verdicts.json").write_text(json.dumps({"results": [
+        {"id": r["captureId"], "verdict": "MATCH", "reason": "graded", "plots": []} for r in res.values()]}),
+        encoding="utf-8")
+    items = ee.build_packet(run, world, bc.NodeVerifier(), tmp_path / "fixtures")["items"]
+    assert sorted((i["id"], i["action"], tuple(i["problems"])) for i in items) == [
+        ("foxtrot-spy-1d-2026-09-28-insession", "PROMOTE", ()),
+        ("foxtrot-spy-1d-2026-09-28-postclose-fresh", "PROMOTE", ())]
+
+
+def _string_literals(src: str) -> list:
+    """Every string constant of a Python source. ⛔ COMMENTS ARE STRIPPED FIRST: the source is parsed, and a comment
+    never reaches the syntax tree, so a comment that names a phase is never a finding."""
+    return [n.value for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+
+
+def _phase_literals(src: str) -> list:
+    return [s for s in _string_literals(src) if any(p in s for p in PHASES)]
+
+
+def test_the_phase_vocabulary_is_defined_once_and_never_restated():
+    vh = REPO / "tools" / "vendor_harness"
+    # ✅ CONTROLS: the hunter sees a real occurrence (the one definition), and it does not see a comment
+    assert sorted(_phase_literals((vh / "evidence_ledger.py").read_text(encoding="utf-8"))) == sorted(PHASES)
+    assert _phase_literals('X = 1  # insession, preopen\n') == []
+    assert _phase_literals('X = ("insession",)  # a restatement\n') == ["insession"]
+    # ⛔ the two consumers import it and never restate one word of it
+    for name in ("evidence_engine.py", "batch_capture.py"):
+        assert _phase_literals((vh / name).read_text(encoding="utf-8")) == [], name
+    import batch_capture as bc
+    assert bc.CAPTURE_PHASES is ee.el.CAPTURE_PHASES
+
+
+def test_the_htf_forming_doc_names_one_phase_per_row_and_its_rows_are_distinct_targets():
+    q = ee.build_queue()
+    by = {t["id"]: t for t in q["targets"] if t["stem"] == "vw-request-htf-forming"}
+    want = {"a": "insession", "b": "postclose-open", "c": "postclose-fresh", "d": "preopen"}
+    for sym in ("AMEX:SPY", "NYSE:RDDT"):
+        for row, ph in want.items():
+            t = by[f"vw-request-htf-forming@{sym}@D@{ph}"]
+            assert t["capturePhase"] == ph and t["rows"] == [f"capture-queue-2026-11-19-htf-forming#Q-HTF-FORM-{row}"]
+    assert by["vw-request-htf-forming@AMEX:SPY@5@insession"]["rows"][0].endswith("Q-HTF-FORM-e")
+    assert by["vw-request-htf-forming@AMEX:SPY@W@insession"]["rows"][0].endswith("Q-HTF-FORM-f")
+    assert len(by) == 10 and not any(t["capturePhase"] is None for t in by.values())

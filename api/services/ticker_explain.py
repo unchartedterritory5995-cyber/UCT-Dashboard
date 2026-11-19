@@ -451,13 +451,23 @@ def _ratings_evidence(ratings: dict) -> list[dict]:
 
 
 def _financials_evidence(fin: dict) -> list[dict]:
-    """Reported quarterly figures + a balance/profitability snapshot. Each
-    quarter's label is explicitly flagged as CALENDAR, not fiscal -- the
-    already-documented cross-tab ambiguity (a September-fiscal-year company
-    can show 'Q3 2026' in FMP-fed panels and 'Q2 2026' here for the same
-    quarter) is disclosed in the evidence text itself, not silently
-    resolved, so the model can caveat/clarify rather than guess."""
+    """Reported quarterly figures + a balance/profitability snapshot.
+
+    The quarters carry the source that supplied them, read off the payload's
+    own `sources.statements` (never assumed): the FMP statements label
+    the company's own FISCAL quarters and are cited as FMP; the fallback
+    frames label CALENDAR quarters, and that ambiguity (a September-fiscal-
+    year company's 'Q3 2026' is the fallback's 'Q2 2026') is disclosed in the
+    evidence itself, not silently resolved, so the model can caveat/clarify
+    rather than guess. A payload that does not say is treated as the
+    fallback: the caveat is the safe side to err on."""
     out = []
+    from_fmp = ((fin.get("sources") or {}).get("statements") == "FMP")
+    quarter_source = "FMP, via UCT Financials" if from_fmp else "UCT Financials (yfinance)"
+    quarter_note = ("fiscal-quarter label -- this company's own fiscal-quarter numbering"
+                    if from_fmp else
+                    "calendar-quarter label -- may not match "
+                    "this company's own fiscal-quarter numbering")
     for row in (fin.get("quarterly") or [])[:_MAX_FIN_ROWS]:
         parts = []
         if row.get("revenue") is not None:
@@ -472,9 +482,8 @@ def _financials_evidence(fin: dict) -> list[dict]:
             continue
         out.append({
             "type": "financials_quarter",
-            "date": f"{row.get('period')} (calendar-quarter label -- may not match "
-                    "this company's own fiscal-quarter numbering)",
-            "source": "UCT Financials (yfinance)",
+            "date": f"{row.get('period')} ({quarter_note})",
+            "source": quarter_source,
             "text": f"Quarter {row.get('period')}: " + ", ".join(parts) + ".",
             "url": None,
         })
@@ -501,6 +510,8 @@ def _financials_evidence(fin: dict) -> list[dict]:
         out.append({
             "type": "financials_snapshot",
             "date": "current snapshot",
+            # The balance / metrics block is read by the fundamentals service
+            # whichever source supplied the quarters above.
             "source": "UCT Financials (yfinance)",
             "text": "Balance sheet / profitability snapshot: " + ", ".join(snap) + ".",
             "url": None,
