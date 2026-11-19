@@ -63,7 +63,7 @@ import { fetchDefinitionHistory } from '../../../../hooks/useUserDefinitions'
  *   opened, untouched definition is clean.
  */
 export default function useIndicatorConversation({ sym = null, tf = null, converse = converseTurn, sessionKey = null, open = null,
-  readHistory = fetchDefinitionHistory, builtIns = null } = {}) {
+  readHistory = fetchDefinitionHistory, builtIns = null, chartOf = null } = {}) {
   // ⭐ Restored once, at mount — the same key reopened is the same conversation.
   // ⭐ PHASE 4 — an EDIT's draft is restored only while it was opened from the
   // version that is STILL the stored one; a draft of an older version is stale
@@ -102,7 +102,10 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   // the door on every turn (`builtInOffer.offerableBuiltIns`). Keyed on its text, so a new array
   // holding the same ids is the same context.
   const builtInsKey = Array.isArray(builtIns) ? builtIns.join(',') : ''
-  const gateCtx = useMemo(() => ({ tf, symbol: sym, ...(builtInsKey ? { builtIns: builtInsKey.split(',') } : {}) }),
+  // ⭐ `showsScripts`: THIS window checks a script answer with its own engine and shows it and its
+  // verdict (`authoringSession.modelTurn` -> `scriptAnswer.checkScript`, the script entry of the panel),
+  // so it is the one sender that tells the door it accepts one (`converseClient.ACCEPTS_SCRIPT`).
+  const gateCtx = useMemo(() => ({ tf, symbol: sym, showsScripts: true, ...(builtInsKey ? { builtIns: builtInsKey.split(',') } : {}) }),
     [tf, sym, builtInsKey])
 
   // Keep the session current. Nothing to keep (a fresh, untouched dock) is not
@@ -174,12 +177,14 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     try {
       return take(await modelTurn(before, () => stateRef.current, words,
         // ⭐ a new indicator keeps the assistant's name only where the derived one is unreadable
-        { snippets, gateCtx, converse: converseTracked, signal: ctl ? ctl.signal : null, keepCreateName: keepAssistantName, keepCreateLabel: keepAssistantLabel }))
+        { snippets, gateCtx, converse: converseTracked, signal: ctl ? ctl.signal : null, keepCreateName: keepAssistantName, keepCreateLabel: keepAssistantLabel,
+          // ⭐ a script answer is run on THIS chart before the dock says it runs (`runsHere.js`)
+          ...(typeof chartOf === 'function' ? { chartOf } : {}) }))
     } finally {
       if (abortRef.current === ctl) abortRef.current = null
       setBusy(false)
     }
-  }, [busy, converseTracked, gateCtx, sym, tf, say, take])
+  }, [busy, converseTracked, gateCtx, sym, tf, say, take, chartOf])
 
   /** ⭐ STOP — give up waiting for the turn in flight. The answer, if one still comes, is
    *  not read (`modelTurn`); the working indicator and the preview are untouched. */

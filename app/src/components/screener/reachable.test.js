@@ -771,6 +771,21 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/supportLoop/doorNameCoverage.js':
     'Support loop Phase B (docs/pine/support-loop/PHASE-B.md): its test regenerates the committed '
     + 'doorNameCoverage.json that the Python digest reads. A generator, not a screen.',
+  // ── THE ASSISTANT'S PINE REFERENCE, ITS GAPS AND ITS RECIPES (2026-11-19) ── three more generators of
+  // the same kind, beside the one above. Each is run by `assistantPineReference.test.js`, which writes the
+  // committed JSON the SERVER reads when it builds the script assistant's instructions
+  // (`api/services/pine_authoring.py`); the recipes module also hands the proofs their bars and their
+  // chart context. No screen imports them, by design: the product reads the JSON, never the generator.
+  'app/src/components/chart/supportLoop/assistantPineReference.js':
+    'The assistant-writes-Pine reference generator (docs/pine/assistant-writes-pine/GAPS.md): its test '
+    + 'regenerates assistantPineReference.json, which the server reads. A generator, not a screen.',
+  'app/src/components/chart/supportLoop/assistantGaps.js':
+    'The gap-probe generator of the same programme: its test regenerates assistantGaps.json, which '
+    + 'tools/assistant_gaps_build.py turns into GAPS.md. A generator, not a screen.',
+  'app/src/components/chart/supportLoop/assistantRecipes.js':
+    'The recipe generator and proof harness of the same programme: its test regenerates assistantRecipes.json '
+    + '(the server hands recipes to the script assistant from it) and the value proofs read its bars. '
+    + 'A generator, not a screen.',
   'app/src/agent/nlm1/routers.js':
     'NLM-1 D1 pluggable routers for the dev/held-out scorers (devMetrics, nlm1Routing tests), '
     + 'behind the dark UCT_AGENT_ROUTING_V2 flag (default off). Measurement tooling, not a route.',

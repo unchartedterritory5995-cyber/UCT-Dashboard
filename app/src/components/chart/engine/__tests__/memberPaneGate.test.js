@@ -278,8 +278,15 @@ describe('the member-pane gate', () => {
         'src/components/chart/builder/memberPane/MemberPane.jsx',
         'src/components/chart/builder/inspect/InspectBarPanel.jsx',
         'src/pages/formulas/deviceDrawTime.js',
+        // ⭐ 2026-11-19 — THE QUESTION WAS ASKED A THIRD TIME, AND THE CENSUS IS FOUR (coordinator's
+        // authorisation). `builder/runsHere.js` (the real run behind the verdict a member reads on a
+        // script) is the same kind as the two above: a door that COMPUTES through the engine, not a
+        // surface that discloses something already drawn; with the switch off it may not run the
+        // lane, and says so by name (`NOT_RUN`: no run, so no verdict from one). The path rail above
+        // went red on its pull request; this consult is its fix.
+        'src/components/chart/builder/runsHere.js',
       ]))
-    expect(known, 'a fourth importer of the gate is a question, not a formality').toHaveLength(3)
+    expect(known, 'a fifth importer of the gate is a question, not a formality').toHaveLength(4)
 
     // ⛔ IMPORTING IT IS NOT CONSULTING IT, AND THAT IS ASSERTED OF EVERY
     // IMPORTER RATHER THAN OF THE ONE THIS CASE WAS WRITTEN FOR. A component that

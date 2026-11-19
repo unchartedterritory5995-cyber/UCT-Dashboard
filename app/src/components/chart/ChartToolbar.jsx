@@ -1151,6 +1151,11 @@ function ChartToolbar({
   // skips the compute check on an empty list rather than refusing, so a mount
   // site with no bars still gets a parseable proposal.
   bars = null,
+  // ⭐ 2026-11-19 -- the chart as the ENGINE sees it: `{bars, ctx}`, the bars the binder computes on and
+  // the compute context it is handed. For a check made beside the chart (`builder/runsHere.js`): a
+  // script Create Indicator's assistant wrote is run on it before the dock says it runs. Default
+  // `null`: a mount with none keeps the paste check alone.
+  engineChart = null,
   // Shared saved-color swatches (same list as Chart Settings + the right-click
   // drawing menu) so the toolbar's color popup is the full ColorPanel, not the
   // old 3×3 grid. Default `[]`/null → the panel simply omits the Saved row.
@@ -2103,6 +2108,8 @@ function ChartToolbar({
             /* ⭐ PHASE D TASK 13 — the concierge's compute stage runs on the
                window the user sees. See the `bars` prop's declaration. */
             bars={bars}
+            /* ⭐ the script tab's status panel runs a pasted script on this chart (`builder/runsHere.js`) */
+            engineChart={engineChart}
             /* W1a hand-back: the preview draws on this chart */
             sym={currentSym}
             tf={tf}
@@ -2131,6 +2138,8 @@ function ChartToolbar({
               onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); setCreateSendSeed(false); if (res && res.receipt) setSaveReceipt(res.receipt) }}
               seed={createSeed}
               sendSeed={!!createSeed && createSendSeed}
+              /* ⭐ a script answer is RUN on this chart before the dock says it runs (`builder/runsHere.js`) */
+              engineChart={engineChart}
               onOpenScript={({ pine }) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); setCreateSendSeed(false); setBuilderEditRow(null); openBuilder('pine', { pine }) }}
               settings={cs}
               onChange={onUpdateSettings}
