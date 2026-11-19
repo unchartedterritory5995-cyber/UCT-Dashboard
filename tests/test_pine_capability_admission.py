@@ -153,7 +153,10 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "obj:box",
         # (2026-11-18) strategy() run by the simulated broker: Q-SD1 / Q-SD2 (supertrend-strategy, community) and
         # W9-Q-S1p, MATCH runtime-on with the broker armed; a backtest is still served only on pinned broker rules
-        "strategy-decl"])
+        "strategy-decl",
+        # admit:request-other (coordinator ruling 2026-11-19): PA ZigZag at 1W / 1M (runtime lane) and SR-MTF (the
+        # forced runtime lane, #1985), both community, MATCH at engine 84; for closed-bar history only (G6)
+        "request-other"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -568,7 +571,8 @@ def test_G6_realtime_state_without_the_closed_bar_scope_is_not_admitted():
 def test_G6_the_admitted_set_names_it_history_only(tmp_path, monkeypatch):
     _with_realtime_row(tmp_path, monkeypatch, scope="closed-bar-history")
     rep = rt.admitted_capabilities()
-    assert "realtime-state" in rep["admitted"] and rep["historyOnly"] == ["realtime-state"]
+    # (2026-11-19) request-other is admitted for closed-bar history too (admit:request-other, G6)
+    assert "realtime-state" in rep["admitted"] and rep["historyOnly"] == ["realtime-state", "request-other"]
 
 
 def test_G6_the_door_answers_history_only_for_a_script_that_reads_bar_state(tmp_path, monkeypatch, store, on):
@@ -1425,11 +1429,11 @@ WITHHELD_WHOLE = {
 
 
 #: ⭐⭐ admit:request-other (coordinator ruling 2026-11-19) — ONE SCRIPT IS SERVED THROUGH ITS OWN SHA ALLOWLIST ENTRY, NOT BY
-#: CAPABILITY: rs-rating-fred6724 (the owner's priority script; `api/data/pine_runtime_allowlist.json` `scripts`). Admitting
-#: `request-other` puts its captures in the reach run, and four of them grade DIVERGE on the runtime-on lane. They are its
-#: known, documented differences, and the ruling is NOT to kill it. Each is named here with why, and each is re-proved on
-#: every run (`served_by_own_sha`): its source is the allowlisted sha, and its record keeps the shape named. ⛔ The set is
-#: closed: any other DIVERGE, or one of these drifting from its shape, is a REACH stop again.
+#: CAPABILITY, AND IS NOT KILLED: rs-rating-fred6724 (the owner's priority script; `api/data/pine_runtime_allowlist.json`
+#: `scripts`). Admitting `request-other` puts its captures in the reach run; four grade DIVERGE on the runtime-on lane (the
+#: door draws them on the HOST lane under admission, so they list as host-drawn DIVERGE, never a REACH stop). They are its
+#: known differences, named here with why and re-proved on every run (`served_by_own_sha`: its source is the allowlisted sha,
+#: no plot diverges, and the family named does), so the kill rail's exemption for it covers exactly these and nothing else.
 SERVED_BY_OWN_SHA = {
     "rs-rating-fred6724-pc-agl-1d-2026-11-17": (
         "objects", "the rating labels are WITHHELD by name (pine:object-removal-lost: the object gate withholds the whole "
@@ -1496,8 +1500,6 @@ def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict, 
                 continue
             if c["capture"] in held:
                 continue
-            if served_by_own_sha(records.get(c["capture"])):
-                continue
             out.append(f"{c['capture']}: drawn by the runtime lane and graded {rton.get(c['capture'])}")
     for cid, v in prod.items():
         if v == "MATCH" and rton.get(cid) == "DIVERGE":
@@ -1543,7 +1545,7 @@ def test_REACH_the_committed_reach_run_is_the_committed_registrys():
     # its own verdict record by `reach_rule_violations` (the next test). Any other stop is red here.
     # ⭐ (2026-11-18) ...and the one named capture of each HELD kill on the committed kill list, until its expiry
     held = held_kill_captures(json.loads(VERDICTS_RT.read_text(encoding="utf-8")))
-    assert {s["capture"] for s in report["stops"]} <= set(WITHHELD_WHOLE) | set(held) | set(SERVED_BY_OWN_SHA), report["stops"]
+    assert {s["capture"] for s in report["stops"]} <= set(WITHHELD_WHOLE) | set(held), report["stops"]
     assert report["matchToDiverge"] == []
     assert sum(1 for c in report["captures"] if c["lane"] == "runtime") >= 10   # not vacuous
     if held_absent:
@@ -1631,7 +1633,7 @@ def test_REACH_the_rule_can_fail():
     report = json.loads(REPORT.read_text(encoding="utf-8"))
     rtv = json.loads(VERDICTS_RT.read_text(encoding="utf-8"))
     prodv = json.loads(VERDICTS_PROD.read_text(encoding="utf-8"))
-    drawn = next(c["capture"] for c in report["captures"] if c["lane"] == "runtime" and c["capture"] not in SERVED_BY_OWN_SHA)
+    drawn = next(c["capture"] for c in report["captures"] if c["lane"] == "runtime")
     for r in rtv["results"]:
         if r["id"] == drawn:
             r["verdict"] = "DIVERGE"

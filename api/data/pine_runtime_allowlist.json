@@ -732,6 +732,7 @@
     "request-other": {
       "status": "conformant",
       "admitted": true,
+      "admission": {"scriptEngineVersion": 84, "rowSha256": "961d7a6c56b6a6d6b282c23694519233f6dc84602eb096b4d76f137e2d55e2af"},
       "scope": "closed-bar-history",
       "evidence": [
         {"capture": "pa-zigzag-fibonacci-fan-altw-rddt-1d-2026-11-17", "script": "F", "community": true, "verdict": "MATCH", "runtimePane": "on"},
