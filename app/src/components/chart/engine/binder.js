@@ -79,7 +79,7 @@ import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES, isPineImport } from './defin
 // half's object rail registered for the bind (`runHalfRailSeam.js`)
 import { hostObjectRun, hostObjectReaderOpts } from './runHalfObjectRail.js'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
-import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runHalfOf, carriesRunHalf } from './runtime/runtimeObjects.js'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, drawsRunObjectsOn, runHalfOf, carriesRunHalf } from './runtime/runtimeObjects.js'
 // ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
 import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers, markersWithheldWith,
   joinMarkersToState } from './runtime/tradeMarkers.js'
@@ -1314,7 +1314,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const runHalfDraws = !!(runHalf && (runHalf.state === 'served' || runHalf.state === 'pending'))
       const runHalfWhy = runHalf && runHalf.state === 'refused' ? runHalfRefusedSentence(runHalf.code) : null
       // the run's branch: a document whose run draws its objects, or a strategy with no host program
-      if (drawsRuntimeObjects(def) || runHalfDraws || (markersHere && !(def && def.objects))) {
+      // ⭐⭐ PARITY UNIT LF — a run-owned document that carries its clean host program beside the run
+      // draws that program instead whenever the run holds back a family it draws (`drawsRunObjectsOn`)
+      // (and never once the member has moved one of the script's own settings: the program is the author's)
+      const runObjects = drawsRunObjectsOn(def, (runCols ? runCols.get(inst.instanceId) : null)
+        || (computeMemo.get(inst.instanceId) || {}).cols, inst.inputs)
+      if (runObjects || runHalfDraws || (markersHere && !(def && def.objects))) {
         alive.add(inst.instanceId)
         const memo = computeMemo.get(inst.instanceId)
         // (r3) no object layer on this surface, or one that could not be made: nothing is drawn
