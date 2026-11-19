@@ -66,6 +66,7 @@ EXEMPT: dict[str, str] = {}
 #: that must FAIL: the day one passes, the job goes red and says to delete its line (a strict xfail, by file).
 #: Measured with `python tools/remote_tests.py --vitest <the list>` on master 4e148b30bc, 2026-11-19 (runs 44618883809,
 #: 44618956890): drift and ratchet rails that other PRs broke while no PR job ran them, the class this file closes.
+#: ⚰️ formulaReference.route and AdoptSheet left the same day: #2077's own run found them PASSING (the strict step).
 KNOWN_RED: dict[str, str] = {
     "app/src/pages/command/keyListenerCensus.test.js":
         "TERM-063 ratchet: raw key listeners added outside the shortcut registry, and the baseline (164) is over CEILING 111",
@@ -73,14 +74,10 @@ KNOWN_RED: dict[str, str] = {
         "TERM-033 shrink-only census: 3 new `.catch(() => null)` sites (use sectionFetcher, which throws)",
     "app/src/components/ui/formControls.census.test.js":
         "new hand-rolled role=switch files (NoteSharePanel.jsx, ...) and unnamed control sites grew 0 -> 12",
-    "app/src/pages/formulas/formulaReference.route.test.jsx":
-        "the reference page no longer renders [data-testid=\"pine-names\"] (TradingView names, ta.rsi)",
     "app/src/pages/terminal/a11y/terminalReachableContrast.test.js":
         "new inline --loss/--gain colours and new text under WCAG AA (NavBar.module.css .brandNameTop, ...)",
     "app/src/pages/terminal/themeColours.rail.test.js":
         "hardcoded colours in terminal-mounted code: NavBar.module.css has 4 literals where the ledger allows 1",
-    "app/src/pages/journal-2-0/components/notebook/library/AdoptSheet.test.jsx":
-        "any_only_where_allowed: no accessible radio named 'Main' in the Customize dialog any more",
 }
 
 #: A PR that changes one of these runs every listed reader: each can change how all of them run.

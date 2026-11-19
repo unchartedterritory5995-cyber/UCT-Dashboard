@@ -127,6 +127,10 @@ def test_the_job_runs_the_planned_shards_offline_and_checks_every_file_ran():
     assert "--outputFile=../vitest-rails.json" in run and "testResults" in run, "every listed file must have run"
     assert run.rstrip().endswith("exit $rc")
     assert any(str(s.get("uses", "")).endswith("pine-heavy-setup") for s in steps)
+    names = [s.get("name") for s in steps]
+    bridge = next(s for s in steps if "-r requirements.txt" in str(s.get("run")))
+    assert names.index(bridge["name"]) < names.index(V.HOME_STEP), \
+        "listed rails spawn Python bridges that import the app: the production set comes first"
     red = next(s for s in steps if "--write-known-red" in str(s.get("run")))
     assert "matrix.shard == 1" in red["if"] and "PASSES now: delete its line" in red["run"]
 

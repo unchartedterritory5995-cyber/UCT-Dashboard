@@ -306,13 +306,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      # several listed rails spawn Python bridges (selection_export_bridge.py, note_tasks_bridge.py, ...) that import
+      # the app: the production set, as the remote tests lane installs it for its vitest shards
+      - name: Install the Python the bridge rails spawn
+        run: python -m pip install --quiet -r requirements.txt pyyaml
       - name: The cross-folder vitest rails, this shard (tools/ci_app_src_vitest_rails.py --write-files)
         env:
           SHARD: ${{ matrix.shard }}
           N: ${{ needs.app-src-plan.outputs.vn }}
         run: |
           set -euo pipefail
-          python -m pip install --quiet pyyaml
           if git rev-parse -q --verify HEAD^2 >/dev/null; then git diff --name-only HEAD^1 HEAD > changed.txt; else : > changed.txt; fi
           python tools/ci_app_src_vitest_rails.py --write-files vitest-files.txt --shard "$SHARD/$N" --changed changed.txt
           mapfile -t files < vitest-files.txt
