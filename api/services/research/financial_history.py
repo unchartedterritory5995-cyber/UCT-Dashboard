@@ -289,6 +289,32 @@ def get_history(sym: str, period: str = "quarter", full: bool = False) -> dict[s
     hit = _cache().get(ck)
     if hit is not None:
         return _view(hit, full)
+    # A cold symbol is read ONCE however many callers ask at the same moment (a
+    # member's panel, the statements payload, the Financials grids, a warmer):
+    # the first reads FMP and the rest wait for its answer, so the three
+    # statement responses are not downloaded twice. Keyed on the cache key, as
+    # the other research readers are; a member never waits on a warmer's read
+    # (`single_flight.background`).
+    from api.services import single_flight
+    try:
+        out = single_flight.run(ck, lambda: _read_history(sym, period, limit, ck))
+    except Exception as exc:  # noqa: BLE001
+        # A caller that waited past the bound for the read in flight. Nothing
+        # is stored: the next request reads again.
+        _logger.warning("[fin_hist] shared read failed for %s %s: %s", sym, period, exc)
+        return {"sym": sym, "period": period, "periods": [], "series": {},
+                "state": "error"}
+    return _view(out, full)
+
+
+def _read_history(sym: str, period: str, limit: int, ck: str) -> dict[str, Any]:
+    """The read behind `get_history`: the whole object as it is cached
+    (`extra_series` included). Stores what may be stored. Never raises."""
+    # A caller that missed the cache a moment before the previous read stored
+    # its answer must not read FMP again.
+    hit = _cache().get(ck)
+    if hit is not None:
+        return hit
 
     jobs = {
         "income": "income-statement",
@@ -382,4 +408,4 @@ def get_history(sym: str, period: str = "quarter", full: bool = False) -> dict[s
     if transient:
         out["partial"] = sorted(transient)
     _cache().set(ck, out, _TTL_FAIL if transient else _TTL)
-    return _view(out, full)
+    return out

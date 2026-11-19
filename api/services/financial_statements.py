@@ -431,10 +431,19 @@ def _licensed_state(hist) -> str:
 def _read_licensed(sym: str) -> tuple:
     """(quarterly, annual) from the FMP reader, read side by side. Never raises:
     a reader that raised is reported as a failed read."""
+    from api.services import single_flight
     from api.services.research import financial_history
+
+    # The reader shares one FMP read between concurrent callers, and a member
+    # never waits on a read a warmer leads. That mark is per thread, so it is
+    # carried onto the two reader threads here.
+    warming = single_flight.in_background()
 
     def one(period):
         try:
+            if warming:
+                with single_flight.background():
+                    return financial_history.get_history(sym, period=period, full=True)
             return financial_history.get_history(sym, period=period, full=True)
         except Exception as e:  # noqa: BLE001
             _log.warning("statements %s %s read failed: %s", sym, period, e)
