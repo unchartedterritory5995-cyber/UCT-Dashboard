@@ -10,16 +10,14 @@
 // admission.py` (A8) holds the same ids to the committed runtime-on verdicts.
 
 import { describe, it, expect, vi, beforeAll } from 'vitest'
+import { asMember } from '../../../../../testing/runtimeGate'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { loadCapture, gradeCapture, REPO } from './harness'
 import { fixturePath, itNeedsHeld } from '../../ast/__tests__/licenceHeld'
 import { __permitRuntimePaneForTests, runtimePaneEnabled } from '../../runtimePaneGate'
-import {
-  __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList, __resetRuntimeAdmission,
-  setRuntimeCapabilityAdmission, latchRuntimeAdmission, runtimeSourceHash,
-} from '../../runtimeKill'
+import { __allowEveryRuntimeScriptForTests, latchRuntimeAdmission, runtimeSourceHash } from '../../runtimeKill'
 import { memberPaneDefinition, __forceRuntimeLaneForTests } from '../../../builder/memberPane/memberPaneDefinition'
 import { strategyBrokerFlag } from './strategyLane'
 import { storeHolds } from './storeHeld.js'
@@ -163,12 +161,18 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // (named); MATCH -> DIVERGE: none (docs/pine/evidence/2026-11-18-admit-obj-linefill/EVIDENCE.md section 7).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
-  beforeAll(() => {
-    __permitRuntimePaneForTests()
-    __resetRuntimeAllowList()
-    __resetRuntimeAdmission()
-    setRuntimeCapabilityAdmission(true)
-  })
+  // ⛔⛔ WHAT THIS MEASURES, EXACTLY (test-grant census, 2026-11-19): the member door with the allowlist
+  // EMPTY and capability admission ON (each script's verdict latched admitted below), but with the host
+  // lane's KNOWN-DIVERGENCE LIST IGNORED (`hkd: false`), because that is how the committed reach run was
+  // derived. It is therefore NOT the member's door for an HKD-listed script: with the list applied, 28
+  // rows recorded `host` take the RUNTIME lane and 3 are refused by name (`pine:known-divergence`), and
+  // 2 of the 28 (vw-int-cast-spy-1d-2026-09-27, vw-nvi-pvi-spy-1d-truncated-2026-09-27) DIVERGE on that
+  // lane. Until the runtime-on record and the reach run grade HKD-listed scripts on the lane the member
+  // gets (follow-up (a) of the GATE-BLIND finding, `src/testing/runtimeGate.js`), this rail holds the
+  // report to the door as the report measured it, and says so.
+  // ⚰️ It narrowed these doors in a beforeAll until 2026-11-19, so every case ran under the test grant
+  // (every script graded): the admission verdicts it latched were never consulted.
+  asMember({ allow: true, hkd: false, admission: true })
 
   it('records captures, some drawn by the run (a rail over nothing passes)', () => {
     expect(report.captures.length).toBeGreaterThanOrEqual(100)
