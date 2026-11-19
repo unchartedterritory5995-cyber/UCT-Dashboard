@@ -54,6 +54,20 @@ COLUMNS = ("accessionNumber", "filingDate", "reportDate", "acceptanceDateTime", 
 _n = [0]
 
 
+
+@pytest.fixture(autouse=True)
+def _log_only_inside_the_blocks():
+    """Records are captured only inside a `caplog.at_level` block, whatever ran before this file.
+    A test that imports the whole app first configures logging at INFO, and a build's log line
+    written BEFORE a block would then sit in `caplog.records` ahead of the line the test reads
+    (found 2026-11-18: two tests passed alone and failed after the member API list test). The
+    logger's own level is pinned here, so the order the files run in cannot matter."""
+    lg = logging.getLogger("api.services.dilution_watch")
+    old = lg.level
+    lg.setLevel(logging.WARNING)
+    yield
+    lg.setLevel(old)
+
 def filing(form, day, file_no="", items="", **over):
     """One row of the index, as the SEC's columns hold it."""
     _n[0] += 1
