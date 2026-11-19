@@ -43,3 +43,13 @@
 @media (max-width: 1024px) {
   .item { min-height: var(--tap-min); }
 }
+
+/* Optional header above the rows (a column's name + what it measures), set off by
+   a hairline. Signature: bright title, muted body, no gold. */
+.header {
+  padding: 6px 10px 9px;
+  margin: 0 0 4px;
+  border-bottom: 1px solid var(--br-line, var(--border));
+  white-space: normal;
+  cursor: default;
+}

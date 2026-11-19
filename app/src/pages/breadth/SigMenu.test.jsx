@@ -47,3 +47,19 @@ describe('SigMenu', () => {
     expect(document.activeElement).toBe(trigger)
   })
 })
+
+describe('SigMenu header + open reporting', () => {
+  it('renders the header above the rows and reports open/close', () => {
+    const changes = []
+    render(
+      <SigMenu label="Col options" trigger="Col" header={<div>Plain name</div>} onOpenChange={o => changes.push(o)}>
+        <SigMenuItem onSelect={() => {}}>Hide column</SigMenuItem>
+      </SigMenu>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Col options' }))
+    const menu = screen.getByRole('menu')
+    expect(menu.textContent.startsWith('Plain name')).toBe(true)
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    expect(changes).toEqual([true, false])
+  })
+})

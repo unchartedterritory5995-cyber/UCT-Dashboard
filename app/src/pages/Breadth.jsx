@@ -17,6 +17,7 @@ import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
 import { shadeFor } from './breadth/shading'
 import { defaultsFor } from './breadth/defaultColumns'
+import { columnInfo } from './breadth/columnInfo'
 import { fetchDrill, peekDrill, prefetchDrill, forgetDrill } from './breadth/drillFetch'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
@@ -384,6 +385,20 @@ const colMinWidth = (col) => `calc(${valueCh(col) + 1}ch + 32px)`
 function cellClass(col, val, row = null) {
   const s = shadeFor(col.key, row)
   return s ? styles[`sh${s.tone === 'bull' ? 'Up' : 'Dn'}${s.level}`] : ''
+}
+
+// A column's name in plain words + what it measures (breadth/columnInfo.js): the
+// header's hover card and the top of its click menu.
+function ColumnInfoBlock({ colKey }) {
+  const info = columnInfo(colKey)
+  if (!info) return null
+  return (
+    <>
+      <div className={styles.colInfoName}>{info.name}</div>
+      <div className={styles.colInfoDesc}>{info.desc}</div>
+      {info.weekly && <div className={styles.colInfoNote}>A weekly survey: it updates once a week.</div>}
+    </>
+  )
 }
 
 // SPY / QQQ MA columns: the header shows just the symbol; the title says what the
@@ -783,6 +798,27 @@ export default function Breadth() {
   const [pendingColChange, setPendingColChange] = useState(null)
   // The one floating as-of tooltip over a carried (older-than-its-cadence) cell.
   const [ageTip, setAgeTip] = useState(null)
+
+  // The column header's hover card (owner 2026-11-19): what the column means, after
+  // a short hover or on keyboard focus; hidden while that header's menu is open.
+  const [colCard, setColCard] = useState(null)
+  const colCardTimer = useRef(null)
+  const colMenuOpen = useRef(false)
+  const hideColCard = useCallback(() => {
+    clearTimeout(colCardTimer.current)
+    setColCard(null)
+  }, [])
+  const showColCard = useCallback((key, el, delay) => {
+    clearTimeout(colCardTimer.current)
+    if (!el) return
+    colCardTimer.current = setTimeout(() => {
+      if (colMenuOpen.current) return
+      const r = el.getBoundingClientRect()
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - 288))
+      setColCard({ key, left, top: r.bottom + 6 })
+    }, delay)
+  }, [])
+  useEffect(() => () => clearTimeout(colCardTimer.current), [])
 
   const [drill, setDrill] = useState(null)
   // drill = { date, label, items: [{t,pct}] | null }
@@ -1380,7 +1416,10 @@ export default function Breadth() {
                     <th
                       scope="col"
                       key={col.key}
-                      title={isMa ? maStackTitle(col) : `${col.label} — column options`}
+                      // No native title: the column's meaning shows in the Signature
+                      // hover card (and atop the click menu) — never a double tooltip.
+                      onPointerEnter={(e) => showColCard(col.key, e.currentTarget, 300)}
+                      onPointerLeave={hideColCard}
                       className={`${styles.th} ${styles.colLabel} ${groupStartKeys.has(col.key) ? styles.groupStart : ''} ${isMa ? styles.thMa : ''}`}
                       style={isMa ? undefined : { minWidth: colMinWidth(col) }}
                     >
@@ -1391,9 +1430,25 @@ export default function Breadth() {
                         label={isMa ? `${maStackTitle(col)} — column options` : `${col.label} column options`}
                         trigger={label}
                         align={ci > visibleCols.length / 2 ? 'right' : 'left'}
-                        width={168}
+                        width={264}
                         testId={`col-menu-${col.key}`}
                         triggerClassName={styles.thBtn}
+                        header={<ColumnInfoBlock colKey={col.key} />}
+                        onOpenChange={(open) => {
+                          colMenuOpen.current = open
+                          if (open) hideColCard()
+                        }}
+                        triggerProps={{
+                          'aria-describedby': colCard?.key === col.key ? 'breadth-col-card' : undefined,
+                          onFocus: (e) => {
+                            // Focus returning from this header's own menu (Esc) is not a
+                            // request for the card: the menu is still marked open then.
+                            if (colMenuOpen.current) return
+                            if (e.currentTarget.matches(':focus-visible')) showColCard(col.key, e.currentTarget.closest('th'), 0)
+                          },
+                          onBlur: hideColCard,
+                          onKeyDown: (e) => { if (e.key === 'Escape') hideColCard() },
+                        }}
                       >
                         <MenuItem onSelect={() => moveCol(col.key, -1)} disabled={ci === 0}>Move left</MenuItem>
                         <MenuItem onSelect={() => moveCol(col.key, 1)} disabled={ci === visibleCols.length - 1}>Move right</MenuItem>
@@ -1578,6 +1633,12 @@ export default function Breadth() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+      {colCard && activeTab === 'breadth' && columnInfo(colCard.key) && (
+        <div id="breadth-col-card" role="tooltip" data-testid="breadth-col-card"
+             className={styles.colCard} style={{ left: colCard.left, top: colCard.top }}>
+          <ColumnInfoBlock colKey={colCard.key} />
         </div>
       )}
       {ageTip && activeTab === 'breadth' && (
