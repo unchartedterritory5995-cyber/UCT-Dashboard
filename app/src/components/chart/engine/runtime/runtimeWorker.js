@@ -42,7 +42,9 @@ self.onmessage = (event) => {
         return { ...rest, secondary, exchangeOf: (k) => { const e = secondary.get(k); return (e && e.exchange) || null } }
       })()
       : plainCtx
-    const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
+    // ⭐⭐ (coordinator ruling 2026-11-19) off the main thread the budget scales with the bars the run covers
+    // (`runtimeColumns.js::runtimePaneBudgetFor`); every main-thread door keeps 1,000 ms
+    const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true })
     // ⭐ RT5 — the run's drawings are non-enumerable on the record, so a
     // structured clone would drop them; they cross beside it. ⭐ UIE PHASE 2 — the raw
     // payload, a WITHHELD one included (its sentence is the member's), and the warm-up

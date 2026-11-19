@@ -175,7 +175,10 @@ function drawnOutputs(def, out) {
       if (bars) withheld.push({ code, bars })
     }
     if (warm && warm.withheldBars > 0) withheld.push({ code: RUNTIME_HISTORY_GUARD, bars: warm.withheldBars })
-    if (newest) for (const code of newest.codes || []) withheld.push({ code, bars: 1 })
+    // ⭐⭐ HTF-NEWEST-NARROW — only the plots the run blanked (`keys`; `null` = every column)
+    if (newest && (!Array.isArray(newest.keys) || newest.keys.includes(p.key))) {
+      for (const code of newest.codes || []) withheld.push({ code, bars: 1 })
+    }
     entries.push({ key: p.key, title: titles.has(p.key) ? titles.get(p.key) : null, values: Array.from(col),
       ...(withheld.length ? { withheld } : {}) })
   }

@@ -455,7 +455,8 @@ describe('what each recipe plots equals an independent calculation', () => {
 
   // ⛔ WHY THERE IS NO "TREND ON THE WEEKLY AND MONTHLY" TABLE RECIPE. A weekly read has no value on the
   // chart's NEWEST bar while that week is forming, and neither has anything computed from it: reading
-  // it one bar back, `nz()`, and `na(x) ? x[1] : x` were each tried and each is blank on that bar. A
+  // it one bar back, `nz()`, and `na(x) ? x[1] : x` were each tried and each is blank on that bar (since
+  // engine 84, #1996, one bar back draws there: it is the bar before's settled merge, not this bar's). A
   // table written on the last bar from such a read cannot be right on most days, so the recipe was
   // removed rather than shipped; the limit is said to the assistant (`RUN_STOP_WORDS`).
   // ⭐ It follows the generated answer (`stops`, regenerated after an engine change), so an engine fix
@@ -482,7 +483,9 @@ describe('what each recipe plots equals an independent calculation', () => {
       expect(ok(shown[last - 1]), line).toBe(true)
       if (stands) {
         expect(ok(read[last]), line).toBe(false)
-        expect(ok(shown[last]), `${line}: has a value on the newest bar`).toBe(false)
+        // ⭐ engine 84 (HTF-NEWEST-NARROW, #1996): ONE BAR BACK is the bar before's merge, a settled value, so
+        // `wk[1]` draws on the newest bar (as TradingView does); everything that reads `wk` ON that bar stays blank
+        expect(ok(shown[last]), `${line}: has a value on the newest bar`).toBe(line === 'shown = wk[1]')
       } else if (line === 'shown = wk') {
         expect(ok(read[last]) && ok(shown[last]), line).toBe(true)
       }

@@ -550,6 +550,11 @@ describe('assistantPineReference.json is the current build\'s answer', () => {
     expect(sameAsBlob(null, sha)).toBe(false)                               // a file that is missing here is
   })
 
+  it('every colour function it lists is one a script can call (an engine-internal step never is)', () => {
+    const ref = build()
+    expect(ref.colours).toEqual(expect.arrayContaining(['color.new', 'color.rgb', 'color.from_gradient']))
+    for (const name of ref.colours) expect(name, name).toMatch(/^[A-Za-z_][A-Za-z0-9_.]*$/)
+  }, 300_000)
   it('names the engine refuses are listed apart, never among what is served', () => {
     const ref = build()
     expect(ref.refusedNames).toEqual(expect.arrayContaining(['barstate.isnew', 'syminfo.type']))

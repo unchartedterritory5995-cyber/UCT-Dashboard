@@ -125,6 +125,32 @@ function belowChartRead(target, rows, ctx) {
 
 const INTRADAY_CODES = new Set(['1', '5', '15', '30', '60'])
 
+// ─── ⭐ PERF (Fred RS filled chart, coordinator ruling 2026-11-19) — A CHART BAR'S ET SESSION DAY, ONCE ────────────
+// `aboveChartRead` needs the ET session day of every chart bar, for each daily read. Fred RS's run half has three, and
+// the warm-up curtain runs it twice (B's rows are the same bar OBJECTS: `rows.slice(shift)`), so each bar's day was
+// formatted six times (`Intl.DateTimeFormat`, ~0.8 us a bar: ~28 ms a run on 11,520 5m bars). The day is a pure
+// function of the bar's `t` (`otherSymbols.js::etSessionDayOf`), so it is kept per bar object, with the `t` it was
+// computed from: a bar whose `t` is not that one is computed again. Exact by construction.
+const _sessionDays = new WeakMap()
+let _sessionDayMemoOff = false
+/** Tests: compute every bar's day afresh, as before (the identity rail compares both). */
+export function __sessionDayMemoOffForTests(off) { _sessionDayMemoOff = !!off }
+/** The ET session day of each of `rows` (`etSessionDayOf`), or null for a bar without a numeric `t`. */
+export function sessionDaysOf(rows) {
+  const out = new Array(rows.length)
+  for (let i = 0; i < rows.length; i += 1) {
+    const r = rows[i]
+    if (!r || typeof r.t !== 'number') { out[i] = null; continue }
+    if (_sessionDayMemoOff) { out[i] = etSessionDayOf(r.t); continue }
+    const hit = _sessionDays.get(r)
+    if (hit !== undefined && Object.is(hit.t, r.t)) { out[i] = hit.day; continue }
+    const day = etSessionDayOf(r.t)
+    _sessionDays.set(r, { t: r.t, day })
+    out[i] = day
+  }
+  return out
+}
+
 /** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — A DAILY READ ABOVE AN INTRADAY CHART (`pine.js`: `above`, a bare
  *  open / high / low / close, look-ahead off). The request's expression runs on the symbol's HELD daily rows
  *  (`runBars`) and each chart bar reads one of them (`index`), as TradingView reads them (`l12-is-2026-11-18`):
@@ -198,7 +224,7 @@ function aboveChartRead(target, rows, ctx) {
   }
   const index = new Int32Array(n).fill(-1)
   const withheld = new Float64Array(n)
-  const dayOf = rows.map((r) => (r && typeof r.t === 'number' ? etSessionDayOf(r.t) : null))
+  const dayOf = sessionDaysOf(rows)
   for (let i = 0; i < n; i += 1) {
     const d = dayOf[i]
     if (!d) { withheld[i] = 1; continue }
@@ -263,11 +289,12 @@ export function requestTargetsUnservable(targets, count) {
  * @param {object}   ctx       `{tf, symbol, secondary, exchangeOf, framed, newestBarIsForming,
  *                              historyFromListing}`
  * @returns {{supply: object[]|null, refusal: {guard, message}|null, pending: boolean,
- *            newestWithheld: boolean, codes: string[], sentences: string[]}}
+ *            newestWithheld: boolean, newestWithheldSites: number[], codes: string[], sentences: string[]}}
  */
 export function runtimeRequestSupply(requests, rows, ctx = {}) {
   ctx = withChartNewestDay(ctx, rows)   // ⭐ RS RATING L11 PR 2: the bind reads no bars
-  const out = { supply: null, refusal: null, pending: false, newestWithheld: false, codes: [], sentences: [] }
+  const out = { supply: null, refusal: null, pending: false, newestWithheld: false, newestWithheldSites: [], codes: [],
+    sentences: [] }
   const sites = Array.isArray(requests) ? requests : []
   if (!sites.length) return out
   const n = Array.isArray(rows) ? rows.length : 0
@@ -419,6 +446,8 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
     }
     if (n && aligned.withheld[n - 1]) {
       out.newestWithheld = true
+      // ⭐⭐ HTF-NEWEST-NARROW — WHICH sites: the run withholds only what each one reaches (`runtimeColumns.js`)
+      out.newestWithheldSites.push(s)
       for (const [c, text] of sink) {
         if (!out.codes.includes(c)) { out.codes.push(c); out.sentences.push(text) }
       }

@@ -900,6 +900,8 @@ export function lowerIrProgram(ir, opts = {}) {
       // ⭐ 2F-2C — how many carried instances ONE invocation of this function
       // owns. Per FUNCTION; the SITE supplies the base, exactly as for history.
       carriedCount: fn.carriedCount || 0,
+      // ⭐ S14 fix 1 — and the two-input carried instances, the same way (`carried2Base`)
+      carried2Count: fn.carried2Count || 0,
       windowCount: fn.windowCount || 0,
       effects: fn.effects || null,
       at: fn.at || null,
@@ -930,7 +932,9 @@ export function lowerIrProgram(ir, opts = {}) {
     }
     emit(OP.HALT)
     // ⭐ RS RATING L5 — the host's reading of the request (`target`), for the run's supply
-    return { timeframe: r.timeframe, entry, results, target: r.target || null }
+    return { timeframe: r.timeframe, entry, results, target: r.target || null,
+      // ⭐⭐ HTF-NEWEST-NARROW — what the run withholds on its newest bar when this site cannot know it
+      ...(r.newestReach ? { newestReach: r.newestReach } : {}) }
   })
 
   const made = makeProgram({

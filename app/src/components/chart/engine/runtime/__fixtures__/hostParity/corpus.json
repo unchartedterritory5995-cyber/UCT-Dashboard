@@ -304,7 +304,7 @@
    "barSets": [
     "listing"
    ],
-   "expectGuard": "runtime:statement"
+   "expectGuard": "runtime:lower"
   },
   {
    "name": "h_request_security",
@@ -340,8 +340,8 @@
    "barSets": [
     "listing"
    ],
-   "expectGuard": "runtime:statement",
-   "note": "the front end's own stack overflow, named runtime:statement; the stack depth is a host property, so this case measures it"
+   "expectGuard": "runtime:lower",
+   "note": "the front end's own stack overflow, named runtime:lower since engine 84 (S14, #1956: an exception that is not a refusal is never a statement shape); the stack depth is a host property, so this case measures it"
   }
  ]
 }

@@ -117,7 +117,7 @@ function drift(b, s) {
   const out = []
   if (JSON.stringify(b.args) !== JSON.stringify(s.args)) out.push(`args ${JSON.stringify(b.args)} vs ${JSON.stringify(s.args)}`)
   const serverOnly = Object.keys(SERVER_ONLY_OPTS)
-  const bo = without(b.opts, ['now'])
+  const bo = without(b.opts, ['now', ...DECLARED_DIFFERENCES.optsBrowserOnly])
   const so = without(s.opts, ['now', ...serverOnly])
   if (JSON.stringify(bo) !== JSON.stringify(so)) out.push(`opts ${JSON.stringify(bo)} vs ${JSON.stringify(so)}`)
   for (const k of serverOnly) {
@@ -144,7 +144,7 @@ test('HP-7: the service adapter builds the browser worker\'s (def, rows, ctx, op
   const s = serverSide()
   assert.deepEqual(drift(b, s), [])
   // the facts the rail rests on, so a parse that silently read nothing cannot pass
-  assert.deepEqual(b.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS' })
+  assert.deepEqual(b.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS', budgetScales: 'literal:true' })
   assert.deepEqual(s.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS', incremental: 'literal:false' })
   assert.deepEqual(b.row, ['t', 'o', 'h', 'l', 'c', 'v'])
   assert.deepEqual(Object.keys(s.ctx), ['tf', 'newestBarIsForming', 'historyFromListing', 'runtimeInputs', 'symbol', 'otherSymbolSupply', 'historyWindowBars'])
@@ -163,6 +163,7 @@ test('HP-7: every declared difference is still a real one (no stale declaration)
   assert.deepEqual(SERVER_ONLY_OPTS, { incremental: false })
   for (const k of Object.keys(SERVER_ONLY_OPTS)) assert.ok(!(k in b.opts), `the browser does not pass ${k}`)
   for (const k of DECLARED_DIFFERENCES.ctxBrowserOnly) assert.ok(k in b.ctx, `the browser still ships ctx.${k}`)
+  for (const k of DECLARED_DIFFERENCES.optsBrowserOnly) assert.ok(k in b.opts, `the browser still passes ${k}`)
   for (const k of DECLARED_DIFFERENCES.ctxSymbolBrowserOnly) assert.ok(k in b.ctx.symbol, `the browser still ships ctx.symbol.${k}`)
   for (const k of Object.keys(DECLARED_DIFFERENCES.ctxServerOnly)) assert.ok(!(k in b.ctx), `the browser does not ship ctx.${k}`)
   assert.notEqual(b.def.meta, `expr:${DECLARED_DIFFERENCES.defMeta}`, 'the browser meta still differs')
