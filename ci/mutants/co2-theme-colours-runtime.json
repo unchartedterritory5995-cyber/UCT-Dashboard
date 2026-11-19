@@ -87,7 +87,7 @@
    "id": "N10",
    "mutant": "the colour plan's signature forgets the theme (a theme change would not repaint)",
    "file": "app/src/components/chart/engine/pool.js",
-   "from": "  return { transparency, theme, sig: `packed|${transparency}${theme ? `|${theme.fg || ''}/${theme.bg || ''}` : ''}` }",
+   "from": "  return { transparency, theme, sig: `packed|${transparency}|${theme.fg || ''}/${theme.bg || ''}` }",
    "to": "  return { transparency, theme, sig: `packed|${transparency}` }",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/themeColoursRuntime.test.js",
    "expectRed": "signature"

@@ -35,7 +35,9 @@ describe('DRAW-1 — the fallback keeps a host picture only when it lost no crea
   it('trend-levels-chartprime: drawing build refused, host lost creates -> declined by name', () => {
     const d = memberPaneDefinition({ source: src('trend-levels-chartprime__90a5bf4ab1.pine'), id: 'u_draw1kh', name: 'tl' })
     expect(d.ok).toBe(false)
-    expect(d.runtimeDeclined && d.runtimeDeclined.code).toBe('pine:builtin')
+    // ⭐ CO-2 (NUMBER PENDING): the drawing build no longer stops at `chart.fg_color` (L165, `pine:builtin`), which
+    // the runtime lane now carries; it stops at its next wall by name, and the door still declines the same way
+    expect(d.runtimeDeclined && d.runtimeDeclined.code).toBe('runtime:call-text-state')
     expect(String(d.runtimeDeclined.why)).toMatch(/lost/)
   })
 

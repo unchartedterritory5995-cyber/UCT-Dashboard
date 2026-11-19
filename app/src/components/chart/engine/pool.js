@@ -1031,7 +1031,9 @@ function packedOf(plot) {
   // ⭐ CO-2 — the chart's own colours ride the plan (`withPackedTheme`), and its signature, so a theme change
   // repaints a column that holds the chart's theme colour
   const theme = p.theme && typeof p.theme === 'object' ? p.theme : null
-  return { transparency, theme, sig: `packed|${transparency}${theme ? `|${theme.fg || ''}/${theme.bg || ''}` : ''}` }
+  // (a plan with no theme keeps its old shape exactly: `{transparency, sig}`)
+  if (!theme) return { transparency, sig: `packed|${transparency}` }
+  return { transparency, theme, sig: `packed|${transparency}|${theme.fg || ''}/${theme.bg || ''}` }
 }
 
 /** ⭐⭐ ENGINE NUMBER PENDING (CO-2) — a colour plan (a plot, a paint, a band's `fill`) whose per-bar colours
