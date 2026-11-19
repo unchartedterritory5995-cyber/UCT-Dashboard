@@ -81,6 +81,49 @@ def build_factor_tables(rows: Iterable[Mapping], as_of: str) -> dict:
     return {tk: [[d, m[d]] for d in sorted(m)] for tk, m in sorted(by.items())}
 
 
+#: An entry filed under both spellings counts once: same ratio (within 2%) within 14 days.
+SAME_EVENT_DAYS = 14
+SAME_EVENT_TOL = 0.02
+
+
+def _same_event(table: Sequence[Sequence], d: str, ratio: float) -> bool:
+    import datetime as _dt
+    day = _dt.date.fromisoformat(d)
+    for d0, r0 in table:
+        if abs((_dt.date.fromisoformat(d0) - day).days) <= SAME_EVENT_DAYS \
+                and abs(float(r0) / float(ratio) - 1) <= SAME_EVENT_TOL:
+            return True
+    return False
+
+
+def with_class_share_spellings(tables: Mapping, symbols: Iterable[str]) -> dict:
+    """`tables` with each class share's splits that the vendor filed under its UNDOTTED spelling added.
+
+    ⚠️ The vendor's split reference files a class share's events under both spellings, while the day files
+    (and so the lake's symbols) always use the dotted one (2026-11-18: BF.B's 2004 and 2008 splits under
+    `BF.B` but its 2012 / 2016 / 2018 ones under `BFB`; BF.A's and HEI.A's only under `BFA` / `HEIA`). Read
+    by exact symbol, 23 lake class shares missed splits and drew cliffs on their intraday history.
+
+    The undotted spelling is borrowed only when it is NOT itself one of `symbols` (the lake's own symbols):
+    then it may be another company (`CWD` is CaliberCos, never `C.WD`). Lowercase-marked vendor symbols
+    (preferreds, rights) are never touched. An entry already present under the dotted spelling (same ratio
+    within 14 days) is not added twice.
+    """
+    known = set(symbols)
+    out = dict(tables)
+    for sym in sorted(known):
+        if "." not in sym or any(ch.islower() for ch in sym):
+            continue
+        alt = sym.replace(".", "")
+        if alt in known or alt not in tables:
+            continue
+        own = [list(x) for x in tables.get(sym, [])]
+        add = [[d, r] for d, r in tables[alt] if not _same_event(own, d, r)]
+        if add:
+            out[sym] = sorted(own + add)
+    return out
+
+
 def factor_for_date(table: Sequence[Sequence], bar_date: str) -> float:
     """f(D): the product of the ratios of every split executed strictly after `bar_date`."""
     if not table:

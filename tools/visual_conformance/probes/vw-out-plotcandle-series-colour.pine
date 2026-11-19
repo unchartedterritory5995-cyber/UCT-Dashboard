@@ -1,0 +1,21 @@
+//@version=6
+indicator("UCTPROBE_VW_OUT_PLOTCANDLE_SERIES_COLOUR", overlay = true)
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (parity2, U-OUT `output-contract`), capture
+// queue row Q-OUT-2a/b (docs/pine/capture-queue-2026-11-18-parity2.md). NEVER COMPILED ON TRADINGVIEW.
+//
+// --- A CANDLE OR BAR SERIES WHOSE MEANING IS ITS PER-BAR COLOUR ---
+// builtin:bollinger-bars draws `plotcandle(open, high, low, close, ..., color = <by the bands>)`: the four
+// columns are the chart's own prices, and the colour is the indicator. Our host lane refuses it
+// (`pine:presentation-only`). What TradingView draws for P01 / P02 on every bar: the four values and the
+// body, wick and border colours.
+//   P01  plotcandle coloured lime / red / gray by the 20-bar 2-sigma bands; wick gray, border black
+//   P02  plotbar coloured teal / orange by the 20-bar mean
+//   K01  the 20-bar mean (control)
+basis = ta.sma(close, 20)
+dev = 2 * ta.stdev(close, 20)
+upper = basis + dev
+lower = basis - dev
+plotcandle(open, high, low, close, "P01_candle_bands", color = close > upper ? color.lime : close < lower ? color.red : color.gray, wickcolor = color.gray, bordercolor = color.black)
+plotbar(open, high, low, close, "P02_bar_mean", color = close > basis ? color.teal : color.orange)
+plot(basis, "K01_basis_control")

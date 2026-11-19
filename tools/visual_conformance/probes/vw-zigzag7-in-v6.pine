@@ -1,0 +1,37 @@
+//@version=6
+indicator("UCTPROBE_VW_ZIGZAG7_IN_V6", overlay = true, max_lines_count = 500, max_labels_count = 500)
+
+// PROVENANCE: written 2026-11-19 for the Pine parity programme (libraries chain, U-LIB), capture queue rows
+// Q-LIB-2a / Q-LIB-2b (docs/pine/capture-queue-2026-11-19-libchain.md). NEVER COMPILED ON TRADINGVIEW. No
+// licence-held text. It IMPORTS TradingView's published library `TradingView/ZigZag/7` (MPL-2.0, a v5 library)
+// and never copies a line of it.
+//
+// --- THE NUMBERS TRADINGVIEW'S OWN v6 BUILT-INS BUILD ON, AS PLOTS ---
+// Auto Fib Extension, Auto Fib Retracement and Auto Pitchfork (v6 built-ins) import ZigZag/7. Their output is
+// drawings; this probe reads the same zig zag as numbers, so a grade does not hang on object geometry. `draw =
+// false` asks the library not to draw. LB1 (lib-v5-in-v6, committed) already reads a v5 library keeping v5 rules
+// inside a v6 script. Rows:
+//   A00  bar_index                                      control
+//   Z01  the number of pivots
+//   Z02  the last pivot's price
+//   Z03  the last pivot's bar index
+//   Z04  1 when the last pivot is a high, 0 when a low
+//   Z05  1 when `update()` reported a change on this bar
+//   Z06  the volume summed over the open segment
+// CAPTURE: NYSE:RDDT 1D and AMEX:SPY 1D, each from the listing, inputs at defaults (none), after the close. Read
+// every plot on every bar as full float64 text, and the object counts (lines, labels: 0 expected). If a row does
+// not compile, record the error text and the line, remove only that row, and capture the rest.
+import TradingView/ZigZag/7 as zz
+
+plot(bar_index, "A00_bar_index_CONTROL")
+
+var zz.Settings s = zz.Settings.new(5.0, 10, #2962FF, false, false, false, false, "Absolute", false, true)
+var zz.ZigZag z = zz.newInstance(s)
+bool changed = z.update()
+zz.Pivot p = z.lastPivot()
+plot(z.pivots.size(), "Z01_pivot_count")
+plot(na(p) ? na : p.end.price, "Z02_last_pivot_price")
+plot(na(p) ? na : p.end.index, "Z03_last_pivot_bar_index")
+plot(na(p) ? na : (p.isHigh ? 1 : 0), "Z04_last_pivot_is_high")
+plot(changed ? 1 : 0, "Z05_changed_this_bar")
+plot(z.sumVol, "Z06_open_segment_volume_sum")

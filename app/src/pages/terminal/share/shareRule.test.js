@@ -98,6 +98,7 @@ describe('the policy today', () => {
     expect(shareClassOf('FEED')).toBe('public')
     // RATES is the US Treasury's own published yields (register row T-95, class A): public, so shared.
     expect(shareClassOf('RATES')).toBe('public')
+    expect(shareClassOf('DILU')).toBe('public')
     expect(shareDecision(BY_CODE.RATES, BY_CODE.RATES.market)).toMatchObject({ offered: true, image: true, file: true, cls: 'public' })
   })
 

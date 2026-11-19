@@ -396,3 +396,23 @@ def test_publish_check_in_a_process_pool_is_identical_and_still_refuses(raw, tmp
     path.write_bytes(bytes(data))
     with pytest.raises(BLD.BuildError):
         PUB.build_indexes(packs, check=True, log=lambda *_: None, jobs=3)
+
+
+def test_both_stamping_paths_give_a_class_share_its_undotted_splits(tmp_path):
+    """publish.stamp_indexes and stamp_splits.stamp both run factors.with_class_share_spellings (2026-11-18)."""
+    rows = [{"ticker": "BF.B", "execution_date": "2004-01-21", "split_from": 1, "split_to": 2},
+            {"ticker": "BFB", "execution_date": "2016-08-19", "split_from": 1, "split_to": 2}]
+    want = [["2004-01-21", 2.0], ["2016-08-19", 2.0]]
+    idx = {"BF.B": {"symbol": "BF.B", "series": {}}, "AAA": {"symbol": "AAA", "series": {}}}
+    assert PUB.stamp_indexes(idx, rows, "2026-11-17") == 1
+    assert idx["BF.B"]["splits"] == want
+
+    from tools.history_lake import stamp_splits as SS
+    lake = tmp_path / "lake"
+    for sym in ("BF.B", "AAA"):
+        p = lake / piece.index_relpath(sym)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps({"v": 1, "symbol": sym, "series": {}}), encoding="utf-8")
+    SS.stamp(lake, rows, "2026-11-17", log=lambda *_: None)
+    got = json.loads((lake / piece.index_relpath("BF.B")).read_text(encoding="utf-8"))
+    assert got["splits"] == want

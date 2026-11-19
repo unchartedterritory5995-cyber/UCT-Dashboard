@@ -1,0 +1,20 @@
+//@version=6
+indicator("UCTPROBE_VW_OUT_CONSTANT_COLOURED", overlay = false)
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (parity2, U-OUT `output-contract`), capture
+// queue row Q-OUT-1a/b (docs/pine/capture-queue-2026-11-18-parity2.md). NEVER COMPILED ON TRADINGVIEW.
+//
+// --- A PLOT WHOSE VALUE IS CONSTANT AND WHOSE COLOUR IS A PER-BAR SERIES ---
+// builtin:chop-zone draws `plot(1, ..., color = <a colour chosen per bar>, style = plot.style_columns)`: the
+// value never moves, the colour IS the picture. Both of our lanes hide a constant row (`pine:constant-only`).
+// What TradingView draws for each row below, on every bar: its value and its colour.
+//   C01  plot(1) as columns, coloured green / red by close > open
+//   C02  the same at 40% transparency
+//   C03  plot(50) as a line, three colours (up / down / unchanged against close[1])
+//   C04  plot(3) with ONE constant colour (control: a constant TradingView still draws)
+//   K01  close (control)
+plot(1, "C01_const_columns", color = close > open ? color.green : color.red, style = plot.style_columns)
+plot(2, "C02_const_columns_transp", color = close > open ? color.new(color.green, 40) : color.new(color.red, 40), style = plot.style_columns)
+plot(50, "C03_const_line_3way", color = close > close[1] ? color.lime : close < close[1] ? color.maroon : color.gray, linewidth = 2)
+plot(3, "C04_const_const_colour", color = color.blue)
+plot(close, "K01_close_control")

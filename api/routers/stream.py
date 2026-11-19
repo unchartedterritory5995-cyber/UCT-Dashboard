@@ -698,12 +698,29 @@ async def stream_bars(
         # disconnect and keep the heartbeat on time, instead of four times a second.
         WAIT_S = 1.0
         getters: dict[int, asyncio.Task] = {}
+        # ⭐ THE UPSTREAM'S WORD, AS IT CHANGES (2026-11-18). A mirror of stream-ingest (web in
+        # remote mode, stream-edge) knows when the Massive socket behind it is down (`feed_fresh`:
+        # ingest's `connect` status, or no batch at all). Without telling the browser, a chart kept
+        # `delivering` for up to 150 s of silence (barsStreamManager's hysteresis) with the Finnhub
+        # tick writers suppressed: a frozen candle. `event: status` {"live": bool} goes out once at
+        # the start and on every change; the browser drops `delivering` at once on live:false. A
+        # broadcaster without `feed_fresh` (web's own socket, local mode) sends none, as before.
+        feed_live = getattr(bb, "feed_fresh", None)
+        last_live = None
         try:
             if resume is not None:
                 yield _frame("bars", json.dumps(resume), "resume")
             while True:
                 if await request.is_disconnected():
                     break
+                if feed_live is not None:
+                    try:
+                        live = bool(feed_live())
+                    except Exception:  # noqa: BLE001 - a status read must never end the stream
+                        live = None
+                    if live is not None and live != last_live:
+                        last_live = live
+                        yield _frame("bars", json.dumps({"live": live}), "status")
                 for i, (_sym, _tf, q) in enumerate(queues):
                     if i not in getters:
                         getters[i] = asyncio.ensure_future(q.get())
