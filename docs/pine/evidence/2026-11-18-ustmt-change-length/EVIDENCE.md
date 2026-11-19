@@ -63,6 +63,34 @@ were instrumented and every sample script was probed on the value build and the 
 - The only script whose answer changes is `committed:machine-learning-moving-average-backquant__4d7ff59e68`, which
   now builds.
 
+**The corpus diff, measured after building.** This PR's own pine-heavy run (44427583401, head d597bb8a62) was
+diffed against train e80's run (44406509220), capture by capture, on both harness lanes:
+
+- **Production lane: 936 captures, none moved.** What a member sees today does not change.
+- **Runtime-on lane: 936 captures, 3 moved, none away from MATCH.** All three are backquant's:
+
+| capture | e80 | this PR | what the PR run grades |
+|---|---|---|---|
+| `machine-learning-moving-average-backquant-rddt-1d-2026-11-14` | INCONCLUSIVE | MATCH | plot (666 bars), objects, paints and objectsV2 all agree |
+| `machine-learning-moving-average-backquant-rddt-1d-2026-11-17` | INCONCLUSIVE | MATCH | plot (668 bars), objects, paints and objectsV2 all agree |
+| `machine-learning-moving-average-backquant-spy-1d-2026-11-17` | INCONCLUSIVE | DIVERGE | the run stops at the array-operation limit (2,000,262 of 2,000,000, bar 2,805 of 8,509) and draws nothing; the plot and objects grade INCONCLUSIVE by name, the bar colours DIVERGE (TradingView paints them) |
+
+On RDDT the change draws exactly what TradingView draws. On SPY the script itself runs past this lane's
+array-operation limit, which has nothing to do with `ta.change`, and is stopped by name.
+
+**So backquant is killed by source hash, by the REACH stop rule** (coordinator ruling 2026-11-16: capability
+admission ON, an admitted script with a DIVERGE capture is killed). Under admission the door now draws it on the
+runtime lane (`capabilityEvidenceLane.test.js` found it: the door answers `runtime` where the committed reach report
+said refused), and one of its captures DIVERGEs. With the kill:
+
+- `api/data/pine_runtime_killlist.json` gains the entry, held to the SPY capture's DIVERGE grade (the RT1 rail).
+- The three records are spliced verbatim from run 44427583401 into `docs/pine/vendor-harness/runtime-on/verdicts.json`.
+- The reach report (`docs/pine/evidence/2026-11-16-draw1-drawing-objects/runs/report.json`) drops the three captures
+  (a killed script is not admitted), and its populations follow: captures admitted 561 -> 558, refused 146 -> 143;
+  committed scripts admitted 118 -> 117, refused 33 -> 32.
+- Members see what they see today: backquant was refused before this change (`pine:reassign` on the host lane), and is
+  refused now, by name, with the kill's reason. It comes back when its `liftWhen` is met.
+
 ## For U-COND (not served here): what W4-A1 says about `ta.change(x, n)` in an arm
 
 The committed captures `vw-w4-arm-runs-{rddt,spy}-1d-2026-11-16` answer queue row W4-A1. TradingView's
