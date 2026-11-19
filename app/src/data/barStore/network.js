@@ -47,7 +47,7 @@ import { classifyIntradayTail } from '../../utils/marketSession'
 import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS } from '../../utils/barsBackfill'
 import { barsSessionQuery } from '../../components/chart/barTime'
 import { ACTION, parseKey, isIntradayTf, isDateTf, PERIOD_SEC, unixToDateLabel, dateLabelToUnix } from './types'
-import { barsHistorySplitEnabled, lastSealedDate } from '../../utils/barsHistorySplit'
+import { barsHistorySplitEnabled, historySealedDate } from '../../utils/barsHistorySplit'
 
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
 export const DAILY_POLL_MS = 300_000
@@ -96,6 +96,13 @@ export function serverTailOf(s) {
   return null
 }
 export const PRIORITIES = Object.freeze(['visible', 'urgent', 'grid', 'background'])
+/** A deep D/W/M history fetched ahead of its join (`deepPrime`) is kept this long for the key's
+ *  history job to take, and at most this many at once (each ~1-2 MB parsed). */
+export const DEEP_PRIME_TTL_MS = 120_000
+export const DEEP_PRIME_MAX = 4
+/** A display waiting on a key's deep join (`deepPrime({ want: true })`) sends its history job at
+ *  `visible` rank (never queued) for this long. */
+export const DEEP_WANT_MS = 5_000
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
 
@@ -183,6 +190,20 @@ export function createNetwork({
   // entry to join into never settles (review of #1795).
   const lakeSettled = new Map()
   const LAKE_SETTLED_MAX = 2000
+  // ⭐ DEEP D/W/M HISTORY, ONE PAINT (2026-11-19, owner: "about 200 bars instantly and then the rest
+  // shortly after, definitely in 2 phases"). A daily chart painted the copy it held (the pack's ~300
+  // rows, or one 600-bar answer) and its deep history (/api/bars-history, edge-cached) was asked only
+  // AFTER the key's tail answer, because the URL's `d` was read from those answered bars: two steps
+  // on screen, ~250-500 ms apart. `d` now comes from the NYSE calendar (barsHistorySplit
+  // `historySealedDate`), so the history can be fetched from the moment the ticker is typed or Enter
+  // is pressed, in parallel with the tail (`deepPrime`). The history JOB still runs where it always
+  // did (after the tail answer, through the key's one slot, the same SCROLL_BACK and seam rule); it
+  // takes the primed answer instead of asking again. The handoff waits for the join (`deepPending`,
+  // `deepJoined`, bounded) so the first frame holds the whole chart.
+  const deepPrimes = new Map()     // url -> { p: Promise<json>, at }: a history fetched ahead of its job
+  const deepSettled = new Map()    // key -> bars its entry held when its history join settled on this page
+  const deepSubs = new Map()       // key -> Set<cb>: waiters on the key's history join settling
+  const deepWanted = new Map()     // key -> ms until which a display waits on its join (its job: visible)
   let requests = 0
   /** key → Set<cb>: listeners of the key's catch-up budget (DELAYED badge, `tailExhausted`). */
   const budgetSubs = new Map()
@@ -268,8 +289,12 @@ export function createNetwork({
       const type = delta ? ACTION.REST_DELTA : ACTION.REST_FULL
       const after = registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: from } : json })
       // only when more was wanted than the capped tail asked for (today's bar is the developing one,
-      // never a row, so `depth` alone would read a full first-paint answer as one bar short)
-      if (split && !r.histAsked && wanted > bars && wanted > (after?.depth ?? 0)) {
+      // never a row, so `depth` alone would read a full first-paint answer as one bar short).
+      // ⭐ WANTED AT ANSWER TIME (2026-11-19): a caller that JOINED this request asking for more
+      // depth (the daily handoff joining the typed warm's tail) raised `r.depth` after the request
+      // left; read at the start only, its history was never asked.
+      const wantNow = Math.max(wanted, barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session }))
+      if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0)) {
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       }
@@ -277,14 +302,58 @@ export function createNetwork({
     }, { front })
   }
 
+  /** The deep history URL of a D/W/M key as its history job will ask it (calendar `d` for D, the held
+   *  bars' sealed date for W/M), or null where the split does not apply or W/M holds nothing yet. */
+  function _deepUrl(key) {
+    const p = parseKey(key)
+    if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return null
+    const held = registry.peek(key)?.bars || []
+    const sealed = historySealedDate(p.tf, held.map((b) => unixToDateLabel(b.t)), now())
+    return sealed ? barsHistoryUrl(p.sym, p.tf, sealed) : null
+  }
+  /** A primed answer of `url` still fresh, or null. */
+  function _primed(url) {
+    const e = deepPrimes.get(url)
+    if (!e) return null
+    if (now() - e.at >= DEEP_PRIME_TTL_MS) { deepPrimes.delete(url); return null }
+    return e.p
+  }
+  const _wantedNow = (key) => {
+    const until = deepWanted.get(key)
+    if (until == null) return false
+    if (now() < until) return true
+    deepWanted.delete(key)
+    return false
+  }
+  /** The key's history join settled (rows added, nothing older, or the split turned off for it). */
+  function _settleDeep(key) {
+    deepWanted.delete(key)
+    const held = registry.peek(key)?.bars.length
+    if (held != null) {
+      deepSettled.delete(key)
+      deepSettled.set(key, held)
+      if (deepSettled.size > LAKE_SETTLED_MAX) deepSettled.delete(deepSettled.keys().next().value)
+    }
+    for (const cb of [...(deepSubs.get(key) || [])]) { try { cb() } catch { /* ignore */ } }
+  }
+
   /** The deep sealed history of a D/W/M key from the edge (see `_splitFor`). */
   function _historyJob(r) {
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
-    const sealed = lastSealedDate(s.bars.map((b) => unixToDateLabel(b.t)), p.tf, now())
+    const sealed = historySealedDate(p.tf, s.bars.map((b) => unixToDateLabel(b.t)), now())
     const url = barsHistoryUrl(p.sym, p.tf, sealed)
-    return _send(r, 'scroll', url, r.refs > 0 ? 'urgent' : 'background', async (json) => {
+    // A display waiting on this join asks at `visible` (never queued behind the warms).
+    const priority = _wantedNow(r.key) ? 'visible' : (r.refs > 0 ? 'urgent' : 'background')
+    // The answer a prime already fetched (or is fetching) is taken, once: no second request, no
+    // second parse. A prime that failed asks again here.
+    const primed = _primed(url)
+    if (primed) deepPrimes.delete(url)
+    const viaPrime = primed
+      ? { fetch: (signal) => primed.catch(() => request(url, { priority, signal })) }
+      : undefined
+    return _send(r, 'scroll', url, priority, async (json) => {
       if (!json?.sealed || !Array.isArray(json.bars)) return { error: true }
       if (json.ticker && String(json.ticker).toUpperCase() !== p.sym) return { error: true }
       const rows = json.bars.map((b) => (typeof b?.t === 'string' ? { ...b, t: dateLabelToUnix(b.t) } : b))
@@ -296,13 +365,16 @@ export function createNetwork({
       if (!rows.length) return { ok: true, added: 0 }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: { bars: rows, ticker: p.sym } })
       return { ok: true, added: (after?.depth ?? 0) - before.depth, source: 'history' }
-    }).then((res) => {
+    }, viaPrime).then((res) => {
       if (res?.error && keys.get(r.key) === r) {
         // the edge could not give it: the full depth from /api/bars, as before the split
         r.splitOff = true
         _queueTail(r, r.priority)
         _drain(r)
       }
+      // A waiting display stops waiting on any outcome but an abort (a failure's full read comes
+      // through the tail, as before).
+      if (!res?.aborted) _settleDeep(r.key)
       return res
     })
   }
@@ -640,6 +712,61 @@ export function createNetwork({
       if (held >= lakeTargetBars(parseKey(key)?.tf)) return false
       const settled = lakeSettled.get(key)
       return settled == null || held < settled
+    },
+    /**
+     * Is the deep sealed history of D/W/M `key` still DUE (see `deepPrimes`)? The split applies, the
+     * entry holds no more than one tail answer's rows (a deeper copy, here or saved in this browser,
+     * had its history joined), and its join has not settled on this page at the depth it holds now.
+     */
+    deepPending(key) {
+      const p = parseKey(key)
+      if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return false
+      if (keys.get(key)?.splitOff) return false
+      const held = registry.peek(key)?.bars.length ?? 0
+      if (held > FIRST_PAINT_BARS) return false
+      const settled = deepSettled.get(key)
+      return settled == null || held < settled
+    },
+    /**
+     * Fetch `key`'s deep history NOW, ahead of the tail answer its job waits for (the job takes this
+     * answer, see `_historyJob`). `want`: a display is waiting on the join, so the job leaves at
+     * `visible` rank. Resolves true when the history arrived; never rejects. Nothing when the history
+     * is not due or its URL cannot be known yet (W/M holding no bars).
+     */
+    deepPrime(key, { priority = 'urgent', want = false } = {}) {
+      if (!api.deepPending(key)) return Promise.resolve(false)
+      if (want) deepWanted.set(key, now() + DEEP_WANT_MS)
+      // The depth was lost since the key's last join (the entry was evicted and rebuilt): ask again.
+      const r = keys.get(key)
+      if (r?.histAsked && !(r.inflight?.kind === 'scroll') && deepSettled.has(key)) r.histAsked = false
+      const url = _deepUrl(key)
+      if (!url) return Promise.resolve(false)
+      const have = _primed(url)
+      if (have) return have.then(() => true, () => false)
+      const p = Promise.resolve().then(() => request(url, { priority }))
+      deepPrimes.set(url, { p, at: now() })
+      p.catch(() => { if (deepPrimes.get(url)?.p === p) deepPrimes.delete(url) })
+      while (deepPrimes.size > DEEP_PRIME_MAX) deepPrimes.delete(deepPrimes.keys().next().value)
+      return p.then(() => true, () => false)
+    },
+    /** Resolves true when `key`'s history join settles (at once when it is not due), false after
+     *  `ms`. Never rejects. */
+    deepJoined(key, ms = DEEP_WANT_MS) {
+      if (!api.deepPending(key)) return Promise.resolve(true)
+      return new Promise((resolve) => {
+        let set = deepSubs.get(key)
+        if (!set) deepSubs.set(key, (set = new Set()))
+        let timer = null
+        const done = (v) => {
+          if (timer != null) clearTimer(timer)
+          set.delete(cb)
+          if (!set.size && deepSubs.get(key) === set) deepSubs.delete(key)
+          resolve(v)
+        }
+        const cb = () => done(true)
+        set.add(cb)
+        timer = setTimer(() => done(false), Math.max(0, ms))
+      })
     },
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
      *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */
