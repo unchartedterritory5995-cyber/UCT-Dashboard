@@ -57,9 +57,8 @@
   gap: 16px;
   row-gap: 0;
   min-height: 44px;
-  /* Right inset clears the app's fixed help "?" in the top-right corner
-     (measured: 28px button, 12px from the edge → 52px; 60px leaves air). */
-  padding: 0 60px 0 6px;
+  /* The floating Help "?" is not shown on Breadth (Layout), so no right clearance. */
+  padding: 0 12px 0 6px;
   align-items: stretch;
   /* When narrow, the action group wraps ABOVE the tabs (wrap-reverse), so the
      tabs — and the gold underline — always sit on the bar's bottom hairline. */
@@ -77,7 +76,7 @@
 .pageCot { padding: 0; --page-pad-top: 0px; --page-pad-x: 0px; }
 
 .cotTabHeader { padding: 20px 24px 0; margin-bottom: 0; }
-.page .sigHeader.cotTabHeader { padding: 0 60px 0 6px; margin: 0 0 14px; }
+.page .sigHeader.cotTabHeader { padding: 0 12px 0 6px; margin: 0 0 14px; }
 
 /* View tabs — plain text, the current one bright with a 2px gold underline (the only
    gold on the page besides the left nav's current item, spec §2b.1). */
