@@ -19,7 +19,7 @@ const instancesOf = (cs, defId) => (cs.indicatorInstances || []).filter((i) => i
 
 describe('the library names that are UCT\'s own built-in indicators', () => {
   it('each names a definition of this registry, by the registry\'s own name', () => {
-    expect(BUILT_IN_NAMES.map((b) => b.id)).toEqual(['rs_rating', 'rs_phases'])
+    expect(BUILT_IN_NAMES.map((b) => b.id)).toEqual(['mansfield_relative_strength', 'rs_rating', 'rs_phases'])
     for (const b of BUILT_IN_NAMES) {
       const def = registry.getDefinition(b.indicator)
       expect(def, b.indicator).toBeTruthy()
@@ -33,8 +33,8 @@ describe('rule 1: only what this build can add is ever offered', () => {
     const asked = []
     const got = offerableBuiltIns({ registry, isOffered: (def) => { asked.push(def.id); return def.id === 'rsRating' } })
     expect(got).toEqual(['rsRating'])
-    expect(asked.sort()).toEqual(['rsPhases', 'rsRating'])
-    expect(offerableBuiltIns({ registry, isOffered: yes })).toEqual(['rsRating', 'rsPhases'])
+    expect(asked.sort()).toEqual(['rsMansfield', 'rsPhases', 'rsRating'])
+    expect(offerableBuiltIns({ registry, isOffered: yes })).toEqual(['rsMansfield', 'rsRating', 'rsPhases'])
   })
 
   it('lists nothing when none is offered, when the chart cannot be written, or with no registry', () => {

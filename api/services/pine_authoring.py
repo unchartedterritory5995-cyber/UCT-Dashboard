@@ -89,10 +89,45 @@ NOT_FOR_THE_ASSISTANT: Dict[str, str] = {
 #: ⭐ ONE SENTENCE PER PITFALL, keyed by the generator's pitfall id (`PITFALL_PROBES`). Printed only
 #: while the reference says that pitfall still STANDS (its probe did not run fully).
 PITFALL_WORDS: Dict[str, str] = {
+    "candle-one-colour": ("For `plotcandle` and `plotbar` write ALL THREE colours (`color`, `wickcolor`, `bordercolor`), each a "
+                          "fixed colour, `na`, `color.new(<fixed>, <number>)` or a `?:` of those. A candle that writes only "
+                          "`color` is withheld."),
+    "drawings-beside-plain-plots": ("When a script makes its drawings from a list or in a loop, PLOT a value taken from that "
+                                    "same list or state (`plot(array.get(prices, 3), \"50% level\")`), not only plots of plain "
+                                    "formulas: beside plain plots alone, the drawings are not drawn."),
+    "fill-with-var": ("Do not use `fill` in a script that carries a value from bar to bar (`var`, `:=`) or loops: that "
+                      "script is run bar by bar, and that run does not draw a fill between plots. Plot the lines."),
+    "input-time": ("Do not use `input.time`: its default is not held. For a date the member can change, use three "
+                   "`input.int` (year, month, day) and compare them with the bar's own `year`, `month` and `dayofmonth`."),
+    "no-plot": ("Every script needs at least one `plot` (or `alertcondition`): a script that only draws lines, labels, "
+                "boxes or a table is refused. Plot the value the drawings are made from."),
     "hline": ("`hline` is not drawn here yet. For a fixed level, plot a constant instead: "
               "`plot(70, \"Overbought\", color=color.gray)`."),
     "untitled-fill-anchor": ("Give every plot a title, above all one you pass to `fill`: "
                              "`a = plot(x, \"Upper\")`. Two untitled plots kept only to fill between draw nothing."),
+}
+
+#: ⭐ STOPS OF THE RUN (`assistantRecipes.json::stops`): what the member's paste check PASSES and the
+#: engine then refuses when it computes. One sentence each, printed only while the probe is still refused.
+RUN_STOP_WORDS: Dict[str, str] = {
+    "running-total": ("Never keep a value since the chart's first bar (a running total, a count of every bar, an "
+                      "all-history average or win rate). On a chart whose history does not reach the symbol's first day "
+                      "that value depends on where the chart starts, and the engine draws nothing rather than a guess. "
+                      "Work statistics over a FIXED window of the last N bars (an `input.int`), in a loop, or with "
+                      "`ta.*` functions that take a length. A sum that RESTARTS (each new day, at an anchor date inside "
+                      "the chart) is fine."),
+    "delete-in-one-call": ("Take a drawing out of a list and delete it in TWO steps: `old = array.shift(marks)` then "
+                           "`label.delete(old)` (the same for `array.pop`, `array.remove`, and for lines and boxes). Written "
+                           "as one call, `label.delete(array.shift(marks))`, the drawing is deleted and stays in the list: "
+                           "the list never shrinks, and a `while` over its size never ends."),
+    "higher-timeframe-newest-bar": ("A weekly or monthly value read with `request.security` has NO value on the chart's "
+                                    "newest bar while that week or month is still forming, and nothing computed from it "
+                                    "has one either: reading it one bar back, `nz()` and `na(x) ? x[1] : x` do not rescue "
+                                    "it. PLOT such a value as a line (it simply ends one bar early) and say so in `reply`. "
+                                    "Do not build a last-bar table, label or level on it; if that is what was asked, say "
+                                    "the newest bar cannot show it yet (disposition `unsupported`)."),
+    "timestamp-clock": ("Do not use `timestamp(...)`: this chart's exchange zone is not one the engine answers for. "
+                        "Compare the bar's own `year`, `month`, `dayofmonth`, `hour` and `minute` with numbers instead."),
 }
 
 CONTRACT = """You write ONE complete Pine Script indicator for UCT's chart engine, from a member's plain-words request.
@@ -104,7 +139,9 @@ THE RULES
 4. Every number a member might want to change is an `input.*` with a title. Every `plot` has a title.
 5. Draw on the last bar what only needs drawing once (a summary table, a set of levels): `if barstate.islast`. Keep a drawing you redraw in a `var` handle and delete it before making it again, so the chart never fills with stale copies.
 6. Stay inside the limits listed below. A script is at most a few hundred lines.
-7. If you are sent an engine refusal for a script you wrote, fix exactly what it names and return the whole corrected script. Do not change what the member asked for to make the refusal go away; if the engine cannot do it, say so."""
+7. If you are sent an engine refusal for a script you wrote, fix exactly what it names and return the whole corrected script. Do not change what the member asked for to make the refusal go away; if the engine cannot do it, say so.
+8. When the request comes with RECIPES, start from the closest one: each is a whole script this engine runs as written and whose numbers were checked. Keep its structure, change what the request needs (the numbers, the condition, the colours, the title), and never import a habit from another platform that the recipe does not use.
+9. Say what the script MEANS by a term that has more than one reading (which pivot rule, which window, which average) in `reply`, in plain words."""
 
 
 @lru_cache(maxsize=1)
@@ -150,7 +187,7 @@ def _lines(title: str, rows: List[str]) -> List[str]:
     return [f"## {title}", *rows, ""] if rows else []
 
 
-def document(ref: Optional[Mapping[str, Any]] = None) -> str:
+def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:
     """The assistant's instructions for a script turn. Deterministic: the same reference gives the
     same text (it is sent as a cached system block)."""
     ref = reference() if ref is None else ref
@@ -183,6 +220,8 @@ def document(ref: Optional[Mapping[str, Any]] = None) -> str:
 
     never = [f"- `{name}` is refused by name" for name in ref.get("refusedNames") or []]
     never += [f"- {PITFALL_WORDS[p]}" for p in standing_pitfalls(ref) if p in PITFALL_WORDS]
+    stops = standing_run_stops() if run_stops is None else run_stops
+    never += [f"- {RUN_STOP_WORDS[s]}" for s in stops if s in RUN_STOP_WORDS]
     out += _lines("NEVER", never)
 
     examples: List[str] = []
@@ -217,3 +256,162 @@ def script_problem(pine: Any) -> Optional[str]:
     if declared is None or declared.group(1) != "indicator":
         return "the script must declare `indicator(...)` (not a strategy or a library)"
     return None
+
+
+# --------------------------------------------------------------------------- #
+# ⭐ WHAT A MEMBER STILL CANNOT GET: docs/pine/assistant-writes-pine/GAPS.md
+# --------------------------------------------------------------------------- #
+#
+# GENERATED from the engine's own verdict on each gap probe (`assistantGaps.json`, written by the
+# browser lane's generator) and the server's admission of whatever the bar-by-bar lane draws.
+# ⛔ CAPABILITIES ONLY: a row is something a script cannot do here and what the engine says about
+# it. No member's request, no answer and no count from a live round is ever written into it.
+
+GAPS_PATH = REFERENCE_PATH.parent / "assistantGaps.json"
+GAPS_DOC = REFERENCE_PATH.parents[5] / "docs" / "pine" / "assistant-writes-pine" / "GAPS.md"
+GAP_KIND_TITLES = {
+    "output": "What a script can show",
+    "calculation": "Calculations",
+    "drawing": "Drawings",
+    "data": "Data a script can read",
+    "language": "Language",
+}
+NOT_ADMITTED_GUARD = "runtime:not-yet-graded"
+
+
+@lru_cache(maxsize=1)
+def gaps() -> Dict[str, Any]:
+    try:
+        doc = json.loads(GAPS_PATH.read_text(encoding="utf-8"))
+    except Exception:                              # noqa: BLE001
+        return {}
+    return doc if isinstance(doc, dict) and doc.get("version") == 1 else {}
+
+
+def gap_rows(doc: Optional[Mapping[str, Any]] = None, admitted: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    """Every probe with what stands in a member's way, or nothing: `{id, kind, cannot, source,
+    served, guard, says}`. A probe the engine runs on its bar-by-bar lane is served only when the
+    server ADMITS every capability it uses (the browser's generator runs the engine itself; the
+    admission is the server's)."""
+    from api.services import pine_capabilities
+    doc = gaps() if doc is None else doc
+    allowed = set(reference().get("admitted") or []) if admitted is None else set(admitted)
+    rows = []
+    for p in doc.get("probes") or []:
+        row = {"id": p["id"], "kind": p["kind"], "cannot": p["cannot"], "source": p["source"], "served": False,
+               "guard": None, "says": ""}
+        if p.get("runs") is not True:
+            row["guard"] = p.get("guard")
+            row["says"] = (p.get("why") or p.get("headline") or "").strip()
+        elif p.get("lane") == "runtime":
+            missing = sorted(set(pine_capabilities.capabilities_of(p["source"])) - allowed)
+            if missing:
+                row["guard"] = NOT_ADMITTED_GUARD
+                row["says"] = ("the engine runs it bar by bar, and that lane does not admit this for members yet: "
+                               + ", ".join(missing))
+            else:
+                row["served"] = True
+        else:
+            row["served"] = True
+        rows.append(row)
+    return rows
+
+
+def _cell(text: Any) -> str:
+    return " ".join(str(text or "").split()).replace("|", "/")
+
+
+def gaps_document(doc: Optional[Mapping[str, Any]] = None, admitted: Optional[List[str]] = None) -> str:
+    """docs/pine/assistant-writes-pine/GAPS.md, as text. Deterministic."""
+    rows = gap_rows(doc, admitted)
+    out = [
+        "# What a member still cannot get from a script",
+        "",
+        "GENERATED by `python tools/assistant_gaps_build.py` from the engine's own verdict on each gap probe",
+        "(`app/src/components/chart/supportLoop/assistantGaps.json`). Do not edit by hand.",
+        "",
+        "Create Indicator's assistant writes Pine for what a formula cannot hold, and the engine judges the script.",
+        "So what stands between a request and an indicator is what the ENGINE does with the script. Each row below is",
+        "the smallest script that shows one thing a member might ask for, run through the member's own paste path, and",
+        "what the engine said. A row leaves this file by itself the day the engine serves its probe.",
+        "",
+        "This file holds capabilities only: no member's request, no answer and no count from any live round.",
+        "",
+    ]
+    for kind, title in GAP_KIND_TITLES.items():
+        mine = [r for r in rows if r["kind"] == kind and not r["served"]]
+        if not mine:
+            continue
+        out += [f"## {title}", "", "| a member cannot get | what the engine says | refused as | probe |", "|---|---|---|---|"]
+        out += [f"| {_cell(r['cannot'])} | {_cell(r['says'])} | `{r['guard'] or 'withheld'}` | `{r['id']}` |" for r in mine]
+        out.append("")
+    served = [r for r in rows if r["served"]]
+    out += ["## Probes the engine serves today", "",
+            "Asked the same way, and not a gap: " + (", ".join(f"`{r['id']}` ({_cell(r['cannot'])[0].lower() + _cell(r['cannot'])[1:]})" for r in served) or "none") + ".",
+            "", "## The probes", ""]
+    for r in rows:
+        out += [f"### `{r['id']}`", "", "```pine", r["source"].rstrip("\n"), "```", ""]
+    return "\n".join(out).rstrip("\n") + "\n"
+
+
+# --------------------------------------------------------------------------- #
+# ⭐ RECIPES: one proven script per hard request family, handed over by the request's own words
+# --------------------------------------------------------------------------- #
+#
+# `assistantRecipes.json` is GENERATED (the browser lane's generator): each recipe with the paste
+# path's verdict and a real compute on both histories. Only a `served` recipe is ever shown, and a
+# script turn is handed only the ones its request NAMES (`asks`), so the instructions stay one
+# cached document and a request for a zigzag does not pay for a volume profile.
+
+RECIPES_PATH = REFERENCE_PATH.parent / "assistantRecipes.json"
+#: How many recipes one request may carry.
+RECIPES_MAX = 2
+_NOT_A_WORD = re.compile(r"[^a-z0-9%]+")
+
+
+@lru_cache(maxsize=1)
+def _recipes_doc() -> Dict[str, Any]:
+    try:
+        doc = json.loads(RECIPES_PATH.read_text(encoding="utf-8"))
+    except Exception:                              # noqa: BLE001 -- no file, no recipes (the turn still runs)
+        return {}
+    return doc if isinstance(doc, dict) and doc.get("version") == 1 else {}
+
+
+def recipes(doc: Optional[Mapping[str, Any]] = None) -> List[Dict[str, Any]]:
+    """Every recipe the engine serves today, in the folder's order."""
+    doc = _recipes_doc() if doc is None else doc
+    return [r for r in doc.get("recipes") or [] if isinstance(r, Mapping) and r.get("served") is True
+            and isinstance(r.get("source"), str) and r.get("asks")]
+
+
+def standing_run_stops(doc: Optional[Mapping[str, Any]] = None) -> List[str]:
+    doc = _recipes_doc() if doc is None else doc
+    return [s["id"] for s in doc.get("stops") or [] if isinstance(s, Mapping) and s.get("standing") is True]
+
+
+def _spoken(text: Any) -> str:
+    return " " + _NOT_A_WORD.sub(" ", str(text or "").lower()).strip() + " "
+
+
+def recipes_for(message: Any, limit: int = RECIPES_MAX, doc: Optional[Mapping[str, Any]] = None) -> List[Dict[str, Any]]:
+    """The recipes a request names, best first: by the longest of the recipe's phrases the words
+    contain (whole words), then by how many of them, then by the folder's order. None when it names
+    none."""
+    words = _spoken(message)
+    scored = []
+    for order, r in enumerate(recipes(doc)):
+        hits = [a for a in r["asks"] if _spoken(a) in words]
+        if hits:
+            scored.append((-max(len(a) for a in hits), -len(hits), order, r))
+    return [r for *_rank, r in sorted(scored, key=lambda t: t[:3])][:max(0, int(limit))]
+
+
+def recipes_text(found: List[Mapping[str, Any]]) -> str:
+    """The recipes as they ride the request, or '' for none."""
+    if not found:
+        return ""
+    out = ["RECIPES (whole scripts this engine runs as written; start from the closest):"]
+    for r in found:
+        out += [f"### {r['title']}", f"How it works: {r['shows']}.", "```pine", r["source"].rstrip("\n"), "```"]
+    return "\n".join(out)
