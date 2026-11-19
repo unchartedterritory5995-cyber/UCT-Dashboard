@@ -174,6 +174,13 @@ export const INTENT_HYDRATE_RACE_MS = 60
  *  `deep`). Past the chart's own DEEP_ARM_MS (250) and its first window, so the visible chart's
  *  deep history always goes first. */
 export const NEIGHBOR_DEEP_MS = 500
+/** D/W/M: how long a list selection must rest before the hold fetches the next rows' deep sealed
+ *  history (createNeighborHold `deepenDates`). The visible daily chart joins its own history before
+ *  it paints (~100 ms after the key when nothing was primed), so this follows it; a held key (rows
+ *  ~33 ms apart) never starts one. */
+export const DATE_NEIGHBOR_DEEP_MS = 150
+/** D/W/M: the longest the hold waits for one row's history join before it goes on to the next. */
+export const DATE_NEIGHBOR_JOIN_MS = 3000
 /** The neighbor deepening's switch: on unless 'uct.deepNeighbors' (or the chart's whole intraday
  *  deep history, 'uct.intradayDeepBackfill.enabled') is '0' in this browser. */
 export function deepNeighborsEnabled() {
@@ -564,6 +571,19 @@ export function createPrefetch(o = {}) {
     try { if (S().lakeCarries?.(key)) Promise.resolve(S().lakeSeed?.(key)).catch(() => {}) } catch { /* a warm only */ }
   }
 
+  /** D/W/M: fetch `key`'s deep sealed history now and join it, the daily handoff's way with no
+   *  display waiting (network.deepPrime beside a tail asked for the chart's full depth; the key's
+   *  history job takes the primed answer). Resolves once joined, not due, or after `ms`; never
+   *  rejects. The neighbor hold's next rows and a row the pointer rests on. */
+  async function _joinDeepDate(key, { priority = 'grid', ms = DATE_NEIGHBOR_JOIN_MS } = {}) {
+    await _hydrate(key)                           // a copy saved whole in this browser is not due
+    if (!S().deepPending?.(key)) return false     // already whole here (or saved whole), or the split is off
+    const p = parseKey(key)
+    S().deepPrime?.(key, { priority })
+    const s = await ensure(key, { until: DAILY_PREPARED, depth: fullBarsFor(p.tf) || 0, priority, local: false })
+    return s?.restSeen && !s.error ? !!(await S().deepJoined?.(key, ms)) : false
+  }
+
   /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?
    *  The handoff paints a held key at once only when it is not: otherwise it prepares, and the
    *  prepare waits for the join (bounded) so the first paint is the whole chart. */
@@ -722,16 +742,37 @@ export function createPrefetch(o = {}) {
   // (the next one or two): the flip then paints them deep. Bounded: only after the selection has
   // rested NEIGHBOR_DEEP_MS (a held key or a fast scan never starts one), one request at a time,
   // at `grid` rank (the chart's own deep windows' rank, behind the visible chart), a new `set`
-  // abandons the rest. Intraday, non-replay keys only (D/W/M come whole from the daily pack).
+  // abandons the rest. Intraday, non-replay keys only here; D/W/M below.
   // Off: localStorage 'uct.deepNeighbors' = '0' (or the chart's 'uct.intradayDeepBackfill.enabled'
   // = '0', which turns every intraday deep window off).
+  //
+  // ⭐ ...AND THE NEXT DAILY ROWS ARRIVE WHOLE TOO (2026-11-19, owner: "only some load instantly, then
+  // some take time. Some load 400 candles or so and then load the rest a second later"). D/W/M were
+  // left out on the belief that they "come whole from the daily pack", but the pack holds ~300 rows a
+  // symbol: every daily flip onto a row not opened before waited for its deep sealed history at the
+  // flip (production flip proof, Nasdaq 100 at 0.8 s a row: first frame median 112 ms, and a row whose
+  // tail request stalled painted 600 bars at +443 ms and its 11,766 at +659). So once the selection has
+  // rested DATE_NEIGHBOR_DEEP_MS, the hold fetches the next rows' deep history the way the daily
+  // handoff does (network.deepPrime beside a tail asked for the chart's full depth, joined by the key's
+  // history job), one row at a time, at `grid` rank; the flip then paints them whole from memory. The
+  // history is one edge-cached request (~50-100 ms), so the rest is shorter than the intraday one.
+  // Same switch ('uct.deepNeighbors' = '0').
   function createNeighborHold() {
     let held = new Map()   // key → true
     let deepTimer = null
+    let dateTimer = null
     let deepGen = 0
     const stopDeep = () => {
       deepGen++
       if (deepTimer != null) { clearTimer(deepTimer); deepTimer = null }
+      if (dateTimer != null) { clearTimer(dateTimer); dateTimer = null }
+    }
+    // D/W/M: the deep sealed history of each row, joined before the member gets there.
+    async function deepenDates(keys, gen) {
+      for (const k of keys) {
+        if (gen !== deepGen || !held.has(k)) return
+        await _joinDeepDate(k, { priority: 'grid' })
+      }
     }
     async function deepen(keys, gen) {
       for (const k of keys) {
@@ -772,13 +813,17 @@ export function createPrefetch(o = {}) {
         stopDeep()
         if (!deep?.length || !deepNeighbors()) return
         const next = []
+        const dates = []
         for (const sym of deep) {
           const k = keyFor(sym, tf, { showExtended })
           const p = k ? parseKey(k) : null
-          if (p && !p.window && isIntradayTf(p.tf) && want.has(k) && !next.includes(k)) next.push(k)
+          if (!p || p.window || !want.has(k) || next.includes(k) || dates.includes(k)) continue
+          if (isIntradayTf(p.tf)) next.push(k)
+          else if (isDateTf(p.tf)) dates.push(k)
         }
-        if (!next.length) return
         const gen = deepGen
+        if (dates.length) dateTimer = setTimer(() => { dateTimer = null; deepenDates(dates, gen).catch(() => {}) }, DATE_NEIGHBOR_DEEP_MS)
+        if (!next.length) return
         deepTimer = setTimer(() => { deepTimer = null; deepen(next, gen).catch(() => {}) }, NEIGHBOR_DEEP_MS)
       },
       clear() {
@@ -902,6 +947,9 @@ export function createPrefetch(o = {}) {
       // the pointer rests on the row: its deep history from now too (a no-op off the lake), and its
       // whole depth joins the answer, so the click paints the whole chart at once
       try { S().primeLake?.(key) } catch { /* a warm only */ }
+      // D/W/M: its deep sealed history joins now too (2026-11-19: a click onto a daily row not opened
+      // before waited for it, ~100 ms, or painted the pack's rows first when the tail stalled)
+      if (isDateTf(parseKey(key)?.tf) && S().deepPending?.(key)) { _joinDeepDate(key, { priority: 'urgent' }).catch(() => {}); return }
       Promise.resolve(held ? null : prefetch([key], { priority: 'urgent' })).catch(() => {}).then(() => _joinLake(key))
     }, delay))
     if (!held) tickerMeta(sym)

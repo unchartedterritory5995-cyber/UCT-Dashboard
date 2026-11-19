@@ -206,12 +206,13 @@ describe('the neighbor hold deepens the next rows once the member rests', () => 
     expect(t.snaps.get(t.k('AAA')).depth).toBe(470)                  // a failed window adds nothing
   })
 
-  it('intraday only, and only rows the hold holds', async () => {
+  it('scroll-back windows are intraday only (daily rows join their sealed history instead: prefetch.deepDaily.test.js), and only rows the hold holds', async () => {
     const t = await boot()
     t.seed('AAA', 'D'); t.seed('BBB'); t.seed('ZZZ')
     const hold = t.pf.createNeighborHold()
     hold.set(['AAA'], 'D', { deep: ['AAA'] })
-    expect(t.timers.size).toBe(0)                                    // daily: nothing to deepen
+    for (const ms of [...t.timers.values()].map((x) => x.ms)) await t.fire(ms)
+    expect(t.scrolls).toEqual([])                                    // daily: never an intraday window
     hold.set(['BBB'], '5', { deep: ['ZZZ'] })                        // ZZZ is not in the window
     expect(t.timers.size).toBe(0)
     await t.fire()
