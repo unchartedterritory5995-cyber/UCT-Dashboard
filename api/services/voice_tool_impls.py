@@ -599,26 +599,15 @@ def _reddit_sentiment(ticker: str = "", hours: int = 24) -> dict:
         return {"error": f"reddit unavailable: {e}"}
 
 
-def _stocktwits_sentiment(ticker: str = "", limit: int = 30) -> dict:
-    """Stocktwits bull/bear-tagged messages aggregated for a ticker. Public
-    API, no auth. Returns counts + samples."""
-    if not ticker or not (ticker := ticker.strip()):
-        return {"error": "ticker required"}
-    try:
-        from api.services.stocktwits_sentiment import sentiment_for_ticker
-        return sentiment_for_ticker(ticker, limit=limit or 30)
-    except Exception as e:
-        _log.warning("stocktwits_sentiment failed: %s", e)
-        return {"error": f"stocktwits unavailable: {e}"}
-
-
 def _get_institutional_holders(ticker: str = "", top_n: int = 10) -> dict:
     """Top institutional holders for a ticker + % held by institutions/insiders."""
     if not ticker or not (ticker := ticker.strip()):
         return {"error": "ticker required"}
     try:
-        from api.services.institutional_holdings import get_institutional_holders
-        return get_institutional_holders(ticker, top_n=top_n or 10)
+        # Form 13F first (the read the Charts ownership panel route makes); the answer's
+        # `sources` names where each figure came from.
+        from api.services.institutional_holdings import get_institutional_holders_13f_first
+        return get_institutional_holders_13f_first(ticker, top_n=top_n or 10)
     except Exception as e:
         _log.warning("get_institutional_holders failed: %s", e)
         return {"error": f"institutional holders unavailable: {e}"}
@@ -648,8 +637,8 @@ def _get_insider_clusters(days: int = 7, count: int = 15) -> dict:
 
 
 def _get_social_sentiment(ticker: str = "") -> dict:
-    """Unified social sentiment — combines Twitter trader feed + Reddit + Stocktwits.
-    Single call replaces three. Returns aggregate verdict + agreement signal."""
+    """Unified social sentiment — combines the Twitter trader feed and Reddit.
+    Single call replaces two. Returns aggregate verdict + agreement signal."""
     if not ticker or not (ticker := ticker.strip()):
         return {"error": "ticker required"}
     try:
@@ -2918,27 +2907,15 @@ def _register_all() -> None:
     )(_reddit_sentiment)
 
     _vt.voice_tool(
-        name="stocktwits_sentiment",
-        description=(
-            "Stocktwits sentiment for a ticker — recent messages with user-"
-            "tagged Bullish/Bearish counts, net score, sample messages. "
-            "Free public API, no auth required."
-        ),
-        parameters={
-            "ticker": {"type": "string"},
-            "limit": {"type": "integer", "description": "Max messages to analyze (default 30, max 50)."},
-        },
-        contexts=["global"],
-    )(_stocktwits_sentiment)
-
-    _vt.voice_tool(
         name="get_institutional_holders",
         description=(
-            "Top institutional holders for a ticker (from Yahoo Finance 13F "
-            "aggregate). Returns each holder + shares + % of outstanding + "
-            "value, plus overall held_by_institutions_pct and "
-            "held_by_insiders_pct. Call for 'who owns NVDA', 'how much is "
-            "institutional', 'who are the top 5 holders'."
+            "Top institutional holders for a ticker, from Form 13F filings "
+            "(quarterly, filed up to 45 days after the quarter ends). Returns "
+            "each holder + shares + % of outstanding + value + the change "
+            "against its prior filing, plus overall held_by_institutions_pct "
+            "and held_by_insiders_pct; `sources` names where each figure came "
+            "from and `as_of` the filing date. Call for 'who owns NVDA', 'how "
+            "much is institutional', 'who are the top 5 holders'."
         ),
         parameters={
             "ticker": {"type": "string"},
@@ -2978,10 +2955,10 @@ def _register_all() -> None:
         name="get_social_sentiment",
         description=(
             "ONE-CALL unified social sentiment — combines Twitter trader feed "
-            "+ Reddit + Stocktwits in parallel. Returns aggregate verdict "
+            "+ Reddit in parallel. Returns aggregate verdict "
             "(bullish/bearish/mixed) + agreement signal (unanimous_bullish / "
             "unanimous_bearish / mixed_across_sources). Use this INSTEAD of "
-            "calling all three individually."
+            "calling each source individually."
         ),
         parameters={"ticker": {"type": "string"}},
         contexts=["global"],

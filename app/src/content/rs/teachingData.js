@@ -51,9 +51,9 @@ export const GLOSSARY = Object.freeze([
   { key: 'benchmark', term: 'Benchmark',
     definition: 'What the stock is compared against: the S&P 500, the equal-weight S&P 500, the Nasdaq 100, the Russell 2000, or the stock\'s sector or industry group. Change it and the question changes.' },
   { key: 'mansfieldRs', term: 'Mansfield RS',
-    // U9: where UCT computes it. The screener's Mansfield RS column (200 daily bars) is
-    // the reading that stays once the slim RS Line ships; the sentence is true today too.
-    definition: 'Weinstein\'s version: the RS ratio measured against its own long average (52 weeks on his weekly charts), so it swings around zero, and above zero and rising means the stock is outperforming its own trend against the benchmark. On UCT it is the screener\'s Mansfield RS column, read on 200 daily bars.',
+    // U9: where UCT computes it. The screener's Mansfield RS column (200 daily bars), and since
+    // 2026-11-18 the UCT Mansfield RS indicator (`rsMansfield`, its own pane: the same column)
+    definition: 'Weinstein\'s version: the RS ratio measured against its own long average (52 weeks on his weekly charts), so it swings around zero, and above zero and rising means the stock is outperforming its own trend against the benchmark. On UCT it is the UCT Mansfield RS indicator on a chart (200 bars by default, a setting) and the screener\'s Mansfield RS column, read on 200 daily bars.',
     aliases: ['Mansfield relative strength'] },
   { key: 'rotationQuadrant', term: 'Rotation quadrant',
     // U9: where UCT computes it: the Terminal's rotation graph and the screener's weekly

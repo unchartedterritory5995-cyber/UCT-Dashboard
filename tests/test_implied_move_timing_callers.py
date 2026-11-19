@@ -1,6 +1,9 @@
 """Accuracy follow-up 1 (audit 2026-10-06, design note 5): the three implied-move
 callers that knew only (symbol, date) now pass the report's session.
 
+Those callers read `implied_move.report_move` (tests/test_report_move.py); what is
+pinned HERE is that each one hands it the session, so it picks the post-print expiry.
+
 An AFTER-CLOSE report needs the first expiry STRICTLY after the report date; a
 same-day expiry settles at 4 PM, before the print. Independent reference: the
 expiry a trader would pick by hand for NVDA reporting Wed 2026-10-07 after the
@@ -34,13 +37,20 @@ def _fresh_timing_cache():
     im._timing_cache.clear()
 
 
-def _fake_get_implied_move(calls):
-    """Stands in for earnings_enrichment.get_implied_move; records the call and
-    picks the expiry with the product's own rule so the end result is checkable
-    against the hand reference."""
-    def fake(sym, earnings_date=None, timing=None):
-        calls.append((sym, earnings_date, timing))
-        return {"pct": 8.1, "expiry": im.select_report_expiry(EXPIRIES, earnings_date, timing)}
+@pytest.fixture(autouse=True)
+def _the_delayed_straddle_is_not_read(monkeypatch):
+    from api.services import earnings_enrichment as ee
+    monkeypatch.setattr(ee, "get_implied_move",
+                        lambda *a, **k: pytest.fail("a report caller read earnings_enrichment.get_implied_move"))
+
+
+def _fake_report_move(calls):
+    """Stands in for implied_move.report_move; records the call and picks the
+    expiry with the product's own rule so the end result is checkable against the
+    hand reference."""
+    def fake(sym, report_date=None, *, timing=None, outcome=None, timeout=None):
+        calls.append((sym, report_date, timing))
+        return {"pct": 8.1, "expiry": im.select_report_expiry(EXPIRIES, report_date, timing)}
     return fake
 
 
@@ -90,10 +100,9 @@ def test_report_timing_unknown_is_none_and_is_cached(monkeypatch):
 # ── the three callers ─────────────────────────────────────────────────────────
 
 def test_erx_panel_read_passes_the_session_and_picks_the_post_print_expiry(monkeypatch):
-    from api.services import earnings_enrichment as ee
     from api.services import earnings_reaction_panel as p
     calls = []
-    monkeypatch.setattr(ee, "get_implied_move", _fake_get_implied_move(calls))
+    monkeypatch.setattr(im, "report_move", _fake_report_move(calls))
     monkeypatch.setattr(im, "report_timing", lambda s, d: "amc")
     p._implied.pop("NVDA", None)
     p._read_implied("NVDA", "2026-10-07")
@@ -105,10 +114,9 @@ def test_erx_panel_read_passes_the_session_and_picks_the_post_print_expiry(monke
 
 
 def test_erx_panel_unknown_session_keeps_the_same_day_expiry(monkeypatch):
-    from api.services import earnings_enrichment as ee
     from api.services import earnings_reaction_panel as p
     calls = []
-    monkeypatch.setattr(ee, "get_implied_move", _fake_get_implied_move(calls))
+    monkeypatch.setattr(im, "report_move", _fake_report_move(calls))
     monkeypatch.setattr(im, "report_timing", lambda s, d: None)
     p._implied.pop("JPM", None)
     p._read_implied("JPM", "2026-10-07")
@@ -119,9 +127,8 @@ def test_erx_panel_unknown_session_keeps_the_same_day_expiry(monkeypatch):
 
 def test_discord_chart_context_passes_the_session(monkeypatch):
     from api.services import discord_chart_context as dcc
-    from api.services import earnings_enrichment as ee
     calls = []
-    monkeypatch.setattr(ee, "get_implied_move", _fake_get_implied_move(calls))
+    monkeypatch.setattr(im, "report_move", _fake_report_move(calls))
     monkeypatch.setattr(im, "report_timing", lambda s, d: "amc")
     out = dcc._implied("NVDA", "2026-10-07")
     assert calls == [("NVDA", "2026-10-07", "amc")]
@@ -131,7 +138,7 @@ def test_discord_chart_context_passes_the_session(monkeypatch):
 def test_enrichment_uses_the_callers_session_before_resolving(monkeypatch):
     from api.services import earnings_enrichment as ee
     calls = []
-    monkeypatch.setattr(ee, "get_implied_move", _fake_get_implied_move(calls))
+    monkeypatch.setattr(im, "report_move", _fake_report_move(calls))
     monkeypatch.setattr(im, "report_timing", lambda s, d: pytest.fail("caller already knew the session"))
     assert ee._implied_for_report("NVDA", "2026-10-07", "AMC")["expiry"] == "2026-10-09"
     monkeypatch.setattr(im, "report_timing", lambda s, d: "amc")
@@ -146,7 +153,7 @@ def test_enrich_earnings_response_wires_timing_into_the_implied_leg(monkeypatch)
     monkeypatch.setattr(ee, "get_historical_earnings_moves", lambda *a, **k: None)
     monkeypatch.setattr(ee, "extract_beat_surprises", lambda *a, **k: None)
     calls = []
-    monkeypatch.setattr(ee, "get_implied_move", _fake_get_implied_move(calls))
+    monkeypatch.setattr(im, "report_move", _fake_report_move(calls))
     out = ee.enrich_earnings_response("NVDA", [], "2026-10-07", timing="AMC")
     assert out["implied_move"]["expiry"] == "2026-10-09"
     assert calls == [("NVDA", "2026-10-07", "AMC")]

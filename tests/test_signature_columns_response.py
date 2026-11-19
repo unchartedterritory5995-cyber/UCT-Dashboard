@@ -36,7 +36,7 @@ from tests.test_rs_columns_provider import (  # noqa: F401 - fixtures are used b
     _fetcher, _hermetic_reads, _long_daily,
 )
 
-RS_IDS = ("rsLine", "rsRating", "rsPhases", "rsVsEma", "rsExit")
+RS_IDS = ("rsLine", "rsRating", "rsPhases", "rsVsEma", "rsExit", "rsMansfield")   # 2026-11-18: + UCT Mansfield RS
 
 
 def _stamp(response: Response):
@@ -113,7 +113,9 @@ def test_the_batch_is_answered_with_the_same_bytes_refusals_included(api, monkey
     now, before = _both(api, monkeypatch, "/api/signature/columns-batch", BATCH)
     assert now.status_code == before.status_code == 200
     statuses = [r["status"] for r in now.json()["results"]]
-    assert statuses == [200, 200, 200, 200, 200, 404, 422, 200], statuses
+    # one 200 per RS id (six since 2026-11-18, + rsMansfield), then the refusals, then the odd ask
+    assert statuses == [200] * len(RS_IDS) + [404, 422, 200], statuses
+    assert len(RS_IDS) == 6
     assert now.content == before.content
     assert now.headers["content-type"] == before.headers["content-type"]
 

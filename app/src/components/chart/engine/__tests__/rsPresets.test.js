@@ -437,8 +437,9 @@ describe('⛔ CONTROL — no other definition changes', () => {
     // own def tests pin them). Named, so a fifth RS definition is a decision here.
     // 2026-11-12 (RS Exit Warnings): the decision was taken: the RS family is FIVE, `rsExit` joins it
     // (an own pane with a hidden axis, and `restyle: false` on its three dots).
-    const RS_FAMILY = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit']
-    expect(RS_FAMILY.map((id) => !!getDefinition(id))).toEqual([true, true, true, true, true])
+    // 2026-11-18 (UCT Mansfield RS): SIX, `rsMansfield` joins it (an own pane with a hidden axis, `restyle: false` on its dot).
+    const RS_FAMILY = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield']
+    expect(RS_FAMILY.map((id) => !!getDefinition(id))).toEqual([true, true, true, true, true, true])
     const others = listDefinitions().filter((d) => !RS_FAMILY.includes(d.id))
     expect(others.length).toBeGreaterThan(10)
     for (const d of others) {

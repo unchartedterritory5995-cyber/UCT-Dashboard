@@ -546,16 +546,39 @@ def _write_artifact(tmp_path, monkeypatch, rows, as_of=None, missing_headers=Non
 
 
 def test_read_finviz_fields_healthy(monkeypatch, tmp_path):
-    rows = {f"T{i:04d}": {"short_float_pct": 12.5, "short_ratio": 3.0}
+    rows = {f"T{i:04d}": {"insider_own_pct": 12.5, "inst_pct": 3.0}
             for i in range(1005)}
     _write_artifact(tmp_path, monkeypatch, rows)
     from api.services.screener import finviz_universe as fv
 
     out = fv.read_finviz_fields(["T0000", "ZZZZ"])
 
-    assert out["T0000"]["short_float_pct"] == 12.5
-    assert out["T0000"]["short_ratio"] == 3.0
+    assert out["T0000"]["insider_own_pct"] == 12.5
+    assert out["T0000"]["inst_pct"] == 3.0
     assert out["ZZZZ"] == {}
+
+
+def test_read_finviz_fields_no_longer_writes_the_two_short_columns(monkeypatch, tmp_path):
+    """Pin moved 2026-11-18: `short_float_pct` and `short_ratio` have one writer,
+    `short_columns.read_short_columns`. The export still STORES them (the
+    run_pull tests above pin that) and hands them to that writer through
+    `read_short_export`; this reader, whose dict is merged into a Screener row
+    as it stands, must not carry them, or two readers would write one column."""
+    rows = {f"T{i:04d}": {"short_float_pct": 12.5, "short_ratio": 3.0,
+                          "float_shares": 2.0e6, "inst_pct": 40.0}
+            for i in range(1005)}
+    _write_artifact(tmp_path, monkeypatch, rows)
+    from api.services.screener import finviz_universe as fv
+
+    out = fv.read_finviz_fields(["T0000"])
+
+    assert set(fv.SHORT_EXPORT_COLUMNS) == {"short_float_pct", "short_ratio"}
+    assert not (set(out["T0000"]) & set(fv.SHORT_EXPORT_COLUMNS))
+    assert out["T0000"]["inst_pct"] == 40.0          # control: the row was read
+    assert out["T0000"]["float_shares"] == 2.0e6
+    # and the same artifact still gives the pair to their writer, unchanged
+    assert fv.read_short_export(["T0000"])["T0000"] == {
+        "short_float_pct": 12.5, "short_ratio": 3.0, "float_shares": 2.0e6}
 
 
 def test_read_finviz_fields_missing_artifact(tmp_path, monkeypatch):
@@ -570,7 +593,7 @@ def test_read_finviz_fields_missing_artifact(tmp_path, monkeypatch):
 
 
 def test_read_finviz_fields_short_artifact_counts_missing(tmp_path, monkeypatch):
-    _write_artifact(tmp_path, monkeypatch, {"AAA": {"short_ratio": 1.0}})
+    _write_artifact(tmp_path, monkeypatch, {"AAA": {"inst_pct": 1.0}})
     from api.services.screener import finviz_universe as fv
 
     failures = {}
@@ -582,50 +605,50 @@ def test_read_finviz_fields_short_artifact_counts_missing(tmp_path, monkeypatch)
 
 def test_read_finviz_fields_stale_is_served_but_counted(tmp_path, monkeypatch):
     old = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
-    rows = {f"T{i:04d}": {"short_ratio": 1.0} for i in range(1005)}
+    rows = {f"T{i:04d}": {"inst_pct": 1.0} for i in range(1005)}
     _write_artifact(tmp_path, monkeypatch, rows, as_of=old)
     from api.services.screener import finviz_universe as fv
 
     failures = {}
     out = fv.read_finviz_fields(["T0000"], failures=failures)
 
-    assert out["T0000"]["short_ratio"] == 1.0
+    assert out["T0000"]["inst_pct"] == 1.0
     assert any(k.startswith("stale:") for k in failures["finviz_universe"])
 
 
 def test_read_finviz_fields_fresh_artifact_not_counted_stale(tmp_path, monkeypatch):
-    rows = {f"T{i:04d}": {"short_ratio": 1.0} for i in range(1005)}
+    rows = {f"T{i:04d}": {"inst_pct": 1.0} for i in range(1005)}
     _write_artifact(tmp_path, monkeypatch, rows)  # as_of defaults to now
     from api.services.screener import finviz_universe as fv
 
     failures = {}
     out = fv.read_finviz_fields(["T0000"], failures=failures)
 
-    assert out["T0000"]["short_ratio"] == 1.0
+    assert out["T0000"]["inst_pct"] == 1.0
     assert failures == {}
 
 
 def test_read_finviz_fields_missing_header_absent_from_every_row(tmp_path, monkeypatch):
-    rows = {f"T{i:04d}": {"short_ratio": 1.0} for i in range(1005)}
+    rows = {f"T{i:04d}": {"inst_pct": 1.0} for i in range(1005)}
     _write_artifact(tmp_path, monkeypatch, rows, missing_headers=["float_pct"])
     from api.services.screener import finviz_universe as fv
 
     out = fv.read_finviz_fields(["T0000"])
 
     assert "float_pct" not in out["T0000"]
-    assert out["T0000"]["short_ratio"] == 1.0
+    assert out["T0000"]["inst_pct"] == 1.0
 
 
 def test_read_finviz_fields_per_ticker_value_absence(tmp_path, monkeypatch):
-    rows = {f"T{i:04d}": {"short_ratio": 1.0} for i in range(1004)}
-    rows["T9999"] = {}  # this ticker's short_ratio parsed to None (a dash)
+    rows = {f"T{i:04d}": {"inst_pct": 1.0} for i in range(1004)}
+    rows["T9999"] = {}  # this ticker's inst_pct parsed to None (a dash)
     _write_artifact(tmp_path, monkeypatch, rows)
     from api.services.screener import finviz_universe as fv
 
     out = fv.read_finviz_fields(["T0000", "T9999"])
 
-    assert out["T0000"]["short_ratio"] == 1.0
-    assert "short_ratio" not in out["T9999"]
+    assert out["T0000"]["inst_pct"] == 1.0
+    assert "inst_pct" not in out["T9999"]
 
 
 # ── FIX 2 (2026-08-22): read_finviz_fields derives float_pct on read ────────

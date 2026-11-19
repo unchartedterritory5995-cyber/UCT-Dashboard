@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 234,
+  "all": 236,
   "withProductionKinds": 205,
-  "darkGated": 29
+  "darkGated": 31
  },
  "totals": {
-  "capabilities": 234,
-  "withAnyRegressionCase": 182,
+  "capabilities": 236,
+  "withAnyRegressionCase": 184,
   "perProtection": {
    "nl": {
-    "covered": 179,
-    "applicable": 234
+    "covered": 181,
+    "applicable": 236
    },
    "routing": {
-    "covered": 176,
-    "applicable": 234
+    "covered": 178,
+    "applicable": 236
    },
    "args": {
-    "covered": 182,
-    "applicable": 234
+    "covered": 184,
+    "applicable": 236
    },
    "execution": {
-    "covered": 179,
-    "applicable": 234
+    "covered": 181,
+    "applicable": 236
    },
    "receipt": {
-    "covered": 151,
-    "applicable": 234
+    "covered": 153,
+    "applicable": 236
    },
    "refusal": {
     "covered": 35,
-    "applicable": 234
+    "applicable": 236
    },
    "permission": {
-    "covered": 227,
-    "applicable": 234
+    "covered": 229,
+    "applicable": 236
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 234
+    "applicable": 236
    },
    "phrasings": {
-    "covered": 175,
-    "applicable": 234
+    "covered": 177,
+    "applicable": 236
    }
   }
  },
@@ -10351,6 +10351,114 @@
     ],
     "receipt": [
      "stock.sessionHighsLows (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.shortInterest": {
+   "domain": "stock",
+   "group": "shortInterest",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.shortInterest: \"short interest on NVDA\"",
+     "stock.shortInterest: \"what is the short interest on NVDA\"",
+     "stock.shortInterest: \"how heavily shorted is NVDA\"",
+     "stock.shortInterest: \"NVDA days to cover\""
+    ],
+    "routing": [
+     "stock.shortInterest: \"short interest on NVDA\"",
+     "stock.shortInterest: \"what is the short interest on NVDA\"",
+     "stock.shortInterest: \"how heavily shorted is NVDA\"",
+     "stock.shortInterest: \"NVDA days to cover\""
+    ],
+    "args": [
+     "corpus stock.shortInterest"
+    ],
+    "execution": [
+     "stock.shortInterest (c)"
+    ],
+    "receipt": [
+     "stock.shortInterest (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.shortList": {
+   "domain": "stock",
+   "group": "shortInterest",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.shortList: \"most shorted stocks\"",
+     "stock.shortList: \"which stocks have the highest short interest\"",
+     "stock.shortList: \"short interest list\"",
+     "stock.shortList: \"highest days to cover\""
+    ],
+    "routing": [
+     "stock.shortList: \"most shorted stocks\"",
+     "stock.shortList: \"which stocks have the highest short interest\"",
+     "stock.shortList: \"short interest list\"",
+     "stock.shortList: \"highest days to cover\""
+    ],
+    "args": [
+     "corpus stock.shortList"
+    ],
+    "execution": [
+     "stock.shortList (c)"
+    ],
+    "receipt": [
+     "stock.shortList (c)"
     ],
     "refusal": [],
     "permission": [],

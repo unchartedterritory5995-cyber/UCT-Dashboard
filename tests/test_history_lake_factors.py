@@ -126,3 +126,37 @@ def test_real_reference_known_splits():
         for d, r in tab:
             assert d <= AS_OF and r > 0 and r != 1.0
         assert [d for d, _ in tab] == sorted({d for d, _ in tab})
+
+
+# ── class shares: the vendor files their splits under two spellings (2026-11-18) ──────────────────
+
+def _cs_rows():
+    return [
+        {'ticker': 'BF.B', 'execution_date': '2004-01-21', 'split_from': 1, 'split_to': 2},
+        {'ticker': 'BFB', 'execution_date': '2012-08-13', 'split_from': 2, 'split_to': 3},
+        {'ticker': 'BFB', 'execution_date': '2016-08-19', 'split_from': 1, 'split_to': 2},
+        # the same 2004 event, filed again under the undotted spelling two days later
+        {'ticker': 'BFB', 'execution_date': '2004-01-23', 'split_from': 1, 'split_to': 2},
+        {'ticker': 'CWD', 'execution_date': '2025-05-02', 'split_from': 15, 'split_to': 1},
+        {'ticker': 'XY.pA', 'execution_date': '2020-01-02', 'split_from': 1, 'split_to': 2},
+        {'ticker': 'XYpA', 'execution_date': '2021-01-04', 'split_from': 1, 'split_to': 2},
+    ]
+
+
+def test_a_class_share_reads_the_splits_filed_under_its_undotted_spelling():
+    t = F.build_factor_tables(_cs_rows(), AS_OF)
+    out = F.with_class_share_spellings(t, ['BF.B', 'AAPL'])
+    assert out['BF.B'] == [['2004-01-21', 2.0], ['2012-08-13', 1.5], ['2016-08-19', 2.0]]   # 2004 once
+    assert t['BF.B'] == [['2004-01-21', 2.0]]                     # the input is not changed
+
+
+def test_an_undotted_spelling_that_is_its_own_symbol_is_never_borrowed():
+    t = F.build_factor_tables(_cs_rows(), AS_OF)
+    out = F.with_class_share_spellings(t, ['C.WD', 'CWD'])       # CWD is CaliberCos, not C.WD
+    assert 'C.WD' not in out and out['CWD'] == [['2025-05-02', 1 / 15]]
+    assert F.with_class_share_spellings(t, ['BF.B', 'BFB'])['BF.B'] == [['2004-01-21', 2.0]]
+
+
+def test_lowercase_vendor_symbols_are_left_alone():
+    t = F.build_factor_tables(_cs_rows(), AS_OF)
+    assert F.with_class_share_spellings(t, ['XY.pA'])['XY.pA'] == [['2020-01-02', 2.0]]

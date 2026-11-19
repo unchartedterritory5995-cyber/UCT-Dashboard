@@ -1240,12 +1240,16 @@ _OUTCOME_LABEL = {
 # (earnings.season: UCT's calendar with third-party results and estimates, and UCT's priced and past moves;
 # earnings.callThemes: phrases from third-party transcripts; group.drill: UCT's RS rank, confluence board and themes),
 # so the member sees the card and a model never sees a value or a phrase
+# stock.shortInterest / stock.shortList (terminal data wave 5): each reads a model-isolated kind (short.interest and
+# short.list: FINRA short interest and daily short volume, licensed through the market-data vendor for display to
+# members), so the member sees the card and a model never sees a value
 LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades", "news.movers",
                                 "rs.compare", "stock.analystActions", "stock.sessionHighsLows", "stock.longRunLeaders",
                                 "stock.darkPoolLevels", "stock.yearlyHighsLows", "stock.themeRotation",
                                 "stock.confluenceBoard", "stock.expectedMove", "stock.callSearch",
                                 "stock.gammaLevels", "stock.topFlowPicks", "stock.flowRecord", "stock.earningsReactions",
-                                "stock.earningsSeason", "stock.callThemes", "stock.groupDrill"})
+                                "stock.earningsSeason", "stock.callThemes", "stock.groupDrill",
+                                "stock.shortInterest", "stock.shortList"})
 #: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
 #: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
 #: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written

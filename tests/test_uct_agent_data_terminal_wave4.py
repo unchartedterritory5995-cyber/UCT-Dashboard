@@ -1035,6 +1035,9 @@ def test_the_contract_doc_states_section_4_13_and_every_note_the_adapters_emit()
     assert "owed by a person" in entry and "acknowledged by the owner" not in entry      # §8.1: no acknowledgement is claimed
     assert "**Not armed:**" in entry and "Nothing in this entry or in §4.13 records an owner decision." in entry
     assert doc.index(entry) < doc.index("- **v1.9 amendment (2026-11-17, terminal-data, Schwab retired):**")
-    status = next(line for line in doc.splitlines() if line.startswith("- **Status:** v1.10"))
-    assert "the §8.1 notices for v1.9 and v1.10 are owed by a person and are not acknowledged" in status
+    # the Status line carries the newest version, which later waves bump (v1.11 is data wave 5): v1.9's and v1.10's
+    # notices are still said to be owed by a person and not acknowledged
+    status = next(line for line in doc.splitlines() if line.startswith("- **Status:** v1."))
+    owed = re.search(r"the §8\.1 notices for ([^;)]*?) are owed by a person and are not acknowledged", status)
+    assert owed and "v1.9" in owed.group(1) and "v1.10" in owed.group(1)
     assert "- **`flow.summary`:** only through the existing flow proxy" in doc       # still deferred: no tape kind was added

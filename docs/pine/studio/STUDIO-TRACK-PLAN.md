@@ -855,12 +855,49 @@ Not finished, and why (as of the afternoon of 2026-11-17):
 
 **Next, in order:** see #1701, #1708, #1722, #1730, #1738 and #1713 on production with the requests that found them (the daily allowance is durable and renews at midnight Eastern, so re-checks queue for after it); backlog 63 and 64; the same request sent three times, to measure how often an answer changes; then names and read-backs with the authoring owner, the house set a third time, and the owner's look.
 
+**State at the end of 2026-11-18.** One day's work on "anything a member can describe is built, and
+what is built is what was asked for". Every row below is merged; "live" means used on production as a
+synthetic account afterwards.
+
+| what | state |
+|---|---|
+| Several LINKED running values (`accum2` to `accum4`): built from a member's words when their starting values provably stop mattering (a filter, or a chain), refused by name otherwise | live (#1863) |
+| The door asks the ENGINE which shapes it computes: a running value inside a window function, under a bar offset or inside another running value is refused at the door, not accepted and then refused by the browser | live (#1895) |
+| The library: 37 checked indicators. Added this day: Positive Volume Index, Fisher Transform (`fisher`), Laguerre Filter and Laguerre RSI (`laguerre`, `laguerreRsi`), Detrended Price Oscillator (`dpo`), Stochastic Oscillator (fast, slow and full in one entry), Pocket Pivot | live; the Stochastic merged (#1907); Pocket Pivot merged with this record |
+| A new kind of evidence: an entry may FOLLOW UCT'S OWN READER. Pocket Pivot, held until now, is the chart formula of the Screener's own detector, proved equal to it bar for bar by a test that imports the detector and runs it. One authority; no member is told "published by" or anything about a vendor | merged with this record |
+| Engine 79 numbered the four new functions; a function waiting on a number is marked in data and held to a line in the version file | live (#1891) |
+| Clarify and learn: the door's own questions (no assistant call) now include the benchmark of a relative-strength request, how far back a breakout looks, and which Stochastic; an answer is remembered, used and said; a member's usual choices are offered first | live (#1866, #1890); the Stochastic's merged (#1907) |
+| A function's high, low and close are put in the engine's order when an answer writes them in another vendor's (a Stochastic that was a different number on every bar); the weekly owner report counts saved indicators that carry it, and changes none. On production the report counts none | live (#1900, #1904) |
+| The read-back names a bar-field argument by its role when it is not the bar's own field in order | #1909 (engine; the next train numbers it) |
+| A decline offers the closest part of the SAME indicator; a stop that only rises is a running value, not a refusal | live (#1890) |
+| The server spells small numbers as the browser does (an answer holding 0.000001 was refused twice) | live (#1886) |
+| Several number lines of one indicator are drawn in several colours; a library indicator's lines carry the library's labels; colours are read back by name | live (#1877, #1890) |
+
+| A name that is one of UCT's own built-in indicators (RS Rating, RS Phases) is answered with no assistant call and one button that adds it to the chart, for a browser that can; Mansfield Relative Strength says where it is today (a Screener column) | merged with this record |
+| The same request sent three times through production, six requests of different kinds: every send built in one call; five gave the same maths on all three; one differed on whether an inside day's edges may touch the bar before | measured 2026-11-18 (answers kept outside this repository) |
+
+**What is left, in order.**
+1. The Stochastic's capture: TradingView's built-in at (14, 1, 3) and (14, 3, 3). Graded equal, the entry carries all three tiers and may say so.
+2. The two HELD names. Mansfield Relative Strength waits on a built-in that draws the Screener's own column (a chart formula was ruled out: a second join, and different after a missing benchmark bar); the name then points at it with the one-tap offer. TTM Squeeze needs its author's formula on a page that can be read.
+2a. The offer, extended: the rest of UCT's own built-in indicators and the house set by name ("bind the house set into the library").
+2b. "Inside day" means one thing: the measurement above found two readings of it.
+3. Super Smoother, Instantaneous Trendline and Cyber Cycle as named entries: a published statement of each recurrence that can be READ (section 13). They are built from a member's words today, name withheld.
+4. An instruction slice, measured live before and after like every one: the assistant under-claims on a formula that needs a choice among several terms (it declined one the language can express).
+5. The second turns of the multi-turn evaluation cases, and the same request sent three times (how often an answer changes).
+6. A setting as a coefficient of linked running values a member writes by hand (section 13).
+
 **Open for the owner:**
 1. Look at each of the fourteen house indicators on a chart (Indicators, UCT tab) and say which
    stay. They were published on a value check, not on your look (D24).
 2. D23 to D28 in section 11 were taken as judgment calls. Reverse any by saying so.
 3. The 10 and 21 EMA trend indicator is held out of the house set by a false positive in the
    secret scanner (section 14b). Say whether to add an allow entry for that one identifier.
+4. (2026-11-18) The admin accounts' daily allowance at Create Indicator is 30 on production, raised
+   from the default 10 for the live checks (`docs/feature_flags.json`, `CONVERSE_ADMIN_CAP_DAILY`).
+   Say when to put it back; a member's allowance was not changed.
+5. (2026-11-18) The weekly report counts saved indicators that carry a function's high, low and
+   close in the wrong order. It counts none today. If it ever counts some, say whether they are
+   corrected for their owners or their owners are told; nothing touches a saved formula until then.
 
 **Kept outside this repository:** the competitor review, prompt sets and results, the
 hidden set, screenshots, the house-set pictures, and anything with cost figures.

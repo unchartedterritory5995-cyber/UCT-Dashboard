@@ -103,3 +103,29 @@ describe('v1-v4 compare two compile-time constants exactly; v5 tolerantly (vw-fc
     })
   }
 })
+
+// ⭐ engine 81 (Q-FCMP3): vw-fcmp-arrays, rows A01-A16, READ OFF the committed captures (AMEX:SPY 1D,
+// 8,510 bars, and NYSE:RDDT 1D, 669 bars, from the listing; run fcmp3b-2026-11-18, packet sha256
+// b400024aa71d2d2c895f04bf449f4cb310dd28e49d25f988cd002d2a9f0ad0ef). array.lastindexof reads TOLERANT (A02-A04), the
+// three binary searches EXACT (A07-A09, A11-A14); the rest are controls both rules answer alike.
+describe('the runtime lane runs vw-fcmp-arrays as TradingView did (Q-FCMP3, every row, every bar, both symbols)', () => {
+  for (const sym of ['spy', 'rddt']) {
+    it(`vw-fcmp-arrays-${sym}-1d-2026-11-18: lastindexof tolerant, binary searches exact, every control as read`, () => {
+      const cap = JSON.parse(readFileSync(`../tests/fixtures/vendor/harness/vw-fcmp-arrays-${sym}-1d-2026-11-18.json`, 'utf8'))
+      const bars = cap.bars.rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }))
+      const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(bars.map((b) => b[k])))
+      const outs = run(cap.source.text, bars, series)
+      expect(outs.length).toBe(17)
+      const off = []
+      cap.study.plots.forEach((pl, k) => {
+        const at = cap.plotValues.fields.indexOf(pl.id)
+        cap.plotValues.rows.forEach((r, i) => { if (outs[k][i] !== r[at]) off.push(`${pl.title} bar ${i}: ours ${outs[k][i]}, TradingView ${r[at]}`) })
+      })
+      expect(off.slice(0, 5), `${off.length} cells off`).toEqual([])
+      // the rows that separate the rules read as measured: lastindexof tolerant, the searches exact
+      const last = cap.plotValues.rows[cap.plotValues.rows.length - 1]
+      const tv = cap.study.plots.slice(1).map((pl) => last[cap.plotValues.fields.indexOf(pl.id)])
+      expect(tv).toEqual([2, 2, 0, 0, -1, 1, -1, -1, -1, -1, 0, 0, 2, 2, 0, 2])
+    })
+  }
+})

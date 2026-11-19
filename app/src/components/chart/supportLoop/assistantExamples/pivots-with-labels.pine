@@ -1,0 +1,8 @@
+//@version=5
+indicator("Pivot highs", overlay=true)
+left = input.int(5, "Left")
+right = input.int(5, "Right")
+ph = ta.pivothigh(high, left, right)
+if not na(ph)
+    label.new(bar_index - right, ph, str.tostring(ph, "#.##"), style=label.style_label_down, color=color.orange)
+plot(ta.valuewhen(not na(ph), ph, 0), "Last pivot high", color=color.orange, style=plot.style_stepline)

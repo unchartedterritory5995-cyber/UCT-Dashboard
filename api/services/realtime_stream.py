@@ -86,10 +86,29 @@ def get_realtime_prices(tickers=None):
     return {s: {k: v for k, v in d.items() if k in _STREAM_FIELDS} for s, d in raw.items()}
 
 
+_OFF_WORDS = frozenset({"0", "false", "no", "off"})
+
+
+def stream_enabled() -> bool:
+    """FINNHUB_STREAM_ENABLED: the switch for THIS socket. A kill switch, default ON: unset (or
+    anything but 0 / false / no / off) keeps today's behaviour, so deploying it changes nothing.
+
+    Off, `start_stream()` opens no connection. `/api/stream/prices` then carries the Massive overlay
+    alone (api/routers/stream.py: Massive is already the primary price and this feed the layer
+    under it), the `/api/live-prices` poll covers a symbol the overlay is quiet on, and nothing
+    feeds `realtime_candle`, so the `tick` / `bar_close` / `bar_correction` events of the tick
+    fallback are not sent. The REST reads through `finnhub_client` are a different thing and are
+    untouched. Read when the process starts the stream: a change needs a restart of `web`.
+    """
+    return os.environ.get("FINNHUB_STREAM_ENABLED", "").strip().lower() not in _OFF_WORDS
+
+
 def get_stream_status():
-    """Return WebSocket connection status."""
+    """Return WebSocket connection status. `enabled` False means the socket is off BY SETTING
+    (FINNHUB_STREAM_ENABLED), which is not a fault: `connected` is False for a reason."""
     return {
         "connected": _running,
+        "enabled": stream_enabled(),
         "provider": "finnhub" if _FINNHUB_KEY else "none",
         "subscribed_count": len(_subscribed),
         "prices_cached": len(_prices),
@@ -523,6 +542,13 @@ def start_stream():
     # re-litigated on every reconnect — and putting it in `_run_websocket`
     # short-circuits the connect/backoff/circuit-breaker tests that drive that
     # coroutine directly, which is a real signal that it was the wrong layer.
+    # The switch is read here for the same reason the guard below sits here: "should this PROCESS
+    # stream at all" is answered once, at boot, never inside the reconnect loop.
+    if not stream_enabled():
+        _logger.info("[stream] Finnhub WebSocket stream is switched off (FINNHUB_STREAM_ENABLED); "
+                     "no connection is opened and live prices come from the Massive overlay alone")
+        return
+
     from api.services import vendor_socket_guard
     if vendor_socket_guard.refuse_if_local("finnhub"):
         return

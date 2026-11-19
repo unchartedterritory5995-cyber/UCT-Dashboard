@@ -11,7 +11,8 @@ the same reacting session (the selection rule is reused, not restated):
   drift_pct     close[S+5] / close[S]  - 1    the 5 sessions AFTER the print
 
 plus, beside them, the realized volatility of the last 20 sessions and the
-options market's implied move for the next print (front ATM straddle).
+options market's implied move for the next print (the ATM straddle on our own
+option chain read, first expiry that settles after the report).
 
 Honesty rules, railed in tests/test_earnings_reaction_panel.py:
   * a quarter whose sessions are not all in our bars keeps its row with the
@@ -24,9 +25,9 @@ Honesty rules, railed in tests/test_earnings_reaction_panel.py:
 Request path. Quarters come from the earnings payload's CACHE only (memory,
 then the snapshot store; a miss schedules the existing background rebuild and
 answers pending). Prices are our own daily bars (`earnings_reaction._daily_bars`,
-the strip's own read). The implied move is a vendor read (an option chain), so
-it is NEVER fetched in the request: a miss is queued on this module's own
-one-thread worker and the panel says it is being read.
+the strip's own read). The implied move is an option chain read
+(`implied_move.report_move`), so it is NEVER fetched in the request: a miss is
+queued on this module's own one-thread worker and the panel says it is being read.
 DARK behind EARNINGS_REACTION_PANEL_ENABLED.
 """
 from __future__ import annotations
@@ -36,7 +37,7 @@ import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from statistics import median
 from typing import Any, Optional
 
@@ -52,9 +53,20 @@ DRIFT = 5
 VOL_WINDOW = 20
 _IMPLIED_TTL = 30 * 60
 _MAX_QUEUED = 8
+# The read runs on this module's own worker, never in a request, so it can wait
+# longer for a cold chain than a caller that has a member waiting on it.
+_IMPLIED_READ_TIMEOUT_S = 30.0
+# What the panel says when there is no number, by WHY (`implied_move.outcome_kind`).
+# "We could not read it" and "there is nothing we can stand behind" are different
+# facts and get different sentences.
+_NO_IMPLIED = {
+    "refused": "the option chain has no quoted at-the-money straddle we can stand behind for the next report",
+    "unavailable": "the option chain could not be read for the next report",
+}
 SOURCE = ("UCT daily bar store (sessions chosen by the reaction strip's rule); quarters from the "
-          "earnings payload (earnings_intel); implied move from the front ATM straddle "
-          "(earnings_enrichment.get_implied_move)")
+          "earnings payload (earnings_intel); implied move from the at-the-money straddle on "
+          "our own option chain read, first expiry that settles after the report "
+          "(implied_move.report_move)")
 
 
 REALIZED_VOL_METHOD = (f"Realized volatility = {HV_DEFINITION}, over the last {VOL_WINDOW} "
@@ -151,27 +163,46 @@ def realized_vol(bars: list[dict], window: int = VOL_WINDOW) -> Optional[dict]:
 
 _lock = threading.Lock()
 _implied: dict[str, tuple[float, Optional[dict]]] = {}
+_implied_why: dict[str, str] = {}
 _queued: set[str] = set()
 _executor: Optional[ThreadPoolExecutor] = None
+
+
+def _epoch(iso: Any) -> Optional[float]:
+    try:
+        return datetime.fromisoformat(str(iso).replace("Z", "+00:00")).timestamp()
+    except (TypeError, ValueError):
+        return None
 
 
 def _read_implied(sym: str, next_date: Optional[str]) -> None:
     """Off-request read. The report's session ('bmo'/'amc') comes from
     `implied_move.report_timing` -- an after-close print needs the first expiry
     STRICTLY after the date (a same-day expiry settles before the print). An
-    unknown session keeps the on-or-after rule (documented default)."""
+    unknown session keeps the on-or-after rule (documented default).
+
+    `read_at` is when the CHAIN was read (`asof`), not when this worker ran: a
+    straddle can be served from the shared cache, and the panel prints the time."""
+    why: dict = {}
     try:
-        from api.services import earnings_enrichment
-        from api.services.implied_move import report_timing
+        from api.services.implied_move import report_move, report_timing
         timing = report_timing(sym, next_date) if next_date else None
-        res = earnings_enrichment.get_implied_move(sym, next_date, timing=timing)
+        res = report_move(sym, next_date, timing=timing, outcome=why,
+                          timeout=_IMPLIED_READ_TIMEOUT_S)
         if isinstance(res, dict):
             res = {**res, "timing": timing}
+            read_at = _epoch(res.get("asof"))
+            if read_at is not None:
+                res["read_at"] = read_at
     except Exception as exc:  # noqa: BLE001 -- recorded, never raised into a request
         _logger.warning("implied move read failed for %s: %s", sym, exc)
-        res = None
+        res, why = None, {}
     with _lock:
         _implied[sym] = (time.time(), res)
+        if res is None and why.get("kind") in _NO_IMPLIED:
+            _implied_why[sym] = why["kind"]
+        else:
+            _implied_why.pop(sym, None)
         _queued.discard(sym)
 
 
@@ -184,7 +215,7 @@ def implied_snapshot(sym: str, next_date: Optional[str]) -> dict:
             read_at, res = hit
             if res is None:
                 return {"state": "unavailable", "read_at": read_at,
-                        "reason": "no front-expiry option chain with marks could be read"}
+                        "reason": _NO_IMPLIED[_implied_why.get(sym, "unavailable")]}
             return {"state": "ok", "read_at": read_at, **res}
         if not is_enabled():
             return {"state": "pending"}

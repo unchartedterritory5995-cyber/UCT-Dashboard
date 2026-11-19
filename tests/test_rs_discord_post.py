@@ -19,6 +19,7 @@ import pytest
 
 from api.services import rs_discord_post as rp
 from api.services.alert_taxonomy import channels
+from tests.support.ledger_line_endings import assert_ledger_line_endings
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 MODULE = REPO / "api" / "services" / "rs_discord_post.py"
@@ -629,10 +630,10 @@ def test_the_webhook_row_satisfies_the_census(monkeypatch):
     assert channels.resolve_webhook("rs_leaders") == "" == rp.configured_webhook()
 
 
-def test_the_ledger_carries_the_flag_dark_with_a_reason_and_stays_pure_crlf():
-    raw = LEDGER.read_bytes()
-    assert raw.count(b"\n") == raw.count(b"\r\n"), \
-        "docs/feature_flags.json is a CRLF file; a bare LF means it was re-dumped"
+def test_the_ledger_carries_the_flag_dark_with_a_reason_and_keeps_one_line_ending():
+    # "a bare LF means it was re-dumped": MIXED endings mean a second writer, on any checkout. The blob is
+    # LF and a Linux checkout is LF, so the working copy's ending by itself proves nothing.
+    raw = assert_ledger_line_endings(LEDGER)
     entry = json.loads(raw.decode("utf-8"))["flags"]["RS_DISCORD_POST_ENABLED"]
     assert entry["status"] == "dark" and entry["where"] == ["web"]
     note = entry["note"]
