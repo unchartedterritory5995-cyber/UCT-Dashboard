@@ -471,6 +471,8 @@ JS_LIBRARY_FIXTURE_FILES = {
     "app/src/components/chart/engine/ast/pineLibraryValueFnName.test.js": "a fixture library",
     "app/src/components/chart/engine/ast/pineLibraryVersion.test.js": "the cross-version rail's fixture libraries (U15 Phase B)",
     "app/src/components/chart/engine/__tests__/libraryLinkParity.test.js": "the splice check's fixture library",
+    "app/src/components/chart/engine/__tests__/vendorHarness/storeHeld.test.js":
+        "two fixture libraries written for the store-held rail (tester/inner/1, tester/outer/1)",
     "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.capRound4.test.js":
         "a stand-in written for the rail; the real version is read from the out-of-git store, opt-in",
     "app/src/components/chart/engine/runtime/__tests__/libraryImportRefusal.test.js": "a fixture library",
