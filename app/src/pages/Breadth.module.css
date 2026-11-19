@@ -1100,19 +1100,32 @@ tbody tr { cursor: pointer; }
 
 /* Follow-Through Day — a quiet tag after the date (owner 2026-11-19), replacing
    the FTD column in the default view. Up-colour tinted, never gold. */
-.ftdTag {
-  /* Follow-Through Day: a small up-colored dot in the Date cell's own right padding,
-     so it never overlaps the next column and no column changes width (owner 2026-11-19;
-     the "FTD" pill overlapped Health). Name on hover and for screen readers. */
+/* Follow-Through Day (owner 2026-11-19): on that row only, the Date cell visibly
+   widens into the start of the next cell. The extension carries the Date column's own
+   panel fill, so the neighbour's shading starts after the pill; the neighbour's value
+   is right-aligned, so it keeps its room. No column width changes for any row. */
+.ftdExt {
   position: absolute;
-  top: 50%;
-  right: 3px;
-  width: 6px;
-  height: 6px;
-  margin-top: -3px;
-  border-radius: 50%;
-  background: var(--br-up);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--br-up) 22%, transparent);
+  top: 0;
+  bottom: 1px;
+  left: calc(100% - 8px);
+  width: 36px;
+  display: flex;
+  align-items: center;
+  background: inherit;   /* the Date cell's fill, including its hover wash */
+  z-index: 2;
+}
+.ftdTag {
+  display: inline-flex;
+  align-items: center;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--br-up) 18%, transparent);
+  color: var(--br-up);
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 /* Trailing filler column: absorbs the extra width when the table is narrower than the
