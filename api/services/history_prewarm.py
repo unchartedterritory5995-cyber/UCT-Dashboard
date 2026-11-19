@@ -44,6 +44,8 @@ _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 _PACE = float(os.environ.get("HISTORY_PREWARM_PACE_SECS", "0.4"))          # gap between requests
 _INTERVAL = int(os.environ.get("HISTORY_PREWARM_INTERVAL_SECS", str(24 * 3600)))
 _STARTUP_DELAY = int(os.environ.get("HISTORY_PREWARM_STARTUP_DELAY_SECS", "300"))
+#: How often the scheduler asks whether the daily boundary moved (see `pass_due`).
+_CHECK_EVERY = int(os.environ.get("HISTORY_PREWARM_CHECK_SECS", "900"))
 _TIMEOUT = float(os.environ.get("HISTORY_PREWARM_TIMEOUT_SECS", "35"))
 _TFS = ("D", "W", "M")
 # Match the client's fullBarsFor(tf) so the pre-warmed URL == the URL the browser requests.
@@ -129,20 +131,50 @@ def prewarm_pass() -> dict:
     return stats
 
 
+def pass_due(boundary_now: str, warmed: str, last_pass: float, now: float, interval: float = None) -> bool:
+    """Is a sweep pass due?
+
+    ⭐ ON THE ROLLOVER, NOT 24 h AFTER BOOT (2026-11-19). Every history URL carries `d=<last sealed
+    day>`, and the daily boundary moves at midnight ET (`_period_start_iso`): every symbol's daily
+    URL is new from then on, and cold until something requests it. A pass every `_INTERVAL` after
+    boot warmed the PREVIOUS day's URLs whenever the worker happened to boot in the evening, so the
+    whole next session paid the origin build (1-2 s) on each first open. A pass is due when the
+    daily boundary differs from the one the last complete pass warmed (the rollover, and the first
+    pass after a boot), or `interval` after the last pass as a backstop. An unreadable boundary
+    ("") never triggers one on its own.
+    """
+    interval = _INTERVAL if interval is None else interval
+    if boundary_now and boundary_now != warmed:
+        return True
+    return bool(warmed) and now - last_pass >= interval
+
+
 def start_history_prewarm() -> None:
-    """Boot-delayed + periodic sweep on a daemon thread (worker only). No-op unless enabled."""
+    """Boot-delayed sweep on a daemon thread (worker only), re-run on every daily rollover
+    (`pass_due`). No-op unless enabled."""
     if not _ENABLED:
         _log.info("[history_prewarm] disabled (set HISTORY_PREWARM_ENABLED=1 to enable)")
         return
 
     def _loop():
         time.sleep(_STARTUP_DELAY)
+        warmed, last_pass = "", 0.0
         while True:
             try:
-                prewarm_pass()
+                with _client() as cli:
+                    boundary = _market_last_sealed(cli, "D")
             except Exception:
-                _log.exception("[history_prewarm] sweep error")
-            time.sleep(_INTERVAL)
+                boundary = ""
+            if pass_due(boundary, warmed, last_pass, time.time()):
+                try:
+                    stats = prewarm_pass()
+                    last_pass = time.time()
+                    if stats.get("requests"):
+                        warmed = boundary or warmed
+                except Exception:
+                    _log.exception("[history_prewarm] sweep error")
+            time.sleep(_CHECK_EVERY)
 
     threading.Thread(target=_loop, name="history-prewarm", daemon=True).start()
-    _log.info("[history_prewarm] started (base=%s, interval=%ss, pace=%ss)", _BASE, _INTERVAL, _PACE)
+    _log.info("[history_prewarm] started (base=%s, re-warm on each daily rollover, check every %ss, backstop %ss, pace=%ss)",
+              _BASE, _CHECK_EVERY, _INTERVAL, _PACE)
