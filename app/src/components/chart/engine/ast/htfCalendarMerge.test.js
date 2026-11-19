@@ -23,7 +23,7 @@ const col = (tree, bars) => Array.from(interpret(tree, bars, {}, undefined, unde
 const barsOn = (dates) => dates.map((t, i) => ({ t, o: i + 1, h: i + 1.5, l: i + 0.5, c: i + 1, v: 100 }))
 
 describe('htfClosesOnNextBar — the rule, case by case', () => {
-  it('it reads TradingView's own session calendar: closures applied from 2000, not 11-14 September 2001', () => {
+  it("it reads TradingView's own session calendar: closures applied from 2000, not 11-14 September 2001", () => {
     expect(TRADINGVIEW_CLOSURES_FROM).toBe('2000-01-01')
     expect(TRADINGVIEW_UNAPPLIED_CLOSURES.map((e) => e.date)).toContain('2001-09-14')
     expect(htfClosesOnNextBar('2012-10-26', 'W')).toBe(false)   // the Friday before Hurricane Sandy: a full week
