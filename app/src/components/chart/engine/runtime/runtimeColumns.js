@@ -2384,17 +2384,25 @@ registerObjectRuntimeValues(runtimeObjectValues)
  *  answers false (the run refuses it by name on its own). Only an intraday timeframe can say yes: `pine.js` mints
  *  the target on an intraday base only (`isIntradayTf`), and the same predicate is checked FIRST here so a daily /
  *  weekly / monthly chart never compiles for this question. ⛔ It is a cost guard, equal in behaviour to the mint's
- *  own gate (no rail can tell them apart, the mutation proof found): derive it, never restate the timeframe list. */
+ *  own gate (no rail can tell them apart, the mutation proof found): derive it, never restate the timeframe list.
+ *  ⭐⭐ RS RATING (2026-11-19, the e83 live capture) — AND WITH THE CHART'S SYMBOL, as the run binds it (`symbolOf`,
+ *  the chart's `symbolMeta`). ⚰️ Built without one, Fred RS refused at its `syminfo.industry` branch (line 94,
+ *  `interpret:bind-time-text`), so this answered false, the chart never fetched `OWN_DAILY_KEY`, and the served
+ *  run refused every 5m / 30m / 1h chart: "this run is not handed that symbol's daily bars" (the worker request
+ *  carried SPX, SPX@D and the seed only). A symbol the chart has not resolved yet settles nothing, exactly as
+ *  the run's own build. Memoised per (timeframe, symbol, source): the classification is in the key. */
 const _ownDailyMemo = new Map()
-export function runtimeReadsOwnDaily(source, tf) {
+export function runtimeReadsOwnDaily(source, tf, symbol = null) {
   const t = tf == null ? '' : String(tf)
   if (!isIntradayTf(t) || typeof source !== 'string' || !source) return false
-  const k = `${t}|${source}`
+  const sym = symbolOf({ symbol })
+  const k = `${t}|${symbolKey(sym)}|${source}`
   if (_ownDailyMemo.has(k)) return _ownDailyMemo.get(k)
   let yes = false
   try {
     const built = buildRuntimeIr(source, {
       bars: [], inputs: {}, objectsInRun: true, pane: true, plotColours: true, basePeriod: t, tf: t,
+      ...(sym ? { symbol: sym } : {}),
       ...runtimeClockOpts(false, { tf: t }),
     })
     yes = !!(built && built.ok && ((built.ir && built.ir.requests) || [])
