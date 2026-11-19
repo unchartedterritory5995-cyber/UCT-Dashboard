@@ -16,6 +16,8 @@
 // re-ramped 25 -> 100 on 2026-09-03. Instant per-browser revert: localStorage
 // 'uct.barsHistory.enabled'='0' or window.__uctBarsHistory(false). Spec:
 // docs/superpowers/specs/2026-08-31-edge-deep-history.
+import { isTradingDay, covers } from '../lib/marketClock/sessionCalendar'
+
 export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100
 
 function _bucket() {
@@ -64,4 +66,32 @@ export function lastSealedDate(dates, tf, nowMs = Date.now()) {
   let best = ''
   for (const d of dates) if (typeof d === 'string' && d.length === 10 && d < cut && d > best) best = d
   return best
+}
+
+/**
+ * ⭐ THE DAILY `d` IS THE NYSE CALENDAR'S (2026-11-19). The last trading day strictly before today
+ * (ET), from the same calendar file the server reads: api/routers/bars.py `calendar_last_sealed_day`
+ * answers the same question the same way, and the worker's pre-warm sweep stamps every daily URL
+ * with it. Read from held bars instead, `d` could not be known before the chart's own answer landed
+ * (so the deep history was asked only after it, a second visible step), and it named a different URL
+ * for a ticker that did not trade yesterday (a URL nothing pre-warmed). '' for W/M (their sealed
+ * period stays the held-bars rule) and outside the calendar's coverage (the caller falls back).
+ */
+export function calendarSealedDate(tf, nowMs = Date.now()) {
+  if (tf !== 'D') return ''
+  const today = etPeriodStartISO('D', nowMs)
+  if (!today) return ''
+  let t = Date.parse(`${today}T12:00:00Z`)
+  for (let i = 0; i < 14; i++) {
+    t -= 86_400_000
+    const day = new Date(t).toISOString().slice(0, 10)
+    if (!covers(day)) return ''
+    if (isTradingDay(day)) return day
+  }
+  return ''
+}
+
+/** The sealed date of a D/W/M history URL: the calendar's for D, else the newest held bar's rule. */
+export function historySealedDate(tf, dates, nowMs = Date.now()) {
+  return calendarSealedDate(tf, nowMs) || lastSealedDate(dates, tf, nowMs)
 }

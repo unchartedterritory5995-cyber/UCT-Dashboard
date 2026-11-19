@@ -148,9 +148,13 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     // in memory is promoted (or fetched) first, and A stays whole meanwhile. Bounded:
     // past DAILY_HOLD_MAX_MS the chart gets the symbol and shows its own loading state.
     // A pseudo symbol (`$IDX:…`) has no bars lane and commits straight through.
+    // ⭐ ...AND A HELD SET PAINTS AT ONCE ONLY WHEN ITS DEEP HISTORY IS NOT STILL DUE (2026-11-19,
+    // owner: "about 200 bars instantly and then the rest shortly after, definitely in 2 phases").
+    // A shallow held set (the pack's ~300 rows) whose deep history has not joined goes through the
+    // same bounded prepare, which waits for the join, so the first frame is the whole chart.
     if (isNativeTf(tf) && !INTRADAY.has(String(tf))
         && /^[A-Z0-9.^-]{1,12}$/i.test(String(requestedSym))
-        && !holdsDailySet(requestedSym, tf)) {
+        && (!holdsDailySet(requestedSym, tf) || (BARSTORE && storePrefetch.deepPending(requestedSym, tf)))) {
       let live = true
       const land = (outcome) => {
         if (!live || genRef.current !== gen) return
