@@ -5463,7 +5463,19 @@ function readsClock(ast, table) {
  *  ⛔ A tree with no switched recurrence takes the single pass unchanged, so no
  *  existing column moves. The returned column is a COPY: the real run's column
  *  may be the memoised one another plot shares. */
+// ⭐ PERF (Fred RS filled chart, C1, coordinator ruling 2026-11-19) — A BARE CONSTANT IS ITS COLUMN. A tree that is one
+// finite `num` (an input folded to its value, a literal) reads no bar, no clock, no other symbol and no history, so
+// every stage below answers it the same way on every chart: `chartClockWhole` finds no clock, `interpretAgreed` no
+// switched state, `evalNode` the number itself (a `num` that is not finite is refused there, so it takes the full path),
+// `toColumn` its column, and no mask (`withSymAlignment`, `withheldReadMask`'s nine, `withLowerTfWithheld`) has a read
+// to withhold. So its column is `toColumn` of the number, made at once. Measured: 47 of Fred RS's 65 precomputed
+// columns, 52 ms of a 147 ms build over 11,520 bars, each paying the whole pipeline's setup for a fill.
+let _constantFastPathOff = false
+/** Tests: every tree takes the whole pipeline, as before (the identity rails compare both). */
+export function __constantColumnFastPathOffForTests(off) { _constantFastPathOff = !!off }
 export function interpret(ast, bars, inputs, budget, scalars, opts) {
+  if (!_constantFastPathOff && ast && ast.type === 'num' && typeof ast.value === 'number' && Number.isFinite(ast.value)
+    && Array.isArray(bars)) return toColumn(ast.value, bars.length)
   // ⭐ C36 — a tree whose `time(<timeframe>)` / `time_close(<timeframe>)` cannot
   // be answered on THIS chart at all (it is not daily, its daily bars include one
   // weekend day but not the other, …) is withheld whole and NAMED before it is
