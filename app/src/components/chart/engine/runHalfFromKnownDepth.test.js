@@ -77,9 +77,14 @@ describe('the supply names a DEPTH gap by where the reads become known', () => {
     const sup = runtimeRequestSupply(requestsOf(), CHART, ctx5())
     expect(sup.refusal).not.toBeNull()
     expect(sup.refusal.knownFrom).toBe(DEPTH_STARTS_AT)
+    // the sentence names the DEPTH (#1962), never "after its history began"
+    expect(sup.refusal.message).toMatch(/this chart's history reaches \d+, and the `SPX` bars we hold begin at \d+/)
+    expect(sup.refusal.message).not.toMatch(/after its history began/)
   })
-  it('⛔ CONTROL: a bar missing AFTER the series began is a hole, not a depth: no knownFrom', () => {
-    const holed = SPX_5.filter((_, i) => i !== 40)
+  // ⭐ a mid-session gap in the RAW rows is not a hole: the L12 grid reads the latest bar at or before (Pine's gaps_off).
+  // The hole that stays unknown is a session missing its OPENING bars (the live 2026-02-02 SPX 60m case).
+  it('⛔ CONTROL: a session missing its opening bars AFTER the series began is a hole, not a depth: no knownFrom', () => {
+    const holed = SPX_5.slice(10)   // D2's session missing its OPENING bars: no row before a session's first held bar
     const sup = runtimeRequestSupply(requestsOf(), CHART.slice(DEPTH_STARTS_AT), ctx5({ secondary: secondaryOf(holed) }))
     expect(sup.refusal).not.toBeNull()
     expect(sup.refusal.knownFrom).toBeUndefined()
@@ -100,7 +105,7 @@ describe('the run starts where our data begins, under the two-start proof, widen
     }
   })
   it('⛔ CONTROL: the hole after the series began still refuses the run (nothing is guessed)', () => {
-    const holed = SPX_5.filter((_, i) => i !== 40)
+    const holed = SPX_5.slice(10)   // D2's session missing its OPENING bars: no row before a session's first held bar
     let err = null
     try { computeRuntimeColumns(runDef(SRC), CHART, ctx5({ secondary: secondaryOf(holed) }), { now: () => 0 }) } catch (e) { err = e }
     expect(err, 'the run must refuse').not.toBeNull()
