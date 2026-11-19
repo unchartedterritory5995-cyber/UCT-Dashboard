@@ -451,6 +451,9 @@ describe('C45 — across the committed corpus', () => {
       'ict-institutional-order-flow-fadi: 28 (not attached)',
       'ict-killzones-pivots-tfo: 173',
       'market-structure-break-order-block: 4 (not attached)',
+      // ⭐ FIELD REGISTER STEP A + (b) (2026-11-19): its 21 setters through fields read before they are written are
+      // untraced now (`update:target`), each reaching its families; still refused.
+      'mgi-levels-suite: 77 (not attached)',
       'previous-day-high-and-low-separators-dailyweekly: 3 (not attached)',
       'sector-rotation: 6',
       'session-tpo-profile: 1 (not attached)',

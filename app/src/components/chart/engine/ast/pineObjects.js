@@ -3551,5 +3551,84 @@ export function collectObjectOps(stmts, h) {
   splitCommaStatements(stmts, h).forEach((s2, i) => noteWrites([s2], i))
   // ⭐ C16 — `definedNames` lets the converter's `bs.size()` yield to a script's
   // own `size` method, the rule `isDefined` applies to every method form here.
-  return { decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies, onceLines }
+  // ─── ⭐⭐ FIELD REGISTER, STEP A (b) (coordinator ruling 2026-11-19) — A FIELD WRITTEN BEFORE IT IS READ ────────────
+  //
+  // The host program clears every local register at the start of a bar (`pine.js`, `locals`). For a field register
+  // (`z.lb`) that clear is only ever OBSERVED by a read that runs before the bar writes the field: Pine's field keeps
+  // last bar's value (or the constructor's) there, the register reads `na`. A field whose every read is DOMINATED by an
+  // unconditional write of that exact field, earlier in the same statement list or an enclosing one, never observes the
+  // clear, so it keeps its register exactly as before Step A (`dominatedFields`): `z.b := box.new(…)` then
+  // `box.set_bgcolor(z.b, …)` draws Pine's coloured box. Every other field register is untraced (Step A).
+  // ⛔ CONSERVATIVE BY CONSTRUCTION — nothing the tokens cannot prove is dominated: a read in a loop or a function body,
+  // or in the same statement as its write; a write in a nested block (an `if` arm) or in a loop; a call to a function
+  // or method of the script's own (it may write any field) or a reassignment of the owner (`z := …`) anywhere between
+  // the write and the read, nested blocks included; and an owner used as a VALUE anywhere (`a = z`, `f(z)`, `z.copy()`,
+  // a method of its own: an alias reads and writes its fields under another name), which leaves all its fields untraced.
+  const dominatedFields = (() => {
+    const fields = [...decls.entries()].filter(([n, dd]) => dd && dd.kind === 'local' && String(n).includes('.')).map(([n]) => String(n))
+    const out = new Set()
+    if (!fields.length) return out
+    const ownerOf = (f) => f.slice(0, f.indexOf('.'))
+    const owners = new Set(fields.map(ownerOf))
+    const undominated = new Set()
+    const ALL = '\u0000all'
+    const killOwner = (w, kills, o) => { for (const f of [...w]) if (ownerOf(f) === o) w.delete(f); kills.add(o) }
+    // Walks one statement list with the fields written so far; returns what it invalidated (owners, or ALL).
+    const visit = (list, written, opaque) => {
+      const w = new Set(written)
+      const kills = new Set()
+      for (const st of list || []) {
+        const t = st && st.header
+        if (!t || !t.length) continue
+        const word = t[0].kind === 'ident' ? String(t[0].value) : null
+        const isDef = !!definitionHeader(t, h)
+        const lhs = t.length > 1 && t[0].kind === 'ident' && h.isPunct(t[1], ':=') && fields.includes(String(t[0].value))
+          ? String(t[0].value) : null
+        for (let i = 0; i < t.length; i += 1) {
+          const x = t[i]
+          if (!x || x.kind !== 'ident' || x.member) continue
+          if (lhs && i === 0) continue
+          const v = String(x.value)
+          // a call to the script's own function or method: it may write any field
+          const dot = v.lastIndexOf('.')
+          const callee = dot > 0 ? v.slice(dot + 1) : v
+          if (h.isPunct(t[i + 1], '(') && (dot > 0 ? definedMethods.has(callee) : defined.has(v))) {
+            w.clear()
+            kills.add(ALL)
+          }
+          // the owner itself: a declaration or reassignment resets its fields; any other use is an alias
+          if (owners.has(v)) {
+            if (h.isPunct(t[i + 1], '=') || h.isPunct(t[i + 1], ':=')) killOwner(w, kills, v)
+            else for (const f of fields) if (ownerOf(f) === v) undominated.add(f)
+            continue
+          }
+          const head = dot > 0 ? v.slice(0, v.indexOf('.')) : null
+          let named = false
+          for (const f of fields) {
+            if (v === f || v.startsWith(`${f}.`)) {
+              named = true
+              if (opaque || isDef || !w.has(f)) undominated.add(f)
+            }
+          }
+          // `z.copy()`, `z.m()`: the owner used through a path that names none of its fields — an alias
+          if (!named && head && owners.has(head)) for (const f of fields) if (ownerOf(f) === head) undominated.add(f)
+        }
+        const sub = st.sub || []
+        if (sub.length) {
+          const loop = word === 'for' || word === 'while'
+          const inner = visit(sub, w, opaque || isDef || loop || !(word === 'if' || word === 'else'))
+          if (inner.has(ALL)) { w.clear(); kills.add(ALL) }
+          for (const o of inner) if (o !== ALL) killOwner(w, kills, o)
+        } else if (lhs && !opaque && !isDef) {
+          w.add(lhs)
+        }
+      }
+      return kills
+    }
+    visit(stmts, new Set(), false)
+    for (const f of fields) if (!undominated.has(f)) out.add(f)
+    return out
+  })()
+
+  return { decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies, onceLines, dominatedFields }
 }

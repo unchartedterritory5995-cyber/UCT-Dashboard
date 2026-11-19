@@ -24752,6 +24752,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const regs = []
   const colls = []
   const locals = []
+  /** ⭐⭐ FIELD REGISTER, STEP A — the field names held as no register (see below). */
+  const untracedFieldRegs = []
   for (const [name, d] of collected.decls) {
     if (d.kind === 'coll') {
       const id = `c${colls.length}`
@@ -24762,6 +24764,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // family off the listing).
       colls.push({ id, family: d.family, cap: MAX_OBJECT_COLLECTION_CAP, ...(d.slots ? { slots: d.slots } : {}),
         ...(d.persist ? { persist: true } : {}) })
+    } else if (d.kind === 'local' && String(name).includes('.')
+        && !(collected.dominatedFields && collected.dominatedFields.has(name))) {
+      // ⭐⭐ STEP A (b) — a field whose every read follows a write of it in the same bar keeps its register
+      // (`pineObjects.js::dominatedFields`): the per-bar clear below is never observed.
+      // ⭐⭐ FIELD REGISTER, STEP A (2026-11-19, coordinator ruling) — A DRAWING HELD IN A FIELD (`z.lb`, `z.a.lb`) IS
+      // UNTRACED. Registered as a plain local it was CLEARED EVERY BAR (`locals` below), whatever its owner's
+      // `var`-ness: for `var z = Z.new(na)` the delete of yesterday's `z.lb` read `na`, and the host lane drew every
+      // label the script deleted (26 where TradingView keeps 1), counting nothing. Not registered, everything acting
+      // through the field is counted where it is read (`delete:target`, `update:target`), so the drawing is withheld by
+      // name. Step B (the field takes its owner's `var`-ness) serves it again, on the reference's `var` sentence.
+      untracedFieldRegs.push(name)
     } else {
       const id = `r${regs.length}`
       regId.set(name, id)
