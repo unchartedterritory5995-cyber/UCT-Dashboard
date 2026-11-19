@@ -1331,7 +1331,7 @@ def test_the_door_stores_nothing_and_logs_no_source(store, on, caplog):
 # committed harness snapshots of both lanes.
 
 REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-16-draw1-drawing-objects" / "runs" / "report.json"
-VERDICTS_PROD = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
+# VERDICTS_PROD is bound once, above (the A10 evidence-freshness block); the REACH rails read the same path.
 
 
 #: ⛔⛔ TEMPORARY (coordinator ruling 2026-11-15: RE-CAPTURE is preferred over a named exception).
