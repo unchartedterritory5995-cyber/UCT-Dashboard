@@ -450,6 +450,82 @@ def test_a_study_this_batch_did_not_add_is_never_removed_or_saved_over(tmp_path)
     assert page.persisted["studies"] == [stranger]
 
 
+# ── ONE settled read of the rig (coordinator ruling, 2026-11-19: htfform-c read 0 studies on its first answer and
+#    called the layout clean; the rail's new launch then read the saved leftover) ───────────────────────────────────
+X_SAVED = {"id": "s1", "name": "X", "sha": "0" * 64, "source": "", "reads": 0}
+
+
+def _slow_page(delay, studies=(X_SAVED,), **kw):
+    return bd.RecordingTVPage(persisted={"studies": list(studies), "symbol": "NASDAQ:AAPL", "resolution": "5"},
+                              attach_delay_s=delay, **kw)
+
+
+def _drv(page, tmp_path, **kw):
+    return bc.Driver(page, bd.FakeClock(page), bd.fast_opts(**kw), bc.RunDir(tmp_path / "run", "t"), None,
+                     log=lambda *_: None)
+
+
+def test_a_study_that_attaches_after_the_handle_answers_reads_dirty(tmp_path):
+    v = _drv(_slow_page(4), tmp_path).verify_fresh_load(ORIG)
+    assert v["read"] is True and v["ok"] is False and [s["name"] for s in v["studies"]] == ["X"]
+    # the record keeps the early empty answer AND the late attach, with when each was first seen
+    ch = v["settle"]["changes"]
+    assert [c["studies"] for c in ch] == [[], ["X"]] and ch[0]["atS"] < 4 <= ch[1]["atS"]
+    assert v["settle"]["waitedS"] >= v["settle"]["lastChangeS"] + bc.RIG_SETTLE_S
+
+
+def test_control_the_first_answer_alone_reads_the_same_layout_clean(tmp_path):
+    # the instrument can fail: with no settle window the same page reads CLEAN, which is the 2026-11-19 htfform-c read
+    v = _drv(_slow_page(4), tmp_path, rig_settle_s=0).verify_fresh_load(ORIG)
+    assert v["ok"] is True and v["studies"] == []
+
+
+def test_a_clean_layout_reads_clean_only_once_it_has_held_still(tmp_path):
+    v = _drv(_slow_page(0, studies=()), tmp_path).verify_fresh_load(ORIG)
+    assert v["ok"] is True and v["read"] is True and v["settle"]["waitedS"] >= bc.RIG_SETTLE_S
+
+
+def test_a_layout_that_never_holds_still_is_not_read_and_never_clean(tmp_path, monkeypatch):
+    orig, n = bd.RecordingTVPage._state, {"i": 0}
+
+    def flapping(self, a):
+        st = orig(self, a)
+        n["i"] += 1
+        st["studies"] = [{"id": "s1", "name": "X"}] if n["i"] % 2 else []
+        return st
+    monkeypatch.setattr(bd.RecordingTVPage, "_state", flapping)     # before the page binds its handlers
+    v = _drv(_slow_page(0, studies=()), tmp_path, rig_settle_max_s=30).verify_fresh_load(ORIG)
+    assert v["read"] is False and v["ok"] is False and v["settle"]["waitedS"] >= 30
+
+
+def test_a_batch_on_a_slow_attaching_rig_still_runs_the_guarded_clean_save(tmp_path):
+    manifest, beh = bd.make_manifest(tmp_path, [("x", 'indicator("X")\nplot(close)\n', {})])
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, autosave="tradingview", attach_delay_s=4)
+    from pine_vendor_capture import acquire
+    assert acquire(page, 5) == 0
+    rd = bc.RunDir(tmp_path / "run", "selfcheck")
+    code = bc.run_batch(page, manifest, rd, bd.fast_opts(clean_save=True), bd.FakeClock(page), bc.NodeVerifier(),
+                        log=lambda *_: None)
+    (v,) = _verify_rows(tmp_path / "run")
+    assert v["ok"] is False and v["read"] is True and [s["name"] for s in v["studies"]] == ["X"]   # seen, late
+    rows = [r for r in _ledger(tmp_path / "run") if r.get("event") == "clean-save"]
+    assert len(rows) == 1 and rows[0]["ok"] is True and rows[0]["after"]["read"] is True and code == 0
+    assert page.persisted["studies"] == []
+
+
+def test_every_clean_check_reads_through_the_one_settled_read():
+    tree = ast.parse((REPO / "tools" / "vendor_harness" / "batch_capture.py").read_text(encoding="utf-8"))
+    fns = {f.name: f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef)}
+
+    def calls(fn):
+        return {c.func.id if isinstance(c.func, ast.Name) else getattr(c.func, "attr", None)
+                for c in ast.walk(fns[fn]) if isinstance(c, ast.Call)}
+    assert "settled_rig_read" in calls("verify_fresh_load")
+    assert "poll" not in calls("verify_fresh_load")                    # no first-answer read beside it
+    # the batch end, the repair's verify-before and the clean-save's verify-after all go through verify_fresh_load
+    assert "verify_fresh_load" in calls("guarded_clean_save") and "verify_fresh_load" in calls("run_batch")
+
+
 # ── the capture phase (coordinator, 2026-11-19): one probe, one chart, one day, two session states ──────────────────
 PROBE = '//@version=6\nindicator("One")\nplot(close)\n'
 
