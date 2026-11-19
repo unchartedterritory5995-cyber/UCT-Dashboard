@@ -20,7 +20,8 @@
 // ⛔ THE CLOCK IS THREADED, NEVER ASSUMED. `runtimeClockOpts` fills both halves
 // of the forming-bar tri-state from ONE value, the pair `pineRuntimeFrontendGate
 // .test.js` requires every live importer of the front end to reach.
-import { buildRuntimeIr, RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION } from '../ast/pineRuntimeFrontend.js'
+import { buildRuntimeIr, RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION, columnSinkRefusal, columnBlankRefusal,
+  buildBarCountClass } from '../ast/pineRuntimeFrontend.js'
 import { RUNTIME_IR_VERSION } from './ir.js'
 import { runtimeClockOpts, newestBarIsFormingFrom, isNewByBar } from '../ast/pineRuntimeClock.js'
 import { interpret, isIntradayTf } from '../ast/interpret.js'
@@ -32,7 +33,8 @@ import { execute } from './vm.js'
 import { runtimeRequestSupply } from './requestSupply.js'
 import { symbolConstants, minContractOf } from '../ast/bind.js'
 // ⭐ RS RATING L3 — the symbol fields the fold reads, from the one list that names them.
-import { bindSymbolOf } from '../ast/bind.js'
+import { bindSymbolOf, bindConstsFor } from '../ast/bind.js'
+import { strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
 import { Budget, RuntimeLimitError, DEFAULT_LIMITS, LIMIT_PLAIN } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 // ⭐ W5-T2 — through the leaf seam, never `objectColumns.js` (which reaches the registry)
@@ -795,7 +797,7 @@ function buildBytes(build) {
   return bytes
 }
 /** Drop every session (tests; a host that wants a cold start). */
-export function resetRuntimeSessions() { _sessions.clear() }
+export function resetRuntimeSessions() { _sessions.clear(); _buildMemo.clear() }
 /** ⭐ What the sessions hold (diagnostics, the resource measurement): how many, and an
  *  ESTIMATE of their bytes — 8 a number (bars, columns, outputs, numeric state), 16 an
  *  array element, plus 256 a live drawing. */
@@ -902,6 +904,11 @@ const sameTimes = (snap, rows) => {
 export function buildRecorder() {
   const trees = []
   let clean = true
+  // ⭐ PERF (item d) — the binding constants the build READ (`pineRuntimeFrontend.js::bindConstsReporting`): the
+  // build memo keys a kept build on these symbol facts and no others. A read AFTER `done` (nothing does one today)
+  // marks the kept build unsafe for the memo, whose key was taken at `done`.
+  const reads = new Set()
+  let kept = null
   return {
     interpret(tree, bars, inputs, interpretOpts) {
       try {
@@ -910,10 +917,15 @@ export function buildRecorder() {
         return v
       } catch (e) { clean = false; throw e }
     },
+    bindRead(name) {
+      if (kept) kept.memoUnsafe = true
+      else reads.add(name)
+    },
     /** the build to keep, or null; the IR's own columns (these bars' values) are dropped */
     done(ir) {
       if (!clean || !ir || !Array.isArray(ir.columns) || trees.length !== ir.columns.length) return null
-      return { ir: { ...ir, columns: [] }, trees }
+      kept = { ir: { ...ir, columns: [] }, trees, bindReads: [...reads].sort() }
+      return kept
     },
   }
 }
@@ -947,6 +959,112 @@ export function columnsOver(build, rows, prev) {   // exported for its rails, as
   return out
 }
 let _lastReused = 0
+
+// ─── ⭐⭐ PERF (Fred RS 5m profile, 2026-11-19, item d) — A BUILD IS KEPT ACROSS SESSIONS, KEYED ON WHAT IT READ ───
+//
+// B5 reuses a build inside ONE session (`runKey`: the symbol, the timeframe, the forming bar, the settings, the
+// role), so every symbol or timeframe switch, and the off-listing curtain's second run (B, its own session), ran
+// the front end again. The build is a function of the source and the build options alone, plus the bars through
+// one seam (the columns, `buildRecorder`) and two questions about their count (`buildBarCountClass`); of the
+// symbol it reads only the binding's constants, and only the ones it reads (`bindConstsReporting`). So a kept build
+// is keyed on:
+//   * the document's content (`runtimeContentKey`) and EVERY build option but the bars and the symbol (the
+//     timeframe and base period, the clock, the listing fact, the settings and their default nodes, the library
+//     pins, the drawing mode, the ledger / sliding refusals): a new option joins the key without a line here;
+//   * the strategy broker's gate, which the front end reads itself (`strategyBrokerGateOn`);
+//   * the bar count's class (`buildBarCountClass`: none / within Pine's history buffer / past it);
+// and, checked on each hit, the VALUE of every binding constant the build read (`syminfo.*` and the rest) under the
+// new chart's symbol. A hit re-evaluates the recorded columns over the new bars (`columnsOverStrict`) with every
+// check `columnOf` makes (`columnSinkRefusal`, the length, `columnBlankRefusal`): a column that would refuse, or an
+// evaluation that throws, sends the run to a fresh build, which says what a cold build says. The program is
+// lowered afresh from the kept IR, as B5's is when it does not resume.
+// ⛔ Bounded (`BUILD_MEMO_CAP` entries, `BUILD_MEMO_BYTE_CAP` estimated bytes, oldest dropped), cleared with the
+// sessions (`resetRuntimeSessions`), and holding no run state: a build is the program before any bar runs.
+const BUILD_MEMO_CAP = 16
+const BUILD_MEMO_PER_KEY = 4
+const BUILD_MEMO_BYTE_CAP = 48 * 1024 * 1024
+/** key → the kept builds under it, oldest first: one per set of symbol facts read (a chart flipping between two
+ *  symbols of a script that folds `syminfo.prefix` keeps both). Keys in least-recently-used order. */
+const _buildMemo = new Map()
+let _buildMemoOff = false
+/** Tests: build every run cold (the identity rails compare both ways). */
+export function __buildMemoOffForTests(off) { _buildMemoOff = !!off }
+/** ⭐ What the build memo holds (diagnostics): how many builds, and an ESTIMATE of their bytes. */
+export function runtimeBuildMemoStats() {
+  let builds = 0
+  let bytes = 0
+  for (const list of _buildMemo.values()) for (const e of list) { builds += 1; bytes += buildBytes(e.build) }
+  return { builds, cap: BUILD_MEMO_CAP, perKey: BUILD_MEMO_PER_KEY, byteCap: BUILD_MEMO_BYTE_CAP, approxBytes: bytes }
+}
+/** The memo key of a build made with `irOpts` (`runtimeIrOptions`) for `def`. */
+export function buildMemoKey(def, irOpts) {
+  const { bars, symbol: _symbol, ...rest } = irOpts
+  return JSON.stringify([runtimeContentKey(def), rest, strategyBrokerGateOn() === true,
+    buildBarCountClass(Array.isArray(bars) ? bars.length : 0)])
+}
+/** The binding constants a build with `irOpts` reads, as the front end assembles them (`bindConstsFor`). */
+const bindConstsOfOpts = (irOpts) => bindConstsFor({ tf: irOpts.tf, inputs: irOpts.inputs || {}, symbol: irOpts.symbol })
+const bindValue = (consts, name) => (name === '*' ? JSON.stringify(Object.entries(consts).sort()) : consts[name])
+/** Does a kept entry's every read constant hold the same value under these options' binding? */
+const readsHold = (entry, consts) => entry.values.every(([name, value]) => Object.is(bindValue(consts, name), value))
+/** Keep a recorded build (`buildRecorder().done`) for later runs with the same key. */
+export function keepBuildMemo(def, irOpts, build) {
+  if (_buildMemoOff || !build || build.memoUnsafe || !Array.isArray(build.bindReads)) return
+  const consts = bindConstsOfOpts(irOpts)
+  const key = buildMemoKey(def, irOpts)
+  const entry = { build, values: build.bindReads.map((name) => [name, bindValue(consts, name)]) }
+  // the same symbol facts replace their older build; at most `BUILD_MEMO_PER_KEY` under one key
+  const list = (_buildMemo.get(key) || []).filter((e) => !readsHold(e, consts))
+  list.push(entry)
+  while (list.length > BUILD_MEMO_PER_KEY) list.shift()
+  _buildMemo.delete(key)
+  _buildMemo.set(key, list)
+  let count = 0
+  let total = 0
+  for (const l of _buildMemo.values()) for (const e of l) { count += 1; total += buildBytes(e.build) }
+  while (count > BUILD_MEMO_CAP || (total > BUILD_MEMO_BYTE_CAP && count > 1)) {
+    const oldestKey = _buildMemo.keys().next().value
+    const oldest = _buildMemo.get(oldestKey)
+    const gone = oldest.shift()
+    if (!oldest.length) _buildMemo.delete(oldestKey)
+    count -= 1
+    total -= buildBytes(gone.build)
+  }
+}
+/** A kept build for a run with `irOpts` over `rows`, with its columns over those rows, or null (build cold). */
+export function buildMemoHit(def, irOpts, rows) {
+  if (_buildMemoOff || !Array.isArray(rows) || !rows.length) return null
+  const key = buildMemoKey(def, irOpts)
+  const list = _buildMemo.get(key)
+  if (!list) return null
+  const consts = bindConstsOfOpts(irOpts)
+  const entry = list.find((e) => !e.build.memoUnsafe && readsHold(e, consts))
+  if (!entry) return null
+  const columns = columnsOverStrict(entry.build, rows)
+  if (!columns) return null
+  _buildMemo.delete(key)
+  _buildMemo.set(key, list)
+  return { build: entry.build, columns }
+}
+/** The columns of a kept build over `rows`, made and CHECKED exactly as `columnOf` makes and checks them, or null:
+ *  any evaluation that throws, any column that would refuse a fresh build over these rows. */
+export function columnsOverStrict(build, rows) {
+  const n = rows.length
+  const out = new Array(build.trees.length)
+  for (let k = 0; k < build.trees.length; k += 1) {
+    const { tree, inputs, interpretOpts } = build.trees[k]
+    const sink = new Map()
+    let value
+    try { value = interpret(tree, rows, inputs, undefined, undefined, { ...(interpretOpts || {}), chartClockSink: sink }) } catch { return null }
+    if (columnSinkRefusal(sink, n, null)) return null
+    const arr = typeof value === 'number' ? new Float64Array(n).fill(value)
+      : value instanceof Float64Array ? value : Float64Array.from(value)
+    if (arr.length !== n) return null
+    if (columnBlankRefusal(sink, arr, n, null)) return null
+    out[k] = arr
+  }
+  return out
+}
 
 // ─── ⭐⭐ P3 WS-F — THE REALTIME LEDGER: `varip` AND `barstate.isnew` ─────────────────────
 //
@@ -1235,25 +1353,12 @@ function plainCopy(col) {
   return out
 }
 
-function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
+/** ⭐⭐ PERF (item d) — EVERY OPTION A RUN'S BUILD IS HANDED (`buildRuntimeIr`), but the recorder's hooks: one function,
+ *  so the cold build and the build memo's key (`buildMemoKey`) read the same object, and a rail can build exactly what
+ *  a run builds. `sessionKey`: the run keeps a session (a `varip` builds only where its ledger runs); `slides`: the run
+ *  is over a window that slides (a `calc_bars_count` window or a framed instance). */
+export function runtimeIrOptions(def, rows, ctx, { sessionKey = null, slides = false } = {}) {
   const compute = (def && def.compute) || {}
-  const outputs = compute.outputs || {}
-  // ⛔ RT1 — R-W FOR THIS LANE (`memberPaneDefinition`, `runtimeHistory`): a
-  // document that needs its run to start at TradingView's bar 0 computes nothing
-  // on a series that is not proven to start at the symbol's listing — refused by
-  // name, never drawn off a seed TradingView never used.
-  const strategyDoc = !!(def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
-  if (def && def.meta && def.meta.runtimeHistory === 'listing' && !(ctx && ctx.historyFromListing === true)) {
-    // ⭐⭐ UIE PHASE 2 — R-W's WARM-UP CURTAIN, MEASURED PER RUN (`computeOffListing`):
-    // the bars whose values do not depend on where the chart starts are drawn; the
-    // ones before them are withheld; a script that never forgets its start is refused.
-    if (opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
-    throw refusal(RUNTIME_HISTORY_GUARD, "this script is drawn bar by bar from its first bar, and this chart's "
-      + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
-      + "would start from a different bar than TradingView's. Nothing is drawn rather than a guess. "
-      + 'TO UNBLOCK: a chart whose loaded history reaches the listing (a daily chart of a symbol listed '
-      + 'within the bars it loads) draws it.')
-  }
   const tf = ctx && typeof ctx.tf === 'string' ? ctx.tf : undefined
   const forming = newestBarIsFormingFrom(ctx)
   const symbol = symbolOf(ctx)
@@ -1261,24 +1366,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // ⭐⭐ RT5 — a document that draws its OWN objects builds them into the run
   // (`objectsInRun`); every other runtime document keeps the host lane's.
   const ownObjects = compute.objects === true
-  const tooBig = sourceSizeRefusal(compute.source)
-  if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig, 'PROGRAM_SIZE')
-  // ⭐ UIE PHASE 5 (M2) — the session, and whether this run resumes from it
-  // ⛔⛔ (re-review M1, M2) a run over a window that SLIDES: a calc_bars_count window
-  // (`opts.slidingWindow`, set by the window itself) or a framed instance (`ctx.framed`)
-  const slides = opts.slidingWindow === true || !!(ctx && ctx.framed === true)
-  const sessionKey = opts.incremental === false || opts.limits ? null
-    // ⛔ a sliding run keeps its OWN session: a build made with a ledger (a `varip` built) must
-    // never be reused by a run that refuses one
-    : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}`
-  const prevSession = sessionKey ? _sessions.get(sessionKey) : null
-  // ⭐⭐ P3 WS-F (B5) — THE SESSION'S BUILD, REUSED: the front end is not run again, only
-  // the columns are re-evaluated over THESE bars (`buildRecorder`, `columnsOver`).
-  const reused = prevSession && prevSession.build && rows.length ? columnsOver(prevSession.build, rows, prevSession) : null
-  const reusedLast = reused ? _lastReused : 0
-  const recorder = !reused && sessionKey && rows.length ? buildRecorder() : null
-  const built = reused ? { ok: true, ir: { ...prevSession.build.ir, columns: reused } } : withTranslateClock(opts.now, () => buildRuntimeIr(String(compute.source || ''), {
-    ...(recorder ? { columnInterpret: recorder.interpret } : {}),
+  return {
     // ⭐ P3 WS-F (review M3) — a `varip` builds only where its ledger runs: a run with a session
     ...(sessionKey && !slides ? { realtimeLedger: true } : {}),
     ...(slides ? { varipRefusal: SLIDING_VARIP_WHY } : {}),
@@ -1305,7 +1393,63 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // front end too, so a `?:` folded into a pure column reads an `na` test as
     // the VM does (`pineRuntimeFrontend.js::columnInterpretOpts`).
     ...(ctx && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
-  }))
+  }
+}
+
+function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
+  const compute = (def && def.compute) || {}
+  const outputs = compute.outputs || {}
+  // ⛔ RT1 — R-W FOR THIS LANE (`memberPaneDefinition`, `runtimeHistory`): a
+  // document that needs its run to start at TradingView's bar 0 computes nothing
+  // on a series that is not proven to start at the symbol's listing — refused by
+  // name, never drawn off a seed TradingView never used.
+  const strategyDoc = !!(def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
+  if (def && def.meta && def.meta.runtimeHistory === 'listing' && !(ctx && ctx.historyFromListing === true)) {
+    // ⭐⭐ UIE PHASE 2 — R-W's WARM-UP CURTAIN, MEASURED PER RUN (`computeOffListing`):
+    // the bars whose values do not depend on where the chart starts are drawn; the
+    // ones before them are withheld; a script that never forgets its start is refused.
+    if (opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
+    throw refusal(RUNTIME_HISTORY_GUARD, "this script is drawn bar by bar from its first bar, and this chart's "
+      + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
+      + "would start from a different bar than TradingView's. Nothing is drawn rather than a guess. "
+      + 'TO UNBLOCK: a chart whose loaded history reaches the listing (a daily chart of a symbol listed '
+      + 'within the bars it loads) draws it.')
+  }
+  const tf = ctx && typeof ctx.tf === 'string' ? ctx.tf : undefined
+  const forming = newestBarIsFormingFrom(ctx)
+  const symbol = symbolOf(ctx)
+  // ⭐⭐ RT5 — a document that draws its OWN objects builds them into the run
+  // (`objectsInRun`); every other runtime document keeps the host lane's.
+  const ownObjects = compute.objects === true
+  const tooBig = sourceSizeRefusal(compute.source)
+  if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig, 'PROGRAM_SIZE')
+  // ⭐ UIE PHASE 5 (M2) — the session, and whether this run resumes from it
+  // ⛔⛔ (re-review M1, M2) a run over a window that SLIDES: a calc_bars_count window
+  // (`opts.slidingWindow`, set by the window itself) or a framed instance (`ctx.framed`)
+  const slides = opts.slidingWindow === true || !!(ctx && ctx.framed === true)
+  const sessionKey = opts.incremental === false || opts.limits ? null
+    // ⛔ a sliding run keeps its OWN session: a build made with a ledger (a `varip` built) must
+    // never be reused by a run that refuses one
+    : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}`
+  const prevSession = sessionKey ? _sessions.get(sessionKey) : null
+  // ⭐⭐ P3 WS-F (B5) — THE SESSION'S BUILD, REUSED: the front end is not run again, only
+  // the columns are re-evaluated over THESE bars (`buildRecorder`, `columnsOver`).
+  const reused = prevSession && prevSession.build && rows.length ? columnsOver(prevSession.build, rows, prevSession) : null
+  const reusedLast = reused ? _lastReused : 0
+  // ⭐⭐ PERF (item d) — every option the build reads, in one object (`runtimeIrOptions`): the cold build is handed
+  // it, and the build memo keys on it (`buildMemoKey`: all of it but the bars and the symbol, whose READ constants it
+  // checks instead)
+  const irOpts = runtimeIrOptions(def, rows, ctx, { sessionKey, slides })
+  // ⭐⭐ PERF (item d) — a build kept from another session (another symbol, the curtain's other run, a timeframe
+  // revisited), its columns re-evaluated over these bars, or null: build cold, recorded for the memo
+  const memo = !reused && sessionKey && rows.length ? buildMemoHit(def, irOpts, rows) : null
+  const recorder = !reused && !memo && sessionKey && rows.length ? buildRecorder() : null
+  const built = reused ? { ok: true, ir: { ...prevSession.build.ir, columns: reused } }
+    : memo ? { ok: true, ir: { ...memo.build.ir, columns: memo.columns } }
+      : withTranslateClock(opts.now, () => buildRuntimeIr(String(compute.source || ''), {
+        ...(recorder ? { columnInterpret: recorder.interpret, onBindRead: recorder.bindRead } : {}),
+        ...irOpts,
+      }))
   if (!built.ok) {
     const r = built.refusal || {}
     throw refusal(r.guard || 'runtime:build', r.message || 'the runtime lane could not build this script')
@@ -1366,7 +1510,9 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     waiting.pending = true
     throw waiting
   }
-  const build = reused ? prevSession.build : (recorder ? recorder.done(built.ir) : null)
+  const build = reused ? prevSession.build : memo ? memo.build : (recorder ? recorder.done(built.ir) : null)
+  // ⭐ PERF (item d) — a build made cold here is kept for the next run with its key
+  if (recorder && build) keepBuildMemo(def, irOpts, build)
   // ⛔ RS RATING L5 — a run that reads requested bars never resumes from a checkpoint: the
   // checkpoint's state was computed from the requested bars of an EARLIER supply.
   const resumable = prevSession && !opts.probe && !reqSupply ? resumableFrom(prevSession, rows, program)
@@ -1599,7 +1745,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   Object.defineProperty(out, RUNTIME_INCREMENTAL_KEY, { enumerable: false, configurable: true,
     value: { resumedFrom: Number.isInteger(res.resumedFrom) ? res.resumedFrom : null,
       why: resumeFrom ? null : resumable.why, ranBars: rows.length - (resumeFrom ? resumeFrom.bar + 1 : 0),
-      rebuilt: !reused, columnsReused: reused ? reusedLast : 0 } })
+      rebuilt: !reused && !memo, columnsReused: reused ? reusedLast : 0, buildMemo: !!memo } })
   if (realtime) Object.defineProperty(out, RUNTIME_REALTIME_KEY, { enumerable: false, configurable: true, value: realtime.info })
   // ⭐⭐ W9-T11 — THE RUN'S `strategy` RECORD (design 3.2), plain data beside the columns
   if (res.broker) {
