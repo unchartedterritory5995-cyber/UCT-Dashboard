@@ -748,9 +748,28 @@ def test_the_PUT_route_is_the_ONE_the_builder_calls():
     ⛔ READ OFF THE ROUTE TABLE AND OFF THE HOOK'S SOURCE. A test that typed
     `"/api/user-definitions/{def_id}"` would pass while either side moved.
     """
-    puts = {r.path for r in router_mod.router.routes
-            if "PUT" in getattr(r, "methods", set())}
-    assert puts == {"/api/user-definitions/{def_id}"}, puts
+    put_paths = [r.path for r in router_mod.router.routes
+                 if "PUT" in getattr(r, "methods", set())]
+    puts = set(put_paths)
+    # ⭐ 2026-11-19: TWO PUT routes, and the second is INTENDED. `8a3a2e04ea` (2026-11-17) added
+    # `PUT /assistant-memory`: Settings changes one thing Create Indicator remembers about a member.
+    # This rail said "exactly one" and went red on master unseen, because no pull-request lane ran it.
+    # What it exists to pin is unchanged and is held three ways below:
+    #   1. the BUILDER still calls one PUT, the definition's own (the hook and the sheet never name
+    #      the memory route);
+    #   2. the memory route is the SETTINGS card's, read off its source;
+    #   3. it is declared BEFORE `/{def_id}`: FastAPI answers on first match, so declared after it,
+    #      a PUT to it would be read as an edit of a definition whose id is "assistant-memory".
+    DEFINITION, MEMORY = "/api/user-definitions/{def_id}", "/api/user-definitions/assistant-memory"
+    assert puts == {DEFINITION, MEMORY}, puts
+    assert put_paths.index(MEMORY) < put_paths.index(DEFINITION), put_paths
+    # CONTROL: the order check can say no (the same routes, declared the other way round)
+    backwards = list(reversed(put_paths))
+    assert not backwards.index(MEMORY) < backwards.index(DEFINITION)
+    card = (ROOT / "app" / "src" / "components" / "settings" / "IndicatorMemoryCard.jsx").read_text(
+        encoding="utf-8")
+    assert "MEMORY_URL = '/api/user-definitions/assistant-memory'" in card
+    assert "call('PUT', MEMORY_URL," in card, "the Settings card no longer PUTs the memory route"
 
     hook = (ROOT / "app" / "src" / "hooks" / "useUserDefinitions.js").read_text(
         encoding="utf-8")
@@ -770,6 +789,8 @@ def test_the_PUT_route_is_the_ONE_the_builder_calls():
     assert "saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current, saveOptions)" in builder, (
         "the builder stopped passing an id to `saveUserDefinition`, which is the "
         "whole difference between a create and an edit")
+    # (1 above) neither side of the builder's save path names the memory route
+    assert "assistant-memory" not in hook and "assistant-memory" not in builder
 
 
 # ═══ 8. the cost of the re-proof, stated as a number ════════════════════════
