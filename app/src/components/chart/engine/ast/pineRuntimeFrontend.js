@@ -11862,8 +11862,26 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
       return n
     }
+    // ⭐⭐ ENGINE NUMBER PENDING (CO-3) — A SIDE WRITTEN AS THE PLOT ITSELF: `fill(plot(a), plot(b))`.
+    // The Pine v6 reference: `plot` "Returns: A plot object, that can be used in fill()", `hline` "Returns: An
+    // hline object, that can be used in fill()"; and the User Manual, *Fills* (pine-script-docs/visuals/fills):
+    // one `fill` call takes two plot IDs or two hline IDs, never one of each. An argument is its value, so
+    // `fill(plot(a), plot(b))` is `p1 = plot(a)`,
+    // `p2 = plot(b)`, `fill(p1, p2)`: each side's plot is emitted where it stands, left to right, before the fill
+    // (the same outputs in the same order as the bound form; railed). Only `plot` and `hline`, the two calls that
+    // return such an ID; never at the object door. A pair with an inline side that mixes the two kinds is refused
+    // by name (the Manual's rule); a pair of two BOUND names keeps master's answer.
+    const INLINE_FILL_SIDES = new Set(['plot', 'hline'])
+    const sideKind = []
+    let inlineSide = false
     const sideOf = (i) => {
-      const node = plotIdNode(argOf(positional[i]))
+      const raw = argOf(positional[i])
+      if (!atObjectDoor && raw && raw.type === 'call' && INLINE_FILL_SIDES.has(raw.name)) {
+        inlineSide = true
+        sideKind[i] = raw.name
+        return emitOutputCall(raw.name, raw, scope, out, at)
+      }
+      const node = plotIdNode(raw)
       const ref = node && node.type === 'name' ? plotRefs.get(node.name) : null
       if (!ref) {
         note('runtime:fill-target')
@@ -11871,10 +11889,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
           `argument ${i + 1} of \`fill()\` is not a plot — a fill spans two, and `
           + 'each is named by binding one (`p = plot(…)`)', at)
       }
+      sideKind[i] = ref.call
       return ref.index
     }
     const upper = sideOf(0)
     const lower = sideOf(1)
+    if (inlineSide && sideKind[0] !== sideKind[1]) {
+      note('runtime:fill-target')
+      throw new RuntimeRefusal('runtime:fill-target',
+        `\`fill()\` spans two plot IDs or two hline IDs, never one of each — this one is given a \`${sideKind[0]}\` and a `
+        + `\`${sideKind[1]}\``, at)
+    }
 
     // ⭐⭐ WS-E — THE GRADIENT FORM IS LOWERED AS AN UNDRAWN FILL, not refused.
     // `fill(p1, p2, top_value, bottom_value, top_color, bottom_color)` shades
