@@ -21,6 +21,7 @@ import { newAuthoringState, applyTurn, undo as undoState, undoTo as undoToState,
 import { openAuthoringState } from './authoringState'
 import { converseTurn, STOPPED_GATE, distinctNotUnderstood } from './converseClient'
 import { classifyTurn, OUTCOMES } from './turnOutcome'
+import { liveOffer, withoutOffer } from './builtInOffer'
 import { preflight } from './preflight'
 import { readSession, clearSession } from './conversationSessions'
 import { storeConversation, attachConversation, armConversationAlerts } from '../conversationSave'
@@ -129,7 +130,10 @@ export function initialConversationState(initial, open = null) {
 
 /** The transcript a conversation starts from. */
 export function initialTranscript(initial, open = null) {
-  return (initial && initial.transcript) || (open && open.def ? [openedEntry(open)] : [])
+  // ⭐ A RESTORED CONVERSATION OFFERS NOTHING: an offer was for the chart as it stood when the
+  // answer arrived (`builtInOffer.js`, rule 3). The words stay; the button does not come back.
+  if (initial && initial.transcript) return initial.transcript.map(withoutOffer)
+  return open && open.def ? [openedEntry(open)] : []
 }
 
 /** Is there anything to keep? A fresh, untouched conversation — or an opened, untouched
@@ -318,7 +322,10 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   const turn = classifyTurn(res)
   const said = (ok, entry, extra = {}) => ({ ok, state: null, changed: false, entries: [entry], outcome: turn.outcome, ...extra })
   if (turn.outcome === OUTCOMES.ANSWER) {
-    return said(true, { role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps] })
+    // ⭐ an answer may OFFER one action (add one of UCT's own built-in indicators): kept on the
+    // entry only when it names a built-in this window shipped with
+    const offer = liveOffer(res && res.offer)
+    return said(true, { role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps], ...(offer ? { offer } : {}) })
   }
   if (turn.outcome === OUTCOMES.UNSUPPORTED) {
     return said(false, { role: 'uct', kind: 'unsupported', preflight: !!turn.preflight, gate: turn.gate || null,

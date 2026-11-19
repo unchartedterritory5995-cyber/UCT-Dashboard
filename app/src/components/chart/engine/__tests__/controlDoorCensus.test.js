@@ -799,6 +799,16 @@ describe('the control-door census — how many doors, and whether an eighth exis
        + 'indicator on a chart" must not have to open the file to learn that this '
        + 'one cannot, and because the day the flag flips this row is where that '
        + 'change argues for itself'],
+      ['app/src/components/chart/builder/authoring/builtInOffer.js',
+       '⭐ NEW AT THE BUILT-IN OFFER (2026-11-18) — Create Indicator answers a name that is one of ' +
+       'the built-in indicators UCT ships ("Add the RS Rating") with one button, and the tap is ' +
+       'addInstance: "put THIS definition on this chart" at its declared defaults, the same ' +
+       'write the Indicators list makes for a first add. ⛔ IT IS NARROWER THAN THAT LIST: the ' +
+       'definition id must be one of the built-in names the window shipped with ' +
+       '(never an id read from the answer alone), the build must still offer it ' +
+       '(isDefinitionOffered, asked again at the tap), and one already on the chart is never ' +
+       'added twice. It writes the stored settings of the chart through the onChange of the dock, ' +
+       'the pair Save already uses; the function itself is pure and returns the next settings'],
       ['app/src/components/screener/ScanResults.jsx',
        '⭐ NEW AT PHASE E TASK 9 — scan → chart in one click (AMENDMENT 2 §A2.2). A scan ' +
        'hit is charted WITH THE DEFINITION THAT FOUND IT, and addInstance is the only ' +
