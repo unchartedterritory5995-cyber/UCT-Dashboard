@@ -1,0 +1,21 @@
+//@version=5
+indicator("Prior day levels", overlay=true)
+var line hi = na
+var line lo = na
+newDay = ta.change(time("D")) != 0
+var float ph = na
+var float pl = na
+var float dh = na
+var float dl = na
+if newDay
+    ph := dh
+    pl := dl
+    dh := high
+    dl := low
+    line.delete(hi)
+    line.delete(lo)
+    hi := line.new(bar_index, ph, bar_index + 1, ph, extend=extend.right, color=color.red)
+    lo := line.new(bar_index, pl, bar_index + 1, pl, extend=extend.right, color=color.green)
+else
+    dh := math.max(dh, high)
+    dl := math.min(dl, low)

@@ -1,0 +1,6 @@
+//@version=5
+indicator("New high labels", overlay=true)
+n = input.int(20, "Lookback")
+isHigh = high >= ta.highest(high, n)
+if isHigh and not isHigh[1]
+    label.new(bar_index, high, "New " + str.tostring(n) + " bar high", style=label.style_label_down, color=color.green, textcolor=color.white)
