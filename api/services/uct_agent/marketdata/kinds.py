@@ -105,8 +105,9 @@ def register(registry) -> None:
     registry.register(Kind(
         name="fundamentals", fn=statements.read_fundamentals, validate=statements.validate, freshness="periodic",
         owner="agent-md", max_symbols=ONE_SYMBOL,
-        description="Periodic financial disclosures (income, balance, cash flow) from Yahoo Finance via "
-                    "financial_statements; as_of is the newest period end, stale after "
+        description="Periodic financial disclosures (income, balance, cash flow) via financial_statements "
+                    "(FMP; Yahoo Finance only for a ticker FMP has no statements for; `source` names the one "
+                    "that answered); as_of is the newest period end, stale after "
                     f"{statements.STALE_AFTER_DAYS} days. Params: {{symbol, period: quarterly|annual, periods}}.",
     ))
     registry.register(Kind(
