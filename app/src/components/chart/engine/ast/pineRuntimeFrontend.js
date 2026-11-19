@@ -195,7 +195,16 @@ function fromCanonical(node, tok) {
     // catch a NAMED argument. A bare node in that position answers with its own
     // `name` — so a nested `max(...)` handed to `max` was read as
     // `a named argument \`max\` on \`max\``. Measured, second run.
-    case 'call': return {
+    // ⭐⭐ ENGINE NUMBER PENDING (S14 fix 2) — TWO DIALECTS SPELL `call` AND `offset` WITH ONE `type`, so the
+    // promise above ("A PARSE NODE PASSES THROUGH UNTOUCHED") is kept by SHAPE for those two: a parse call's
+    // arguments are `{name?, value}` records (a canonical one's are nodes), and a parse offset carries `arg` / `n`
+    // (a canonical one `args` / `value`). ⚰️ Both were read as canonical: a caller's `high[2]` handed to
+    // `ta.highestbars` (`negatedBars` embeds its source) lost its operand and threw "Cannot read properties of
+    // undefined (reading 'type')" (S14 relabelled it an engine defect), and a caller's `ta.sma(high, 3)` was
+    // double-wrapped and refused `pine:statement`, "not a shape the translator reads".
+    case 'call':
+      if ((node.args || []).some((x) => x && typeof x === 'object' && x.type === undefined && 'value' in x)) return node
+      return {
       type: 'call',
       name: node.name,
       tok: at,
@@ -205,7 +214,9 @@ function fromCanonical(node, tok) {
     // (`{type:'offset', arg, n}`, as `runtimeRespelling` writes one): the
     // canonical `{value, args}` spelling reached `lowerExpr` with no `n` and was
     // refused "a bar offset counts backwards in whole bars" for a literal shift.
-    case 'offset': return {
+    case 'offset':
+      if (node.arg !== undefined || node.n !== undefined) return node   // ⭐ S14 fix 2: a parse `x[k]`, kept (above)
+      return {
       type: 'offset', arg: fromCanonical((node.args || [])[0], at), n: node.value, tok: at,
     }
     // ⭐ ANYTHING ELSE IS ALREADY A PARSE NODE — a caller's own argument, which

@@ -68,14 +68,16 @@ describe('S14 — an exception that is not a refusal is `runtime:lower`, never `
     expect(r.refusal.message).not.toContain('engine defect')
   })
 
-  it('END TO END, a real defect: a parse offset handed to `fromCanonical` loses its operand', () => {
-    // ⭐ A defect still on S14's queue. ⚰️ This case was the uncalled helper's IR check ("carried site 0 outside
-    // 0"), which S14 fix 1 settled (`uncalledHelperState.test.js`); it moves along the queue as each fix lands.
-    const r = build(`${HEAD}n = int(math.max(1, nz(ta.barssince(close > open))))\nhb = ta.highestbars(high[2], n)\nplot(hb)\n`)
+  it('END TO END, a real defect: a variable named like a namespace sends the user-type reader round in a loop', () => {
+    // ⭐ A defect still on S14's queue (`udtTypeOf` -> `fieldPathOf` -> the binding -> `udtTypeOf` with its depth
+    // reset: a `string timeframe = …` read back through `timeframe.period`). It moves along the queue as each fix
+    // lands. ⚰️ It was the uncalled helper's IR check (S14 fix 1, `uncalledHelperState.test.js`), then the parse
+    // offset `fromCanonical` lost (S14 fix 2, `canonicalPassthrough.test.js`).
+    const r = build(`${HEAD}string timeframe = timeframe.period\nx = timeframe.period == "D" ? 1 : 0\nplot(close + x)\n`)
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:lower')
     expect(r.refusal.message.startsWith(ENGINE_DEFECT_SENTENCE)).toBe(true)
-    expect(r.refusal.message).toMatch(/reading 'type'/)
+    expect(r.refusal.message).toMatch(/Maximum call stack size exceeded/)
   })
 
   it('END TO END, a named error: an unreadable colour literal keeps "not a colour this engine can read"', () => {
