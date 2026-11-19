@@ -387,7 +387,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:strategy-start': 'a strategy run that does not start from the history window the broker needs',
   'runtime:strategy-repaint': 'a repaint-class input (security, timenow, barstate, varip) in a strategy that places orders',
   'runtime:recursion': 'a function that calls itself — Pine forbids it',
-  'runtime:function-global-state': 'a function body reading a mutable GLOBAL — a frame has no address for one yet',
+  'runtime:function-global-state': 'a function body reading a global in a way this lane does not serve yet',
   // ⭐ P3 WS-B — three guards of this workstream's own, named for what they decline.
   'runtime:chart-clock': 'a clock the columnar lane withholds on this chart — the run does not draw it either',
   'runtime:clock-zone': 'a clock read in a zone this lane cannot answer for on this chart',
@@ -3023,6 +3023,94 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const outerSlot = (name) => {
     if (owner === null || !guardOuter || inRequestValue) return null
     return guardOuter.lookup(name)
+  }
+  /** ⭐⭐ U-FGS (libraries chain, 2026-11-19) — THE GLOBALS WHOSE VALUE MOVES: declared `var` / `varip` at the
+   *  root, or written with `:=` / a compound operator anywhere outside a function body (a function cannot assign
+   *  a global). These are the ones a function body may read with history (`g[k]`, a window, `ta.change`), and
+   *  vw-udt-fn-global-history (committed, NYSE:RDDT 1D 2026-11-16) states what Pine reads there: the global's
+   *  value AT THE CALL (G03: the value before a later `:=` on the same bar), with history per CALL SITE (G05: on
+   *  a function called every other bar, `g[1]` is the previous CALL's value, not the previous bar's). G01, G04
+   *  and G06 agree. ⛔ A global bound ONCE (`h = close > open ? close : open`) is not in this set: whether its
+   *  past inside a function is the previous call's or the previous bar's is capture rows W13 / W14
+   *  (`vw-fn-global-window`), and until they are read it keeps its refusal. */
+  const mutableRootGlobals = (() => {
+    const out = new Set()
+    for (const s of stmts || []) {
+      const h = s.header || []
+      if (h.length > 1 && h[0].kind === 'ident' && h[0].value === 'method') continue
+      if (h.length > 1 && isPunct(h[1], '(') && findTop(h, (x) => isPunct(x, '=>')) > 0) continue
+      const eq = findTop(h, (x) => isPunct(x, '='))
+      if (eq > 0 && h.slice(0, eq).some((x) => x.kind === 'ident' && (x.value === 'var' || x.value === 'varip'))) {
+        const n = h[eq - 1]
+        if (n && n.kind === 'ident' && !String(n.value).includes('.')) out.add(String(n.value))
+      }
+      const all = [...h, ...(s.body || [])]
+      for (let i = 0; i + 1 < all.length; i += 1) {
+        const tk = all[i]
+        const nx = all[i + 1]
+        if (tk.kind === 'ident' && !tk.member && !String(tk.value).includes('.')
+            && nx.kind === 'punct' && REASSIGN_OPS.has(nx.value)) out.add(String(tk.value))
+      }
+    }
+    return out
+  })()
+  /** ⭐⭐ U-FGS F2 — THE FRAME'S OWN COPY OF A MUTABLE GLOBAL, taken AT THE CALL: a frame-local slot (so its ring
+   *  is allocated per function and materialised per CALL SITE, `fnHistorySlotFor`), declared by the body's
+   *  first statement from the main frame's slot (`readGlobal`, C11). A global read inside a function is then
+   *  exactly what G01-G06 read: an implicit argument. One copy per global per compiled body. Null where the
+   *  frame cannot take one, and the caller keeps its refusal: outside a function body, inside a request's value
+   *  (its own sub-run, its own main frame), at the object door (master's answer), and for a global bound once. */
+  const frameGlobalCopy = (name) => {
+    if (owner === null || !guardOuter || inRequestValue || atObjectDoor) return null
+    const g = guardOuter.lookup(name)
+    if (g === null || !mutableRootGlobals.has(name)) return null
+    const fn = functions[owner]
+    if (!fn.globalCopies) {
+      fn.globalCopies = new Map()
+      fn.prologue = []
+    }
+    const have = fn.globalCopies.get(g)
+    if (have !== undefined) return have
+    const copy = newSlot(`${name} (at the call)`, false)
+    // the copy is the BODY's, never a block's, wherever its first read stands
+    slotDepth[copy] = 0
+    if (slotTy(g)) setSlotTy(copy, slotTy(g))
+    fn.prologue.push(declare(copy, readGlobal(g)))
+    fn.globalCopies.set(g, copy)
+    return copy
+  }
+  /** (d) — a copy's HISTORY read in a block of the body whose test may vary from call to call: whether Pine's
+   *  `g[1]` there is the previous CALL's value or the previous run of the BLOCK is capture row W08 / V04
+   *  (`vw-fn-global-window`, `-v5`), so it keeps the region rule (`r4Guard`: served where the block is proved
+   *  to run on every call, refused by name elsewhere). */
+  const frameGlobalBlockGuard = (name, at) => {
+    r4Guard(`the history of the global \`${name}\`, read in a block of a function body,`, at)
+  }
+  /** ⭐ U-FGS F1 — a bar series the script names bare and does not bind itself (`low`, filled by the one-argument
+   *  `ta.lowest(n)`): its value is the chart's column. */
+  const chartSeriesName = (name, scope) => BAR_SERIES_DEFAULTS.has(name) && name !== 'bar_index'
+    && scope.lookup(name) === null && !env.has(name) && !(guardOuter && guardOuter.lookup(name) !== null)
+  /** ⭐ U-FGS F1 — THE REFUSAL FOR A NAME A HISTORY READ CANNOT ADDRESS, worded for what the name IS. It said "a
+   *  function body reading a mutable GLOBAL" everywhere, also at the ROOT about a binding the lane holds as an
+   *  expression (breaks-and-retests-hg's `pl`), where there is no function and nothing mutable. */
+  const unaddressedNameRefusal = (name, what, at) => {
+    const global = !!(guardOuter && guardOuter.lookup(name) !== null)
+    if (owner !== null && (global || env.has(name))) {
+      note('runtime:function-global-state')
+      const why = inRequestValue ? 'inside a request\'s value, which runs as its own sub-run with its own main frame'
+        : atObjectDoor ? 'at the object door, which keeps the answer it had'
+        : 'a global bound once: whether its past inside a function is the previous call\'s value or the previous '
+          + 'bar\'s is not captured yet (vw-fn-global-window W13 / W14)'
+      return new RuntimeRefusal('runtime:function-global-state', `${what} reads \`${name}\`, ${why}`, at)
+    }
+    if (env.has(name)) {
+      note('runtime:history-expression')
+      return new RuntimeRefusal('runtime:history-expression', `${what} over \`${name}\`, a binding this lane `
+        + 'evaluates where it is read, needs that value\'s own committed series, and this position has no line '
+        + 'to commit one on', at)
+    }
+    note('runtime:function-global-state')
+    return new RuntimeRefusal('runtime:function-global-state', `\`${name}\``, at)
   }
   /** `scope.lookup`, falling back to a readable global — for the KIND
    *  questions (`holdsArray`, `holdsText`, a method receiver) that must answer
@@ -9425,11 +9513,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
             slotHistoryGuard(hoisted.slot, at)
             return histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, hb, at), hb)
           }
-          const varSlot = scope.lookup(node.arg.name)
+          let varSlot = scope.lookup(node.arg.name)
+          // ⭐⭐ U-FGS F2 — `g[k]` of a mutable global inside a function body: the history of its value AT THE CALL,
+          // per call site (vw-udt-fn-global-history G01-G06, committed): `frameGlobalCopy`.
           if (varSlot === null) {
-            note('runtime:function-global-state')
-            throw new RuntimeRefusal('runtime:function-global-state', `\`${node.arg.name}\``, at)
+            varSlot = frameGlobalCopy(node.arg.name)
+            if (varSlot !== null) frameGlobalBlockGuard(node.arg.name, at)
           }
+          if (varSlot === null) throw unaddressedNameRefusal(node.arg.name, `\`${node.arg.name}[…]\``, at)
           let back
           try {
             back = foldOffset(node.n, at, scope)
@@ -10314,6 +10405,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
             varSlot = slot
             srcLabel = tmp
           }
+          // ⭐⭐ U-FGS F2 — A MUTABLE GLOBAL INSIDE A FUNCTION BODY IS ITS VALUE AT THE CALL, per call site
+          // (`frameGlobalCopy`): the window keeps its own ring of what each call hands it.
+          if (varSlot === null && srcNode && srcNode.type === 'name') {
+            const copy = frameGlobalCopy(srcNode.name)
+            if (copy !== null) varSlot = copy
+          }
           // ⭐⭐⭐ AND THE SAME REWRITE AT THE ROOT STATEMENT LIST. The request
           // region above hoists ANY unresolved source because a member has
           // nowhere to put the binding inside a request; here they do, so only
@@ -10335,7 +10432,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // loop (several steps a bar: H8, unwitnessed) the guards below refuse it. The conditional rules below
           // (`conditionalHistoryGuard`, `r4Guard`) are asked of it like any other window.
           let inlineSrc = null
+          let chartInline = false
           // (a loop is refused below, by `conditionalHistoryGuard` / `r4Guard`: one guard, not two)
+          // ⭐⭐ U-FGS F1 (libraries chain, 2026-11-19) — AND A CHART SERIES NAMED BARE IS THE SAME CASE. The
+          // one-argument `ta.lowest(n)` fills `low` (`PINE_SHORT_FORM`), and with a length only known while the bar
+          // runs it came here; `low` has no slot (it is the chart's own series, a column), so it was refused as "a
+          // function body reading a mutable GLOBAL" at the ROOT of market-structure-break-order-block, about a
+          // price series. Its value on this bar is the column's, so it is handed to the window in place, under
+          // HIST-S2's gates and guards, exactly as an expression is. ⛔ Only a bar series the script does not bind
+          // itself; a name the script binds is a different case (below).
+          if (varSlot === null && srcNode && srcNode.type === 'name' && chartSeriesName(srcNode.name, scope)
+              && !atObjectDoor && !objectsInRun && FINITE_WINDOW[win.table].na !== 'propagate') {
+            inlineSrc = lowerExpr(srcNode, scope)
+            srcLabel = srcNode.name
+            chartInline = true
+          }
           if (varSlot === null && srcNode && srcNode.type !== 'name'
               && !atObjectDoor && !objectsInRun && FINITE_WINDOW[win.table].na !== 'propagate') {
             inlineSrc = lowerExpr(srcNode, scope)
@@ -10347,8 +10458,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
               throw new RuntimeRefusal('runtime:history-expression',
                 `\`${node.name}\` over an expression needs that expression's own committed series`, at)
             }
-            note('runtime:function-global-state')
-            throw new RuntimeRefusal('runtime:function-global-state', `\`${srcNode.name}\``, at)
+            throw unaddressedNameRefusal(srcNode.name, `\`${node.name}\``, at)
           }
           // ⭐ THE LENGTH FOLDS THE SAME WAY A HISTORY OFFSET DOES — literal or
           // input-derived, off the CANONICAL TREE. A length only known while the
@@ -10382,6 +10492,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
           if (n < 1) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${node.name}\` needs a length of at least 1, got ${n}`, at)
+          }
+          // ⛔ U-FGS F1 — NOT WITH A LENGTH READ PER BAR, outside the `skip` policy. Measured 2026-11-19: an
+          // in-place source handed to a `finite` window (`ta.lowest`, `ta.highest`) whose length is read per bar
+          // answers `na` on every bar whose length is above 1, where the same window at the root answers the
+          // low (a ring the in-place path does not keep). F1 does not hand a chart series to that path: it is
+          // refused by the name of the wall it is (the length), never drawn blank.
+          if (chartInline && lenExpr && FINITE_WINDOW[win.table].na !== 'skip') {
+            note('runtime:history-dynamic-offset')
+            throw new RuntimeRefusal('runtime:history-dynamic-offset',
+              `the length of \`${node.name}\` over \`${srcNode.name}\` is read per bar, and this position (a block, `
+              + 'or a function branch) has no line to commit the series it needs', at)
           }
           // ⭐⭐ SPAN COMES FROM `interpret.js`, NOT FROM HERE. `ta.rising(x, n)`
           // spans n+1 bars; asking the table means the runtime cannot disagree
@@ -10510,11 +10631,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
             return binary('-', read(hoisted.slot),
               histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, n, at), n))
           }
-          const varSlot = scope.lookup(srcNode.name)
+          let varSlot = scope.lookup(srcNode.name)
+          // ⭐⭐ U-FGS F2 — a mutable global inside a function body: its value at the call, per call site
           if (varSlot === null) {
-            note('runtime:function-global-state')
-            throw new RuntimeRefusal('runtime:function-global-state', `\`${srcNode.name}\``, at)
+            varSlot = frameGlobalCopy(srcNode.name)
+            if (varSlot !== null) frameGlobalBlockGuard(srcNode.name, at)
           }
+          // ⭐⭐ U-FGS F1 — A BINDING THE ROOT HOLDS AS AN EXPRESSION (`pl = fixnan(ta.pivotlow(…))`: no slot, the
+          // runtime lane evaluates it where it is read) gets its committed series on the line above, exactly as an
+          // expression does a few lines up, and as a window over the same name always did (`hoistCommittedSeries`).
+          // At the root statement list only: that line runs on every bar, as the binding itself does. It was refused
+          // as "a function body reading a mutable GLOBAL" at the ROOT of breaks-and-retests-hg.
+          // ⛔ ENGINE 82 TRAIN (#1930 + #1952 together): `n` bars back, never 1. #1952 wrote this when only the
+          // one-argument form reached the branch; with #1930's `ta.change(source, length)` a literal 1 here drew
+          // `pl - pl[1]` for `ta.change(pl, 3)` (RDDT 1D: 192 of 664 bars), where neither unit alone serves it.
+          if (varSlot === null && owner === null && env.has(srcNode.name) && env.get(srcNode.name).kind === 'expr') {
+            const hoisted = hoistCommittedSeries(srcNode, scope, node.name)
+            if (hoisted) {
+              return binary('-', read(hoisted.slot),
+                histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, n, at), n))
+            }
+          }
+          if (varSlot === null) throw unaddressedNameRefusal(srcNode.name, `\`${node.name}\``, at)
           const prev = owner !== null
             ? histSlot(varSlot, fnHistorySlotFor(owner, varSlot, n, at), n)
             : histSlot(varSlot, historySlotFor(varSlot, n, at), n)
@@ -15320,7 +15458,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         result = lowerFrameResult(inlineNode, fnScope, (h) => { body = body.concat(h) })
         resultColour = holdsColour(inlineNode, fnScope)
       }
-      record.body = body
+      // ⭐⭐ U-FGS F2 — the copies of the mutable globals this body reads with history, taken AT THE CALL
+      // (`frameGlobalCopy`), run first: the body cannot change a global, so its value at the call is its value
+      // wherever the body reads it.
+      record.body = record.prologue && record.prologue.length ? [...record.prologue, ...body] : body
       record.result = result
       record.colour = resultColour
       // ⭐ HOW MANY VALUES THIS FUNCTION HANDS BACK. A destructuring compares

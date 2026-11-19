@@ -229,12 +229,16 @@ describe('⛔ boundaries stated rather than approximated', () => {
     expect(refusalOf(`${head}f(x) => f(x) + 1\nplot(f(close))\n`).guard).toBe('runtime:recursion')
   })
 
-  it('a function reading a mutable global\'s HISTORY refuses by name', () => {
-    // ⚰️ This read the global's plain VALUE and refused. C11 gave a frame a
-    // main-frame address (`LOAD_GLOBAL_*`, proved in functionGlobalReads.test.js),
-    // so a plain read is admitted. Whose PAST `g[1]` means inside a function has
-    // not been measured on a chart, so the history form still refuses.
-    const src = `${head}var g = 0.0\ng := g + 1\nf(x) => x + g[1]\nplot(f(1))\n`
+  it('a function reading a mutable global\'s HISTORY reads the value at the previous call (U-FGS F2)', () => {
+    // ⚰️ This refused by name: whose PAST `g[1]` means inside a function had not been measured. It has:
+    // vw-udt-fn-global-history (committed) G01-G06, the value at each call, per call site.
+    const { out } = runPine(`${head}var g = 0.0\ng := g + 1\nf(x) => x + g[1]\nplot(f(1))\n`)
+    expect(Number.isNaN(out[0])).toBe(true)
+    out.slice(1).forEach((v, i) => expect(v).toBe(1 + (i + 1)))
+  })
+
+  it('a function reading the HISTORY of a global bound once still refuses by name (W13 / W14)', () => {
+    const src = `${head}var g = 0.0\ng := g + 1\nh = g * 2\nf(x) => x + h[1]\nplot(f(1))\n`
     expect(refusalOf(src).guard).toBe('runtime:function-global-state')
   })
 

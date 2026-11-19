@@ -215,3 +215,23 @@ describe('R7 — the script it frees: backquant builds on the runtime lane', () 
     expect(BACKQUANT).toMatch(/ta\.change\(compositeFeature, 3\)/)
   }, T)
 })
+
+// ⛔ ENGINE 82 TRAIN — #1930 (this unit's length) MEETS #1952 (U-FGS F1: a root binding held as an
+// expression gets its committed series on the line above). F1 was written when only the one-argument form
+// reached this branch and read 1 bar back; merged with this unit, `ta.change(pl, 3)` drew `pl - pl[1]`
+// (RDDT 1D: 192 of 664 bars), served with nothing red, where neither unit alone serves the shape. The
+// oracle is the same run's own `pl` column, which no change lowering touches.
+describe('R8 — a root binding held as an expression (U-FGS F1) reads `length` bars back', () => {
+  const state = 'var float acc = 0.0\nacc := acc + 1\n'
+  for (const bind of ['pl = fixnan(ta.pivotlow(low, 2, 2)) * 1.0', 'float pl = fixnan(ta.pivotlow(low, 2, 2))']) {
+    for (const n of [1, 3]) {
+      it(`${bind}; ta.change(pl, ${n}) = pl - pl[${n}]`, () => {
+        const [pl, ch] = run(`${head}${state}${bind}\nplot(pl)\nplot(ta.change(pl, ${n}))\n`)
+        const want = pl.map((v, i) => (i < n ? NaN : v - pl[i - n]))
+        expect(differ(RDDT, ch.slice(n), want.slice(n))).toEqual([])
+        // the fixture distinguishes: over these bars `pl - pl[3]` and `pl - pl[1]` are not one series
+        if (n > 1) expect(differ(RDDT, want.slice(n), pl.map((v, i) => (i < 1 ? NaN : v - pl[i - 1])).slice(n)).length).toBeGreaterThan(0)
+      }, T)
+    }
+  }
+})
