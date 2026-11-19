@@ -4854,11 +4854,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
    * whole `box.` namespace, so it also answers true for `box.set_bgcolor(b, c)`
    * — an UPDATE, which makes no new drawing and has no handle to be.
    */
-  const mintHandle = (valueNode) => {
+  const mintHandle = (valueNode, scope = null) => {
     if (!objectPassOwnsDrawing) return null
     if (!valueNode || valueNode.type !== 'call') return null
     const m = /^([a-z]+)\.new$/.exec(String(valueNode.name || ''))
     if (!m || !OBJECT_NS.test(`${m[1]}.`)) return null
+    // ⭐ engine NUMBER PENDING — the create is the object program's, so its arguments are not run here:
+    // one that WRITES (`array.push(xs, line.new(…, array.pop(ys), …))`) has nowhere to run inside this
+    // expression, and is refused by name rather than dropped (`skippedDrawingWrites`)
+    if (scope) skippedDrawingWrites(valueNode, scope, locate(valueNode.tok), false)
     // ⭐ THE ORDINAL IS THIS LANE'S OWN, and `handles.js` says plainly that it
     // is NOT joined to the object program's site id. It exists so two creates
     // are not `===`; nothing reads it.
@@ -5459,7 +5463,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // with the collection path. Two copies of the `^([a-z]+)\.new$` test is
       // the drift this file pays for most, and the half that drifted would be
       // whichever one a later family (`polyline`) was added to first.
-      const handle = mintHandle(valueNode)
+      const handle = mintHandle(valueNode, scope)
       if (handle) return handle
     }
     if (hit) {
@@ -6218,7 +6222,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       ?? (node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null)
     return arrayCall(
       node.name,
-      given.map((x, i) => (nestedCreateHandle(node.name, i, x) || lowerExpr(x, scope))),
+      given.map((x, i) => (nestedCreateHandle(node.name, i, x, scope) || lowerExpr(x, scope))),
       typeArg,
     )
   }
@@ -6257,10 +6261,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *          the caller then lowers the argument normally, so a shape this does
    *          not recognise behaves exactly as it did before the rule landed.
    */
-  const nestedCreateHandle = (fnName, argIndex, valueNode) => {
+  const nestedCreateHandle = (fnName, argIndex, valueNode, scope = null) => {
     if (!objectPassOwnsDrawing) return null
     if (COLLECTION_VALUE_ARG[fnName] !== argIndex) return null
-    return mintHandle(valueNode)
+    return mintHandle(valueNode, scope)
   }
 
   /** Resolve a TEXT input to the string the script will actually see.
@@ -6558,6 +6562,142 @@ function buildRuntimeIrLinked(source, opts, holder) {
     walk(f.body, 0)
     walk(f.result, 0)
     return ok
+  }
+
+  // ── ⭐⭐ engine NUMBER PENDING — WHAT A DRAWING CALL THIS LANE SKIPS STILL DOES TO THE VALUES ──
+  //
+  // Under `objectPassOwnsDrawing` a drawing call is the object program's: skipped as a statement here.
+  // Its ARGUMENTS are still Pine's to evaluate, left to right, and one that WRITES (a collection member
+  // whose `writes` is not `none`, a script function or method that is not effect-free) changes what
+  // every later bar reads. ⚰️ Skipping the call skipped them: `label.delete(array.shift(xs))` deleted
+  // nothing here (right) and never shrank `xs` (wrong), so a script capping its drawings at five kept
+  // every one in the list (the Studio session's probe: 5 on the last bar in Pine, 149 here), and
+  // `while array.size(xs) > 5` never ended. 9 of 9 one-call forms (label / line / box x shift / pop /
+  // remove) were wrong; their two-step forms (`old = array.shift(xs)`, then `label.delete(old)`) right
+  // (`runtime/__tests__/skippedDrawingArgWrites.test.js`).
+  // ⭐ So each argument subtree that writes is lowered and run for its effect, its value dropped, in
+  // the order Pine evaluates it. ⛔ A write that runs only on some evaluations (a `?:` arm, the right
+  // side of `and` / `or`), or where this lane cannot run it at the skip (a `var` initialiser runs
+  // once, a drawing minted inside an expression), is refused BY NAME: run unconditionally it would be
+  // a different program, and dropped it is the wrong value this replaces.
+  const WRITING_MEMBERS = new Set(Object.keys(ARRAY_FNS)
+    .filter((k) => ARRAY_FNS[k].writes !== 'none' && k.includes('.'))
+    .map((k) => k.slice(k.indexOf('.') + 1)))
+  /** Can calling this script function change a value the script reads ELSEWHERE: a collection write
+   *  (its elements are shared by reference) or a field write, in its body or any body it calls? Its own
+   *  `var`s are its call site's, and a drawing is the object program's, so neither counts. ⛔ Unknown (a
+   *  body not compiled) answers from the definition's own tokens: a writing member, a field `:=`, or a
+   *  call to a function that writes. */
+  const fnWritesValues = (name, seen = new Set()) => {
+    if (seen.has(name)) return false
+    seen.add(name)
+    const idx = fnByName.get(name)
+    const f = idx === undefined ? null : functions[idx]
+    if (f && !f.compiling && f.body) {
+      let hit = false
+      const walk = (n, depth) => {
+        if (hit || !n || typeof n !== 'object' || depth > 256) return
+        if (Array.isArray(n)) { for (const x of n) walk(x, depth + 1); return }
+        if (n.kind === EXPR.ARRAY && !(ARRAY_FNS[n.fn] && ARRAY_FNS[n.fn].writes === 'none')) { hit = true; return }
+        if (n.kind === STMT.FIELD_SET) { hit = true; return }
+        if (n.kind === EXPR.CALL && functions[n.fn] && fnWritesValues(functions[n.fn].name, seen)) { hit = true; return }
+        for (const v of Object.values(n)) if (v && typeof v === 'object') walk(v, depth + 1)
+      }
+      walk(f.body, 0)
+      walk(f.result, 0)
+      return hit
+    }
+    const def = deferredFnDefs.get(name)
+    if (!def) return true
+    const toks = []
+    const collect = (x, depth) => {
+      if (!x || typeof x !== 'object' || depth > 64) return
+      if (Array.isArray(x)) { for (const y of x) collect(y, depth + 1); return }
+      if (x.kind !== undefined && x.value !== undefined && !x.header) { toks.push(x); return }
+      for (const v of Object.values(x)) if (v && typeof v === 'object') collect(v, depth + 1)
+    }
+    collect(def, 0)
+    return toks.some((t, i) => {
+      if (t.kind !== 'ident') return isPunct(t, ':=') && i > 0 && String(toks[i - 1].value).includes('.')
+      if (!isPunct(toks[i + 1], '(')) return false
+      const v = String(t.value)
+      if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, v)) return ARRAY_FNS[v].writes !== 'none'
+      if (v !== name && isUserFn(v)) return fnWritesValues(v, seen)
+      return v.includes('.') && WRITING_MEMBERS.has(v.slice(v.lastIndexOf('.') + 1))
+    })
+  }
+  const argumentWrites = (n, scope) => {
+    const name = String(n.name || '')
+    if (n.type === 'call') {
+      if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, name)) return ARRAY_FNS[name].writes !== 'none'
+      if (isUserFn(name)) return fnWritesValues(name)
+      if (OBJECT_NS.test(name)) return false
+      const uf = splitMethodName(name)
+      if (!uf) return false
+      if (drawingHandles.has(uf.recv)) return false
+    }
+    // a receiver call: `xs.shift()`, `f().pop()`, `obj.m()`
+    let rc = null
+    try { rc = receiverCallOf(n, scope) } catch (e) { if (!(e instanceof RuntimeRefusal)) throw e }
+    if (rc && rc.kind === 'array') return !(ARRAY_FNS[rc.name] && ARRAY_FNS[rc.name].writes === 'none')
+    if (rc && rc.kind === 'user') return fnWritesValues(rc.fn)
+    const member = n.type === 'method' ? name : (splitMethodName(name) || {}).method
+    return WRITING_MEMBERS.has(member)
+  }
+  /** The outermost subtrees of `node` that write, in evaluation order, each with whether it runs only
+   *  on some evaluations (`lazy`). A write's own arguments run inside it. */
+  const argumentWriteSites = (node, scope) => {
+    const found = []
+    const visit = (n, lazy, depth) => {
+      if (!n || typeof n !== 'object' || depth > 64) return
+      if (Array.isArray(n)) { for (const x of n) visit(x, lazy, depth + 1); return }
+      if ((n.type === 'call' || n.type === 'method') && argumentWrites(n, scope)) { found.push({ node: n, lazy }); return }
+      if (n.type === 'ternary') {
+        visit(n.test, lazy, depth + 1); visit(n.yes, true, depth + 1); visit(n.no, true, depth + 1)
+        return
+      }
+      if (n.type === 'binary' && (n.op === 'and' || n.op === 'or')) {
+        visit(n.left, lazy, depth + 1); visit(n.right, true, depth + 1)
+        return
+      }
+      for (const [k, v] of Object.entries(n)) {
+        if (k !== 'tok' && k !== 'endTok' && v && typeof v === 'object') visit(v, lazy, depth + 1)
+      }
+    }
+    visit(node, false, 0)
+    return found
+  }
+  /** The statements that run what a skipped drawing's arguments write (`[]` for none), or a refusal
+   *  by name. `hoist: false` — the skip has no place to run them (a `var` initialiser, a minted handle). */
+  const skippedDrawingWrites = (node, scope, at, hoist = true) => {
+    const sites = argumentWriteSites(node, scope)
+    if (!sites.length) return []
+    const lazy = sites.find((s) => s.lazy)
+    if (lazy || !hoist) {
+      const w = (lazy || sites[0]).node
+      const what = w.type === 'method' ? `.${w.name}()` : `${w.name}()`
+      note('runtime:object-op')
+      throw new RuntimeRefusal('runtime:object-op', `a drawing call's argument \`${what}\` changes a value `
+        + `the script reads again${lazy ? ' on only some of the bars the call runs on' : ' where this lane cannot '
+        + 'run it'}; the drawing call is the object program's and is not run here, so that change would be `
+        + 'lost or made on the wrong bars, and nothing is drawn rather than a wrong number', at)
+    }
+    return sites.map(({ node: w }) => {
+      const fnIdx = w.type === 'call' ? fnByName.get(String(w.name)) : undefined
+      const rec = fnIdx === undefined ? null : functions[fnIdx]
+      return exprStmt(lowerExpr(w, scope, { multi: true, effect: true }), rec && rec.returns ? rec.returns : 1)
+    })
+  }
+  /** `skippedDrawingWrites` over a statement's tokens; a line that does not parse as one expression
+   *  refuses if any token names a writing member or a script function, and is skipped otherwise. */
+  const skippedDrawingStmtWrites = (toks, scope, at) => {
+    let node = null
+    try { node = parseWholeExpression(toks) } catch { node = null }
+    if (node) return skippedDrawingWrites(node, scope, at)
+    const hit = toks.slice(1).find((t, i) => t && t.kind === 'ident' && isPunct(toks[i + 2], '(')
+      && (WRITING_MEMBERS.has(String(t.value).slice(String(t.value).lastIndexOf('.') + 1)) || isUserFn(String(t.value))))
+    if (hit) return skippedDrawingWrites({ type: 'call', name: String(hit.value), args: [] }, scope, at, false)
+    return []
   }
   // `bareIsValue` (W9 9.7, the dark-broker order site only): a BARE builtin call
   // (`crossover(...)`, v1-v4's spelling of `ta.crossover`) is a value call there.
@@ -14525,7 +14665,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         noteHandle(nameTok.value, value, scope)
         // ⭐ DRAW-1 — `b := box(na)` (the variable lets go of its object) is the object
         // program's step (`reset:target`), skipped here exactly as `b := box.new(…)` is.
-        if (objectPassOwnsDrawing && (holdsObjectCall(value) || drawingCastFamily(value, scope))) continue
+        if (objectPassOwnsDrawing && (holdsObjectCall(value) || drawingCastFamily(value, scope))) {
+          out.push(...skippedDrawingWrites(value, scope, locate(nameTok)))   // engine NUMBER PENDING
+          continue
+        }
         const slot = scope.lookup(nameTok.value)
         if (slot === null) refuseUnboundReassign(nameTok, toks)
         // ⭐ W6-T10 — `x := E.field` only into a variable of that enum (`admitEnumAssign`).
@@ -14577,7 +14720,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // a drawing call reads it, instead of quietly yielding `na`.
         noteHandle(nameTok.value, value, scope)
         noteWrittenHandle(nameTok.value, toks, eq)
-        if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
+        if (objectPassOwnsDrawing && holdsObjectCall(value)) {
+          skippedDrawingWrites(value, scope, locate(nameTok), false)   // engine NUMBER PENDING
+          continue
+        }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
         if (word === 'varip') slots[slot].varip = true   // ⭐ P3 WS-F — see the `varip` site
         // ⭐ W6-T3a — TYPED AT THE BINDING, BEFORE THE INITIALISER IS LOWERED
@@ -14933,7 +15079,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
           continue
         }
         const f = callFamily(word)
-        if (f === 'runtime:object-op' && objectPassOwnsDrawing) continue
+        if (f === 'runtime:object-op' && objectPassOwnsDrawing) {
+          out.push(...skippedDrawingStmtWrites(toks, scope, locate(first)))   // engine NUMBER PENDING
+          continue
+        }
         // ⭐⭐ RT5 — the drawing statement, run by this lane.
         if (objectsInRun) {
           const os = objectStmtOf(parseWholeExpression(toks), scope)
@@ -14966,7 +15115,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (uf && !userMethodShadows(uf.method, ufRecv, scope)) {
           const fam = drawingHandles.get(uf.recv)
           if (fam) {
-            if (objectPassOwnsDrawing) continue
+            if (objectPassOwnsDrawing) {
+              out.push(...skippedDrawingStmtWrites(toks, scope, locate(first)))   // engine NUMBER PENDING
+              continue
+            }
             note('runtime:object-op')
             throw new RuntimeRefusal('runtime:object-op',
               objectOpDetail(`${fam}.${uf.method}`), locate(first))
