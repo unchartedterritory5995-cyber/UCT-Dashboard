@@ -2,50 +2,75 @@
  "schema": "uct.pine-parity-roadmap/v1",
  "generatedBy": "tools/pine_coverage/parity_roadmap.py build",
  "map": {
-  "measuredOn": "2026-11-18",
-  "masterSha": "99de72e7c0",
-  "sha256": "13cdfba46a24547b139e6ebbb0d683e201f3fc784ebef9d9e32fcfa9ddc8b525",
-  "libraryStore": null
+  "measuredOn": "2026-11-19",
+  "masterSha": "3685713d65",
+  "sha256": "1b55ac56bab24d492fe1e0ce7973b797ce63d0e0aa917cd059c045902881c5ae",
+  "libraryStore": [
+   {
+    "path": "TradingView/RelativeValue/3",
+    "sha256": "44d71612a7596a11258e244e500c0ce56b563eceac2f07973b16b5dec4c7480d"
+   },
+   {
+    "path": "TradingView/ta/11",
+    "sha256": "da37dca4bc18ce3b825d1d9c8b682f97859508cc5bb8bd3e51e1a28713edee80"
+   },
+   {
+    "path": "theEccentricTrader/PubLibCandleTrend/2",
+    "sha256": "1d42daae07346debbf5b9b5a151a4862c0b173b3ea342e95a4db33271a2d5b52"
+   },
+   {
+    "path": "theEccentricTrader/PubLibPattern/4",
+    "sha256": "9a75c2736c3911de262ef1dacc78fa82b5010177a3d31bbf2744f391ec177327"
+   },
+   {
+    "path": "theEccentricTrader/PubLibSwing/3",
+    "sha256": "3cbd09d934016a46d43c8097857bc3fae7af23111e22a414f671db740fc8551f"
+   },
+   {
+    "path": "theEccentricTrader/PubLibTrend/3",
+    "sha256": "7f31c58b74ea16895550afcaa830a3ce96190b5fea34bab62275389c10688d1e"
+   }
+  ]
  },
- "engine": 73,
+ "engine": 84,
  "headline": {
   "sample": 679,
-  "memberServed": 275,
-  "memberServedPct": 40.5,
-  "runtimeOn": 285,
-  "runtimeOnPct": 42.0,
-  "hostOnly": 220,
-  "hostOnlyPct": 32.4,
-  "runtimeAdded": 65,
+  "memberServed": 286,
+  "memberServedPct": 42.1,
+  "runtimeOn": 298,
+  "runtimeOnPct": 43.9,
+  "hostOnly": 226,
+  "hostOnlyPct": 33.3,
+  "runtimeAdded": 72,
   "runtimeLost": 0,
   "admission": {
    "allowlisted": 1,
-   "capability": 54,
-   "not-admitted": 10
+   "capability": 59,
+   "not-admitted": 12
   },
   "declinedCapabilities": {
    "obj:linefill": 4,
+   "request-other": 3,
    "collections:matrix": 2,
    "calc-bars": 1,
    "method-def": 1,
-   "request-other": 1,
    "varip": 1
   },
-  "servedOnHistoryOnly": 11,
-  "notServed": 404,
-  "notServedFullyEnumerated": 201,
-  "neverServe": 15,
+  "servedOnHistoryOnly": 14,
+  "notServed": 393,
+  "notServedFullyEnumerated": 203,
+  "neverServe": 16,
   "dataDecision": 5,
   "missingFacts": []
  },
  "hostLane": {
-  "notTransferring": 459,
+  "notTransferring": 453,
   "blockers": [
    {
     "blocker": "[imperative]",
     "capability": "imperative",
     "sole": 40,
-    "any": 174,
+    "any": 172,
     "soleScripts": [
      "builtin:fisher-transform__Fisher_Trans",
      "builtin:mcginley-dynamic__McGinley1Dyn",
@@ -161,7 +186,7 @@
     "blocker": "[imports-libraries]",
     "capability": "imports-libraries",
     "sole": 11,
-    "any": 61,
+    "any": 54,
     "soleScripts": [
      "builtin:auto-fib-extension__Auto1Fib1Ext",
      "builtin:auto-fib-retracement__Auto1Fib1Ret",
@@ -179,9 +204,10 @@
    {
     "blocker": "[user-functions]",
     "capability": "user-functions",
-    "sole": 9,
+    "sole": 10,
     "any": 63,
     "soleScripts": [
+     "builtin:kaufman039s-adaptive-moving-average__Kaufmans_Ada",
      "committed:3-level-zigzag-semafor__3078",
      "committed:boom-hunter-entry-point-screener-alerts__0fc5982548",
      "committed:macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH",
@@ -348,15 +374,6 @@
     ]
    },
    {
-    "blocker": "[known-divergence]",
-    "capability": "known-divergence",
-    "sole": 1,
-    "any": 9,
-    "soleScripts": [
-     "committed:contraction-box-doji-lines__1486658151"
-    ]
-   },
-   {
     "blocker": "object op dropped: guard:create <- pine:function",
     "capability": "builtin-missing",
     "sole": 1,
@@ -486,7 +503,7 @@
     "blocker": "[tuples]",
     "capability": "tuples",
     "sole": 0,
-    "any": 48,
+    "any": 45,
     "soleScripts": []
    },
    {
@@ -518,13 +535,6 @@
     "soleScripts": []
    },
    {
-    "blocker": "object op dropped: content:lost",
-    "capability": "drawing-objects",
-    "sole": 0,
-    "any": 12,
-    "soleScripts": []
-   },
-   {
     "blocker": "object op dropped: cell:text <- pine:builtin",
     "capability": "builtin-missing",
     "sole": 0,
@@ -534,6 +544,13 @@
    {
     "blocker": "object op dropped: cell:text <- pine:request",
     "capability": "request-security",
+    "sole": 0,
+    "any": 11,
+    "soleScripts": []
+   },
+   {
+    "blocker": "object op dropped: content:lost",
+    "capability": "drawing-objects",
     "sole": 0,
     "any": 11,
     "soleScripts": []
@@ -571,6 +588,13 @@
     "capability": "collections",
     "sole": 0,
     "any": 9,
+    "soleScripts": []
+   },
+   {
+    "blocker": "[known-divergence]",
+    "capability": "known-divergence",
+    "sole": 0,
+    "any": 8,
     "soleScripts": []
    },
    {
@@ -847,13 +871,6 @@
     "soleScripts": []
    },
    {
-    "blocker": "[call-mapping]",
-    "capability": "call-mapping",
-    "sole": 0,
-    "any": 3,
-    "soleScripts": []
-   },
-   {
     "blocker": "array.pop",
     "capability": "collections",
     "sole": 0,
@@ -1015,13 +1032,6 @@
     "soleScripts": []
    },
    {
-    "blocker": "object op dropped: guard:update <- pine:builtin",
-    "capability": "builtin-missing",
-    "sole": 0,
-    "any": 3,
-    "soleScripts": []
-   },
-   {
     "blocker": "object op dropped: guard:update <- pine:function",
     "capability": "builtin-missing",
     "sole": 0,
@@ -1054,6 +1064,13 @@
     "capability": "builtin-missing",
     "sole": 0,
     "any": 3,
+    "soleScripts": []
+   },
+   {
+    "blocker": "[call-mapping]",
+    "capability": "call-mapping",
+    "sole": 0,
+    "any": 2,
     "soleScripts": []
    },
    {
@@ -1276,6 +1293,13 @@
    {
     "blocker": "object op dropped: guard:reset <- pine:reassign",
     "capability": "imperative",
+    "sole": 0,
+    "any": 2,
+    "soleScripts": []
+   },
+   {
+    "blocker": "object op dropped: guard:update <- pine:builtin",
+    "capability": "builtin-missing",
     "sole": 0,
     "any": 2,
     "soleScripts": []
@@ -2013,7 +2037,7 @@
    {
     "capability": "imperative",
     "sole": 48,
-    "any": 228
+    "any": 226
    },
    {
     "capability": "strategy",
@@ -2028,16 +2052,16 @@
    {
     "capability": "drawing-objects",
     "sole": 17,
-    "any": 111
+    "any": 110
    },
    {
     "capability": "imports-libraries",
     "sole": 11,
-    "any": 61
+    "any": 54
    },
    {
     "capability": "user-functions",
-    "sole": 9,
+    "sole": 10,
     "any": 64
    },
    {
@@ -2053,7 +2077,7 @@
    {
     "capability": "builtin-missing",
     "sole": 8,
-    "any": 62
+    "any": 61
    },
    {
     "capability": "translator-robustness",
@@ -2088,12 +2112,7 @@
    {
     "capability": "tuples",
     "sole": 1,
-    "any": 59
-   },
-   {
-    "capability": "known-divergence",
-    "sole": 1,
-    "any": 9
+    "any": 56
    },
    {
     "capability": "drawing-never-attempted",
@@ -2103,7 +2122,12 @@
    {
     "capability": "call-mapping",
     "sole": 0,
-    "any": 10
+    "any": 9
+   },
+   {
+    "capability": "known-divergence",
+    "sole": 0,
+    "any": 8
    }
   ],
   "pairs": [
@@ -2141,13 +2165,6 @@
      "[user-functions]"
     ],
     "count": 4
-   },
-   {
-    "walls": [
-     "[imports-libraries]",
-     "[user-functions]"
-    ],
-    "count": 3
    },
    {
     "walls": [
@@ -2356,6 +2373,13 @@
     "walls": [
      "[imports-libraries]",
      "[translator-robustness]"
+    ],
+    "count": 1
+   },
+   {
+    "walls": [
+     "[imports-libraries]",
+     "[user-functions]"
     ],
     "count": 1
    },
@@ -2663,18 +2687,18 @@
   "[imperative]": {
    "(served on the runtime lane)": 16,
    "admission:request-other": 8,
-   "runtime:conditional-history": 7,
+   "runtime:conditional-history": 6,
    "pine:builtin": 4,
-   "runtime:statement": 4,
+   "runtime:history-dynamic-offset": 4,
    "admission:varip": 3,
    "pine:function": 3,
-   "runtime:history-dynamic-offset": 3,
    "runtime:request-with-state": 3,
    "pine:request": 2,
    "runtime:call-undeclared-builtin-state": 2,
-   "runtime:colour": 2,
    "runtime:function": 2,
-   "runtime:function-global-state": 2,
+   "runtime:kill-list": 2,
+   "runtime:request": 2,
+   "runtime:statement": 2,
    "runtime:withheld-all": 2,
    "admission:collections:map": 1,
    "admission:collections:matrix": 1,
@@ -2683,9 +2707,10 @@
    "pine:state": 1,
    "runtime:block-value": 1,
    "runtime:call-conversion-state": 1,
+   "runtime:colour": 1,
    "runtime:expression-statement": 1,
-   "runtime:loop": 1,
-   "runtime:request": 1
+   "runtime:function-global-state": 1,
+   "runtime:loop": 1
   },
   "[imports-libraries]": {
    "admission:import": 11,
@@ -2735,9 +2760,6 @@
    "runtime:no-output": 1,
    "runtime:udt-method": 1
   },
-  "[known-divergence]": {
-   "[known-divergence]": 1
-  },
   "[output-contract]": {
    "pine:function": 2,
    "runtime:no-output": 2,
@@ -2754,7 +2776,7 @@
    "admission:request-other": 15,
    "pine:request": 11,
    "host:pine:constant-only": 3,
-   "runtime:request-with-state": 3,
+   "runtime:request": 3,
    "lower-tf:lookahead": 1
   },
   "[strategy]": {
@@ -2762,13 +2784,12 @@
    "pine:strategy-call": 4
   },
   "[text-colour-values]": {
-   "(served on the runtime lane)": 1,
-   "runtime:colour": 1
+   "(served on the runtime lane)": 2
   },
   "[translator-robustness]": {
    "(served on the runtime lane)": 3,
    "admission:request-other": 1,
-   "runtime:directive": 1,
+   "runtime:output-map": 1,
    "runtime:request": 1,
    "runtime:statement": 1
   },
@@ -2789,13 +2810,17 @@
   "[user-functions]": {
    "admission:request-other": 7,
    "pine:function": 5,
-   "runtime:request-with-state": 4,
-   "runtime:fill-target": 3,
+   "runtime:history-dynamic-offset": 3,
+   "runtime:request-with-state": 3,
+   "pine:builtin": 2,
+   "runtime:fill-target": 2,
    "(served on the runtime lane)": 1,
-   "pine:builtin": 1,
+   "admission:import": 1,
+   "admission:library:TradingView/ta/11": 1,
    "runtime:call-undeclared-builtin-state": 1,
    "runtime:conditional-history": 1,
-   "runtime:history-dynamic-offset": 1
+   "runtime:no-output": 1,
+   "runtime:output-map": 1
   }
  },
  "memberWalls": [
@@ -2847,6 +2872,21 @@
    ]
   },
   {
+   "wall": "runtime:conditional-history",
+   "unit": "conditional-history",
+   "sole": 6,
+   "soleFullyEnumerated": 4,
+   "any": 30,
+   "soleScripts": [
+    "builtin:relative-strength-index__RSI",
+    "committed:double-topbottom-ultimate-os__bd013ff4f5",
+    "committed:trendlinesample__61d59f90bc",
+    "reference:logistic-rsi-stoch-roc-ao-by-dgt__aYY2rK1EEf",
+    "reference:trendlines-jd__BYXZzZURrT",
+    "reference:williams-vix-fix-bottoms-and-tops__f5d5130307"
+   ]
+  },
+  {
    "wall": "pine:function",
    "unit": "builtins",
    "sole": 4,
@@ -2857,19 +2897,6 @@
     "reference:fvg-instantaneous-mitigation-signals-luxalgo__4769478b4b",
     "reference:squeeze-momentum-indicator-lazybear-vx-by-dgt__bjAASLSxLp",
     "reference:vp-period__iO1NrPRRG5"
-   ]
-  },
-  {
-   "wall": "runtime:conditional-history",
-   "unit": "conditional-history",
-   "sole": 4,
-   "soleFullyEnumerated": 3,
-   "any": 31,
-   "soleScripts": [
-    "builtin:relative-strength-index__RSI",
-    "committed:trendlinesample__61d59f90bc",
-    "reference:logistic-rsi-stoch-roc-ao-by-dgt__aYY2rK1EEf",
-    "reference:williams-vix-fix-bottoms-and-tops__f5d5130307"
    ]
   },
   {
@@ -2886,15 +2913,39 @@
    ]
   },
   {
+   "wall": "admission:request-other",
+   "unit": "admit:request-other",
+   "sole": 3,
+   "soleFullyEnumerated": 3,
+   "any": 132,
+   "soleScripts": [
+    "committed:fair-value-gap__1048fa103a",
+    "reference:intraday-power-3-visual__f9b34d80bb",
+    "reference:support-resistance-fibonacci-retracement__06a1a2c80d"
+   ]
+  },
+  {
    "wall": "pine:builtin",
    "unit": "builtins",
    "sole": 3,
-   "soleFullyEnumerated": 2,
-   "any": 89,
+   "soleFullyEnumerated": 3,
+   "any": 81,
    "soleScripts": [
     "builtin:visible-average-price__Visible1Aver",
-    "committed:trend-levels-chartprime__90a5bf4ab1",
+    "committed:session-tpo-profile__41088ef96d",
     "reference:rsi-entry-engine-trade-w-samet__6fa55b9515"
+   ]
+  },
+  {
+   "wall": "runtime:call-undeclared-builtin-state",
+   "unit": "builtins",
+   "sole": 3,
+   "soleFullyEnumerated": 3,
+   "any": 55,
+   "soleScripts": [
+    "committed:linear-regression-channel-200__243d67c804",
+    "committed:previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d",
+    "committed:volume-profile-auto-line-v2__b0e947fd20"
    ]
   },
   {
@@ -2902,57 +2953,47 @@
    "unit": "statements",
    "sole": 3,
    "soleFullyEnumerated": 2,
-   "any": 37,
+   "any": 31,
    "soleScripts": [
     "committed:machine-learning-knn-based-strategy__lj1Gjlbycb",
-    "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-    "committed:support-and-resistance__c4792aabd0"
-   ]
-  },
-  {
-   "wall": "runtime:function-global-state",
-   "unit": "function-global-state",
-   "sole": 3,
-   "soleFullyEnumerated": 1,
-   "any": 14,
-   "soleScripts": [
-    "committed:breaks-and-retests-hg__ddba061af8",
-    "reference:auto-length-moving-average-trend-signals-zeiierman__30185ad35b",
-    "reference:breaks-and-retests-with-volatility-stop-hg__ebbd1d4440"
-   ]
-  },
-  {
-   "wall": "runtime:colour",
-   "unit": "colour",
-   "sole": 3,
-   "soleFullyEnumerated": 2,
-   "any": 13,
-   "soleScripts": [
-    "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
-    "committed:volatility-coil-edge-bullbyte__604f0fd1c6",
-    "reference:engulfing-sinyal__pAgeLQw9kl"
-   ]
-  },
-  {
-   "wall": "runtime:call-undeclared-builtin-state",
-   "unit": "builtins",
-   "sole": 2,
-   "soleFullyEnumerated": 2,
-   "any": 54,
-   "soleScripts": [
-    "committed:previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d",
-    "committed:volume-profile-auto-line-v2__b0e947fd20"
+    "committed:support-and-resistance__c4792aabd0",
+    "reference:trend-speed-analyzer-zeiierman__bd2f816c88"
    ]
   },
   {
    "wall": "runtime:history-dynamic-offset",
    "unit": "dynamic-history",
-   "sole": 2,
-   "soleFullyEnumerated": 1,
-   "any": 24,
+   "sole": 3,
+   "soleFullyEnumerated": 2,
+   "any": 30,
    "soleScripts": [
     "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
+    "reference:obv-macd-indicator__5JF4Np02Ma",
     "reference:range-filter-v1__T5nXpEBeCh"
+   ]
+  },
+  {
+   "wall": "runtime:output-map",
+   "unit": "output-contract",
+   "sole": 3,
+   "soleFullyEnumerated": 0,
+   "any": 4,
+   "soleScripts": [
+    "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888",
+    "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd",
+    "reference:ytc-swing-highs-lows__H94Z0NbN5P"
+   ]
+  },
+  {
+   "wall": "runtime:kill-list",
+   "unit": "known-lists",
+   "sole": 3,
+   "soleFullyEnumerated": 3,
+   "any": 3,
+   "soleScripts": [
+    "committed:machine-learning-moving-average-backquant__4d7ff59e68",
+    "committed:momentum-based-zigzag__38d39d2d6c",
+    "committed:volatility-coil-edge-bullbyte__604f0fd1c6"
    ]
   },
   {
@@ -3000,16 +3041,6 @@
    ]
   },
   {
-   "wall": "admission:request-other",
-   "unit": "admit:request-other",
-   "sole": 1,
-   "soleFullyEnumerated": 1,
-   "any": 130,
-   "soleScripts": [
-    "committed:fair-value-gap__1048fa103a"
-   ]
-  },
-  {
    "wall": "admission:method-def",
    "unit": "admit:method-def",
    "sole": 1,
@@ -3024,29 +3055,19 @@
    "unit": "output-contract",
    "sole": 1,
    "soleFullyEnumerated": 0,
-   "any": 14,
+   "any": 13,
    "soleScripts": [
     "builtin:chop-zone__Chop1Zone"
    ]
   },
   {
-   "wall": "runtime:loop",
-   "unit": "loops",
+   "wall": "runtime:block-value",
+   "unit": "block-value",
    "sole": 1,
    "soleFullyEnumerated": 1,
-   "any": 11,
+   "any": 12,
    "soleScripts": [
-    "reference:order-block-detector-luxalgo__7c893384eb"
-   ]
-  },
-  {
-   "wall": "[known-divergence]",
-   "unit": "known-lists",
-   "sole": 1,
-   "soleFullyEnumerated": 1,
-   "any": 9,
-   "soleScripts": [
-    "committed:contraction-box-doji-lines__1486658151"
+    "committed:neural-network-buy-and-sell-signals__fbbb11d0c7"
    ]
   },
   {
@@ -3057,6 +3078,26 @@
    "any": 9,
    "soleScripts": [
     "committed:wyckoff-accumulation-distribution__d9ae726e21"
+   ]
+  },
+  {
+   "wall": "runtime:loop",
+   "unit": "loops",
+   "sole": 1,
+   "soleFullyEnumerated": 1,
+   "any": 9,
+   "soleScripts": [
+    "reference:support-and-resistance-zones-feels__87b9b078c8"
+   ]
+  },
+  {
+   "wall": "runtime:call-text-state",
+   "unit": "state-calls",
+   "sole": 1,
+   "soleFullyEnumerated": 0,
+   "any": 8,
+   "soleScripts": [
+    "committed:trend-levels-chartprime__90a5bf4ab1"
    ]
   },
   {
@@ -3080,6 +3121,16 @@
    ]
   },
   {
+   "wall": "pine:offset-literal",
+   "unit": "dynamic-history",
+   "sole": 1,
+   "soleFullyEnumerated": 1,
+   "any": 6,
+   "soleScripts": [
+    "reference:rsi-cyclic-smoothed__ckgSq3I4CY"
+   ]
+  },
+  {
    "wall": "runtime:history-expression",
    "unit": "dynamic-history",
    "sole": 1,
@@ -3087,16 +3138,6 @@
    "any": 6,
    "soleScripts": [
     "reference:smc-target-liquidity-v35-manual-distance-control__811da09c25"
-   ]
-  },
-  {
-   "wall": "runtime:lower",
-   "unit": "robustness",
-   "sole": 1,
-   "soleFullyEnumerated": 0,
-   "any": 6,
-   "soleScripts": [
-    "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd"
    ]
   },
   {
@@ -3110,13 +3151,13 @@
    ]
   },
   {
-   "wall": "pine:offset-literal",
-   "unit": "dynamic-history",
+   "wall": "runtime:object-op",
+   "unit": "objects",
    "sole": 1,
-   "soleFullyEnumerated": 1,
+   "soleFullyEnumerated": 0,
    "any": 5,
    "soleScripts": [
-    "reference:rsi-cyclic-smoothed__ckgSq3I4CY"
+    "committed:fibonacci-retracement-mtflog__54a8dbfa8e"
    ]
   },
   {
@@ -3130,16 +3171,6 @@
    ]
   },
   {
-   "wall": "runtime:directive",
-   "unit": "statements",
-   "sole": 1,
-   "soleFullyEnumerated": 0,
-   "any": 4,
-   "soleScripts": [
-    "reference:ytc-swing-highs-lows__H94Z0NbN5P"
-   ]
-  },
-  {
    "wall": "object op dropped: guard:create <- pine:request",
    "unit": "objects",
    "sole": 1,
@@ -3150,16 +3181,6 @@
    ]
   },
   {
-   "wall": "object op dropped: guard:loop <- pine:block",
-   "unit": "objects",
-   "sole": 1,
-   "soleFullyEnumerated": 1,
-   "any": 3,
-   "soleScripts": [
-    "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c"
-   ]
-  },
-  {
    "wall": "runtime:withheld-all",
    "unit": "output-contract",
    "sole": 1,
@@ -3167,6 +3188,16 @@
    "any": 3,
    "soleScripts": [
     "reference:coral-trend-indicator-lazybear__836"
+   ]
+  },
+  {
+   "wall": "object op dropped: guard:loop <- pine:block",
+   "unit": "objects",
+   "sole": 1,
+   "soleFullyEnumerated": 1,
+   "any": 2,
+   "soleScripts": [
+    "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c"
    ]
   },
   {
@@ -3220,47 +3251,19 @@
    ]
   },
   {
-   "wall": "runtime:kill-list",
-   "unit": "known-lists",
-   "sole": 1,
-   "soleFullyEnumerated": 1,
-   "any": 1,
-   "soleScripts": [
-    "committed:momentum-based-zigzag__38d39d2d6c"
-   ]
-  },
-  {
-   "wall": "runtime:output-map",
-   "unit": "output-contract",
-   "sole": 1,
+   "wall": "admission:import",
+   "unit": "libraries",
+   "sole": 0,
    "soleFullyEnumerated": 0,
-   "any": 1,
-   "soleScripts": [
-    "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888"
-   ]
+   "any": 53,
+   "soleScripts": []
   },
   {
    "wall": "runtime:library",
    "unit": "libraries",
    "sole": 0,
    "soleFullyEnumerated": 0,
-   "any": 60,
-   "soleScripts": []
-  },
-  {
-   "wall": "admission:import",
-   "unit": "libraries",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 58,
-   "soleScripts": []
-  },
-  {
-   "wall": "runtime:request-with-state",
-   "unit": "request-with-state",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 39,
+   "any": 53,
    "soleScripts": []
   },
   {
@@ -3268,15 +3271,7 @@
    "unit": "request",
    "sole": 0,
    "soleFullyEnumerated": 0,
-   "any": 35,
-   "soleScripts": []
-  },
-  {
-   "wall": "runtime:expression-statement",
-   "unit": "statements",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 19,
+   "any": 36,
    "soleScripts": []
   },
   {
@@ -3284,7 +3279,23 @@
    "unit": "request",
    "sole": 0,
    "soleFullyEnumerated": 0,
-   "any": 17,
+   "any": 29,
+   "soleScripts": []
+  },
+  {
+   "wall": "runtime:request-with-state",
+   "unit": "request-with-state",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 27,
+   "soleScripts": []
+  },
+  {
+   "wall": "runtime:expression-statement",
+   "unit": "statements",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 18,
    "soleScripts": []
   },
   {
@@ -3304,22 +3315,6 @@
    "soleScripts": []
   },
   {
-   "wall": "runtime:block-value",
-   "unit": "block-value",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 12,
-   "soleScripts": []
-  },
-  {
-   "wall": "object op dropped: loop:empty",
-   "unit": "objects",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 11,
-   "soleScripts": []
-  },
-  {
    "wall": "lower-tf:store-unmeasured",
    "unit": "lower-tf",
    "sole": 0,
@@ -3328,16 +3323,8 @@
    "soleScripts": []
   },
   {
-   "wall": "object op dropped: coll:diverged",
+   "wall": "object op dropped: loop:empty",
    "unit": "objects",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 10,
-   "soleScripts": []
-  },
-  {
-   "wall": "runtime:no-output",
-   "unit": "output-contract",
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 10,
@@ -3352,6 +3339,30 @@
    "soleScripts": []
   },
   {
+   "wall": "runtime:no-output",
+   "unit": "output-contract",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 9,
+   "soleScripts": []
+  },
+  {
+   "wall": "runtime:unbound",
+   "unit": "statements",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 9,
+   "soleScripts": []
+  },
+  {
+   "wall": "[known-divergence]",
+   "unit": "known-lists",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 8,
+   "soleScripts": []
+  },
+  {
    "wall": "admission:collections:map",
    "unit": "admit:collections:map",
    "sole": 0,
@@ -3360,7 +3371,7 @@
    "soleScripts": []
   },
   {
-   "wall": "object op dropped: loop:bounds",
+   "wall": "object op dropped: coll:diverged",
    "unit": "objects",
    "sole": 0,
    "soleFullyEnumerated": 0,
@@ -3376,8 +3387,8 @@
    "soleScripts": []
   },
   {
-   "wall": "runtime:unbound",
-   "unit": "statements",
+   "wall": "runtime:function-global-state",
+   "unit": "function-global-state",
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 8,
@@ -3392,7 +3403,7 @@
    "soleScripts": []
   },
   {
-   "wall": "runtime:nothing-drawn",
+   "wall": "object op dropped: loop:bounds",
    "unit": "objects",
    "sole": 0,
    "soleFullyEnumerated": 0,
@@ -3400,11 +3411,19 @@
    "soleScripts": []
   },
   {
-   "wall": "admission:library:TradingView/ta/11",
-   "unit": "libraries",
+   "wall": "pine:drawing",
+   "unit": "objects",
    "sole": 0,
    "soleFullyEnumerated": 0,
-   "any": 6,
+   "any": 7,
+   "soleScripts": []
+  },
+  {
+   "wall": "runtime:colour",
+   "unit": "colour",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 7,
    "soleScripts": []
   },
   {
@@ -3420,23 +3439,7 @@
    "unit": "call-mapping",
    "sole": 0,
    "soleFullyEnumerated": 0,
-   "any": 6,
-   "soleScripts": []
-  },
-  {
-   "wall": "pine:drawing",
-   "unit": "objects",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 6,
-   "soleScripts": []
-  },
-  {
-   "wall": "runtime:call-text-state",
-   "unit": "state-calls",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 6,
+   "any": 5,
    "soleScripts": []
   },
   {
@@ -3464,8 +3467,16 @@
    "soleScripts": []
   },
   {
-   "wall": "runtime:fill-target",
-   "unit": "colour",
+   "wall": "runtime:call-windowed-state",
+   "unit": "state-calls",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 5,
+   "soleScripts": []
+  },
+  {
+   "wall": "runtime:nothing-drawn",
+   "unit": "objects",
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 5,
@@ -3512,16 +3523,8 @@
    "soleScripts": []
   },
   {
-   "wall": "runtime:call-windowed-state",
-   "unit": "state-calls",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 4,
-   "soleScripts": []
-  },
-  {
-   "wall": "runtime:object-op",
-   "unit": "objects",
+   "wall": "runtime:fill-target",
+   "unit": "colour",
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 4,
@@ -3593,22 +3596,6 @@
   },
   {
    "wall": "object op dropped: fn:conditional-history",
-   "unit": "objects",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 3,
-   "soleScripts": []
-  },
-  {
-   "wall": "object op dropped: geometry:lost",
-   "unit": "objects",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 3,
-   "soleScripts": []
-  },
-  {
-   "wall": "object op dropped: geometry:withheld",
    "unit": "objects",
    "sole": 0,
    "soleFullyEnumerated": 0,
@@ -3704,6 +3691,14 @@
    "soleScripts": []
   },
   {
+   "wall": "admission:library:TradingView/ta/11",
+   "unit": "libraries",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 2,
+   "soleScripts": []
+  },
+  {
    "wall": "admission:library:TradingView/ta/8",
    "unit": "libraries",
    "sole": 0,
@@ -3776,14 +3771,6 @@
    "soleScripts": []
   },
   {
-   "wall": "object op dropped: create:label <- pine:text-value",
-   "unit": "objects",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 2,
-   "soleScripts": []
-  },
-  {
    "wall": "object op dropped: create:line <- pine:block",
    "unit": "objects",
    "sole": 0,
@@ -3793,6 +3780,22 @@
   },
   {
    "wall": "object op dropped: create:line <- pine:request",
+   "unit": "objects",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 2,
+   "soleScripts": []
+  },
+  {
+   "wall": "object op dropped: geometry:lost",
+   "unit": "objects",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 2,
+   "soleScripts": []
+  },
+  {
+   "wall": "object op dropped: geometry:withheld",
    "unit": "objects",
    "sole": 0,
    "soleFullyEnumerated": 0,
@@ -3896,8 +3899,8 @@
    "soleScripts": []
   },
   {
-   "wall": "pine:statement",
-   "unit": "statements",
+   "wall": "pine:input-kind",
+   "unit": "call-mapping",
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 2,
@@ -3906,6 +3909,14 @@
   {
    "wall": "runtime:enum",
    "unit": "types",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 2,
+   "soleScripts": []
+  },
+  {
+   "wall": "runtime:input-state",
+   "unit": "state-calls",
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 2,
@@ -4320,22 +4331,6 @@
    "soleScripts": []
   },
   {
-   "wall": "admission:library:theEccentricTrader/PubLibPattern/4",
-   "unit": "libraries",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 1,
-   "soleScripts": []
-  },
-  {
-   "wall": "admission:library:theEccentricTrader/PubLibSwing/3",
-   "unit": "libraries",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 1,
-   "soleScripts": []
-  },
-  {
    "wall": "array.remove",
    "unit": "collections",
    "sole": 0,
@@ -4488,6 +4483,14 @@
    "soleScripts": []
   },
   {
+   "wall": "object op dropped: create:label <- pine:text-value",
+   "unit": "objects",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 1,
+   "soleScripts": []
+  },
+  {
    "wall": "object op dropped: create:label <- pine:type",
    "unit": "objects",
    "sole": 0,
@@ -4505,14 +4508,6 @@
   },
   {
    "wall": "object op dropped: create:line <- pine:drawing",
-   "unit": "objects",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 1,
-   "soleScripts": []
-  },
-  {
-   "wall": "object op dropped: create:line <- pine:text-value",
    "unit": "objects",
    "sole": 0,
    "soleFullyEnumerated": 0,
@@ -4600,14 +4595,6 @@
    "soleScripts": []
   },
   {
-   "wall": "object op dropped: guard:coll_push <- pine:object-condition",
-   "unit": "objects",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 1,
-   "soleScripts": []
-  },
-  {
    "wall": "object op dropped: guard:coll_push <- pine:type",
    "unit": "objects",
    "sole": 0,
@@ -4664,14 +4651,6 @@
    "soleScripts": []
   },
   {
-   "wall": "object op dropped: guard:create <- pine:object-condition",
-   "unit": "objects",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 1,
-   "soleScripts": []
-  },
-  {
    "wall": "object op dropped: guard:create <- pine:reassign",
    "unit": "objects",
    "sole": 0,
@@ -4705,14 +4684,6 @@
   },
   {
    "wall": "object op dropped: guard:delete <- pine:function-def",
-   "unit": "objects",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 1,
-   "soleScripts": []
-  },
-  {
-   "wall": "object op dropped: guard:delete <- pine:object-condition",
    "unit": "objects",
    "sole": 0,
    "soleFullyEnumerated": 0,
@@ -4848,16 +4819,16 @@
    "soleScripts": []
   },
   {
-   "wall": "pine:input-kind",
-   "unit": "call-mapping",
+   "wall": "pine:member",
+   "unit": "types",
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 1,
    "soleScripts": []
   },
   {
-   "wall": "pine:member",
-   "unit": "types",
+   "wall": "pine:statement",
+   "unit": "statements",
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 1,
@@ -4910,14 +4881,6 @@
    "soleFullyEnumerated": 0,
    "any": 1,
    "soleScripts": []
-  },
-  {
-   "wall": "runtime:input-state",
-   "unit": "state-calls",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 1,
-   "soleScripts": []
   }
  ],
  "memberPairs": [
@@ -4947,19 +4910,20 @@
   {
    "walls": [
     "admission:request-other",
-    "runtime:request-with-state"
+    "runtime:request"
    ],
    "scripts": [
-    "committed:boom-hunter-entry-point-screener-alerts__0fc5982548",
+    "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
     "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0",
-    "committed:mtf-watchlist-charts-anan__3453680ea1",
+    "committed:multi-timeframe-trend-indicator__fa4022ecf5",
+    "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
     "reference:best-abcd-pattern-screener__ROdc6mWjx4",
     "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f",
     "reference:best-rsi-divergences-screener__TmlpugZKr6",
-    "reference:money-flow-index-mtf-alerts__RkKU95fUai",
-    "reference:supertrend-mtf-heatmap__ODcEBlvB3g"
+    "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029",
+    "reference:saty-atr-levels__99165984ef"
    ],
-   "count": 8
+   "count": 9
   },
   {
    "walls": [
@@ -4980,25 +4944,37 @@
   {
    "walls": [
     "admission:request-other",
-    "runtime:request"
+    "pine:function"
    ],
    "scripts": [
-    "committed:multi-timeframe-trend-indicator__fa4022ecf5",
-    "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
-    "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029",
-    "reference:saty-atr-levels__99165984ef"
+    "committed:asianrange-and-killzones__ef41eb5ad6",
+    "committed:screener-mean-reversion-channel__nTK2sHWDlB",
+    "committed:zigzag-ma-pattern-recognition__1302",
+    "reference:supertrendrange-by-dgt__jDAxwdo5u7"
    ],
    "count": 4
   },
   {
    "walls": [
     "admission:request-other",
-    "pine:function"
+    "lower-tf:store-unmeasured"
    ],
    "scripts": [
-    "committed:asianrange-and-killzones__ef41eb5ad6",
-    "committed:zigzag-ma-pattern-recognition__1302",
-    "reference:supertrendrange-by-dgt__jDAxwdo5u7"
+    "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8",
+    "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0",
+    "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326"
+   ],
+   "count": 3
+  },
+  {
+   "walls": [
+    "admission:request-other",
+    "runtime:request-with-state"
+   ],
+   "scripts": [
+    "committed:boom-hunter-entry-point-screener-alerts__0fc5982548",
+    "reference:money-flow-index-mtf-alerts__RkKU95fUai",
+    "reference:supertrend-mtf-heatmap__ODcEBlvB3g"
    ],
    "count": 3
   },
@@ -5010,17 +4986,6 @@
    "scripts": [
     "reference:strategyrszigzag-pa-strategy-v41__2186",
     "reference:strategyrszigzag-pa-strategy-v4__2134"
-   ],
-   "count": 2
-  },
-  {
-   "walls": [
-    "admission:request-other",
-    "lower-tf:store-unmeasured"
-   ],
-   "scripts": [
-    "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8",
-    "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326"
    ],
    "count": 2
   },
@@ -5209,7 +5174,7 @@
   {
    "walls": [
     "admission:varip",
-    "runtime:function-global-state"
+    "runtime:history-dynamic-offset"
    ],
    "scripts": [
     "committed:bolingger-bands-inside-bar-boxes__3294017d4f"
@@ -5268,31 +5233,11 @@
   },
   {
    "walls": [
-    "object op dropped: coll:diverged",
-    "object op dropped: loop:bounds"
-   ],
-   "scripts": [
-    "reference:support-resistance-fibonacci-retracement__06a1a2c80d"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
     "object op dropped: create:label <- pine:request",
     "object op dropped: create:line <- pine:request"
    ],
    "scripts": [
     "reference:range-filter-x-hull-suite__8430e18838"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "object op dropped: create:label <- pine:text-value",
-    "object op dropped: create:line <- pine:text-value"
-   ],
-   "scripts": [
-    "reference:intraday-power-3-visual__f9b34d80bb"
    ],
    "count": 1
   },
@@ -5362,7 +5307,17 @@
     "runtime:statement"
    ],
    "scripts": [
-    "committed:session-tpo-profile__41088ef96d"
+    "reference:interactive-atr-stop-loss__6d419f128f"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "pine:function",
+    "runtime:call-text-state"
+   ],
+   "scripts": [
+    "reference:fvg-order-blocks-bigbeluga__64decdabc4"
    ],
    "count": 1
   },
@@ -5418,26 +5373,6 @@
   },
   {
    "walls": [
-    "runtime:block-value",
-    "runtime:lower"
-   ],
-   "scripts": [
-    "committed:neural-network-buy-and-sell-signals__fbbb11d0c7"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "runtime:conditional-history",
-    "runtime:directive"
-   ],
-   "scripts": [
-    "committed:double-topbottom-ultimate-os__bd013ff4f5"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
     "runtime:conditional-history",
     "runtime:history-expression"
    ],
@@ -5448,27 +5383,7 @@
   },
   {
    "walls": [
-    "runtime:conditional-history",
-    "runtime:loop"
-   ],
-   "scripts": [
-    "reference:support-and-resistance-zones-feels__87b9b078c8"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "runtime:conditional-history",
-    "runtime:statement"
-   ],
-   "scripts": [
-    "reference:trendlines-jd__BYXZzZURrT"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "runtime:function-global-state",
+    "runtime:history-dynamic-offset",
     "runtime:loop"
    ],
    "scripts": [
@@ -5478,21 +5393,11 @@
   },
   {
    "walls": [
-    "runtime:function-global-state",
+    "runtime:history-dynamic-offset",
     "runtime:statement"
    ],
    "scripts": [
-    "reference:trend-speed-analyzer-zeiierman__bd2f816c88"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "runtime:history-dynamic-offset",
-    "runtime:lower"
-   ],
-   "scripts": [
-    "reference:obv-macd-indicator__5JF4Np02Ma"
+    "committed:volume-profile-v054beta__PNSKf75832"
    ],
    "count": 1
   },
@@ -5549,7 +5454,7 @@
   "pine:arity": [
    [
     "(a script's own identifier)",
-    3
+    2
    ],
    [
     "max",
@@ -5577,15 +5482,15 @@
   "pine:builtin": [
    [
     "(a script's own identifier)",
-    41
+    37
    ],
    [
     "barstate.isnew",
     6
    ],
    [
-    "chart.fg_color",
-    6
+    "syminfo.type",
+    5
    ],
    [
     "timeframe.in_seconds",
@@ -5593,10 +5498,6 @@
    ],
    [
     "chart.left_visible_bar_time",
-    4
-   ],
-   [
-    "syminfo.type",
     4
    ],
    [
@@ -5608,11 +5509,11 @@
     4
    ],
    [
-    "chart.bg_color",
+    "chart.right_visible_bar_time",
     3
    ],
    [
-    "chart.right_visible_bar_time",
+    "str.format",
     3
    ],
    [
@@ -5628,8 +5529,8 @@
     2
    ],
    [
-    "str.format",
-    2
+    "chart.fg_color",
+    1
    ],
    [
     "chart.point.from_time",
@@ -5674,6 +5575,10 @@
    [
     "syminfo.target_price_low",
     1
+   ],
+   [
+    "syminfo.volumetype",
+    1
    ]
   ],
   "pine:collection": [
@@ -5695,7 +5600,7 @@
   "pine:drawing": [
    [
     "label.all",
-    3
+    4
    ],
    [
     "label.style_label_left",
@@ -5721,11 +5626,11 @@
   "pine:function": [
    [
     "(a script's own identifier)",
-    24
+    23
    ],
    [
     "time",
-    9
+    10
    ],
    [
     "color",
@@ -5782,6 +5687,10 @@
   ],
   "pine:input-kind": [
    [
+    "input.enum",
+    1
+   ],
+   [
     "input.string",
     1
    ]
@@ -5802,6 +5711,10 @@
    [
     "(a script's own identifier)",
     4
+   ],
+   [
+    "barstate.isconfirmed",
+    1
    ],
    [
     "barstate.ishistory",
@@ -5830,12 +5743,12 @@
     2
    ],
    [
-    "request.splits",
+    "request.footprint",
     2
    ],
    [
-    "request.footprint",
-    1
+    "request.splits",
+    2
    ]
   ],
   "pine:state": [
@@ -5893,7 +5806,7 @@
   "pine:undefined": [
    [
     "(a script's own identifier)",
-    46
+    47
    ]
   ],
   "pine:window": [
@@ -5951,7 +5864,7 @@
   "runtime:call-text-state": [
    [
     "str.tostring",
-    4
+    5
    ],
    [
     "str.format",
@@ -5965,7 +5878,7 @@
   "runtime:call-undeclared-builtin-state": [
    [
     "(a script's own identifier)",
-    37
+    35
    ],
    [
     "chart.point.from_index",
@@ -6008,7 +5921,15 @@
     1
    ],
    [
+    "heikinashi",
+    1
+   ],
+   [
     "linreg",
+    1
+   ],
+   [
+    "math.round_to_mintick",
     1
    ],
    [
@@ -6024,6 +5945,10 @@
     1
    ],
    [
+    "ta.roc",
+    1
+   ],
+   [
     "time_close",
     1
    ],
@@ -6036,6 +5961,10 @@
    [
     "ta.vwap",
     2
+   ],
+   [
+    "ta.percentile_nearest_rank",
+    1
    ],
    [
     "ta.pivothigh",
@@ -6059,7 +5988,7 @@
   "runtime:colour": [
    [
     "color.new",
-    7
+    3
    ],
    [
     "and",
@@ -6076,10 +6005,6 @@
    [
     "fill",
     1
-   ],
-   [
-    "ta.max",
-    1
    ]
   ],
   "runtime:conditional-history": [
@@ -6089,7 +6014,7 @@
    ],
    [
     "and",
-    7
+    6
    ],
    [
     "if",
@@ -6108,12 +6033,6 @@
     1
    ]
   ],
-  "runtime:directive": [
-   [
-    "max_bars_back",
-    3
-   ]
-  ],
   "runtime:enum": [
    [
     "(a script's own identifier)",
@@ -6127,7 +6046,7 @@
   "runtime:expression-statement": [
    [
     "(a script's own identifier)",
-    17
+    16
    ],
    [
     "barssince",
@@ -6141,7 +6060,7 @@
   "runtime:fill-target": [
    [
     "fill",
-    5
+    4
    ]
   ],
   "runtime:function": [
@@ -6158,24 +6077,12 @@
    [
     "(a script's own identifier)",
     1
-   ],
-   [
-    "ta.highest",
-    1
-   ],
-   [
-    "ta.lowest",
-    1
-   ],
-   [
-    "ta.sma",
-    1
    ]
   ],
   "runtime:history-dynamic-offset": [
    [
     "(a script's own identifier)",
-    9
+    12
    ],
    [
     "ta.wma",
@@ -6206,6 +6113,14 @@
     1
    ],
    [
+    "ta.highest",
+    1
+   ],
+   [
+    "ta.lowest",
+    1
+   ],
+   [
     "ta.sma",
     1
    ]
@@ -6226,6 +6141,10 @@
   ],
   "runtime:input-state": [
    [
+    "input",
+    1
+   ],
+   [
     "input.int",
     1
    ]
@@ -6233,13 +6152,13 @@
   "runtime:library": [
    [
     "import",
-    60
+    53
    ]
   ],
   "runtime:loop": [
    [
     "for",
-    11
+    9
    ]
   ],
   "runtime:object-op": [
@@ -6254,18 +6173,26 @@
    [
     "line.new",
     1
+   ],
+   [
+    "ta.max",
+    1
    ]
   ],
   "runtime:request": [
    [
     "request.security",
-    15
+    16
+   ],
+   [
+    "security",
+    9
    ]
   ],
   "runtime:request-with-state": [
    [
     "security",
-    24
+    12
    ],
    [
     "request.security",
@@ -6279,15 +6206,11 @@
   "runtime:statement": [
    [
     "(a script's own identifier)",
-    12
+    9
    ],
    [
     "time",
     6
-   ],
-   [
-    "color.new",
-    2
    ],
    [
     "ta.pivothigh",
@@ -6306,10 +6229,6 @@
     1
    ],
    [
-    "array.new_float",
-    1
-   ],
-   [
     "box",
     1
    ],
@@ -6318,7 +6237,7 @@
     1
    ],
    [
-    "float",
+    "ema",
     1
    ],
    [
@@ -6331,10 +6250,6 @@
    ],
    [
     "min",
-    1
-   ],
-   [
-    "ta.change",
     1
    ],
    [
@@ -6360,6 +6275,10 @@
    [
     "(a script's own identifier)",
     8
+   ],
+   [
+    "time_close",
+    1
    ]
   ],
   "runtime:varip": [
@@ -6441,30 +6360,23 @@
     "admission:library:loxx/loxxmas/1",
     "admission:library:reees/Algebra/3",
     "admission:library:reees/TA/11",
-    "admission:library:theEccentricTrader/PubLibPattern/4",
-    "admission:library:theEccentricTrader/PubLibSwing/3",
     "pine:library-denied",
     "runtime:library"
    ],
-   "sole": 3,
-   "soleFullyEnumerated": 3,
-   "soleServable": 3,
-   "any": 65,
+   "sole": 2,
+   "soleFullyEnumerated": 2,
+   "soleServable": 2,
+   "any": 60,
    "soleScripts": [
-    "committed:all-chart-patterns-theeccentrictrader__03e4633d31",
     "committed:kalman-psar-backquant__0a389f529b",
     "reference:volume-profile-heatmap__89dbe956a4"
    ],
    "evidence": {
     "counts": {
-     "committedOther": 2,
+     "committedOther": 1,
      "ledgerOnly": 1
     },
     "queue": [
-     {
-      "script": "committed:all-chart-patterns-theeccentrictrader__03e4633d31",
-      "status": "committedOther"
-     },
      {
       "script": "committed:kalman-psar-backquant__0a389f529b",
       "status": "committedOther"
@@ -6652,7 +6564,7 @@
       "status": "committedOther"
      },
      {
-      "script": "committed:supertrend-strategy__rcRbtoBiKG",
+      "script": "committed:optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84",
       "status": "committedOther"
      },
      {
@@ -6747,7 +6659,7 @@
    "sole": 0,
    "soleFullyEnumerated": 0,
    "soleServable": 0,
-   "any": 39,
+   "any": 27,
    "soleScripts": [],
    "evidence": {
     "counts": {},
@@ -6766,7 +6678,7 @@
    "sole": 0,
    "soleFullyEnumerated": 0,
    "soleServable": 0,
-   "any": 51,
+   "any": 64,
    "soleScripts": [],
    "evidence": {
     "counts": {},
@@ -6804,15 +6716,16 @@
     "runtime:call-undeclared-builtin-state",
     "runtime:clock-zone"
    ],
-   "sole": 11,
-   "soleFullyEnumerated": 9,
-   "soleServable": 11,
-   "any": 157,
+   "sole": 12,
+   "soleFullyEnumerated": 11,
+   "soleServable": 12,
+   "any": 150,
    "soleScripts": [
     "builtin:moon-phases__Moon1Phases",
     "builtin:visible-average-price__Visible1Aver",
+    "committed:linear-regression-channel-200__243d67c804",
     "committed:previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d",
-    "committed:trend-levels-chartprime__90a5bf4ab1",
+    "committed:session-tpo-profile__41088ef96d",
     "committed:volume-profile-auto-line-v2__b0e947fd20",
     "reference:cm-forex-sessions-highlight-v1__41",
     "reference:fvg-instantaneous-mitigation-signals-luxalgo__4769478b4b",
@@ -6824,7 +6737,8 @@
    "evidence": {
     "counts": {
      "committedOther": 3,
-     "ledgerOnly": 8
+     "ledgerOnly": 8,
+     "none": 1
     },
     "queue": [
      {
@@ -6836,12 +6750,16 @@
       "status": "ledgerOnly"
      },
      {
+      "script": "committed:linear-regression-channel-200__243d67c804",
+      "status": "committedOther"
+     },
+     {
       "script": "committed:previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d",
       "status": "committedOther"
      },
      {
-      "script": "committed:trend-levels-chartprime__90a5bf4ab1",
-      "status": "committedOther"
+      "script": "committed:session-tpo-profile__41088ef96d",
+      "status": "none"
      },
      {
       "script": "committed:volume-profile-auto-line-v2__b0e947fd20",
@@ -6882,20 +6800,22 @@
    "walls": [
     "runtime:conditional-history"
    ],
-   "sole": 4,
-   "soleFullyEnumerated": 3,
-   "soleServable": 4,
-   "any": 31,
+   "sole": 6,
+   "soleFullyEnumerated": 4,
+   "soleServable": 6,
+   "any": 30,
    "soleScripts": [
     "builtin:relative-strength-index__RSI",
+    "committed:double-topbottom-ultimate-os__bd013ff4f5",
     "committed:trendlinesample__61d59f90bc",
     "reference:logistic-rsi-stoch-roc-ao-by-dgt__aYY2rK1EEf",
+    "reference:trendlines-jd__BYXZzZURrT",
     "reference:williams-vix-fix-bottoms-and-tops__f5d5130307"
    ],
    "evidence": {
     "counts": {
-     "committedOther": 1,
-     "ledgerOnly": 3
+     "committedOther": 2,
+     "ledgerOnly": 4
     },
     "queue": [
      {
@@ -6903,11 +6823,19 @@
       "status": "ledgerOnly"
      },
      {
+      "script": "committed:double-topbottom-ultimate-os__bd013ff4f5",
+      "status": "committedOther"
+     },
+     {
       "script": "committed:trendlinesample__61d59f90bc",
       "status": "committedOther"
      },
      {
       "script": "reference:logistic-rsi-stoch-roc-ao-by-dgt__aYY2rK1EEf",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:trendlines-jd__BYXZzZURrT",
       "status": "ledgerOnly"
      },
      {
@@ -6929,12 +6857,13 @@
     "runtime:history-dynamic-offset",
     "runtime:history-expression"
    ],
-   "sole": 4,
-   "soleFullyEnumerated": 2,
-   "soleServable": 4,
-   "any": 38,
+   "sole": 5,
+   "soleFullyEnumerated": 3,
+   "soleServable": 5,
+   "any": 44,
    "soleScripts": [
     "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
+    "reference:obv-macd-indicator__5JF4Np02Ma",
     "reference:range-filter-v1__T5nXpEBeCh",
     "reference:rsi-cyclic-smoothed__ckgSq3I4CY",
     "reference:smc-target-liquidity-v35-manual-distance-control__811da09c25"
@@ -6942,12 +6871,16 @@
    "evidence": {
     "counts": {
      "committedOther": 1,
-     "ledgerOnly": 3
+     "ledgerOnly": 4
     },
     "queue": [
      {
       "script": "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
       "status": "committedOther"
+     },
+     {
+      "script": "reference:obv-macd-indicator__5JF4Np02Ma",
+      "status": "ledgerOnly"
      },
      {
       "script": "reference:range-filter-v1__T5nXpEBeCh",
@@ -6971,24 +6904,22 @@
    "size": 2,
    "walls": [
     "pine:statement",
-    "runtime:directive",
     "runtime:expression-statement",
     "runtime:statement",
     "runtime:unbound"
    ],
-   "sole": 4,
+   "sole": 3,
    "soleFullyEnumerated": 2,
-   "soleServable": 4,
-   "any": 64,
+   "soleServable": 3,
+   "any": 54,
    "soleScripts": [
     "committed:machine-learning-knn-based-strategy__lj1Gjlbycb",
-    "committed:machine-learning-moving-average-backquant__4d7ff59e68",
     "committed:support-and-resistance__c4792aabd0",
-    "reference:ytc-swing-highs-lows__H94Z0NbN5P"
+    "reference:trend-speed-analyzer-zeiierman__bd2f816c88"
    ],
    "evidence": {
     "counts": {
-     "committedOther": 3,
+     "committedOther": 2,
      "ledgerOnly": 1
     },
     "queue": [
@@ -6997,15 +6928,11 @@
       "status": "committedOther"
      },
      {
-      "script": "committed:machine-learning-moving-average-backquant__4d7ff59e68",
-      "status": "committedOther"
-     },
-     {
       "script": "committed:support-and-resistance__c4792aabd0",
       "status": "committedOther"
      },
      {
-      "script": "reference:ytc-swing-highs-lows__H94Z0NbN5P",
+      "script": "reference:trend-speed-analyzer-zeiierman__bd2f816c88",
       "status": "ledgerOnly"
      }
     ]
@@ -7019,34 +6946,14 @@
    "walls": [
     "runtime:function-global-state"
    ],
-   "sole": 3,
-   "soleFullyEnumerated": 1,
-   "soleServable": 3,
-   "any": 14,
-   "soleScripts": [
-    "committed:breaks-and-retests-hg__ddba061af8",
-    "reference:auto-length-moving-average-trend-signals-zeiierman__30185ad35b",
-    "reference:breaks-and-retests-with-volatility-stop-hg__ebbd1d4440"
-   ],
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "soleServable": 0,
+   "any": 8,
+   "soleScripts": [],
    "evidence": {
-    "counts": {
-     "committedOther": 1,
-     "ledgerOnly": 2
-    },
-    "queue": [
-     {
-      "script": "committed:breaks-and-retests-hg__ddba061af8",
-      "status": "committedOther"
-     },
-     {
-      "script": "reference:auto-length-moving-average-trend-signals-zeiierman__30185ad35b",
-      "status": "ledgerOnly"
-     },
-     {
-      "script": "reference:breaks-and-retests-with-volatility-stop-hg__ebbd1d4440",
-      "status": "ledgerOnly"
-     }
-    ]
+    "counts": {},
+    "queue": []
    }
   },
   {
@@ -7076,14 +6983,23 @@
    "walls": [
     "runtime:block-value"
    ],
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "soleServable": 0,
+   "sole": 1,
+   "soleFullyEnumerated": 1,
+   "soleServable": 1,
    "any": 12,
-   "soleScripts": [],
+   "soleScripts": [
+    "committed:neural-network-buy-and-sell-signals__fbbb11d0c7"
+   ],
    "evidence": {
-    "counts": {},
-    "queue": []
+    "counts": {
+     "committedOther": 1
+    },
+    "queue": [
+     {
+      "script": "committed:neural-network-buy-and-sell-signals__fbbb11d0c7",
+      "status": "committedOther"
+     }
+    ]
    }
   },
   {
@@ -7097,9 +7013,9 @@
    "sole": 1,
    "soleFullyEnumerated": 1,
    "soleServable": 1,
-   "any": 11,
+   "any": 9,
    "soleScripts": [
-    "reference:order-block-detector-luxalgo__7c893384eb"
+    "reference:support-and-resistance-zones-feels__87b9b078c8"
    ],
    "evidence": {
     "counts": {
@@ -7107,7 +7023,7 @@
     },
     "queue": [
      {
-      "script": "reference:order-block-detector-luxalgo__7c893384eb",
+      "script": "reference:support-and-resistance-zones-feels__87b9b078c8",
       "status": "ledgerOnly"
      }
     ]
@@ -7125,18 +7041,24 @@
     "runtime:call-windowed-state",
     "runtime:input-state"
    ],
-   "sole": 1,
+   "sole": 2,
    "soleFullyEnumerated": 1,
-   "soleServable": 1,
-   "any": 14,
+   "soleServable": 2,
+   "any": 18,
    "soleScripts": [
+    "committed:trend-levels-chartprime__90a5bf4ab1",
     "reference:rth-opening-range-with-extensions__88bbcc36f3"
    ],
    "evidence": {
     "counts": {
+     "committedOther": 1,
      "none": 1
     },
     "queue": [
+     {
+      "script": "committed:trend-levels-chartprime__90a5bf4ab1",
+      "status": "committedOther"
+     },
      {
       "script": "reference:rth-opening-range-with-extensions__88bbcc36f3",
       "status": "none"
@@ -7155,34 +7077,14 @@
     "runtime:colour",
     "runtime:fill-target"
    ],
-   "sole": 3,
-   "soleFullyEnumerated": 2,
-   "soleServable": 3,
-   "any": 21,
-   "soleScripts": [
-    "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
-    "committed:volatility-coil-edge-bullbyte__604f0fd1c6",
-    "reference:engulfing-sinyal__pAgeLQw9kl"
-   ],
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "soleServable": 0,
+   "any": 14,
+   "soleScripts": [],
    "evidence": {
-    "counts": {
-     "committedOther": 2,
-     "ledgerOnly": 1
-    },
-    "queue": [
-     {
-      "script": "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
-      "status": "committedOther"
-     },
-     {
-      "script": "committed:volatility-coil-edge-bullbyte__604f0fd1c6",
-      "status": "committedOther"
-     },
-     {
-      "script": "reference:engulfing-sinyal__pAgeLQw9kl",
-      "status": "ledgerOnly"
-     }
-    ]
+    "counts": {},
+    "queue": []
    }
   },
   {
@@ -7269,7 +7171,6 @@
     "object op dropped: create:line <- pine:drawing",
     "object op dropped: create:line <- pine:reassign",
     "object op dropped: create:line <- pine:request",
-    "object op dropped: create:line <- pine:text-value",
     "object op dropped: create:line <- pine:tuple",
     "object op dropped: create:line <- pine:type",
     "object op dropped: create:line <- pine:undefined",
@@ -7284,7 +7185,6 @@
     "object op dropped: guard:coll_push <- pine:builtin",
     "object op dropped: guard:coll_push <- pine:drawing",
     "object op dropped: guard:coll_push <- pine:function-def",
-    "object op dropped: guard:coll_push <- pine:object-condition",
     "object op dropped: guard:coll_push <- pine:type",
     "object op dropped: guard:coll_push <- pine:undefined",
     "object op dropped: guard:coll_shift <- pine:function-def",
@@ -7295,7 +7195,6 @@
     "object op dropped: guard:create <- pine:drawing",
     "object op dropped: guard:create <- pine:function-def",
     "object op dropped: guard:create <- pine:input-kind",
-    "object op dropped: guard:create <- pine:object-condition",
     "object op dropped: guard:create <- pine:reassign",
     "object op dropped: guard:create <- pine:request",
     "object op dropped: guard:create <- pine:state",
@@ -7306,7 +7205,6 @@
     "object op dropped: guard:delete <- pine:builtin",
     "object op dropped: guard:delete <- pine:collection",
     "object op dropped: guard:delete <- pine:function-def",
-    "object op dropped: guard:delete <- pine:object-condition",
     "object op dropped: guard:delete <- pine:reassign",
     "object op dropped: guard:delete <- pine:request",
     "object op dropped: guard:delete <- pine:state",
@@ -7341,16 +7239,16 @@
     "runtime:nothing-drawn",
     "runtime:object-op"
    ],
-   "sole": 45,
-   "soleFullyEnumerated": 45,
-   "soleServable": 41,
-   "any": 75,
+   "sole": 42,
+   "soleFullyEnumerated": 41,
+   "soleServable": 38,
+   "any": 71,
    "soleScripts": [
     "builtin:multi-time-period-charts__Multi-TimePe",
-    "committed:atr-support-and-resistance__3e9ddb38c4",
     "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd",
     "committed:auto-trendline-dojiemoji__c21f83602c",
     "committed:dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b",
+    "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
     "committed:ict-killzone-index-version__28962c02dd",
     "committed:liquidity-heatmap-nephew-sam__7628c72c3d",
     "committed:multi-timeframe-supply-demand-zones__a98a2ab367",
@@ -7360,7 +7258,6 @@
     "committed:trend-lines-supports-and-resistances__413ee2ee3b",
     "committed:vdubus-pattern-gen-v2-restored-refined__66dc68412e",
     "committed:volume-profile__X0dKLxdLh4",
-    "reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79",
     "reference:cobra039s-crypto-market-visualizer__c3636f55f4",
     "reference:crypto-correlation-matrix__0f59de2d3d",
     "reference:cryptosignalscanner-rsi-overboughtoversold-divergence-indicator-new__918919b267",
@@ -7372,7 +7269,6 @@
     "reference:fabio-style-order-flow-lvn-volumeprofile-fvgob-liquiditygrabs-dashboar__d7293b07f6",
     "reference:fibonacci-extention-retracment-pivot-points-by-dgt__smOGfR6p3n",
     "reference:fourier-extrapolator-of-price-w-projection-forecast-loxx__5c7061572f",
-    "reference:intraday-power-3-visual__f9b34d80bb",
     "reference:linear-regression-channel-curve-slope-by-dgt__WvWdhArzmm",
     "reference:liquidity-heatmap-swiftedge__8291fe0662",
     "reference:liquidity-sniper-pro__da4b93aa0a",
@@ -7387,16 +7283,15 @@
     "reference:smart-money-concepts-probability-expo__285cd9fa6f",
     "reference:support-and-resistance-step-4__d24e4b30cf",
     "reference:support-and-resistance__c13363a5d2",
-    "reference:support-resistance-fibonacci-retracement__06a1a2c80d",
     "reference:trend-channels-with-liquidity-breaks-chartprime__6cabbffddf",
     "reference:trend-direction-helper__XQTKs6HB2y",
     "reference:zig-zag-channels-luxalgo__c253c72883"
    ],
    "evidence": {
     "counts": {
-     "committedMatch": 5,
-     "committedOther": 7,
-     "ledgerOnly": 29
+     "committedMatch": 4,
+     "committedOther": 8,
+     "ledgerOnly": 26
     },
     "queue": [
      {
@@ -7409,6 +7304,10 @@
      },
      {
       "script": "committed:dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:fibonacci-retracement-mtflog__54a8dbfa8e",
       "status": "committedOther"
      },
      {
@@ -7430,10 +7329,6 @@
      {
       "script": "committed:volume-profile__X0dKLxdLh4",
       "status": "committedOther"
-     },
-     {
-      "script": "reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79",
-      "status": "ledgerOnly"
      },
      {
       "script": "reference:crypto-correlation-matrix__0f59de2d3d",
@@ -7469,10 +7364,6 @@
      },
      {
       "script": "reference:fourier-extrapolator-of-price-w-projection-forecast-loxx__5c7061572f",
-      "status": "ledgerOnly"
-     },
-     {
-      "script": "reference:intraday-power-3-visual__f9b34d80bb",
       "status": "ledgerOnly"
      },
      {
@@ -7528,10 +7419,6 @@
       "status": "ledgerOnly"
      },
      {
-      "script": "reference:support-resistance-fibonacci-retracement__06a1a2c80d",
-      "status": "ledgerOnly"
-     },
-     {
       "script": "reference:trend-channels-with-liquidity-breaks-chartprime__6cabbffddf",
       "status": "ledgerOnly"
      },
@@ -7559,20 +7446,22 @@
     "runtime:output-map",
     "runtime:withheld-all"
    ],
-   "sole": 4,
+   "sole": 6,
    "soleFullyEnumerated": 0,
-   "soleServable": 4,
-   "any": 31,
+   "soleServable": 6,
+   "any": 32,
    "soleScripts": [
     "builtin:bollinger-bars__Bollinger1Ba",
     "builtin:chop-zone__Chop1Zone",
     "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888",
-    "reference:coral-trend-indicator-lazybear__836"
+    "reference:coral-trend-indicator-lazybear__836",
+    "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd",
+    "reference:ytc-swing-highs-lows__H94Z0NbN5P"
    ],
    "evidence": {
     "counts": {
      "committedOther": 1,
-     "ledgerOnly": 3
+     "ledgerOnly": 5
     },
     "queue": [
      {
@@ -7589,6 +7478,14 @@
      },
      {
       "script": "reference:coral-trend-indicator-lazybear__836",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:ytc-swing-highs-lows__H94Z0NbN5P",
       "status": "ledgerOnly"
      }
     ]
@@ -7631,7 +7528,7 @@
    ],
    "evidence": {
     "counts": {
-     "localOnly": 1,
+     "ledgerOnly": 1,
      "none": 1
     },
     "queue": [
@@ -7641,7 +7538,7 @@
      },
      {
       "script": "reference:vwapmvwapema-crossover__N16MOYK6AE",
-      "status": "localOnly"
+      "status": "ledgerOnly"
      }
     ]
    }
@@ -7690,26 +7587,16 @@
    "kind": "engine",
    "size": 1,
    "walls": [
-    "host:unnamed",
-    "runtime:lower"
+    "host:unnamed"
    ],
-   "sole": 1,
+   "sole": 0,
    "soleFullyEnumerated": 0,
-   "soleServable": 1,
-   "any": 7,
-   "soleScripts": [
-    "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd"
-   ],
+   "soleServable": 0,
+   "any": 1,
+   "soleScripts": [],
    "evidence": {
-    "counts": {
-     "ledgerOnly": 1
-    },
-    "queue": [
-     {
-      "script": "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd",
-      "status": "ledgerOnly"
-     }
-    ]
+    "counts": {},
+    "queue": []
    }
   },
   {
@@ -7721,22 +7608,27 @@
     "[known-divergence]",
     "runtime:kill-list"
    ],
-   "sole": 2,
-   "soleFullyEnumerated": 2,
-   "soleServable": 2,
-   "any": 10,
+   "sole": 3,
+   "soleFullyEnumerated": 3,
+   "soleServable": 3,
+   "any": 11,
    "soleScripts": [
-    "committed:contraction-box-doji-lines__1486658151",
-    "committed:momentum-based-zigzag__38d39d2d6c"
+    "committed:machine-learning-moving-average-backquant__4d7ff59e68",
+    "committed:momentum-based-zigzag__38d39d2d6c",
+    "committed:volatility-coil-edge-bullbyte__604f0fd1c6"
    ],
    "evidence": {
     "counts": {
      "committedMatch": 1,
-     "committedOther": 1
+     "committedOther": 2
     },
     "queue": [
      {
       "script": "committed:momentum-based-zigzag__38d39d2d6c",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:volatility-coil-edge-bullbyte__604f0fd1c6",
       "status": "committedOther"
      }
     ]
@@ -7931,18 +7823,30 @@
    "walls": [
     "admission:request-other"
    ],
-   "sole": 1,
-   "soleFullyEnumerated": 1,
-   "soleServable": 1,
-   "any": 130,
+   "sole": 3,
+   "soleFullyEnumerated": 3,
+   "soleServable": 3,
+   "any": 132,
    "soleScripts": [
-    "committed:fair-value-gap__1048fa103a"
+    "committed:fair-value-gap__1048fa103a",
+    "reference:intraday-power-3-visual__f9b34d80bb",
+    "reference:support-resistance-fibonacci-retracement__06a1a2c80d"
    ],
    "evidence": {
     "counts": {
-     "committedMatch": 1
+     "committedMatch": 1,
+     "ledgerOnly": 2
     },
-    "queue": []
+    "queue": [
+     {
+      "script": "reference:intraday-power-3-visual__f9b34d80bb",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:support-resistance-fibonacci-retracement__06a1a2c80d",
+      "status": "ledgerOnly"
+     }
+    ]
    },
    "runtimeDrawnWithMatch": [
     "committed:fair-value-gap__1048fa103a"
@@ -7985,7 +7889,9 @@
    ],
    "scripts": [
     "committed:4c-nyse-market-breadth-ratio__722410befd",
+    "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
     "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f",
+    "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0",
     "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
     "committed:mtf-key-levels-support-and-resistance__29f470a089",
     "committed:multi-timeframe-trend-indicator__fa4022ecf5",
@@ -7993,6 +7899,9 @@
     "committed:sub__1xYROVYMlX",
     "committed:swing-points-and-liquidity-by-leviathan__919c1fd9c6",
     "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
+    "reference:best-abcd-pattern-screener__ROdc6mWjx4",
+    "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f",
+    "reference:best-rsi-divergences-screener__TmlpugZKr6",
     "reference:bitcoin-futures-funding-rates-v5__zGOXiHPIn3",
     "reference:chases-buysell-indicator-advance-decline__37714ef0a5",
     "reference:earnings-sr-levels-lazybear__453",
@@ -8003,24 +7912,7 @@
     "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029",
     "reference:saty-atr-levels__99165984ef"
    ],
-   "count": 18
-  },
-  {
-   "walls": [
-    "admit:request-other",
-    "request-with-state"
-   ],
-   "scripts": [
-    "committed:boom-hunter-entry-point-screener-alerts__0fc5982548",
-    "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0",
-    "committed:mtf-watchlist-charts-anan__3453680ea1",
-    "reference:best-abcd-pattern-screener__ROdc6mWjx4",
-    "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f",
-    "reference:best-rsi-divergences-screener__TmlpugZKr6",
-    "reference:money-flow-index-mtf-alerts__RkKU95fUai",
-    "reference:supertrend-mtf-heatmap__ODcEBlvB3g"
-   ],
-   "count": 8
+   "count": 23
   },
   {
    "walls": [
@@ -8047,11 +7939,25 @@
    "scripts": [
     "committed:asianrange-and-killzones__ef41eb5ad6",
     "committed:correlation-matrix__dzN3DMCFJL",
+    "committed:screener-mean-reversion-channel__nTK2sHWDlB",
     "committed:zigzag-ma-pattern-recognition__1302",
     "reference:bb-custom-indicator-tradingview-version__Vf3832aju8",
     "reference:supertrendrange-by-dgt__jDAxwdo5u7"
    ],
-   "count": 5
+   "count": 6
+  },
+  {
+   "walls": [
+    "admit:request-other",
+    "lower-tf"
+   ],
+   "scripts": [
+    "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G",
+    "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8",
+    "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0",
+    "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326"
+   ],
+   "count": 4
   },
   {
    "walls": [
@@ -8059,13 +7965,12 @@
     "libraries"
    ],
    "scripts": [
-    "builtin:ulcer-index__Ulcer_Index",
     "committed:atr-stop-loss-indicator__LOfv1FvRhL",
     "committed:machine-learning-lorentzian-classification__21f5ec5277",
     "committed:rolling-vwap__043320bb57",
     "committed:smart-money-breakout-channels-algoalpha__8c2d234156"
    ],
-   "count": 5
+   "count": 4
   },
   {
    "walls": [
@@ -8083,12 +7988,12 @@
   {
    "walls": [
     "admit:request-other",
-    "lower-tf"
+    "request-with-state"
    ],
    "scripts": [
-    "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G",
-    "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8",
-    "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326"
+    "committed:boom-hunter-entry-point-screener-alerts__0fc5982548",
+    "reference:money-flow-index-mtf-alerts__RkKU95fUai",
+    "reference:supertrend-mtf-heatmap__ODcEBlvB3g"
    ],
    "count": 3
   },
@@ -8127,12 +8032,23 @@
   },
   {
    "walls": [
-    "conditional-history",
+    "builtins",
+    "state-calls"
+   ],
+   "scripts": [
+    "committed:volume-delta-hapharmonic__d5748870fd",
+    "reference:fvg-order-blocks-bigbeluga__64decdabc4"
+   ],
+   "count": 2
+  },
+  {
+   "walls": [
+    "builtins",
     "statements"
    ],
    "scripts": [
-    "committed:double-topbottom-ultimate-os__bd013ff4f5",
-    "reference:trendlines-jd__BYXZzZURrT"
+    "committed:market-profile-with-tpo__b2b119d8ab",
+    "reference:interactive-atr-stop-loss__6d419f128f"
    ],
    "count": 2
   },
@@ -8222,20 +8138,10 @@
   {
    "walls": [
     "admit:varip",
-    "function-global-state"
+    "dynamic-history"
    ],
    "scripts": [
     "committed:bolingger-bands-inside-bar-boxes__3294017d4f"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "block-value",
-    "robustness"
-   ],
-   "scripts": [
-    "committed:neural-network-buy-and-sell-signals__fbbb11d0c7"
    ],
    "count": 1
   },
@@ -8266,16 +8172,6 @@
    ],
    "scripts": [
     "reference:machine-learning-supertrend-aslan__68a59b1fc0"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "builtins",
-    "statements"
-   ],
-   "scripts": [
-    "committed:session-tpo-profile__41088ef96d"
    ],
    "count": 1
   },
@@ -8332,10 +8228,10 @@
   {
    "walls": [
     "conditional-history",
-    "loops"
+    "libraries"
    ],
    "scripts": [
-    "reference:support-and-resistance-zones-feels__87b9b078c8"
+    "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027"
    ],
    "count": 1
   },
@@ -8362,30 +8258,10 @@
   {
    "walls": [
     "dynamic-history",
-    "robustness"
-   ],
-   "scripts": [
-    "reference:obv-macd-indicator__5JF4Np02Ma"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "function-global-state",
     "loops"
    ],
    "scripts": [
     "committed:market-structure-break-order-block__3a1fb6197f"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "function-global-state",
-    "statements"
-   ],
-   "scripts": [
-    "reference:trend-speed-analyzer-zeiierman__bd2f816c88"
    ],
    "count": 1
   },
@@ -8425,144 +8301,111 @@
    "unit": "objects",
    "neededBy": null,
    "size": 4,
-   "unlocks": 41,
-   "touches": 68,
-   "unlocksPerSize": 10.25,
-   "unlocksFullyEnumerated": 41,
-   "cumulativeServed": 316,
-   "cumulativePct": 46.5
+   "unlocks": 38,
+   "touches": 64,
+   "unlocksPerSize": 9.5,
+   "unlocksFullyEnumerated": 37,
+   "cumulativeServed": 324,
+   "cumulativePct": 47.7
   },
   {
    "unit": "known-lists",
    "neededBy": null,
    "size": 2,
-   "unlocks": 10,
-   "touches": 10,
-   "unlocksPerSize": 5.0,
-   "unlocksFullyEnumerated": 10,
-   "cumulativeServed": 326,
-   "cumulativePct": 48.0
-  },
-  {
-   "unit": "admit:obj:linefill",
-   "neededBy": null,
-   "size": 1,
-   "unlocks": 4,
-   "touches": 18,
-   "unlocksPerSize": 4.0,
-   "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 330,
-   "cumulativePct": 48.6
+   "unlocks": 11,
+   "touches": 11,
+   "unlocksPerSize": 5.5,
+   "unlocksFullyEnumerated": 11,
+   "cumulativeServed": 335,
+   "cumulativePct": 49.3
   },
   {
    "unit": "output-contract",
    "neededBy": null,
    "size": 2,
-   "unlocks": 6,
-   "touches": 30,
-   "unlocksPerSize": 3.0,
-   "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 336,
-   "cumulativePct": 49.5
-  },
-  {
-   "unit": "dynamic-history",
-   "neededBy": null,
-   "size": 2,
    "unlocks": 8,
-   "touches": 32,
+   "touches": 31,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 344,
-   "cumulativePct": 50.7
-  },
-  {
-   "unit": "builtins",
-   "neededBy": null,
-   "size": 4,
-   "unlocks": 14,
-   "touches": 135,
-   "unlocksPerSize": 3.5,
-   "unlocksFullyEnumerated": 10,
-   "cumulativeServed": 358,
-   "cumulativePct": 52.7
+   "cumulativeServed": 343,
+   "cumulativePct": 50.5
   },
   {
    "unit": "admit:request-other",
    "neededBy": null,
    "size": 1,
-   "unlocks": 8,
-   "touches": 119,
-   "unlocksPerSize": 8.0,
-   "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 366,
-   "cumulativePct": 53.9
+   "unlocks": 5,
+   "touches": 120,
+   "unlocksPerSize": 5.0,
+   "unlocksFullyEnumerated": 3,
+   "cumulativeServed": 348,
+   "cumulativePct": 51.3
   },
   {
    "unit": "request",
    "neededBy": null,
    "size": 2,
    "unlocks": 22,
-   "touches": 39,
+   "touches": 51,
    "unlocksPerSize": 11.0,
-   "unlocksFullyEnumerated": 11,
-   "cumulativeServed": 388,
-   "cumulativePct": 57.1
+   "unlocksFullyEnumerated": 15,
+   "cumulativeServed": 370,
+   "cumulativePct": 54.5
   },
   {
-   "unit": "request-with-state",
+   "unit": "builtins",
+   "neededBy": null,
+   "size": 4,
+   "unlocks": 24,
+   "touches": 127,
+   "unlocksPerSize": 6.0,
+   "unlocksFullyEnumerated": 15,
+   "cumulativeServed": 394,
+   "cumulativePct": 58.0
+  },
+  {
+   "unit": "dynamic-history",
    "neededBy": null,
    "size": 2,
-   "unlocks": 16,
-   "touches": 35,
-   "unlocksPerSize": 8.0,
-   "unlocksFullyEnumerated": 11,
-   "cumulativeServed": 404,
-   "cumulativePct": 59.5
-  },
-  {
-   "unit": "statements",
-   "neededBy": null,
-   "size": 2,
-   "unlocks": 15,
-   "touches": 55,
-   "unlocksPerSize": 7.5,
-   "unlocksFullyEnumerated": 7,
-   "cumulativeServed": 419,
-   "cumulativePct": 61.7
-  },
-  {
-   "unit": "colour",
-   "neededBy": null,
-   "size": 1,
-   "unlocks": 9,
-   "touches": 20,
-   "unlocksPerSize": 9.0,
-   "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 428,
-   "cumulativePct": 63.0
+   "unlocks": 13,
+   "touches": 38,
+   "unlocksPerSize": 6.5,
+   "unlocksFullyEnumerated": 5,
+   "cumulativeServed": 407,
+   "cumulativePct": 59.9
   },
   {
    "unit": "conditional-history",
    "neededBy": null,
    "size": 2,
-   "unlocks": 16,
-   "touches": 30,
-   "unlocksPerSize": 8.0,
+   "unlocks": 15,
+   "touches": 29,
+   "unlocksPerSize": 7.5,
+   "unlocksFullyEnumerated": 8,
+   "cumulativeServed": 422,
+   "cumulativePct": 62.2
+  },
+  {
+   "unit": "statements",
+   "neededBy": null,
+   "size": 2,
+   "unlocks": 12,
+   "touches": 44,
+   "unlocksPerSize": 6.0,
    "unlocksFullyEnumerated": 6,
-   "cumulativeServed": 444,
-   "cumulativePct": 65.4
+   "cumulativeServed": 434,
+   "cumulativePct": 63.9
   },
   {
    "unit": "function-global-state",
    "neededBy": "libraries",
    "size": 2,
-   "unlocks": 8,
-   "touches": 13,
-   "unlocksPerSize": 4.0,
-   "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 452,
-   "cumulativePct": 66.6
+   "unlocks": 4,
+   "touches": 7,
+   "unlocksPerSize": 2.0,
+   "unlocksFullyEnumerated": 1,
+   "cumulativeServed": 438,
+   "cumulativePct": 64.5
   },
   {
    "unit": "functions",
@@ -8572,30 +8415,41 @@
    "touches": 16,
    "unlocksPerSize": 1.5,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 455,
-   "cumulativePct": 67.0
+   "cumulativeServed": 441,
+   "cumulativePct": 64.9
   },
   {
    "unit": "types",
    "neededBy": "libraries",
    "size": 2,
-   "unlocks": 1,
+   "unlocks": 0,
    "touches": 7,
-   "unlocksPerSize": 0.5,
+   "unlocksPerSize": 0.0,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 456,
-   "cumulativePct": 67.2
+   "cumulativeServed": 441,
+   "cumulativePct": 64.9
   },
   {
    "unit": "libraries",
    "neededBy": null,
    "size": 4,
-   "unlocks": 33,
-   "touches": 53,
-   "unlocksPerSize": 8.25,
-   "unlocksFullyEnumerated": 9,
-   "cumulativeServed": 489,
-   "cumulativePct": 72.0
+   "unlocks": 26,
+   "touches": 47,
+   "unlocksPerSize": 6.5,
+   "unlocksFullyEnumerated": 8,
+   "cumulativeServed": 467,
+   "cumulativePct": 68.8
+  },
+  {
+   "unit": "admit:obj:linefill",
+   "neededBy": null,
+   "size": 1,
+   "unlocks": 7,
+   "touches": 18,
+   "unlocksPerSize": 7.0,
+   "unlocksFullyEnumerated": 4,
+   "cumulativeServed": 474,
+   "cumulativePct": 69.8
   },
   {
    "unit": "admit:method-def",
@@ -8604,64 +8458,64 @@
    "unlocks": 8,
    "touches": 22,
    "unlocksPerSize": 8.0,
-   "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 497,
-   "cumulativePct": 73.2
+   "unlocksFullyEnumerated": 4,
+   "cumulativeServed": 482,
+   "cumulativePct": 71.0
   },
   {
-   "unit": "loops",
+   "unit": "colour",
    "neededBy": null,
    "size": 1,
-   "unlocks": 6,
-   "touches": 10,
-   "unlocksPerSize": 6.0,
-   "unlocksFullyEnumerated": 5,
-   "cumulativeServed": 503,
-   "cumulativePct": 74.1
+   "unlocks": 7,
+   "touches": 13,
+   "unlocksPerSize": 7.0,
+   "unlocksFullyEnumerated": 2,
+   "cumulativeServed": 489,
+   "cumulativePct": 72.0
   },
   {
-   "unit": "robustness",
-   "neededBy": null,
-   "size": 1,
-   "unlocks": 6,
-   "touches": 7,
-   "unlocksPerSize": 6.0,
-   "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 509,
-   "cumulativePct": 75.0
-  },
-  {
-   "unit": "imperative-host",
-   "neededBy": null,
-   "size": 1,
-   "unlocks": 5,
-   "touches": 6,
-   "unlocksPerSize": 5.0,
-   "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 514,
-   "cumulativePct": 75.7
-  },
-  {
-   "unit": "lower-tf",
+   "unit": "request-with-state",
    "neededBy": null,
    "size": 2,
-   "unlocks": 9,
-   "touches": 12,
-   "unlocksPerSize": 4.5,
-   "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 523,
-   "cumulativePct": 77.0
+   "unlocks": 13,
+   "touches": 24,
+   "unlocksPerSize": 6.5,
+   "unlocksFullyEnumerated": 8,
+   "cumulativeServed": 502,
+   "cumulativePct": 73.9
   },
   {
    "unit": "state-calls",
    "neededBy": null,
    "size": 2,
-   "unlocks": 9,
-   "touches": 14,
-   "unlocksPerSize": 4.5,
-   "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 532,
-   "cumulativePct": 78.4
+   "unlocks": 10,
+   "touches": 16,
+   "unlocksPerSize": 5.0,
+   "unlocksFullyEnumerated": 3,
+   "cumulativeServed": 512,
+   "cumulativePct": 75.4
+  },
+  {
+   "unit": "lower-tf",
+   "neededBy": null,
+   "size": 2,
+   "unlocks": 10,
+   "touches": 12,
+   "unlocksPerSize": 5.0,
+   "unlocksFullyEnumerated": 4,
+   "cumulativeServed": 522,
+   "cumulativePct": 76.9
+  },
+  {
+   "unit": "loops",
+   "neededBy": null,
+   "size": 1,
+   "unlocks": 5,
+   "touches": 9,
+   "unlocksPerSize": 5.0,
+   "unlocksFullyEnumerated": 4,
+   "cumulativeServed": 527,
+   "cumulativePct": 77.6
   },
   {
    "unit": "admit:collections:matrix",
@@ -8671,6 +8525,17 @@
    "touches": 8,
    "unlocksPerSize": 5.0,
    "unlocksFullyEnumerated": 2,
+   "cumulativeServed": 532,
+   "cumulativePct": 78.4
+  },
+  {
+   "unit": "imperative-host",
+   "neededBy": null,
+   "size": 1,
+   "unlocks": 5,
+   "touches": 6,
+   "unlocksPerSize": 5.0,
+   "unlocksFullyEnumerated": 4,
    "cumulativeServed": 537,
    "cumulativePct": 79.1
   },
@@ -8689,12 +8554,12 @@
    "unit": "call-mapping",
    "neededBy": null,
    "size": 1,
-   "unlocks": 6,
-   "touches": 7,
-   "unlocksPerSize": 6.0,
-   "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 548,
-   "cumulativePct": 80.7
+   "unlocks": 5,
+   "touches": 6,
+   "unlocksPerSize": 5.0,
+   "unlocksFullyEnumerated": 1,
+   "cumulativeServed": 547,
+   "cumulativePct": 80.6
   },
   {
    "unit": "block-value",
@@ -8703,9 +8568,9 @@
    "unlocks": 9,
    "touches": 12,
    "unlocksPerSize": 4.5,
-   "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 557,
-   "cumulativePct": 82.0
+   "unlocksFullyEnumerated": 3,
+   "cumulativeServed": 556,
+   "cumulativePct": 81.9
   },
   {
    "unit": "admit:calc-bars",
@@ -8715,19 +8580,19 @@
    "touches": 7,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 1,
-   "cumulativeServed": 561,
-   "cumulativePct": 82.6
+   "cumulativeServed": 560,
+   "cumulativePct": 82.5
   },
   {
    "unit": "admit:obj:polyline",
    "neededBy": null,
    "size": 1,
    "unlocks": 5,
-   "touches": 9,
+   "touches": 8,
    "unlocksPerSize": 5.0,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 566,
-   "cumulativePct": 83.4
+   "cumulativeServed": 565,
+   "cumulativePct": 83.2
   },
   {
    "unit": "collections",
@@ -8737,8 +8602,8 @@
    "touches": 8,
    "unlocksPerSize": 3.5,
    "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 573,
-   "cumulativePct": 84.4
+   "cumulativeServed": 572,
+   "cumulativePct": 84.2
   },
   {
    "unit": "admit:collections:map",
@@ -8748,8 +8613,8 @@
    "touches": 6,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 577,
-   "cumulativePct": 85.0
+   "cumulativeServed": 576,
+   "cumulativePct": 84.8
   },
   {
    "unit": "admit:varip",
@@ -8759,19 +8624,8 @@
    "touches": 6,
    "unlocksPerSize": 3.0,
    "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 580,
-   "cumulativePct": 85.4
-  },
-  {
-   "unit": "admit:enum",
-   "neededBy": null,
-   "size": 1,
-   "unlocks": 3,
-   "touches": 3,
-   "unlocksPerSize": 3.0,
-   "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 583,
-   "cumulativePct": 85.9
+   "cumulativeServed": 579,
+   "cumulativePct": 85.3
   },
   {
    "unit": "compute-budget",
@@ -8781,8 +8635,19 @@
    "touches": 4,
    "unlocksPerSize": 2.0,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 587,
-   "cumulativePct": 86.5
+   "cumulativeServed": 583,
+   "cumulativePct": 85.9
+  },
+  {
+   "unit": "admit:enum",
+   "neededBy": null,
+   "size": 1,
+   "unlocks": 2,
+   "touches": 2,
+   "unlocksPerSize": 2.0,
+   "unlocksFullyEnumerated": 0,
+   "cumulativeServed": 585,
+   "cumulativePct": 86.2
   },
   {
    "unit": "realtime",
@@ -8792,8 +8657,19 @@
    "touches": 3,
    "unlocksPerSize": 1.5,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 590,
-   "cumulativePct": 86.9
+   "cumulativeServed": 588,
+   "cumulativePct": 86.6
+  },
+  {
+   "unit": "robustness",
+   "neededBy": null,
+   "size": 1,
+   "unlocks": 1,
+   "touches": 1,
+   "unlocksPerSize": 1.0,
+   "unlocksFullyEnumerated": 0,
+   "cumulativeServed": 589,
+   "cumulativePct": 86.7
   }
  ],
  "neverServe": [
@@ -8814,9 +8690,10 @@
    "refusal": "host `pine:request` / `pine:builtin` / `pine:type` (footprint); runtime `runtime:request`; `lower-tf:unwitnessed` for a seconds timeframe",
    "scripts": [
     "builtin:24-hour-volume__24hVolume",
+    "committed:volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d",
     "reference:lorentzian-classification-advanced-trading-dashboard__0de1c85a2f"
    ],
-   "count": 2
+   "count": 3
   },
   {
    "class": "other-feeds",
@@ -9014,13 +8891,6 @@
    "runtime:no-output",
    "runtime:request-with-state"
   ],
-  "builtin:aroon-oscillator__Aroon_Oscill": [
-   "admission:import",
-   "admission:library:TradingView/ta/11",
-   "pine:arity",
-   "pine:builtin",
-   "runtime:library"
-  ],
   "builtin:auto-fib-extension__Auto1Fib1Ext": [
    "admission:import",
    "admission:library:TradingView/ZigZag/7",
@@ -9059,13 +8929,6 @@
   "builtin:bollinger-bars__Bollinger1Ba": [
    "host:pine:presentation-only"
   ],
-  "builtin:chandelier-exit__Chandelier_E": [
-   "admission:import",
-   "admission:library:TradingView/ta/11",
-   "pine:builtin",
-   "runtime:library",
-   "runtime:no-output"
-  ],
   "builtin:channel-breakout-strategy__Channel1Brea": [
    "[strategy]"
   ],
@@ -9093,7 +8956,6 @@
   ],
   "builtin:gaps__Gaps": [
    "admission:method-def",
-   "pine:builtin",
    "runtime:function",
    "runtime:loop",
    "runtime:statement",
@@ -9114,7 +8976,7 @@
    "admission:import",
    "admission:library:TradingView/ta/11",
    "pine:builtin",
-   "runtime:library",
+   "runtime:history-dynamic-offset",
    "runtime:no-output"
   ],
   "builtin:keltner-channels-strategy__Keltner1Chan": [
@@ -9190,7 +9052,7 @@
    "admission:import",
    "admission:library:TradingView/ta/11",
    "pine:builtin",
-   "runtime:library",
+   "runtime:call-undeclared-builtin-state",
    "runtime:nothing-drawn"
   ],
   "builtin:price-target__Price1Target": [
@@ -9198,13 +9060,6 @@
    "pine:builtin",
    "pine:drawing",
    "runtime:expression-statement"
-  ],
-  "builtin:pring039s-special-k__Prings_Speci": [
-   "admission:import",
-   "admission:library:TradingView/ta/11",
-   "pine:builtin",
-   "runtime:library",
-   "runtime:nothing-drawn"
   ],
   "builtin:relative-strength-index__RSI": [
    "runtime:conditional-history"
@@ -9231,12 +9086,12 @@
    "admission:collections:matrix",
    "admission:method-def",
    "admission:request-other",
-   "pine:builtin",
    "runtime:block-value",
    "runtime:call-undeclared-builtin-state",
    "runtime:input-state",
    "runtime:loop",
-   "runtime:request"
+   "runtime:request",
+   "runtime:unbound"
   ],
   "builtin:stochastic-slow-strategy__Stochastic1S": [
    "[strategy]"
@@ -9269,12 +9124,6 @@
   ],
   "builtin:two-moving-averages-crossover__MovingAvg1Cr": [
    "[strategy]"
-  ],
-  "builtin:ulcer-index__Ulcer_Index": [
-   "admission:import",
-   "admission:library:TradingView/ta/11",
-   "pine:builtin",
-   "runtime:library"
   ],
   "builtin:updown-volume__UP_DOWN_Volu": [
    "admission:import",
@@ -9339,8 +9188,7 @@
    "admission:import",
    "admission:library:TradingView/ta/10",
    "runtime:conditional-history",
-   "runtime:library",
-   "runtime:lower"
+   "runtime:library"
   ],
   "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4": [
    "admission:request-other",
@@ -9351,13 +9199,7 @@
   "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48": [
    "[strategy]",
    "pine:request",
-   "runtime:loop"
-  ],
-  "committed:all-chart-patterns-theeccentrictrader__03e4633d31": [
-   "admission:import",
-   "admission:library:theEccentricTrader/PubLibPattern/4",
-   "admission:library:theEccentricTrader/PubLibSwing/3",
-   "runtime:library"
+   "runtime:call-windowed-state"
   ],
   "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80": [
    "admission:request-other",
@@ -9386,12 +9228,6 @@
    "runtime:call-undeclared-builtin-state",
    "runtime:library"
   ],
-  "committed:atr-support-and-resistance__3e9ddb38c4": [
-   "object op dropped: coll:diverged",
-   "object op dropped: geometry:lost",
-   "object op dropped: geometry:withheld",
-   "object op dropped: guard:loop <- pine:block"
-  ],
   "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd": [
    "object op dropped: create:label <- pine:function"
   ],
@@ -9416,7 +9252,6 @@
   "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73": [
    "admission:import",
    "admission:library:TFlab/AlertSenderLibrary_TradingFinder/1",
-   "runtime:call-undeclared-builtin-state",
    "runtime:call-windowed-state",
    "runtime:conditional-history",
    "runtime:history-expression",
@@ -9431,10 +9266,7 @@
   ],
   "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs": [
    "admission:request-other",
-   "host:pine:constant-only",
-   "pine:function",
-   "runtime:call-undeclared-builtin-state",
-   "runtime:request-with-state"
+   "runtime:request"
   ],
   "committed:bigbeluga-smart-money-concepts__e41b7abd03": [
    "admission:method-def",
@@ -9454,14 +9286,16 @@
   ],
   "committed:bolingger-bands-inside-bar-boxes__3294017d4f": [
    "admission:varip",
-   "runtime:function-global-state"
+   "runtime:history-dynamic-offset"
   ],
   "committed:boom-hunter-entry-point-screener-alerts__0fc5982548": [
    "admission:request-other",
    "runtime:request-with-state"
   ],
   "committed:breaks-and-retests-hg__ddba061af8": [
-   "runtime:function-global-state"
+   "runtime:function-global-state",
+   "runtime:history-dynamic-offset",
+   "runtime:statement"
   ],
   "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8": [
    "admission:collections:map",
@@ -9488,8 +9322,7 @@
   "committed:camarilla__jw9faob08r": [
    "admission:request-other",
    "runtime:history-dynamic-offset",
-   "runtime:request-with-state",
-   "runtime:statement"
+   "runtime:request-with-state"
   ],
   "committed:candelacharts-equal-highslows-eqheql__4485a6c447": [
    "admission:method-def",
@@ -9521,9 +9354,6 @@
    "runtime:call-windowed-state",
    "runtime:library",
    "runtime:statement"
-  ],
-  "committed:contraction-box-doji-lines__1486658151": [
-   "[known-divergence]"
   ],
   "committed:correlation-matrix__dzN3DMCFJL": [
    "admission:request-other",
@@ -9581,7 +9411,7 @@
   ],
   "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0": [
    "admission:request-other",
-   "runtime:request-with-state"
+   "runtime:request"
   ],
   "committed:deviation-scaled-moving-average-w-dsl-loxx__878af32b43": [
    "admission:import",
@@ -9593,8 +9423,7 @@
    "runtime:library"
   ],
   "committed:double-topbottom-ultimate-os__bd013ff4f5": [
-   "runtime:conditional-history",
-   "runtime:directive"
+   "runtime:conditional-history"
   ],
   "committed:dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b": [
    "object op dropped: coll:diverged",
@@ -9627,7 +9456,7 @@
    "admission:request-other"
   ],
   "committed:fibonacci-retracement-mtflog__54a8dbfa8e": [
-   "runtime:colour"
+   "runtime:object-op"
   ],
   "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce": [
    "admission:request-other",
@@ -9771,9 +9600,7 @@
    "runtime:library"
   ],
   "committed:linear-regression-channel-200__243d67c804": [
-   "runtime:call-undeclared-builtin-state",
-   "runtime:directive",
-   "runtime:nothing-drawn"
+   "runtime:call-undeclared-builtin-state"
   ],
   "committed:linear-regression-channel-breakout-strategy__3a1cf28800": [
    "[strategy]",
@@ -9820,7 +9647,7 @@
    "runtime:library"
   ],
   "committed:machine-learning-moving-average-backquant__4d7ff59e68": [
-   "runtime:statement"
+   "runtime:kill-list"
   ],
   "committed:machine-learning-rsi-bullvision__50b4566edd": [
    "admission:import",
@@ -9832,18 +9659,18 @@
   "committed:market-profile-with-tpo__b2b119d8ab": [
    "pine:builtin",
    "pine:function",
-   "runtime:function-global-state",
+   "runtime:call-undeclared-builtin-state",
    "runtime:statement"
   ],
   "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a": [
    "admission:request-other",
    "pine:builtin",
+   "pine:function",
    "pine:request",
-   "runtime:conditional-history",
-   "runtime:statement"
+   "runtime:conditional-history"
   ],
   "committed:market-structure-break-order-block__3a1fb6197f": [
-   "runtime:function-global-state",
+   "runtime:history-dynamic-offset",
    "runtime:loop"
   ],
   "committed:market-structure-inducements-ict-tradinfinder-choch-bos-sweeps__7569f1043e": [
@@ -9852,7 +9679,6 @@
    "runtime:no-output"
   ],
   "committed:market-structure-trend-targets-chartprime__d3c06abad6": [
-   "pine:builtin",
    "pine:function",
    "runtime:conditional-history",
    "runtime:statement"
@@ -9881,7 +9707,8 @@
   ],
   "committed:mtf-watchlist-charts-anan__3453680ea1": [
    "admission:request-other",
-   "runtime:request-with-state"
+   "runtime:call-undeclared-builtin-state",
+   "runtime:request"
   ],
   "committed:multi-timeframe-fvg-tfo__adbed9f590": [
    "admission:request-other",
@@ -9923,8 +9750,7 @@
    "runtime:request-with-state"
   ],
   "committed:neural-network-buy-and-sell-signals__fbbb11d0c7": [
-   "runtime:block-value",
-   "runtime:lower"
+   "runtime:block-value"
   ],
   "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888": [
    "runtime:output-map"
@@ -9960,7 +9786,8 @@
    "[strategy]",
    "runtime:call-undeclared-builtin-state",
    "runtime:function-global-state",
-   "runtime:request-with-state"
+   "runtime:input-state",
+   "runtime:statement"
   ],
   "committed:pivot-trendlines-with-breaks-hg__f1464ad5b7": [
    "admission:import",
@@ -10002,7 +9829,7 @@
    "pine:function",
    "runtime:call-undeclared-builtin-state",
    "runtime:function-global-state",
-   "runtime:request-with-state"
+   "runtime:request"
   ],
   "committed:renderingnature-smc-reversal-engine-v71__f8734584d9": [
    "admission:request-other",
@@ -10035,16 +9862,14 @@
   ],
   "committed:screener-mean-reversion-channel__nTK2sHWDlB": [
    "admission:request-other",
-   "pine:function",
-   "runtime:lower"
+   "pine:function"
   ],
   "committed:sector-rotation__0fca060bf4": [
    "object op dropped: guard:create <- pine:builtin",
    "object op dropped: guard:loop <- pine:builtin"
   ],
   "committed:session-tpo-profile__41088ef96d": [
-   "pine:builtin",
-   "runtime:statement"
+   "pine:builtin"
   ],
   "committed:smart-money-breakout-channels-algoalpha__8c2d234156": [
    "admission:import",
@@ -10055,8 +9880,7 @@
   "committed:smart-money-breakouts-chartprime__ea79c79a67": [
    "admission:method-def",
    "pine:builtin",
-   "pine:statement",
-   "runtime:lower"
+   "pine:statement"
   ],
   "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669": [
    "admission:import",
@@ -10081,14 +9905,14 @@
    "admission:request-other",
    "pine:builtin",
    "pine:type",
+   "runtime:call-text-state",
    "runtime:call-undeclared-builtin-state"
   ],
   "committed:smarter-snr__ac98ab25d5": [
    "admission:request-other",
    "pine:drawing",
    "runtime:conditional-history",
-   "runtime:request",
-   "runtime:statement"
+   "runtime:request"
   ],
   "committed:smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6": [
    "admission:import",
@@ -10101,8 +9925,7 @@
   ],
   "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0": [
    "admission:request-other",
-   "lower-tf:store-unmeasured",
-   "pine:statement"
+   "lower-tf:store-unmeasured"
   ],
   "committed:smt-divergence-ict-killzones__c932d56665": [
    "admission:request-other",
@@ -10228,7 +10051,7 @@
    "runtime:statement"
   ],
   "committed:trend-levels-chartprime__90a5bf4ab1": [
-   "pine:builtin"
+   "runtime:call-text-state"
   ],
   "committed:trend-line-harrybot__vMv5yOQxcA": [
    "host:unnamed",
@@ -10251,7 +10074,7 @@
    "object op dropped: cell:text <- pine:reassign"
   ],
   "committed:volatility-coil-edge-bullbyte__604f0fd1c6": [
-   "runtime:colour"
+   "runtime:kill-list"
   ],
   "committed:volatility-stop-mtf__K5XG42uHV9": [
    "admission:import",
@@ -10271,17 +10094,16 @@
   "committed:volume-delta-hapharmonic__d5748870fd": [
    "pine:builtin",
    "runtime:call-text-state",
-   "runtime:call-undeclared-builtin-state",
-   "runtime:expression-statement"
+   "runtime:call-undeclared-builtin-state"
   ],
   "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37": [
    "admission:obj:linefill",
    "admission:request-other",
    "pine:collection",
+   "pine:drawing",
    "pine:request",
    "runtime:block-value",
-   "runtime:request-with-state",
-   "runtime:statement"
+   "runtime:request-with-state"
   ],
   "committed:volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d": [
    "admission:enum",
@@ -10290,14 +10112,15 @@
    "admission:obj:polyline",
    "admission:request-other",
    "pine:builtin",
-   "runtime:colour",
+   "pine:input-kind",
+   "pine:request",
    "runtime:library"
   ],
   "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4": [
    "admission:request-other",
    "pine:builtin",
    "runtime:array",
-   "runtime:statement"
+   "runtime:request"
   ],
   "committed:volume-profile-auto-line-v2__b0e947fd20": [
    "runtime:call-undeclared-builtin-state"
@@ -10322,7 +10145,6 @@
    "runtime:statement"
   ],
   "committed:volume-profile-v054beta__PNSKf75832": [
-   "runtime:directive",
    "runtime:history-dynamic-offset",
    "runtime:statement"
   ],
@@ -10385,7 +10207,7 @@
    "admission:request-other",
    "pine:builtin",
    "runtime:call-undeclared-builtin-state",
-   "runtime:request-with-state"
+   "runtime:history-dynamic-offset"
   ],
   "reference:anti-volume-stop-loss__QyDEhGL8DB": [
    "runtime:history-dynamic-offset",
@@ -10406,15 +10228,6 @@
    "runtime:library",
    "runtime:statement"
   ],
-  "reference:auto-length-moving-average-trend-signals-zeiierman__30185ad35b": [
-   "runtime:function-global-state"
-  ],
-  "reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79": [
-   "object op dropped: guard:coll_push <- pine:object-condition",
-   "object op dropped: guard:create <- pine:object-condition",
-   "object op dropped: guard:delete <- pine:object-condition",
-   "object op dropped: loop:empty"
-  ],
   "reference:auto-trendlines-trendoscope__c1dc011801": [
    "admission:calc-bars",
    "admission:import",
@@ -10430,18 +10243,18 @@
   ],
   "reference:best-abcd-pattern-screener__ROdc6mWjx4": [
    "admission:request-other",
-   "runtime:request-with-state"
+   "runtime:request"
   ],
   "reference:best-engulfing-ma__Vh6SGyOD3H": [
    "[strategy]"
   ],
   "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f": [
    "admission:request-other",
-   "runtime:request-with-state"
+   "runtime:request"
   ],
   "reference:best-rsi-divergences-screener__TmlpugZKr6": [
    "admission:request-other",
-   "runtime:request-with-state"
+   "runtime:request"
   ],
   "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84": [
    "admission:obj:linefill"
@@ -10457,7 +10270,9 @@
    "[strategy]"
   ],
   "reference:breaks-and-retests-with-volatility-stop-hg__ebbd1d4440": [
-   "runtime:function-global-state"
+   "runtime:function-global-state",
+   "runtime:history-dynamic-offset",
+   "runtime:statement"
   ],
   "reference:camarilla-levels-intraday__bfb5a2b8db": [
    "admission:request-other",
@@ -10493,8 +10308,7 @@
   "reference:ct-displacement-fvg-toolkit__1ae5bb663e": [
    "admission:request-other",
    "lower-tf:store-unmeasured",
-   "pine:drawing",
-   "runtime:colour"
+   "pine:drawing"
   ],
   "reference:cumulative-volume-delta-divergence__fbc538f076": [
    "admission:request-other",
@@ -10510,7 +10324,7 @@
    "admission:varip",
    "pine:builtin",
    "runtime:call-undeclared-builtin-state",
-   "runtime:request-with-state",
+   "runtime:request",
    "runtime:varip"
   ],
   "reference:divergence-screener-trendoscope__5bfc8355aa": [
@@ -10563,9 +10377,6 @@
   "reference:earnings-sr-levels-lazybear__453": [
    "admission:request-other",
    "pine:request"
-  ],
-  "reference:engulfing-sinyal__pAgeLQw9kl": [
-   "runtime:colour"
   ],
   "reference:enhanced-mcclellan-summation-index__f2989eaa65": [
    "admission:method-def",
@@ -10623,14 +10434,12 @@
   ],
   "reference:fvg-order-blocks-bigbeluga__64decdabc4": [
    "pine:function",
-   "runtime:call-text-state",
-   "runtime:colour"
+   "runtime:call-text-state"
   ],
   "reference:fxn-asian-session-range__jNLZBfpYDO": [
    "admission:request-other",
    "runtime:fill-target",
    "runtime:history-dynamic-offset",
-   "runtime:request-with-state",
    "runtime:statement"
   ],
   "reference:gex-levels-breakout-structure-session-avwap-esspxspy__4e5d712bec": [
@@ -10654,8 +10463,8 @@
   "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J": [
    "pine:function",
    "runtime:conditional-history",
-   "runtime:fill-target",
-   "runtime:history-dynamic-offset"
+   "runtime:history-dynamic-offset",
+   "runtime:output-map"
   ],
   "reference:hull-moving-average-crossover-strategy__ASuWFtACGl": [
    "[strategy]"
@@ -10678,12 +10487,10 @@
   ],
   "reference:interactive-atr-stop-loss__6d419f128f": [
    "pine:builtin",
-   "runtime:function-global-state",
    "runtime:statement"
   ],
   "reference:intraday-power-3-visual__f9b34d80bb": [
-   "object op dropped: create:label <- pine:text-value",
-   "object op dropped: create:line <- pine:text-value"
+   "admission:request-other"
   ],
   "reference:kalman-trend-levels-bigbeluga__3fb104b310": [
    "pine:function",
@@ -10744,6 +10551,7 @@
    "admission:unreadable",
    "pine:builtin",
    "pine:function",
+   "pine:offset-literal",
    "runtime:call-text-state",
    "runtime:conditional-history",
    "runtime:history-dynamic-offset"
@@ -10807,6 +10615,7 @@
   "reference:mtf-order-block-finder__ce13bf1b46": [
    "admission:request-other",
    "runtime:call-undeclared-builtin-state",
+   "runtime:request",
    "runtime:request-with-state",
    "runtime:statement"
   ],
@@ -10824,8 +10633,7 @@
    "runtime:conditional-history"
   ],
   "reference:obv-macd-indicator__5JF4Np02Ma": [
-   "runtime:history-dynamic-offset",
-   "runtime:lower"
+   "runtime:history-dynamic-offset"
   ],
   "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c": [
    "object op dropped: guard:loop <- pine:block"
@@ -10839,9 +10647,6 @@
    "runtime:call-undeclared-builtin-state",
    "runtime:library"
   ],
-  "reference:order-block-detector-luxalgo__7c893384eb": [
-   "runtime:loop"
-  ],
   "reference:ot-mtf-trend-dashboard-10__d43fa61404": [
    "admission:request-other",
    "pine:builtin",
@@ -10854,7 +10659,7 @@
    "pine:request"
   ],
   "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd": [
-   "runtime:lower"
+   "runtime:output-map"
   ],
   "reference:qqe-mod-ssl-hybrid-waddah-attar-explosion__6092fcc4e7": [
    "[strategy]",
@@ -11016,7 +10821,6 @@
    "object op dropped: update:props"
   ],
   "reference:support-and-resistance-zones-feels__87b9b078c8": [
-   "runtime:conditional-history",
    "runtime:loop"
   ],
   "reference:support-and-resistance__c13363a5d2": [
@@ -11029,8 +10833,7 @@
    "object op dropped: update:props"
   ],
   "reference:support-resistance-fibonacci-retracement__06a1a2c80d": [
-   "object op dropped: coll:diverged",
-   "object op dropped: loop:bounds"
+   "admission:request-other"
   ],
   "reference:swing-parabolic-sar-strategy__i5Ni9xpTee": [
    "[strategy]",
@@ -11039,8 +10842,7 @@
   "reference:thelark-lma-v2-laguerre__1029": [
    "admission:request-other",
    "pine:state",
-   "runtime:request-with-state",
-   "runtime:statement"
+   "runtime:request-with-state"
   ],
   "reference:tradepro039s-trading-idea-cipher-b-divergence-ema-pullback-strategy__98d2ed3472": [
    "[strategy]",
@@ -11074,7 +10876,6 @@
    "budget:lookback"
   ],
   "reference:trend-speed-analyzer-zeiierman__bd2f816c88": [
-   "runtime:function-global-state",
    "runtime:statement"
   ],
   "reference:trendline-breaks-with-multi-fibonacci-supertrend-strategy__89cd796179": [
@@ -11084,11 +10885,10 @@
   "reference:trendlines-2x__rzuOQrVQWt": [
    "admission:request-other",
    "pine:arity",
-   "runtime:request-with-state"
+   "runtime:request"
   ],
   "reference:trendlines-jd__BYXZzZURrT": [
-   "runtime:conditional-history",
-   "runtime:statement"
+   "runtime:conditional-history"
   ],
   "reference:triangular-hull-moving-average-volatility-bigbeluga__f20311448f": [
    "pine:function",
@@ -11138,6 +10938,7 @@
   "reference:vumanchu-b-divergences__uA35GeckoT": [
    "admission:request-other",
    "pine:function",
+   "runtime:request",
    "runtime:request-with-state"
   ],
   "reference:vwap-mtf__2809": [
@@ -11168,7 +10969,7 @@
    "runtime:conditional-history"
   ],
   "reference:ytc-swing-highs-lows__H94Z0NbN5P": [
-   "runtime:directive"
+   "runtime:output-map"
   ],
   "reference:zig-zag-channels-luxalgo__c253c72883": [
    "object op dropped: create:line <- pine:block",
@@ -11178,7 +10979,7 @@
  "facts": {
   "schema": "uct.pine-parity-facts/v1",
   "generatedBy": "tools/pine_coverage/parity_roadmap.py facts",
-  "engine": 73,
+  "engine": 84,
   "admittedCapabilities": [
    "collections:array",
    "compound-assign",
@@ -11202,6 +11003,7 @@
    "obj:table",
    "realtime-state",
    "reassign",
+   "strategy-decl",
    "switch",
    "ternary",
    "tuple-destructure",
@@ -11346,46 +11148,6 @@
     ],
     "localRuns": [
      "s12-2026-11-15"
-    ],
-    "orderAlerts": false,
-    "wallTags": []
-   },
-   "builtin:aroon-oscillator__Aroon_Oscill": {
-    "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "import",
-      "library:TradingView/ta/11"
-     ],
-     "historyOnly": false
-    },
-    "rtAttached": false,
-    "rtEnumerated": true,
-    "dataLimited": [],
-    "venues": [],
-    "otherSymbol": [],
-    "tokens": {
-     "pine:arity": [
-      "(a script's own identifier)"
-     ],
-     "pine:builtin": [
-      "(a script's own identifier)"
-     ],
-     "runtime:library": [
-      "import"
-     ]
-    },
-    "captures": [],
-    "ledger": [
-     {
-      "id": "aroon-oscillator-rddt-1d-2026-11-15",
-      "engine": 54,
-      "production": "INCONCLUSIVE",
-      "runtimeOn": "INCONCLUSIVE"
-     }
-    ],
-    "localRuns": [
-     "s11-2026-11-15"
     ],
     "orderAlerts": false,
     "wallTags": []
@@ -11593,46 +11355,6 @@
     "orderAlerts": false,
     "wallTags": []
    },
-   "builtin:chandelier-exit__Chandelier_E": {
-    "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "import",
-      "library:TradingView/ta/11"
-     ],
-     "historyOnly": false
-    },
-    "rtAttached": false,
-    "rtEnumerated": false,
-    "dataLimited": [],
-    "venues": [],
-    "otherSymbol": [],
-    "tokens": {
-     "pine:builtin": [
-      "(a script's own identifier)"
-     ],
-     "pine:undefined": [
-      "(a script's own identifier)"
-     ],
-     "runtime:library": [
-      "import"
-     ]
-    },
-    "captures": [],
-    "ledger": [
-     {
-      "id": "chandelier-exit-rddt-1d-2026-11-15",
-      "engine": 54,
-      "production": "INCONCLUSIVE",
-      "runtimeOn": "INCONCLUSIVE"
-     }
-    ],
-    "localRuns": [
-     "s11-2026-11-15"
-    ],
-    "orderAlerts": false,
-    "wallTags": []
-   },
    "builtin:channel-breakout-strategy__Channel1Brea": {
     "admission": null,
     "rtAttached": false,
@@ -11829,6 +11551,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "fisher-transform-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "fisher-transform-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "fisher-transform-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "fisher-transform-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -11852,9 +11598,6 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "pine:builtin": [
-      "chart.bg_color"
-     ],
      "runtime:function": [
       "(a script's own identifier)"
      ],
@@ -11966,8 +11709,8 @@
      "pine:builtin": [
       "(a script's own identifier)"
      ],
-     "runtime:library": [
-      "import"
+     "runtime:history-dynamic-offset": [
+      "(a script's own identifier)"
      ]
     },
     "captures": [],
@@ -12020,6 +11763,12 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "linear-regression-channel-8b555890-rddt-1d-2026-11-14",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
      }
     ],
     "localRuns": [
@@ -12067,6 +11816,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "mcginley-dynamic-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "mcginley-dynamic-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "mcginley-dynamic-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "mcginley-dynamic-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -12143,6 +11916,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "moving-average-convergence-divergence-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "moving-average-convergence-divergence-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "moving-average-convergence-divergence-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "moving-average-convergence-divergence-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -12351,6 +12148,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "percentage-volume-oscillator-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "percentage-volume-oscillator-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "percentage-volume-oscillator-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "percentage-volume-oscillator-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -12513,8 +12334,8 @@
      "pine:undefined": [
       "(a script's own identifier)"
      ],
-     "runtime:library": [
-      "import"
+     "runtime:call-undeclared-builtin-state": [
+      "ta.roc"
      ]
     },
     "captures": [],
@@ -12545,7 +12366,32 @@
     "otherSymbol": [],
     "tokens": {},
     "captures": [],
-    "ledger": [],
+    "ledger": [
+     {
+      "id": "price-oscillator-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "price-oscillator-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "price-oscillator-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "price-oscillator-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     }
+    ],
     "localRuns": [
      "f-imp-2026-11-17"
     ],
@@ -12602,46 +12448,6 @@
     "orderAlerts": false,
     "wallTags": []
    },
-   "builtin:pring039s-special-k__Prings_Speci": {
-    "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "import",
-      "library:TradingView/ta/11"
-     ],
-     "historyOnly": true
-    },
-    "rtAttached": false,
-    "rtEnumerated": false,
-    "dataLimited": [],
-    "venues": [],
-    "otherSymbol": [],
-    "tokens": {
-     "pine:builtin": [
-      "(a script's own identifier)"
-     ],
-     "pine:undefined": [
-      "(a script's own identifier)"
-     ],
-     "runtime:library": [
-      "import"
-     ]
-    },
-    "captures": [],
-    "ledger": [
-     {
-      "id": "pring039s-special-k-spy-1d-2026-11-15",
-      "engine": 54,
-      "production": "INCONCLUSIVE",
-      "runtimeOn": "INCONCLUSIVE"
-     }
-    ],
-    "localRuns": [
-     "s11-2026-11-15"
-    ],
-    "orderAlerts": false,
-    "wallTags": []
-   },
    "builtin:relative-strength-index__RSI": {
     "admission": {
      "status": "capability",
@@ -12665,6 +12471,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "relative-strength-index-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "relative-strength-index-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "relative-strength-index-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "relative-strength-index-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -12801,9 +12631,6 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "pine:builtin": [
-      "(a script's own identifier)"
-     ],
      "pine:undefined": [
       "(a script's own identifier)"
      ],
@@ -12821,6 +12648,9 @@
      ],
      "runtime:request": [
       "request.security"
+     ],
+     "runtime:unbound": [
+      "time_close"
      ]
     },
     "captures": [],
@@ -12992,6 +12822,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "time-weighted-average-price-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "time-weighted-average-price-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "time-weighted-average-price-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "time-weighted-average-price-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -13043,43 +12897,6 @@
     "captures": [],
     "ledger": [],
     "localRuns": [],
-    "orderAlerts": false,
-    "wallTags": []
-   },
-   "builtin:ulcer-index__Ulcer_Index": {
-    "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "import",
-      "library:TradingView/ta/11"
-     ],
-     "historyOnly": false
-    },
-    "rtAttached": false,
-    "rtEnumerated": true,
-    "dataLimited": [],
-    "venues": [],
-    "otherSymbol": [],
-    "tokens": {
-     "pine:builtin": [
-      "(a script's own identifier)"
-     ],
-     "runtime:library": [
-      "import"
-     ]
-    },
-    "captures": [],
-    "ledger": [
-     {
-      "id": "ulcer-index-rddt-1d-2026-11-15",
-      "engine": 54,
-      "production": "INCONCLUSIVE",
-      "runtimeOn": "INCONCLUSIVE"
-     }
-    ],
-    "localRuns": [
-     "s11-2026-11-15"
-    ],
     "orderAlerts": false,
     "wallTags": []
    },
@@ -13297,10 +13114,34 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "volume-weighted-average-price-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "volume-weighted-average-price-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
       "id": "volume-weighted-average-price-spy-1d-2026-11-15",
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "volume-weighted-average-price-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "volume-weighted-average-price-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -13335,6 +13176,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "williams-fractal-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "williams-fractal-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "williams-fractal-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "williams-fractal-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -13595,7 +13460,7 @@
      "historyOnly": true
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
@@ -13703,12 +13568,47 @@
       "runtimeOn": "MATCH"
      },
      {
+      "id": "adx-and-di-for-v4-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
       "id": "adx-and-di-for-v4-spy-1d-2026-10-03",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "adx-and-di-for-v4-spy-1d-2026-11-17",
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
      }
     ],
-    "ledger": [],
+    "ledger": [
+     {
+      "id": "adx-and-di-for-v4-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "adx-and-di-for-v4-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "adx-and-di-for-v4-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "adx-and-di-for-v4-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     }
+    ],
     "localRuns": [
      "f2-imp-2026-11-17"
     ],
@@ -13726,61 +13626,13 @@
      "pine:request": [
       "request.security"
      ],
-     "runtime:loop": [
-      "for"
+     "runtime:call-windowed-state": [
+      "ta.percentile_nearest_rank"
      ]
     },
     "captures": [],
     "ledger": [],
     "localRuns": [],
-    "orderAlerts": false,
-    "wallTags": [
-     "for-in"
-    ]
-   },
-   "committed:all-chart-patterns-theeccentrictrader__03e4633d31": {
-    "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "import",
-      "library:theEccentricTrader/PubLibPattern/4",
-      "library:theEccentricTrader/PubLibSwing/3"
-     ],
-     "historyOnly": true
-    },
-    "rtAttached": false,
-    "rtEnumerated": true,
-    "dataLimited": [],
-    "venues": [],
-    "otherSymbol": [],
-    "tokens": {
-     "runtime:library": [
-      "import"
-     ]
-    },
-    "captures": [
-     {
-      "id": "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15",
-      "production": "INCONCLUSIVE",
-      "runtimeOn": "INCONCLUSIVE"
-     },
-     {
-      "id": "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03",
-      "production": "INCONCLUSIVE",
-      "runtimeOn": "INCONCLUSIVE"
-     }
-    ],
-    "ledger": [
-     {
-      "id": "all-chart-patterns-theeccentrictrader-rddt-1d-2026-11-15",
-      "engine": 54,
-      "production": "INCONCLUSIVE",
-      "runtimeOn": "INCONCLUSIVE"
-     }
-    ],
-    "localRuns": [
-     "s11-2026-11-15"
-    ],
     "orderAlerts": false,
     "wallTags": []
    },
@@ -14285,9 +14137,6 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "runtime:call-undeclared-builtin-state": [
-      "(a script's own identifier)"
-     ],
      "runtime:call-windowed-state": [
       "ta.pivothigh",
       "ta.pivotlow"
@@ -14389,17 +14238,7 @@
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
-    "tokens": {
-     "pine:function": [
-      "(a script's own identifier)"
-     ],
-     "runtime:call-undeclared-builtin-state": [
-      "(a script's own identifier)"
-     ],
-     "runtime:request-with-state": [
-      "security"
-     ]
-    },
+    "tokens": {},
     "captures": [],
     "ledger": [],
     "localRuns": [],
@@ -14561,10 +14400,24 @@
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
-    "tokens": {},
+    "tokens": {
+     "runtime:history-dynamic-offset": [
+      "(a script's own identifier)"
+     ]
+    },
     "captures": [
      {
       "id": "bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-14",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "bolingger-bands-inside-bar-boxes-spy-1d-2026-11-17",
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
      }
@@ -14575,6 +14428,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "bolingger-bands-inside-bar-boxes-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "bolingger-bands-inside-bar-boxes-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -14805,9 +14682,6 @@
      ],
      "runtime:request-with-state": [
       "security"
-     ],
-     "runtime:statement": [
-      "color.new"
      ]
     },
     "captures": [
@@ -15071,60 +14945,6 @@
     ],
     "localRuns": [
      "s11-2026-11-15"
-    ],
-    "orderAlerts": false,
-    "wallTags": []
-   },
-   "committed:contraction-box-doji-lines__1486658151": {
-    "admission": {
-     "status": "killed",
-     "missing": [],
-     "historyOnly": false
-    },
-    "rtAttached": false,
-    "rtEnumerated": true,
-    "dataLimited": [],
-    "venues": [],
-    "otherSymbol": [],
-    "tokens": {},
-    "captures": [
-     {
-      "id": "contraction-box-doji-lines-rddt-1d-2026-09-28",
-      "production": "MATCH",
-      "runtimeOn": "MATCH"
-     },
-     {
-      "id": "contraction-box-doji-lines-rddt-1d-2026-11-15",
-      "production": "MATCH",
-      "runtimeOn": "MATCH"
-     },
-     {
-      "id": "contraction-box-doji-lines-spy-1d-2026-10-03",
-      "production": "DIVERGE",
-      "runtimeOn": "DIVERGE"
-     },
-     {
-      "id": "contraction-box-doji-lines-spy-1d-2026-11-15",
-      "production": "DIVERGE",
-      "runtimeOn": "DIVERGE"
-     }
-    ],
-    "ledger": [
-     {
-      "id": "contraction-box-doji-lines-rddt-1d-2026-09-28",
-      "engine": 54,
-      "production": "MATCH",
-      "runtimeOn": "MATCH"
-     },
-     {
-      "id": "contraction-box-doji-lines-rddt-1d-2026-09-28",
-      "engine": 54,
-      "production": "MATCH",
-      "runtimeOn": "MATCH"
-     }
-    ],
-    "localRuns": [
-     "s14-2026-11-15"
     ],
     "orderAlerts": false,
     "wallTags": []
@@ -15581,7 +15401,7 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "runtime:request-with-state": [
+     "runtime:request": [
       "security"
      ]
     },
@@ -15687,11 +15507,7 @@
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
-    "tokens": {
-     "runtime:directive": [
-      "max_bars_back"
-     ]
-    },
+    "tokens": {},
     "captures": [
      {
       "id": "double-topbottom-ultimate-os-rddt-1d-2026-11-14",
@@ -15847,6 +15663,16 @@
       "id": "ema-92150-vwap-macd-rsi-pro-v6-rddt-1d-2026-11-14",
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "ema-92150-vwap-macd-rsi-pro-v6-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "ema-92150-vwap-macd-rsi-pro-v6-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
      }
     ],
     "ledger": [
@@ -15855,6 +15681,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "ema-92150-vwap-macd-rsi-pro-v6-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "ema-92150-vwap-macd-rsi-pro-v6-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "ema-92150-vwap-macd-rsi-pro-v6-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "ema-92150-vwap-macd-rsi-pro-v6-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -15940,6 +15790,18 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "fair-value-gap-rddt-1d-2026-11-14",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "fair-value-gap-rddt-1d-2026-11-15",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
      }
     ],
     "localRuns": [
@@ -15997,7 +15859,7 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "runtime:colour": [
+     "runtime:object-op": [
       "ta.max"
      ]
     },
@@ -16197,9 +16059,28 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-spy-1d-2026-11-18",
+      "engine": 75,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
      }
     ],
     "localRuns": [
+     "adm-2026-11-18",
      "s1-evidence-2026-11-14",
      "s28-2026-11-15"
     ],
@@ -16223,9 +16104,44 @@
       "id": "fvg-trend-rddt-1d-2026-09-27",
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "fvg-trend-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "fvg-trend-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
      }
     ],
-    "ledger": [],
+    "ledger": [
+     {
+      "id": "fvg-trend-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "fvg-trend-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "fvg-trend-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "fvg-trend-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     }
+    ],
     "localRuns": [
      "f2-imp-2026-11-17"
     ],
@@ -16406,6 +16322,16 @@
       "id": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-rddt-1d-2026-11-14",
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
      }
     ],
     "ledger": [
@@ -16414,6 +16340,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -16788,6 +16738,16 @@
       "id": "inside-bar-boxes-rddt-1d-2026-11-14",
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "inside-bar-boxes-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "inside-bar-boxes-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
      }
     ],
     "ledger": [
@@ -16796,6 +16756,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "inside-bar-boxes-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "inside-bar-boxes-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "inside-bar-boxes-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "inside-bar-boxes-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -16829,12 +16813,22 @@
       "runtimeOn": "MATCH"
      },
      {
+      "id": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
       "id": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
      },
      {
       "id": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-17",
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
      }
@@ -16851,6 +16845,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -17033,16 +17051,13 @@
      "historyOnly": true
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
     "tokens": {
      "runtime:call-undeclared-builtin-state": [
       "chart.point.new"
-     ],
-     "runtime:directive": [
-      "max_bars_back"
      ]
     },
     "captures": [
@@ -17231,7 +17246,17 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "liquidity-levels-sonarlab-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
       "id": "liquidity-levels-sonarlab-spy-1d-2026-11-14",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "liquidity-levels-sonarlab-spy-1d-2026-11-17",
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
      }
@@ -17244,10 +17269,34 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "liquidity-levels-sonarlab-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "liquidity-levels-sonarlab-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
       "id": "liquidity-levels-sonarlab-spy-1d-2026-11-14",
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "liquidity-levels-sonarlab-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "liquidity-levels-sonarlab-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -17275,9 +17324,21 @@
       "id": "macd-shortlong-strategy-for-tradingview-input-optimizer-spy-1d-2026-10-03",
       "production": "MATCH",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "macd-shortlong-strategy-is-rddt-1d-2026-11-18",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
      }
     ],
-    "ledger": [],
+    "ledger": [
+     {
+      "id": "macd-shortlong-strategy-is-rddt-1d-2026-11-18",
+      "engine": 77,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     }
+    ],
     "localRuns": [],
     "orderAlerts": false,
     "wallTags": []
@@ -17481,25 +17542,31 @@
    },
    "committed:machine-learning-moving-average-backquant__4d7ff59e68": {
     "admission": {
-     "status": "capability",
+     "status": "killed",
      "missing": [],
      "historyOnly": true
     },
-    "rtAttached": false,
+    "rtAttached": true,
     "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
-    "tokens": {
-     "runtime:statement": [
-      "ta.change"
-     ]
-    },
+    "tokens": {},
     "captures": [
      {
       "id": "machine-learning-moving-average-backquant-rddt-1d-2026-11-14",
       "production": "INCONCLUSIVE",
-      "runtimeOn": "INCONCLUSIVE"
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "machine-learning-moving-average-backquant-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "machine-learning-moving-average-backquant-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
      }
     ],
     "ledger": [
@@ -17508,6 +17575,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "machine-learning-moving-average-backquant-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "machine-learning-moving-average-backquant-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "machine-learning-moving-average-backquant-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "machine-learning-moving-average-backquant-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -17578,8 +17669,8 @@
      "pine:function": [
       "(a script's own identifier)"
      ],
-     "runtime:function-global-state": [
-      "ta.sma"
+     "runtime:call-undeclared-builtin-state": [
+      "math.round_to_mintick"
      ],
      "runtime:statement": [
       "time"
@@ -17600,7 +17691,7 @@
      "historyOnly": true
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [
      "request.security_lower_tf"
     ],
@@ -17608,8 +17699,10 @@
     "otherSymbol": [],
     "tokens": {
      "pine:builtin": [
-      "chart.fg_color",
       "weekofyear"
+     ],
+     "pine:function": [
+      "time"
      ],
      "pine:request": [
       "request.security_lower_tf"
@@ -17618,9 +17711,6 @@
       "(a script's own identifier)"
      ],
      "runtime:conditional-history": [
-      "(a script's own identifier)"
-     ],
-     "runtime:statement": [
       "(a script's own identifier)"
      ]
     },
@@ -17668,7 +17758,7 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "runtime:function-global-state": [
+     "runtime:history-dynamic-offset": [
       "ta.highest",
       "ta.lowest"
      ],
@@ -17752,9 +17842,6 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "pine:builtin": [
-      "chart.fg_color"
-     ],
      "pine:function": [
       "color"
      ],
@@ -17899,7 +17986,17 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "moving-averages-as-support-resistance-mtf-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
       "id": "moving-averages-as-support-resistance-mtf-spy-1d-2026-11-14",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "moving-averages-as-support-resistance-mtf-spy-1d-2026-11-17",
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
      },
@@ -17917,10 +18014,34 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "moving-averages-as-support-resistance-mtf-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "moving-averages-as-support-resistance-mtf-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
       "id": "moving-averages-as-support-resistance-mtf-spy-1d-2026-11-14",
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "moving-averages-as-support-resistance-mtf-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "moving-averages-as-support-resistance-mtf-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      },
      {
       "id": "moving-averages-as-support-resistance-mtf-spy-60-2026-11-14",
@@ -18052,7 +18173,10 @@
      "pine:undefined": [
       "(a script's own identifier)"
      ],
-     "runtime:request-with-state": [
+     "runtime:call-undeclared-builtin-state": [
+      "heikinashi"
+     ],
+     "runtime:request": [
       "security"
      ]
     },
@@ -18387,9 +18511,44 @@
       "id": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-10-03",
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "nadaraya-watson-rational-quadratic-kernel-non-repainting-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
      }
     ],
-    "ledger": [],
+    "ledger": [
+     {
+      "id": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "nadaraya-watson-rational-quadratic-kernel-non-repainting-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "nadaraya-watson-rational-quadratic-kernel-non-repainting-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     }
+    ],
     "localRuns": [
      "f2-imp-2026-11-17"
     ],
@@ -18403,7 +18562,7 @@
      "historyOnly": false
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
@@ -18490,6 +18649,16 @@
       "id": "nubia-auto-midas-anchored-vwap-xdecow-rddt-1d-2026-11-14",
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "nubia-auto-midas-anchored-vwap-xdecow-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "nubia-auto-midas-anchored-vwap-xdecow-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
      }
     ],
     "ledger": [
@@ -18498,6 +18667,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "nubia-auto-midas-anchored-vwap-xdecow-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "nubia-auto-midas-anchored-vwap-xdecow-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "nubia-auto-midas-anchored-vwap-xdecow-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "nubia-auto-midas-anchored-vwap-xdecow-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -18550,6 +18743,16 @@
       "id": "one-sided-gaussian-support-resistance-rate-loxx-rddt-1d-2026-11-14",
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "one-sided-gaussian-support-resistance-rate-loxx-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
      }
     ],
     "ledger": [
@@ -18558,6 +18761,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "one-sided-gaussian-support-resistance-rate-loxx-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "one-sided-gaussian-support-resistance-rate-loxx-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -18661,12 +18888,12 @@
      {
       "id": "optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02",
       "production": "MATCH",
-      "runtimeOn": "MATCH"
+      "runtimeOn": "INCONCLUSIVE"
      },
      {
       "id": "optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02",
       "production": "MATCH",
-      "runtimeOn": "MATCH"
+      "runtimeOn": "INCONCLUSIVE"
      }
     ],
     "ledger": [],
@@ -18685,8 +18912,11 @@
      "runtime:call-undeclared-builtin-state": [
       "linreg"
      ],
-     "runtime:request-with-state": [
-      "security"
+     "runtime:input-state": [
+      "input"
+     ],
+     "runtime:statement": [
+      "ema"
      ]
     },
     "captures": [],
@@ -19125,7 +19355,7 @@
       "(a script's own identifier)",
       "time"
      ],
-     "runtime:request-with-state": [
+     "runtime:request": [
       "security"
      ]
     },
@@ -19428,7 +19658,7 @@
      "historyOnly": false
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
@@ -19571,9 +19801,6 @@
     "tokens": {
      "pine:builtin": [
       "extend.right"
-     ],
-     "runtime:statement": [
-      "color.new"
      ]
     },
     "captures": [],
@@ -19637,7 +19864,7 @@
      "historyOnly": true
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
@@ -19783,12 +20010,13 @@
     "otherSymbol": [],
     "tokens": {
      "pine:builtin": [
-      "barstate.isnew",
-      "chart.bg_color",
-      "chart.fg_color"
+      "barstate.isnew"
      ],
      "pine:type": [
       "(a script's own identifier)"
+     ],
+     "runtime:call-text-state": [
+      "str.tostring"
      ],
      "runtime:call-undeclared-builtin-state": [
       "(a script's own identifier)"
@@ -19835,7 +20063,7 @@
      "historyOnly": true
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
@@ -19845,9 +20073,6 @@
      ],
      "runtime:request": [
       "request.security"
-     ],
-     "runtime:statement": [
-      "(a script's own identifier)"
      ]
     },
     "captures": [
@@ -20419,17 +20644,63 @@
     "tokens": {},
     "captures": [
      {
+      "id": "supertrend-strategy-alab-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "supertrend-strategy-is-rddt-1d-2026-11-18",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
       "id": "supertrend-strategy-rddt-1d-2026-10-02",
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "supertrend-strategy-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
       "id": "supertrend-strategy-spy-1d-2026-10-02",
       "production": "INCONCLUSIVE",
-      "runtimeOn": "DIVERGE"
+      "runtimeOn": "INCONCLUSIVE"
      }
     ],
-    "ledger": [],
+    "ledger": [
+     {
+      "id": "supertrend-strategy-alab-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "supertrend-strategy-alab-1d-2026-11-17",
+      "engine": 77,
+      "production": null,
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "supertrend-strategy-is-rddt-1d-2026-11-18",
+      "engine": 77,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "supertrend-strategy-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "supertrend-strategy-rddt-1d-2026-11-17",
+      "engine": 77,
+      "production": null,
+      "runtimeOn": "MATCH"
+     }
+    ],
     "localRuns": [],
     "orderAlerts": false,
     "wallTags": []
@@ -20472,7 +20743,17 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "supply-demand-mtf-flux-charts-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
       "id": "supply-demand-mtf-flux-charts-spy-1d-2026-11-14",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "supply-demand-mtf-flux-charts-spy-1d-2026-11-17",
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
      },
@@ -20490,10 +20771,34 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "supply-demand-mtf-flux-charts-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "supply-demand-mtf-flux-charts-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
       "id": "supply-demand-mtf-flux-charts-spy-1d-2026-11-14",
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "supply-demand-mtf-flux-charts-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "supply-demand-mtf-flux-charts-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      },
      {
       "id": "supply-demand-mtf-flux-charts-spy-60-2026-11-14",
@@ -20536,6 +20841,16 @@
       "id": "support-and-resistance-logistic-regression-flux-charts-rddt-1d-2026-11-14",
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "support-and-resistance-logistic-regression-flux-charts-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "support-and-resistance-logistic-regression-flux-charts-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
      }
     ],
     "ledger": [
@@ -20544,6 +20859,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "support-and-resistance-logistic-regression-flux-charts-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "support-and-resistance-logistic-regression-flux-charts-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "support-and-resistance-logistic-regression-flux-charts-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "support-and-resistance-logistic-regression-flux-charts-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -21086,6 +21425,11 @@
       "runtimeOn": "MATCH"
      },
      {
+      "id": "trend-targets-algoalpha-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
       "id": "trend-targets-algoalpha-spy-1d-2026-10-02",
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
@@ -21094,10 +21438,83 @@
       "id": "trend-targets-algoalpha-spy-1d-2026-11-15",
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "trend-targets-algoalpha-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
      }
     ],
-    "ledger": [],
+    "ledger": [
+     {
+      "id": "trend-targets-algoalpha-rddt-1d-2026-10-02",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "trend-targets-algoalpha-rddt-1d-2026-11-15",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "trend-targets-algoalpha-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "trend-targets-algoalpha-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "trend-targets-algoalpha-rddt-1d-2026-11-17",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "trend-targets-algoalpha-spy-1d-2026-10-02",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "trend-targets-algoalpha-spy-1d-2026-11-15",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "trend-targets-algoalpha-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "trend-targets-algoalpha-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "trend-targets-algoalpha-spy-1d-2026-11-17",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "trend-targets-algoalpha-spy-1d-2026-11-18",
+      "engine": 75,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     }
+    ],
     "localRuns": [
+     "adm-2026-11-18",
      "f2-imp-2026-11-17",
      "s28-2026-11-15"
     ],
@@ -21212,33 +21629,53 @@
       "engine": 54,
       "production": "MATCH",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-11-18",
+      "engine": 75,
+      "production": "MATCH",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-11-18",
+      "engine": 75,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
      }
     ],
-    "localRuns": [],
+    "localRuns": [
+     "adm-2026-11-18"
+    ],
     "orderAlerts": false,
     "wallTags": []
    },
    "committed:volatility-coil-edge-bullbyte__604f0fd1c6": {
     "admission": {
-     "status": "capability",
+     "status": "killed",
      "missing": [],
      "historyOnly": true
     },
-    "rtAttached": false,
+    "rtAttached": true,
     "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
-    "tokens": {
-     "runtime:colour": [
-      "color.new"
-     ]
-    },
+    "tokens": {},
     "captures": [
      {
       "id": "volatility-coil-edge-bullbyte-rddt-1d-2026-11-14",
       "production": "INCONCLUSIVE",
-      "runtimeOn": "INCONCLUSIVE"
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "volatility-coil-edge-bullbyte-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "volatility-coil-edge-bullbyte-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
      }
     ],
     "ledger": [
@@ -21247,6 +21684,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "volatility-coil-edge-bullbyte-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "volatility-coil-edge-bullbyte-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "volatility-coil-edge-bullbyte-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "volatility-coil-edge-bullbyte-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -21407,15 +21868,13 @@
     "otherSymbol": [],
     "tokens": {
      "pine:builtin": [
-      "chart.fg_color"
+      "str.format",
+      "text.align_center"
      ],
      "runtime:call-text-state": [
       "str.tostring"
      ],
      "runtime:call-undeclared-builtin-state": [
-      "(a script's own identifier)"
-     ],
-     "runtime:expression-statement": [
       "(a script's own identifier)"
      ]
     },
@@ -21460,17 +21919,20 @@
      "pine:collection": [
       "array.size"
      ],
+     "pine:drawing": [
+      "label.all"
+     ],
      "pine:request": [
       "request.security_lower_tf"
+     ],
+     "pine:undefined": [
+      "(a script's own identifier)"
      ],
      "runtime:block-value": [
       "switch"
      ],
      "runtime:request-with-state": [
       "request.security_lower_tf"
-     ],
-     "runtime:statement": [
-      "array.new_float"
      ]
     },
     "captures": [
@@ -21519,8 +21981,44 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {},
-    "captures": [],
-    "ledger": [],
+    "captures": [
+     {
+      "id": "volume-divergence-by-mm-rddt-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "volume-divergence-by-mm-spy-1d-2026-11-17",
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     }
+    ],
+    "ledger": [
+     {
+      "id": "volume-divergence-by-mm-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "volume-divergence-by-mm-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "volume-divergence-by-mm-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "volume-divergence-by-mm-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     }
+    ],
     "localRuns": [
      "f-imp-2026-11-17"
     ],
@@ -21546,10 +22044,17 @@
     "otherSymbol": [],
     "tokens": {
      "pine:builtin": [
+      "(a script's own identifier)",
       "chart.fg_color"
      ],
-     "runtime:colour": [
-      "color.new"
+     "pine:input-kind": [
+      "input.enum"
+     ],
+     "pine:request": [
+      "request.footprint"
+     ],
+     "pine:undefined": [
+      "(a script's own identifier)"
      ],
      "runtime:library": [
       "import"
@@ -21577,14 +22082,14 @@
     "tokens": {
      "pine:builtin": [
       "chart.left_visible_bar_time",
-      "chart.right_visible_bar_time"
+      "chart.right_visible_bar_time",
+      "syminfo.type"
      ],
      "runtime:array": [
       "array.percentrank"
      ],
-     "runtime:statement": [
-      "(a script's own identifier)",
-      "float"
+     "runtime:request": [
+      "request.security"
      ]
     },
     "captures": [
@@ -21766,14 +22271,11 @@
      "historyOnly": true
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "runtime:directive": [
-      "max_bars_back"
-     ],
      "runtime:history-dynamic-offset": [
       "(a script's own identifier)"
      ],
@@ -22274,10 +22776,34 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "all-in-one-sessions-weekly-monday-previous-highslows-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "all-in-one-sessions-weekly-monday-previous-highslows-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
       "id": "all-in-one-sessions-weekly-monday-previous-highslows-spy-1d-2026-11-15",
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "all-in-one-sessions-weekly-monday-previous-highslows-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "all-in-one-sessions-weekly-monday-previous-highslows-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -22337,8 +22863,8 @@
      "runtime:call-undeclared-builtin-state": [
       "(a script's own identifier)"
      ],
-     "runtime:request-with-state": [
-      "security"
+     "runtime:history-dynamic-offset": [
+      "(a script's own identifier)"
      ]
     },
     "captures": [],
@@ -22381,6 +22907,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "anti-volume-stop-loss-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "anti-volume-stop-loss-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "anti-volume-stop-loss-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "anti-volume-stop-loss-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -22462,7 +23012,7 @@
      "missing": [],
      "historyOnly": true
     },
-    "rtAttached": false,
+    "rtAttached": true,
     "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
@@ -22602,7 +23152,7 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "runtime:request-with-state": [
+     "runtime:request": [
       "security"
      ]
     },
@@ -22655,7 +23205,7 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "runtime:request-with-state": [
+     "runtime:request": [
       "security"
      ]
     },
@@ -22679,7 +23229,7 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "runtime:request-with-state": [
+     "runtime:request": [
       "security"
      ]
     },
@@ -22708,6 +23258,18 @@
      {
       "id": "best-sr-indicator-with-candlestick-patterns-rddt-1d-2026-11-14",
       "engine": 54,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "best-sr-indicator-with-candlestick-patterns-rddt-1d-2026-11-14",
+      "engine": 74,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "best-sr-indicator-with-candlestick-patterns-rddt-1d-2026-11-15",
+      "engine": 74,
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
      }
@@ -22916,8 +23478,32 @@
       "runtimeOn": null
      },
      {
+      "id": "check-head-and-shouldersmask-man-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "check-head-and-shouldersmask-man-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
       "id": "check-head-and-shouldersmask-man-spy-1d-2026-11-16",
       "engine": 62,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "check-head-and-shouldersmask-man-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "check-head-and-shouldersmask-man-spy-1d-2026-11-17",
+      "engine": 73,
       "production": "INCONCLUSIVE",
       "runtimeOn": null
      }
@@ -23069,6 +23655,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "coral-trend-indicator-lazybear-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "coral-trend-indicator-lazybear-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "coral-trend-indicator-lazybear-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "coral-trend-indicator-lazybear-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -23169,8 +23779,8 @@
       "box.new",
       "line.new"
      ],
-     "runtime:colour": [
-      "color.new"
+     "pine:undefined": [
+      "(a script's own identifier)"
      ]
     },
     "captures": [],
@@ -23285,7 +23895,7 @@
      "runtime:call-undeclared-builtin-state": [
       "(a script's own identifier)"
      ],
-     "runtime:request-with-state": [
+     "runtime:request": [
       "security"
      ],
      "runtime:varip": [
@@ -23659,7 +24269,7 @@
      "missing": [],
      "historyOnly": false
     },
-    "rtAttached": false,
+    "rtAttached": true,
     "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
@@ -23696,9 +24306,7 @@
     "otherSymbol": [],
     "tokens": {
      "pine:builtin": [
-      "(a script's own identifier)",
-      "chart.bg_color",
-      "chart.fg_color"
+      "(a script's own identifier)"
      ],
      "runtime:udt-method": [
       "(a script's own identifier)"
@@ -23951,7 +24559,7 @@
      "historyOnly": true
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
@@ -23961,9 +24569,6 @@
      ],
      "runtime:call-text-state": [
       "str.tostring"
-     ],
-     "runtime:colour": [
-      "color.new"
      ]
     },
     "captures": [],
@@ -24000,9 +24605,6 @@
      ],
      "runtime:history-dynamic-offset": [
       "(a script's own identifier)"
-     ],
-     "runtime:request-with-state": [
-      "security"
      ],
      "runtime:statement": [
       "time"
@@ -24150,10 +24752,34 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "halftrend-longshort-signal-engine-bigbeluga-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "halftrend-longshort-signal-engine-bigbeluga-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
       "id": "halftrend-longshort-signal-engine-bigbeluga-spy-1d-2026-11-14",
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "halftrend-longshort-signal-engine-bigbeluga-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "halftrend-longshort-signal-engine-bigbeluga-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -24188,16 +24814,13 @@
      "historyOnly": false
     },
     "rtAttached": false,
-    "rtEnumerated": true,
+    "rtEnumerated": false,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
     "tokens": {
      "pine:function": [
       "(a script's own identifier)"
-     ],
-     "runtime:fill-target": [
-      "fill"
      ],
      "runtime:history-dynamic-offset": [
       "wma"
@@ -24441,6 +25064,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "kalman-trend-levels-bigbeluga-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "kalman-trend-levels-bigbeluga-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "kalman-trend-levels-bigbeluga-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "kalman-trend-levels-bigbeluga-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -24551,6 +25198,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "MATCH"
+     },
+     {
+      "id": "laguerre-rsi-v4-lk-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "laguerre-rsi-v4-lk-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "laguerre-rsi-v4-lk-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "laguerre-rsi-v4-lk-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -24838,6 +25509,9 @@
      ],
      "pine:function": [
       "(a script's own identifier)"
+     ],
+     "pine:offset-literal": [
+      "barstate.isconfirmed"
      ],
      "runtime:call-text-state": [
       "str.tostring"
@@ -25280,6 +25954,9 @@
      "runtime:call-undeclared-builtin-state": [
       "time_close"
      ],
+     "runtime:request": [
+      "security"
+     ],
      "runtime:request-with-state": [
       "security"
      ],
@@ -25296,10 +25973,34 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "mtf-order-block-finder-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "mtf-order-block-finder-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
       "id": "mtf-order-block-finder-spy-1d-2026-11-14",
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "mtf-order-block-finder-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "mtf-order-block-finder-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -25375,8 +26076,32 @@
       "runtimeOn": null
      },
      {
+      "id": "multi-timeframe-vwap-v5-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "multi-timeframe-vwap-v5-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
       "id": "multi-timeframe-vwap-v5-spy-1d-2026-11-16",
       "engine": 62,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "multi-timeframe-vwap-v5-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "multi-timeframe-vwap-v5-spy-1d-2026-11-17",
+      "engine": 73,
       "production": "INCONCLUSIVE",
       "runtimeOn": null
      }
@@ -25502,6 +26227,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "non-repainting-swing-highlow-signals-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "non-repainting-swing-highlow-signals-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "non-repainting-swing-highlow-signals-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "non-repainting-swing-highlow-signals-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -25518,7 +26267,7 @@
      "historyOnly": false
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
@@ -25635,16 +26384,12 @@
      "missing": [],
      "historyOnly": true
     },
-    "rtAttached": false,
+    "rtAttached": true,
     "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
-    "tokens": {
-     "runtime:loop": [
-      "for"
-     ]
-    },
+    "tokens": {},
     "captures": [],
     "ledger": [
      {
@@ -25658,9 +26403,7 @@
      "s8-ahead-2026-11-14"
     ],
     "orderAlerts": false,
-    "wallTags": [
-     "for-in"
-    ]
+    "wallTags": []
    },
    "reference:ot-mtf-trend-dashboard-10__d43fa61404": {
     "admission": {
@@ -25850,7 +26593,44 @@
     "otherSymbol": [],
     "tokens": {},
     "captures": [],
-    "ledger": [],
+    "ledger": [
+     {
+      "id": "range-filter-buy-and-sell-5min-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "range-filter-buy-and-sell-5min-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "range-filter-buy-and-sell-5min-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "range-filter-buy-and-sell-5min-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "range-filter-buy-and-sell-5min-spy-5-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "range-filter-buy-and-sell-5min-spy-5-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     }
+    ],
     "localRuns": [
      "e-rddt-2026-11-17",
      "e-spy-2026-11-17"
@@ -26939,9 +27719,6 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
-     "runtime:conditional-history": [
-      "and"
-     ],
      "runtime:loop": [
       "for"
      ]
@@ -26953,6 +27730,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "support-and-resistance-zones-feels-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "support-and-resistance-zones-feels-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "support-and-resistance-zones-feels-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "support-and-resistance-zones-feels-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -27053,7 +27854,7 @@
      "historyOnly": false
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
@@ -27074,10 +27875,34 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "thelark-lma-v2-laguerre-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "thelark-lma-v2-laguerre-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
       "id": "thelark-lma-v2-laguerre-spy-1d-2026-11-14",
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "thelark-lma-v2-laguerre-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "thelark-lma-v2-laguerre-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -27151,7 +27976,32 @@
     "otherSymbol": [],
     "tokens": {},
     "captures": [],
-    "ledger": [],
+    "ledger": [
+     {
+      "id": "tradingviews-technical-analysis-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "tradingviews-technical-analysis-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "tradingviews-technical-analysis-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "tradingviews-technical-analysis-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     }
+    ],
     "localRuns": [
      "e-rddt-2026-11-17",
      "e-spy-2026-11-17"
@@ -27339,9 +28189,6 @@
      "pine:arity": [
       "pivothigh",
       "pivotlow"
-     ],
-     "runtime:request-with-state": [
-      "security"
      ]
     },
     "captures": [],
@@ -27372,7 +28219,7 @@
      "historyOnly": false
     },
     "rtAttached": false,
-    "rtEnumerated": false,
+    "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
@@ -27451,6 +28298,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "twiggs-money-flow-lazybear-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "twiggs-money-flow-lazybear-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "twiggs-money-flow-lazybear-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "MATCH"
+     },
+     {
+      "id": "twiggs-money-flow-lazybear-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -27473,7 +28344,32 @@
     "otherSymbol": [],
     "tokens": {},
     "captures": [],
-    "ledger": [],
+    "ledger": [
+     {
+      "id": "uptrick-volatility-adjusted-trail-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "uptrick-volatility-adjusted-trail-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "uptrick-volatility-adjusted-trail-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "DIVERGE"
+     },
+     {
+      "id": "uptrick-volatility-adjusted-trail-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     }
+    ],
     "localRuns": [
      "f-imp-2026-11-17"
     ],
@@ -27508,10 +28404,34 @@
       "runtimeOn": "INCONCLUSIVE"
      },
      {
+      "id": "ut-bot-linreg-candles-longevity-zones-sr-dashboard-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "ut-bot-linreg-candles-longevity-zones-sr-dashboard-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
       "id": "ut-bot-linreg-candles-longevity-zones-sr-dashboard-spy-1d-2026-11-14",
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "ut-bot-linreg-candles-longevity-zones-sr-dashboard-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "ut-bot-linreg-candles-longevity-zones-sr-dashboard-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
@@ -27797,6 +28717,9 @@
      "pine:function": [
       "(a script's own identifier)"
      ],
+     "runtime:request": [
+      "security"
+     ],
      "runtime:request-with-state": [
       "security"
      ]
@@ -28056,7 +28979,32 @@
      ]
     },
     "captures": [],
-    "ledger": [],
+    "ledger": [
+     {
+      "id": "vwapmvwapema-crossover-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "vwapmvwapema-crossover-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "vwapmvwapema-crossover-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "vwapmvwapema-crossover-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     }
+    ],
     "localRuns": [
      "e-rddt-2026-11-17",
      "e-spy-2026-11-17"
@@ -28089,6 +29037,30 @@
       "engine": 54,
       "production": "INCONCLUSIVE",
       "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "williams-vix-fix-bottoms-and-tops-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "williams-vix-fix-bottoms-and-tops-rddt-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
+     },
+     {
+      "id": "williams-vix-fix-bottoms-and-tops-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": "INCONCLUSIVE"
+     },
+     {
+      "id": "williams-vix-fix-bottoms-and-tops-spy-1d-2026-11-17",
+      "engine": 73,
+      "production": "INCONCLUSIVE",
+      "runtimeOn": null
      }
     ],
     "localRuns": [
