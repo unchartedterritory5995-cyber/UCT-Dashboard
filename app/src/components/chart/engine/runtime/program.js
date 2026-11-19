@@ -829,5 +829,83 @@ export function validateProgram(p) {
       }
     })
   }
+  // ⭐⭐⭐ (engine 85) — A REQUEST REGION READS ONLY WHAT IT STORES (`requestRegionUnstoredRead`, below)
+  const hole = requestRegionUnstoredRead(p)
+  if (hole) {
+    const err = new ProgramError(`this request reads ${hole.what}, which its own region never computes: a request runs `
+      + 'only its region, over the requested bars, so the value would be `na` on every requested bar. Nothing is '
+      + `drawn rather than a blank line (an engine defect, not a shape refused by design; request ${hole.request}, `
+      + `pc ${hole.pc})`)
+    err.guard = REQUEST_UNSTORED_GUARD
+    throw err
+  }
   return true
+}
+
+/** The guard a request region's unstored read refuses under: the request family's own. */
+export const REQUEST_UNSTORED_GUARD = 'runtime:request'
+
+/** ⭐⭐⭐ (engine 85) — THE CLASS GUARD: does a request region READ a main-frame value that nothing in it STORES?
+ *
+ *  A request runs as its own sub-run (`vm.js::runRequest`): a fresh `execute` from the region's `entry`, over the
+ *  requested bars, with fresh locals, persists and rings. Nothing is handed in (the front end lowers a request's
+ *  value in a scope of its own, so it has no inputs but constants), and the main program never runs there. So every
+ *  main-frame address the region reads must be written by the region itself, or it reads `na` on every requested
+ *  bar and draws a blank line with nothing red. ⚰️ It did: engine 82's U-FGS F1 (#1952) declared a helper's
+ *  `ta.change(x)` series, inlined into a request, into the MAIN program (`v(x) => u(x) + ta.change(x)` drew all `na`
+ *  from e82 to e84), and `ta.change(close * 2)` in a request's value had done the same since requests could hoist.
+ *
+ *  Checked, flow-insensitively (a store anywhere in the region counts, so a valid program is never refused for the
+ *  order of its lines): in the region's own code, `LOAD_LOCAL` / `LOAD_PERSIST` and the live slot a main-frame ring
+ *  commits (`READ_HIST_SLOT` / `READ_HIST_SLOT_DYN` of a ring whose `site` is null, `vm.js`'s bar-end commit); and in
+ *  every function body the region can CALL, the main-frame reads `LOAD_GLOBAL_LOCAL` / `LOAD_GLOBAL_PERSIST`, which
+ *  read the sub-run's own main frame there. A function's frame-relative reads are its own (its parameters and body).
+ *  Returns null, or `{ request, pc, what }` for the first hole. */
+export function requestRegionUnstoredRead(p) {
+  const n = p.instructions
+  const starts = []
+  ;(p.functions || []).forEach((f) => { if (Number.isInteger(f.entry)) starts.push(f.entry) })
+  ;(p.requests || []).forEach((r) => { if (Number.isInteger(r.entry)) starts.push(r.entry) })
+  starts.sort((x, y) => x - y)
+  const endOf = (s) => { for (const e of starts) if (e > s) return e; return n }
+  const ringWhat = (h) => `\`${h.name}\`'s committed series`
+  for (let k = 0; k < (p.requests || []).length; k += 1) {
+    const entry = p.requests[k].entry
+    if (!Number.isInteger(entry)) continue
+    const local = new Set()
+    const persist = new Set()
+    const reads = []
+    const fnQueue = []
+    for (let pc = entry, end = endOf(entry); pc < end; pc += 1) {
+      const op = p.code[pc * 3]
+      const a = p.code[pc * 3 + 1]
+      if (op === OP.STORE_LOCAL) local.add(a)
+      else if (op === OP.STORE_PERSIST) persist.add(a)
+      else if (op === OP.LOAD_LOCAL) reads.push({ pc, persist: false, slot: a, what: `local slot ${a}` })
+      else if (op === OP.LOAD_PERSIST) reads.push({ pc, persist: true, slot: a, what: `persistent slot ${a}` })
+      else if (op === OP.READ_HIST_SLOT || op === OP.READ_HIST_SLOT_DYN) {
+        const h = p.history[a]
+        if (h && h.site === null) reads.push({ pc, persist: !!h.persist, slot: h.slot, what: ringWhat(h) })
+      } else if (op === OP.CALL) fnQueue.push(a)
+    }
+    const seen = new Set()
+    while (fnQueue.length) {
+      const fi = fnQueue.pop()
+      if (seen.has(fi) || !p.functions[fi]) continue
+      seen.add(fi)
+      const fe = p.functions[fi].entry
+      for (let pc = fe, end = endOf(fe); pc < end; pc += 1) {
+        const op = p.code[pc * 3]
+        const a = p.code[pc * 3 + 1]
+        if (op === OP.CALL) fnQueue.push(a)
+        else if (op === OP.LOAD_GLOBAL_LOCAL) {
+          reads.push({ pc, persist: false, slot: a, what: `the global local slot ${a} (in \`${p.functions[fi].name}\`)` })
+        } else if (op === OP.LOAD_GLOBAL_PERSIST) {
+          reads.push({ pc, persist: true, slot: a, what: `the global persistent slot ${a} (in \`${p.functions[fi].name}\`)` })
+        }
+      }
+    }
+    for (const r of reads) if (!(r.persist ? persist : local).has(r.slot)) return { request: k, pc: r.pc, what: r.what }
+  }
+  return null
 }

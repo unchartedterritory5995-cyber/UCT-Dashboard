@@ -1,0 +1,8 @@
+//@version=6
+indicator("hp request fn history", overlay=false)
+u(x) => ta.rsi(x, 5)
+v(x) => u(x) + ta.change(x)
+pl = close * 2
+plot(request.security(syminfo.tickerid, "W", v(close)), "helper")
+plot(request.security(syminfo.tickerid, "W", ta.change(close * 2)), "expression")
+plot(request.security(syminfo.tickerid, "W", ta.change(pl)), "binding")

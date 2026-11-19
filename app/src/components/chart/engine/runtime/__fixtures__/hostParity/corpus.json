@@ -190,6 +190,15 @@
    "file": "corpus/pivots.pine"
   },
   {
+   "name": "request_fn_history",
+   "file": "corpus/request_fn_history.pine",
+   "barSets": [
+    "listing",
+    "d5000"
+   ],
+   "note": "engine 85: a request of the chart's own symbol on a higher timeframe whose value hoists (a helper's ta.change of its parameter, ta.change of an expression, of a root binding); each drew na on every bar from e82 to e84"
+  },
+  {
    "name": "rma_alma_hma",
    "file": "corpus/rma_alma_hma.pine"
   },

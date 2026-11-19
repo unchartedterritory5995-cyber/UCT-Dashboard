@@ -7496,6 +7496,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // its region is a statement sequence with its own entry point.
     const prevSink = hoistSink
     hoistSink = []
+    // ⭐⭐⭐ (engine 85) — AND SO IS EVERY COMMITTED SERIES THE VALUE NEEDS: the statement hoist sink is the
+    // REGION's for the value's whole lowering (`hoistCommittedSeries`), never the statement the request sits on.
+    // ⚰️ It was that statement's: `ta.change(close * 2)` here, `ta.change(pl)` of a root binding, and a helper's
+    // `ta.change(x)` lowered inline (`lowerInlineCall`) declared their series into the MAIN program, which a
+    // request's sub-run never runs, so the region read a local and a ring nothing in it stores, and drew `na` on
+    // every requested bar with nothing red. Engine 82's U-FGS F1 (#1952) made the commonest shape of it reachable:
+    // `v(x) => u(x) + ta.change(x)` inside a request had refused inline and fallen back to the shared frame
+    // (exact), and from e82 it inlined into that hole. One region, one sink: a statement-form helper's own last
+    // line still takes its body's sink (U-REQ-HOIST-COLUMN), and a nested statement list still has none.
+    // ⛔ The class guard is `program.js::requestRegionUnstoredRead`: a region that reads what it never stores is
+    // refused at build, by name, whatever lowered it.
+    const prevStmtSink = stmtHoistSink
+    stmtHoistSink = hoistSink
     let valueIr
     try {
       // ⭐⭐ THE DESTRUCTURING FLAG REACHES THE VALUE, and without it a request
@@ -7509,7 +7522,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // about a line that IS one. The tuple machinery was already here; only the
       // permission to use it was missing.
       valueIr = requestValueIr(valueNode, inner)
-    } finally { inRequestValue = wasInRequest }
+    } finally { inRequestValue = wasInRequest; stmtHoistSink = prevStmtSink }
     const hoisted = hoistSink
     hoistSink = prevSink
 
