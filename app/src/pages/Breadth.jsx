@@ -1402,6 +1402,9 @@ export default function Breadth() {
                     </th>
                   )
                 })}
+                {/* Filler: takes the width the table gains from filling the window, so every
+                    real column keeps its natural width (owner 2026-11-19: Date had slack). */}
+                <th className={styles.fillCol} aria-hidden="true" />
               </tr>
             </thead>
             <tbody>
@@ -1410,7 +1413,7 @@ export default function Breadth() {
                   rows hold the scroll height above and below the rendered window. */}
               {virtualItems.length > 0 && (
                 <tr aria-hidden="true" data-snapshot-skip="">
-                  <td colSpan={visibleCols.length + 1} style={{ height: virtualItems[0].start, padding: 0, border: 0 }} />
+                  <td colSpan={visibleCols.length + 2} style={{ height: virtualItems[0].start, padding: 0, border: 0 }} />
                 </tr>
               )}
               {virtualItems.map((vi) => {
@@ -1429,6 +1432,7 @@ export default function Breadth() {
                           <span className={styles.skelDot} aria-hidden="true">·</span>
                         </td>
                       ))}
+                      <td className={styles.fillCol} aria-hidden="true" />
                     </tr>
                   )
                 }
@@ -1563,12 +1567,13 @@ export default function Breadth() {
                       </td>
                     )
                   })}
+                  <td className={styles.fillCol} aria-hidden="true" />
                 </tr>
                 )
               })}
               {virtualItems.length > 0 && (
                 <tr aria-hidden="true" data-snapshot-skip="">
-                  <td colSpan={visibleCols.length + 1} style={{ height: Math.max(0, rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end), padding: 0, border: 0 }} />
+                  <td colSpan={visibleCols.length + 2} style={{ height: Math.max(0, rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end), padding: 0, border: 0 }} />
                 </tr>
               )}
             </tbody>

@@ -1122,3 +1122,8 @@ tbody tr { cursor: pointer; }
   line-height: 1;
   pointer-events: auto;
 }
+
+/* Trailing filler column: absorbs the extra width when the table is narrower than the
+   window (it still fills edge to edge), so real columns are never stretched. */
+.table .fillCol { width: 100%; padding: 0; }
+.table tbody .fillCol { border-bottom: 1px solid var(--br-row); }
