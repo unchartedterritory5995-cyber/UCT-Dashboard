@@ -1682,6 +1682,25 @@ def _render_op(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
                  parts, f"operator {name}", path)
 
 
+#: ⭐ engine 81 (studio, 2026-11-18) -- a bar-field argument is named by its ROLE when the
+#: arguments are not the bar's own fields in the table's order (`sentence.js::barFieldLead`, where
+#: the reason is said once). The roles are the manifest's `argRoles`; a role that is one of the
+#: manifest's SERIES names is a bar field and is said as that name in the plural. No field name
+#: is typed here (this module's own rail).
+def _bar_field_lead(rule: Mapping[str, Any], series: Any) -> Optional[List[str]]:
+    """The leading bar-field roles of a function rule (two or more, each once), else None."""
+    lead: List[str] = []
+    for role in rule.get("arg_roles") or ():
+        if role not in series:
+            break
+        lead.append(role)
+    return lead if len(lead) >= 2 and len(set(lead)) == len(lead) else None
+
+
+def _is_bare_field(arg: Any, field: str) -> bool:
+    return isinstance(arg, dict) and arg.get("type") == "series" and arg.get("name") == field
+
+
 def _render_call(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
                  path: str, trace: List[Dict[str, str]]) -> str:
     name = node.get("name")
@@ -1710,6 +1729,10 @@ def _render_call(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
                                    roles[i] if i < len(roles) else None)
                      if kind == "int"
                      else _render_arg(node["args"][i], rules, inputs, child, trace))
+    lead = _bar_field_lead(rule, rules["series"])
+    if lead and not all(_is_bare_field(node["args"][i], field) for i, field in enumerate(lead)):
+        for i, field in enumerate(lead):
+            parts[i] = f"{field}s from {parts[i]}"
     return _fill(rule["phrase"], parts, f"function {name}", path)
 
 

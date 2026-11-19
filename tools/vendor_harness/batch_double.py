@@ -133,6 +133,11 @@ class _Keyboard:
         self.page._log("press", key, None)
         if key == "Escape":
             self.page.menu = None
+        if key == bc.SAVE_SHORTCUT:
+            # the layout's own Save: the persisted copy becomes the page as it is now (the guarded clean-save)
+            self.page.persisted = {"studies": json.loads(json.dumps(self.page.studies)),
+                                   "symbol": self.page.symbol, "resolution": self.page.resolution}
+            self.page.saved_word = True
 
 
 TITLE_XY = (300.0, 100.0)
@@ -200,6 +205,8 @@ class RecordingTVPage:
             bc.VH_CAPTURE_JS: ("VH_CAPTURE", self._vh_capture), bc.VH_CHUNK_JS: ("VH_CHUNK", self._vh_chunk),
             bc.VH_CLEANUP_JS: ("VH_CLEANUP", self._vh_cleanup), bc.GLOBALS_JS: ("GLOBALS", self._globals),
             bc.ACCOUNT_JS: ("ACCOUNT", lambda a: self.account),
+            bc.SAVED_TEXT_JS: ("SAVED_TEXT", lambda a: bool(getattr(self, "saved_word", False))),
+            bc.FOCUS_BODY_JS: ("FOCUS_BODY", lambda a: getattr(self, "focus_leaves", True)),
         }
 
     # ── recording ───────────────────────────────────────────────────────────

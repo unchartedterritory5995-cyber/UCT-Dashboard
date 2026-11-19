@@ -862,6 +862,38 @@ class TestNewEvidenceFormatters:
         assert len(thirteen_f_items) == 1
         assert "45-day" in thirteen_f_items[0]["date"] or "45 days" in thirteen_f_items[0]["date"]
 
+    def test_ownership_evidence_names_the_source_of_the_institutional_percent(self):
+        own = {"institutional": {"state": "ok", "pct_held": 63.46, "quarter": "2026Q3"},
+              "short": {"state": "not_held", "shares_short": None, "settlement_date": None},
+              "share_counts": {}, "thirteen_f": None, "insider": []}
+        out = te._ownership_evidence(own)
+        snap = [e for e in out if e["type"] == "ownership_snapshot"]
+        assert len(snap) == 1
+        assert snap[0]["source"] == "FMP, via UCT Ownership (Form 13F)"
+        assert "63.46%" in snap[0]["text"] and "2026Q3" in snap[0]["date"]
+        # nothing held for short interest: no short evidence at all, never a zero
+        assert not [e for e in out if e["type"] == "ownership_short"]
+        assert "short" not in snap[0]["text"]
+
+    def test_ownership_evidence_dates_short_interest_by_its_settlement_date(self):
+        own = {"institutional": {}, "share_counts": {}, "thirteen_f": None, "insider": [],
+              "short": {"state": "ok", "shares_short": 50_000_000, "short_pct_float": 0.74,
+                        "days_to_cover": 1.85, "settlement_date": "2026-10-30"}}
+        out = te._ownership_evidence(own)
+        short = [e for e in out if e["type"] == "ownership_short"]
+        assert len(short) == 1
+        assert short[0]["source"] == "FINRA short interest through Massive, via UCT Ownership"
+        assert short[0]["date"].startswith("2026-10-30 (FINRA settlement date")
+        assert short[0]["text"] == "Short interest: 50,000,000 shares short, 0.74% of float, 1.85 days to cover."
+
+    def test_ownership_evidence_no_longer_names_the_old_source(self):
+        own = {"institutional": {"pct_held": 61.0, "quarter": "2026Q3"},
+              "short": {"shares_short": 1, "settlement_date": "2026-10-30"},
+              "share_counts": {"float_shares": 9.0, "shares_outstanding": 10.0, "_meta": None},
+              "thirteen_f": None, "insider": []}
+        for e in te._ownership_evidence(own):
+            assert "yfinance" not in e["source"] and "Yahoo" not in e["source"], e
+
     def test_ownership_evidence_formats_insider_activity_from_the_real_schema(self):
         own = {"institutional": {}, "short": {}, "share_counts": {}, "thirteen_f": None,
               "insider": [{"name": "Jane Doe", "title": "CFO", "type": "sell",

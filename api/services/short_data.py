@@ -64,8 +64,9 @@ WHEN FINRA PUBLISHED A REPORT is not in the vendor's answer, so `published` is a
 business day after the settlement date) and says so.
 
 Reused by the Terminal panels (app/src/pages/terminal/panels/shortInterestModel.js and
-shortListModel.js); `held_stock` and `held_market` are read-only for a caller that must not cause
-work.
+shortListModel.js); `held_stock`, `held_market`, `held_market_row` and `held_market_rows` are
+read-only for a caller that must not cause work (the Screener's nightly snapshot reads the whole
+held list through `held_market_rows`: `api/services/screener/short_columns.py`).
 """
 from __future__ import annotations
 
@@ -856,13 +857,16 @@ def _limit(raw: Any) -> int:
 
 def held_market(rank: Any = None, limit: Any = None) -> tuple[Optional[dict], str]:
     """READ ONLY: one ranked answer from the list this module already holds, as `(answer, how)`.
-    It never starts a build or a check. how: 'held' | 'not_held' | 'refused' (not a rank)."""
+    It never starts a build or a check. how: 'held' | 'not_held' | 'refused' (not a rank).
+    With no list held, the answer is None, or what the last build said while that still stands
+    (`unavailable` or `failed`, with its reason: the answer `get_market` gives without starting
+    another build), so a caller can tell "refused by the data plan" from "never read"."""
     key = norm_rank(rank)
     if key is None:
         return {"status": "bad_rank", "ranks": list(RANKS)}, "refused"
     held = _held_market()
     if held is None:
-        return None, "not_held"
+        return _market_block(), "not_held"
     with _lock:
         check = _market["check"]
     return rank_market(held, key, _limit(limit), check=check), "held"
@@ -901,6 +905,119 @@ def get_market(rank: Any = None, limit: Any = None, *, wait_s: Optional[float] =
         return rank_market(held, key, n, check=check)
     block = _market_block()
     return block if block is not None else {"status": "computing"}
+
+
+def held_market_row(ticker: Any) -> tuple[Optional[dict], str]:
+    """READ ONLY: ONE stock's row of the market list this module already holds, as `(row, how)`.
+    It never starts a build, a check or a vendor read. For a reader that wants a stock's newest
+    short interest without that stock's own history having been read (`held_stock`): the list
+    covers the whole universe once the daily warm has built it.
+
+    how: 'held'        the row, with the report's dates and the list's read time beside it
+         'not_in_list' a list is held and this stock is not in the report (row is None)
+         'not_held'    no list is held; row is None, or what the last build said while that still
+                       stands (`unavailable` / `failed` with its reason), as `held_market` gives
+         'refused'     not a symbol
+    """
+    sym = clean_symbol(ticker)
+    if sym is None:
+        return None, "refused"
+    held = _held_market()
+    if held is None:
+        return _market_block(), "not_held"
+    for r in held.get("rows") or []:
+        if r.get("sym") == sym:
+            day = held.get("settlement_date")
+            return {**r, "settlement_date": day,
+                    "previous_settlement_date": held.get("previous_settlement_date"),
+                    "publication_estimate": publication_estimate(day),
+                    "read_at": held.get("read_at"), "source": SOURCE,
+                    "float_source": (held.get("float") or {}).get("source")}, "held"
+    return None, "not_in_list"
+
+
+def held_market_rows() -> tuple[Optional[dict], str]:
+    """READ ONLY: EVERY row of the market list this module already holds, keyed by symbol, as
+    `(answer, how)`. It never starts a build, a check or a vendor read. For a reader that walks the
+    whole market in one pass (the Screener's nightly snapshot): asking `held_market_row` once per
+    stock would scan the list once per stock.
+
+    how: 'held'      {"rows": {SYM: row}, "count", "settlement_date", "previous_settlement_date",
+                     "publication_estimate", "read_at", "source", "float_source"}. Each row is a
+                     copy of the held one (`sym`, `short_interest`, `avg_daily_volume`,
+                     `days_to_cover`, `prev_short_interest`, `change_shares`, `change_pct`,
+                     `float_shares`, `pct_float`); a missing figure is None, never 0.
+         'not_held'  no list is held; the answer is None, or what the last build said while that
+                     still stands (`unavailable` / `failed` with its reason), as `held_market` gives
+    """
+    held = _held_market()
+    if held is None:
+        return _market_block(), "not_held"
+    rows: dict[str, dict] = {}
+    for r in held.get("rows") or []:
+        sym = r.get("sym") if isinstance(r, dict) else None
+        if isinstance(sym, str) and sym and sym not in rows:
+            rows[sym] = dict(r)
+    day = held.get("settlement_date")
+    return {"rows": rows, "count": len(rows), "settlement_date": day,
+            "previous_settlement_date": held.get("previous_settlement_date"),
+            "publication_estimate": publication_estimate(day),
+            "read_at": held.get("read_at"), "source": SOURCE,
+            "float_source": (held.get("float") or {}).get("source")}, "held"
+
+
+# ── the daily warm: the market list is kept built, on the web service only ───────────────────
+
+WARM_DELAY_S = 180.0          # after boot: never compete with startup
+WARM_EVERY_S = 1800.0         # how often the loop looks; a look asks the vendor at most every CHECK_EVERY_S
+
+_warm_started = threading.Event()
+
+
+def warm_market() -> str:
+    """What `get_market` does about the list, with nobody waiting. Says what it did:
+    'held' (a list is held and the last look is recent), 'checking' (a list is held and the cheap
+    "is there a newer report" look was started), 'blocked' (nothing held and the last build's
+    unavailable / failed answer still stands, so the vendor is not asked), 'building' (nothing
+    held: the one background build was started). Never raises, never waits on the build."""
+    try:
+        if _held_market() is not None:
+            with _lock:
+                due = time.time() - _market["checked"] >= CHECK_EVERY_S
+            if not due:
+                return "held"
+            _start_market_job()
+            return "checking"
+        if _market_block() is not None:
+            return "blocked"
+        _start_market_job()
+        return "building"
+    except Exception:  # noqa: BLE001 -- a warm that fails is a warm that did nothing
+        return "failed"
+
+
+def _warm_loop() -> None:
+    time.sleep(WARM_DELAY_S)
+    while True:
+        warm_market()
+        time.sleep(WARM_EVERY_S)
+
+
+def start_market_warmer(force: bool = False) -> bool:
+    """Start the loop once, on the web service only (any other service that imports this module
+    would repeat the same vendor reads for nobody). True when this call started it.
+
+    Without it the list was built only when a member opened the short interest list, so a reader of
+    one stock's row (`held_market_row`) found nothing most of the time, and nobody learned whether
+    the data plan answers until a member looked. With it the first build runs a few minutes after
+    boot and its one `[short-data] market list: ...` log line says what the vendor answered."""
+    if _warm_started.is_set():
+        return False
+    if not force and os.environ.get("RAILWAY_SERVICE_NAME", "") != "web":
+        return False
+    _warm_started.set()
+    threading.Thread(target=_warm_loop, daemon=True, name="short-data-warm").start()
+    return True
 
 
 def reset_for_tests() -> None:

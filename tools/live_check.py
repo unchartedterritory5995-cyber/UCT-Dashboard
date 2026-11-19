@@ -57,8 +57,26 @@ import time
 import urllib.error
 import urllib.request
 
+
+def _this_repo(fallback: str) -> str:
+    """owner/name of this repository: $GITHUB_REPOSITORY in Actions, else this checkout's origin remote.
+
+    Derived, never hardcoded, so moving the repository to another owner needs no edit here. `fallback`
+    is used only when neither answers (no git, no origin)."""
+    env = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if env:
+        return env
+    try:
+        url = subprocess.run(["git", "-C", str(pathlib.Path(__file__).resolve().parent), "remote", "get-url", "origin"],
+                             capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        url = ""
+    m = re.search(r"github\.com[:/]+([^/\s]+/[^/\s]+?)(?:\.git)?/?$", url)
+    return m.group(1) if m else fallback
+
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-REPO = os.environ.get("GITHUB_REPOSITORY", "unchartedterritory5995-cyber/uct-dashboard")
+REPO = _this_repo("unchartedterritory5995-cyber/UCT-Dashboard")
 SITE = os.environ.get("LIVE_CHECK_SITE", "https://uctintelligence.com")
 RAILWAY_GQL = "https://backboard.railway.com/graphql/v2"
 RAILWAY_PROJECT = os.environ.get("RAILWAY_PROJECT_ID", "d6574d0b-7973-4ece-b35c-65c0ad4c453d")

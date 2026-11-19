@@ -42,10 +42,13 @@ by `principle_key`; nothing that feeds `writer._canonical_hash` is read or writt
 from __future__ import annotations
 
 import json
+import logging
 import os
 import pathlib
 import sqlite3
 from typing import Iterable, Optional
+
+log = logging.getLogger(__name__)
 
 RECORDS_FILE = "records.jsonl"
 MANIFEST_FILE = "manifest.json"
@@ -525,11 +528,23 @@ def score_silently(ctx, *, root=None, run_ids: Optional[list] = None) -> dict:
     if len(ids) < floor.MIN_RUNS:
         return {"skipped": f"only {len(ids)} persisted run(s); need {floor.MIN_RUNS}",
                 "runs": len(ids)}
-    runs = [load_run(root, rid) for rid in ids[-floor.MIN_RUNS:]]
+    picked = ids[-floor.MIN_RUNS:]
+    # ⛔⛔ BUG FOUND 2026-11-18 (owner: a "critical job failing" email every 30 minutes): `load_run`
+    # sat OUTSIDE this try, so a pass with no records.jsonl raised instead of being refused. Only the
+    # explicit-`run_ids` path can hit it (`discover()` lists only directories that HAVE the file),
+    # and that is `same_night.score_night`, which takes a night's pass ids from the request LEDGER.
+    # A night whose pass persisted nothing (every request `failed`) is complete there and never
+    # loadable here, so the claim went 'failed' -> retried every reap tick -> paged every tick,
+    # forever: four nights from 2026-09-23..10-22 were still doing it on 2026-11-18. A missing pass
+    # is permanent once the night is complete, and it is a refusal like any other: the night cannot
+    # be scored defensibly, so it is skipped (its records stay at stability NULL, which the floor
+    # already reads fail-closed) and the reason is kept in the run row.
     try:
+        runs = [load_run(root, rid) for rid in picked]
         result = reconcile(runs)
     except ReconcileRefused as exc:
-        return {"skipped": f"refused: {exc}", "runs": len(runs)}
+        log.warning("[wisdom-reconcile] refused %s: %s", picked, exc)
+        return {"skipped": f"refused: {exc}", "runs": len(picked)}
     with store.write() as conn:
         written = write_scores(conn, result)
     write_report(root, result, extra={"written": written})

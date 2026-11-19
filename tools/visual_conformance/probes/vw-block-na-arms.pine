@@ -1,0 +1,60 @@
+//@version=6
+indicator("UCTPROBE_VW_BLOCK_NA_ARMS", overlay = false, max_labels_count = 60)
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (lang-units, U-BLOCK), capture queue
+// rows Q-BV1 / Q-BV2 (docs/pine/capture-queue-2026-11-18-lang-units.md, CR-B1). NEVER COMPILED ON
+// TRADINGVIEW. The v5 sibling is `vw-block-na-arms-v5.pine`.
+//
+// --- WHAT A `switch` WITH NO DEFAULT, AND AN `if` WITH NO `else`, YIELD WHEN NO ARM RUNS ---
+// The v6 reference (`switch`, Remarks): "If the result of the switch statement is assigned to a
+// variable and a default_local_block is not specified, the statement returns na if no local_block is
+// executed." What that `na` is for a COLOUR, a STRING and (v6, where a bool is never `na`) a BOOL arm is
+// not captured. `m = bar_index % 3`: on m == 0 no arm runs; m == 1 and m == 2 are the matched controls.
+//   K1  `switch m` over colour arms      plotted as color.r, color.t, and na() as 1 / 0
+//   K2  `if m == 1` over a colour arm    the same three
+//   S1  `switch m` over string arms      na() as 1 / 0, str.length, and a label on each of the newest
+//                                        30 bars: "S1|<value>" ("<na>" when na() says so)
+//   S2  `if m == 1` over a string arm    the same
+//   B1  `switch m` over bool arms        as 1 / 0 (v6: a bool is never `na`)
+//   B2  `if m == 1` over a bool arm      as 1 / 0
+//   M   `m` itself                       control
+// CAPTURE: AMEX:SPY 1D and NYSE:RDDT 1D, inputs at defaults (none). Every row repeats every three bars.
+// If a row does not compile, record the error text and the line, remove only that row, and capture
+// the rest.
+
+m = bar_index % 3
+
+k1 = switch m
+    1 => color.red
+    2 => color.blue
+k2 = if m == 1
+    color.red
+
+s1 = switch m
+    1 => "one"
+    2 => "two"
+s2 = if m == 1
+    "one"
+
+b1 = switch m
+    1 => true
+    2 => close > open
+b2 = if m == 1
+    true
+
+plot(m, "M00_bar_index_mod_3_CONTROL")
+plot(color.r(k1), "K1_switch_colour_r")
+plot(color.t(k1), "K1_switch_colour_t")
+plot(na(k1) ? 1 : 0, "K1_switch_colour_is_na")
+plot(color.r(k2), "K2_if_colour_r")
+plot(color.t(k2), "K2_if_colour_t")
+plot(na(k2) ? 1 : 0, "K2_if_colour_is_na")
+plot(na(s1) ? 1 : 0, "S1_switch_string_is_na")
+plot(str.length(s1), "S1_switch_string_length")
+plot(na(s2) ? 1 : 0, "S2_if_string_is_na")
+plot(str.length(s2), "S2_if_string_length")
+plot(b1 ? 1 : 0, "B1_switch_bool")
+plot(b2 ? 1 : 0, "B2_if_bool")
+
+if bar_index > last_bar_index - 30
+    label.new(bar_index, 0, "S1|" + (na(s1) ? "<na>" : s1) + "|S2|" + (na(s2) ? "<na>" : s2))

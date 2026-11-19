@@ -1,17 +1,22 @@
 // app/src/components/research/fmpDepth/ConsensusEstimates.jsx
 //
-// EE on FMP (terminal gap audit, gap 4). The terminal's EE panel, and the
-// /research Estimates tab when RESEARCH_FMP_DEPTH_ENABLED is on.
+// EE on FMP (terminal gap audit, gap 4). The terminal's EE panel, the Calendar
+// earnings modal's estimates section, and the /research Estimates tab when
+// RESEARCH_FMP_DEPTH_ENABLED is on.
 //
-// One request: /api/research/estimates/{sym}?consensus=1 — the yfinance
-// forward/revisions blocks the tab always had, plus FMP's multi-year consensus.
+// Two requests, each with one source:
 //
-//   consensus  FMP: annual (up to 5 fiscal years) and quarterly (up to 8),
-//              EPS + revenue mean / low / high / # analysts / y/y, EBITDA and
-//              net income. When FMP is empty or failed, the yfinance forward
-//              table stands in, labelled as the FALLBACK with the reason.
-//   revisions  yfinance's 30/90-day EPS trend — FMP does not publish revision
-//              history on this plan — labelled as yfinance.
+//   consensus  /api/research/estimates/{sym}?consensus=1. FMP: annual (up to 5
+//              fiscal years) and quarterly (up to 8), EPS + revenue mean / low /
+//              high / # analysts / y/y, EBITDA and net income. The server reads
+//              yfinance for this answer ONLY when FMP is empty or failed: its
+//              forward table then stands in, labelled as the FALLBACK with the
+//              reason.
+//   revisions  /api/research/estimates/{sym}?revisions=1, the card's OWN read.
+//              yfinance's 30/90-day EPS trend — FMP does not publish revision
+//              history on this plan — labelled as yfinance. Nothing else on this
+//              view depends on it: remove <EstimateRevisions /> and the request
+//              goes with it.
 //   history    EEH (our own daily FMP snapshots) when that flag is on: pointed
 //              to, not duplicated.
 import { useContext, useState } from 'react'
@@ -28,6 +33,8 @@ import styles from './FmpDepth.module.css'
 import { PanelSkeleton, useInTerminalPanel } from '../../terminal'
 
 export const estimatesKey = (sym) => `/api/research/estimates/${sym}?consensus=1`
+/** The revisions card's own read (one source: Yahoo Finance). */
+const estimateRevisionsKey = (sym) => `/api/research/estimates/${sym}?revisions=1`
 
 const range = (lo, hi, fmt) => (lo == null && hi == null ? fmt(null) : `${fmt(lo)} – ${fmt(hi)}`)
 
@@ -128,6 +135,29 @@ function Revisions({ rows, rc }) {
   )
 }
 
+/** EPS estimate revisions: a card with its OWN request and its own source line. It shows when the
+ *  read holds rows and is absent otherwise (loading, a failed read, no rows), as it always was.
+ *  `rc` is the company's reporting currency, read by the consensus answer beside it. */
+export function EstimateRevisions({ sym, rc = null }) {
+  const s = (sym || '').toUpperCase().trim()
+  const { data, error } = useSWR(s ? estimateRevisionsKey(s) : null, sectionFetcher,
+    { revalidateOnFocus: false })
+  const revs = !error && data && !data.paywalled && Array.isArray(data.revisions) ? data.revisions : []
+  if (!revs.length) return null
+  const note = isForeignCurrency(rc)
+    ? 'EPS revisions from Yahoo Finance carry no currency symbol: Yahoo does not state it for this company.'
+    : reportingCurrencyNote(rc, UNKNOWN_CCY)
+  return (
+    <section className={styles.card} data-testid="ee-revisions" data-source="yfinance">
+      <div className={styles.head}><span className={styles.title}>EPS estimate revisions</span></div>
+      <SourceLine vendor={data.sources?.revisions || 'Yahoo Finance'} activity="yfinance eps_trend / eps_revisions"
+                  detail="FMP does not publish estimate revisions" />
+      {note && <p className={styles.note} data-testid="ee-revisions-currency">{note}</p>}
+      <Revisions rows={revs} rc={rc} />
+    </section>
+  )
+}
+
 const FALLBACK_REASON = {
   empty: 'FMP holds no forward consensus for this ticker; showing Yahoo Finance.',
   error: 'FMP did not answer; showing Yahoo Finance until it does.',
@@ -153,7 +183,7 @@ export function fallbackReason(c) {
   return FALLBACK_REASON.unknown
 }
 
-export default function ConsensusEstimates({ sym }) {
+export default function ConsensusEstimates({ sym, showTradeCard = true }) {
   const s = (sym || '').toUpperCase().trim()
   const [basis, setBasis] = useState('annual')
   const estimateHistoryOn = useContext(AuthContext)?.estimateHistoryEnabled === true
@@ -186,7 +216,6 @@ export default function ConsensusEstimates({ sym }) {
   const c = data.consensus || { state: 'error', annual: [], quarterly: [] }
   const fmpOk = c.state === 'ok' && ((c.annual || []).length || (c.quarterly || []).length)
   const fwd = data.forward || []
-  const revs = data.revisions || []
   // Offer only a basis that HAS rows, so the toggle can never switch to nothing.
   const bases = [['annual', 'Annual'], ['quarterly', 'Quarterly']].filter(([k]) => (c[k] || []).length)
   const shown = bases.some(([k]) => k === basis) ? basis : bases[0]?.[0]
@@ -200,13 +229,21 @@ export default function ConsensusEstimates({ sym }) {
   const consensusNote = reportingCurrencyNote(ccy, UNKNOWN_CCY)
   // tq-panels: the route marks a fund (`not_applicable` + `reason`, e910f8ff6). With
   // nothing usable from either vendor, say that -- not "Neither FMP nor Yahoo holds...".
-  if (data.not_applicable && !fmpOk && !fwd.length && !revs.length) {
-    return <div className={styles.wrap} data-testid="ee-deep"><p className={styles.note} data-testid="ee-na">Not applicable to funds: {data.reason || `${s} is a fund`}.</p></div>
+  // The revisions card still makes its own read under it: an index that mis-types a company
+  // as a fund must not blank real rows (it draws nothing when there are none).
+  if (data.not_applicable && !fmpOk && !fwd.length) {
+    return (
+      <div className={styles.wrap} data-testid="ee-deep">
+        <p className={styles.note} data-testid="ee-na">Not applicable to funds: {data.reason || `${s} is a fund`}.</p>
+        <EstimateRevisions sym={s} rc={rc} />
+      </div>
+    )
   }
 
   return (
     <div className={styles.wrap} data-testid="ee-deep" data-source={fmpOk ? 'fmp' : 'yfinance'}>
-      <EarningsTradeCardForSym sym={s} />
+      {/* The Calendar earnings modal already heads its own canvas with this card. */}
+      {showTradeCard && <EarningsTradeCardForSym sym={s} />}
       {fmpOk ? (
         <section className={styles.card} data-testid="ee-consensus">
           <div className={styles.head}>
@@ -255,16 +292,7 @@ export default function ConsensusEstimates({ sym }) {
         </section>
       )}
 
-      {!!revs.length && (
-        <section className={styles.card} data-testid="ee-revisions">
-          <div className={styles.head}><span className={styles.title}>EPS estimate revisions</span></div>
-          <SourceLine vendor="Yahoo Finance" activity="yfinance eps_trend / eps_revisions"
-                      detail="FMP does not publish estimate revisions" />
-          {isForeignCurrency(rc) && <p className={styles.note} data-testid="ee-revisions-currency">EPS revisions from Yahoo Finance carry no currency symbol: Yahoo does not state it for this company.</p>}
-          {!isForeignCurrency(rc) && yahooNote && <p className={styles.note} data-testid="ee-revisions-currency">{yahooNote}</p>}
-          <Revisions rows={revs} rc={rc} />
-        </section>
-      )}
+      <EstimateRevisions sym={s} rc={rc} />
 
       {estimateHistoryOn && (
         <p className={styles.note} data-testid="ee-history-pointer">

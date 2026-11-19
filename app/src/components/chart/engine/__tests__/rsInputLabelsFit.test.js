@@ -16,7 +16,7 @@ const MAX = 17
 const DEFS = [
   ['rsLine (slim, VITE_RS_SPLIT_ENABLED)', RS_LINE_SLIM_RAW],
   ['rsLine (today)', RS_LINE_V5_RAW],
-  ...['rsRating', 'rsPhases', 'rsVsEma', 'rsExit'].map((id) => [id, getDefinition(id)]),
+  ...['rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield'].map((id) => [id, getDefinition(id)]),
 ]
 
 describe('every RS input label the inspector renders fits its 17-character column', () => {

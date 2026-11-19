@@ -90,11 +90,44 @@ def acronym_entry(wrote: Any) -> Optional[str]:
     return next((e["id"] for e in entries() if want in (e.get("acronyms") or ())), None)
 
 
+def built_in(e: Any) -> Optional[Mapping[str, Any]]:
+    """⭐ `built_in` {indicator, name, what} when this name IS one of UCT's own built-in indicators
+    (ruling 2026-11-18): computed by the server, already shipped, and not a formula this library
+    holds. `indicator` is the native registry's id and `name` its name there."""
+    got = e.get("built_in") if isinstance(e, Mapping) else None
+    if not isinstance(got, Mapping):
+        return None
+    return got if all(isinstance(got.get(k), str) and got[k] for k in ("indicator", "name", "what")) else None
+
+
+def built_ins() -> List[Dict[str, Any]]:
+    """The held names that are UCT's own built-in indicators."""
+    return [e for e in held_names() if built_in(e) is not None]
+
+
+def built_in_answer(e: Mapping[str, Any]) -> str:
+    """What a member is told when the browser CAN add the built-in from where they are: what it
+    is. The offer to add it rides beside this sentence, never inside it."""
+    b = built_in(e) or {}
+    return f"{e['name']} is one of UCT's own indicators, {b['name']}: {b['what']}. It is not a formula to build here."
+
+
 def way_forward(e: Mapping[str, Any]) -> str:
     """What a member is told when they name something UCT will not build by name yet."""
     example = f" (for example: {e['describe']})" if e.get("describe") else ""
-    return (f"{e['name']} isn't in UCT's checked library yet. Describe the rule itself in your own words{example} "
-            "and the assistant will build exactly that, as your own formula.")
+    describe = (f"describe the rule itself in your own words{example} and the assistant will build exactly that, "
+                "as your own formula.")
+    b = built_in(e)
+    if b is not None:
+        # a browser that did not say it can add it (an older tab, or a build that does not offer
+        # it): where to look, and nothing promised about what that list shows
+        return (f"{e['name']} is one of UCT's own indicators ({b['name']}), not a formula this window builds. "
+                f"Look for {b['name']} in the Indicators list.")
+    lives = e.get("lives_in") if isinstance(e.get("lives_in"), Mapping) else None
+    if lives and lives.get("what") and lives.get("where"):
+        return (f"{e['name']} is {lives['what']} in UCT today ({lives['where']}), not a chart line yet. To draw "
+                f"something like it here, {describe}")
+    return f"{e['name']} isn't in UCT's checked library yet. D{describe[1:]}"
 
 
 # ── text ─────────────────────────────────────────────────────────────────────
@@ -164,10 +197,22 @@ def tiers(e: Mapping[str, Any]) -> Tuple[bool, bool, bool]:
             bool(capture.get("id") and capture.get("grade") in CAPTURE_SAID))
 
 
+def follows_house(e: Mapping[str, Any]) -> Optional[Mapping[str, Any]]:
+    """⭐ `evidence.house` when this entry FOLLOWS UCT'S OWN READER (ruling 2026-11-18): the product
+    already computes this indicator in one place (a Screener detector), and the entry is the chart
+    formula of THAT, proved equal to it bar for bar by the test it names. {reader, proof, whose,
+    what}. It stands where a published definition would: there is one authority, and it is ours."""
+    house = (e.get("evidence") or {}).get("house")
+    if not isinstance(house, Mapping):
+        return None
+    return house if all(isinstance(house.get(k), str) and house[k] for k in ("reader", "proof", "whose", "what")) else None
+
+
 def passes(e: Mapping[str, Any]) -> bool:
-    """May the assistant build it? Value-checked AND a published definition read, or better."""
+    """May the assistant build it? Value-checked AND a published definition read (or better), or
+    value-checked and proved equal to UCT's own reader."""
     checked, published, _captured = tiers(e)
-    return checked and published
+    return checked and (published or follows_house(e) is not None)
 
 
 def follows_a_capture(e: Mapping[str, Any]) -> Optional[Mapping[str, Any]]:
@@ -188,7 +233,12 @@ def member_sentence(e: Mapping[str, Any], values: Mapping[str, Any]) -> str:
     _checked, _published, captured = tiers(e)
     by = (e["evidence"].get("published") or {}).get("by")
     follows = follows_a_capture(e)
-    if follows:
+    house = follows_house(e)
+    if house and not follows:
+        # ⭐ THE HOUSE'S OWN READER IS THE DEFINITION: the member is told whose it is and that the
+        # chart agrees with it bar for bar. ⛔ It says nothing about any vendor.
+        proof = f"it follows {house['whose']} ({house['what']}), and is equal to it bar for bar"
+    elif follows:
         # ⭐ THE CAPTURE IS THE DEFINITION (ruling 2026-11-18, TRIX): the pages read describe another
         # form, so the member is told whose form this is, what it is, and that others differ.
         proof = (f"it follows {follows['whose']}, {follows['what']}, and is equal to it on captured charts. "

@@ -1,0 +1,398 @@
+{
+ "_": "THE READ-BACK NAMES A BAR-FIELD ARGUMENT BY ITS ROLE (engine 81, 2026-11-18). Each case is a formula, its tree, and the sentence BOTH sentence writers must give (sentence.js and definition_concierge.sentence_for). `kind` unchanged: the arguments are the bar's own fields in the table's order and the sentence is what it always was. `kind` by role: they are not, and each is named by the place it fills, so a slip in the order reads wrong. Written by the server's writer; a change to either writer that moves a sentence fails the other lane's test.",
+ "contract": "uct.sentence-roles/1",
+ "before": {
+  "stoch(close, high, low, 14)": "the 14-bar stochastic %K of close, high and low"
+ },
+ "cases": [
+  {
+   "formula": "stoch(high, low, close, 14)",
+   "tree": {
+    "type": "call",
+    "name": "stoch",
+    "args": [
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     },
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "num",
+      "value": 14
+     }
+    ]
+   },
+   "kind": "unchanged",
+   "sentence": "the 14-bar stochastic %K of high, low and close"
+  },
+  {
+   "formula": "atr(high, low, close, 14)",
+   "tree": {
+    "type": "call",
+    "name": "atr",
+    "args": [
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     },
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "num",
+      "value": 14
+     }
+    ]
+   },
+   "kind": "unchanged",
+   "sentence": "the 14-bar average true range of high, low and close"
+  },
+  {
+   "formula": "mfi(high, low, close, volume, 14)",
+   "tree": {
+    "type": "call",
+    "name": "mfi",
+    "args": [
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     },
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "series",
+      "name": "volume"
+     },
+     {
+      "type": "num",
+      "value": 14
+     }
+    ]
+   },
+   "kind": "unchanged",
+   "sentence": "the 14-bar money flow index of high, low, close and volume"
+  },
+  {
+   "formula": "donchianUpper(high, low, 20)",
+   "tree": {
+    "type": "call",
+    "name": "donchianUpper",
+    "args": [
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     },
+     {
+      "type": "num",
+      "value": 20
+     }
+    ]
+   },
+   "kind": "unchanged",
+   "sentence": "the top of the 20-bar Donchian channel over high and low"
+  },
+  {
+   "formula": "ema(close, 20)",
+   "tree": {
+    "type": "call",
+    "name": "ema",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "num",
+      "value": 20
+     }
+    ]
+   },
+   "kind": "unchanged",
+   "sentence": "the 20-bar exponential average of close"
+  },
+  {
+   "formula": "stoch(close, high, low, 14)",
+   "tree": {
+    "type": "call",
+    "name": "stoch",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     },
+     {
+      "type": "num",
+      "value": 14
+     }
+    ]
+   },
+   "kind": "by role",
+   "sentence": "the 14-bar stochastic %K of highs from close, lows from high and closes from low"
+  },
+  {
+   "formula": "atr(close, high, low, 14)",
+   "tree": {
+    "type": "call",
+    "name": "atr",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     },
+     {
+      "type": "num",
+      "value": 14
+     }
+    ]
+   },
+   "kind": "by role",
+   "sentence": "the 14-bar average true range of highs from close, lows from high and closes from low"
+  },
+  {
+   "formula": "mfi(close, high, low, volume, 14)",
+   "tree": {
+    "type": "call",
+    "name": "mfi",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     },
+     {
+      "type": "series",
+      "name": "volume"
+     },
+     {
+      "type": "num",
+      "value": 14
+     }
+    ]
+   },
+   "kind": "by role",
+   "sentence": "the 14-bar money flow index of highs from close, lows from high, closes from low and volumes from volume"
+  },
+  {
+   "formula": "donchianUpper(low, high, 20)",
+   "tree": {
+    "type": "call",
+    "name": "donchianUpper",
+    "args": [
+     {
+      "type": "series",
+      "name": "low"
+     },
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "num",
+      "value": 20
+     }
+    ]
+   },
+   "kind": "by role",
+   "sentence": "the top of the 20-bar Donchian channel over highs from low and lows from high"
+  },
+  {
+   "formula": "stoch(rsi(close, 14), rsi(close, 14), rsi(close, 14), 14)",
+   "tree": {
+    "type": "call",
+    "name": "stoch",
+    "args": [
+     {
+      "type": "call",
+      "name": "rsi",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 14
+       }
+      ]
+     },
+     {
+      "type": "call",
+      "name": "rsi",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 14
+       }
+      ]
+     },
+     {
+      "type": "call",
+      "name": "rsi",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 14
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 14
+     }
+    ]
+   },
+   "kind": "by role",
+   "sentence": "the 14-bar stochastic %K of highs from (the 14-bar RSI of close), lows from (the 14-bar RSI of close) and closes from (the 14-bar RSI of close)"
+  },
+  {
+   "formula": "williamsR(high, low, open, 14)",
+   "tree": {
+    "type": "call",
+    "name": "williamsR",
+    "args": [
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     },
+     {
+      "type": "series",
+      "name": "open"
+     },
+     {
+      "type": "num",
+      "value": 14
+     }
+    ]
+   },
+   "kind": "by role",
+   "sentence": "the 14-bar Williams %R of highs from high, lows from low and closes from open"
+  },
+  {
+   "formula": "cci(high, low, close[1], 20)",
+   "tree": {
+    "type": "call",
+    "name": "cci",
+    "args": [
+     {
+      "type": "series",
+      "name": "high"
+     },
+     {
+      "type": "series",
+      "name": "low"
+     },
+     {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 20
+     }
+    ]
+   },
+   "kind": "by role",
+   "sentence": "the 20-bar commodity channel index of highs from high, lows from low and closes from (close 1 bar ago)"
+  },
+  {
+   "formula": "sma(stoch(close, high, low, 14), 3)",
+   "tree": {
+    "type": "call",
+    "name": "sma",
+    "args": [
+     {
+      "type": "call",
+      "name": "stoch",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "series",
+        "name": "high"
+       },
+       {
+        "type": "series",
+        "name": "low"
+       },
+       {
+        "type": "num",
+        "value": 14
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 3
+     }
+    ]
+   },
+   "kind": "by role",
+   "sentence": "the 3-bar average of (the 14-bar stochastic %K of highs from close, lows from high and closes from low)"
+  }
+ ]
+}

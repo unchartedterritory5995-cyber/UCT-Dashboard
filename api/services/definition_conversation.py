@@ -270,6 +270,17 @@ def composed_schema() -> Dict[str, Any]:
 #:   * it changes nothing the door decides: notes are compared by output and text, as before.
 NOTE_BY = "uct"
 ACCEPTS_NOTE_BY = "note.by"
+#: ⭐ 2026-11-18 -- AN OFFER: an answer may carry `offer` {kind: "add_built_in", indicator, name, label},
+#: one action the member takes with one tap (add one of UCT's own built-in indicators to the chart).
+#:   * IT IS SENT ONLY TO A BROWSER THAT ACCEPTS IT (this word in `accepts`) AND THAT SAID IT CAN ADD
+#:     THAT INDICATOR NOW (its id in the request's `addable`: the browser's own registry and the
+#:     live server decide what is offered, so the door never names something that build cannot add).
+#:   * Any other browser gets the sentence that says where to look, and no offer.
+ACCEPTS_OFFER = "offer"
+OFFER_ADD_BUILT_IN = "add_built_in"
+#: The most indicator ids a request's `addable` may hold, and the longest one (bounds, not a list).
+BUILT_INS_MAX, BUILT_IN_ID_MAX = 40, 64
+NAMED_BUILT_IN_GATE = "named:built-in"
 DOOR_ONLY = "x-uct-door-only"
 
 
@@ -1695,7 +1706,7 @@ def described_in_own_words(plain: str, chart: Any) -> bool:
     ⭐ A SMALL, MEASURED TEST, NOT A JUDGEMENT OF MEANING (2026-11-18, fourteen wordings): the rest
     must name at least one thing a formula reads (a vocabulary term, or a ticker) and at least two
     of {terms, tickers, the member's numbers} in all. "Mansfield relative strength versus SPY over
-    52 weeks" is a description (a ticker and a number); "Add the Pocket Pivot", "pocket pivot
+    52 weeks" is a description (a ticker and a number); "Add the TTM Squeeze", "ttm squeeze
     marker in a lower pane" and "TTM Squeeze 20 2 1.5" (numbers and no rule) are not. Both ways of
     being wrong are soft: a description judged missing gets the way forward; one judged present is
     built from the member's words alone and labelled as their own formula."""
@@ -1870,6 +1881,22 @@ def _own_notes_only(envelope: Any) -> Any:
     out["assumptions"] = [{k: v for k, v in a.items() if k != "by"} if isinstance(a, Mapping) else a
                           for a in envelope["assumptions"]]
     return out
+
+
+def can_add_built_ins(accepts: Any, built_ins: Any) -> frozenset:
+    """The built-in indicator ids this browser said it can add from where the member is: empty
+    unless it accepts an offer at all. Untrusted input: anything not a short list of short words
+    is nothing."""
+    if not (isinstance(accepts, list) and ACCEPTS_OFFER in accepts) or not isinstance(built_ins, list):
+        return frozenset()
+    return frozenset(i for i in built_ins[:BUILT_INS_MAX] if isinstance(i, str) and 0 < len(i) <= BUILT_IN_ID_MAX)
+
+
+def built_in_offer(entry: Mapping[str, Any]) -> Dict[str, Any]:
+    """The one action an answer about a built-in name offers."""
+    b = named_indicators.built_in(entry) or {}
+    return {"kind": OFFER_ADD_BUILT_IN, "indicator": b["indicator"], "name": b["name"],
+            "label": f"Add {b['name']} to this chart"}
 
 
 def accepts_note_by(accepts: Any) -> bool:
@@ -4151,7 +4178,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
              conversation_id: Any = None, examples: Any = False,
              browser_refusal: Any = None, memory: Any = None, accepts: Any = None,
-             saved: Any = None) -> Dict[str, Any]:
+             saved: Any = None, addable: Any = None) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
 
     ``saved`` reads this member's OWN saved indicators (`saved(user_id)` -> their definitions), or
@@ -4198,7 +4225,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
                                        snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
                                        trace=trace, admin=admin, examples=examples is True,
                                        refused_by_browser=browser_refusal, memory=memory, cancelled=cancelled,
-                                       saved=saved),
+                                       saved=saved, can_add=can_add_built_ins(accepts, addable)),
                 cancelled)
             if result is None:
                 # ⭐ THE CEILING PASSED. The member is answered now and their slot is freed as this
@@ -4492,10 +4519,15 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     own_words: List[Dict[str, Any]] = []
     if unchecked and not advisory:
         if not described_in_own_words(plain, chart):
-            return {"refusal": {"ok": False, "gate": NAMED_UNCHECKED_GATE,
-                                "reason": named_indicators.way_forward(unchecked[0]["entry"]),
+            first = unchecked[0]["entry"]
+            is_built_in = named_indicators.built_in(first) is not None
+            return {"refusal": {"ok": False, "gate": NAMED_BUILT_IN_GATE if is_built_in else NAMED_UNCHECKED_GATE,
+                                "reason": named_indicators.way_forward(first),
                                 "not_understood": not_understood, "unavailable": unavailable},
-                    "held": [u["entry"]["id"] for u in unchecked]}
+                    "held": [u["entry"]["id"] for u in unchecked],
+                    # ⭐ one of UCT's own built-in indicators: the turn may be ANSWERED with an offer
+                    # to add it (`_converse_turn`), for a browser that can
+                    **({"built_in": first} if is_built_in else {})}
         own_words = [u["entry"] for u in unchecked]
     elif unchecked:
         discussed = discussed + [{"phrase": u["wrote"], "gate": NAMED_UNCHECKED_GATE,
@@ -4529,7 +4561,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    trace: Optional[Dict[str, Any]] = None,
                    admin: bool = False, examples: bool = False,
                    refused_by_browser: Any = None, memory: Any = None,
-                   cancelled: Optional[threading.Event] = None, saved: Any = None) -> Dict[str, Any]:
+                   cancelled: Optional[threading.Event] = None, saved: Any = None,
+                   can_add: frozenset = frozenset()) -> Dict[str, Any]:
     trace = trace if trace is not None else {}
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
@@ -4552,6 +4585,25 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         logger.exception("[converse] the name catalogue could not be read for the record")
     if understood_turn["refusal"] is not None:
         trace["named_held"] = understood_turn.get("held") or []
+        pointer = understood_turn.get("built_in")
+        if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in can_add:
+            # ⭐ THE DOOR ANSWERS, with no model call, and OFFERS THE ACTION: this browser said it can
+            # add that built-in now. Nothing is built and nothing is changed by the answer itself.
+            said = named_indicators.built_in_answer(pointer)
+            answer = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "answer",
+                      "reply": said}
+            try:
+                answer = check_envelope(answer, revision, view)
+            except _Refused:                       # never: the answer is this door's own. If it ever is, the sentence stands.
+                logger.exception("[converse] the door's own answer did not pass the door")
+            else:
+                trace["offered"] = pointer["id"]
+                logger.info("[converse] the door offered the built-in %s (no model call)", pointer["id"])
+                return {"ok": True, "disposition": "answer", "reply": said, "turn": "offer", "envelope": answer,
+                        "answered_by": "door", "offer": built_in_offer(pointer),
+                        "not_understood": understood_turn["refusal"].get("not_understood") or [],
+                        "unavailable": understood_turn["refusal"].get("unavailable") or [],
+                        "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
         if understood_turn["refusal"].get("preflight"):
             logger.info("[converse] preflight %s (no model call)", understood_turn["refusal"]["gate"])
         return understood_turn["refusal"]

@@ -115,11 +115,17 @@ def test_the_new_flags_are_in_the_table_and_default_off():
         assert flags.OPTIONS_ANALYTICS_FLAGS[f] == ""
 
 
-def test_the_new_flags_are_declared_dark_in_the_ledger():
+def test_the_new_flags_are_declared_armed_in_the_ledger():
+    # Built dark 2026-10-10 (lane L3); ARMED 2026-10-11T02:51:30Z by owner ruling (4634e24f3e): all five on web,
+    # the base rate also on terminal-next-monitor (its levels-history job). Each read 1 again on 2026-11-18
+    # (`railway variables --kv`, web and terminal-next-monitor). The rail said dark until then.
     ledger = json.loads((pathlib.Path(__file__).parents[1] / "docs" / "feature_flags.json").read_text(encoding="utf-8"))
     for f in NEW_FLAGS:
         e = ledger["flags"][f]
-        assert e["status"] == "dark" and "web" in e["where"] and "L3" in e["note"]
+        assert e["status"] == "armed" and "web" in e["where"] and "L3" in e["note"], f
+        # the arming sentence each row carries (the base rate's also names terminal-next-monitor's 02:56:50Z)
+        assert "ARMED 2026-10-11T02:51:30Z" in e["note"] and "by owner ruling 2026-10-10" in e["note"], f
+    assert "terminal-next-monitor" in ledger["flags"]["OPTIONS_LEVEL_BASE_RATE_ENABLED"]["where"]
 
 
 # ── BRK-08 base rate ────────────────────────────────────────────────────────────────────────────
