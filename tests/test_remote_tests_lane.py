@@ -6,6 +6,7 @@ and every input is validated by ONE authority (tools/remote_tests.py, master's c
 """
 from __future__ import annotations
 
+import json
 import pathlib
 import re
 
@@ -352,3 +353,181 @@ def test_D1_outputs_are_collected_and_never_read_as_junit(tmp_path):
     assert got == [dest / "remote-out-vitest-1"]
     assert (dest / "remote-out-vitest-1" / "runtime-on" / "verdicts.json").read_text(encoding="utf-8") == "{}"
     assert rt.failing_tests(art) == [], "a test's own output was parsed as a junit file"
+
+
+# ---- the GitHub API budget (2026-11-19): the account's 5,000/hour quota hit 0, this tool was the main spender ------
+class _FakeGh:
+    """Stands in for `gh api`: answers from a script, records what was sent, never touches the network."""
+
+    def __init__(self, answers):
+        self.answers = list(answers)
+        self.calls = []                   # (method, path, headers, body)
+
+    def __call__(self, method, path, headers, body):
+        self.calls.append((method, path, dict(headers), body))
+        ans = self.answers.pop(0)
+        return ans(method, path, headers, body) if callable(ans) else ans
+
+
+class _Clock:
+    def __init__(self, t=1_000_000.0):
+        self.t, self.sleeps = t, []
+
+    def now(self):
+        return self.t
+
+    def sleep(self, s):
+        self.sleeps.append(s)
+        self.t += s
+
+
+def _api(answers, clock=None):
+    clock = clock or _Clock()
+    fake = _FakeGh(answers)
+    return rt.GitHubApi(runner=fake, sleep=clock.sleep, now=clock.now, log=lambda *_: None), fake, clock
+
+
+def _ok(body, etag=None, remaining=4000):
+    h = {"x-ratelimit-remaining": str(remaining), "x-ratelimit-reset": "1000900"}
+    if etag:
+        h["etag"] = etag
+    return 200, h, json.dumps(body)
+
+
+def test_api_poll_schedule_backs_off_30_60_90_and_speeds_up_at_the_finish():
+    assert [rt.poll_interval(t) for t in (0, 60, 119)] == [30, 30, 30]
+    assert [rt.poll_interval(t) for t in (120, 300, 599)] == [60, 60, 60]
+    assert [rt.poll_interval(t) for t in (600, 1800, 3600)] == [90, 90, 90]
+    assert {rt.poll_interval(t, near_done=True) for t in (0, 300, 3600)} == {15}
+    # a 40-minute run costs at most ~32 polls (it was 160 polls x 3 requests at a flat 15 s)
+    t, polls = 0.0, 0
+    while t < 40 * 60:
+        t += rt.poll_interval(t)
+        polls += 1
+    assert polls <= 32, polls
+
+
+def test_api_near_done_means_every_unfinished_job_is_past_its_test_step():
+    plan = {"name": "plan", "status": "completed", "steps": []}
+    running = {"name": "pytest", "status": "in_progress", "steps": [{"name": "pytest", "status": "in_progress"}]}
+    uploading = {"name": "pytest", "status": "in_progress",
+                 "steps": [{"name": "pytest", "status": "completed"}, {"name": "upload", "status": "in_progress"}]}
+    queued = {"name": "vitest (5)", "status": "queued", "steps": []}
+    assert not rt.near_done([])
+    assert not rt.near_done([plan, running])
+    assert rt.near_done([plan, uploading])
+    assert not rt.near_done([plan, uploading, queued])
+    assert rt.near_done([plan, dict(uploading, status="completed")])
+
+
+def test_api_parse_include_reads_status_headers_and_body():
+    out = 'HTTP/2.0 200 OK\nEtag: W/"abc"\nX-Ratelimit-Remaining: 42\r\n\r\n{"a": 1}'
+    assert rt.parse_include(out) == (200, {"etag": 'W/"abc"', "x-ratelimit-remaining": "42"}, '{"a": 1}')
+    assert rt.parse_include('HTTP/2.0 304 Not Modified\nEtag: "abc"\n\n')[0] == 304
+    assert rt.parse_include("error connecting to api.github.com")[0] == 0
+
+
+def test_api_a_repeat_poll_is_conditional_and_a_304_is_free():
+    api, fake, _ = _api([_ok({"jobs": [1]}, etag='W/"e1"'), (304, {"etag": '"e1"'}, ""),
+                         _ok({"jobs": [2]}, etag='W/"e2"')])
+    assert api.request("GET", "p", conditional=True) == (200, {"jobs": [1]})
+    assert fake.calls[0][2] == {}
+    assert api.request("GET", "p", conditional=True) == (200, {"jobs": [1]})      # the cached copy
+    assert fake.calls[1][2] == {"If-None-Match": 'W/"e1"'}
+    assert api.request("GET", "p", conditional=True) == (200, {"jobs": [2]})
+    assert (api.sent, api.not_modified) == (2, 1)
+
+
+def test_api_a_primary_rate_limit_sleeps_until_the_reset_then_retries():
+    limited = (403, {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1000300"},
+               '{"message": "API rate limit exceeded for user ID 1."}')
+    api, fake, clock = _api([limited, _ok({"status": "completed"})], _Clock(t=1_000_000.0))
+    assert api.request("GET", "run") == (200, {"status": "completed"})
+    assert clock.sleeps == [305.0], clock.sleeps                                  # reset + 5 s, not a spin
+    assert len(fake.calls) == 2 and api.rate_limit_waits == 1
+
+
+def test_api_429_and_secondary_limits_honour_retry_after_or_wait_a_minute():
+    api, _, clock = _api([(429, {"retry-after": "17"}, ""), _ok({})])
+    assert api.request("GET", "x")[0] == 200 and clock.sleeps == [17.0]
+    secondary = (403, {"x-ratelimit-remaining": "3000"}, '{"message": "You have exceeded a secondary rate limit."}')
+    api, _, clock = _api([secondary, _ok({})])
+    assert api.request("GET", "x")[0] == 200 and clock.sleeps == [rt.SECONDARY_LIMIT_WAIT_S]
+
+
+def test_api_a_403_that_is_not_a_rate_limit_is_returned_not_slept_on():
+    api, fake, clock = _api([(403, {"x-ratelimit-remaining": "4000"}, '{"message": "Resource not accessible"}')])
+    status, data = api.request("GET", "x")
+    assert status == 403 and "not accessible" in data["message"] and clock.sleeps == [] and len(fake.calls) == 1
+
+
+def test_api_a_limit_that_never_lifts_ends_in_an_error_not_a_spin():
+    limited = (403, {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1000060"}, "rate limit")
+    api, fake, clock = _api([limited] * (rt.RATE_LIMIT_RETRIES + 1))
+    with pytest.raises(RuntimeError, match="rate limited"):
+        api.request("GET", "x")
+    assert len(clock.sleeps) == rt.RATE_LIMIT_RETRIES and all(s >= 5 for s in clock.sleeps)
+
+
+def test_api_wait_for_budget_sleeps_to_the_reset_only_when_short():
+    api, _, clock = _api([])
+    api.remaining, api.reset = 3, int(clock.t) + 100
+    api.wait_for_budget(10)
+    assert clock.sleeps == [105.0]
+    api.remaining = 50
+    api.wait_for_budget(10)
+    assert clock.sleeps == [105.0]
+
+
+def test_api_dispatch_returns_the_run_in_one_request():
+    api, fake, _ = _api([_ok({"workflow_run_id": 77, "html_url": "https://x/runs/77"})])
+    assert rt.dispatch(api, {"ref": GOOD_REF}) == ("77", "https://x/runs/77")
+    method, path, _, body = fake.calls[0]
+    assert method == "POST" and path.endswith(f"/actions/workflows/{rt.WORKFLOW}/dispatches")
+    assert body["ref"] == "master" and body["return_run_details"] is True and body["inputs"] == {"ref": GOOD_REF}
+    assert len(fake.calls) == 1
+
+
+def test_api_dispatch_without_run_details_finds_the_run_by_its_ref():
+    runs = {"workflow_runs": [{"id": 1, "display_title": "remote tests: other"},
+                              {"id": 9, "display_title": f"remote tests: {GOOD_REF}", "html_url": "u9"}]}
+    api, fake, clock = _api([(204, {}, ""), _ok({"workflow_runs": []}, etag='"a"'), _ok(runs, etag='"b"')])
+    assert rt.dispatch(api, {"ref": GOOD_REF}) == ("9", "u9")
+    assert clock.sleeps == [rt.FIND_RUN_POLL_S] and fake.calls[2][2] == {"If-None-Match": '"a"'}
+
+
+def _job(name, status, conclusion=None, steps=()):
+    return {"name": name, "status": status, "conclusion": conclusion, "steps": list(steps)}
+
+
+def test_api_a_whole_wait_costs_one_request_per_poll():
+    """A 20-minute run: one jobs request per poll on the 30/60/90 schedule, the run read once at the end."""
+    running = {"jobs": [_job("plan", "completed", "success"),
+                        _job("pytest", "in_progress", steps=[{"name": "pytest", "status": "in_progress"}])]}
+    finished = {"jobs": [_job("plan", "completed", "success"), _job("pytest", "completed", "success")]}
+    clock = _Clock()
+
+    def answer(method, path, headers, body):
+        if path.endswith("/jobs?per_page=100"):
+            if clock.t - 1_000_000.0 < 20 * 60:
+                return (304, {}, "") if headers else _ok(running, etag='"r"')
+            return _ok(finished, etag='"f"')
+        if clock.t - 1_000_000.0 < 20 * 60:
+            return _ok({"status": "in_progress", "conclusion": None})
+        return _ok({"status": "completed", "conclusion": "success"}, etag='"run"')
+
+    api, fake, clock = _api([answer] * 100, clock)
+    run, jobs = rt.wait_for_run(api, "5", timeout_s=3600, log=lambda *_: None)
+    assert run["conclusion"] == "success" and [j["conclusion"] for j in jobs] == ["success", "success"]
+    polls = [c for c in fake.calls if c[1].endswith("/jobs?per_page=100")]
+    assert len(fake.calls) - len(polls) <= 1 + len(polls) // rt.RUN_CHECK_EVERY   # the run itself, rarely
+    assert len(fake.calls) <= 25, len(fake.calls)            # the old loop: 80 polls x 3 requests = 240
+    assert api.sent <= 4, (api.sent, api.not_modified)       # every unchanged poll was a free 304
+    assert set(clock.sleeps) <= {30, 60, 90}, clock.sleeps
+
+
+def test_api_wait_for_run_times_out_with_none():
+    queued = {"jobs": [_job("plan", "queued")]}
+    api, _, _clock = _api([])
+    api._runner = lambda m, p, h, b: _ok(queued) if p.endswith("/jobs?per_page=100") else _ok({"status": "queued"})
+    assert rt.wait_for_run(api, "5", timeout_s=600, log=lambda *_: None) is None
