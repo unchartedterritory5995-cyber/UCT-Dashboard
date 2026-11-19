@@ -98,6 +98,12 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // contraction-box-doji-lines' RDDT and SPY captures. Its runtime kill entry was lifted on its own condition (both SPY
 // captures re-grade MATCH runtime-on, run 44319610649), so the registry now admits it. The door answers `host` for
 // all four, each MATCH on both lanes (docs/pine/evidence/2026-11-18-tolerant-compare/EVIDENCE.md).
+// ⭐ U-STMT PR 1 (NUMBER PENDING, feat/pine-statements, #1930) removed 3 rows, lane `null`:
+// machine-learning-moving-average-backquant's RDDT and SPY captures. `ta.change(source, length)` on the runtime lane
+// builds it, so this rail found the door answering `runtime` for all three; on that PR's run (44427583401) RDDT grades
+// MATCH twice and SPY DIVERGE (the run stops at the array-operation limit). By the REACH stop rule the script is on
+// the committed kill list, no longer admitted, and so no longer in the report
+// (docs/pine/evidence/2026-11-18-ustmt-change-length/EVIDENCE.md).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {

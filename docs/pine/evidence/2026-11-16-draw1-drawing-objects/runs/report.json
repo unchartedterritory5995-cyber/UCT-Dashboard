@@ -2,18 +2,18 @@
  "populations": {
   "capture": {
    "scripts": 940,
-   "admitted": 561,
+   "admitted": 558,
    "runtimeLane": 163,
    "hostLane": 252,
-   "refused": 146,
+   "refused": 143,
    "coreOnly": 44
   },
   "committed": {
    "scripts": 266,
-   "admitted": 118,
+   "admitted": 117,
    "runtimeLane": 41,
    "hostLane": 44,
-   "refused": 33,
+   "refused": 32,
    "coreOnly": 4
   },
   "reference": {
@@ -1524,81 +1524,6 @@
     "if-block",
     "reassign",
     "switch",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "machine-learning-moving-average-backquant-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "machine-learning-moving-average-backquant-rddt-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "machine-learning-moving-average-backquant-spy-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
     "ternary",
     "var"
    ]
