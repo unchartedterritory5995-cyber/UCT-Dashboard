@@ -31,7 +31,7 @@ import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHash } from './runtimeKill'
 import { setRunHalfObjectEvidence } from './runHalfRailSeam'
 import { OWN_DAILY_KEY } from './otherSymbols'
-import { clearSecondaryBars, fetchSecondaryBars } from './secondaryBars'
+import { clearSecondaryBars } from './secondaryBars'
 import { isTradingDay } from '../../../lib/marketClock/sessionCalendar.js'
 
 vi.setConfig({ testTimeout: 300000 })
@@ -68,21 +68,24 @@ for (let d = '2024-03-01', k = 0; d <= '2024-04-20'; d = isoPlus(d, 1), k += 1) 
   SEED_ROWS.push({ t: d, o: 0, h: 1000, l: 0, c: [190.9, 123.49, 75, 39.88, 12.98, 5, 2][Math.floor(k / 5) % 7], v: 0 })
 }
 
-// `reachesFirstRow`: the store held fewer daily rows than the chart asked (live: 670 of 3,088), set by secondaryBars._entryFor
-const ctxOf = (own = OWN_D, reaches = true) => ({ tf: '60', newestBarIsForming: false, historyFromListing: false, symbol: RDDT,
+// the LISTING fact: the symbol's first trade day as `/api/ticker-ipo` answers it (live RDDT: first_trade_date 2024-03-21,
+// first_trade_final true), carried on the chart's symbol (StockChart `symbolMeta.firstTradeDate`)
+const ctxOf = (own = OWN_D, firstTrade = LISTING) => ({ tf: '60', newestBarIsForming: false, historyFromListing: false,
+  symbol: { ...RDDT, ...(firstTrade ? { firstTradeDate: firstTrade } : {}) },
   secondary: new Map([['SPX', { bars: SPX_60, status: 'available' }], ['SPX@D', { bars: SPX_D, status: 'available' }],
-    [OWN_DAILY_KEY, { bars: own, status: 'available', ...(reaches ? { reachesFirstRow: true } : {}) }],
-    [SEED, { bars: SEED_ROWS, status: 'available' }]]),
+    [OWN_DAILY_KEY, { bars: own, status: 'available' }], [SEED, { bars: SEED_ROWS, status: 'available' }]]),
   exchangeOf: (t) => (t === 'SPX' ? 'SP' : null) })
 
 // ── the REAL runtime worker, its replies recorded (the live capture is the worker's own reply) ──
 const SELF = { postMessage: (m) => SELF.out.push(m), out: [] }
 const replies = []
+const requests = []
 async function realWorkerFactory() {
   vi.stubGlobal('self', SELF)
   await import('./runtime/runtimeWorker.js')
   return () => ({
     postMessage(msg) {
+      if (msg && msg.ctx) requests.push(structuredClone(msg))
       queueMicrotask(() => {
         SELF.out.length = 0
         SELF.onmessage({ data: structuredClone(msg) })
@@ -109,6 +112,7 @@ beforeEach(() => {
   expect(installed.length, errors.join(' | ')).toBe(1)
   def = installed[0]
   replies.length = 0
+  requests.length = 0
 })
 afterEach(() => {
   if (def) registry.uninstallUserDefinition(def.id)
@@ -219,24 +223,32 @@ describe('3. ⛔ CONTROL: a chart whose history does not start at the own daily 
   })
 })
 
-describe('4. ⛔ CONTROL: the SAME shape from a series cut short by the asked depth (not reaching its first row) refuses', () => {
-  it('without `reachesFirstRow` the listing session pre-close bars are unknown: refused, "has no bar on"', async () => {
+describe('4. ⛔ CONTROL: the SAME shape WITHOUT a listing fact refuses (a first held row is not a listing)', () => {
+  it('no firstTradeDate on the symbol: the listing session pre-close bars are unknown, "has no bar on"', async () => {
     const C = CHART.slice(1)
-    const { sup } = supplyOn(C, ctxOf(OWN_D, false))
-    expect(sup.refusal, 'a series that may hold earlier rows is not a listing').not.toBeNull()
+    const { sup } = supplyOn(C, ctxOf(OWN_D, null))
+    expect(sup.refusal, 'no listing is claimed without the fact').not.toBeNull()
     expect(sup.refusal.message).toMatch(/has no bar on/)
-    const { states, said } = await runHalfOn(C, ctxOf(OWN_D, false))
+    const { states, said } = await runHalfOn(C, ctxOf(OWN_D, null))
+    expect(states[states.length - 1], said).toBe('refused:runtime:request')
+  })
+  it('⛔ a CAPPED store with an OLDER listing (the IBM / KO shape, measured): refused, never na-by-history', async () => {
+    // the store's first daily row is not the symbol's first trade: /api/bars/IBM?tf=D serves from 1962-01-02 while IBM
+    // listed 1949-01-28 (smoke@ GETs, 2026-11-19); here the rows start on the chart's first day, the listing years before
+    const C = CHART.slice(1)
+    const { sup } = supplyOn(C, ctxOf(OWN_D, '2020-01-02'))
+    expect(sup.refusal, 'an earlier real daily bar exists; reading na would be a wrong value').not.toBeNull()
+    expect(sup.refusal.message).toMatch(/has no bar on/)
+    const { states, said } = await runHalfOn(C, ctxOf(OWN_D, '2020-01-02'))
     expect(states[states.length - 1], said).toBe('refused:runtime:request')
   })
 })
 
-describe('5. `reachesFirstRow` is set by the fetch: FEWER rows than asked, never when the store filled the ask', () => {
-  const rowsOf = (k) => Array.from({ length: k }, (_, i) => ({ t: isoPlus(LISTING, i), o: 1, h: 1, l: 1, c: 1, v: 1 }))
-  it('670 rows for an ask of 3,088 reaches the first row; 3,088 of 3,088 does not', async () => {
-    const short = await fetchSecondaryBars('RDDT', 'D', 3088, async () => ({ bars: rowsOf(670) }))
-    expect(short.reachesFirstRow).toBe(true)
-    clearSecondaryBars()
-    const full = await fetchSecondaryBars('RDDT', 'D', 3088, async () => ({ bars: rowsOf(3088) }))
-    expect(full.reachesFirstRow).toBeUndefined()
+describe('5. the listing fact reaches the WORKER (its request carries the symbol\'s firstTradeDate)', () => {
+  it('every worker request of the served run names firstTradeDate = the listing', async () => {
+    const C = CHART.slice(1)
+    await runHalfOn(C, ctxOf())
+    expect(requests.length, 'the worker was asked').toBeGreaterThan(0)
+    for (const m of requests) expect(m.ctx && m.ctx.symbol && m.ctx.symbol.firstTradeDate).toBe(LISTING)
   })
 })

@@ -168,7 +168,6 @@ function aboveChartRead(target, rows, ctx) {
   let daily = null
   let other = null
   let ownRead = false
-  let ownReachesFirstRow = false
   let forming = false
   if (target.ticker) {
     const { ticker, decision } = decideOther(target, ctx)
@@ -209,7 +208,6 @@ function aboveChartRead(target, rows, ctx) {
     }
     daily = sessionKeyedRowsOf(e.bars)
     ownRead = true
-    ownReachesFirstRow = e.reachesFirstRow === true   // the store held fewer rows than asked (`secondaryBars._entryFor`)
   }
   const at = new Map(daily.map((r, j) => [r.t, j]))
   const days = daily.map((r) => r.t)
@@ -232,11 +230,14 @@ function aboveChartRead(target, rows, ctx) {
   // own daily rows hold, the symbol has no earlier day: before that session's close a look-ahead-off read has no
   // confirmed day to read, so it is na BY HISTORY (known), not unknown. TradingView's witness (RDDT 60, startsAtBar0)
   // draws Fred RS from that bar. ⛔ Only that session, only for the chart's OWN symbol, only when the chart starts on it,
-  // and ONLY when the held rows REACH the symbol's first row (`reachesFirstRow`: the store held fewer than the fetch
-  // asked): a series cut short by the asked depth that happens to start on the chart's first day is NOT a listing, and
-  // its earlier day is unknown (rsIntradayDaily's "a bar before the held daily rows is unknown"). A missing row inside
-  // history still withholds.
-  const firstSessionNa = ownRead && ownReachesFirstRow && days.length > 0 && dayOf.find(Boolean) === days[0]
+  // and ONLY when that first held row IS the symbol's FIRST TRADE (`ctx.symbol.firstTradeDate`, the app's
+  // `/api/ticker-ipo` answer, final only): a store's first row is not a listing. MEASURED 2026-11-19 (smoke@ GETs):
+  // /api/bars/IBM?tf=D serves from 1962-01-02 (IBM listed 1949-01-28) and KO from 1976-12-14; RDDT from 2024-03-21 =
+  // its first_trade_date. A series cut short by the asked depth or by the store is unknown before its first row
+  // (rsIntradayDaily's "a bar before the held daily rows is unknown"); a missing row inside history still withholds.
+  const firstTrade = ctx && ctx.symbol && typeof ctx.symbol.firstTradeDate === 'string' ? ctx.symbol.firstTradeDate : null
+  const firstSessionNa = ownRead && firstTrade !== null && days.length > 0 && days[0] === firstTrade
+    && dayOf.find(Boolean) === days[0]
   for (let i = 0; i < n; i += 1) {
     const d = dayOf[i]
     if (!d) { withheld[i] = 1; continue }

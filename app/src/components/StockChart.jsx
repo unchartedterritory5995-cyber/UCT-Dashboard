@@ -4913,6 +4913,12 @@ export default function StockChart({
   // one for that class or string, else OURS, tagged substituted; a missing field settles nothing.
   // ⛔ The live meta only: Model Book's curated watermark industry is a display fact, not the
   // symbol's classification.
+  const ipoInfo = useTickerIpo(_econId || _study ? null : sym)       // { list_date } — official first-listing day
+  // ⭐⭐ (2026-11-19, Fred RS 1h) — and the symbol's FIRST TRADE day, FINAL answers only (`/api/ticker-ipo`): the listing
+  // fact a run's own-daily read rests on for the chart's first session (`requestSupply.js::aboveChartRead`). Not a
+  // classification field: `bindSymbolOf` ignores it and the run cache keys do not carry it.
+  const _firstTradeDate = ipoInfo && ipoInfo.first_trade_final === true && typeof ipoInfo.first_trade_date === 'string'
+    ? ipoInfo.first_trade_date : null
   const symbolMeta = useMemo(() => (
     sym ? {
       ticker: sym,
@@ -4920,9 +4926,9 @@ export default function StockChart({
       industry: (tickerMeta && tickerMeta.industry) || null,
       sector: (tickerMeta && tickerMeta.sector) || null,
       securityType: (tickerMeta && tickerMeta.security_type) || null,
+      ...(_firstTradeDate ? { firstTradeDate: _firstTradeDate } : {}),
     } : null
-  ), [sym, tickerMeta])
-  const ipoInfo = useTickerIpo(_econId || _study ? null : sym)       // { list_date } — official first-listing day
+  ), [sym, tickerMeta, _firstTradeDate])
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
