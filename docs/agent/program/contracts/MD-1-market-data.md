@@ -63,7 +63,7 @@ Each kind wraps the canonical service listed. **No new upstream connection, WebS
 | `quote`, `quotes` | `services/massive.py` snapshot (read-only call) | live | 60 s in the regular session | **Not** the `/api/live-prices` route: its cache miss runs `watchlist_alert_service.run_alert_check()`. **Price reads must never trigger alerts.** Session and freshness are classified **by vendor timestamp** (§4.1). |
 | `bars.daily` | `services/bars_fetch.py` | historical (completed sessions) | 1 session | Today's partial bar is not a completed daily bar |
 | `bars.intraday` | `services/bars_fetch.py` | delayed or live, as the source reports | per source | Sprint 1 only if `bars_fetch` exposes a source time |
-| `fundamentals` | `services/financial_statements.py` `get_statements` (Yahoo Finance, the product's statements cache) | periodic | the newest period end is more than 135 days old | Periodic financial **disclosures**, never live. `as_of` = the newest statement period end; the source has no filing date. See §4.2. |
+| `fundamentals` | `services/financial_statements.py` `get_statements` (FMP first; Yahoo Finance only for a ticker FMP has no statements for; the product's statements cache; `source` is `fmp` or `yahoo-finance`, whichever answered) | periodic | the newest period end is more than 135 days old | Periodic financial **disclosures**, never live. `as_of` = the newest statement period end; the source has no filing date. See §4.2. |
 | `earnings` | `services/earnings_table.py` `get_earnings_table` (the layer over `earnings_estimates`) | periodic | `stale_quarters` ≥ 2 (its own `reported_staleness`) | Event-driven results stay class `periodic`. Reported rows carry only a fiscal label, so `as_of` is null with a note; `next_report` is a scheduled event, never `as_of`. See §4.2. |
 | `news.company` | `services/news/store.py` `feed` (UCT's own store; no provider call) | periodic | news **ingest** has not succeeded for 1 hour | Item `as_of` = `published_at`; the envelope `as_of` is the newest item. A quiet company is not stale. No body text. See §4.2. |
 | `breadth.current` | `services/breadth_current.py` `reading()` (breadth-owned; V2 store + live engine) | periodic (intraday) · historical (completed sessions) | not `current` (its own rule: intraday ≤ 300 s) | **MODEL-ISOLATED** (§4.4). US · NYSE · Nasdaq aggregates only; includes the NH/NL measures. |
@@ -100,7 +100,8 @@ All three are class `periodic`; none is ever worded as live or "now". The stale 
 
 **`fundamentals`**
 - `stale` when the newest reported period end is more than 135 days old, about two quarters plus a filing lag.
-- `provider_calls` is 6 when this read caused the service's synchronous build, else 0.
+- `provider_calls` is what the service's synchronous build cost when this read caused one (`meta.build_calls`: 6 FMP statement reads; 12 or 13 when it went on to Yahoo Finance), else 0.
+- `source` is `fmp` or `yahoo-finance`: the source of the statements served. A failed read is `unavailable` with the note `the statements source did not answer; try again shortly`, never "no financial statements".
 - Notes: `periodic financial disclosures — figures describe the reporting period in as_of, not today`; `the source gives no filing date; as_of is the period end`; `served from the last stored copy while the source refreshes` (a stored copy being refreshed). A statement type with no rows makes the read `partial`.
 - Row fields: `period_end, values`.
 
