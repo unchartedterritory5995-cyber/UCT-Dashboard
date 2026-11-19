@@ -3,18 +3,28 @@
 //   - a YoY change that rounds to 0% has NO arrow and is neutral grey (the letter
 //     printed a green "EPS ▲ 0%" in GROWTH vs LAST YEAR);
 //   - the same `badge` contract as Set to Report, with the on_board control.
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import EarnResultsRender from '../EarnResultsRender'
 
 const enc = (obj) => btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
   .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 
-function renderRows(rows) {
+async function renderRows(rows) {
   const url = `/r/earnresults?w=728&data=${enc({ rows })}`
-  return render(<MemoryRouter initialEntries={[url]}><EarnResultsRender /></MemoryRouter>)
+  const view = render(<MemoryRouter initialEntries={[url]}><EarnResultsRender /></MemoryRouter>)
+  await waitFor(() => expect(view.container.querySelector('#panel-export')).not.toBeNull())
+  return view
 }
+
+// The page asks the server whether the address's token is accepted before it draws.
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200 })))
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 const ROW = {
   sym: 'NKE', name: 'Nike, Inc.', session: 'AMC', is_beat: true,
@@ -23,21 +33,21 @@ const ROW = {
 }
 
 describe('EarnResultsRender — 2026-09-29 rulings', () => {
-  it('puts the minus before the dollar in the reported figure AND the est line', () => {
-    renderRows([{ ...ROW, eps_act: -5.34, eps_est: -5.1, eps_surp: -4.7 }])
+  it('puts the minus before the dollar in the reported figure AND the est line', async () => {
+    await renderRows([{ ...ROW, eps_act: -5.34, eps_est: -5.1, eps_surp: -4.7 }])
     expect(screen.getByText('-$5.34')).toBeInTheDocument()
     expect(screen.getByText('est -$5.10')).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/\$-\d/)
   })
 
-  it('CONTROL: a positive EPS still reads $0.49 / est $0.27', () => {
-    renderRows([ROW])
+  it('CONTROL: a positive EPS still reads $0.49 / est $0.27', async () => {
+    await renderRows([ROW])
     expect(screen.getByText('$0.49')).toBeInTheDocument()
     expect(screen.getByText('est $0.27')).toBeInTheDocument()
   })
 
-  it('GROWTH vs LAST YEAR: a figure that rounds to 0% has no arrow and is grey', () => {
-    renderRows([{ ...ROW, eps_yoy: 0.2, rev_yoy: -0.4 }])
+  it('GROWTH vs LAST YEAR: a figure that rounds to 0% has no arrow and is grey', async () => {
+    await renderRows([{ ...ROW, eps_yoy: 0.2, rev_yoy: -0.4 }])
     const eps = document.querySelector('[data-growth="EPS"]')
     const rev = document.querySelector('[data-growth="REV"]')
     expect(eps.textContent).toBe('EPS0%')
@@ -47,8 +57,8 @@ describe('EarnResultsRender — 2026-09-29 rulings', () => {
     expect(eps.textContent).not.toMatch(/[▲▼]/)
   })
 
-  it('CONTROL: real growth keeps its arrow and colour', () => {
-    renderRows([ROW])
+  it('CONTROL: real growth keeps its arrow and colour', async () => {
+    await renderRows([ROW])
     const eps = document.querySelector('[data-growth="EPS"]')
     const rev = document.querySelector('[data-growth="REV"]')
     expect(eps.textContent).toBe('EPS▼ -30%')
@@ -57,21 +67,21 @@ describe('EarnResultsRender — 2026-09-29 rulings', () => {
     expect(rev.style.color).toBe('rgb(34, 197, 94)')
   })
 
-  it('a surprise that rounds to 0% still shows no chip (unchanged)', () => {
-    renderRows([{ ...ROW, eps_surp: 0.3 }])
+  it('a surprise that rounds to 0% still shows no chip (unchanged)', async () => {
+    await renderRows([{ ...ROW, eps_surp: 0.3 }])
     expect(screen.queryByText(/▲\+0%|▼0%/)).not.toBeInTheDocument()
   })
 
-  it('badge wins verbatim; CONTROL on_board alone still reads ON OUR BOARD', () => {
-    const { unmount } = renderRows([{ ...ROW, on_board: true, badge: 'IN THE BOOK' }])
+  it('badge wins verbatim; CONTROL on_board alone still reads ON OUR BOARD', async () => {
+    const { unmount } = await renderRows([{ ...ROW, on_board: true, badge: 'IN THE BOOK' }])
     expect(screen.getByTestId('row-badge')).toHaveTextContent('IN THE BOOK')
     unmount()
-    renderRows([{ ...ROW, on_board: true }])
+    await renderRows([{ ...ROW, on_board: true }])
     expect(screen.getByTestId('row-badge')).toHaveTextContent('ON OUR BOARD')
   })
 
-  it('lets the company name wrap instead of ellipsing it', () => {
-    renderRows([{ ...ROW, name: 'Micron Technology', badge: 'ON OUR WATCH LIST' }])
+  it('lets the company name wrap instead of ellipsing it', async () => {
+    await renderRows([{ ...ROW, name: 'Micron Technology', badge: 'ON OUR WATCH LIST' }])
     const name = screen.getByTestId('company-name')
     expect(name).toHaveTextContent('Micron Technology')
     expect(name.style.whiteSpace).toBe('normal')

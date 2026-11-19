@@ -2,10 +2,17 @@
 
 The Morning Wire → Substack renderer screenshots the /r/* pages in a logged-OUT
 headless browser, so these endpoints are gated only by a shared render token
-(CHART_RENDER_TOKEN). That token is inlined into the frontend JS bundle, so treat
+(CHART_RENDER_TOKEN). A render page forwards the `?token=` from its address and
+this router is the one place it is checked. The token is a shared value that
+travels in every render address and is held by several senders, so treat
 these as EFFECTIVELY PUBLIC: return only fields safe to expose (no internal
 signal-sourcing / scoring), and rate-limit so they can't be abused to drive
 unbounded provider calls. Read-only, no side effects.
+
+History: until 2026-11-19 the frontend build also carried a copy of the token
+(`VITE_CHART_RENDER_TOKEN` and its `_PREVIOUS`), and each page compared against it
+before reading. Since that date there is one check, here, instead of two copies of
+it; the build no longer receives either value.
 """
 
 from __future__ import annotations
@@ -61,9 +68,10 @@ def _accepted_tokens() -> list[str]:
     """The render tokens this pod honours: the current one, plus the previous one WHILE a rotation
     is in flight (`CHART_RENDER_TOKEN_PREVIOUS`).
 
-    Dual acceptance exists because the token is also baked into the frontend bundle at build time,
-    so a rotation spans a rebuild and several senders (the Discord chart path, /buzz, and Morning
-    Wire on the owner's PC). Accepting both means no sender is ever refused mid-rotation.
+    Dual acceptance exists because a rotation spans several senders (the Discord chart path, /buzz,
+    and Morning Wire on the owner's PC). Accepting both means no sender is ever refused
+    mid-rotation. Until 2026-11-19 a rotation also spanned a frontend rebuild, because the build
+    carried a copy of the token; it no longer does, so a rotation is these two variables only.
 
     ⛔ Clear `CHART_RENDER_TOKEN_PREVIOUS` once every sender holds the new value — an uncleared
     previous is not a rotation, it is two live tokens. chart-renderer is not in this path at all
@@ -176,8 +184,8 @@ def buzz_panel(token: str = "", window: str = "open"):
 
     ⛔ PRIVACY: never add author_id, message_id, or jump links to this payload.
     Those identify a member and belong only in the authenticated `/buzz`
-    command reply, answered inside the member's own server. This endpoint's
-    render token ships inside the frontend JS bundle (see module docstring),
+    command reply, answered inside the member's own server. This endpoint is
+    held to the module's effectively-public standard (see module docstring),
     so anything returned here is effectively public — aggregate counts and
     tickers only.
     """
@@ -535,8 +543,8 @@ def chart_settings_for_render(token: str = ""):
 # the same effectively-public standard as every other `/r/*` read above (shared rate
 # limit, fail-CLOSED token check).
 #
-# ⚠️ Anything added here is EFFECTIVELY PUBLIC — the token ships inside the frontend
-# bundle. Both payloads below are the same aggregate breadth readings the newsletter
+# ⚠️ Anything added here is EFFECTIVELY PUBLIC — the module docstring's standard
+# applies. Both payloads below are the same aggregate breadth readings the newsletter
 # publishes weekly, which is why they are safe to hand back; do NOT extend these to
 # per-symbol constituent lists (the `*_list` drill fields) without re-deciding that.
 
@@ -611,8 +619,8 @@ def render_breadth_bars(ticker: str, token: str = "", tf: str = "D", bars: int =
 # caller names (the price door resolves the proxy itself), so none of these is a
 # general data API. The narrative door is READ-ONLY: it returns a read already
 # stored (by the Friday pre-warm or a member's visit) and never calls the model —
-# the render token ships in the bundle, so a door that generated would be an
-# anonymous way to spend the LLM budget.
+# the render token is a shared value, not a member's session, so a door that
+# generated would spend the LLM budget with no member behind it.
 _RL_COT_MAX_PER_MIN = 120          # one /cot render = up to four reads
 
 

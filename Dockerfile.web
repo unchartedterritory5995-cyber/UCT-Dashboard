@@ -86,6 +86,12 @@ WORKDIR /src
 # (`tests/test_dockerfile_vite_build_args.py`) DERIVES this list from `app/src/**`
 # rather than trusting anyone to keep a hand-typed copy current.
 #
+# 2026-11-19: `VITE_CHART_RENDER_TOKEN` and `VITE_CHART_RENDER_TOKEN_PREVIOUS` left the
+# list below. No file under `app/src/**` reads either one: a `/r/*` page forwards the
+# `?token=` from its address and the server makes the one check
+# (`api/routers/render_panels.py`). The 2026-09-12 row above stays as that day's record.
+# Rail: `app/src/lib/renderTokenSource.rail.test.js`.
+#
 # ⚠️ `ENV` as well as `ARG` on purpose. Docker does expose build args to `RUN`,
 # but that is one sentence of documentation standing between a member and a
 # silently disabled product; the `ENV` makes it true under either reading. This
@@ -94,8 +100,6 @@ WORKDIR /src
 # false exactly as `undefined === '1'` is.
 ARG VITE_BARSTORE
 ARG VITE_CATALYST_UI_ENABLED
-ARG VITE_CHART_RENDER_TOKEN
-ARG VITE_CHART_RENDER_TOKEN_PREVIOUS
 ARG VITE_COMING_SOON
 ARG VITE_DESK_BG_AUDIO_ENABLED
 ARG VITE_DISCORD_CHART_APP_ID
@@ -129,8 +133,6 @@ ARG VITE_VOLUME_NUMERIC_PANE_ENABLED
 ARG VITE_WS_HOST
 ENV VITE_BARSTORE=$VITE_BARSTORE \
     VITE_CATALYST_UI_ENABLED=$VITE_CATALYST_UI_ENABLED \
-    VITE_CHART_RENDER_TOKEN=$VITE_CHART_RENDER_TOKEN \
-    VITE_CHART_RENDER_TOKEN_PREVIOUS=$VITE_CHART_RENDER_TOKEN_PREVIOUS \
     VITE_COMING_SOON=$VITE_COMING_SOON \
     VITE_DESK_BG_AUDIO_ENABLED=$VITE_DESK_BG_AUDIO_ENABLED \
     VITE_DISCORD_CHART_APP_ID=$VITE_DISCORD_CHART_APP_ID \
