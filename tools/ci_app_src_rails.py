@@ -92,7 +92,8 @@ EXEMPT: dict[str, str] = {}
 #: checks, then DELETE its line here. ⛔ NOT here, on purpose: tests/test_support_loop_refusal_codes.py, the #1998 red,
 #: which #2021 fixed. ⚰️ test_support_loop_tools.py's `..\\escape.pine` case left on 2026-11-19: #2035 made a backslash
 #: a separator on every platform, so it is green on Linux now. ⚰️ test_user_definition_reproof.py's PUT-route rail left
-#: the same day: #2037 named the second, intended PUT route (assistant memory).
+#: the same day: #2037 named the second, intended PUT route (assistant memory). ⚰️ So did the run-half rail: #2039
+#: narrowed it to the codes actually passed to refuse(...) ('lost-drawings' is never sent).
 KNOWN_RED: dict[str, str] = {
     "tests/test_canonical_address_book.py":
         "cannot be COLLECTED: _ohlcv_ddl() asserts one ohlcv DDL in CODE and finds 0 (the parametrize runs at import)",
@@ -128,8 +129,6 @@ KNOWN_RED: dict[str, str] = {
         "AttributeError: api.services.journal_two.template_gallery has no attribute 'FLAG' (the door's flag moved)",
     "tests/test_persistence_manifest_server_keys.py::test_every_server_preference_is_declared_in_the_manifest":
         "5 server preference keys missing from the persistence manifest: `node tools/persistence_census.mjs --write`",
-    "tests/test_run_half_refusal_telemetry.py::test_every_literal_run_half_refusal_code_is_accepted":
-        "the client writes the run-half refusal code 'lost-drawings', which the server does not accept",
     "tests/test_scan_not_computable_inputs.py::test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST":
         "openingRangeHigh: the 'computable' fixture produced no value, so the 'holed' assertions would pass vacuously",
     "tests/test_terminal_next_kill_switch.py::test_every_frontend_gate_answers_from_the_payload_the_switch_empties":
