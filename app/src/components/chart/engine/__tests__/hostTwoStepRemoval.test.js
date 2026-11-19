@@ -11,6 +11,10 @@
 // Now the adjacent pair walks the one-call lowering (`pineObjects.js::twoStepRemovalFusion`), and every other delete or
 // setter on a handle the walker cannot trace is COUNTED (`emitMethodForm`'s class guard), so the drawing is withheld by
 // name, never drawn with objects TradingView removed.
+// ⭐ ADJACENCY IS ONE GUARD, NOT TWO: only the statement right after the declaration is a candidate, and a delete any
+// further away is itself a later read of the name, so the name-read check refuses it (`twoStepRemovalFusion`). A mutant
+// that lets the search reach a later delete therefore survives BY CONSTRUCTION; the name-read mutant is the one that
+// proves the rule (case 'the removed name read again after its delete').
 // The product path: source -> memberPaneDefinition (the member door, host lane) -> hostObjectRun (the binder's own
 // evaluation of a host object program). The reference is Pine's semantics run by hand in this file, per bar.
 import { describe, it, expect, vi, afterEach } from 'vitest'
