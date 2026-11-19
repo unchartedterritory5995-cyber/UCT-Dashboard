@@ -448,11 +448,14 @@ describe('the product path: Fred RS on a live 5m chart whose SPX lags its newest
       const served = f.log[f.log.length - 1]
       f.settle(rsChartThrough(13, 50), rsSecondary(spx5Through(13, 45)))
       const r = f.reply()
-      expect(r.ok).toBe(true)
-      expect(r.objects.status).toBe('WITHHELD')
-      expect(r.objects.pending).toBe(true)
-      expect(r.objects.waitingFor).toBe('SPX')
-      expect(r.objects.guard).not.toBe('runtime:history-start')
+      // a wait, named: the drawings' (where the plain run draws, `runtimeObjectsWithheld`, as the lane rail above shows)
+      // or the whole run's. MEASURED for Fred RS: the whole run's (`ok: false`, `pending`, `waitingFor: 'SPX'`): its
+      // plain program, built without its drawings, does not stand on its own, so the drawing run's wait is the answer
+      const wait = r.ok ? r.objects : r.error
+      expect(wait && wait.pending, JSON.stringify(r).slice(0, 600)).toBe(true)
+      expect(wait.waitingFor).toBe('SPX')
+      expect(wait.guard).toBe(REQUEST_GUARD)
+      expect(wait.guard).not.toBe('runtime:history-start')
       expect(f.log[f.log.length - 1]).toBe(served)
       expect(f.notice()).toMatch(WAITING)
       f.settle(rsChartThrough(13, 50), rsSecondary(spx5Through(13, 50)))
