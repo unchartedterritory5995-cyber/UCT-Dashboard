@@ -127,7 +127,13 @@ describe('S14 fix 1 — the checks can still fail (each is the frame\'s, not gon
     // two rings, so one operand is 1: the bound keeps its floor of 1 (`Math.max(…, 1)`), which index 0 always meets
     const prog = lowerIrProgram(clone(build(`${HEAD}f(float x) =>\n    y = x * 2\n    z = x * 3\n    y - y[1] + z - z[1]\nplot(f(close))\n`).ir))
     expect(() => validateProgram(prog)).not.toThrow()
-    const bad = { ...prog, functions: prog.functions.map((f) => ({ ...f, historyCount: 0 })), history: [] }
+    // ⭐ engine 84 train (#1961 x e82's #1963, the same function): the table keeps ONE ring, so the operand-0 read
+    // still has its ring at the call site and #1963's per-call-site DEPTH check passes it; the operand-1 read is then
+    // past every frame and the table, and the BOUND is what refuses it (with every ring gone, below, the operand-0
+    // read meets #1963's check first in pc order, and that check is what refuses the program)
+    const bad = { ...prog, functions: prog.functions.map((f) => ({ ...f, historyCount: 0 })), history: prog.history.slice(0, 1) }
     expect(() => validateProgram(bad)).toThrow(/READ_HIST_SLOT 1 outside 1 history slots/)
+    const none = { ...prog, functions: prog.functions.map((f) => ({ ...f, historyCount: 0 })), history: [] }
+    expect(() => validateProgram(none)).toThrow(/READ_HIST_SLOT 0 of `f` has no ring at one of its call sites/)
   })
 })
