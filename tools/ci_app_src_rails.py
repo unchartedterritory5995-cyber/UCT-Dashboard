@@ -91,7 +91,8 @@ EXEMPT: dict[str, str] = {}
 #: 44546724286, 44546805460). Each is a red no PR job used to see, now named instead of hidden: fix the test or what it
 #: checks, then DELETE its line here. ⛔ NOT here, on purpose: tests/test_support_loop_refusal_codes.py, the #1998 red,
 #: which #2021 fixed. ⚰️ test_support_loop_tools.py's `..\\escape.pine` case left on 2026-11-19: #2035 made a backslash
-#: a separator on every platform, so it is green on Linux now.
+#: a separator on every platform, so it is green on Linux now. ⚰️ test_user_definition_reproof.py's PUT-route rail left
+#: the same day: #2037 named the second, intended PUT route (assistant memory).
 KNOWN_RED: dict[str, str] = {
     "tests/test_canonical_address_book.py":
         "cannot be COLLECTED: _ohlcv_ddl() asserts one ohlcv DDL in CODE and finds 0 (the parametrize runs at import)",
@@ -133,8 +134,6 @@ KNOWN_RED: dict[str, str] = {
         "openingRangeHigh: the 'computable' fixture produced no value, so the 'holed' assertions would pass vacuously",
     "tests/test_terminal_next_kill_switch.py::test_every_frontend_gate_answers_from_the_payload_the_switch_empties":
         "a new frontend Terminal-Next gate exists and is not acknowledged in ACKNOWLEDGED_FRONTEND_GATES",
-    "tests/test_user_definition_reproof.py::test_the_PUT_route_is_the_ONE_the_builder_calls":
-        "the builder now PUTs to two routes ({def_id} and assistant-memory); the rail pins exactly one",
     "tests/test_voice_client_request_shapes.py::test_the_declared_exceptions_are_exactly_the_ones_that_exist":
         "the declared request-shape exceptions no longer equal the client's actual exceptions (the set moved)",
     "tests/test_widget_definitions_router.py::test_w10_plans_run_at_every_door_while_w10_is_on":
