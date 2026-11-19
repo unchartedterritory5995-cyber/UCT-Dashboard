@@ -30,6 +30,26 @@ import { ensureAll, ensureSecondaryBars, subscribe, cachedBars, refreshSecondary
  *  own timeframe and depth (`ensureAll`, as before), a HELD key (`SPX@D` on a weekly chart,
  *  `otherSymbols.js::heldKeyParts`) at its held timeframe, deep enough for the chart's weekly bars
  *  (`heldDepthOf`). One map, keyed as `symbolsNeeded` named them. */
+/** ⭐⭐ RS RATING (2026-11-19, the e81 live capture) — THE HELD SERIES FOLLOW THE CHART'S DEPTH, ONE RULE.
+ *  The chart handed this hook its REQUESTED first-paint depth (600), and the deep backfill then grew the chart's
+ *  LOADED rows to 3,000-28,000 without changing it: SP:SPX at the chart's timeframe was fetched 600 bars deep and the
+ *  daily held rows `heldDepthOf(600, tf)` (5m 18, 30m 57, 60m 103 sessions), so the RS line was blank (na) on every
+ *  bar older than the newest 600 SPX bars, and Fred RS's run half refused the whole chart for bars before them.
+ *  The held span is now the chart's LOADED span (or the requested one, whichever is deeper), rounded UP to a coarse
+ *  ladder rung, so a chart that fills refetches a few times (each rung once), never once per fill step. The server
+ *  caps each answer at what our store holds (the store's depth), and `heldDepthOf` keeps its daily cap. This one
+ *  number is what `ensureChartSources`, the held daily depths and `liveTailTick` all read. */
+/** ⛔ The top rung is `/api/bars`'s own ceiling (`bars: Query(le=60000)`, `api/routers/bars.py`): a deeper ask is a
+ *  422, never a deeper answer. */
+export const HELD_SPAN_MAX = 60000
+export const HELD_SPAN_LADDER = Object.freeze([600, 2000, 5000, 10000, 20000, 40000, HELD_SPAN_MAX])
+export function heldSpanFor(loaded, requested) {
+  const req = Number.isFinite(requested) && requested > 0 ? Math.floor(requested) : 0
+  const want = Math.max(Number.isFinite(loaded) && loaded > 0 ? Math.floor(loaded) : 0, req)
+  const rung = HELD_SPAN_LADDER.find((r) => r >= want) ?? HELD_SPAN_MAX
+  return Math.min(HELD_SPAN_MAX, Math.max(rung, req))
+}
+
 export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null) {
   const list = Array.isArray(keys) ? keys : []
   const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY), tf, barCount, fetcher)

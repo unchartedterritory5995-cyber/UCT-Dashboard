@@ -782,10 +782,28 @@ export const SERIES_NEWEST_FORMING = Symbol('rs:newest-forming')
 export const OWN_DAILY_KEY = 'OWN~D'
 /** ⭐ RS RATING L12 PR 2 — the ET session date of unix seconds (exported for the supply's per-bar placement). */
 export const etSessionDayOf = (t) => etDayOf(t)
-/** ⭐ RS RATING L12 PR 2 — unix seconds of `day`'s regular-session close (13:00 on a half-day), or null. */
+/** ⭐ RS RATING L12 PR 2 — unix seconds of `day`'s regular-session close (13:00 on a half-day), or null.
+ *  ⭐ PERF (Fred RS 5m profile, 2026-11-19): a pure function of the ISO day (the exchange calendar is static data), and
+ *  the supply asked it once PER CHART BAR — each a `Intl.DateTimeFormat` call (`sessionCalendar.js::_etParts`): 62 ms
+ *  of the run half at 2,000 bars. Answered once per day from here on. Bounded: a run reads one entry per session it
+ *  spans, and the memo is dropped whole past `SESSION_CLOSE_MEMO_CAP` days. */
+const SESSION_CLOSE_MEMO_CAP = 20000
+const _sessionCloseMemo = new Map()
 export function sessionCloseOf(day) {
+  const key = typeof day === 'string' ? day : null
+  if (key !== null && _sessionCloseMemo.has(key)) return _sessionCloseMemo.get(key)
   const c = closeTime(day)
-  return c ? c.getTime() / 1000 : null
+  const out = c ? c.getTime() / 1000 : null
+  if (key !== null) {
+    if (_sessionCloseMemo.size >= SESSION_CLOSE_MEMO_CAP) _sessionCloseMemo.clear()
+    _sessionCloseMemo.set(key, out)
+  }
+  return out
+}
+/** Tests: how many days the session-close memo holds (and a way to drop it). */
+export function __sessionCloseMemoSizeForTests(reset = false) {
+  if (reset) _sessionCloseMemo.clear()
+  return _sessionCloseMemo.size
 }
 
 /** The fold a `period` read names (`previous-week` / `previous-month` / `latest-at-or-before`) over the held

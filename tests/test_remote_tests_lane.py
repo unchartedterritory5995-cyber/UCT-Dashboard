@@ -531,3 +531,112 @@ def test_api_wait_for_run_times_out_with_none():
     api, _, _clock = _api([])
     api._runner = lambda m, p, h, b: _ok(queued) if p.endswith("/jobs?per_page=100") else _ok({"status": "queued"})
     assert rt.wait_for_run(api, "5", timeout_s=600, log=lambda *_: None) is None
+
+
+# ---- a just-dispatched run (2026-11-19, e83 train, run 44506488391) ------------------------------------------------
+# GitHub answered 404 for the run the dispatch had just returned; the tool exited 2, deleted its ref and stranded
+# the run. A fresh run's 404 is retried for a grace window, and the ref is never deleted under a live run.
+_NOT_FOUND = (404, {}, '{"message": "Not Found"}')
+_DONE_JOBS = {"jobs": [_job("plan", "completed", "success"), _job("pytest", "completed", "success")]}
+
+
+def test_fresh_run_a_404_then_200_keeps_waiting():
+    def answer(method, path, headers, body):
+        if path.endswith("/jobs?per_page=100"):
+            return _NOT_FOUND if clock.t - 1_000_000.0 < 40 else _ok(_DONE_JOBS)
+        return _ok({"status": "completed", "conclusion": "success"})
+
+    clock = _Clock()
+    api, fake, clock = _api([answer] * 20, clock)
+    run, jobs = rt.wait_for_run(api, "5", timeout_s=3600, log=lambda *_: None)
+    assert run["conclusion"] == "success" and len(jobs) == 2
+    assert clock.sleeps[:2] == [rt.POLL_EARLY_S, rt.POLL_EARLY_S]       # retried on the backoff schedule
+
+
+def test_fresh_run_a_404_past_the_window_is_fatal():
+    api, _, clock = _api([_NOT_FOUND] * 20)
+    with pytest.raises(RuntimeError, match="HTTP 404"):
+        rt.wait_for_run(api, "5", timeout_s=3600, log=lambda *_: None)
+    assert clock.t - 1_000_000.0 <= rt.FRESH_RUN_GRACE_S + rt.POLL_EARLY_S   # gave up right after the window
+
+
+def test_fresh_run_a_404_after_the_run_has_answered_is_fatal_at_once():
+    running = {"jobs": [_job("plan", "in_progress")]}
+    api, _, clock = _api([_ok(running), _NOT_FOUND])
+    with pytest.raises(RuntimeError, match="HTTP 404"):
+        rt.wait_for_run(api, "5", timeout_s=3600, log=lambda *_: None)
+    assert clock.sleeps == [rt.POLL_EARLY_S]
+
+
+def _state(dispatched=True, run_id="7", done=False):
+    s = rt.RunState()
+    s.dispatched, s.run_id, s.done = dispatched, run_id, done
+    return s
+
+
+@pytest.mark.parametrize("cancel_status", [202, 409])                 # 409: the run had already finished
+def test_release_ref_cancels_a_live_run_before_deleting_its_ref(cancel_status):
+    events = []
+
+    def runner(method, path, headers, body):
+        events.append(("api", method, path))
+        return cancel_status, {}, ""
+
+    api = rt.GitHubApi(runner=runner, sleep=lambda s: None, now=lambda: 0.0, log=lambda *_: None)
+    out = rt.release_ref(api, GOOD_REF, _state(), False, delete=lambda r: events.append(("delete", r)),
+                         log=lambda *_: None)
+    assert out == "deleted"
+    assert events == [("api", "POST", "repos/{owner}/{repo}/actions/runs/7/cancel"), ("delete", GOOD_REF)]
+
+
+@pytest.mark.parametrize("state,answer", [
+    (_state(), (500, {}, "boom")),                                                   # cancel not confirmed
+    (_state(), (403, {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1"}, "rate limit")),   # no sleeping here
+    (_state(run_id=None), None),                                                     # the run's id is unknown
+])
+def test_release_ref_keeps_the_ref_when_the_run_cannot_be_stopped(state, answer):
+    deleted, said, sleeps = [], [], []
+    api = rt.GitHubApi(runner=lambda *a: answer, sleep=sleeps.append, now=lambda: 0.0, log=lambda *_: None)
+    assert rt.release_ref(api, GOOD_REF, state, False, delete=deleted.append, log=said.append) == "kept"
+    assert deleted == [] and sleeps == []
+    assert f"git push origin :{GOOD_REF}" in said[-1]
+
+
+@pytest.mark.parametrize("state", [_state(done=True), _state(dispatched=False, run_id=None)])
+def test_release_ref_deletes_without_a_cancel_when_no_run_is_live(state):
+    deleted, calls = [], []
+    api = rt.GitHubApi(runner=lambda *a: calls.append(a), sleep=lambda s: None, now=lambda: 0.0, log=lambda *_: None)
+    assert rt.release_ref(api, GOOD_REF, state, False, delete=deleted.append, log=lambda *_: None) == "deleted"
+    assert deleted == [GOOD_REF] and calls == []
+
+
+def test_fresh_run_a_lasting_404_exits_2_with_the_run_cancelled_before_the_ref_is_deleted(monkeypatch):
+    """The e83 failure end to end: dispatch answers a run id, every read of it is 404."""
+    events, clock, budget = [], _Clock(), [200]
+
+    def runner(method, path, headers, body):
+        budget[0] -= 1
+        assert budget[0] > 0, "the wait on a 404 never ended"      # a loop must go red, never hang the suite
+        if path == "rate_limit":
+            return 200, {}, json.dumps({"resources": {"core": {"remaining": 4000, "limit": 5000, "reset": 1}}})
+        if path.endswith("/dispatches"):
+            return _ok({"workflow_run_id": 7, "html_url": "u7"})
+        if path.endswith("/cancel"):
+            events.append("cancel")
+            return 202, {}, ""
+        return _NOT_FOUND
+
+    class _Proc:
+        def __init__(self, stdout=""):
+            self.stdout, self.stderr, self.returncode = stdout, "", 0
+
+    monkeypatch.setattr(rt.shutil, "which", lambda t: t)
+    monkeypatch.setattr(rt, "_run", lambda cmd, check=True, capture=True:
+                        _Proc("0123456789abcdef0123\n" if cmd[:2] == ["git", "rev-parse"] else ""))
+    real_api = rt.GitHubApi
+    monkeypatch.setattr(rt, "GitHubApi",
+                        lambda: real_api(runner=runner, sleep=clock.sleep, now=clock.now, log=lambda *_: None))
+    monkeypatch.setattr(rt, "_delete_ref", lambda ref: events.append("delete"))
+    assert rt.main(["--pytest", "tests/test_a.py"]) == rt.LANE
+    assert events == ["cancel", "delete"], events
+    assert clock.t - 1_000_000.0 <= rt.FRESH_RUN_GRACE_S + rt.POLL_EARLY_S
