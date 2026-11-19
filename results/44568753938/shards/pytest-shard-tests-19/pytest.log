@@ -1,0 +1,350 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........s..................................F............................ [  4%]
+........................................................................ [  9%]
+........................................................................ [ 14%]
+........................................................................ [ 18%]
+........................................................................ [ 23%]
+........................................................................ [ 28%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+........................................................................ [ 42%]
+........................................................................ [ 47%]
+........................................................................ [ 52%]
+........................................................................ [ 56%]
+........................................................................ [ 61%]
+........................................................................ [ 66%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 80%]
+........................................................................ [ 85%]
+........................................................................ [ 90%]
+.F...................................................................... [ 94%]
+.....................................................F.......FFF.....F.. [ 99%]
+......                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_every_synthetic_sign_in_goes_through_the_helper_or_signs_out_in_finally _
+
+    def test_every_synthetic_sign_in_goes_through_the_helper_or_signs_out_in_finally():
+        triggered, bad = _scan()
+>       assert not bad, "a tool can leave a live synthetic session behind:\n  " + "\n  ".join(bad)
+E       AssertionError: a tool can leave a live synthetic session behind:
+E           tools/history_lake/daily_check.py: POSTs /api/auth/login itself -- sign in through tools/synthetic_session.py
+E           tools/history_lake/daily_check.py: reads a synthetic credential but does not import AND call tools/synthetic_session.py
+E       assert not ['tools/history_lake/daily_check.py: POSTs /api/auth/login itself -- sign in through tools/synthetic_session.py', 'tools/history_lake/daily_check.py: reads a synthetic credential but does not import AND call tools/synthetic_session.py']
+
+tests/test_synthetic_session_signout.py:297: AssertionError
+_____ test_every_frontend_gate_answers_from_the_payload_the_switch_empties _____
+
+    def test_every_frontend_gate_answers_from_the_payload_the_switch_empties():
+        gates, bad, scanned = _frontend_census()
+        assert scanned > 100, f"scanned only {scanned} frontend files — the walk is broken"
+        assert bad == [], (
+            "frontend Terminal-Next gates reading a source the master switch cannot "
+            "reach:\n  " + "\n  ".join(bad))
+        # ⚠️ Stated, not hidden: today no frontend file reads the field. When one
+        # does, it is inert with the switch thrown because the master rail above
+        # proves the field is `[]` for everyone.
+        unacknowledged = sorted(set(gates) - set(ACKNOWLEDGED_FRONTEND_GATES))
+>       assert unacknowledged == [], (
+            "a frontend Terminal-Next gate now exists; it is already held to the rule "
+            "above — acknowledge it in ACKNOWLEDGED_FRONTEND_GATES with its reason:\n  "
+            + "\n  ".join(unacknowledged))
+E       AssertionError: a frontend Terminal-Next gate now exists; it is already held to the rule above — acknowledge it in ACKNOWLEDGED_FRONTEND_GATES with its reason:
+E           app/src/components/chart/builder/ConverseBox.script.test.jsx
+E           app/src/pages/terminal/TerminalShell.starterBoards.test.jsx
+E           app/src/pages/terminal/TerminalShell.stockBoards.test.jsx
+E       assert ['app/src/com...rds.test.jsx'] == []
+E         
+E         Left contains 3 more items, first extra item: 'app/src/components/chart/builder/ConverseBox.script.test.jsx'
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     'app/src/components/chart/builder/ConverseBox.script.test.jsx',
+E         +     'app/src/pages/terminal/TerminalShell.starterBoards.test.jsx',
+E         +     'app/src/pages/terminal/TerminalShell.stockBoards.test.jsx',
+E         + ]
+
+tests/test_terminal_next_kill_switch.py:709: AssertionError
+_______________________ test_route_answers_and_is_gated ________________________
+
+client = (<starlette.testclient.TestClient object at 0x789005b91010>, {'user': {'email': 'a@example.test', 'id': 't13-member-a', 'role': 'admin'}})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789005b9bfe0>
+
+    def test_route_answers_and_is_gated(client, monkeypatch):
+        c, state = client
+        r = c.post("/api/terminal/seen/cn", json={"sym": "nvda", "keys": ["2026-10-07|a"]})
+>       assert r.status_code == 200 and r.json()["first_visit"] is True and r.json()["code"] == "CN"
+E       assert (404 == 200)
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/test_terminal_seen.py:128: AssertionError
+________ test_by_now_reads_the_live_reading_highest_first_and_dates_it _________
+
+served = <module 'api.services.screener.snapshot_db' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/screener/snapshot_db.py'>
+
+    def test_by_now_reads_the_live_reading_highest_first_and_dates_it(served):
+        out = _run("now_base")
+>       assert [r["ticker"] for r in out["rows"]] == ["CALM", "BUSY"]          # HEAVY is quiet today (0.7x)
+E       AssertionError: assert [] == ['CALM', 'BUSY']
+E         
+E         Right contains 2 more items, first extra item: 'CALM'
+E         
+E         Full diff:
+E         + []
+E         - [
+E         -     'CALM',
+E         -     'BUSY',
+E         - ]
+
+tests/test_terminal_unusual_volume_scan.py:116: AssertionError
+______ test_the_floors_keep_funds_cheap_and_thin_names_off_both_readings _______
+
+served = <module 'api.services.screener.snapshot_db' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/screener/snapshot_db.py'>
+
+    def test_the_floors_keep_funds_cheap_and_thin_names_off_both_readings(served):
+        for name in ("now_base", "last_base"):
+            got = set(_tickers(name))
+            assert not got & {"FUND", "CHEAP", "THIN"}, name
+        # CONTROL: each of the three really is loud enough to be listed without its floor
+        for drop, back in (("security_type", "FUND"), ("price", "CHEAP"), ("dollar_vol_30d", "THIN")):
+            body = dict(REQUESTS["now_base"]["body"])
+            body["filters"] = [f for f in body["filters"] if f["key"] != drop]
+>           assert back in [r["ticker"] for r in query.run_scan(body)["rows"]], drop
+E           AssertionError: security_type
+E           assert 'FUND' in []
+
+tests/test_terminal_unusual_volume_scan.py:133: AssertionError
+_________ test_the_direction_and_the_multiple_are_rules_on_the_server __________
+
+served = <module 'api.services.screener.snapshot_db' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/screener/snapshot_db.py'>
+
+    def test_the_direction_and_the_multiple_are_rules_on_the_server(served):
+>       assert _tickers("now_up_3") == ["CALM"]                                # 5.5x and up; BUSY is down
+E       AssertionError: assert [] == ['CALM']
+E         
+E         Right contains one more item: 'CALM'
+E         
+E         Full diff:
+E         + []
+E         - [
+E         -     'CALM',
+E         - ]
+
+tests/test_terminal_unusual_volume_scan.py:137: AssertionError
+_______________ test_no_production_module_is_wearing_a_test_name _______________
+
+pytestconfig = <_pytest.config.Config object at 0x78906b5bb7a0>
+discovery = {'files': {'api/routers/stream_bars_test.py', 'api/services/audit_test.py', 'api/services/auth_db_test.py', 'api/servi...est_*.py', '*_test.py'], 'root': PosixPath('/home/runner/work/UCT-Dashboard/UCT-Dashboard'), 'roots': ['tests', 'api']}
+
+    def test_no_production_module_is_wearing_a_test_name(pytestconfig, discovery):
+        """The inverse of the gap above, and it was also real.
+    
+        `api/backfill_tick_test.py` was a production one-shot backfill script — its
+        name is about the Lee-Ready *tick test*, not about pytest — and it sat inside
+        the tree this change just added to `testpaths`. It held no test callable, so
+        it contributed nothing, while every collection run imported it (and anything
+        it imports) for free. One module-level side effect away from running
+        production code at collection time. It is now `api/backfill_ticktest.py`.
+    
+        Exactly 1 file out of 766 was in this state, so the signal is precise:
+        a hit here means a module was named into the suite by accident."""
+        funcs = list(pytestconfig.getini("python_functions"))
+        classes = list(pytestconfig.getini("python_classes"))
+        assert funcs and classes, "pytest reports no python_functions/python_classes"
+    
+        prefixes = tuple(
+            r.replace(os.sep, "/").rstrip("/") + "/" for r in discovery["roots"]
+        )
+        empty = []
+        for rel in sorted(f for f in discovery["files"] if f.startswith(prefixes)):
+            path = discovery["root"] / rel
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+            except SyntaxError as exc:  # a file pytest could not collect either
+                empty.append(f"{rel}: does not parse ({exc})")
+                continue
+            has_test = any(
+                (isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                 and _matches_prefix_or_glob(funcs, n.name))
+                or (isinstance(n, ast.ClassDef) and _matches_prefix_or_glob(classes, n.name))
+                for n in ast.walk(tree)
+            )
+            if not has_test:
+                empty.append(f"{rel}: matches python_files but defines no test")
+>       assert not empty, (
+            "file(s) named into collection that hold no test — rename them out of "
+            "pytest's python_files patterns:\n  " + "\n  ".join(empty)
+        )
+E       AssertionError: file(s) named into collection that hold no test — rename them out of pytest's python_files patterns:
+E           tests/pattern_engine/detectors/test_uct_capitulation.py: matches python_files but defines no test
+E           tests/pattern_engine/detectors/test_uct_gap_support.py: matches python_files but defines no test
+E           tests/pattern_engine/detectors/test_uct_go_signal.py: matches python_files but defines no test
+E           tests/pattern_engine/detectors/test_uct_kicker.py: matches python_files but defines no test
+E           tests/pattern_engine/detectors/test_uct_launch_pad.py: matches python_files but defines no test
+E           tests/pattern_engine/detectors/test_uct_oops_reversal.py: matches python_files but defines no test
+E           tests/pattern_engine/detectors/test_uct_slingshot.py: matches python_files but defines no test
+E       assert not ['tests/pattern_engine/detectors/test_uct_capitulation.py: matches python_files but defines no test', 'tests/pattern_e...es no test', 'tests/pattern_engine/detectors/test_uct_oops_reversal.py: matches python_files but defines no test', ...]
+
+tests/test_test_discovery_coverage.py:190: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964
+tests/test_term048_watchlist_alerts_s7.py::test_nothing_re_arms_a_watchlist_alert_row
+tests/test_terminal_next_flag.py::test_the_gate_is_VISIBLE_to_the_AST_index_and_demands_a_ledger_entry
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_term048_watchlist_alerts_s7.py::test_nothing_re_arms_a_watchlist_alert_row
+tests/test_terminal_next_flag.py::test_the_gate_is_VISIBLE_to_the_AST_index_and_demands_a_ledger_entry
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_term069_chain_leg_retired.py::test_nothing_under_api_imports_the_retired_chain_module
+tests/test_term069_chain_leg_retired.py::test_nothing_under_api_reads_a_yfinance_option_chain_except_the_named_module
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:186: SyntaxWarning: invalid escape sequence '\['
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:3: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:1347: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_survivorship_is_declared.py:91: no local screener.db to measure against
+FAILED tests/test_synthetic_session_signout.py::test_every_synthetic_sign_in_goes_through_the_helper_or_signs_out_in_finally - AssertionError: a tool can leave a live synthetic session behind:
+    tools/history_lake/daily_check.py: POSTs /api/auth/login itself -- sign in through tools/synthetic_session.py
+    tools/history_lake/daily_check.py: reads a synthetic credential but does not import AND call tools/synthetic_session.py
+assert not ['tools/history_lake/daily_check.py: POSTs /api/auth/login itself -- sign in through tools/synthetic_session.py', 'tools/history_lake/daily_check.py: reads a synthetic credential but does not import AND call tools/synthetic_session.py']
+FAILED tests/test_terminal_next_kill_switch.py::test_every_frontend_gate_answers_from_the_payload_the_switch_empties - AssertionError: a frontend Terminal-Next gate now exists; it is already held to the rule above — acknowledge it in ACKNOWLEDGED_FRONTEND_GATES with its reason:
+    app/src/components/chart/builder/ConverseBox.script.test.jsx
+    app/src/pages/terminal/TerminalShell.starterBoards.test.jsx
+    app/src/pages/terminal/TerminalShell.stockBoards.test.jsx
+assert ['app/src/com...rds.test.jsx'] == []
+  
+  Left contains 3 more items, first extra item: 'app/src/components/chart/builder/ConverseBox.script.test.jsx'
+  
+  Full diff:
+  - []
+  + [
+  +     'app/src/components/chart/builder/ConverseBox.script.test.jsx',
+  +     'app/src/pages/terminal/TerminalShell.starterBoards.test.jsx',
+  +     'app/src/pages/terminal/TerminalShell.stockBoards.test.jsx',
+  + ]
+FAILED tests/test_terminal_seen.py::test_route_answers_and_is_gated - assert (404 == 200)
+ +  where 404 = <Response [404 Not Found]>.status_code
+FAILED tests/test_terminal_unusual_volume_scan.py::test_by_now_reads_the_live_reading_highest_first_and_dates_it - AssertionError: assert [] == ['CALM', 'BUSY']
+  
+  Right contains 2 more items, first extra item: 'CALM'
+  
+  Full diff:
+  + []
+  - [
+  -     'CALM',
+  -     'BUSY',
+  - ]
+FAILED tests/test_terminal_unusual_volume_scan.py::test_the_floors_keep_funds_cheap_and_thin_names_off_both_readings - AssertionError: security_type
+assert 'FUND' in []
+FAILED tests/test_terminal_unusual_volume_scan.py::test_the_direction_and_the_multiple_are_rules_on_the_server - AssertionError: assert [] == ['CALM']
+  
+  Right contains one more item: 'CALM'
+  
+  Full diff:
+  + []
+  - [
+  -     'CALM',
+  - ]
+FAILED tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name - AssertionError: file(s) named into collection that hold no test — rename them out of pytest's python_files patterns:
+    tests/pattern_engine/detectors/test_uct_capitulation.py: matches python_files but defines no test
+    tests/pattern_engine/detectors/test_uct_gap_support.py: matches python_files but defines no test
+    tests/pattern_engine/detectors/test_uct_go_signal.py: matches python_files but defines no test
+    tests/pattern_engine/detectors/test_uct_kicker.py: matches python_files but defines no test
+    tests/pattern_engine/detectors/test_uct_launch_pad.py: matches python_files but defines no test
+    tests/pattern_engine/detectors/test_uct_oops_reversal.py: matches python_files but defines no test
+    tests/pattern_engine/detectors/test_uct_slingshot.py: matches python_files but defines no test
+assert not ['tests/pattern_engine/detectors/test_uct_capitulation.py: matches python_files but defines no test', 'tests/pattern_e...es no test', 'tests/pattern_engine/detectors/test_uct_oops_reversal.py: matches python_files but defines no test', ...]
+7 failed, 1510 passed, 1 skipped, 74 warnings in 618.47s (0:10:18)

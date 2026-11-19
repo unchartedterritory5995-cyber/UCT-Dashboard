@@ -1,0 +1,305 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 13%]
+....................................F................................... [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+...................................................................F.... [ 27%]
+........................................................................ [ 29%]
+.....................................................F.................. [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+.....................ss................................................. [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 41%]
+..........................................................F............. [ 43%]
+........................................................................ [ 45%]
+.............F.......................................................... [ 47%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+................................................F....................... [ 52%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+..................................................................s..... [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+.s...................................................................... [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+...............................                                          [100%]
+=================================== FAILURES ===================================
+_____________ test_every_literal_run_half_refusal_code_is_accepted _____________
+
+    def test_every_literal_run_half_refusal_code_is_accepted():
+        reg = (ENGINE / "nativeRegistry.js").read_text(encoding="utf-8")
+        body = reg[reg.index("function withRunHalf("):reg.index("function runHalfGateSignature(")]
+        codes = set(re.findall(r"refused\('([^']+)'\)", body))
+        named = set(re.findall(r"refused\(([A-Z_]+)\)", body))
+        for name in named:
+            codes.add(_constant_value(name, reg))
+        # control: the imported constant the earlier version could not see is read, and read as itself
+        assert "RUNTIME_FORMING_GUARD" in named
+        assert _constant_value("RUNTIME_FORMING_GUARD", reg) == "pane:forming-ungraded"
+        rail = (ENGINE / "runHalfObjectRail.js").read_text(encoding="utf-8")
+        codes |= set(re.findall(r"export const RUN_HALF_[A-Z_]+ = '([^']+)'", rail))
+        assert {"run-half:program-unbound", "run-half:object-rail", "run-half:no-comparable-objects",
+                "run-half:host-object-withheld", "run-half:rail-not-loaded"} <= codes
+        for code in codes:
+>           assert re.fullmatch(tel.RUN_HALF_CODE_PATTERN, code), code
+E           AssertionError: lost-drawings
+E           assert None
+E            +  where None = <function fullmatch at 0x76f5a57f2d40>('^(run-half|pane|runtime|interpret|pine|lower-tf|budget):[A-Za-z0-9_.-]{1,48}$', 'lost-drawings')
+E            +    where <function fullmatch at 0x76f5a57f2d40> = re.fullmatch
+E            +    and   '^(run-half|pane|runtime|interpret|pine|lower-tf|budget):[A-Za-z0-9_.-]{1,48}$' = tel.RUN_HALF_CODE_PATTERN
+
+tests/test_run_half_refusal_telemetry.py:100: AssertionError
+______ test_every_call_site_is_in_a_module_this_migration_reasoned_about _______
+
+    def test_every_call_site_is_in_a_module_this_migration_reasoned_about():
+        """⛔⛔ THE RAIL, failing BY NAME on a site nobody has looked at. A new
+        caller of `get_user_ticker_sets` in a module outside the three F-S6-1
+        named is not wrong by construction -- `get_user_ticker_sets`'s shape is
+        unchanged, so it would likely still be a no-op -- but it is UNREASONED
+        ABOUT, and this rail's whole purpose is to stop that from being silent
+        the way F-S6-1's original "Calendar the only caller" claim was."""
+        sites = _call_sites_of("get_user_ticker_sets")
+        unreasoned = sorted({f for f, _ln in sites} - _KNOWN_2026_09_15 - _REASONED_AFTER_2026_09_15)
+>       assert not unreasoned, (
+            f"get_user_ticker_sets is now called from {unreasoned}, which this "
+            "migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. "
+            "Read what it does with the returned dict before trusting the "
+            "no-op claim for this site, then add it to _KNOWN_2026_09_15 here.")
+E       AssertionError: get_user_ticker_sets is now called from ['api/services/journal_two/notebook_widgets.py'], which this migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. Read what it does with the returned dict before trusting the no-op claim for this site, then add it to _KNOWN_2026_09_15 here.
+E       assert not ['api/services/journal_two/notebook_widgets.py']
+
+tests/test_s6_cp2_migration.py:118: AssertionError
+_____ test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason _____
+
+    def test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason():
+        readers = _readers()
+        unknown = sorted(set(readers) - set(GUARDED) - set(EXEMPT))
+>       assert not unknown, (
+            "These modules read a note table and are in neither list. If a note's content becomes a "
+            "fact about the member there (a statistic, a grade, an alert, a chip), add it to GUARDED "
+            "and filter with sample_marker; otherwise add it to EXEMPT with the reason: " + ", ".join(unknown))
+E       AssertionError: These modules read a note table and are in neither list. If a note's content becomes a fact about the member there (a statistic, a grade, an alert, a chip), add it to GUARDED and filter with sample_marker; otherwise add it to EXEMPT with the reason: api/services/journal_two/tweet_capture.py, api/services/journal_two/tweet_capture_sync.py
+E       assert not ['api/services/journal_two/tweet_capture.py', 'api/services/journal_two/tweet_capture_sync.py']
+
+tests/test_sample_never_feeds_real_numbers.py:558: AssertionError
+_ test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGREE _
+
+    def test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGREE():
+        """⛔ ONE VOCABULARY. The evaluator normalises `tf` through `scan_store` and
+        hands THAT code to the clock, so the two declared code sets must be the same
+        set. If they ever diverge the clock fails closed — a code it does not know is
+        "nobody told me" — which is the safe direction, and this says so out loud."""
+        from api.services import indicator_compute
+        assert set(scan_store._TF_CODES) == set(indicator_compute.CLOCK_TIMEFRAMES)
+        fn = _function_node("evaluate_one")
+        calls = [n for n in pyast.walk(fn) if isinstance(n, pyast.Call)
+                 and getattr(n.func, "attr", None) == "interpret"]
+        assert len(calls) == 1, f"{len(calls)} interpret calls in evaluate_one"
+        opts = {k.arg: k.value for k in calls[0].keywords}.get("opts")
+        assert isinstance(opts, pyast.Dict), "the interpret call passes no `opts` — the clock is dark"
+        # ⚠️ THE KEYS ARE PINNED, AND `symbols` JOINED `tf` IN W2b TASK 4 — the
+        # benchmark series a `sym` read needs, loaded once for the whole sweep. The
+        # assertion stays an EXACT set rather than becoming a containment check: this
+        # dict is everything the caller knows that the tree does not, so a key added
+        # silently is a channel nobody reviewed.
+        #
+        # ⭐ `now` JOINED THEM 2026-09-09, AND THIS RAIL IS WHY IT WAS REVIEWED. It is
+        # the cycle's evaluating instant, and `ast_interpret` derives the bar-close
+        # TRI-STATE from it through `indicator_compute.bar_close_state`. Without it the
+        # four CLOCK_REALTIME columns blank, and `barstate.islastconfirmedhistory` —
+        # which the Pine door does NOT fold, unlike `isconfirmed`/`ishistory`/
+        # `isrealtime` — came back `not_computable` on every saved scan reading it.
+        # Measured 1 -> None before the fix.
+        #
+        # ⚰⚰ IT WAS `newest_bar_is_forming: mode == LIVE` FOR ONE COMMIT. A mode is
+        # not a clock: this cycle's window was `open + REGULAR_SESSION_LENGTH`, a FIXED
+        # 6h30m gated on FULL closures only, so on a 1pm ET half-day it kept firing
+        # until 16:00 and would have called a settled bar "forming" for three hours.
+        # Pinned by `tests/test_scan_sweep_bar_close_state.py`.
+        # ⭐ THE WINDOW WAS FIXED 2026-09-10 — `_session_length_et` reads both leaf sets
+        # and the cycle now stops at 13:00 on a half-day
+        # (`tests/test_scan_live_window_early_close.py`). ⛔ The instant still stands:
+        # a window is a property of the SWEEP and the tri-state is a property of the
+        # BAR, and the nightly run is `mode != LIVE` over bars that are equally closed.
+        # ⭐ `barIndexAbsolute` JOINED THEM IN C45, REVIEWED HERE. It is the DOCUMENT's
+        # declaration that its `barindex` is Pine's `bar_index` (`meta.recurrenceOrigin`),
+        # read by `ast_interpret.bar_index_absolute_for` — the same call
+        # `assert_scannable` makes at the door. False for every document that is not a
+        # Pine translation, and `interpret` asks `is True`.
+        # ⭐ `semantics` JOINED THEM 2026-10-06 (owner decision A), REVIEWED HERE: the
+        # STORED document's definition semantics, read by `ast_interpret.semantics_for`
+        # — the function `lane_opts_for` and `scan_definition.def_hash` use — so the
+        # sweep evaluates a semantics-2 screen as its chart and alert do, and files it
+        # under the `~s2` identity. `1` (every legacy document) is identical to absent.
+>       keys = {k.value for k in opts.keys}
+E       AttributeError: 'NoneType' object has no attribute 'value'
+
+tests/test_scan_live_sweep.py:1255: AttributeError
+______ test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST ______
+
+    def test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST():
+        """⭐ THE RAIL WHOSE SUBJECT IS THE DATA. Every entry declaring
+        `reads: "bars"` must be reported unresolvable on bars that put it in a hole,
+        and resolvable on bars that do not — and BOTH directions are asserted per
+        entry, so an entry that reads as unresolvable because the fixture is broken
+        cannot pass.
+    
+        ⛔ THE ROT CONTROLS ARE THE OTHER TWO ASSERTIONS. (1) If no fixture can hole
+        a declared entry any more, this fails BY NAME rather than skipping it — a
+        rail whose premise has dissolved is a false claim, not a pass. (2) If the
+        comparison stops laundering that hole into a confident 0.0, this fails too,
+        because that is the premise the whole file rests on.
+    
+        ⭐ IT ALREADY EARNED ITS SHAPE: `obvN` landed in `closedTable.json` from a
+        parallel lane WHILE this file was being written, and was swept with no edit
+        here — which is the entire argument for deriving the set instead of listing it.
+        """
+        declared = ast_table.bar_readers(_manifest())
+    
+        # NON-VACUITY, stated as a floor rather than assumed: the manifest declares
+        # bar readers at all, `ast_table` agrees with the file on disk, and the
+        # walker binds exactly that set.
+        assert len(declared) >= 2, (
+            f"the manifest declares {len(declared)} bar readers; this sweep proves "
+            "nothing about a set that small")
+        assert tuple(declared) == tuple(ast_table.bar_readers()), (
+            "ast_table.bar_readers() disagrees with the manifest file this rail "
+            "read — one of them is not reading closedTable.json")
+        assert set(declared) == set(ast_interpret.BAR_READERS), (
+            "the walker's dispatch set and the manifest have forked")
+    
+        functions = _manifest()["functions"]
+        met = _instant_bars()
+        anchor = met[1]["t"]
+    
+        swept = {}
+        for name in declared:
+            spec = functions[name]
+            node = _call(name, *_args_for(name, spec, anchor, len(met)))
+            tree = _op(">", _series("close"), node)
+    
+            # (a) the entry CAN compute — so (b) is about the bars, not the fixture.
+            column = ast_interpret.interpret(node, met, opts={"tf": "5"})
+>           assert any(isinstance(v, float) and math.isfinite(v) for v in column), (
+                f"{name}: the 'computable' fixture produced no value at all, so the "
+                "'holed' assertions below would pass for the wrong reason")
+E           AssertionError: openingRangeHigh: the 'computable' fixture produced no value at all, so the 'holed' assertions below would pass for the wrong reason
+E           assert False
+E            +  where False = any(<generator object test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST.<locals>.<genexpr> at 0x76f519d78ac0>)
+
+tests/test_scan_not_computable_inputs.py:415: AssertionError
+_______________ test_the_sweep_hands_an_INSTANT_and_never_a_mode _______________
+
+    def test_the_sweep_hands_an_INSTANT_and_never_a_mode():
+        """⛔ THE ENCODING ITSELF, PINNED BY AST. `mode` is not a clock. If this call
+        ever hands a mode-derived boolean again, the half-day case above goes wrong
+        three hours a year and nothing else notices."""
+        tree = pyast.parse(io.open(EVALUATOR, encoding="utf-8").read())
+        fn = next(n for n in pyast.walk(tree)
+                  if isinstance(n, pyast.FunctionDef) and n.name == "evaluate_one")
+        calls = [n for n in pyast.walk(fn) if isinstance(n, pyast.Call)
+                 and getattr(n.func, "attr", None) == "interpret"]
+        assert len(calls) == 1, f"{len(calls)} interpret calls in evaluate_one"
+        opts = {k.arg: k.value for k in calls[0].keywords}["opts"]
+>       keys = {k.value for k in opts.keys}
+E       AttributeError: 'NoneType' object has no attribute 'value'
+
+tests/test_scan_sweep_bar_close_state.py:111: AttributeError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_scan_run.py:1347
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+tests/test_runtime_repaint_memo.py: 1 warning
+tests/test_s6_cp2_migration.py: 3 warnings
+tests/test_sample_never_feeds_real_numbers.py: 5 warnings
+tests/test_scan_evaluator_off_request_path.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_runtime_repaint_memo.py::test_M6_nothing_else_lexes_a_runtime_script_or_bypasses_the_memo
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3398: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3401: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_schwab_partner_fixes.py::test_snapshot_now_is_admin_only_not_merely_logged_in
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_screener_backtest_auth.py::test_a_PAID_member_still_gets_200_on_EVERY_route
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'from' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [2] tests/test_scalar_population_rail.py:428: set SCALAR_POPULATION_ARTIFACT=<path to a screener.db> to measure a real snapshot (the suite's own DB is a sandbox)
+SKIPPED [1] tests/test_screener_auth_surface.py:71: SCREEN_BACKTEST_ENABLED is off — the router is not mounted, so there is no served route to check (this is the flag working, not a gap)
+SKIPPED [1] tests/test_screener_integration.py:15: local bars reader unavailable: no such table: ohlcv
+FAILED tests/test_run_half_refusal_telemetry.py::test_every_literal_run_half_refusal_code_is_accepted - AssertionError: lost-drawings
+assert None
+ +  where None = <function fullmatch at 0x76f5a57f2d40>('^(run-half|pane|runtime|interpret|pine|lower-tf|budget):[A-Za-z0-9_.-]{1,48}$', 'lost-drawings')
+ +    where <function fullmatch at 0x76f5a57f2d40> = re.fullmatch
+ +    and   '^(run-half|pane|runtime|interpret|pine|lower-tf|budget):[A-Za-z0-9_.-]{1,48}$' = tel.RUN_HALF_CODE_PATTERN
+FAILED tests/test_s6_cp2_migration.py::test_every_call_site_is_in_a_module_this_migration_reasoned_about - AssertionError: get_user_ticker_sets is now called from ['api/services/journal_two/notebook_widgets.py'], which this migration's own reasoning (F-S6-1, GATE-S6 CP2') never considered. Read what it does with the returned dict before trusting the no-op claim for this site, then add it to _KNOWN_2026_09_15 here.
+assert not ['api/services/journal_two/notebook_widgets.py']
+FAILED tests/test_sample_never_feeds_real_numbers.py::test_every_reader_of_a_note_table_is_guarded_or_exempt_with_a_reason - AssertionError: These modules read a note table and are in neither list. If a note's content becomes a fact about the member there (a statistic, a grade, an alert, a chip), add it to GUARDED and filter with sample_marker; otherwise add it to EXEMPT with the reason: api/services/journal_two/tweet_capture.py, api/services/journal_two/tweet_capture_sync.py
+assert not ['api/services/journal_two/tweet_capture.py', 'api/services/journal_two/tweet_capture_sync.py']
+FAILED tests/test_scan_live_sweep.py::test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGREE - AttributeError: 'NoneType' object has no attribute 'value'
+FAILED tests/test_scan_not_computable_inputs.py::test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST - AssertionError: openingRangeHigh: the 'computable' fixture produced no value at all, so the 'holed' assertions below would pass for the wrong reason
+assert False
+ +  where False = any(<generator object test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST.<locals>.<genexpr> at 0x76f519d78ac0>)
+FAILED tests/test_scan_sweep_bar_close_state.py::test_the_sweep_hands_an_INSTANT_and_never_a_mode - AttributeError: 'NoneType' object has no attribute 'value'
+6 failed, 4125 passed, 4 skipped, 20 warnings in 525.05s (0:08:45)

@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 4135,
+  "passed": 4125,
+  "failed": 6,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 525.05,
+  "failed_files": [
+    "tests/test_run_half_refusal_telemetry.py",
+    "tests/test_s6_cp2_migration.py",
+    "tests/test_sample_never_feeds_real_numbers.py",
+    "tests/test_scan_live_sweep.py",
+    "tests/test_scan_not_computable_inputs.py",
+    "tests/test_scan_sweep_bar_close_state.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "6 failed, 4125 passed, 4 skipped, 20 warnings in 525.05s (0:08:45)",
+  "ok": true
+}

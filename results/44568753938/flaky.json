@@ -1,0 +1,96 @@
+{
+  "flaky": [],
+  "flaky_size": 0,
+  "flaky_new": 0,
+  "flaky_fixed": 0,
+  "stable_runs_to_leave": 5,
+  "runs": [
+    "1481",
+    "1482",
+    "1508",
+    "1509",
+    "1510",
+    "1511",
+    "1512",
+    "1513",
+    "1514",
+    "1515",
+    "1516",
+    "1519",
+    "1521"
+  ],
+  "pairs": [
+    {
+      "a": "1481",
+      "b": "1482",
+      "equivalent": null,
+      "why": "the diff 98317f6b6..99b1bdaa5 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "1482",
+      "b": "1508",
+      "equivalent": null,
+      "why": ".github/workflows/agent-ci-benchmark.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1508",
+      "b": "1509",
+      "equivalent": false,
+      "why": "api/live_massive_router.py is referenced by 66 source file(s); api/main.py is referenced by 2203 source file(s); api/routers/admin_twitter.py is referenced by 1 source file(s)"
+    },
+    {
+      "a": "1509",
+      "b": "1510",
+      "equivalent": false,
+      "why": ".github/workflows/full-suite-report.yml changed the suite-running job(s) vitest; api/flow_router.py is referenced by 50 source file(s); api/live_massive_router.py is referenced by 68 source file(s)"
+    },
+    {
+      "a": "1510",
+      "b": "1511",
+      "equivalent": false,
+      "why": ".github/workflows/full-suite-report.yml changed the suite-running job(s) pytest; .github/workflows/master-deploy-gate.yml changed the suite-running job(s) gate; .github/workflows/promote-production.yml changed OUTSIDE `jobs:` \u2014 every job sees that"
+    },
+    {
+      "a": "1511",
+      "b": "1512",
+      "equivalent": false,
+      "why": ".github/workflows/agent-ci.yml changed the suite-running job(s) browser; .github/workflows/full-suite-report.yml changed the suite-running job(s) collect_profile; .gitignore is referenced by 15 source file(s)"
+    },
+    {
+      "a": "1512",
+      "b": "1513",
+      "equivalent": null,
+      "why": ".github/workflows/agent-ci-required.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1513",
+      "b": "1514",
+      "equivalent": false,
+      "why": ".github/workflows/agent-ci.yml changed the suite-running job(s) browser, capability-regression-clock, server, union; api/backfill_from_patches.py is referenced by 5 source file(s); api/backfill_ticktest.py is referenced by 3 source file(s)"
+    },
+    {
+      "a": "1514",
+      "b": "1515",
+      "equivalent": null,
+      "why": ".github/workflows/front-door.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1515",
+      "b": "1516",
+      "equivalent": null,
+      "why": ".github/workflows/live-check.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1516",
+      "b": "1519",
+      "equivalent": null,
+      "why": ".github/workflows/authoring-eval-runner.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1519",
+      "b": "1521",
+      "equivalent": false,
+      "why": "the shard plan differs (3a534f99e vs b790d6af0): who shares a process changed"
+    }
+  ]
+}

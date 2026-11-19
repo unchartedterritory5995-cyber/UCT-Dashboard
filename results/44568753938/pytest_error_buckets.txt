@@ -1,0 +1,3 @@
+bucket | count | example node id
+----------------------------------------------------------------------
+1   | AssertionError: week-contract readers with no week_days() assertion: ['api.services.earnings_season.read_week' | tests/test_canonical_address_book.py

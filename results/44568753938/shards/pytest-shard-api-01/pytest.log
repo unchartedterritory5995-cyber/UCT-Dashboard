@@ -1,0 +1,1065 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........FF.............................................................. [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+......................................F................................. [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 63%]
+......................................s................................. [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 93%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+....................                                                     [100%]
+=================================== FAILURES ===================================
+_________________ test_put_bars_triggers_recovery_on_malformed _________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_put_bars_triggers_recover0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ab8f52734d0>
+
+    def test_put_bars_triggers_recovery_on_malformed(tmp_path, monkeypatch):
+        """The whole reason this module gained a recovery path: when put_bars
+        encounters a malformed image, it must (a) schedule a background
+        snapshot re-pull, (b) drop the poisoned thread-local connection so
+        the next call gets a fresh handle after recovery completes, and
+        (c) re-raise so the caller's existing exception handler fires."""
+        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+        bars_sqlite = _reload_bars_sqlite()
+    
+        class _PoisonedConn:
+            def executemany(self, *_a, **_kw):
+                raise sqlite3.DatabaseError("database disk image is malformed")
+    
+            def commit(self):
+                pass
+    
+            def close(self):
+                pass
+    
+        poisoned = _PoisonedConn()
+        monkeypatch.setattr(bars_sqlite, "_conn", lambda: poisoned)
+    
+        # Pre-seed the thread-local cache so we can verify it gets cleared.
+        bars_sqlite._local.conn = poisoned
+    
+        triggered = {"count": 0}
+        monkeypatch.setattr(
+            bars_sqlite,
+            "_trigger_corruption_recovery",
+            lambda: triggered.__setitem__("count", triggered["count"] + 1),
+        )
+    
+        with pytest.raises(sqlite3.DatabaseError):
+>           bars_sqlite.put_bars(
+                "AAPL", "D",
+                [{"t": 20240102, "o": 1, "h": 2, "l": 1, "c": 2, "v": 100}],
+            )
+
+api/services/bars_sqlite_test.py:219: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/bars_sqlite.py:3035: in put_bars
+    _hist = (_history_keys(c, tf, rows, replace=(on_conflict != "ignore"))
+api/services/bars_sqlite.py:598: in _history_keys
+    tails = _series_ends(c, tf, tickers, newest=True)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <api.services.bars_sqlite_test.test_put_bars_triggers_recovery_on_malformed.<locals>._PoisonedConn object at 0x7ab90a3df560>
+tf = 'D', tickers = ['AAPL']
+
+    def _series_ends(c: sqlite3.Connection, tf: str, tickers: list, *, newest: bool) -> dict:
+        """{TICKER: newest (or oldest) stored key} for many series — one PK seek each, one
+        statement per 400 series."""
+        out: dict = {}
+        order = "DESC" if newest else "ASC"
+        for i in range(0, len(tickers), 400):
+            chunk = tickers[i:i + 400]
+            vals = ",".join("(?)" for _ in chunk)
+>           for t, k in c.execute(
+                    f"WITH w(t) AS (VALUES {vals}) SELECT w.t, (SELECT ts FROM ohlcv "
+                    f"WHERE ticker=w.t AND tf=? ORDER BY ts {order} LIMIT 1) FROM w",
+                    [*chunk, tf]).fetchall():
+E                   AttributeError: '_PoisonedConn' object has no attribute 'execute'
+
+api/services/bars_sqlite.py:567: AttributeError
+________________ test_put_bars_retries_on_locked_then_succeeds _________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_put_bars_retries_on_locke0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ab909cb86e0>
+
+    def test_put_bars_retries_on_locked_then_succeeds(tmp_path, monkeypatch):
+        """OperationalError("database is locked") on the first attempt must be
+        retried (busy_timeout already absorbs most contention; this loop covers
+        the residual cases). We simulate one transient lock then a successful
+        write and verify put_bars completes without raising."""
+        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+        bars_sqlite = _reload_bars_sqlite()
+    
+        real_conn = sqlite3.connect(os.path.join(str(tmp_path), "bars.db"))
+        real_conn.execute(
+            "CREATE TABLE IF NOT EXISTS ohlcv ("
+            "ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, c REAL, v INTEGER, "
+            "PRIMARY KEY(ticker, tf, ts))"
+        )
+        real_conn.commit()
+    
+        # sqlite3.Connection methods are read-only attributes, so we wrap the
+        # real connection in a thin proxy whose executemany is monkeypatchable.
+        class _FlakyConn:
+            def __init__(self, real):
+                self._real = real
+                self.calls = 0
+    
+            def executemany(self, *args, **kwargs):
+                self.calls += 1
+                if self.calls == 1:
+                    raise sqlite3.OperationalError("database is locked")
+                return self._real.executemany(*args, **kwargs)
+    
+            def commit(self):
+                return self._real.commit()
+    
+        flaky = _FlakyConn(real_conn)
+        monkeypatch.setattr(bars_sqlite, "_conn", lambda: flaky)
+    
+>       n = bars_sqlite.put_bars(
+            "AAPL", "D",
+            [{"t": 20240102, "o": 1, "h": 2, "l": 1, "c": 2, "v": 100}],
+        )
+
+api/services/bars_sqlite_test.py:266: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/bars_sqlite.py:3035: in put_bars
+    _hist = (_history_keys(c, tf, rows, replace=(on_conflict != "ignore"))
+api/services/bars_sqlite.py:598: in _history_keys
+    tails = _series_ends(c, tf, tickers, newest=True)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+c = <api.services.bars_sqlite_test.test_put_bars_retries_on_locked_then_succeeds.<locals>._FlakyConn object at 0x7ab909cb87d0>
+tf = 'D', tickers = ['AAPL']
+
+    def _series_ends(c: sqlite3.Connection, tf: str, tickers: list, *, newest: bool) -> dict:
+        """{TICKER: newest (or oldest) stored key} for many series — one PK seek each, one
+        statement per 400 series."""
+        out: dict = {}
+        order = "DESC" if newest else "ASC"
+        for i in range(0, len(tickers), 400):
+            chunk = tickers[i:i + 400]
+            vals = ",".join("(?)" for _ in chunk)
+>           for t, k in c.execute(
+                    f"WITH w(t) AS (VALUES {vals}) SELECT w.t, (SELECT ts FROM ohlcv "
+                    f"WHERE ticker=w.t AND tf=? ORDER BY ts {order} LIMIT 1) FROM w",
+                    [*chunk, tf]).fetchall():
+E                   AttributeError: '_FlakyConn' object has no attribute 'execute'
+
+api/services/bars_sqlite.py:567: AttributeError
+_______________ test_corpus_fixtures_are_current[obsidian_messy] _______________
+
+run = {'evernote_live_messy': {'corpus': 'evernote_live_messy', 'getNoteByPass': [['e0000000-0000-4000-8000-000000000001', '...: 9, 'mediaUploaded': 9, 'skipped': 0, ...}, {'conflicts': 1, 'created': 2, 'mediaUploaded': 0, 'skipped': 0, ...}]}}}}
+corpus = 'obsidian_messy'
+
+    @pytest.mark.parametrize("corpus", gen.CORPORA)
+    def test_corpus_fixtures_are_current(run, corpus):
+        """Raw bytes, both sides LF (`.gitattributes`). A difference means the engine or a
+        converter changed what a member's note STORES: look at the diff, then regenerate."""
+        committed = (gen.FIXTURES_OUT_DIR / f"{corpus}.json").read_bytes()
+>       assert gen.render(run[corpus]).encode("utf-8") == committed, (
+            f"{corpus}: the engine's stored output differs from the committed fixture. Review the "
+            "change, then run `python -m api.services.journal_two.note_connectors.corpora.corpora_gen`.")
+E       AssertionError: obsidian_messy: the engine's stored output differs from the committed fixture. Review the change, then run `python -m api.services.journal_two.note_connectors.corpora.corpora_gen`.
+E       assert b'{\n "corpus...n  }\n }\n}\n' == b'{\n "corpus...n  }\n }\n}\n'
+E         
+E         At index 3881 diff: b'9' != b'c'
+E         
+E         Full diff:
+E           (b'{\n "corpus": "obsidian_messy",\n "members": {\n  "u-obsidian": {\n   "notes'
+E            b'": [\n    {\n     "bodyJson": {\n      "content": [\n       {\n        "a'
+E            b'ttrs": {\n         "level": 1\n        },\n        "content": [\n       '
+E            b'  {\n          "text": "100%20club",\n          "type": "text"\n         }\n'
+E            b'        ],\n        "type": "heading"\n       },\n       {\n        "content'
+E            b'": [\n         {\n          "text": "A literal percent-twenty in a file na'
+E            b'me.",\n          "type": "text"\n         }\n        ],\n        "type": "pa'
+E            b'ragraph"\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "d'
+E            b'bafdbaa7a0142b19d2cac6c5ef23bcd",\n     "importKey": "obsidian:vault-mess'
+E            b'y/100%20club.md",\n     "importLinksPending": 0,\n     "importMediaPending'
+E            b'": 0,\n     "tags": [],\n     "title": "100%20club",\n     "updatedInLastPa'
+E            b'ss": false\n    },\n    {\n     "bodyJson": {\n      "content": [\n      '
+E            b' {\n        "attrs": {\n         "level": 1\n        },\n        "content": '
+E            b'[\n         {\n          "text": "Plan (A)",\n          "type": "text"\n    '
+E            b'     }\n        ],\n        "type": "heading"\n       },\n       {\n     '
+E            b'   "content": [\n         {\n          "text": "The plan in folder A.",\n  '
+E            b'        "type": "text"\n         }\n        ],\n        "type": "paragraph"'
+E            b'\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "34cac0f32'
+E            b'71e4315ad10dc18b5222a61",\n     "importKey": "obsidian:vault-messy/A/Plan'
+E            b'.md",\n     "importLinksPending": 0,\n     "importMediaPending": 0,\n     "'
+E            b'tags": [],\n     "title": "Plan (A)",\n     "updatedInLastPass": false\n   '
+E            b' },\n    {\n     "bodyJson": {\n      "content": [\n       {\n        "at'
+E            b'trs": {\n         "level": 1\n        },\n        "content": [\n        '
+E            b' {\n          "text": "Deep",\n          "type": "text"\n         }\n       '
+E            b' ],\n        "type": "heading"\n       },\n       {\n        "content": '
+E            b'[\n         {\n          "text": "Archived, linked with ../ from Notes.",\n'
+E            b'          "type": "text"\n         }\n        ],\n        "type": "paragrap'
+E            b'h"\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "ce72d50'
+E            b'be81c4ce982e88573a1669711",\n     "importKey": "obsidian:vault-messy/Arch'
+E            b'ive/Deep.md",\n     "importLinksPending": 0,\n     "importMediaPending": 0'
+E            b',\n     "tags": [],\n     "title": "Deep",\n     "updatedInLastPass": false'
+E            b'\n    },\n    {\n     "bodyJson": {\n      "content": [\n       {\n       '
+E            b' "attrs": {\n         "level": 1\n        },\n        "content": [\n        '
+E            b' {\n          "text": "Later",\n          "type": "text"\n         }\n      '
+E            b'  ],\n        "type": "heading"\n       },\n       {\n        "content":'
+E            b' [\n         {\n          "text": "Created after the first sync.",\n       '
+E            b'   "type": "text"\n         }\n        ],\n        "type": "paragraph"\n    '
+E            b'   }\n      ],\n      "type": "doc"\n     },\n     "id": "9a1bd74a5d2f44ae97'
+E            b'c84b96e53934eb",\n     "importKey": "obsidian:vault-messy/Later.md",\n    '
+E            b' "importLinksPending": 0,\n     "importMediaPending": 0,\n     "tags": [],'
+E            b'\n     "title": "Later",\n     "updatedInLastPass": true\n    },\n    {\n'
+E            b'     "bodyJson": {\n      "content": [\n       {\n        "attrs": {\n      '
+E            b'   "level": 1\n        },\n        "content": [\n         {\n          "text'
+E            b'": "Media wall",\n          "type": "text"\n         }\n        ],\n        '
+E            b'"type": "heading"\n       },\n       {\n        "attrs": {\n         "src": '
+E            b'"/api/j2/notes/attachments/u-obsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/inlin'
+E            b'e/3ec03143cc99c406c97e53f3ef1c9c40.jpg"\n        },\n        "type": "imag'
+E            b'e"\n       },\n       {\n        "attrs": {\n         "src": "/api/j2/notes/'
+E            b'attachments/u-obsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/inline/d4b76ac689f20'
+E            b'f160428befe0643dc0c.jpg"\n        },\n        "type": "image"\n       },\n  '
+E            b'     {\n        "attrs": {\n         "src": "/api/j2/notes/attachments/u-o'
+E            b'bsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/inline/fcc8f80db62c48fe020fda73fe26'
+E            b'3890.jpg"\n        },\n        "type": "image"\n       },\n       {\n    '
+E            b'    "attrs": {\n         "src": "/api/j2/notes/attachments/u-obsidian/148'
+E         -  b'6fd60e1bb4f5fb0ffa22edfc9d2de/inline/cd3141f19d06237e662293503965c6cc.jp'
+E         +  b'6fd60e1bb4f5fb0ffa22edfc9d2de/inline/957041506e00bc2539f5316dedb51fdc.jp'
+E            b'g"\n        },\n        "type": "image"\n       },\n       {\n        "at'
+E            b'trs": {\n         "src": "/api/j2/notes/attachments/u-obsidian/1486fd60e1'
+E            b'bb4f5fb0ffa22edfc9d2de/inline/7b2a87ef7e7036362f8cd351bd95d7f3.png"\n    '
+E            b'    },\n        "type": "image"\n       },\n       {\n        "attrs": {'
+E            b'\n         "href": "/api/j2/notes/attachments/u-obsidian/1486fd60e1bb4f5f'
+E            b'b0ffa22edfc9d2de/file/8c3b1585257d49e69a7a604a90265867.svg",\n         "n'
+E            b'ame": "md-img-1.svg",\n         "size": 95\n        },\n        "type": "at'
+E            b'tachmentChip"\n       },\n       {\n        "attrs": {\n         "src": "/ap'
+E            b'i/j2/notes/attachments/u-obsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/inline/de'
+E            b'33ddc09a0ba9b83128b6b59461e3be.png"\n        },\n        "type": "image"\n '
+E            b'      },\n       {\n        "attrs": {\n         "href": "/api/j2/notes/att'
+E            b'achments/u-obsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/file/4fecd4b706b94a5da4'
+E            b'0f2877a5006451.svg",\n         "name": "logo.svg",\n         "size": 117\n '
+E            b'       },\n        "type": "attachmentChip"\n       },\n       {\n        "a'
+E            b'ttrs": {\n         "attempts": 0,\n         "name": "bomb.png",\n         "'
+E            b'reason": "too_large",\n         "ref": "https://img.example.com/bomb.png"'
+E            b',\n         "sourceUrl": "https://img.example.com/bomb.png"\n        },\n  '
+E            b'      "type": "importNotice"\n       },\n       {\n        "attrs": {\n     '
+E            b'    "attempts": 0,\n         "name": "page.png",\n         "reason": "unsu'
+E            b'pported",\n         "ref": "https://img.example.com/page.png",\n         "'
+E            b'sourceUrl": "https://img.example.com/page.png"\n        },\n        "type"'
+E            b': "importNotice"\n       },\n       {\n        "attrs": {\n         "attempt'
+E            b's": 0,\n         "name": "moved-private.png",\n         "reason": "unsafe"'
+E            b',\n         "ref": "https://img.example.com/moved-private.png",\n         '
+E            b'"sourceUrl": "https://img.example.com/moved-private.png"\n        },\n    '
+E            b'    "type": "importNotice"\n       },\n       {\n        "attrs": {\n       '
+E            b'  "attempts": 0,\n         "name": "huge.zip",\n         "reason": "too_la'
+E            b'rge",\n         "ref": "https://img.example.com/huge.zip",\n         "sour'
+E            b'ceUrl": "https://img.example.com/huge.zip"\n        },\n        "type": "i'
+E            b'mportNotice"\n       },\n       {\n        "attrs": {\n         "attempts": '
+E            b'2,\n         "name": "dead.png",\n         "reason": "fetch_failed",\n     '
+E            b'    "ref": "https://img.example.com/dead.png",\n         "sourceUrl": "ht'
+E            b'tps://img.example.com/dead.png"\n        },\n        "type": "importNotice'
+E            b'"\n       },\n       {\n        "attrs": {\n         "src": "/api/j2/notes/a'
+E            b'ttachments/u-obsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/inline/7b5ec7305b567d'
+E            b'da83eb5cd331a05f82.png"\n        },\n        "type": "image"\n       },\n   '
+E            b'    {\n        "attrs": {\n         "attempts": 0,\n         "name": "scrip'
+E            b't image",\n         "reason": "unsafe",\n         "ref": null,\n         "s'
+E            b'ourceUrl": null\n        },\n        "type": "importNotice"\n       },\n    '
+E            b'   {\n        "content": [\n         {\n          "text": "png as a link",\n'
+E            b'          "type": "text"\n         }\n        ],\n        "type": "paragrap'
+E            b'h"\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "1486fd6'
+E            b'0e1bb4f5fb0ffa22edfc9d2de",\n     "importKey": "obsidian:vault-messy/Medi'
+E            b'a wall.md",\n     "importLinksPending": 0,\n     "importMediaPending": 1,\n'
+E            b'     "tags": [],\n     "title": "Media wall",\n     "updatedInLastPass": f'
+E            b'alse\n    },\n    {\n     "bodyJson": {\n      "content": [\n       {\n   '
+E            b'     "content": [\n         {\n          "text": "My own notes, written in'
+E            b' UCT. Do not overwrite.",\n          "type": "text"\n         }\n        ],'
+E            b'\n        "type": "paragraph"\n       }\n      ],\n      "type": "doc"\n '
+E            b'    },\n     "id": "e91fb040c0494ad69ed3e36c0bebbe99",\n     "importKey": '
+E            b'"obsidian:vault-messy/Member edited.md",\n     "importLinksPending": 0,\n '
+E            b'    "importMediaPending": 0,\n     "tags": [\n      "sync-conflict"\n     ]'
+E            b',\n     "title": "Member edited",\n     "updatedInLastPass": false\n    },\n'
+E            b'    {\n     "bodyJson": {\n      "content": [\n       {\n        "attrs"'
+E            b': {\n         "level": 1\n        },\n        "content": [\n         {\n '
+E            b'         "text": "Member edited",\n          "type": "text"\n         }\n  '
+E            b'      ],\n        "type": "heading"\n       },\n       {\n        "content":'
+E            b' [\n         {\n          "text": "Remote text, version two.",\n          "'
+E            b'type": "text"\n         }\n        ],\n        "type": "paragraph"\n       }'
+E            b'\n      ],\n      "type": "doc"\n     },\n     "id": "e71a20a057204f349dcfbc'
+E            b'4413f05e65",\n     "importKey": "obsidian:vault-messy/Member edited.md#re'
+E            b'mote",\n     "importLinksPending": 0,\n     "importMediaPending": 0,\n     '
+E            b'"tags": [\n      "sync-conflict"\n     ],\n     "title": "Member edited (sy'
+E            b'nced copy)",\n     "updatedInLastPass": true\n    },\n    {\n     "bodyJson"'
+E            b': {\n      "content": [\n       {\n        "attrs": {\n         "level":'
+E            b' 1\n        },\n        "content": [\n         {\n          "text": "Hub'
+E            b'",\n          "type": "text"\n         }\n        ],\n        "type": "headi'
+E            b'ng"\n       },\n       {\n        "content": [\n         {\n          "te'
+E            b'xt": "Wikilinks: ",\n          "type": "text"\n         },\n         {\n    '
+E            b'      "marks": [\n           {\n            "attrs": {\n             "href"'
+E            b': "/journal?j2tab=notebook&note=643cb04e0e7b484a9cdce25c4a3c55cd"\n      '
+E            b'      },\n            "type": "link"\n           }\n          ],\n          '
+E            b'"text": "Target Note",\n          "type": "text"\n         },\n         {\n '
+E            b'         "text": ", ",\n          "type": "text"\n         },\n         {\n '
+E            b'         "marks": [\n           {\n            "attrs": {\n             "hr'
+E            b'ef": "/journal?j2tab=notebook&note=643cb04e0e7b484a9cdce25c4a3c55cd"\n   '
+E            b'         },\n            "type": "link"\n           }\n          ],\n       '
+E            b'   "text": "aliased target",\n          "type": "text"\n         },\n      '
+E            b'   {\n          "text": ", ",\n          "type": "text"\n         },\n      '
+E            b'   {\n          "marks": [\n           {\n            "attrs": {\n          '
+E            b'   "href": "/journal?j2tab=notebook&note=c250237cb34a4bcb90ae4c4e29eabe2'
+E            b'd"\n            },\n            "type": "link"\n           }\n          '
+E            b'],\n          "text": "Other note > Risk",\n          "type": "text"\n     '
+E            b'    },\n         {\n          "text": ", ",\n          "type": "text"\n     '
+E            b'    },\n         {\n          "marks": [\n           {\n            "attrs":'
+E            b' {\n             "href": "/journal?j2tab=notebook&note=c250237cb34a4bcb90'
+E            b'ae4c4e29eabe2d"\n            },\n            "type": "link"\n           }\n '
+E            b'         ],\n          "text": "Other note",\n          "type": "text"\n   '
+E            b'      },\n         {\n          "text": ", ",\n          "type": "text"\n   '
+E            b'      },\n         {\n          "marks": [\n           {\n            "attrs'
+E            b'": {\n             "href": "/journal?j2tab=notebook&note=1e05edf556324943'
+E            b'9953b2dd4a2f2836"\n            },\n            "type": "link"\n           }'
+E            b'\n          ],\n          "text": "Plan",\n          "type": "text"\n       '
+E            b'  },\n         {\n          "text": ", ",\n          "type": "text"\n       '
+E            b'  },\n         {\n          "marks": [\n           {\n            "attrs": {'
+E            b'\n             "href": "/journal?j2tab=notebook&note=34cac0f3271e4315ad10'
+E            b'dc18b5222a61"\n            },\n            "type": "link"\n           }\n   '
+E            b'       ],\n          "text": "the A plan",\n          "type": "text"\n     '
+E            b'    },\n         {\n          "text": ", ",\n          "type": "text"\n     '
+E            b'    },\n         {\n          "marks": [\n           {\n            "attrs":'
+E            b' {\n             "href": "import-link://name:obsidian:vault-messy/ghost n'
+E            b'ote|notes"\n            },\n            "type": "link"\n           }\n      '
+E            b'    ],\n          "text": "Ghost Note",\n          "type": "text"\n        '
+E            b' },\n         {\n          "text": ", ",\n          "type": "text"\n        '
+E            b' },\n         {\n          "marks": [\n           {\n            "attrs"'
+E            b': {\n             "href": "/journal?j2tab=notebook&note=dbafdbaa7a0142b19'
+E            b'd2cac6c5ef23bcd"\n            },\n            "type": "link"\n           }\n'
+E            b'          ],\n          "text": "100%20club",\n          "type": "text"\n  '
+E            b'       },\n         {\n          "text": ".",\n          "type": "text"\n   '
+E            b'      }\n        ],\n        "type": "paragraph"\n       },\n       {\n  '
+E            b'      "content": [\n         {\n          "text": "Relative: ",\n          '
+E            b'"type": "text"\n         },\n         {\n          "marks": [\n         '
+E            b'  {\n            "attrs": {\n             "href": "/journal?j2tab=notebook'
+E            b'&note=c250237cb34a4bcb90ae4c4e29eabe2d"\n            },\n            "type'
+E            b'": "link"\n           }\n          ],\n          "text": "space encoded",\n '
+E            b'         "type": "text"\n         },\n         {\n          "text": " ",\n  '
+E            b'        "type": "text"\n         },\n         {\n          "marks": [\n     '
+E            b'      {\n            "attrs": {\n             "href": "/journal?j2tab=note'
+E            b'book&note=c250237cb34a4bcb90ae4c4e29eabe2d"\n            },\n            "'
+E            b'type": "link"\n           }\n          ],\n          "text": "angle",\n     '
+E            b'     "type": "text"\n         },\n         {\n          "text": " ",\n      '
+E            b'    "type": "text"\n         },\n         {\n          "marks": [\n         '
+E            b'  {\n            "attrs": {\n             "href": "/journal?j2tab=notebook'
+E            b'&note=ce72d50be81c4ce982e88573a1669711"\n            },\n            "type'
+E            b'": "link"\n           }\n          ],\n          "text": "up a folder",\n   '
+E            b'       "type": "text"\n         },\n         {\n          "text": " ",\n    '
+E            b'      "type": "text"\n         },\n         {\n          "marks": [\n       '
+E            b'    {\n            "attrs": {\n             "href": "/journal?j2tab=notebo'
+E            b'ok&note=1e05edf5563249439953b2dd4a2f2836"\n            },\n            "ty'
+E            b'pe": "link"\n           }\n          ],\n          "text": "dot",\n         '
+E            b' "type": "text"\n         },\n         {\n          "text": " ",\n          '
+E            b'"type": "text"\n         },\n         {\n          "marks": [\n         '
+E            b'  {\n            "attrs": {\n             "href": "import-link://name:obsi'
+E            b'dian:vault-messy/missing.md|notes|rel"\n            },\n            "type"'
+E            b': "link"\n           }\n          ],\n          "text": "missing",\n        '
+E            b'  "type": "text"\n         },\n         {\n          "text": ".",\n         '
+E            b' "type": "text"\n         }\n        ],\n        "type": "paragraph"\n      '
+E            b' },\n       {\n        "content": [\n         {\n          "text": "Deep lin'
+E            b'ks: ",\n          "type": "text"\n         },\n         {\n          "marks"'
+E            b': [\n           {\n            "attrs": {\n             "href": "/journal?j'
+E            b'2tab=notebook&note=c250237cb34a4bcb90ae4c4e29eabe2d"\n            },\n    '
+E            b'        "type": "link"\n           }\n          ],\n          "text": "this'
+E            b' vault",\n          "type": "text"\n         },\n         {\n          "text'
+E            b'": " and another vault.",\n          "type": "text"\n         }\n        ],'
+E            b'\n        "type": "paragraph"\n       },\n       {\n        "content": ['
+E            b'\n         {\n          "content": [\n           {\n            "content": ['
+E            b'\n             {\n              "content": [\n               {\n            '
+E            b'    "text": "Name",\n                "type": "text"\n               }\n    '
+E            b'          ],\n              "type": "paragraph"\n             }\n          '
+E            b'  ],\n            "type": "tableHeader"\n           },\n           {\n      '
+E            b'      "content": [\n             {\n              "content": [\n           '
+E            b'    {\n                "text": "Link",\n                "type": "text"\n   '
+E            b'            }\n              ],\n              "type": "paragraph"\n       '
+E            b'      }\n            ],\n            "type": "tableHeader"\n           }\n  '
+E            b'        ],\n          "type": "tableRow"\n         },\n         {\n         '
+E            b' "content": [\n           {\n            "content": [\n             {\n     '
+E            b'         "content": [\n               {\n                "text": "alias in'
+E            b' a table",\n                "type": "text"\n               }\n             '
+E            b' ],\n              "type": "paragraph"\n             }\n            ],\n    '
+E            b'        "type": "tableCell"\n           },\n           {\n            "cont'
+E            b'ent": [\n             {\n              "content": [\n               {\n     '
+E            b'           "marks": [\n                 {\n                  "attrs": {\n  '
+E            b'                 "href": "/journal?j2tab=notebook&note=c250237cb34a4bcb90ae4'
+E            b'c4e29eabe2d"\n                  },\n                  "type": "link"\n     '
+E            b'            }\n                ],\n                "text": "table alias",\n'
+E            b'                "type": "text"\n               }\n              ],\n       '
+E            b'       "type": "paragraph"\n             }\n            ],\n            "ty'
+E            b'pe": "tableCell"\n           }\n          ],\n          "type": "tableRow"\n'
+E            b'         },\n         {\n          "content": [\n           {\n            "'
+E            b'content": [\n             {\n              "content": [\n               {\n '
+E            b'               "text": "plain",\n                "type": "text"\n         '
+E            b'      }\n              ],\n              "type": "paragraph"\n             '
+E            b'}\n            ],\n            "type": "tableCell"\n           },\n         '
+E            b'  {\n            "content": [\n             {\n              "content": [\n '
+E            b'              {\n                "marks": [\n                 {\n          '
+E            b'        "attrs": {\n                   "href": "/journal?j2tab=notebook&n'
+E            b'ote=643cb04e0e7b484a9cdce25c4a3c55cd"\n                  },\n             '
+E            b'     "type": "link"\n                 }\n                ],\n              '
+E            b'  "text": "Target Note",\n                "type": "text"\n               }'
+E            b'\n              ],\n              "type": "paragraph"\n             }\n     '
+E            b'       ],\n            "type": "tableCell"\n           }\n          ],\n    '
+E            b'      "type": "tableRow"\n         }\n        ],\n        "type": "table"\n '
+E            b'      },\n       {\n        "attrs": {\n         "variant": "warning"\n     '
+E            b'   },\n        "content": [\n         {\n          "content": [\n           '
+E            b'{\n            "marks": [\n             {\n              "type": "bold"\n   '
+E            b'          }\n            ],\n            "text": "Size it down",\n         '
+E            b'   "type": "text"\n           }\n          ],\n          "type": "paragraph'
+E            b'"\n         },\n         {\n          "content": [\n           {\n       '
+E            b'     "text": "Risk is ",\n            "type": "text"\n           },\n      '
+E            b'     {\n            "marks": [\n             {\n              "attrs": {\n  '
+E            b'             "href": "/journal?j2tab=notebook&note=643cb04e0e7b484a9cdce25c4'
+E            b'a3c55cd"\n              },\n              "type": "link"\n             }\n  '
+E            b'          ],\n            "text": "Target Note",\n            "type": "tex'
+E            b't"\n           },\n           {\n            "text": ".",\n            "type'
+E            b'": "text"\n           }\n          ],\n          "type": "paragraph"\n      '
+E            b'   }\n        ],\n        "type": "callout"\n       },\n       {\n       '
+E            b' "content": [\n         {\n          "text": "Raw HTML: ",\n          "type'
+E            b'": "text"\n         },\n         {\n          "marks": [\n           {\n '
+E            b'           "attrs": {\n             "href": "https://example.com/x"\n     '
+E            b'       },\n            "type": "link"\n           }\n          ],\n         '
+E            b' "text": "site",\n          "type": "text"\n         },\n         {\n       '
+E            b'   "text": " and bad.",\n          "type": "text"\n         }\n        ],\n '
+E            b'       "type": "paragraph"\n       },\n       {\n        "content": [\n     '
+E            b'    {\n          "text": "Note embed: ",\n          "type": "text"\n       '
+E            b'  },\n         {\n          "marks": [\n           {\n            "attrs": {'
+E            b'\n             "href": "/journal?j2tab=notebook&note=c250237cb34a4bcb90ae'
+E            b'4c4e29eabe2d"\n            },\n            "type": "link"\n           }\n   '
+E            b'       ],\n          "text": "Other note",\n          "type": "text"\n     '
+E            b'    }\n        ],\n        "type": "paragraph"\n       },\n       {\n    '
+E            b'    "content": [\n         {\n          "text": "Attachment embed: ",\n    '
+E            b'      "type": "text"\n         }\n        ],\n        "type": "paragraph"\n '
+E            b'      },\n       {\n        "attrs": {\n         "attempts": 0,\n         "n'
+E            b'ame": "chart one.png",\n         "reason": "obsidian-plugin-outdated",\n  '
+E            b'       "ref": null,\n         "sourceUrl": null\n        },\n        "type"'
+E            b': "importNotice"\n       },\n       {\n        "content": [\n         {\n'
+E            b'          "text": "Attachment link: ",\n          "type": "text"\n        '
+E            b' }\n        ],\n        "type": "paragraph"\n       },\n       {\n       '
+E            b' "attrs": {\n         "attempts": 0,\n         "name": "chart one.png",\n  '
+E            b'       "reason": "obsidian-plugin-outdated",\n         "ref": null,\n     '
+E            b'    "sourceUrl": null\n        },\n        "type": "importNotice"\n       }'
+E            b',\n       {\n        "content": [\n         {\n          "text": "Bare URLs:'
+E            b' See ",\n          "type": "text"\n         },\n         {\n          "marks'
+E            b'": [\n           {\n            "attrs": {\n             "href": "https://e'
+E            b'xample.com/a"\n            },\n            "type": "link"\n           }\n   '
+E            b'       ],\n          "text": "https://example.com/a",\n          "type": "'
+E            b'text"\n         },\n         {\n          "text": ", and (",\n          "typ'
+E            b'e": "text"\n         },\n         {\n          "marks": [\n           {\n'
+E            b'            "attrs": {\n             "href": "https://example.com/b"\n    '
+E            b'        },\n            "type": "link"\n           }\n          ],\n        '
+E            b'  "text": "https://example.com/b",\n          "type": "text"\n         },\n'
+E            b'         {\n          "text": "). Also ",\n          "type": "text"\n      '
+E            b'   },\n         {\n          "marks": [\n           {\n            "attrs": '
+E            b'{\n             "href": "https://www.example.org"\n            },\n        '
+E            b'    "type": "link"\n           }\n          ],\n          "text": "www.exam'
+E            b'ple.org",\n          "type": "text"\n         },\n         {\n          "tex'
+E            b't": "! Ticker NVDA.US and BRK.B closed up; mail ",\n          "type": "te'
+E            b'xt"\n         },\n         {\n          "marks": [\n           {\n       '
+E            b'     "attrs": {\n             "href": "mailto:desk@example.com"\n         '
+E            b'   },\n            "type": "link"\n           }\n          ],\n          "te'
+E            b'xt": "desk@example.com",\n          "type": "text"\n         },\n         {'
+E            b'\n          "text": ".",\n          "type": "text"\n         }\n        '
+E            b'],\n        "type": "paragraph"\n       },\n       {\n        "content":'
+E            b' [\n         {\n          "text": "In code: ",\n          "type": "text"\n  '
+E            b'       },\n         {\n          "marks": [\n           {\n            "type'
+E            b'": "code"\n           }\n          ],\n          "text": "https://example.c'
+E            b'om/in-code",\n          "type": "text"\n         },\n         {\n          "'
+E            b'text": " and math: $https://example.com/in-math$",\n          "type": "te'
+E            b'xt"\n         }\n        ],\n        "type": "paragraph"\n       },\n    '
+E            b'   {\n        "attrs": {\n         "language": null\n        },\n        "co'
+E            b'ntent": [\n         {\n          "text": "fetch(\'https://example.com/in-co'
+E            b'deblock\')",\n          "type": "text"\n         }\n        ],\n        "'
+E            b'type": "codeBlock"\n       },\n       {\n        "content": [\n         '
+E            b'{\n          "text": "Schemes: script | data page | ",\n          "type": '
+E            b'"text"\n         },\n         {\n          "marks": [\n           {\n    '
+E            b'        "attrs": {\n             "href": "https://evil.example/x"\n       '
+E            b'     },\n            "type": "link"\n           }\n          ],\n          "'
+E            b'text": "protocol-relative",\n          "type": "text"\n         },\n       '
+E            b'  {\n          "text": " | ",\n          "type": "text"\n         },\n      '
+E            b'   {\n          "marks": [\n           {\n            "attrs": {\n          '
+E            b'   "href": "tel:+15550100"\n            },\n            "type": "link"\n   '
+E            b'        }\n          ],\n          "text": "call",\n          "type": "text'
+E            b'"\n         },\n         {\n          "text": " | ",\n          "type": "tex'
+E            b't"\n         },\n         {\n          "marks": [\n           {\n        '
+E            b'    "attrs": {\n             "href": "mailto:desk@example.com"\n          '
+E            b'  },\n            "type": "link"\n           }\n          ],\n          "tex'
+E            b't": "mail",\n          "type": "text"\n         },\n         {\n          "t'
+E            b'ext": " | ",\n          "type": "text"\n         },\n         {\n          "'
+E            b'text": "relative path",\n          "type": "text"\n         }\n        ],\n '
+E            b'       "type": "paragraph"\n       },\n       {\n        "content": [\n     '
+E            b'    {\n          "attrs": {\n           "checked": false\n          },\n    '
+E            b'      "content": [\n           {\n            "content": [\n             {\n'
+E            b'              "text": "open task",\n              "type": "text"\n        '
+E            b'     }\n            ],\n            "type": "paragraph"\n           }\n     '
+E            b'     ],\n          "type": "taskItem"\n         },\n         {\n          "a'
+E            b'ttrs": {\n           "checked": true\n          },\n          "content": [\n'
+E            b'           {\n            "content": [\n             {\n              "text'
+E            b'": "done task",\n              "type": "text"\n             }\n            '
+E            b'],\n            "type": "paragraph"\n           }\n          ],\n          "'
+E            b'type": "taskItem"\n         }\n        ],\n        "type": "taskList"\n     '
+E            b'  }\n      ],\n      "type": "doc"\n     },\n     "id": "6adc5db5db484cc69c7'
+E            b'c1a99ddf74cb2",\n     "importKey": "obsidian:vault-messy/Notes/Hub.md",\n '
+E            b'    "importLinksPending": 1,\n     "importMediaPending": 0,\n     "tags": '
+E            b'[],\n     "title": "Hub",\n     "updatedInLastPass": false\n    },\n    '
+E            b'{\n     "bodyJson": {\n      "content": [\n       {\n        "attrs": {\n'
+E            b'         "level": 1\n        },\n        "content": [\n         {\n         '
+E            b' "text": "Other note",\n          "type": "text"\n         }\n        ],\n  '
+E            b'      "type": "heading"\n       },\n       {\n        "attrs": {\n         "'
+E            b'level": 2\n        },\n        "content": [\n         {\n          "text": "'
+E            b'Risk",\n          "type": "text"\n         }\n        ],\n        "type": "h'
+E            b'eading"\n       },\n       {\n        "content": [\n         {\n         '
+E            b' "text": "Keep it small. ^blk1",\n          "type": "text"\n         }\n   '
+E            b'     ],\n        "type": "paragraph"\n       },\n       {\n        "content"'
+E            b': [\n         {\n          "text": "Next: ",\n          "type": "text"\n    '
+E            b'     },\n         {\n          "marks": [\n           {\n            "attrs"'
+E            b': {\n             "href": "/journal?j2tab=notebook&note=9a1bd74a5d2f44ae9'
+E            b'7c84b96e53934eb"\n            },\n            "type": "link"\n           }\n'
+E            b'          ],\n          "text": "Later",\n          "type": "text"\n       '
+E            b'  },\n         {\n          "text": " (written before Later existed).",\n  '
+E            b'        "type": "text"\n         }\n        ],\n        "type": "paragraph"'
+E            b'\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "c250237cb'
+E            b'34a4bcb90ae4c4e29eabe2d",\n     "importKey": "obsidian:vault-messy/Notes/'
+E            b'Other note.md",\n     "importLinksPending": 0,\n     "importMediaPending":'
+E            b' 0,\n     "tags": [],\n     "title": "Other note",\n     "updatedInLastPass'
+E            b'": false\n    },\n    {\n     "bodyJson": {\n      "content": [\n       {'
+E            b'\n        "attrs": {\n         "level": 1\n        },\n        "content"'
+E            b': [\n         {\n          "text": "Plan (Notes)",\n          "type": "text'
+E            b'"\n         }\n        ],\n        "type": "heading"\n       },\n       {'
+E            b'\n        "content": [\n         {\n          "text": "The plan beside the '
+E            b'hub.",\n          "type": "text"\n         }\n        ],\n        "type": "p'
+E            b'aragraph"\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "'
+E            b'1e05edf5563249439953b2dd4a2f2836",\n     "importKey": "obsidian:vault-mes'
+E            b'sy/Notes/Plan.md",\n     "importLinksPending": 0,\n     "importMediaPendin'
+E            b'g": 0,\n     "tags": [],\n     "title": "Plan (Notes)",\n     "updatedInLas'
+E            b'tPass": false\n    },\n    {\n     "bodyJson": {\n      "content": [\n   '
+E            b'    {\n        "attrs": {\n         "level": 1\n        },\n        "content'
+E            b'": [\n         {\n          "text": "Target Note",\n          "type": "text'
+E            b'"\n         }\n        ],\n        "type": "heading"\n       },\n       {'
+E            b'\n        "content": [\n         {\n          "text": "The target of most l'
+E            b'inks.",\n          "type": "text"\n         }\n        ],\n        "type": "'
+E            b'paragraph"\n       }\n      ],\n      "type": "doc"\n     },\n     "id": '
+E            b'"643cb04e0e7b484a9cdce25c4a3c55cd",\n     "importKey": "obsidian:vault-me'
+E            b'ssy/Notes/Target Note.md",\n     "importLinksPending": 0,\n     "importMed'
+E            b'iaPending": 0,\n     "tags": [],\n     "title": "Target Note",\n     "updat'
+E            b'edInLastPass": false\n    }\n   ],\n   "passes": [\n    {\n     "conflict'
+E            b's": 0,\n     "created": 9,\n     "mediaUploaded": 9,\n     "skipped": 0,\n  '
+E            b'   "status": "ok",\n     "updated": 0\n    },\n    {\n     "conflicts": '
+E            b'1,\n     "created": 2,\n     "mediaUploaded": 0,\n     "skipped": 0,\n     "'
+E            b'status": "ok",\n     "updated": 1\n    }\n   ]\n  }\n }\n}\n')
+
+api/services/journal_two/note_connectors/test_connector_corpora.py:168: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/services/journal_two/note_connectors/providers/obsidian.py:964
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+api/routers/stream_bars_test.py::test_stream_bars_accepts_60min_pairs
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+api/routers/stream_bars_test.py::test_stream_bars_accepts_60min_pairs
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+api/services/bars_fetch_test.py::TestDeltaDailyYfFallback::test_falls_back_to_yfinance_when_massive_daily_is_stale
+api/services/bars_fetch_test.py::TestDeltaDailyYfFallback::test_does_not_call_yfinance_when_massive_daily_is_fresh
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_delta_weekly_fills_missing_days_from_yfinance
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_delta_monthly_fills_missing_days_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2798: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestDeltaDailyYfFallback::test_falls_back_to_yfinance_when_massive_daily_is_stale
+api/services/bars_fetch_test.py::TestDeltaDailyYfFallback::test_does_not_call_yfinance_when_massive_daily_is_fresh
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_delta_weekly_fills_missing_days_from_yfinance
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_delta_monthly_fills_missing_days_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2799: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py: 10 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2733: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_daily_fills_tail_from_yfinance
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_daily_no_yfinance_when_massive_fresh
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3398: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_daily_fills_tail_from_yfinance
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_daily_no_yfinance_when_massive_fresh
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3401: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_weekly_fills_tail_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3426: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_weekly_fills_tail_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3428: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_monthly_fills_tail_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3469: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_monthly_fills_tail_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3471: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestResampleWeeklyClosingDate::test_ms_variant_dated_friday
+api/services/bars_fetch_test.py::TestResampleWeeklyClosingDate::test_ms_variant_dated_friday
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2108: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+
+api/services/data_sync_test.py::test_make_tarball_round_trip
+api/services/data_sync_test.py::test_make_tarball_excludes_bars_cache_by_default
+api/services/data_sync_test.py::test_make_tarball_captures_wal_writes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync_test.py:89: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(extract_dir)
+
+api/services/data_sync_test.py::test_download_snapshot_bumps_db_epoch
+api/services/data_sync_test.py::test_download_snapshot_refuses_malformed_payload
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync.py:1256: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(tmpdir)
+
+api/services/journal_two/test_coach_chat_timeouts.py::test_neither_site_is_reported_by_the_census
+  api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] api/services/journal_two/test_media_policy.py:118: only meaningful while pi_heif is absent
+FAILED api/services/bars_sqlite_test.py::test_put_bars_triggers_recovery_on_malformed - AttributeError: '_PoisonedConn' object has no attribute 'execute'
+FAILED api/services/bars_sqlite_test.py::test_put_bars_retries_on_locked_then_succeeds - AttributeError: '_FlakyConn' object has no attribute 'execute'
+FAILED api/services/journal_two/note_connectors/test_connector_corpora.py::test_corpus_fixtures_are_current[obsidian_messy] - AssertionError: obsidian_messy: the engine's stored output differs from the committed fixture. Review the change, then run `python -m api.services.journal_two.note_connectors.corpora.corpora_gen`.
+assert b'{\n "corpus...n  }\n }\n}\n' == b'{\n "corpus...n  }\n }\n}\n'
+  
+  At index 3881 diff: b'9' != b'c'
+  
+  Full diff:
+    (b'{\n "corpus": "obsidian_messy",\n "members": {\n  "u-obsidian": {\n   "notes'
+     b'": [\n    {\n     "bodyJson": {\n      "content": [\n       {\n        "a'
+     b'ttrs": {\n         "level": 1\n        },\n        "content": [\n       '
+     b'  {\n          "text": "100%20club",\n          "type": "text"\n         }\n'
+     b'        ],\n        "type": "heading"\n       },\n       {\n        "content'
+     b'": [\n         {\n          "text": "A literal percent-twenty in a file na'
+     b'me.",\n          "type": "text"\n         }\n        ],\n        "type": "pa'
+     b'ragraph"\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "d'
+     b'bafdbaa7a0142b19d2cac6c5ef23bcd",\n     "importKey": "obsidian:vault-mess'
+     b'y/100%20club.md",\n     "importLinksPending": 0,\n     "importMediaPending'
+     b'": 0,\n     "tags": [],\n     "title": "100%20club",\n     "updatedInLastPa'
+     b'ss": false\n    },\n    {\n     "bodyJson": {\n      "content": [\n      '
+     b' {\n        "attrs": {\n         "level": 1\n        },\n        "content": '
+     b'[\n         {\n          "text": "Plan (A)",\n          "type": "text"\n    '
+     b'     }\n        ],\n        "type": "heading"\n       },\n       {\n     '
+     b'   "content": [\n         {\n          "text": "The plan in folder A.",\n  '
+     b'        "type": "text"\n         }\n        ],\n        "type": "paragraph"'
+     b'\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "34cac0f32'
+     b'71e4315ad10dc18b5222a61",\n     "importKey": "obsidian:vault-messy/A/Plan'
+     b'.md",\n     "importLinksPending": 0,\n     "importMediaPending": 0,\n     "'
+     b'tags": [],\n     "title": "Plan (A)",\n     "updatedInLastPass": false\n   '
+     b' },\n    {\n     "bodyJson": {\n      "content": [\n       {\n        "at'
+     b'trs": {\n         "level": 1\n        },\n        "content": [\n        '
+     b' {\n          "text": "Deep",\n          "type": "text"\n         }\n       '
+     b' ],\n        "type": "heading"\n       },\n       {\n        "content": '
+     b'[\n         {\n          "text": "Archived, linked with ../ from Notes.",\n'
+     b'          "type": "text"\n         }\n        ],\n        "type": "paragrap'
+     b'h"\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "ce72d50'
+     b'be81c4ce982e88573a1669711",\n     "importKey": "obsidian:vault-messy/Arch'
+     b'ive/Deep.md",\n     "importLinksPending": 0,\n     "importMediaPending": 0'
+     b',\n     "tags": [],\n     "title": "Deep",\n     "updatedInLastPass": false'
+     b'\n    },\n    {\n     "bodyJson": {\n      "content": [\n       {\n       '
+     b' "attrs": {\n         "level": 1\n        },\n        "content": [\n        '
+     b' {\n          "text": "Later",\n          "type": "text"\n         }\n      '
+     b'  ],\n        "type": "heading"\n       },\n       {\n        "content":'
+     b' [\n         {\n          "text": "Created after the first sync.",\n       '
+     b'   "type": "text"\n         }\n        ],\n        "type": "paragraph"\n    '
+     b'   }\n      ],\n      "type": "doc"\n     },\n     "id": "9a1bd74a5d2f44ae97'
+     b'c84b96e53934eb",\n     "importKey": "obsidian:vault-messy/Later.md",\n    '
+     b' "importLinksPending": 0,\n     "importMediaPending": 0,\n     "tags": [],'
+     b'\n     "title": "Later",\n     "updatedInLastPass": true\n    },\n    {\n'
+     b'     "bodyJson": {\n      "content": [\n       {\n        "attrs": {\n      '
+     b'   "level": 1\n        },\n        "content": [\n         {\n          "text'
+     b'": "Media wall",\n          "type": "text"\n         }\n        ],\n        '
+     b'"type": "heading"\n       },\n       {\n        "attrs": {\n         "src": '
+     b'"/api/j2/notes/attachments/u-obsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/inlin'
+     b'e/3ec03143cc99c406c97e53f3ef1c9c40.jpg"\n        },\n        "type": "imag'
+     b'e"\n       },\n       {\n        "attrs": {\n         "src": "/api/j2/notes/'
+     b'attachments/u-obsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/inline/d4b76ac689f20'
+     b'f160428befe0643dc0c.jpg"\n        },\n        "type": "image"\n       },\n  '
+     b'     {\n        "attrs": {\n         "src": "/api/j2/notes/attachments/u-o'
+     b'bsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/inline/fcc8f80db62c48fe020fda73fe26'
+     b'3890.jpg"\n        },\n        "type": "image"\n       },\n       {\n    '
+     b'    "attrs": {\n         "src": "/api/j2/notes/attachments/u-obsidian/148'
+  -  b'6fd60e1bb4f5fb0ffa22edfc9d2de/inline/cd3141f19d06237e662293503965c6cc.jp'
+  +  b'6fd60e1bb4f5fb0ffa22edfc9d2de/inline/957041506e00bc2539f5316dedb51fdc.jp'
+     b'g"\n        },\n        "type": "image"\n       },\n       {\n        "at'
+     b'trs": {\n         "src": "/api/j2/notes/attachments/u-obsidian/1486fd60e1'
+     b'bb4f5fb0ffa22edfc9d2de/inline/7b2a87ef7e7036362f8cd351bd95d7f3.png"\n    '
+     b'    },\n        "type": "image"\n       },\n       {\n        "attrs": {'
+     b'\n         "href": "/api/j2/notes/attachments/u-obsidian/1486fd60e1bb4f5f'
+     b'b0ffa22edfc9d2de/file/8c3b1585257d49e69a7a604a90265867.svg",\n         "n'
+     b'ame": "md-img-1.svg",\n         "size": 95\n        },\n        "type": "at'
+     b'tachmentChip"\n       },\n       {\n        "attrs": {\n         "src": "/ap'
+     b'i/j2/notes/attachments/u-obsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/inline/de'
+     b'33ddc09a0ba9b83128b6b59461e3be.png"\n        },\n        "type": "image"\n '
+     b'      },\n       {\n        "attrs": {\n         "href": "/api/j2/notes/att'
+     b'achments/u-obsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/file/4fecd4b706b94a5da4'
+     b'0f2877a5006451.svg",\n         "name": "logo.svg",\n         "size": 117\n '
+     b'       },\n        "type": "attachmentChip"\n       },\n       {\n        "a'
+     b'ttrs": {\n         "attempts": 0,\n         "name": "bomb.png",\n         "'
+     b'reason": "too_large",\n         "ref": "https://img.example.com/bomb.png"'
+     b',\n         "sourceUrl": "https://img.example.com/bomb.png"\n        },\n  '
+     b'      "type": "importNotice"\n       },\n       {\n        "attrs": {\n     '
+     b'    "attempts": 0,\n         "name": "page.png",\n         "reason": "unsu'
+     b'pported",\n         "ref": "https://img.example.com/page.png",\n         "'
+     b'sourceUrl": "https://img.example.com/page.png"\n        },\n        "type"'
+     b': "importNotice"\n       },\n       {\n        "attrs": {\n         "attempt'
+     b's": 0,\n         "name": "moved-private.png",\n         "reason": "unsafe"'
+     b',\n         "ref": "https://img.example.com/moved-private.png",\n         '
+     b'"sourceUrl": "https://img.example.com/moved-private.png"\n        },\n    '
+     b'    "type": "importNotice"\n       },\n       {\n        "attrs": {\n       '
+     b'  "attempts": 0,\n         "name": "huge.zip",\n         "reason": "too_la'
+     b'rge",\n         "ref": "https://img.example.com/huge.zip",\n         "sour'
+     b'ceUrl": "https://img.example.com/huge.zip"\n        },\n        "type": "i'
+     b'mportNotice"\n       },\n       {\n        "attrs": {\n         "attempts": '
+     b'2,\n         "name": "dead.png",\n         "reason": "fetch_failed",\n     '
+     b'    "ref": "https://img.example.com/dead.png",\n         "sourceUrl": "ht'
+     b'tps://img.example.com/dead.png"\n        },\n        "type": "importNotice'
+     b'"\n       },\n       {\n        "attrs": {\n         "src": "/api/j2/notes/a'
+     b'ttachments/u-obsidian/1486fd60e1bb4f5fb0ffa22edfc9d2de/inline/7b5ec7305b567d'
+     b'da83eb5cd331a05f82.png"\n        },\n        "type": "image"\n       },\n   '
+     b'    {\n        "attrs": {\n         "attempts": 0,\n         "name": "scrip'
+     b't image",\n         "reason": "unsafe",\n         "ref": null,\n         "s'
+     b'ourceUrl": null\n        },\n        "type": "importNotice"\n       },\n    '
+     b'   {\n        "content": [\n         {\n          "text": "png as a link",\n'
+     b'          "type": "text"\n         }\n        ],\n        "type": "paragrap'
+     b'h"\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "1486fd6'
+     b'0e1bb4f5fb0ffa22edfc9d2de",\n     "importKey": "obsidian:vault-messy/Medi'
+     b'a wall.md",\n     "importLinksPending": 0,\n     "importMediaPending": 1,\n'
+     b'     "tags": [],\n     "title": "Media wall",\n     "updatedInLastPass": f'
+     b'alse\n    },\n    {\n     "bodyJson": {\n      "content": [\n       {\n   '
+     b'     "content": [\n         {\n          "text": "My own notes, written in'
+     b' UCT. Do not overwrite.",\n          "type": "text"\n         }\n        ],'
+     b'\n        "type": "paragraph"\n       }\n      ],\n      "type": "doc"\n '
+     b'    },\n     "id": "e91fb040c0494ad69ed3e36c0bebbe99",\n     "importKey": '
+     b'"obsidian:vault-messy/Member edited.md",\n     "importLinksPending": 0,\n '
+     b'    "importMediaPending": 0,\n     "tags": [\n      "sync-conflict"\n     ]'
+     b',\n     "title": "Member edited",\n     "updatedInLastPass": false\n    },\n'
+     b'    {\n     "bodyJson": {\n      "content": [\n       {\n        "attrs"'
+     b': {\n         "level": 1\n        },\n        "content": [\n         {\n '
+     b'         "text": "Member edited",\n          "type": "text"\n         }\n  '
+     b'      ],\n        "type": "heading"\n       },\n       {\n        "content":'
+     b' [\n         {\n          "text": "Remote text, version two.",\n          "'
+     b'type": "text"\n         }\n        ],\n        "type": "paragraph"\n       }'
+     b'\n      ],\n      "type": "doc"\n     },\n     "id": "e71a20a057204f349dcfbc'
+     b'4413f05e65",\n     "importKey": "obsidian:vault-messy/Member edited.md#re'
+     b'mote",\n     "importLinksPending": 0,\n     "importMediaPending": 0,\n     '
+     b'"tags": [\n      "sync-conflict"\n     ],\n     "title": "Member edited (sy'
+     b'nced copy)",\n     "updatedInLastPass": true\n    },\n    {\n     "bodyJson"'
+     b': {\n      "content": [\n       {\n        "attrs": {\n         "level":'
+     b' 1\n        },\n        "content": [\n         {\n          "text": "Hub'
+     b'",\n          "type": "text"\n         }\n        ],\n        "type": "headi'
+     b'ng"\n       },\n       {\n        "content": [\n         {\n          "te'
+     b'xt": "Wikilinks: ",\n          "type": "text"\n         },\n         {\n    '
+     b'      "marks": [\n           {\n            "attrs": {\n             "href"'
+     b': "/journal?j2tab=notebook&note=643cb04e0e7b484a9cdce25c4a3c55cd"\n      '
+     b'      },\n            "type": "link"\n           }\n          ],\n          '
+     b'"text": "Target Note",\n          "type": "text"\n         },\n         {\n '
+     b'         "text": ", ",\n          "type": "text"\n         },\n         {\n '
+     b'         "marks": [\n           {\n            "attrs": {\n             "hr'
+     b'ef": "/journal?j2tab=notebook&note=643cb04e0e7b484a9cdce25c4a3c55cd"\n   '
+     b'         },\n            "type": "link"\n           }\n          ],\n       '
+     b'   "text": "aliased target",\n          "type": "text"\n         },\n      '
+     b'   {\n          "text": ", ",\n          "type": "text"\n         },\n      '
+     b'   {\n          "marks": [\n           {\n            "attrs": {\n          '
+     b'   "href": "/journal?j2tab=notebook&note=c250237cb34a4bcb90ae4c4e29eabe2'
+     b'd"\n            },\n            "type": "link"\n           }\n          '
+     b'],\n          "text": "Other note > Risk",\n          "type": "text"\n     '
+     b'    },\n         {\n          "text": ", ",\n          "type": "text"\n     '
+     b'    },\n         {\n          "marks": [\n           {\n            "attrs":'
+     b' {\n             "href": "/journal?j2tab=notebook&note=c250237cb34a4bcb90'
+     b'ae4c4e29eabe2d"\n            },\n            "type": "link"\n           }\n '
+     b'         ],\n          "text": "Other note",\n          "type": "text"\n   '
+     b'      },\n         {\n          "text": ", ",\n          "type": "text"\n   '
+     b'      },\n         {\n          "marks": [\n           {\n            "attrs'
+     b'": {\n             "href": "/journal?j2tab=notebook&note=1e05edf556324943'
+     b'9953b2dd4a2f2836"\n            },\n            "type": "link"\n           }'
+     b'\n          ],\n          "text": "Plan",\n          "type": "text"\n       '
+     b'  },\n         {\n          "text": ", ",\n          "type": "text"\n       '
+     b'  },\n         {\n          "marks": [\n           {\n            "attrs": {'
+     b'\n             "href": "/journal?j2tab=notebook&note=34cac0f3271e4315ad10'
+     b'dc18b5222a61"\n            },\n            "type": "link"\n           }\n   '
+     b'       ],\n          "text": "the A plan",\n          "type": "text"\n     '
+     b'    },\n         {\n          "text": ", ",\n          "type": "text"\n     '
+     b'    },\n         {\n          "marks": [\n           {\n            "attrs":'
+     b' {\n             "href": "import-link://name:obsidian:vault-messy/ghost n'
+     b'ote|notes"\n            },\n            "type": "link"\n           }\n      '
+     b'    ],\n          "text": "Ghost Note",\n          "type": "text"\n        '
+     b' },\n         {\n          "text": ", ",\n          "type": "text"\n        '
+     b' },\n         {\n          "marks": [\n           {\n            "attrs"'
+     b': {\n             "href": "/journal?j2tab=notebook&note=dbafdbaa7a0142b19'
+     b'd2cac6c5ef23bcd"\n            },\n            "type": "link"\n           }\n'
+     b'          ],\n          "text": "100%20club",\n          "type": "text"\n  '
+     b'       },\n         {\n          "text": ".",\n          "type": "text"\n   '
+     b'      }\n        ],\n        "type": "paragraph"\n       },\n       {\n  '
+     b'      "content": [\n         {\n          "text": "Relative: ",\n          '
+     b'"type": "text"\n         },\n         {\n          "marks": [\n         '
+     b'  {\n            "attrs": {\n             "href": "/journal?j2tab=notebook'
+     b'&note=c250237cb34a4bcb90ae4c4e29eabe2d"\n            },\n            "type'
+     b'": "link"\n           }\n          ],\n          "text": "space encoded",\n '
+     b'         "type": "text"\n         },\n         {\n          "text": " ",\n  '
+     b'        "type": "text"\n         },\n         {\n          "marks": [\n     '
+     b'      {\n            "attrs": {\n             "href": "/journal?j2tab=note'
+     b'book&note=c250237cb34a4bcb90ae4c4e29eabe2d"\n            },\n            "'
+     b'type": "link"\n           }\n          ],\n          "text": "angle",\n     '
+     b'     "type": "text"\n         },\n         {\n          "text": " ",\n      '
+     b'    "type": "text"\n         },\n         {\n          "marks": [\n         '
+     b'  {\n            "attrs": {\n             "href": "/journal?j2tab=notebook'
+     b'&note=ce72d50be81c4ce982e88573a1669711"\n            },\n            "type'
+     b'": "link"\n           }\n          ],\n          "text": "up a folder",\n   '
+     b'       "type": "text"\n         },\n         {\n          "text": " ",\n    '
+     b'      "type": "text"\n         },\n         {\n          "marks": [\n       '
+     b'    {\n            "attrs": {\n             "href": "/journal?j2tab=notebo'
+     b'ok&note=1e05edf5563249439953b2dd4a2f2836"\n            },\n            "ty'
+     b'pe": "link"\n           }\n          ],\n          "text": "dot",\n         '
+     b' "type": "text"\n         },\n         {\n          "text": " ",\n          '
+     b'"type": "text"\n         },\n         {\n          "marks": [\n         '
+     b'  {\n            "attrs": {\n             "href": "import-link://name:obsi'
+     b'dian:vault-messy/missing.md|notes|rel"\n            },\n            "type"'
+     b': "link"\n           }\n          ],\n          "text": "missing",\n        '
+     b'  "type": "text"\n         },\n         {\n          "text": ".",\n         '
+     b' "type": "text"\n         }\n        ],\n        "type": "paragraph"\n      '
+     b' },\n       {\n        "content": [\n         {\n          "text": "Deep lin'
+     b'ks: ",\n          "type": "text"\n         },\n         {\n          "marks"'
+     b': [\n           {\n            "attrs": {\n             "href": "/journal?j'
+     b'2tab=notebook&note=c250237cb34a4bcb90ae4c4e29eabe2d"\n            },\n    '
+     b'        "type": "link"\n           }\n          ],\n          "text": "this'
+     b' vault",\n          "type": "text"\n         },\n         {\n          "text'
+     b'": " and another vault.",\n          "type": "text"\n         }\n        ],'
+     b'\n        "type": "paragraph"\n       },\n       {\n        "content": ['
+     b'\n         {\n          "content": [\n           {\n            "content": ['
+     b'\n             {\n              "content": [\n               {\n            '
+     b'    "text": "Name",\n                "type": "text"\n               }\n    '
+     b'          ],\n              "type": "paragraph"\n             }\n          '
+     b'  ],\n            "type": "tableHeader"\n           },\n           {\n      '
+     b'      "content": [\n             {\n              "content": [\n           '
+     b'    {\n                "text": "Link",\n                "type": "text"\n   '
+     b'            }\n              ],\n              "type": "paragraph"\n       '
+     b'      }\n            ],\n            "type": "tableHeader"\n           }\n  '
+     b'        ],\n          "type": "tableRow"\n         },\n         {\n         '
+     b' "content": [\n           {\n            "content": [\n             {\n     '
+     b'         "content": [\n               {\n                "text": "alias in'
+     b' a table",\n                "type": "text"\n               }\n             '
+     b' ],\n              "type": "paragraph"\n             }\n            ],\n    '
+     b'        "type": "tableCell"\n           },\n           {\n            "cont'
+     b'ent": [\n             {\n              "content": [\n               {\n     '
+     b'           "marks": [\n                 {\n                  "attrs": {\n  '
+     b'                 "href": "/journal?j2tab=notebook&note=c250237cb34a4bcb90ae4'
+     b'c4e29eabe2d"\n                  },\n                  "type": "link"\n     '
+     b'            }\n                ],\n                "text": "table alias",\n'
+     b'                "type": "text"\n               }\n              ],\n       '
+     b'       "type": "paragraph"\n             }\n            ],\n            "ty'
+     b'pe": "tableCell"\n           }\n          ],\n          "type": "tableRow"\n'
+     b'         },\n         {\n          "content": [\n           {\n            "'
+     b'content": [\n             {\n              "content": [\n               {\n '
+     b'               "text": "plain",\n                "type": "text"\n         '
+     b'      }\n              ],\n              "type": "paragraph"\n             '
+     b'}\n            ],\n            "type": "tableCell"\n           },\n         '
+     b'  {\n            "content": [\n             {\n              "content": [\n '
+     b'              {\n                "marks": [\n                 {\n          '
+     b'        "attrs": {\n                   "href": "/journal?j2tab=notebook&n'
+     b'ote=643cb04e0e7b484a9cdce25c4a3c55cd"\n                  },\n             '
+     b'     "type": "link"\n                 }\n                ],\n              '
+     b'  "text": "Target Note",\n                "type": "text"\n               }'
+     b'\n              ],\n              "type": "paragraph"\n             }\n     '
+     b'       ],\n            "type": "tableCell"\n           }\n          ],\n    '
+     b'      "type": "tableRow"\n         }\n        ],\n        "type": "table"\n '
+     b'      },\n       {\n        "attrs": {\n         "variant": "warning"\n     '
+     b'   },\n        "content": [\n         {\n          "content": [\n           '
+     b'{\n            "marks": [\n             {\n              "type": "bold"\n   '
+     b'          }\n            ],\n            "text": "Size it down",\n         '
+     b'   "type": "text"\n           }\n          ],\n          "type": "paragraph'
+     b'"\n         },\n         {\n          "content": [\n           {\n       '
+     b'     "text": "Risk is ",\n            "type": "text"\n           },\n      '
+     b'     {\n            "marks": [\n             {\n              "attrs": {\n  '
+     b'             "href": "/journal?j2tab=notebook&note=643cb04e0e7b484a9cdce25c4'
+     b'a3c55cd"\n              },\n              "type": "link"\n             }\n  '
+     b'          ],\n            "text": "Target Note",\n            "type": "tex'
+     b't"\n           },\n           {\n            "text": ".",\n            "type'
+     b'": "text"\n           }\n          ],\n          "type": "paragraph"\n      '
+     b'   }\n        ],\n        "type": "callout"\n       },\n       {\n       '
+     b' "content": [\n         {\n          "text": "Raw HTML: ",\n          "type'
+     b'": "text"\n         },\n         {\n          "marks": [\n           {\n '
+     b'           "attrs": {\n             "href": "https://example.com/x"\n     '
+     b'       },\n            "type": "link"\n           }\n          ],\n         '
+     b' "text": "site",\n          "type": "text"\n         },\n         {\n       '
+     b'   "text": " and bad.",\n          "type": "text"\n         }\n        ],\n '
+     b'       "type": "paragraph"\n       },\n       {\n        "content": [\n     '
+     b'    {\n          "text": "Note embed: ",\n          "type": "text"\n       '
+     b'  },\n         {\n          "marks": [\n           {\n            "attrs": {'
+     b'\n             "href": "/journal?j2tab=notebook&note=c250237cb34a4bcb90ae'
+     b'4c4e29eabe2d"\n            },\n            "type": "link"\n           }\n   '
+     b'       ],\n          "text": "Other note",\n          "type": "text"\n     '
+     b'    }\n        ],\n        "type": "paragraph"\n       },\n       {\n    '
+     b'    "content": [\n         {\n          "text": "Attachment embed: ",\n    '
+     b'      "type": "text"\n         }\n        ],\n        "type": "paragraph"\n '
+     b'      },\n       {\n        "attrs": {\n         "attempts": 0,\n         "n'
+     b'ame": "chart one.png",\n         "reason": "obsidian-plugin-outdated",\n  '
+     b'       "ref": null,\n         "sourceUrl": null\n        },\n        "type"'
+     b': "importNotice"\n       },\n       {\n        "content": [\n         {\n'
+     b'          "text": "Attachment link: ",\n          "type": "text"\n        '
+     b' }\n        ],\n        "type": "paragraph"\n       },\n       {\n       '
+     b' "attrs": {\n         "attempts": 0,\n         "name": "chart one.png",\n  '
+     b'       "reason": "obsidian-plugin-outdated",\n         "ref": null,\n     '
+     b'    "sourceUrl": null\n        },\n        "type": "importNotice"\n       }'
+     b',\n       {\n        "content": [\n         {\n          "text": "Bare URLs:'
+     b' See ",\n          "type": "text"\n         },\n         {\n          "marks'
+     b'": [\n           {\n            "attrs": {\n             "href": "https://e'
+     b'xample.com/a"\n            },\n            "type": "link"\n           }\n   '
+     b'       ],\n          "text": "https://example.com/a",\n          "type": "'
+     b'text"\n         },\n         {\n          "text": ", and (",\n          "typ'
+     b'e": "text"\n         },\n         {\n          "marks": [\n           {\n'
+     b'            "attrs": {\n             "href": "https://example.com/b"\n    '
+     b'        },\n            "type": "link"\n           }\n          ],\n        '
+     b'  "text": "https://example.com/b",\n          "type": "text"\n         },\n'
+     b'         {\n          "text": "). Also ",\n          "type": "text"\n      '
+     b'   },\n         {\n          "marks": [\n           {\n            "attrs": '
+     b'{\n             "href": "https://www.example.org"\n            },\n        '
+     b'    "type": "link"\n           }\n          ],\n          "text": "www.exam'
+     b'ple.org",\n          "type": "text"\n         },\n         {\n          "tex'
+     b't": "! Ticker NVDA.US and BRK.B closed up; mail ",\n          "type": "te'
+     b'xt"\n         },\n         {\n          "marks": [\n           {\n       '
+     b'     "attrs": {\n             "href": "mailto:desk@example.com"\n         '
+     b'   },\n            "type": "link"\n           }\n          ],\n          "te'
+     b'xt": "desk@example.com",\n          "type": "text"\n         },\n         {'
+     b'\n          "text": ".",\n          "type": "text"\n         }\n        '
+     b'],\n        "type": "paragraph"\n       },\n       {\n        "content":'
+     b' [\n         {\n          "text": "In code: ",\n          "type": "text"\n  '
+     b'       },\n         {\n          "marks": [\n           {\n            "type'
+     b'": "code"\n           }\n          ],\n          "text": "https://example.c'
+     b'om/in-code",\n          "type": "text"\n         },\n         {\n          "'
+     b'text": " and math: $https://example.com/in-math$",\n          "type": "te'
+     b'xt"\n         }\n        ],\n        "type": "paragraph"\n       },\n    '
+     b'   {\n        "attrs": {\n         "language": null\n        },\n        "co'
+     b'ntent": [\n         {\n          "text": "fetch(\'https://example.com/in-co'
+     b'deblock\')",\n          "type": "text"\n         }\n        ],\n        "'
+     b'type": "codeBlock"\n       },\n       {\n        "content": [\n         '
+     b'{\n          "text": "Schemes: script | data page | ",\n          "type": '
+     b'"text"\n         },\n         {\n          "marks": [\n           {\n    '
+     b'        "attrs": {\n             "href": "https://evil.example/x"\n       '
+     b'     },\n            "type": "link"\n           }\n          ],\n          "'
+     b'text": "protocol-relative",\n          "type": "text"\n         },\n       '
+     b'  {\n          "text": " | ",\n          "type": "text"\n         },\n      '
+     b'   {\n          "marks": [\n           {\n            "attrs": {\n          '
+     b'   "href": "tel:+15550100"\n            },\n            "type": "link"\n   '
+     b'        }\n          ],\n          "text": "call",\n          "type": "text'
+     b'"\n         },\n         {\n          "text": " | ",\n          "type": "tex'
+     b't"\n         },\n         {\n          "marks": [\n           {\n        '
+     b'    "attrs": {\n             "href": "mailto:desk@example.com"\n          '
+     b'  },\n            "type": "link"\n           }\n          ],\n          "tex'
+     b't": "mail",\n          "type": "text"\n         },\n         {\n          "t'
+     b'ext": " | ",\n          "type": "text"\n         },\n         {\n          "'
+     b'text": "relative path",\n          "type": "text"\n         }\n        ],\n '
+     b'       "type": "paragraph"\n       },\n       {\n        "content": [\n     '
+     b'    {\n          "attrs": {\n           "checked": false\n          },\n    '
+     b'      "content": [\n           {\n            "content": [\n             {\n'
+     b'              "text": "open task",\n              "type": "text"\n        '
+     b'     }\n            ],\n            "type": "paragraph"\n           }\n     '
+     b'     ],\n          "type": "taskItem"\n         },\n         {\n          "a'
+     b'ttrs": {\n           "checked": true\n          },\n          "content": [\n'
+     b'           {\n            "content": [\n             {\n              "text'
+     b'": "done task",\n              "type": "text"\n             }\n            '
+     b'],\n            "type": "paragraph"\n           }\n          ],\n          "'
+     b'type": "taskItem"\n         }\n        ],\n        "type": "taskList"\n     '
+     b'  }\n      ],\n      "type": "doc"\n     },\n     "id": "6adc5db5db484cc69c7'
+     b'c1a99ddf74cb2",\n     "importKey": "obsidian:vault-messy/Notes/Hub.md",\n '
+     b'    "importLinksPending": 1,\n     "importMediaPending": 0,\n     "tags": '
+     b'[],\n     "title": "Hub",\n     "updatedInLastPass": false\n    },\n    '
+     b'{\n     "bodyJson": {\n      "content": [\n       {\n        "attrs": {\n'
+     b'         "level": 1\n        },\n        "content": [\n         {\n         '
+     b' "text": "Other note",\n          "type": "text"\n         }\n        ],\n  '
+     b'      "type": "heading"\n       },\n       {\n        "attrs": {\n         "'
+     b'level": 2\n        },\n        "content": [\n         {\n          "text": "'
+     b'Risk",\n          "type": "text"\n         }\n        ],\n        "type": "h'
+     b'eading"\n       },\n       {\n        "content": [\n         {\n         '
+     b' "text": "Keep it small. ^blk1",\n          "type": "text"\n         }\n   '
+     b'     ],\n        "type": "paragraph"\n       },\n       {\n        "content"'
+     b': [\n         {\n          "text": "Next: ",\n          "type": "text"\n    '
+     b'     },\n         {\n          "marks": [\n           {\n            "attrs"'
+     b': {\n             "href": "/journal?j2tab=notebook&note=9a1bd74a5d2f44ae9'
+     b'7c84b96e53934eb"\n            },\n            "type": "link"\n           }\n'
+     b'          ],\n          "text": "Later",\n          "type": "text"\n       '
+     b'  },\n         {\n          "text": " (written before Later existed).",\n  '
+     b'        "type": "text"\n         }\n        ],\n        "type": "paragraph"'
+     b'\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "c250237cb'
+     b'34a4bcb90ae4c4e29eabe2d",\n     "importKey": "obsidian:vault-messy/Notes/'
+     b'Other note.md",\n     "importLinksPending": 0,\n     "importMediaPending":'
+     b' 0,\n     "tags": [],\n     "title": "Other note",\n     "updatedInLastPass'
+     b'": false\n    },\n    {\n     "bodyJson": {\n      "content": [\n       {'
+     b'\n        "attrs": {\n         "level": 1\n        },\n        "content"'
+     b': [\n         {\n          "text": "Plan (Notes)",\n          "type": "text'
+     b'"\n         }\n        ],\n        "type": "heading"\n       },\n       {'
+     b'\n        "content": [\n         {\n          "text": "The plan beside the '
+     b'hub.",\n          "type": "text"\n         }\n        ],\n        "type": "p'
+     b'aragraph"\n       }\n      ],\n      "type": "doc"\n     },\n     "id": "'
+     b'1e05edf5563249439953b2dd4a2f2836",\n     "importKey": "obsidian:vault-mes'
+     b'sy/Notes/Plan.md",\n     "importLinksPending": 0,\n     "importMediaPendin'
+     b'g": 0,\n     "tags": [],\n     "title": "Plan (Notes)",\n     "updatedInLas'
+     b'tPass": false\n    },\n    {\n     "bodyJson": {\n      "content": [\n   '
+     b'    {\n        "attrs": {\n         "level": 1\n        },\n        "content'
+     b'": [\n         {\n          "text": "Target Note",\n          "type": "text'
+     b'"\n         }\n        ],\n        "type": "heading"\n       },\n       {'
+     b'\n        "content": [\n         {\n          "text": "The target of most l'
+     b'inks.",\n          "type": "text"\n         }\n        ],\n        "type": "'
+     b'paragraph"\n       }\n      ],\n      "type": "doc"\n     },\n     "id": '
+     b'"643cb04e0e7b484a9cdce25c4a3c55cd",\n     "importKey": "obsidian:vault-me'
+     b'ssy/Notes/Target Note.md",\n     "importLinksPending": 0,\n     "importMed'
+     b'iaPending": 0,\n     "tags": [],\n     "title": "Target Note",\n     "updat'
+     b'edInLastPass": false\n    }\n   ],\n   "passes": [\n    {\n     "conflict'
+     b's": 0,\n     "created": 9,\n     "mediaUploaded": 9,\n     "skipped": 0,\n  '
+     b'   "status": "ok",\n     "updated": 0\n    },\n    {\n     "conflicts": '
+     b'1,\n     "created": 2,\n     "mediaUploaded": 0,\n     "skipped": 0,\n     "'
+     b'status": "ok",\n     "updated": 1\n    }\n   ]\n  }\n }\n}\n')
+3 failed, 2608 passed, 1 skipped, 38 warnings in 530.44s (0:08:50)

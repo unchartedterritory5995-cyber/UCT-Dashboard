@@ -1,0 +1,605 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  2%]
+........................................................................ [  3%]
+........................................................................ [  4%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [  9%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+.......................x................................................ [ 13%]
+...............................................................FF..F.F.. [ 15%]
+..................................................FFF.F.F............... [ 16%]
+...................................................F.................... [ 17%]
+........................................................................ [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 24%]
+........................................................................ [ 25%]
+........................................................................ [ 26%]
+.............F.......................................................... [ 27%]
+........................................................................ [ 28%]
+...........................................................
+[txn latency, in-process, n=200] webhook->subscriber p50=1.86ms p95=2.19ms p99=3.28ms max=3.61ms | ack incl. journal fsync p50=2.28ms p95=2.59ms | store commit last=0.72ms
+............. [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 32%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+...................................................F.................... [ 48%]
+........................................................................ [ 49%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 62%]
+........................................................................ [ 63%]
+........................................................................ [ 64%]
+........................................................................ [ 65%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 71%]
+........................................................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 76%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 80%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 84%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+........................................................................ [ 99%]
+.............................................                            [100%]
+=================================== FAILURES ===================================
+________________ test_fmp_profile_row_parses_list_of_one_shape _________________
+
+    def test_fmp_profile_row_parses_list_of_one_shape():
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"companyName": "Apple Inc.", "sector": "Technology"}]):
+            row = tl._fmp_profile_row("AAPL")
+>       assert row == {"companyName": "Apple Inc.", "sector": "Technology"}
+E       AssertionError: assert None == {'companyName': 'Apple Inc.', 'sector': 'Technology'}
+
+tests/test_ticker_logos.py:113: AssertionError
+_________________ test_fmp_profile_row_parses_bare_dict_shape __________________
+
+    def test_fmp_profile_row_parses_bare_dict_shape():
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value={"companyName": "Apple Inc."}):
+            row = tl._fmp_profile_row("AAPL")
+>       assert row == {"companyName": "Apple Inc."}
+E       AssertionError: assert None == {'companyName': 'Apple Inc.'}
+
+tests/test_ticker_logos.py:120: AssertionError
+____ test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub _____
+
+    def test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub():
+        """Defensive path: if FMP's schema ever adds an `image` field, it's used
+        as the PRIMARY source and Finnhub is never called at all."""
+        fmp_png = b"\x89PNG\r\n\x1a\nfmp-logo"
+    
+        def _fake_get(url, **kw):
+            class _R:
+                ok = True
+                content = fmp_png
+                status_code = 200
+            return _R()
+    
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"companyName": "Apple Inc.",
+                                       "image": "https://images.financialmodelingprep.com/aapl.png"}]), \
+             mock.patch("api.services.finnhub_client.fh_get") as fh, \
+             mock.patch("requests.get", side_effect=_fake_get):
+            out = tl._finnhub_logo_bytes("AAPL")
+>       assert out == fmp_png
+E       AssertionError: assert None == b'\x89PNG\r\n\x1a\nfmp-logo'
+
+tests/test_ticker_logos.py:173: AssertionError
+___ test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried ___
+
+    def test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried():
+        """A provider hiccup fetching the FMP-sourced image (5xx) marks transient
+        and the code still proceeds to try Finnhub afterwards."""
+        tl._reset_transient()
+        finnhub_png = b"\x89PNG\r\n\x1a\nfinnhub-logo"
+    
+        def _fake_get(url, **kw):
+            if "fmp-cdn" in url:
+                class _Bad:
+                    ok = False
+                    content = b""
+                    status_code = 503
+                return _Bad()
+            class _Good:
+                ok = True
+                content = finnhub_png
+                status_code = 200
+            return _Good()
+    
+        with mock.patch("api.services.earnings_estimates._fmp_get",
+                        return_value=[{"image": "https://fmp-cdn.example.com/aapl.png"}]), \
+             mock.patch("api.services.finnhub_client.fh_get",
+                        return_value={"logo": "https://static.finnhub.io/aapl.png"}), \
+             mock.patch("requests.get", side_effect=_fake_get):
+            out = tl._finnhub_logo_bytes("AAPL")
+        assert out == finnhub_png
+>       assert tl._was_transient() is True
+E       assert False is True
+E        +  where False = <function _was_transient at 0x732b452f7d80>()
+E        +    where <function _was_transient at 0x732b452f7d80> = tl._was_transient
+
+tests/test_ticker_logos.py:226: AssertionError
+_______ test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit ________
+
+    def test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit():
+        """FMP is the new PRIMARY leg: when yfinance fails and FMP fully resolves
+        the name, Finnhub must never even be called."""
+        ticker_meta._mem.clear()
+        with patch.object(ticker_meta, "_disk_get", return_value=None), \
+             patch.object(ticker_meta, "_disk_put"), \
+             patch.object(ticker_meta, "_primary_theme", return_value=None), \
+             patch("yfinance.Ticker", side_effect=Exception("yf down")), \
+             patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row()]) as FMP, \
+             patch.object(ticker_meta, "fh_get") as FH:
+            out = ticker_meta.get_ticker_meta("AAPL")
+>       assert out == {"name": "Apple Inc.", "sector": "Technology",
+                       "industry": "Consumer Electronics", "exchange": None, "theme": None}
+E       AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Differing items:
+E         {'industry': None} != {'industry': 'Consumer Electronics'}
+E         {'name': None} != {'name': 'Apple Inc.'}
+E         {'sector': None} != {'sector': 'Technology'}
+E         
+E         Full diff:
+E           {
+E               'exchange': None,
+E         -     'industry': 'Consumer Electronics',
+E         -     'name': 'Apple Inc.',
+E         -     'sector': 'Technology',
+E         +     'industry': None,
+E         +     'name': None,
+E         +     'sector': None,
+E               'theme': None,
+E           }
+
+tests/test_ticker_meta.py:236: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-19 18:52:19,059 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:166 FMP profile failed for AAPL: FMP_API_KEY not set
+______________________ test_fmp_field_mapping_happy_path _______________________
+
+    def test_fmp_field_mapping_happy_path():
+        """Direct unit test of the field-shape mapping table: companyName->name,
+        sector/industry split correctly (Finnhub profile2 had no sector at all)."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(companyName="Apple Inc.", sector="Technology",
+                                           industry="Consumer Electronics")]):
+            out = ticker_meta._from_fmp("AAPL")
+>       assert out["name"] == "Apple Inc."
+E       AssertionError: assert None == 'Apple Inc.'
+
+tests/test_ticker_meta.py:251: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-19 18:52:19,087 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:166 FMP profile failed for AAPL: FMP_API_KEY not set
+____________ test_fmp_market_cap_unit_conversion_asserts_magnitude _____________
+
+    def test_fmp_market_cap_unit_conversion_asserts_magnitude():
+        """THE known bug class (lesson_market_cap_cache_poison_and_finnhub_currency):
+        FMP's marketCap is raw USD UNITS (4567767716000), NOT the millions Finnhub's
+        marketCapitalization used. Assert the CONVERTED magnitude, not just presence —
+        a bug that skips the /1e6 conversion (or divides by the wrong power) must
+        fail this on the number, not silently pass on "field exists"."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(marketCap=4567767716000)]):
+            out = ticker_meta._from_fmp("AAPL")
+>       assert out["market_cap_musd"] == pytest.approx(4567767.716, rel=1e-9)
+E       assert None == 4567767.716 ± 4.6e-03
+E         
+E         comparison failed
+E         Obtained: None
+E         Expected: 4567767.716 ± 4.6e-03
+
+tests/test_ticker_meta.py:265: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-19 18:52:19,106 WARNING api.services.ticker_meta: FMP profile failed for AAPL: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:166 FMP profile failed for AAPL: FMP_API_KEY not set
+_____________ test_fmp_missing_marketcap_key_entirely_yields_none ______________
+
+    def test_fmp_missing_marketcap_key_entirely_yields_none():
+        """A row that simply omits the marketCap key (not just null) must also
+        yield None, not raise a KeyError or coerce to 0."""
+        with patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[{"companyName": "No Cap Co"}]):
+            out = ticker_meta._from_fmp("NOCAP")
+>       assert out["name"] == "No Cap Co"
+E       AssertionError: assert None == 'No Cap Co'
+
+tests/test_ticker_meta.py:292: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-19 18:52:19,139 WARNING api.services.ticker_meta: FMP profile failed for NOCAP: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:166 FMP profile failed for NOCAP: FMP_API_KEY not set
+________________ test_fmp_partial_then_finnhub_fills_remainder _________________
+
+    def test_fmp_partial_then_finnhub_fills_remainder():
+        """Full 3-leg interaction: yfinance fails entirely, FMP supplies industry
+        but no name (a partial FMP response), Finnhub then fills the name. Proves
+        the merge chain composes correctly end-to-end, matching the yfinance/
+        Finnhub partial-merge behavior already covered above."""
+        ticker_meta._mem.clear()
+        with patch.object(ticker_meta, "_disk_get", return_value=None), \
+             patch.object(ticker_meta, "_disk_put") as DP, \
+             patch.object(ticker_meta, "_primary_theme", return_value=None), \
+             patch("yfinance.Ticker", side_effect=Exception("yf down")), \
+             patch("api.services.earnings_estimates._fmp_get",
+                   return_value=[_fmp_row(companyName=None, sector="Technology",
+                                           industry="Semiconductors")]), \
+             patch.object(ticker_meta, "fh_get",
+                          return_value={"name": "Micron Technology Inc", "finnhubIndustry": "Technology"}):
+            out = ticker_meta.get_ticker_meta("MU")
+>       assert out == {"name": "Micron Technology Inc", "sector": "Technology",
+                       "industry": "Semiconductors", "exchange": None, "theme": None}
+E       AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+E         
+E         Omitting 3 identical items, use -vv to show
+E         Differing items:
+E         {'industry': 'Technology'} != {'industry': 'Semiconductors'}
+E         {'sector': None} != {'sector': 'Technology'}
+E         
+E         Full diff:
+E           {
+E               'exchange': None,
+E         -     'industry': 'Semiconductors',
+E         +     'industry': 'Technology',
+E               'name': 'Micron Technology Inc',
+E         -     'sector': 'Technology',
+E         +     'sector': None,
+E               'theme': None,
+E           }
+
+tests/test_ticker_meta.py:324: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-19 18:52:19,174 WARNING api.services.ticker_meta: FMP profile failed for MU: FMP_API_KEY not set
+------------------------------ Captured log call -------------------------------
+WARNING  api.services.ticker_meta:ticker_meta.py:166 FMP profile failed for MU: FMP_API_KEY not set
+________ test_no_restated_stop_vocabulary_and_the_baseline_only_shrinks ________
+
+    def test_no_restated_stop_vocabulary_and_the_baseline_only_shrinks():
+        _, vocabularies = _baseline()
+        found, new = set(), []
+        for rel in _product_files():
+            try:
+                tree = _parse((REPO / rel).read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError):
+                continue
+            for ln, context in restated_vocabularies(tree):
+                found.add((rel, context))
+                if (rel, context) not in vocabularies:
+                    new.append(f"{rel}:{ln} restates the {context!r} stop vocabulary - read ticker_resolver")
+        assert found, "the vocabulary scan found nothing at all - it is broken, not the repo clean"
+        stale = sorted(f"{p} {c}" for p, c in vocabularies - found)
+>       assert not new, "\n".join(new)
+E       AssertionError: api/services/uct_agent/knowledge/frame.py:89 restates the 'query' stop vocabulary - read ticker_resolver
+E         api/services/uct_agent/knowledge/frame.py:89 restates the 'headline' stop vocabulary - read ticker_resolver
+E       assert not ["api/services/uct_agent/knowledge/frame.py:89 restates the 'query' stop vocabulary - read ticker_resolver", "api/services/uct_agent/knowledge/frame.py:89 restates the 'headline' stop vocabulary - read ticker_resolver"]
+
+tests/test_ticker_resolver.py:404: AssertionError
+____ test_the_warmer_derives_the_archive_in_the_background_and_never_raises ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x732b3d06f200>
+
+    async def test_the_warmer_derives_the_archive_in_the_background_and_never_raises(monkeypatch):
+        monkeypatch.setattr(arc, "WARM_ENABLED", True)
+        monkeypatch.setattr(arc, "WARM_PAUSE_S", 0)
+        await _fill_day(n=60)
+        await _day({"date": DAY.isoformat(), "limit": 5})
+        assert arc.warm_wait(10)
+>       assert arc.cache_stats()["derived_full"] == len({_content(i) for i in range(60)})
+E       AssertionError: assert 43 == 51
+E        +  where 51 = len({('CRYPTO', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 14', 'TXNews1'), ('SYNTHETIC AAPL REPORTS ...S THIRD QUARTER RESULTS TEST 26', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 32', 'TXNews1'), ...})
+
+tests/test_trade_exchange_news_archive.py:404: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-19 18:55:46,717 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49RW via=push arrive_lag_ms=1940146716 queue_ms=0.2 tickers_ms=0.1 store_ms=1.0 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,718 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49RX via=push arrive_lag_ms=1939846718 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,719 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49RY via=push arrive_lag_ms=1939546719 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,720 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49RZ via=push arrive_lag_ms=1939246720 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,721 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49S0 via=push arrive_lag_ms=1938946721 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,722 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49S1 via=push arrive_lag_ms=1938646722 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,723 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49S2 via=push arrive_lag_ms=1938346723 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,724 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49S3 via=push arrive_lag_ms=1938046724 queue_ms=0.0 tickers_ms=0.1 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,725 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49S4 via=push arrive_lag_ms=1937746725 queue_ms=0.1 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,726 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49S5 via=push arrive_lag_ms=1937446726 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,727 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49S6 via=push arrive_lag_ms=1937146727 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,728 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49S7 via=push arrive_lag_ms=1936846728 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,729 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49S8 via=push arrive_lag_ms=1936546729 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,730 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49S9 via=push arrive_lag_ms=1936246730 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,731 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SA via=push arrive_lag_ms=1935946731 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,732 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SB via=push arrive_lag_ms=1935646732 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,733 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SC via=push arrive_lag_ms=1935346733 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,734 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SD via=push arrive_lag_ms=1935046734 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,735 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SE via=push arrive_lag_ms=1934746735 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,736 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SF via=push arrive_lag_ms=1934446736 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,737 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SG via=push arrive_lag_ms=1934146737 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,738 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SH via=push arrive_lag_ms=1933846738 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,739 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SJ via=push arrive_lag_ms=1933546739 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,740 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SK via=push arrive_lag_ms=1933246740 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,741 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SM via=push arrive_lag_ms=1932946741 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,742 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SN via=push arrive_lag_ms=1932646742 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,743 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SP via=push arrive_lag_ms=1932346743 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,745 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SQ via=push arrive_lag_ms=1932046744 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,745 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SR via=push arrive_lag_ms=1931746745 queue_ms=0.1 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,746 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SS via=push arrive_lag_ms=1931446746 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,748 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49ST via=push arrive_lag_ms=1931146747 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,748 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SV via=push arrive_lag_ms=1930846748 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,749 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SW via=push arrive_lag_ms=1930546749 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,750 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SX via=push arrive_lag_ms=1930246750 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,751 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SY via=push arrive_lag_ms=1929946751 queue_ms=0.1 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,753 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49SZ via=push arrive_lag_ms=1929646752 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,754 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49T0 via=push arrive_lag_ms=1929346753 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,755 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49T1 via=push arrive_lag_ms=1929046755 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,756 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49T2 via=push arrive_lag_ms=1928746756 queue_ms=0.1 tickers_ms=0.0 store_ms=0.8 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,757 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49T3 via=push arrive_lag_ms=1928446757 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,758 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49T4 via=push arrive_lag_ms=1928146758 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,760 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49T5 via=push arrive_lag_ms=1927846759 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,761 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49T6 via=push arrive_lag_ms=1927546760 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,762 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49T7 via=push arrive_lag_ms=1927246761 queue_ms=0.1 tickers_ms=0.1 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,763 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49T8 via=push arrive_lag_ms=1926946763 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,764 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49T9 via=push arrive_lag_ms=1926646764 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,765 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TA via=push arrive_lag_ms=1926346765 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,767 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TB via=push arrive_lag_ms=1926046766 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,768 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TC via=push arrive_lag_ms=1925746767 queue_ms=0.1 tickers_ms=0.1 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,769 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TD via=push arrive_lag_ms=1925446768 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,770 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TE via=push arrive_lag_ms=1925146770 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,771 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TF via=push arrive_lag_ms=1924846771 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,772 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TG via=push arrive_lag_ms=1924546772 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-19 18:55:46,773 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TH via=push arrive_lag_ms=1924246773 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,775 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TJ via=push arrive_lag_ms=1923946774 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,776 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TK via=push arrive_lag_ms=1923646775 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,777 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TM via=push arrive_lag_ms=1923346776 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,778 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TN via=push arrive_lag_ms=1923046778 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,779 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TP via=push arrive_lag_ms=1922746779 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-19 18:55:46,780 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA080VQE29QJSKY49TQ via=push arrive_lag_ms=1922446780 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+------------------------------ Captured log call -------------------------------
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49RW via=push arrive_lag_ms=1940146716 queue_ms=0.2 tickers_ms=0.1 store_ms=1.0 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49RX via=push arrive_lag_ms=1939846718 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49RY via=push arrive_lag_ms=1939546719 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49RZ via=push arrive_lag_ms=1939246720 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49S0 via=push arrive_lag_ms=1938946721 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49S1 via=push arrive_lag_ms=1938646722 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49S2 via=push arrive_lag_ms=1938346723 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49S3 via=push arrive_lag_ms=1938046724 queue_ms=0.0 tickers_ms=0.1 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49S4 via=push arrive_lag_ms=1937746725 queue_ms=0.1 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49S5 via=push arrive_lag_ms=1937446726 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49S6 via=push arrive_lag_ms=1937146727 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49S7 via=push arrive_lag_ms=1936846728 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49S8 via=push arrive_lag_ms=1936546729 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49S9 via=push arrive_lag_ms=1936246730 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SA via=push arrive_lag_ms=1935946731 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SB via=push arrive_lag_ms=1935646732 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SC via=push arrive_lag_ms=1935346733 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SD via=push arrive_lag_ms=1935046734 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SE via=push arrive_lag_ms=1934746735 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SF via=push arrive_lag_ms=1934446736 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SG via=push arrive_lag_ms=1934146737 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SH via=push arrive_lag_ms=1933846738 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SJ via=push arrive_lag_ms=1933546739 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SK via=push arrive_lag_ms=1933246740 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SM via=push arrive_lag_ms=1932946741 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SN via=push arrive_lag_ms=1932646742 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SP via=push arrive_lag_ms=1932346743 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SQ via=push arrive_lag_ms=1932046744 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SR via=push arrive_lag_ms=1931746745 queue_ms=0.1 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SS via=push arrive_lag_ms=1931446746 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49ST via=push arrive_lag_ms=1931146747 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SV via=push arrive_lag_ms=1930846748 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SW via=push arrive_lag_ms=1930546749 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SX via=push arrive_lag_ms=1930246750 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SY via=push arrive_lag_ms=1929946751 queue_ms=0.1 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49SZ via=push arrive_lag_ms=1929646752 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49T0 via=push arrive_lag_ms=1929346753 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49T1 via=push arrive_lag_ms=1929046755 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49T2 via=push arrive_lag_ms=1928746756 queue_ms=0.1 tickers_ms=0.0 store_ms=0.8 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49T3 via=push arrive_lag_ms=1928446757 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49T4 via=push arrive_lag_ms=1928146758 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49T5 via=push arrive_lag_ms=1927846759 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49T6 via=push arrive_lag_ms=1927546760 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49T7 via=push arrive_lag_ms=1927246761 queue_ms=0.1 tickers_ms=0.1 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49T8 via=push arrive_lag_ms=1926946763 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49T9 via=push arrive_lag_ms=1926646764 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TA via=push arrive_lag_ms=1926346765 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TB via=push arrive_lag_ms=1926046766 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TC via=push arrive_lag_ms=1925746767 queue_ms=0.1 tickers_ms=0.1 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TD via=push arrive_lag_ms=1925446768 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TE via=push arrive_lag_ms=1925146770 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TF via=push arrive_lag_ms=1924846771 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TG via=push arrive_lag_ms=1924546772 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TH via=push arrive_lag_ms=1924246773 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TJ via=push arrive_lag_ms=1923946774 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TK via=push arrive_lag_ms=1923646775 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TM via=push arrive_lag_ms=1923346776 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TN via=push arrive_lag_ms=1923046778 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TP via=push arrive_lag_ms=1922746779 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA080VQE29QJSKY49TQ via=push arrive_lag_ms=1922446780 queue_ms=0.1 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+__________________ test_the_shipped_thresholds_have_not_moved __________________
+
+    def test_the_shipped_thresholds_have_not_moved():
+        """⭐ THE TABLE IS ONLY TRUE OF THESE VALUES. Both sides, either direction:
+        a knob added, removed or changed means the measurement describes detectors
+        that are no longer running."""
+        drift = {}
+        for key, want in MEASURED_AGAINST.items():
+            got_engine = _module_constants(
+                "api/services/pattern_engine/detectors/" + ENGINE_SOURCE[key])
+            rel, prefix = BASE_SOURCE[key]
+            got_base = _module_constants(rel, prefix)
+            if got_engine != want["engine"]:
+                drift[f"{key}/engine"] = sorted(
+                    set(got_engine.items()) ^ set(want["engine"].items()))
+            if got_base != want["base"]:
+                drift[f"{key}/base"] = sorted(
+                    set(got_base.items()) ^ set(want["base"].items()))
+>       assert not drift, (
+            "these thresholds changed since the agreement table was measured:\n"
+            + "\n".join(f"  {k}: {v}" for k, v in sorted(drift.items()))
+            + "\n\nRE-MEASURE. Update both the docstring table and "
+              "MEASURED_AGAINST — never one without the other.")
+E       AssertionError: these thresholds changed since the agreement table was measured:
+E           vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+E         
+E         RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+E       assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+
+tests/test_two_engines_do_not_agree.py:596: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964
+tests/test_ticker_explain_refusal_names_the_gap.py::test_PART3_the_states_are_DEFINED_ONCE_across_every_I1_door
+tests/test_tool_create_keys.py::test_the_uuid4_key_rule_has_one_home
+tests/test_tool_create_keys.py::test_only_create_keys_assigns_the_replay_window
+tests/test_tool_create_keys.py::test_only_create_keys_holds_the_expiry_sweep
+tests/test_trader_blocks_no_note_door.py::test_the_writer_derivation_reaches_the_floor
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_ticker_explain.py::TestRoute::test_route_shape_when_authenticated
+tests/test_ticker_explain.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_tools_pin_the_root.py::test_every_tools_api_importer_pins_the_census_or_is_named_exempt
+tests/test_tools_pin_the_root.py::test_every_exempt_name_is_real_and_every_reason_is_stated
+tests/test_tools_pin_the_root.py::test_the_walk_sees_the_known_pinned_and_known_exempt_members
+  notebook_wave5_walk.py:7: SyntaxWarning: invalid escape sequence '\d'
+    (scripts/hub_sandbox_boot.py --data-dir C:\data-<name> --port 8093);
+
+tests/test_track_d_risk003_probe.py::TestClassify::test_max_as_of_matches_last_trading_day_is_healthy
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/track_d_risk003_probe.py:99: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = now_utc or datetime.datetime.utcnow()
+
+tests/test_trade_exchange_news_receiver_lifecycle.py::test_startup_is_fast_and_answers_on_both_ip_families
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_trade_exchange_news_receiver_lifecycle.py::test_startup_is_fast_and_answers_on_both_ip_families
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+XFAIL tests/test_ticker_explain_refusal_names_the_gap.py::test_PART3_a_MODEL_authored_refusal_sentence_never_reaches_the_member - VIOLATION (I1-SPEC Part 3): 'the name is derived, never model-authored' — explain_recent_activity passes the MODEL's own refusal_reason to _result, whose `refusal_reason or derive_refusal_reason(...)` serves it verbatim as insufficient_evidence_reason. Known partial compliance, recorded in docs/terminal-research/verification/2026-09-14/F-I1-2-refusal-before-after.md ('Full compliance would need the caller to distinguish a server reason from a model reason at _result'). Mitigated, not closed: the sentence is inside _full_answer_text, so a number or verdict in it is still caught. ⚠ Fixing it also changes tests/test_ticker_explain.py::test_model_declaring_refuse_is_passed_through_honestly, which pins the current behaviour. strict=True: the day it is fixed this goes red and the marker must be removed.
+FAILED tests/test_ticker_logos.py::test_fmp_profile_row_parses_list_of_one_shape - AssertionError: assert None == {'companyName': 'Apple Inc.', 'sector': 'Technology'}
+FAILED tests/test_ticker_logos.py::test_fmp_profile_row_parses_bare_dict_shape - AssertionError: assert None == {'companyName': 'Apple Inc.'}
+FAILED tests/test_ticker_logos.py::test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub - AssertionError: assert None == b'\x89PNG\r\n\x1a\nfmp-logo'
+FAILED tests/test_ticker_logos.py::test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried - assert False is True
+ +  where False = <function _was_transient at 0x732b452f7d80>()
+ +    where <function _was_transient at 0x732b452f7d80> = tl._was_transient
+FAILED tests/test_ticker_meta.py::test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit - AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+  
+  Omitting 2 identical items, use -vv to show
+  Differing items:
+  {'industry': None} != {'industry': 'Consumer Electronics'}
+  {'name': None} != {'name': 'Apple Inc.'}
+  {'sector': None} != {'sector': 'Technology'}
+  
+  Full diff:
+    {
+        'exchange': None,
+  -     'industry': 'Consumer Electronics',
+  -     'name': 'Apple Inc.',
+  -     'sector': 'Technology',
+  +     'industry': None,
+  +     'name': None,
+  +     'sector': None,
+        'theme': None,
+    }
+FAILED tests/test_ticker_meta.py::test_fmp_field_mapping_happy_path - AssertionError: assert None == 'Apple Inc.'
+FAILED tests/test_ticker_meta.py::test_fmp_market_cap_unit_conversion_asserts_magnitude - assert None == 4567767.716 ± 4.6e-03
+  
+  comparison failed
+  Obtained: None
+  Expected: 4567767.716 ± 4.6e-03
+FAILED tests/test_ticker_meta.py::test_fmp_missing_marketcap_key_entirely_yields_none - AssertionError: assert None == 'No Cap Co'
+FAILED tests/test_ticker_meta.py::test_fmp_partial_then_finnhub_fills_remainder - AssertionError: assert {'exchange': ...r': None, ...} == {'exchange': ...hnology', ...}
+  
+  Omitting 3 identical items, use -vv to show
+  Differing items:
+  {'industry': 'Technology'} != {'industry': 'Semiconductors'}
+  {'sector': None} != {'sector': 'Technology'}
+  
+  Full diff:
+    {
+        'exchange': None,
+  -     'industry': 'Semiconductors',
+  +     'industry': 'Technology',
+        'name': 'Micron Technology Inc',
+  -     'sector': 'Technology',
+  +     'sector': None,
+        'theme': None,
+    }
+FAILED tests/test_ticker_resolver.py::test_no_restated_stop_vocabulary_and_the_baseline_only_shrinks - AssertionError: api/services/uct_agent/knowledge/frame.py:89 restates the 'query' stop vocabulary - read ticker_resolver
+  api/services/uct_agent/knowledge/frame.py:89 restates the 'headline' stop vocabulary - read ticker_resolver
+assert not ["api/services/uct_agent/knowledge/frame.py:89 restates the 'query' stop vocabulary - read ticker_resolver", "api/services/uct_agent/knowledge/frame.py:89 restates the 'headline' stop vocabulary - read ticker_resolver"]
+FAILED tests/test_trade_exchange_news_archive.py::test_the_warmer_derives_the_archive_in_the_background_and_never_raises - AssertionError: assert 43 == 51
+ +  where 51 = len({('CRYPTO', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 14', 'TXNews1'), ('SYNTHETIC AAPL REPORTS ...S THIRD QUARTER RESULTS TEST 26', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 32', 'TXNews1'), ...})
+FAILED tests/test_two_engines_do_not_agree.py::test_the_shipped_thresholds_have_not_moved - AssertionError: these thresholds changed since the agreement table was measured:
+    vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+  
+  RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+12 failed, 6224 passed, 1 xfailed, 16 warnings in 654.00s (0:10:54)

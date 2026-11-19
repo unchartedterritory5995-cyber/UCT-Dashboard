@@ -1,0 +1,763 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.........................................................F.............. [  1%]
+........................................................................ [  3%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 14%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+................s....................................................... [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+.....................................................................s.. [ 31%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+...............................s........................................ [ 39%]
+........................................................................ [ 41%]
+.............................................................F.......... [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+....................................................s................... [ 65%]
+..................sss................................................... [ 67%]
+....s........................................................s....F..... [ 69%]
+........................................................................ [ 70%]
+........................................s............................... [ 72%]
+.............s...............F.......................................... [ 73%]
+.............FF.................................s....................... [ 75%]
+......................................................F.FF.............. [ 77%]
+........................................................................ [ 78%]
+................F.F..................................................... [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+F.................................................s..................... [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+.............................................................            [100%]
+=================================== FAILURES ===================================
+_______________ test_w10_plans_run_at_every_door_while_w10_is_on _______________
+
+conn = <api.services.auth_db._PooledConnection object at 0x78d76a5b8c50>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78d769b76510>
+
+    def test_w10_plans_run_at_every_door_while_w10_is_on(conn, monkeypatch):
+        """With wave 10 ON (Tasks 10.5 and 10.6): formula measures, formula filters and the display
+        options run at `/run`, `/preview` and `/drill` -- W10-R46's interim guard is gone. Never a
+        500, and never the plan-level refusal for a plan the validator accepted."""
+        monkeypatch.setenv("NOTEBOOK_WIDGETS_W10_ENABLED", "1")
+        add_trade(conn, UID, day="2026-10-20", pnl=50)
+        c = _unraising()
+        runs = drills = set(_w10_plans())
+        for name, p in _w10_plans().items():
+            made = c.post(BASE, json={"plan": p})
+            assert made.status_code == 200 and made.json()["plan"]["v"] == 3, (name, made.text[:200])
+            for door, body in (("/run", {"def": p}), ("/run", {"defId": made.json()["id"]}),
+                               ("/preview", {"plan": p}), ("/drill", {"def": p, "cell": {}})):
+                r = c.post(BASE + door, json=body)
+                ok = name in (drills if door == "/drill" else runs)
+                assert r.status_code == (200 if ok else 400), (name, door, r.status_code, r.text[:200])
+                if not ok:
+                    assert r.json()["detail"] == {"code": "invalid", "message": wplan.S_UNREADABLE}
+        r = c.post(BASE + "/run", json={"def": _w10_plans()["row formula measure"]})
+>       assert r.json()["value"]["v1"] == 100.0                     # [net] * 2, added up
+E       assert None == 100.0
+
+tests/test_widget_definitions_router.py:1081: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_w10_plans_run_at_every_do0/wsrc.db
+---------------------------- Captured stderr setup -----------------------------
+2026-11-19 18:58:15,940 INFO slowapi: Storage has been reset and all limits cleared
+------------------------------ Captured log setup ------------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+--------------------------- Captured stderr teardown ---------------------------
+2026-11-19 18:58:16,921 INFO slowapi: Storage has been reset and all limits cleared
+---------------------------- Captured log teardown -----------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+_________ test_no_new_route_was_added_so_the_pinned_list_is_untouched __________
+
+    def test_no_new_route_was_added_so_the_pinned_list_is_untouched():
+        """⭐ R45 extends an existing route on purpose. If this ever becomes a 28th route, the pinned
+        EXPECTED_GET_ROUTES and the literal 27 must both move — and this test is the reminder."""
+        floor_tests = (REPO / "tests" / "test_wisdom_item3_floor.py").read_text(encoding="utf-8")
+>       assert "== 27" in floor_tests, "the route count pin moved; R45's no-new-surface claim is stale"
+E       AssertionError: the route count pin moved; R45's no-new-surface claim is stale
+E       assert '== 27' in '"""Wave 1.5 item 3 — the publication floor. The nine checks from the session-3 decision pack.\n\n⛔ Every test here is...ses("PRINCIPLE", 1.0, floor.MIN_RUNS) is True\n    assert floor.passes("PRINCIPLE", 1.0, floor.MIN_RUNS + 1) is True\n'
+
+tests/test_wisdom_admin_status_counts.py:179: AssertionError
+_____________ test_tools_refuse_paths_inside_the_shared_data_root ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_tools_refuse_paths_inside0')
+
+    def test_tools_refuse_paths_inside_the_shared_data_root(tmp_path):
+        common = _load("extract_common")
+>       assert common._inside_shared_root("C:\\data\\wisdom.db") and common._inside_shared_root("/data/x/y.db")
+E       AssertionError: assert (False)
+E        +  where False = <function _inside_shared_root at 0x78d747128c20>('C:\\data\\wisdom.db')
+E        +    where <function _inside_shared_root at 0x78d747128c20> = <module 'wisdom_tool_extract_common' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/wisdom/extract_common.py'>._inside_shared_root
+
+tests/test_wisdom_extract_tools.py:125: AssertionError
+___ test_the_gate_registry_still_holds_25_gates_and_the_five_are_among_them ____
+
+    def test_the_gate_registry_still_holds_25_gates_and_the_five_are_among_them():
+        """Re-asserted per the brief: the switch surface has not moved under the tool."""
+        from api.services.wisdom.core import flags
+    
+        # Was 25; WISDOM_TWITTER_LISTENER_ENABLED added by session 28 (2026-09-19).
+        # 27: WISDOM_ARCHIVE_ENABLED (TSDR trader archive; member-visible by owner ruling 2026-10-15).
+        # 28: WISDOM_ARCHIVE_ASK_ENABLED (Ask AI's setup-context block over the archive; member-visible,
+        # double-gated with WISDOM_ARCHIVE_ENABLED; dark at merge).
+        # 29: WISDOM_ARCHIVE_LINES_ENABLED (auto chart reference lines; member-visible, 2026-10-16).
+>       assert len(flags.GATES) == 29, len(flags.GATES)
+E       AssertionError: 31
+E       assert 31 == 29
+E        +  where 31 = len((('WISDOM_INGEST_ENABLED', <function ingest_enabled at 0x78d749e2da80>, False), ('WISDOM_CAPTURE_ENABLED', <function c...2dd00>, False), ('WISDOM_TWITTER_LISTENER_ENABLED', <function twitter_listener_enabled at 0x78d749e2dda0>, False), ...))
+E        +    where (('WISDOM_INGEST_ENABLED', <function ingest_enabled at 0x78d749e2da80>, False), ('WISDOM_CAPTURE_ENABLED', <function c...2dd00>, False), ('WISDOM_TWITTER_LISTENER_ENABLED', <function twitter_listener_enabled at 0x78d749e2dda0>, False), ...) = <module 'api.services.wisdom.core.flags' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/wisdom/core/flags.py'>.GATES
+
+tests/test_wisdom_ingest_persisted_run.py:143: AssertionError
+_______________ test_8_the_route_list_is_unchanged_byte_for_byte _______________
+
+    def test_8_the_route_list_is_unchanged_byte_for_byte():
+        dark, routes = _routes()
+        got = [(r["path"], dark.classify(r)) for r in routes]
+>       assert got == EXPECTED_GET_ROUTES
+E       AssertionError: assert [('/api/admin...'admin'), ...] == [('/api/admin...'admin'), ...]
+E         
+E         At index 43 diff: ('/api/wisdom/archive/ticker/{sym}/team-history', 'authed') != ('/api/wisdom/archive/trader/{author}', 'authed')
+E         Left contains one more item: ('/api/wisdom/team-calls', 'authed')
+E         
+E         Full diff:
+E           [
+E               (
+E                   '/api/admin/wisdom/archive/desk/{video_id}',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/archive/search',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/archive/setup/{setup}',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/archive/stats',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/archive/ticker/{sym}',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/capture/health',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/capture/runs',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/core/private/{record_id}',
+E                   'owner',
+E               ),
+E               (
+E                   '/api/admin/wisdom/core/runs',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/core/status',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/evals/metrics',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/evals/outcomes/{record_id}',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/evals/run/last',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/extract/batches',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/extract/budget',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/extract/gate',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/publish/adapters/badges',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/publish/adapters/d20',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/publish/adapters/drafts',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/publish/adapters/status',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/publish/dashboard',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/publish/queue',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/publish/queue/counts',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/publish/queue/{item_id}',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/publish/reports',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/publish/reports/{report_id}',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/sources/discord/status',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/sources/sunday-scans/verify',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/admin/wisdom/sources/transcripts/coverage',
+E                   'admin',
+E               ),
+E               (
+E                   '/api/internal/wisdom/publish/adapters/clip-candidates',
+E                   'internal',
+E               ),
+E               (
+E                   '/api/internal/wisdom/publish/adapters/kb-export',
+E                   'internal',
+E               ),
+E               (
+E                   '/api/internal/wisdom/publish/golden-candidates',
+E                   'internal',
+E               ),
+E               (
+E                   '/api/wisdom/archive/check',
+E                   'authed',
+E               ),
+E               (
+E                   '/api/wisdom/archive/image/{image_id}',
+E                   'authed',
+E               ),
+E               (
+E                   '/api/wisdom/archive/pattern/{pattern_id}',
+E                   'authed',
+E               ),
+E               (
+E                   '/api/wisdom/archive/playbook/{setup}',
+E                   'authed',
+E               ),
+E               (
+E                   '/api/wisdom/archive/playbooks',
+E                   'authed',
+E               ),
+E               (
+E                   '/api/wisdom/archive/rhymes',
+E                   'authed',
+E               ),
+E               (
+E                   '/api/wisdom/archive/search',
+E                   'authed',
+E               ),
+E               (
+E                   '/api/wisdom/archive/setup/{setup}',
+E                   'authed',
+E               ),
+E               (
+E                   '/api/wisdom/archive/stats',
+E                   'authed',
+E               ),
+E               (
+E                   '/api/wisdom/archive/ticker/{sym}',
+E                   'authed',
+E               ),
+E               (
+E                   '/api/wisdom/archive/ticker/{sym}/daily',
+E                   'authed',
+E               ),
+E               (
+E         +         '/api/wisdom/archive/ticker/{sym}/team-history',
+E         +         'authed',
+E         +     ),
+E         +     (
+E                   '/api/wisdom/archive/trader/{author}',
+E                   'authed',
+E               ),
+E               (
+E                   '/api/wisdom/team-calls',
+E                   'authed',
+E               ),
+E           ]
+
+tests/test_wisdom_item3_floor.py:573: AssertionError
+_ test_8b_every_route_is_admin_owner_or_internal_except_the_ruled_paid_member_routes _
+
+    def test_8b_every_route_is_admin_owner_or_internal_except_the_ruled_paid_member_routes():
+        """⚰️ This was `..._and_none_is_member_facing`, and it held until the owner made the trader
+        archive a paid member surface (2026-10-15) and added its team-call lane (2026-10-16). The
+        rule now: a member-facing route may exist ONLY under MEMBER_PREFIXES, and every one of those
+        carries require_paid. Anything else member-facing is still a failure by name."""
+        dark, routes = _routes()
+        member = [r for r in routes if dark.classify(r) not in {"admin", "owner", "internal"}]
+        stray = [r["path"] for r in member if not r["path"].startswith(MEMBER_PREFIXES)]
+        assert stray == [], f"a member-facing Wisdom GET route appeared outside the ruled prefixes: {stray}"
+        unpaid = [r["path"] for r in member if "require_paid" not in (r.get("guards") or [])]
+        assert unpaid == [], f"a ruled member route is not require_paid: {unpaid}"
+        assert member, "non-vacuity: the ruled member routes were not found at all"
+        assert not [r for r in routes if dark.classify(r) == "UNGUARDED"]
+        # non-vacuity: the walk must actually have found routes to classify
+>       assert len(routes) == len(EXPECTED_GET_ROUTES) == 45
+E       AssertionError: assert 46 == 45
+E        +  where 46 = len([{'guards': ['require_admin'], 'path': '/api/admin/wisdom/archive/desk/{video_id}'}, {'guards': ['require_admin'], 'pa...pi/admin/wisdom/archive/ticker/{sym}'}, {'guards': ['require_admin'], 'path': '/api/admin/wisdom/capture/health'}, ...])
+E        +  and   45 = len([('/api/admin/wisdom/archive/desk/{video_id}', 'admin'), ('/api/admin/wisdom/archive/search', 'admin'), ('/api/admin/w...ts', 'admin'), ('/api/admin/wisdom/archive/ticker/{sym}', 'admin'), ('/api/admin/wisdom/capture/health', 'admin'), ...])
+
+tests/test_wisdom_item3_floor.py:590: AssertionError
+______________ test_the_archive_is_not_read_while_its_flag_is_off ______________
+
+seeded = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_archive_is_not_read_w0/wisdom.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78d747a28c20>
+
+    def test_the_archive_is_not_read_while_its_flag_is_off(seeded, monkeypatch):
+        monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "1")
+        _seed_archive()
+        monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "0")
+        with store.read() as conn:
+            assert modelbook.build_archive_example_drafts(conn) == []
+            playbooks = {d["payload"]["setup_name"]: d for d in modelbook.build_playbook_drafts(conn)}
+>       labels = [s["label"] for s in playbooks[LIBRARY_SETUP]["payload"]["sections"]]
+E       KeyError: 'Kicker Candle'
+
+tests/test_wisdom_modelbook_archive_drafts.py:194: KeyError
+____ test_a_missing_playbook_gains_the_measured_record_teachings_and_calls _____
+
+archive_on = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_missing_playbook_gains_0/wisdom.db')
+
+    def test_a_missing_playbook_gains_the_measured_record_teachings_and_calls(archive_on):
+>       assert LIBRARY_SETUP in modelbook.missing_playbooks()
+E       AssertionError: assert 'Kicker Candle' in ['Cup & Handle', 'Power Earnings Gap', 'News/Earnings Gapper', 'Gap Support', '2B Reversal', 'U&R (Undercut & Rally)', ...]
+E        +  where ['Cup & Handle', 'Power Earnings Gap', 'News/Earnings Gapper', 'Gap Support', '2B Reversal', 'U&R (Undercut & Rally)', ...] = <function missing_playbooks at 0x78d748b294e0>()
+E        +    where <function missing_playbooks at 0x78d748b294e0> = modelbook.missing_playbooks
+
+tests/test_wisdom_modelbook_archive_drafts.py:230: AssertionError
+_______________ test_the_verdict_says_measured_only_at_the_z_bar _______________
+
+seeded = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_verdict_says_measured0/wisdom.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78d745b7a2a0>
+
+    def test_the_verdict_says_measured_only_at_the_z_bar(seeded, monkeypatch):
+        monkeypatch.setenv("WISDOM_ARCHIVE_ENABLED", "1")
+        _seed_archive(z=3.4)
+>       _, sections = _archive_sections(LIBRARY_SETUP)
+
+tests/test_wisdom_modelbook_archive_drafts.py:245: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+setup = 'Kicker Candle'
+
+    def _archive_sections(setup):
+        with store.read() as conn:
+>           pb = {d["payload"]["setup_name"]: d for d in modelbook.build_playbook_drafts(conn)}[setup]
+E           KeyError: 'Kicker Candle'
+
+tests/test_wisdom_modelbook_archive_drafts.py:225: KeyError
+_______ test_the_missing_playbooks_are_derived_from_the_two_setup_files ________
+
+seeded = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_missing_playbooks_are0/wisdom.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78d7484a1e80>
+
+    def test_the_missing_playbooks_are_derived_from_the_two_setup_files(seeded, monkeypatch):
+        catalog, authored = modelbook.catalog_names(), modelbook.authored_playbooks()
+        assert len(catalog) >= 20 and "Bull Flag" in authored and "Cup & Handle" in catalog  # non-vacuity
+        missing = modelbook.missing_playbooks()
+        assert missing == [n for n in catalog if n not in set(authored)]
+>       assert len(missing) == 17  # the owner's "17 missing setup playbooks", measured 2026-09-13
+E       AssertionError: assert 13 == 17
+E        +  where 13 = len(['Cup & Handle', 'Power Earnings Gap', 'News/Earnings Gapper', 'Gap Support', '2B Reversal', 'U&R (Undercut & Rally)', ...])
+
+tests/test_wisdom_publish_adapters_drafts.py:93: AssertionError
+________________ test_nothing_is_drafted_while_the_flag_is_off _________________
+
+seeded = PosixPath('/tmp/pytest-of-runner/pytest-0/test_nothing_is_drafted_while_0/wisdom.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78d7484a0050>
+
+    def test_nothing_is_drafted_while_the_flag_is_off(seeded, monkeypatch):
+        monkeypatch.delenv("WISDOM_MODELBOOK_DRAFTS_ENABLED", raising=False)
+        out = modelbook.daily(_ctx())
+>       assert out["example_drafts"] == 1 and out["playbook_drafts"] == 17
+E       assert (1 == 1 and 13 == 17)
+
+tests/test_wisdom_publish_adapters_drafts.py:145: AssertionError
+_____ test_every_door_into_the_wisdom_package_from_outside_it_is_declared ______
+
+    def test_every_door_into_the_wisdom_package_from_outside_it_is_declared():
+        """⛔⛔ THE LOAD-BEARING ONE. A new member surface reading wisdom data lands here first."""
+        found = _doors()
+        undeclared = sorted(set(found) - set(DECLARED_DOORS))
+>       assert not undeclared, (
+            "a module outside the wisdom package now reads it and R50 has not classified it: "
+            f"{undeclared}. Add it to DECLARED_DOORS with its visibility and its gate — and if it is "
+            "MEMBER-visible and ungated, list (i) is no longer empty and EXTRACT is not ruled.")
+E       AssertionError: a module outside the wisdom package now reads it and R50 has not classified it: ['api/services/uct_agent/knowledge/kinds.py']. Add it to DECLARED_DOORS with its visibility and its gate — and if it is MEMBER-visible and ungated, list (i) is no longer empty and EXTRACT is not ruled.
+E       assert not ['api/services/uct_agent/knowledge/kinds.py']
+
+tests/test_wisdom_type_gating_audit.py:114: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_wisdom_bans.py:627
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_wisdom_bans.py:627: SyntaxWarning: invalid escape sequence '\w'
+    `\w*journal`) would silently exempt every real reference that shares a line with a
+
+tests/test_widget_embed_builders_declared_attrs.py::test_every_server_widget_embed_builder_writes_only_declared_attributes
+tests/test_yf_guard_binds.py::test_every_yfinance_module_has_a_binding_proof_or_a_named_reason
+  api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_wisdom_bans.py::test_the_rails_import_only_the_standard_library[tests/test_wisdom_bans.py]
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_wisdom_type_gating_audit.py::test_every_door_into_the_wisdom_package_from_outside_it_is_declared
+tests/test_wisdom_type_gating_audit.py::test_the_door_census_can_actually_see_a_door
+tests/test_wisdom_type_gating_audit.py::test_every_declared_sub_door_is_real_and_names_a_member_visible_gate
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_worker_uploader_independent.py: 10 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread s3_upload
+  
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/worker_main.py", line 186, in loop
+      if not data_sync.credentials_ok():
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_worker_uploader_independent.py", line 49, in credentials_ok
+      raise SystemExit
+  SystemExit
+  
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_worker_uploader_independent.py::test_a_finished_base_is_marked_and_not_rebuilt_that_day
+tests/test_worker_uploader_independent.py::test_the_delta_outcome_is_not_overwritten_by_the_base
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread s3_base_upload
+  
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/worker_main.py", line 235, in base_loop
+      if not data_sync.credentials_ok():
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_worker_uploader_independent.py", line 49, in credentials_ok
+      raise SystemExit
+  SystemExit
+  
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_yf_tail_timeout_cap.py::test_nightly_deep_warm_keeps_the_20s_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3398: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_yf_tail_timeout_cap.py::test_nightly_deep_warm_keeps_the_20s_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3401: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_widget_latency.py:123: seeding 50,000 trades is slow; set UCT_WIDGET_50K=1 to measure
+SKIPPED [1] tests/test_widget_run.py:579: seeding 50,000 trades is slow; set UCT_WIDGET_50K=1 to measure
+SKIPPED [1] tests/test_widget_tool_sources.py:824: seeding 10 years x 60 routines is slow; set UCT_WIDGET_W9_10Y=1
+SKIPPED [1] tests/test_wisdom_extract_catalog_categories.py:189: gitignored artifact absent: /home/runner/work/UCT-Dashboard/UCT-Dashboard/data/wisdom/extract/catalog-estimate-defaults.json
+SKIPPED [3] tests/test_wisdom_extract_golden_gate_cli.py:44: needs the real golden-v1.1.jsonl (gitignored)
+SKIPPED [1] tests/test_wisdom_extract_prompt.py:178: golden labels are gitignored and not present here
+SKIPPED [1] tests/test_wisdom_extract_segmenter.py:288: golden set / samples are gitignored and not present on this checkout
+SKIPPED [1] tests/test_wisdom_golden_freeze.py:154: golden set not on this box (gitignored)
+SKIPPED [1] tests/test_wisdom_identity_study.py:258: needs the 3 persisted PAID gate runs (gitignored); found 0 of 0 total under /home/runner/work/UCT-Dashboard/UCT-Dashboard/data/wisdom/gate-runs
+SKIPPED [1] tests/test_wisdom_ledger_tokens.py:257: no persisted ledger in this checkout (gitignored tree)
+SKIPPED [1] tests/test_wisdom_vocab_authority.py:308: set WISDOM_ENGINE_DB to uct_intelligence.db to re-measure (tools/wisdom/core_vocab_engine_check.py)
+FAILED tests/test_widget_definitions_router.py::test_w10_plans_run_at_every_door_while_w10_is_on - assert None == 100.0
+FAILED tests/test_wisdom_admin_status_counts.py::test_no_new_route_was_added_so_the_pinned_list_is_untouched - AssertionError: the route count pin moved; R45's no-new-surface claim is stale
+assert '== 27' in '"""Wave 1.5 item 3 — the publication floor. The nine checks from the session-3 decision pack.\n\n⛔ Every test here is...ses("PRINCIPLE", 1.0, floor.MIN_RUNS) is True\n    assert floor.passes("PRINCIPLE", 1.0, floor.MIN_RUNS + 1) is True\n'
+FAILED tests/test_wisdom_extract_tools.py::test_tools_refuse_paths_inside_the_shared_data_root - AssertionError: assert (False)
+ +  where False = <function _inside_shared_root at 0x78d747128c20>('C:\\data\\wisdom.db')
+ +    where <function _inside_shared_root at 0x78d747128c20> = <module 'wisdom_tool_extract_common' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/wisdom/extract_common.py'>._inside_shared_root
+FAILED tests/test_wisdom_ingest_persisted_run.py::test_the_gate_registry_still_holds_25_gates_and_the_five_are_among_them - AssertionError: 31
+assert 31 == 29
+ +  where 31 = len((('WISDOM_INGEST_ENABLED', <function ingest_enabled at 0x78d749e2da80>, False), ('WISDOM_CAPTURE_ENABLED', <function c...2dd00>, False), ('WISDOM_TWITTER_LISTENER_ENABLED', <function twitter_listener_enabled at 0x78d749e2dda0>, False), ...))
+ +    where (('WISDOM_INGEST_ENABLED', <function ingest_enabled at 0x78d749e2da80>, False), ('WISDOM_CAPTURE_ENABLED', <function c...2dd00>, False), ('WISDOM_TWITTER_LISTENER_ENABLED', <function twitter_listener_enabled at 0x78d749e2dda0>, False), ...) = <module 'api.services.wisdom.core.flags' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/wisdom/core/flags.py'>.GATES
+FAILED tests/test_wisdom_item3_floor.py::test_8_the_route_list_is_unchanged_byte_for_byte - AssertionError: assert [('/api/admin...'admin'), ...] == [('/api/admin...'admin'), ...]
+  
+  At index 43 diff: ('/api/wisdom/archive/ticker/{sym}/team-history', 'authed') != ('/api/wisdom/archive/trader/{author}', 'authed')
+  Left contains one more item: ('/api/wisdom/team-calls', 'authed')
+  
+  Full diff:
+    [
+        (
+            '/api/admin/wisdom/archive/desk/{video_id}',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/archive/search',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/archive/setup/{setup}',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/archive/stats',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/archive/ticker/{sym}',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/capture/health',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/capture/runs',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/core/private/{record_id}',
+            'owner',
+        ),
+        (
+            '/api/admin/wisdom/core/runs',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/core/status',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/evals/metrics',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/evals/outcomes/{record_id}',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/evals/run/last',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/extract/batches',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/extract/budget',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/extract/gate',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/publish/adapters/badges',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/publish/adapters/d20',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/publish/adapters/drafts',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/publish/adapters/status',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/publish/dashboard',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/publish/queue',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/publish/queue/counts',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/publish/queue/{item_id}',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/publish/reports',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/publish/reports/{report_id}',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/sources/discord/status',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/sources/sunday-scans/verify',
+            'admin',
+        ),
+        (
+            '/api/admin/wisdom/sources/transcripts/coverage',
+            'admin',
+        ),
+        (
+            '/api/internal/wisdom/publish/adapters/clip-candidates',
+            'internal',
+        ),
+        (
+            '/api/internal/wisdom/publish/adapters/kb-export',
+            'internal',
+        ),
+        (
+            '/api/internal/wisdom/publish/golden-candidates',
+            'internal',
+        ),
+        (
+            '/api/wisdom/archive/check',
+            'authed',
+        ),
+        (
+            '/api/wisdom/archive/image/{image_id}',
+            'authed',
+        ),
+        (
+            '/api/wisdom/archive/pattern/{pattern_id}',
+            'authed',
+        ),
+        (
+            '/api/wisdom/archive/playbook/{setup}',
+            'authed',
+        ),
+        (
+            '/api/wisdom/archive/playbooks',
+            'authed',
+        ),
+        (
+            '/api/wisdom/archive/rhymes',
+            'authed',
+        ),
+        (
+            '/api/wisdom/archive/search',
+            'authed',
+        ),
+        (
+            '/api/wisdom/archive/setup/{setup}',
+            'authed',
+        ),
+        (
+            '/api/wisdom/archive/stats',
+            'authed',
+        ),
+        (
+            '/api/wisdom/archive/ticker/{sym}',
+            'authed',
+        ),
+        (
+            '/api/wisdom/archive/ticker/{sym}/daily',
+            'authed',
+        ),
+        (
+  +         '/api/wisdom/archive/ticker/{sym}/team-history',
+  +         'authed',
+  +     ),
+  +     (
+            '/api/wisdom/archive/trader/{author}',
+            'authed',
+        ),
+        (
+            '/api/wisdom/team-calls',
+            'authed',
+        ),
+    ]
+FAILED tests/test_wisdom_item3_floor.py::test_8b_every_route_is_admin_owner_or_internal_except_the_ruled_paid_member_routes - AssertionError: assert 46 == 45
+ +  where 46 = len([{'guards': ['require_admin'], 'path': '/api/admin/wisdom/archive/desk/{video_id}'}, {'guards': ['require_admin'], 'pa...pi/admin/wisdom/archive/ticker/{sym}'}, {'guards': ['require_admin'], 'path': '/api/admin/wisdom/capture/health'}, ...])
+ +  and   45 = len([('/api/admin/wisdom/archive/desk/{video_id}', 'admin'), ('/api/admin/wisdom/archive/search', 'admin'), ('/api/admin/w...ts', 'admin'), ('/api/admin/wisdom/archive/ticker/{sym}', 'admin'), ('/api/admin/wisdom/capture/health', 'admin'), ...])
+FAILED tests/test_wisdom_modelbook_archive_drafts.py::test_the_archive_is_not_read_while_its_flag_is_off - KeyError: 'Kicker Candle'
+FAILED tests/test_wisdom_modelbook_archive_drafts.py::test_a_missing_playbook_gains_the_measured_record_teachings_and_calls - AssertionError: assert 'Kicker Candle' in ['Cup & Handle', 'Power Earnings Gap', 'News/Earnings Gapper', 'Gap Support', '2B Reversal', 'U&R (Undercut & Rally)', ...]
+ +  where ['Cup & Handle', 'Power Earnings Gap', 'News/Earnings Gapper', 'Gap Support', '2B Reversal', 'U&R (Undercut & Rally)', ...] = <function missing_playbooks at 0x78d748b294e0>()
+ +    where <function missing_playbooks at 0x78d748b294e0> = modelbook.missing_playbooks
+FAILED tests/test_wisdom_modelbook_archive_drafts.py::test_the_verdict_says_measured_only_at_the_z_bar - KeyError: 'Kicker Candle'
+FAILED tests/test_wisdom_publish_adapters_drafts.py::test_the_missing_playbooks_are_derived_from_the_two_setup_files - AssertionError: assert 13 == 17
+ +  where 13 = len(['Cup & Handle', 'Power Earnings Gap', 'News/Earnings Gapper', 'Gap Support', '2B Reversal', 'U&R (Undercut & Rally)', ...])
+FAILED tests/test_wisdom_publish_adapters_drafts.py::test_nothing_is_drafted_while_the_flag_is_off - assert (1 == 1 and 13 == 17)
+FAILED tests/test_wisdom_type_gating_audit.py::test_every_door_into_the_wisdom_package_from_outside_it_is_declared - AssertionError: a module outside the wisdom package now reads it and R50 has not classified it: ['api/services/uct_agent/knowledge/kinds.py']. Add it to DECLARED_DOORS with its visibility and its gate — and if it is MEMBER-visible and ungated, list (i) is no longer empty and EXTRACT is not ruled.
+assert not ['api/services/uct_agent/knowledge/kinds.py']
+12 failed, 4356 passed, 13 skipped, 23 warnings in 639.94s (0:10:39)

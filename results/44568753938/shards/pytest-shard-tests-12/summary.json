@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 1163,
+  "passed": 1125,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 37,
+  "wall_s": 375.88,
+  "failed_files": [
+    "tests/test_notebook_perf_budgets.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 1125 passed, 37 skipped, 3 warnings in 375.88s (0:06:15)",
+  "ok": true
+}

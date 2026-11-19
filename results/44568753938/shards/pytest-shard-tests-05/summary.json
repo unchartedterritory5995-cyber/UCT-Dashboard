@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 546,
+  "passed": 543,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 410.95,
+  "failed_files": [
+    "tests/test_corp_actions_census.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 543 passed, 7 warnings in 410.95s (0:06:50)",
+  "ok": true
+}

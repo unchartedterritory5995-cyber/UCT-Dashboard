@@ -1,0 +1,21 @@
+{
+  "suite": "pytest",
+  "collected": 2122,
+  "passed": 2052,
+  "failed": 27,
+  "errored": 13,
+  "skipped": 30,
+  "wall_s": 536.42,
+  "failed_files": [
+    "tests/test_gallery_w11_fnote1.py",
+    "tests/test_gate_box_lock.py",
+    "tests/test_gate_shards.py",
+    "tests/test_gitattributes_eol.py",
+    "tests/test_history_lake_build.py",
+    "tests/test_history_lake_jobs.py",
+    "tests/test_history_lake_pack.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "27 failed, 2052 passed, 30 skipped, 10 warnings, 13 errors in 536.42s (0:08:56)",
+  "ok": true
+}

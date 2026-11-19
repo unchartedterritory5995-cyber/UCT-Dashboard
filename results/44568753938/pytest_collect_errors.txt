@@ -1,0 +1,45 @@
+======================================================================
+ERROR collecting tests/test_canonical_address_book.py
+BUCKET: AssertionError: week-contract readers with no week_days() assertion: ['api.services.earnings_season.read_week', 'api.services.uct_agent.marketdata.earnings_reactions.cached_day']
+----------------------------------------------------------------------
+tests/test_canonical_address_book.py:659: in <module>
+    @pytest.mark.parametrize("column,sqltype", _ohlcv_columns())
+tests/test_canonical_address_book.py:614: in _ohlcv_columns
+    body = _re.search(r"\((.*)\)", _ohlcv_ddl(), _re.S).group(1)
+tests/test_canonical_address_book.py:607: in _ohlcv_ddl
+    assert len(hits) == 1, f"expected one ohlcv DDL in CODE, found {len(hits)}"
+E   AssertionError: expected one ohlcv DDL in CODE, found 0
+E   assert 0 == 1
+E    +  where 0 = len([])
+=================================== FAILURES ===================================
+________ test_every_reader_outside_the_owner_calls_the_shared_assertion ________
+
+capsys = <_pytest.capture.CaptureFixture object at 0x721580295e50>
+
+    def test_every_reader_outside_the_owner_calls_the_shared_assertion(capsys):
+        readers, _ = _full_census()
+        outside = {r: ok for r, ok in readers.items() if not r.startswith(OWNER + ".")}
+        owner = {r: ok for r, ok in readers.items() if r.startswith(OWNER + ".")}
+        with capsys.disabled():
+            print(f"\n[TERM-030] week-contract readers outside {OWNER}: {len(outside)}")
+            for r in sorted(outside):
+                tag = 'asserted' if outside[r] else ('FROZEN  ' if r in FROZEN else 'BARE    ')
+                print(f"    {tag}  {r}")
+            print(f"[TERM-030] owner-internal readers (denominator, not in scope): {len(owner)}"
+                  f" — asserted {sum(owner.values())}")
+            for r in sorted(owner):
+                print(f"    {'asserted' if owner[r] else 'bare    '}  {r}")
+        assert outside, "the census found no readers at all — it cannot be seeing the source"
+        assert owner, "the census found no owner-internal readers — it cannot be seeing the router"
+        bare = sorted(r for r, ok in outside.items() if not ok and r not in FROZEN)
+>       assert not bare, f"week-contract readers with no week_days() assertion: {bare}"
+E       AssertionError: week-contract readers with no week_days() assertion: ['api.services.earnings_season.read_week', 'api.services.uct_agent.marketdata.earnings_reactions.cached_day']
+E       assert not ['api.services.earnings_season.read_week', 'api.services.uct_agent.marketdata.earnings_reactions.cached_day']
+
+tests/test_calendar_week_contract.py:424: AssertionError
+_________________ test_most_anticipated_card_render_is_pinned __________________
+
+    def test_most_anticipated_card_render_is_pinned():
+        """calendar_png_common is shared by all three cards, so a change there
+        reaches this already-shipped one too. The hash is a TRIPWIRE, not a
+
