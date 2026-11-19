@@ -45,6 +45,11 @@ on:
         required: false
         default: ""
         type: string
+      env:
+        description: "space-separated KEY=VALUE measurement variables (allowlist in tools/remote_tests.py; never a secret)"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -63,6 +68,7 @@ jobs:
       has_vitest: ${{ steps.v.outputs.has_vitest }}
       shards: ${{ steps.v.outputs.shards }}
       shard_count: ${{ steps.v.outputs.shard_count }}
+      env: ${{ steps.v.outputs.env }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -76,6 +82,7 @@ jobs:
           RT_PYTEST: ${{ inputs.pytest }}
           RT_VITEST: ${{ inputs.vitest }}
           RT_SHARDS: ${{ inputs.vitest_shards }}
+          RT_ENV: ${{ inputs.env }}
         run: python3 tools/remote_tests.py --validate-inputs
 
   pytest:
@@ -117,6 +124,15 @@ jobs:
           # cut before the file existed has none to install, and must still run.
           if [ -f tests/ci-only-packages.txt ]; then python -m pip install --quiet -r tests/ci-only-packages.txt; fi
           (cd app && npm ci --no-audit --no-fund)
+      # (2026-11-18, D1) the request's measurement variables, VALIDATED by master's tools/remote_tests.py in the plan
+      # job (allowlisted names, no shell-active characters, no newline). They arrive through env: and are written
+      # to $GITHUB_ENV one KEY=VALUE per line; globbing is off. Never interpolated into a run: line.
+      - name: Export the allowlisted measurement variables
+        env:
+          RT_ENV: ${{ needs.plan.outputs.env }}
+        run: |
+          set -f
+          if [ -n "$RT_ENV" ]; then printf '%s\n' $RT_ENV >> "$GITHUB_ENV"; fi
       # A RED TEST RESULT IS DATA, NOT A FAILED RUN (2026-11-16): every failed run emails the owner, and sessions send
       # in-progress work here on purpose. The test step may fail without failing the job; its outcome is written to a
       # verdict file that tools/remote_tests.py reads (red tests -> exit 1). Only the lane itself (checkout, install,
@@ -147,6 +163,14 @@ jobs:
             remote-pytest-verdict.txt
             remote-pytest-junit.xml
             remote-pytest.log
+          if-no-files-found: ignore
+          retention-days: 7
+      # what the tests wrote under remote-out/ (an *_OUT variable must point there): `--download DIR` fetches it
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: remote-out-pytest
+          path: remote-out/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -204,6 +228,12 @@ jobs:
       - name: npm ci
         working-directory: app
         run: npm ci --no-audit --no-fund
+      - name: Export the allowlisted measurement variables
+        env:
+          RT_ENV: ${{ needs.plan.outputs.env }}
+        run: |
+          set -f
+          if [ -n "$RT_ENV" ]; then printf '%s\n' $RT_ENV >> "$GITHUB_ENV"; fi
       - name: vitest
         id: t
         continue-on-error: true
@@ -241,5 +271,12 @@ jobs:
             remote-vitest-verdict-${{ matrix.shard }}.txt
             remote-vitest-junit-${{ matrix.shard }}.xml
             remote-vitest-${{ matrix.shard }}.log
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: remote-out-vitest-${{ matrix.shard }}
+          path: remote-out/
           if-no-files-found: ignore
           retention-days: 7

@@ -25,7 +25,9 @@
 // its drawings not drawn), as the host withholds that bar.
 
 import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js'
-import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay } from '../otherSymbols.js'
+import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay,
+  OWN_DAILY_KEY, SERIES_NEWEST_FORMING, etSessionDayOf, sessionCloseOf, sessionKeyedRowsOf, WITNESS_PERIOD_READS } from '../otherSymbols.js'
+import { isTradingDay } from '../../../../lib/marketClock/sessionCalendar.js'
 
 export const REQUEST_GUARD = 'runtime:request'
 
@@ -77,6 +79,8 @@ function decideOther(target, ctx) {
     tf: ctx && ctx.tf,
     // ⭐ RS RATING L11 PR 2 — the chart's newest bar reads its own period (`newestOwnPeriodOf`)
     chartNewestDay: ctx && ctx.chartNewestDay,
+    // ⭐ RS RATING L12 PR 2 (Q-L12-2) — the chart's bars, for a seed's intraday fold (`utcMidnightAtOrAfterOf`)
+    chartBars: ctx && ctx.chartBars,
     requestCode: target.code == null ? null : String(target.code),
     ...(target.below === true ? { below: true } : {}),
   }) }
@@ -107,6 +111,100 @@ function belowChartRead(target, rows, ctx) {
   return { runBars, index, withheld, other: ticker }
 }
 
+const INTRADAY_CODES = new Set(['1', '5', '15', '30', '60'])
+
+/** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — A DAILY READ ABOVE AN INTRADAY CHART (`pine.js`: `above`, a bare
+ *  open / high / low / close, look-ahead off). The request's expression runs on the symbol's HELD daily rows
+ *  (`runBars`) and each chart bar reads one of them (`index`), as TradingView reads them (`l12-is-2026-11-18`):
+ *    * ANOTHER SYMBOL (a witness row whose intraday block names `D: session-completed`, SP:SPX): the row its
+ *      session had COMPLETED: a bar opening before its session's close the previous session's row, a bar from
+ *      the close the session's own (once that row is settled: `SERIES_NEWEST_FORMING`).
+ *    * THIS CHART'S OWN SYMBOL (its daily rows under `OWN_DAILY_KEY`, fetched by the chart for a run that reads
+ *      them): the previous session's row on every bar of a session except its LAST chart bar, which reads the
+ *      session's own (the daily bar closes on the chart's last bar of the day: 5m 19:55 on 95 of 95 days, 60m
+ *      19:00 on 656), and the newest bar, which reads the session's own (in progress: the developing day).
+ *  A bar whose row is not held is withheld (`withheld`), and the supply's rules below apply.
+ *  @returns {{refusal?: string, pending?: true, runBars?: object[], index?: Int32Array, withheld?: Float64Array, other?: string|null}} */
+function aboveChartRead(target, rows, ctx) {
+  const n = Array.isArray(rows) ? rows.length : 0
+  let daily = null
+  let other = null
+  let ownRead = false
+  let forming = false
+  if (target.ticker) {
+    const { ticker, decision } = decideOther(target, ctx)
+    const hit = (decision.refused || [])[0]
+    if (hit) {
+      if (otherSymbolPending(hit)) return { pending: true }
+      return { refusal: `This indicator reads \`${hit.ticker}\`: ${hit.code} — ${hit.reason}` }
+    }
+    daily = decision.symbols[ticker]
+    other = ticker
+    const sample = decision.samples ? decision.samples[ticker] : null
+    if (Array.isArray(daily) && sample === WITNESS_PERIOD_READS.UTC_MIDNIGHT_AT_OR_AFTER) {
+      // ⭐⭐ RS RATING L12 PR 2 (Q-L12-2) — a Pine SEED: the bind already landed each row on one of THIS chart's bars
+      // (`otherSymbols.js::utcMidnightAtOrAfterOf`, keyed by that bar's `t`); a bar no row landed on reads `na`, a
+      // known gap (index -1, nothing withheld), exactly as the seed's daily read does (`same-date-gaps-na`)
+      const at = new Map(daily.map((r, j) => [r.t, j]))
+      const index = new Int32Array(n).fill(-1)
+      for (let i = 0; i < n; i += 1) {
+        const j = rows[i] ? at.get(rows[i].t) : undefined
+        if (j !== undefined) index[i] = j
+      }
+      return { runBars: daily, index, withheld: new Float64Array(n), other: ticker }
+    }
+    if (!Array.isArray(daily) || sample !== WITNESS_PERIOD_READS.SESSION_COMPLETED) {
+      return { refusal: `This indicator reads \`${ticker}\` at \`"D"\` above this chart, and no daily read of it `
+        + 'is witnessed here, so nothing is drawn bar by bar rather than a guess' }
+    }
+    forming = daily[SERIES_NEWEST_FORMING] === true
+  } else {
+    const e = ctx && ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary.get(OWN_DAILY_KEY) : null
+    if (!e) {
+      return { refusal: `a \`request.security\` reads this chart's own symbol at the \`D\` timeframe above this \`${ctx && ctx.tf}\` `
+        + 'chart, and this run is not handed that symbol\'s daily bars, so nothing is drawn bar by bar rather than a guess' }
+    }
+    if (e.status !== 'available' || !Array.isArray(e.bars) || !e.bars.length) {
+      if (!e.status || e.status === 'loading') return { pending: true }
+      return { refusal: `this chart symbol's daily bars, read at \`"D"\` by a \`request.security\`, are not in hand (${e.status})` }
+    }
+    daily = sessionKeyedRowsOf(e.bars)
+    ownRead = true
+  }
+  const at = new Map(daily.map((r, j) => [r.t, j]))
+  const days = daily.map((r) => r.t)
+  // the newest held row's index whose session is strictly before `day` (binary search over ISO days)
+  const before = (day) => {
+    let lo = 0
+    let hi = days.length - 1
+    let ans = -1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      if (days[mid] < day) { ans = mid; lo = mid + 1 } else hi = mid - 1
+    }
+    return ans
+  }
+  const index = new Int32Array(n).fill(-1)
+  const withheld = new Float64Array(n)
+  const dayOf = rows.map((r) => (r && typeof r.t === 'number' ? etSessionDayOf(r.t) : null))
+  for (let i = 0; i < n; i += 1) {
+    const d = dayOf[i]
+    if (!d) { withheld[i] = 1; continue }
+    let j = -1
+    if (ownRead) {
+      const lastOfDay = i === n - 1 || dayOf[i + 1] !== d
+      j = lastOfDay && at.has(d) ? at.get(d) : before(d)
+    } else {
+      const close = isTradingDay(d) ? sessionCloseOf(d) : null
+      const ownDone = close !== null && rows[i].t >= close && at.has(d) && !(forming && at.get(d) === daily.length - 1)
+      j = ownDone ? at.get(d) : before(d)
+    }
+    if (j < 0) withheld[i] = 1
+    else index[i] = j
+  }
+  return { runBars: daily, index, withheld, other }
+}
+
 /** ⭐⭐ RS RATING L5 (d) — WHY A RUN'S REQUESTS CAN NOT BE SERVED ON ANY CHART, decided from
  *  the targets alone (the member door mints before any chart is known), or null. The same
  *  rules `runtimeRequestSupply` applies first: a request the host could not read, a look-ahead
@@ -129,6 +227,8 @@ export function requestTargetsUnservable(targets, count) {
     if (target.unread === true) return unreadOwnSentence(target, null)
     // ⭐ RS RATING L11 — a daily read of another symbol below a weekly chart is the supply's, per chart
     if (target.below === true && ladderCode(target.code) === 'D' && target.ticker) continue
+    // ⭐ RS RATING L12 PR 2 — a daily read above an intraday chart is the supply's, per chart
+    if (target.above === true && ladderCode(target.code) === 'D') continue
     const code = target.code == null ? null : ladderCode(target.code)
     // ⭐ REQ (coverage unit, 2026-11-16) — a look-ahead read of a WEEKLY / MONTHLY period is served
     // (`requestAlignment`, `live`). Look-ahead at any other code (the quarter, which the object pass
@@ -193,6 +293,21 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       if (read.refusal) return refuse(read.refusal)
       aligned = { runBars: read.runBars, index: read.index, withheld: read.withheld }
       other = read.other
+    } else if (target.above === true) {
+      // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — a daily read ABOVE an intraday chart (`aboveChartRead`)
+      if (target.ticker && ctx && ctx.otherSymbolSupply === false) {
+        return refuse(`This indicator reads \`${target.ticker}\`${at(site)}, and this run is not handed another `
+          + 'symbol\'s bars (a server run holds only the chart symbol\'s own), so nothing is drawn rather than a blank line')
+      }
+      if (!INTRADAY_CODES.has(chartCode) || ladderCode(target.code) !== 'D') {
+        return refuse(`a \`request.security\`${at(site)} reads the \`${target.code}\` timeframe on a \`${ctx && ctx.tf}\` `
+          + 'chart, and a daily read above the chart is served only on a 1, 5, 15, 30 or 60 minute chart, so nothing is drawn bar by bar')
+      }
+      const read = aboveChartRead(target, rows, ctx)
+      if (read.pending) { out.pending = true; return out }
+      if (read.refusal) return refuse(read.refusal)
+      aligned = { runBars: read.runBars, index: read.index, withheld: read.withheld }
+      other = read.other || 'this symbol\'s daily bars'
     }
     const code = aligned ? null : (target.code == null ? null : ladderCode(target.code))
     // ⭐⭐ REQ (coverage unit, 2026-11-16) — LOOK-AHEAD ON IS SERVED FOR A WEEKLY / MONTHLY PERIOD, by the

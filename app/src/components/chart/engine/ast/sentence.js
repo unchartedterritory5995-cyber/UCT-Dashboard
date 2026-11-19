@@ -940,7 +940,7 @@ function renderOp(node, rules, inputs, depth, path, trace) {
     `operator ${name}`, path)
 }
 
-// ─── ⭐ NUMBER PENDING (studio, 2026-11-18) — A BAR-FIELD ARGUMENT IS NAMED BY ITS ROLE ────
+// ─── ⭐ engine 81 (studio, 2026-11-18) — A BAR-FIELD ARGUMENT IS NAMED BY ITS ROLE ────
 //
 // `stoch`, `atr`, `adx`, `cci`, the DI pair, `williamsR`, `mfi` and the Donchian and Ichimoku lines
 // take the bar's fields BY POSITION (high, low, close, then volume), and their phrases list the

@@ -683,6 +683,48 @@ def test_one_stocks_row_says_what_the_last_build_said_when_no_list_is_held(vendo
     assert len(vendor.calls) == 1
 
 
+def test_every_row_of_the_held_list_is_read_in_one_pass_and_the_read_starts_nothing(vendor):
+    """`held_market_rows`: the whole held list keyed by symbol, for a reader that walks the market once
+    (the Screener's nightly snapshot). Like the one-stock read it never asks the vendor and never starts a job."""
+    assert sd.held_market_rows() == (None, "not_held")
+    time.sleep(0.05)
+    drain()                                                          # a build it had started would have asked by now
+    assert vendor.calls == [] and sd.held_market() == (None, "not_held")
+    vendor.rows[sd.INTEREST] = market_rows()
+    assert sd.get_market(wait_s=10)["status"] == "ok"
+    drain()
+    calls = len(vendor.calls)
+    got, how = sd.held_market_rows()
+    assert how == "held"
+    assert sorted(got["rows"]) == ["AAA", "BBB", "BRK-B", "CCC", "DDD", "EEE"] and got["count"] == 6   # ZZZ is not ours
+    assert got["settlement_date"] == D3 and got["previous_settlement_date"] == D2
+    assert got["publication_estimate"] == sd.publication_estimate(D3) and got["read_at"] and got["source"] == sd.SOURCE
+    assert got["float_source"] == sd.FLOAT_SOURCE
+    # each row is the one the one-stock read gives, figure for figure
+    for sym, row in got["rows"].items():
+        one, _ = sd.held_market_row(sym)
+        assert {k: one[k] for k in row} == row and row["sym"] == sym
+    assert got["rows"]["AAA"]["short_interest"] == 3_000_000 and got["rows"]["AAA"]["days_to_cover"] == 6.0
+    # a missing number stays missing: EEE has no days to cover and no float
+    assert got["rows"]["EEE"]["days_to_cover"] is None and got["rows"]["EEE"]["pct_float"] is None
+    # the rows handed out are copies: a reader cannot change the held list
+    got["rows"]["AAA"]["short_interest"] = 0
+    del got["rows"]["BBB"]
+    again, _ = sd.held_market_rows()
+    assert again["rows"]["AAA"]["short_interest"] == 3_000_000 and "BBB" in again["rows"]
+    with sd._lock:
+        assert sd._market["inflight"] is None
+    assert len(vendor.calls) == calls
+
+
+def test_the_whole_list_read_says_what_the_last_build_said_when_no_list_is_held(vendor):
+    vendor.fail[sd.INTEREST] = massive._ERR.auth_error("Massive rejected (403)", status=403)
+    refused = sd.get_market(wait_s=10)
+    drain()
+    assert sd.held_market_rows() == (refused, "not_held") and refused["status"] == "unavailable"
+    assert len(vendor.calls) == 1
+
+
 def test_the_warm_builds_the_list_once_then_only_looks_when_a_look_is_due(vendor):
     """`warm_market` is `get_market` with nobody waiting: build when nothing is held, the cheap look
     for a newer report when one is due, nothing otherwise, and nothing while a refusal stands."""

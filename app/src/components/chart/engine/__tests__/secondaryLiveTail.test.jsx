@@ -197,7 +197,8 @@ describe('the chart runs the tick', () => {
 
   it('StockChart hands the hook its own forming flag through a stable getter written from the bars payload', () => {
     const src = STOCKCHART_SRC
-    expect(src).toMatch(/useSecondarySources\(\s*_storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate, _chartFormingOf\)/)
+    // ⭐ RS RATING L12 PR 2 — and the chart's symbol last (its own daily rows, for a run that reads them)
+    expect(src).toMatch(/useSecondarySources\(\s*_storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym\)/)
     expect(src).toMatch(/const _chartFormingOf = useCallback\(\(\) => _chartFormingRef\.current, \[\]\)/)
     expect(src).toMatch(/_chartFormingRef\.current = data\?\.newest_bar_is_forming === true/)
   })

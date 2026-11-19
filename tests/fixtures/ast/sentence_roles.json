@@ -1,5 +1,5 @@
 {
- "_": "THE READ-BACK NAMES A BAR-FIELD ARGUMENT BY ITS ROLE (engine, NUMBER PENDING, 2026-11-18). Each case is a formula, its tree, and the sentence BOTH sentence writers must give (sentence.js and definition_concierge.sentence_for). `kind` unchanged: the arguments are the bar's own fields in the table's order and the sentence is what it always was. `kind` by role: they are not, and each is named by the place it fills, so a slip in the order reads wrong. Written by the server's writer; a change to either writer that moves a sentence fails the other lane's test.",
+ "_": "THE READ-BACK NAMES A BAR-FIELD ARGUMENT BY ITS ROLE (engine 81, 2026-11-18). Each case is a formula, its tree, and the sentence BOTH sentence writers must give (sentence.js and definition_concierge.sentence_for). `kind` unchanged: the arguments are the bar's own fields in the table's order and the sentence is what it always was. `kind` by role: they are not, and each is named by the place it fills, so a slip in the order reads wrong. Written by the server's writer; a change to either writer that moves a sentence fails the other lane's test.",
  "contract": "uct.sentence-roles/1",
  "before": {
   "stoch(close, high, low, 14)": "the 14-bar stochastic %K of close, high and low"

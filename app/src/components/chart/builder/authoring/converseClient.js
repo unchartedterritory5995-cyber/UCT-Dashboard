@@ -99,8 +99,19 @@ export function browserRefusalBlock(refusal) {
  * The door adds an optional field to its answer only for a browser that names it here, so a tab
  * still running an older build never meets a field its own validator refuses.
  *   note.by: a note may say who wrote it (`by: "uct"`).
+ *   offer:   an answer may carry one action to take with one tap (`builtInOffer.js`).
  */
-export const ACCEPTS = Object.freeze(['note.by'])
+export const ACCEPTS = Object.freeze(['note.by', 'offer'])
+
+/** The bounds the server reads `addable` under (`definition_conversation.BUILT_INS_MAX`). */
+export const BUILT_INS_LIMITS = Object.freeze({ max: 40, maxChars: 64 })
+
+/** The built-in indicator ids to tell the door this window can add (from `gateCtx.builtIns`). */
+export function builtInIds(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((id) => typeof id === 'string' && id && id.length <= BUILT_INS_LIMITS.maxChars)
+    .slice(0, BUILT_INS_LIMITS.max)
+}
 
 /** The request body for one turn — exported so tests can pin the wire shape. */
 export function converseBody({ message, state, gateCtx = {}, snippets = [], browserRefusal = null }) {
@@ -126,6 +137,10 @@ export function converseBody({ message, state, gateCtx = {}, snippets = [], brow
   if (typeof id === 'string' && CONVERSATION_ID_RE.test(id)) body.conversationId = id
   const refused = browserRefusalBlock(browserRefusal)
   if (refused) body.browser_refusal = refused
+  // ⭐ which of UCT's own built-in indicators this window can add to the chart right now: the
+  // door offers to add one only when its id is here (omitted when there is none)
+  const builtIns = builtInIds(gateCtx.builtIns)
+  if (builtIns.length) body.addable = builtIns
   return body
 }
 
@@ -204,7 +219,17 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
     ok: true, disposition: body.disposition, reply: typeof body.reply === 'string' ? body.reply : '',
     turn: body.turn || null, envelope: body.envelope, notUnderstood, unavailable,
     ...allowanceOf(body),
+    ...offerOf(body),
   }
+}
+
+/** ⭐ The one action an answer offers, as the server sent it (kind and indicator id only; what
+ *  it means here is `builtInOffer.liveOffer`'s to say). Anything else is no offer. */
+export function offerOf(body) {
+  const o = body && body.offer
+  if (!o || typeof o !== 'object' || typeof o.kind !== 'string' || typeof o.indicator !== 'string') return {}
+  if (!o.indicator || o.indicator.length > BUILT_INS_LIMITS.maxChars || o.kind.length > 40) return {}
+  return { offer: { kind: o.kind, indicator: o.indicator } }
 }
 
 /** ⭐ F1: the share of today's allowance left (0 to 1) when the server sent one. */
