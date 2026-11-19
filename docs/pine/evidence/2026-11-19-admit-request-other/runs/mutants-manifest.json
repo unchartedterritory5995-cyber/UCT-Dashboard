@@ -1,0 +1,69 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "C1",
+   "mutant": "the REACH report's population block drifts one row from its rows (a hand edit)",
+   "file": "docs/pine/evidence/2026-11-16-draw1-drawing-objects/runs/report.json",
+   "from": "   \"runtimeLane\": 182,",
+   "to": "   \"runtimeLane\": 181,",
+   "rail": "python -m pytest tests/test_pine_capability_admission.py -q -p no:cacheprovider -k REACH_the_population_block"
+  },
+  {
+   "id": "C2",
+   "mutant": "the derivation counts the host lane as the runtime lane",
+   "file": "tools/pine_coverage/capability_admission.py",
+   "from": "                    \"runtimeLane\": sum(1 for r in rs if r.get(\"lane\") == \"runtime\"),",
+   "to": "                    \"runtimeLane\": sum(1 for r in rs if r.get(\"lane\") == \"host\"),",
+   "rail": "python -m pytest tests/test_pine_capability_admission.py -q -p no:cacheprovider -k REACH_the_population_block"
+  },
+  {
+   "id": "C3",
+   "mutant": "the derivation leaves out the admitted scripts a capture grades (the rows the block used to skip)",
+   "file": "tools/pine_coverage/capability_admission.py",
+   "from": "    for r in (rep.get(\"admittedUngraded\") or []) + (rep.get(\"admittedGraded\") or []):",
+   "to": "    for r in (rep.get(\"admittedUngraded\") or []):",
+   "rail": "python -m pytest tests/test_pine_capability_admission.py -q -p no:cacheprovider -k REACH_the_population_block"
+  },
+  {
+   "id": "C4",
+   "mutant": "request-other admitted for every bar (out of the forming-ungraded set)",
+   "file": "api/services/rollout_gate.py",
+   "from": "PINE_CAPABILITY_FORMING_UNGRADED = frozenset({\"realtime-state\", \"varip\", \"request-other\"})",
+   "to": "PINE_CAPABILITY_FORMING_UNGRADED = frozenset({\"realtime-state\", \"varip\"})",
+   "rail": "python -m pytest tests/test_pine_capability_admission.py -q -p no:cacheprovider -k G6_the_admitted_set_names_it_history_only"
+  },
+  {
+   "id": "C5",
+   "mutant": "the kill rail no longer exempts the script served through its own sha (rs-rating-fred6724)",
+   "file": "tests/test_pine_capability_admission.py",
+   "from": "            if \"request-other\" in caps and caps <= admitted and sha not in kills and sha not in own:",
+   "to": "            if \"request-other\" in caps and caps <= admitted and sha not in kills:",
+   "rail": "python -m pytest tests/test_pine_capability_admission.py -q -p no:cacheprovider -k REQOTHER_every_newly_admitted"
+  },
+  {
+   "id": "C6",
+   "mutant": "a sha-served capture whose PLOT diverges still reads as its named difference",
+   "file": "tests/test_pine_capability_admission.py",
+   "from": "    if any(p.get(\"verdict\") == \"DIVERGE\" for p in record.get(\"plots\") or []):",
+   "to": "    if False:",
+   "rail": "python -m pytest tests/test_pine_capability_admission.py -q -p no:cacheprovider -k rs_rating_is_served_by_its_own_sha"
+  },
+  {
+   "id": "C7",
+   "mutant": "one of the 11 kills (pmax-explorer) no longer names its source",
+   "file": "api/data/pine_runtime_killlist.json",
+   "from": "      \"sha256\": \"4d19cd30686373aef6a3f501260b92f43a60fdb0bb255fe16f8bc1645d4c6a69\",",
+   "to": "      \"sha256\": \"0000000000000000000000000000000000000000000000000000000000000000\",",
+   "rail": "python -m pytest tests/test_pine_capability_admission.py -q -p no:cacheprovider -k REQOTHER_every_newly_admitted"
+  },
+  {
+   "id": "C8",
+   "mutant": "SR-MTF's evidence no longer says its runtime-lane witness is the forced lane",
+   "file": "api/data/pine_runtime_allowlist.json",
+   "from": "        {\"capture\": \"support-and-resistance-multi-time-frame-rddt-1d-2026-10-02\", \"script\": \"SNR\", \"community\": true, \"verdict\": \"MATCH\", \"runtimePane\": \"on\", \"runtimeLane\": \"forced\"},",
+   "to": "        {\"capture\": \"support-and-resistance-multi-time-frame-rddt-1d-2026-10-02\", \"script\": \"SNR\", \"community\": true, \"verdict\": \"MATCH\", \"runtimePane\": \"on\"},",
+   "rail": "cd app && npx vitest run src/components/chart/engine/__tests__/vendorHarness/capabilityEvidenceLane.test.js"
+  }
+ ]
+}
