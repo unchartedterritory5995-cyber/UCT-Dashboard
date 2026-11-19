@@ -1516,6 +1516,31 @@ def _period_start_iso(tf: str) -> str:
     return today.isoformat()
 
 
+def calendar_last_sealed_day() -> str:
+    """The last NYSE trading day strictly before today (ET), as YYYY-MM-DD: the daily `d` EVERY browser sends.
+
+    The browser stamps its history request with the newest sealed bar of ITS tail (`lastSealedDate`,
+    utils/barsHistorySplit.js), and the tail (/api/bars) holds yesterday's bar as soon as the session closes.
+    The worker's deep store can lag a day behind after a restart (its D/W/M refresh is a ~13,000-symbol queue),
+    so its own `last_sealed` cannot be the authority for which URL is the current one. Measured 2026-11-19
+    02:20 ET: browsers asked d=2026-11-18 while the worker answered last_sealed=2026-11-17, so every daily
+    history was served with the short 1 h cache and rebuilt on each cold edge (1-2 s), and the pre-warm sweep
+    warmed the 11-17 URLs nobody asked for. "" if the calendar cannot answer.
+    """
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+    from api.services import session_calendar as _sc
+    day = datetime.now(ZoneInfo("America/New_York")).date() - timedelta(days=1)
+    for _ in range(14):
+        try:
+            if _sc.is_trading_day(day):
+                return day.isoformat()
+        except Exception:  # noqa: BLE001 - the calendar never decides by raising
+            return ""
+        day -= timedelta(days=1)
+    return ""
+
+
 def _is_iso_date(t) -> bool:
     return isinstance(t, str) and len(t) == 10 and t[4] == "-" and t[7] == "-"
 
@@ -1627,7 +1652,12 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
         if if_none_match and etag in [t.strip() for t in if_none_match.split(",")]:
             from fastapi.responses import Response as _Resp
             return _Resp(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
-    elif d and last_sealed and d == last_sealed:
+    elif d and last_sealed and (d == last_sealed or (
+            # ⭐ D: the CURRENT boundary by the calendar, even when this store's newest sealed bar is older (a
+            # worker catching up after a restart). The content then ends a day or two early; the browser's
+            # always-fresh /api/bars tail covers those days, exactly as it covers a late correction (see the
+            # policy above). Only ever the calendar's day, never a future or an older one.
+            tfu == "D" and last_sealed < d and d == calendar_last_sealed_day())):
         out.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
         out.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
