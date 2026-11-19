@@ -96,10 +96,13 @@ describe('the policy today', () => {
     expect(shareDecision(BY_CODE.MYH, BY_CODE.MYH.ticker)).toMatchObject({ offered: true, image: true, file: true, cls: 'own' })
     expect(shareClassOf('help')).toBe('uct')
     expect(shareClassOf('FEED')).toBe('public')
+    // RATES is the US Treasury's own published yields (register row T-95, class A): public, so shared.
+    expect(shareClassOf('RATES')).toBe('public')
+    expect(shareDecision(BY_CODE.RATES, BY_CODE.RATES.market)).toMatchObject({ offered: true, image: true, file: true, cls: 'public' })
   })
 
   it('licensed and third-party data, and analytics worked out from it, are not offered', () => {
-    for (const code of ['MOST', 'MON', 'TOPF', 'FLWL', 'UPDG', 'TSRC', 'TWT', 'SENT', 'INS', 'CONG', 'ALRT', 'RSL', 'THMS', 'PCHG', 'H52', 'UNVOL']) {
+    for (const code of ['MOST', 'MON', 'TOPF', 'FLWL', 'UPDG', 'TSRC', 'TWT', 'SENT', 'INS', 'CONG', 'ALRT', 'RSL', 'THMS', 'PCHG', 'H52', 'UNVOL', 'ERNS', 'CEOS', 'SHINT', 'SHRTS']) {
       const fn = BY_CODE[code]
       expect(shareDecision(fn, fn.market || fn.ticker), code).toMatchObject({ offered: false, image: false, file: false })
     }

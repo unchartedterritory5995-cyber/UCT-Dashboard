@@ -4854,7 +4854,8 @@ const RS_LINE_V5_RAW = {
 // daily charts (`paneTable`, both hosts since U2) — and what the settings offer:
 // about a dozen controls, no presets, no Reading. The Rating, Mansfield,
 // Rotation, Quality and VARS readings are their own definitions now (U6:
-// `rsRating`, `rsPhases`, `rsVsEma`); the Agreement and Regime rows are gone.
+// `rsRating`, `rsPhases`, `rsVsEma`; 2026-11-18: the Mansfield Reading's own
+// columns are `rsMansfield`, UCT Mansfield RS); the Agreement and Regime rows are gone.
 //
 // ⛔⛔ NO SAVED INSTANCE IS DROPPED (map §(b); F20 refuses an undeclared key or an
 // illegal enum value). Every input the v5 definition rendered that this one does
@@ -5681,9 +5682,89 @@ const RS_EXIT_RAW = {
   ],
 }
 
+// ⭐⭐ UCT MANSFIELD RS (`rsMansfield`, 2026-11-18): Weinstein's Mansfield Relative
+// Strength on a pane of its own. Under the RS split the slim UCT RS Line has no Reading
+// switch, so the Mansfield line the server computes under rsLine's `view: 'mansfield'`
+// had no chart to draw it; this definition is that Reading, cut out like the four above.
+// ⭐ NO NEW MATHS: the server row (`registry_defs._rs_mansfield_row`) serves the rsLine
+// row's own Mansfield columns (`RS_MANSFIELD_WIRE_COLUMNS`, the list that Reading keeps),
+// byte for byte (`tests/test_rs_mansfield_rows.py`, against the rsLine envelope and
+// `rs_mansfield.json`). Its readout rows are rsLine's Mansfield rows, moved across.
+// ⭐ THE PLOTS ARE rsLine's MANSFIELD PLOTS: the line in the info blue, the solid zero guide
+// in the neutral, and one dot at zero on each bar the line crosses UP through it (the server
+// builds it; crosses down are not drawn, the readout names the last cross either way).
+// Intraday the line draws and the dot is blank (the server's rule).
+const RS_MANSFIELD_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsMansfield',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsMansfield', rev: 1 },
+  meta: {
+    name: 'UCT Mansfield RS', shortName: 'UCT Mansfield RS', category: CAT.RELATIVE_STRENGTH,
+    description: 'Weinstein\'s Mansfield Relative Strength: the RS line as a percent above or below its own long average, around a zero line, with a dot where it crosses up through zero.',
+    tags: ['rs', 'relative strength', 'mansfield', 'mansfield rs', 'mansfield relative strength',
+      'relative performance', 'weinstein', 'stage analysis', 'zero line', 'zero cross',
+      'benchmark', 'leader', 'leadership', 'custom benchmark'],
+    tier: 'premium', repaint: 'non-repainting',
+    requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
+    legendParams: ['benchmark'],
+    // The pane label's value ONLY while there is nothing to draw: the server's reason
+    // (`benchmark is the symbol`, `not enough bars yet`) is `legend.blankReason`, null on a
+    // live answer, so the label prints the line's own number once.
+    legendFallback: [{ source: 'scalar:legend.blankReason', format: 'text' }],
+    // ⭐ THE ROW'S FIVE KEYS (`registry_defs._rs_mansfield_row`), diffed by
+    // `tests/test_rs_split_js_rows.py`.
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'mansfieldLength'],
+    glossaryHref: '/methodology/relative-strength',
+  },
+  placement: { target: 'pane', pane: rsSplitPane(), axis: 'hidden' },
+  inputs: [
+    ...rsSplitBenchmarkInputs(),
+    // The row's (`relative_strength.MANSFIELD_LENGTH_RANGE`, default 200): rsLine's own.
+    { key: 'mansfieldLength', type: 'int', label: 'Length (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Simple',
+      tooltip: 'Mansfield length in bars: the simple average the RS line is measured against. 200 on a daily chart; Weinstein used 52 weeks on a weekly chart.' },
+    { ...colorInput('color', 'Line color', RS_INFO), group: 'Style', tooltip: 'Color of the Mansfield line; the zero line stays in the neutral' },
+    { ...colorInput('dotColor', 'Zero-cross dot', RS_INFO), group: 'Style',
+      tooltip: 'Color of the dot where the Mansfield line crosses up through zero' },
+    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Style' },
+  ],
+  plots: [
+    // A PERCENT distance from the RS line's own average (−20…+20 on most names).
+    { key: 'mansfield', label: 'Mansfield RS', style: 'line', color: '$color', width: '$lineWidth',
+      precision: 2, role: 'primary', legend: { decimals: 2 } },
+    { key: 'zero', label: 'Zero', style: 'hlines', levels: [0], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context' },
+    // The server's cross-up dot, value 0 on the cross bar and null elsewhere, drawn as the
+    // series' own point marker (`restyle: false`: a sparse dot column restyled as a line
+    // draws nothing).
+    { key: 'dotMansfieldCross', label: 'Zero cross', style: 'markers', color: '$dotColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+  ],
+  readout: [
+    ...rsSplitBenchmarkRows(),
+    // rsLine's Mansfield rows, moved across: the glance row is the server's sentence
+    // (`+4.1%, above zero, rising`), its numbers follow.
+    { key: 'mansfield', label: 'Mansfield RS', source: 'scalar:mansfield.summary', format: 'text',
+      card: { what: 'Mansfield Relative Strength: the RS line as a percent above or below its own simple moving average, measured over the length set on this chart, in this chart\'s bars; the Length row prints it. 200 is the default; 52 on a weekly chart is Weinstein\'s published length. Above zero, the stock is outperforming its own trend against the benchmark; below zero, it is lagging it. The dot marks a cross up through zero.',
+        origin: 'Weinstein, Secrets for Profiting in Bull and Bear Markets; the Mansfield RS line on his charts.',
+        evidence: RS_HONESTY_SENTENCE } },
+    { key: 'mansfieldValue', label: 'Value', source: 'scalar:mansfield.value', format: 'pct', detailOf: 'mansfield' },
+    // The last cross in EITHER direction (`up, 57 bars ago`): the pane draws only the
+    // crosses up, so the direction is the half the chart does not show.
+    { key: 'mansfieldCross', label: 'Last zero cross', source: 'scalar:mansfield.lastCross', format: 'text', detailOf: 'mansfield' },
+    { key: 'mansfieldLength', label: 'Length', source: 'scalar:mansfield.lengthText', format: 'text', detailOf: 'mansfield' },
+    rsSplitHistoryRow(),
+  ],
+}
+
 // Registered in this order; `registrySizes.SHIPPED_DEF_IDS.server` lists the
-// same five ids in the same order (RS Exit Warnings, 2026-11-12, is the fifth).
-const _serverRegistered = registerDefinitions([RS_LINE_RAW, RS_RATING_RAW, RS_PHASES_RAW, RS_VS_EMA_RAW, RS_EXIT_RAW])
+// same six ids in the same order (RS Exit Warnings, 2026-11-12, is the fifth;
+// UCT Mansfield RS, 2026-11-18, the sixth).
+const _serverRegistered = registerDefinitions([RS_LINE_RAW, RS_RATING_RAW, RS_PHASES_RAW, RS_VS_EMA_RAW, RS_EXIT_RAW,
+  RS_MANSFIELD_RAW])
 if (_serverRegistered.errors.length) {
   throw new Error(`nativeRegistry: invalid server definitions:\n  ${_serverRegistered.errors.join('\n  ')}`)
 }
