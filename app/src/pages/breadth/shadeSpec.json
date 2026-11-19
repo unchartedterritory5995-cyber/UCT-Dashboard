@@ -138,7 +138,8 @@
     },
     "mcclellan_osc": {
       "bull": "high",
-      "sides": "both"
+      "sides": "both",
+      "zero": true
     },
     "stage2_count": {
       "kind": "pair",
@@ -188,11 +189,13 @@
     },
     "net_new_high_low": {
       "bull": "high",
-      "sides": "both"
+      "sides": "both",
+      "zero": true
     },
     "adv_decline": {
       "bull": "high",
-      "sides": "both"
+      "sides": "both",
+      "zero": true
     },
     "up_vol_ratio": {
       "bull": "high",

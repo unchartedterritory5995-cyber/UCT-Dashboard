@@ -106,3 +106,31 @@ describe('the shipped spec and cutoffs', () => {
     }
   })
 })
+
+describe('shadeFor — signed columns color by sign (owner 2026-11-19)', () => {
+  // A bull-leaning signed column: most days positive, so even the low tail is above zero.
+  const lean = { n: 1000, mid: 40, lo: [-200, -150, -90, -60, -20, 5, 10, 15, 20], hi: [400, 350, 300, 250, 200, 150, 120, 90, 70] }
+  const zc = { grid: GRID, cols: { nh: lean } }
+  const zs = { pcts: { notable: 10, strong: 3, extreme: 0.5 }, cols: { nh: { bull: 'high', sides: 'both', zero: true } } }
+  const z = (v) => shadeFor('nh', { nh: v }, { specIn: zs, cut: zc })
+  it('a small positive reading is never red, even in the low tail of history', () => {
+    expect(z(1)).toBeNull()
+    expect(z(8)).toBeNull()
+  })
+  it('a small negative reading stays unshaded too', () => {
+    expect(z(-4)).toBeNull()
+    expect(z(-100)).toBeNull()
+  })
+  it('strength still comes from rarity, on the side of the sign', () => {
+    expect(z(120)).toEqual({ tone: 'bull', level: 1 })
+    expect(z(250)).toEqual({ tone: 'bull', level: 2 })
+    expect(z(400)).toEqual({ tone: 'bull', level: 3 })
+    expect(z(-120)).toEqual({ tone: 'bear', level: 1 })
+    expect(z(-250)).toEqual({ tone: 'bear', level: 2 })
+    expect(z(-400)).toEqual({ tone: 'bear', level: 3 })
+  })
+  it('zero is unshaded; shipped spec marks NH-NL, A/D and McClellan as signed', () => {
+    expect(z(0)).toBeNull()
+    for (const k of ['net_new_high_low', 'adv_decline', 'mcclellan_osc']) expect(SHADE_SPEC.cols[k].zero).toBe(true)
+  })
+})

@@ -75,6 +75,24 @@ export function shadeFor(key, row, { specIn = spec, cut, universe = 'uct' } = {}
   const floors = c.floors || {}
   let level = 0
   let end = null
+  if (c.zero) {
+    // Signed columns (Net NH-NL, A/D, McClellan; owner 2026-11-19): zero sets the
+    // color, so a positive reading is never red and a negative one never green. The
+    // strength is still rarity, and a negative reading must be at least as far from
+    // zero as a positive one of the same level, so small readings stay unshaded
+    // even when history leans one way (+1 was red because most days were higher).
+    if (v > 0) {
+      LEVELS.forEach((lv, i) => { if (v >= Math.max(t.hi[idx[lv]], 0)) { level = i + 1; end = 'high' } })
+      if (floors.high != null && v >= floors.high) { level = Math.max(level, 2); end = 'high' }
+    } else if (v < 0) {
+      LEVELS.forEach((lv, i) => {
+        if (v <= Math.min(t.lo[idx[lv]], -Math.max(t.hi[idx[lv]], 0))) { level = i + 1; end = 'low' }
+      })
+      if (floors.low != null && v <= floors.low) { level = Math.max(level, 2); end = 'low' }
+    }
+    if (!level) return null
+    return { tone: end === c.bull ? 'bull' : 'bear', level }
+  }
   if ((sides === 'both' || sides === 'high') && v > t.mid) {
     LEVELS.forEach((lv, i) => { if (v >= t.hi[idx[lv]]) { level = i + 1; end = 'high' } })
     if (floors.high != null && v >= floors.high) { level = Math.max(level, 2); end = 'high' }
