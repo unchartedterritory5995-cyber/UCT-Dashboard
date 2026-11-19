@@ -476,7 +476,17 @@ const WIDTH_GROUP = {
   // round 14: Universe sits last in the default; a group of its own drops the family-
   // start padding it would otherwise carry there (8px that made 2048 overflow by ~1px).
   universe_count: 'universe',
+  // ⛔ (2026-11-19, universe switcher) EVERY column is in a group, so every natural width comes
+  // from the header + a FIXED value format, never from what happens to be on screen. An
+  // ungrouped column's natural width was read back as "current width − extra"; when its
+  // content held it wider than that (the SPY/QQQ dots before the rows rendered, on a first
+  // open of a universe with nothing cached), the natural sum came up short and the sheet
+  // overflowed 2048 by ~6px. Single-member groups behave exactly like solo columns otherwise.
+  spy_ma_stack: 'maDots', qqq_ma_stack: 'maDots',
+  is_ftd: 'ftd', mcclellan_osc: 'mcclellan', vix_term_structure: 'vixTerm', adv_decline_cum: 'adLine',
 }
+/** The SPY / QQQ dot cluster: 4 × 7px dots + 3 × 5px gaps (Breadth.module.css .maDots). */
+const MA_DOTS_PX = 43
 export const widthGroupOf = (key) => WIDTH_GROUP[key] ?? null
 
 // A header's width: its group's measured need (or, ungrouped, its own natural width),
@@ -1320,7 +1330,7 @@ export default function Breadth() {
         label = r.getBoundingClientRect().width
       }
       // The live "≈" sits in the cell's right padding (round 12), so no extra 1ch.
-      const value = valueCh(COLS_BY_KEY[key]) * ch
+      const value = COLS_BY_KEY[key]?.type === 'ma_stack' ? MA_DOTS_PX : valueCh(COLS_BY_KEY[key]) * ch
       const g = th.getAttribute('data-width-group')
       need[g] = Math.max(need[g] ?? 0, Math.ceil(Math.max(label, value) + pad))
     }

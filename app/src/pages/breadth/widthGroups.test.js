@@ -11,9 +11,14 @@ describe('width groups', () => {
     expect(g('up_25pct_quarter', 'down_25pct_quarter', 'magna_up', 'magna_down').size).toBe(1)
     expect(g('pct_above_20sma', 'pct_above_50sma', 'pct_above_200sma').size).toBe(1)
     expect(g('vix', 'cnn_fear_greed').size).toBe(1)
-    // Universe is a group of one (its own width); the dot columns keep theirs
+    // Universe is a group of one (its own width); SPY and QQQ dots share one fixed width
     expect(widthGroupOf('universe_count')).toBe('universe')
-    expect(widthGroupOf('spy_ma_stack')).toBeNull()
+    expect(widthGroupOf('spy_ma_stack')).toBe(widthGroupOf('qqq_ma_stack'))
+  })
+  it('EVERY column is in a group, so no natural width depends on what is on screen', () => {
+    // (2026-11-19) an ungrouped column's natural width was read back from the live layout;
+    // on a first open of a universe that over-counted the spread and overflowed 2048 by ~6px
+    for (const c of COLS) expect(widthGroupOf(c.key), c.key).not.toBeNull()
   })
   it('hidden families group within themselves', () => {
     expect(widthGroupOf('up_20pct_5d')).toBe(widthGroupOf('down_20pct_5d'))
