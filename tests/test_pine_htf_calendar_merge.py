@@ -51,6 +51,8 @@ def test_both_lanes_read_tradingviews_own_session_calendar_never_a_copy_of_it():
     ("1999-04-01", "W", True), ("1999-12-23", "W", True), ("1999-04-09", "W", False),
     ("2000-04-20", "W", False), ("2004-06-10", "W", False), ("2001-09-10", "W", True),
     ("1999-05-28", "M", True), ("1999-04-30", "M", False), ("2004-05-28", "M", False), ("1999-07-30", "M", False),
+    # not a day: answered False by arithmetic (the module holds no try, tests/test_ast_budget.py)
+    ("1999-02-30", "W", False), ("1999-13-01", "M", False), ("1999-4-1", "W", False), (None, "W", False),
 ])
 def test_the_rule_case_by_case(iso, code, want):
     assert ast_interpret.htf_closes_on_next_bar(iso, code) is want

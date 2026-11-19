@@ -486,12 +486,15 @@ def _iso_day(t: Any) -> Optional[str]:
 
 def htf_closes_on_next_bar(iso: Any, code: str) -> bool:
     """Does the period (``W`` or ``M``) whose last bar is ``iso`` show its close on the NEXT bar?"""
-    if not isinstance(iso, str) or len(iso) != 10 or code not in ("W", "M"):
+    if not isinstance(iso, str) or code not in ("W", "M") or not _ISO_DAY.fullmatch(iso):
         return False
-    try:
-        day = datetime.date.fromisoformat(iso)
-    except ValueError:
+    # ⛔ NO try (tests/test_ast_budget.py: this module holds none): an impossible day is answered by arithmetic
+    y, m, d = int(iso[:4]), int(iso[5:7]), int(iso[8:10])
+    if not (1 <= y <= 9998 and 1 <= m <= 12):
         return False
+    if not 1 <= d <= (datetime.date(y + (m == 12), m % 12 + 1, 1) - datetime.timedelta(days=1)).day:
+        return False
+    day = datetime.date(y, m, d)
     from api.services.tradingview_session import (  # noqa: PLC0415
         TRADINGVIEW_CLOSURES_FROM_YYYYMMDD, TRADINGVIEW_UNAPPLIED_CLOSURES_YYYYMMDD)
     key = _tf_bucket(iso, code)
