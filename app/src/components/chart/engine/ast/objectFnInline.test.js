@@ -439,8 +439,11 @@ describe('⭐⭐ C34 — the conditional-history detector reads only the CALL\'s
 })
 
 describe('⭐⭐ C34 — a call inside a loop this reader does not run is INLINED into it', () => {
+  // ⭐ ONCE-EMPTY LIST (#2014, ruling (B)): a `var` list NOTHING writes is provably empty and a `for … in` over it runs no
+  // pass, so its body is no longer walked. Each fixture writes its list on every bar first (`pts.push(close)`), so the
+  // loop is still one this reader cannot run, which is what these rails are about.
   it('⭐ `for … in` over a list: no `fn:loop`, the body\'s ops are blocked with the loop, named', () => {
-    const t = host(src('var pts = array.new_float()', 'f(float p) =>',
+    const t = host(src('var pts = array.new_float()', 'pts.push(close)', 'f(float p) =>',
       '    label.new(bar_index, p, "x")', 'for p in pts', '    f(p)'))
     expect(diag(t).dropReasons && diag(t).dropReasons['fn:loop']).toBeUndefined()
     expect(diag(t).inlinedCalls).toBe(1)
@@ -450,7 +453,7 @@ describe('⭐⭐ C34 — a call inside a loop this reader does not run is INLINE
   })
 
   it('⭐ a removal the walk cannot name stays LOUD (`object.delete`) — the refused call\'s accounting', () => {
-    const t = host(src('var pts = array.new_float()', 'f(line l) =>', '    l.delete()',
+    const t = host(src('var pts = array.new_float()', 'pts.push(close)', 'f(line l) =>', '    l.delete()',
       'for p in pts', '    f(na)'))
     expect(diag(t).loopBlockedCalls).toContain('object.delete')
   })
@@ -464,7 +467,7 @@ describe('⭐⭐ C34 — a call inside a loop this reader does not run is INLINE
   })
 
   it('⛔ a handle RETURNED inside such a loop is not copied onto every bar', () => {
-    const t = host(src('var line keep = na', 'var pts = array.new_float()',
+    const t = host(src('var line keep = na', 'var pts = array.new_float()', 'pts.push(close)',
       'f(float p) =>', '    ret = line.new(bar_index, p, bar_index + 1, p)',
       'for p in pts', '    keep := f(p)'))
     expect(opsOf(t).filter((o) => o.k === 'copy')).toHaveLength(0)
@@ -472,7 +475,7 @@ describe('⭐⭐ C34 — a call inside a loop this reader does not run is INLINE
   })
 
   it('⛔ a body reading the call\'s own history in such a loop is refused as conditional-history', () => {
-    const t = host(src('var pts = array.new_float()', 'f(float p) =>',
+    const t = host(src('var pts = array.new_float()', 'pts.push(close)', 'f(float p) =>',
       '    label.new(bar_index, ta.sma(close, 3), "x")', 'for p in pts', '    f(p)'))
     expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
   })
