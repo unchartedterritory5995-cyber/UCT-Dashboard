@@ -1398,6 +1398,109 @@ _SPOT_TTL_SEC = 60            # quote freshness window
 _spot_fetch_queue: list = []  # symbols pending fetch (deduped)
 _spot_fetch_seen: set = set() # symbols already queued this drain cycle
 
+# Stock and ETF spot reads ONE Massive batch snapshot per drain cycle first; Yahoo
+# stays for the index roots below and for any symbol the snapshot gave no usable
+# price for. A snapshot price is used only when it means what the Yahoo read means
+# (the regular-session price): the row's own last trade, printed inside the regular
+# session and no older than the freshness window. Anything else falls to Yahoo.
+_SPOT_YAHOO_ONLY = frozenset(("SPX", "SPXW", "NDX", "DJX", "RUT", "VIX", "XSP"))
+_SPOT_SNAPSHOT_MAX_AGE_SEC = 60.0   # last trade older than this = no usable price
+_SPOT_SNAPSHOT_TIMEOUT_SEC = 3.0    # socket timeout of the one snapshot call
+
+
+def _spot_in_regular_session(ts) -> bool:
+    """True when epoch second `ts` is inside the NYSE regular session (holidays
+    and 1pm closes honoured). False on any doubt, which means "read Yahoo"."""
+    try:
+        from api.services import session_calendar
+        return session_calendar.session_at(datetime.fromtimestamp(ts, ET)) == "rth"
+    except Exception:
+        return False
+
+
+def _spot_from_snapshot_row(row, sym, now_ts):
+    """Regular-session spot for `sym` from one snapshot row, or None (= ask Yahoo).
+
+    None when the row is for another ticker, has no last trade, the price is not
+    a positive finite number, the trade printed outside the regular session, is
+    older than _SPOT_SNAPSHOT_MAX_AGE_SEC (or stamped in the future), or the
+    price is more than 50% away from the row's own day close."""
+    try:
+        if not isinstance(row, dict) or row.get("ticker") != sym:
+            return None
+        last = row.get("lastTrade")
+        if not isinstance(last, dict):
+            return None
+        price, t_ns = last.get("p"), last.get("t")
+        if isinstance(price, bool) or not isinstance(price, (int, float)):
+            return None
+        if not (0 < price < float("inf")):
+            return None
+        if isinstance(t_ns, bool) or not isinstance(t_ns, (int, float)) or t_ns <= 0:
+            return None
+        traded_at = t_ns / 1e9
+        if not (-5.0 <= now_ts - traded_at <= _SPOT_SNAPSHOT_MAX_AGE_SEC):
+            return None
+        if not _spot_in_regular_session(traded_at):
+            return None
+        day = row.get("day")
+        day_close = day.get("c") if isinstance(day, dict) else None
+        if (isinstance(day_close, (int, float)) and not isinstance(day_close, bool)
+                and day_close > 0 and abs(price - day_close) > 0.5 * day_close):
+            return None
+        return float(price)
+    except Exception:
+        return None
+
+
+def _fetch_spot_snapshot_blocking(symbols):
+    """ONE Massive batch snapshot for `symbols` -> {ticker: row}; {} on any failure.
+
+    Runs in a thread. Never raises and never logs the error (the URL carries the
+    API key). Stdlib only, like the on-demand quote read below."""
+    try:
+        import urllib.request
+        url = ("https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers"
+               "?tickers=" + ",".join(symbols) + "&apiKey=" + MASSIVE_API_KEY)
+        with urllib.request.urlopen(url, timeout=_SPOT_SNAPSHOT_TIMEOUT_SEC) as resp:
+            if resp.status != 200:
+                return {}
+            payload = json.loads(resp.read().decode("utf-8"))
+        out = {}
+        for row in payload.get("tickers") or []:
+            if isinstance(row, dict) and isinstance(row.get("ticker"), str):
+                out[row["ticker"]] = row
+        return out
+    except Exception:
+        return {}
+
+
+async def _snapshot_spots(batch):
+    """{symbol: spot} for the stocks and ETFs of `batch` the snapshot could price.
+
+    At most one Massive call; none outside the regular session, for index roots
+    or without a key. Never raises: on any failure the caller reads Yahoo for the
+    whole batch, exactly as before."""
+    try:
+        if not MASSIVE_API_KEY or not _spot_in_regular_session(time.time()):
+            return {}
+        syms = [s for s in batch
+                if s not in _SPOT_YAHOO_ONLY and s.isascii() and s.isalnum()]
+        if not syms:
+            return {}
+        rows = await asyncio.wait_for(
+            asyncio.to_thread(_fetch_spot_snapshot_blocking, syms),
+            timeout=_SPOT_SNAPSHOT_TIMEOUT_SEC + 1.0)
+        now = time.time()
+        out = {}
+        for sym in syms:
+            spot = _spot_from_snapshot_row(rows.get(sym), sym, now)
+            if spot is not None:
+                out[sym] = spot
+        return out
+    except Exception:
+        return {}
+
 
 # Phase 2h: Last-trade-price cache for Lee-Ready tick test fallback.
 # When NBBO is missing/stale (common for illiquid contracts and morning
@@ -2651,7 +2754,11 @@ async def _run_session(ws):
             _state["q_subscribed_count"] = len(_q_subscribed)
 
     async def spot_fetch_manager():
-        """Phase 2b: drain spot fetch queue every 10 sec via Yahoo Finance.
+        """Phase 2b: drain spot fetch queue every 10 sec.
+
+        Stocks and ETFs read one Massive batch snapshot per cycle first
+        (_snapshot_spots, regular session only). Yahoo, below, reads the index
+        roots and whatever the snapshot had no usable price for.
 
         Uses Yahoo's v8/chart endpoint (same one their ytd-performance route
         is already using in production). One request per symbol, run in
@@ -2726,11 +2833,13 @@ async def _run_session(ws):
                 _spot_fetch_seen.update(overflow)
             _state["spot_fetch_queue_size"] = len(_spot_fetch_queue)
 
+            snap = await _snapshot_spots(batch)
             try:
                 import httpx
                 async with httpx.AsyncClient(timeout=8.0) as client:
-                    tasks = [fetch_one(client, sym) for sym in batch]
+                    tasks = [fetch_one(client, sym) for sym in batch if sym not in snap]
                     results = await asyncio.gather(*tasks, return_exceptions=False)
+                results = list(snap.items()) + results
                 now = time.time()
                 resolved = 0
                 for sym, spot in results:
@@ -2738,8 +2847,8 @@ async def _run_session(ws):
                         _SPOT_CACHE[sym] = (spot, now)
                         resolved += 1
                 logger.info(
-                    "[massive-ws] spot fetch (Yahoo): %d symbols -> %d resolved",
-                    len(batch), resolved
+                    "[massive-ws] spot fetch: %d symbols -> %d resolved (%d from the Massive snapshot)",
+                    len(batch), resolved, len(snap)
                 )
                 _state["spot_fetches_sent"] = _state.get("spot_fetches_sent", 0) + 1
                 _state["spot_symbols_resolved"] = _state.get("spot_symbols_resolved", 0) + resolved
