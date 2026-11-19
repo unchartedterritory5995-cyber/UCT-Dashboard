@@ -17,6 +17,6 @@ var float k2 = na
 k2 := r2 > 0 ? (d1 - lo2) / r2 * 100 : nz(k2[1])
 var float stc = na
 stc := na(stc[1]) ? k2 : stc[1] + factor * (k2 - stc[1])
-plot(stc, "STC", color=color.teal, width=2)
+plot(stc, "STC", color=color.teal, linewidth=2)
 plot(75, "Upper", color=color.gray)
 plot(25, "Lower", color=color.gray)

@@ -9030,6 +9030,21 @@
    "since": "2026-11-18"
   },
   {
+   "id": "heikin_ashi",
+   "name": "Heikin Ashi",
+   "aliases": [
+    "heikin ashi",
+    "heiken ashi",
+    "heikinashi",
+    "heikin ashi candles",
+    "heiken ashi candles"
+   ],
+   "why": "Each Heikin Ashi candle is made from the bar and the candle before it, so its open carries from candle to candle. A formula here cannot carry that, and it draws candles, which only a script does.",
+   "describe": "the average of the open, high, low and close of each bar, as a line",
+   "needs_script": "each candle is made from the candle before it",
+   "since": "2026-11-18"
+  },
+  {
    "id": "rs_phases",
    "name": "RS Phases",
    "aliases": [
@@ -9044,6 +9059,29 @@
     "indicator": "rsPhases",
     "name": "UCT RS Phases",
     "what": "shaded bars where the RS line and the market pull apart"
+   },
+   "since": "2026-11-18"
+  },
+  {
+   "id": "session_vwap_bands",
+   "name": "VWAP standard deviation bands",
+   "aliases": [],
+   "why": "UCT's built-in Session VWAP draws these bands itself when its Std dev bands setting is on: the session's volume-weighted standard deviation either side of the session's VWAP. It is one setting of one of UCT's indicators, not a formula in this library.",
+   "describe": "the session VWAP plus and minus twice the standard deviation of price around it",
+   "built_in": {
+    "indicator": "vwap",
+    "name": "Session VWAP",
+    "what": "bands one, two or three volume-weighted standard deviations either side of the session's VWAP, on intraday charts",
+    "setting": {
+     "input": "bands",
+     "label": "Std dev bands",
+     "values": [
+      "1",
+      "2",
+      "3"
+     ],
+     "default": "2"
+    }
    },
    "since": "2026-11-18"
   }
