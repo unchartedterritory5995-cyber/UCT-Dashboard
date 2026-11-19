@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { devSampleList, isLocalDevHost, DEV_SAMPLE_LABEL } from './devSampleList'
+import { devSampleList, isLocalDevHost, DEV_SAMPLE_LABEL, DEV_SAMPLE_SYMBOLS } from './devSampleList'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
@@ -11,19 +11,19 @@ describe('devSampleList', () => {
   it('sizes to the cell, capped at 60, and is stable for one list', () => {
     expect(devSampleList({ seed: 'a', count: 23 }).items).toHaveLength(23)
     expect(devSampleList({ seed: 'a', count: 500 }).items).toHaveLength(60)
+    expect(DEV_SAMPLE_SYMBOLS.length).toBeGreaterThanOrEqual(60)
     expect(devSampleList({ seed: 'a', count: 23 })).toEqual(devSampleList({ seed: 'a', count: 23 }))
     expect(devSampleList({ seed: 'b', count: 23 }).items[0].t).not.toBe(devSampleList({ seed: 'a', count: 23 }).items[0].t)
   })
-  it('carries what the window needs: ticker, move, price, volume, sector', () => {
+  it('real symbols (so charts draw), invented moves / prices / volumes', () => {
     const { items, devSample } = devSampleList({ seed: 'x', count: 30, down: true })
     expect(devSample).toBe(true)
     for (const it of items) {
-      expect(it.t).toMatch(/^[A-Z]{3,4}$/)
+      expect(DEV_SAMPLE_SYMBOLS).toContain(it.t)   // real symbols that chart locally
       expect(it.pct).toBeLessThan(0)
       expect(it.c).toBeGreaterThan(0)
       expect(it.v).toBeGreaterThan(0)
       expect(typeof it.sector).toBe('string')
-      expect(it.n).toMatch(/^Sample /)
     }
     expect(new Set(items.map(i => i.t)).size).toBe(items.length)
     expect(DEV_SAMPLE_LABEL).toBe('dev sample list')
@@ -52,6 +52,7 @@ describe('devSampleList', () => {
       expect(src.includes('dev sample list'), f).toBe(false)
       expect(src.includes('invented tickers'), f).toBe(false)
       expect(src.includes('_devSample'), f).toBe(false)
+      expect(src.includes('RKLB IONQ AFRM DKNG'), f).toBe(false)
     }
   })
 })

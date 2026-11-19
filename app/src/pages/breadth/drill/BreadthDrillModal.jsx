@@ -13,8 +13,10 @@ import PopoutShell from '../../charts/popout/PopoutShell'
 import WidgetHost from '../../charts/WidgetHost'
 import {
   DRILL_BOARD_PREF, LIST_WIDGET_ID, CHART_WIDGET_ID, MODE_SPLIT, SCAN_MODES,
-  parseBoard, serializeBoard,
+  parseBoard, serializeBoard, readDayPrefsLocal, writeDayPrefsLocal,
 } from './drillBoardPrefs'
+import { markColorFor, scanDayView } from './scanDay'
+import DayTools from './DayTools'
 import useScanDeck from './scan/useScanDeck'
 import { dayContext } from './scan/scanDeckModel'
 import { ScanHeader } from './scan/ScanDeckParts'
@@ -81,8 +83,16 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   // The app theme (Slate, Graphite, Light…). The chart and the list wear it
   // until the member changes their look themselves (see drillTheme.js).
   const appTheme = prefs?.theme ?? null
-  const [board, setBoard] = useState(() => followAppTheme(
-    parseBoard(prefs?.[DRILL_BOARD_PREF], scanSeedOpts()), appTheme, scanSeedOpts().settings))
+  const [board, setBoard] = useState(() => {
+    const raw = prefs?.[DRILL_BOARD_PREF]
+    const parsed = parseBoard(raw, scanSeedOpts())
+    // The scan day's options: the board's saved values, else the localStorage mirror.
+    let stored = {}
+    try { stored = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {} } catch { stored = {} }
+    const local = readDayPrefsLocal()
+    for (const k of ['markDay', 'replay']) if (typeof stored?.[k] !== 'boolean' && typeof local[k] === 'boolean') parsed[k] = local[k]
+    return followAppTheme(parsed, appTheme, scanSeedOpts().settings)
+  })
   // Re-skin on an app-theme switch, and notice when the member takes over a
   // widget's look (followAppTheme marks it and stops following). Adjusted while
   // rendering, not in an effect: followAppTheme returns the same board once it
@@ -179,8 +189,27 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   // than from the workspace value, which carries refs and must not be read
   // during render.
   const [pickedSym, setSelectedSym] = useState(null)
+  // ── The scan day: "Mark day" and "Replay from this day" (owner 2026-11-19) ─────
+  // Mark day paints the drill date's candle (its session, intraday; the bar holding it, W/M) in
+  // ONE high-contrast color chosen from the chart canvas's own luminance: white on a dark
+  // canvas, black on a light one. Replay reuses the /charts Replay Mode cutoff: every chart ends
+  // on the drill date. Both ride the workspace, so the Focus chart and every Grid card agree.
+  const markOn = board.markDay !== false
+  const replayOn = !!board.replay
+  const dayIso = drill?.date || null
+  const markColor = markColorFor(drillCanvas)
+  const { markDay, replayCutoff } = scanDayView({ markDay: markOn, replay: replayOn, date: dayIso, live: !!drill?.live })
+  const setDayPref = useCallback((k, v) => {
+    onBoardChange(b => ({ ...b, [k]: v }))
+    writeDayPrefsLocal({ [k]: v })
+  }, [onBoardChange])
   const workspace = useMemo(() => ({
     ...baseWorkspace,
+    markDay,
+    markDayColor: markColor,
+    replayCutoff,
+    // The chart's "Exit Replay Mode" pill turns the option off.
+    exitReplay: () => setDayPref('replay', false),
     setGroupSym: (color, sym) => {
       baseWorkspace.setGroupSym(color, sym)
       if (color !== 'A') return
@@ -192,7 +221,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
         if (window.matchMedia('(max-width: 640px)').matches) setMobilePane('chart')
       } catch { /* no matchMedia — stay put rather than guess */ }
     },
-  }), [baseWorkspace])
+  }), [baseWorkspace, markDay, markColor, replayCutoff, setDayPref])
 
   // ── The scan deck ───────────────────────────────────────────────────────────
   const deck = useScanDeck(drill)
@@ -413,6 +442,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
           onHistory={toggleHistory}
           histOpen={histOpen}
           badge={import.meta.env.DEV && drill?.devSample ? 'dev sample list' : null}
+          dayTools={<DayTools markDay={markOn} replay={replayOn} onToggle={setDayPref} canReplay={!drill?.live} />}
         >
           <div className={styles.paneToggle} role="group" aria-label="Show list or chart">
             <button type="button" className={mobilePane === 'list' ? styles.paneOn : undefined}
@@ -424,10 +454,6 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
 
         <div className={styles.panel}>
         {popNotice && <div className={styles.notice}>{popNotice}</div>}
-        {/* DEV ONLY: the sample's tickers are invented, so their charts are empty on purpose. */}
-        {import.meta.env.DEV && drill?.devSample && mode !== 'grid' && (
-          <div className={styles.sampleNote} role="note">Dev sample list: invented tickers, so the chart is empty</div>
-        )}
         {histOpen && (
           <HistoryDrawer
             label={source.label}

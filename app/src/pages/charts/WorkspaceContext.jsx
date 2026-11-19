@@ -47,6 +47,11 @@ const FALLBACK = {
   onPeriodCancel: () => {},
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff; linked charts hide every bar after it.
   replayCutoff: null,
+  // Breadth drill "Mark day": an ISO date whose candle every chart paints `markDayColor`.
+  markDay: null,
+  markDayColor: null,
+  // false = Replay does not warm every intraday timeframe for each symbol (the breadth drill).
+  replayWarmIntraday: true,
   exitReplay: () => {},
   // Replay Mode "Pick on chart": arm click/drag on the active chart to choose the cutoff.
   replayArmPick: false,

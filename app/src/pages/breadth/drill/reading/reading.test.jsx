@@ -202,6 +202,26 @@ describe('the scan window: the History drawer', () => {
   })
 })
 
+describe('the scan day chips under the date', () => {
+  it('Mark day is on and Replay off by default; Replay toggles and is saved', () => {
+    localStorage.removeItem('uct.breadthDrill.replay')
+    render(<BreadthDrillModal drill={DRILL} onClose={() => {}} rows={[]} />)
+    const mark = screen.getByRole('button', { name: /Mark day/ })
+    const replay = screen.getByRole('button', { name: /Replay from this day/ })
+    expect(mark.getAttribute('aria-pressed')).toBe('true')
+    expect(replay.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(replay)
+    expect(replay.getAttribute('aria-pressed')).toBe('true')
+    expect(localStorage.getItem('uct.breadthDrill.replay')).toBe('1')
+    fireEvent.click(replay)
+    expect(localStorage.getItem('uct.breadthDrill.replay')).toBe('0')
+  })
+  it('the reading-only window has no day chips', () => {
+    render(<BreadthReadingModal drill={{ readingOnly: true, label: '5-day up/down ratio', colKey: 'ratio_5day', date: '2026-11-09' }} onClose={() => {}} />)
+    expect(screen.queryByRole('button', { name: /Replay from this day/ })).toBeNull()
+  })
+})
+
 describe('the reading-only window', () => {
   const ratio = { readingOnly: true, label: '5D Ratio', colKey: 'ratio_5day', date: '2026-11-09', value: 1.84,
     valueText: '1.84', fmt: (v) => v.toFixed(2), isCount: false, hasList: false }

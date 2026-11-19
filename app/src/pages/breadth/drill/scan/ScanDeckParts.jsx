@@ -13,7 +13,7 @@ export function ScanHeader({
   label, count, live, drillCols, colKey, onPickMetric,
   dateNav, ctx, onWantDays, summary, mode, onMode, modes, onClose, children,
   reading = null, readingLoading = false, onHistory = null, histOpen = false,
-  tile = null, badge = null, note = null,
+  tile = null, badge = null, note = null, dayTools = null,
 }) {
   const metricId = useId()
   return (
@@ -34,6 +34,7 @@ export function ScanHeader({
           {badge && <span className={styles.badge}>{badge}</span>}
         </div>
         {dateNav && <div className={styles.dateWrap}>{dateNav}</div>}
+        {dayTools}
       </div>
 
       <CountHistory count={count} ctx={ctx} onWantDays={onWantDays} {...(tile || {})} />

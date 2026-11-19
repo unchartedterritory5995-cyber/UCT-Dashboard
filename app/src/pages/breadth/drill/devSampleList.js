@@ -1,7 +1,9 @@
 // ⛔ DEV ONLY (owner 2026-11-19). The local production copy holds no drill lists, so on localhost
-// a list that fails or comes back empty is replaced by an INVENTED one, so the sector mix and the
-// Focus / Grid / Table views can be judged. Invented tickers, sectors, prices, moves and volumes;
-// nothing here is a real quote.
+// a list that fails or comes back empty is replaced by a SAMPLE, so the sector mix, the Focus /
+// Grid / Table views, Mark day and Replay can be judged. The SYMBOLS are real liquid tickers
+// whose daily bars load on localhost (checked against the local bars store), so their charts
+// draw; the % moves, prices and volumes in the list are INVENTED and the window labels the
+// whole list "dev sample list".
 //
 // It is reached ONLY through `import()` inside an `import.meta.env.DEV` branch (Breadth.jsx), so a
 // production build drops the branch and never emits this module (devSampleList.test.js reads the
@@ -18,7 +20,12 @@ const SECTORS = [
   ['Materials', ['Metals and mining']],
 ]
 const THEMES = ['AI infrastructure', 'Space', 'GLP-1', 'Nuclear', 'Crypto miners', null, null]
-const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+// Real symbols with local daily bars (verified on the dev box's bars store, 2026-11-19).
+export const DEV_SAMPLE_SYMBOLS = Object.freeze((
+  'AAPL MSFT NVDA AMZN GOOGL META TSLA AMD AVGO NFLX CRM ORCL ADBE INTC QCOM MU PLTR SHOP UBER COIN ' +
+  'SNOW CRWD PANW NOW ANET SMCI ARM MRVL LRCX AMAT KLAC TSM ASML JPM GS BAC WFC V MA PYPL XOM CVX OXY ' +
+  'SLB LLY UNH JNJ PFE MRNA ABBV CAT DE BA GE HON LMT RTX NKE SBUX MCD COST WMT HD TGT DIS SOFI HOOD ' +
+  'RKLB IONQ AFRM DKNG').split(' '))
 
 function rng(seed) {
   let h = 2166136261
@@ -30,19 +37,15 @@ function rng(seed) {
 export function devSampleList({ seed = 'x', count = 30, down = false } = {}) {
   const r = rng(seed)
   const n = Math.max(8, Math.min(60, Math.round(Number.isFinite(count) && count > 0 ? count : 30)))
-  const seen = new Set()
+  // A seeded shuffle of the real symbols, so each list shows a different (stable) set.
+  const pool = [...DEV_SAMPLE_SYMBOLS]
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]] }
   const items = []
-  while (items.length < n) {
-    const len = 3 + Math.floor(r() * 2)
-    let t = ''
-    for (let i = 0; i < len; i++) t += LETTERS[Math.floor(r() * LETTERS.length)]
-    if (seen.has(t)) continue
-    seen.add(t)
+  for (const t of pool.slice(0, n)) {
     const [sector, inds] = SECTORS[Math.floor(Math.pow(r(), 1.6) * SECTORS.length)]
     const move = 4 + Math.pow(r(), 2) * 30
     items.push({
       t,
-      n: `Sample ${t} Holdings`,
       pct: Math.round((down ? -move : move) * 10) / 10,
       c: Math.round((3 + Math.pow(r(), 2) * 180) * 100) / 100,
       vr: Math.round((0.8 + r() * 4) * 10) / 10,

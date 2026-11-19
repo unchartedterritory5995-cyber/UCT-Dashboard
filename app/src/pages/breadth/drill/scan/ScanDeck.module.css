@@ -60,11 +60,25 @@
   color: var(--dr-text);
 }
 .identity {
-  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 4px;
   align-self: stretch; padding: 0 16px; min-width: 210px; flex-shrink: 0;
   border-right: 1px solid var(--dr-line);
 }
 .idTop { display: flex; align-items: center; gap: 8px; }
+/* Mark day / Replay from this day: two small chips under the date (the identity column is
+   three rows in the same 84px band). */
+.dayTools { display: flex; align-items: center; gap: 4px; margin-left: -6px; }
+.dayChip {
+  display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px;
+  border: 0; border-radius: 6px; background: transparent; cursor: pointer; white-space: nowrap;
+  font-family: var(--font-sans); font-size: 11.5px; font-weight: 500; color: var(--dr-faint);
+}
+.dayChip span { font-size: 11px; }
+.dayChip:hover:not(:disabled) { color: var(--dr-text); background: var(--dr-soft); }
+.dayChip[aria-pressed='true'] { color: var(--dr-bright); background: var(--dr-selected); font-weight: 600; }
+.dayChip[data-mode='replay'][aria-pressed='true'] { box-shadow: inset 0 -2px 0 var(--ut-gold); border-radius: 6px 6px 0 0; }
+.dayChip:disabled { opacity: .4; cursor: default; }
+.dayChip:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 .metric {
   font-family: var(--font-sans);
   font-size: 16px;
