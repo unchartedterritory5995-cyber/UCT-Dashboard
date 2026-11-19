@@ -3849,6 +3849,60 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     return split
   }
+  // ⭐⭐ ENGINE NUMBER PENDING (U-STMT PR 1) — `ta.change`'s two arguments, read by Pine's own
+  // parameter names (`ta.change(source, length)`): positional first, then named; an unknown name,
+  // a name given twice or a positional argument after a named one refuses by name (the mapping
+  // `servedCondCall` already makes for `ta.sma(source = …, length = …)`, review L3). `length` is
+  // null for the one-argument form. ⛔ At the object door only the one-argument form, as master.
+  const CHANGE_PARAMS = Object.freeze(['source', 'length'])
+  const changeShapeRefusal = (node, at, what) => new RuntimeRefusal('runtime:statement',
+    `\`${node.name}\` is read as \`${node.name}(source)\` or \`${node.name}(source, length)\`, and this call has ${what}`, at)
+  const changeArgsOf = (node, at) => {
+    const placed = []
+    let named = false
+    for (const a of node.args || []) {
+      const v = a && a.value !== undefined ? a.value : a
+      if (a && a.name) {
+        named = true
+        const i = CHANGE_PARAMS.indexOf(String(a.name))
+        if (i < 0) throw changeShapeRefusal(node, at, `a named argument \`${a.name}\``)
+        if (placed[i] !== undefined) throw changeShapeRefusal(node, at, `\`${a.name}\` given twice`)
+        placed[i] = v
+      } else {
+        if (named) throw changeShapeRefusal(node, at, 'a positional argument after a named one')
+        if (placed.length >= CHANGE_PARAMS.length) throw changeShapeRefusal(node, at, `${(node.args || []).length} arguments`)
+        placed.push(v)
+      }
+    }
+    if (placed[0] === undefined) throw changeShapeRefusal(node, at, 'no `source`')
+    const length = placed.length > 1 && placed[1] !== undefined ? placed[1] : null
+    if (length !== null && atObjectDoor) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${node.name}(source, length)\` is served on the value lane; the object door reads the one-argument form only`, at)
+    }
+    return { given: placed[0], length }
+  }
+  /** The length of `ta.change(source, length)`: a whole number of bars, 1 or more, fixed before bar 0
+   *  (`foldConstNode`, the fold `servedCondCall` reads a window length with: a literal, a constant, an
+   *  input at the value in force). ⛔ Anything else keeps `runtime:statement`, with a true sentence;
+   *  a function parameter a call site could fix keeps its own refusal (C35 compiles that call site's
+   *  copy with the parameter answered). */
+  const changeLengthOf = (node, lengthNode, at, scope) => {
+    let n = null
+    try {
+      n = foldConstNode(lengthNode, at, `the length of \`${node.name}\` is only known while the bar is running`, scope)
+    } catch (err) {
+      if (err && err.frameName) throw err
+      if (!(err instanceof RuntimeRefusal) || err.guard !== 'runtime:history-dynamic-offset') throw err
+      n = null
+    }
+    if (!Number.isInteger(n) || n < 1) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${node.name}(source, length)\` is served with a length that is a whole number of bars, 1 or more, `
+        + 'fixed before bar 0 (written in the script, or an input); this length is not', at)
+    }
+    return n
+  }
   // ⭐⭐ L4d — THE ONE SERVED SET, FOR BOTH BUILDS, EACH KIND ON ITS OWN WITNESSES: a PLOT
   // (C48 `vw-call-site-history`, vw-arm-history) and a DRAWING (W3N-D1, queue
   // capture-queue-2026-11-05-w3w4-d1.md, graded 2026-11-15 on the s10 captures
@@ -10340,18 +10394,57 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // stay refused until the family gets its own authoritative step.
         if (changeTarget(node.name)) {
           const at = locate(node.tok)
-          const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
-          if (given.length !== 1) {
-            // Pine also has `ta.change(source, length)`; the closed table's
-            // `change` declares ONE argument, so the two-argument form is a
-            // TABLE gap and refuses at the columnar door as `pine:arity`. Saying
-            // so here keeps the runtime from inventing a second answer.
+          // ⭐⭐ ENGINE NUMBER PENDING (U-STMT PR 1) — `ta.change(source, length)`, THE HOST'S OWN RULE.
+          // The closed table declares the one-argument `change`, and since 2026-10-29 the host
+          // translates the two-argument form to Pine's published definition, `source - source[length]`
+          // (`pine.js`, the `mom` expansion; a bool source and a length that is not a whole number
+          // refused). A pure source already reaches that rule here through the columnar resolver; a
+          // source this lane holds in a SLOT (a `var`, a reassigned name, an expression over one) came
+          // to this branch and was refused as "a closed-table gap", which it had stopped being.
+          // Evidence: v6 reference `ta.change(source, length)`: "Compares the current `source` value to
+          // its value `length` bars ago and returns the difference"; v4 `change(source, length)`:
+          // "Difference between current value and previous, x - x[y]"; capture vw-w4-arm-runs row E01
+          // `plot(ta.change(close, 2))` = close - close[2] on every graded bar (RDDT 666, SPY 8507).
+          // ⛔ The object door builds what master builds: it keeps the one-argument form only.
+          const { given, length: lengthNode } = changeArgsOf(node, at)
+          const n = lengthNode === null ? 1 : changeLengthOf(node, lengthNode, at, scope)
+          const srcNode = given
+          // ⛔ A BOOL SOURCE IS NOT A DIFFERENCE. Pine's change of a bool "returns `true` when the current
+          // source is different from the previous source", which says nothing of `length` bars ago; the
+          // host refuses it in the same words. Fail closed: served only over a source this lane can
+          // prove is not a bool (`provablyNonBoolNode`, the classifier the arm and block rules use).
+          if (n !== 1 && !provablyNonBoolNode(srcNode, curTypeScope())) {
             throw new RuntimeRefusal('runtime:statement',
-              `\`${node.name}\` takes one source here; the two-argument form is a closed-table gap`, at)
+              `\`${node.name}\` of a value this lane cannot prove is a number: Pine's change of a true/false `
+              + 'series asks whether it changed, not a difference, and the reference does not say what that '
+              + 'means `length` bars back — TO UNBLOCK: compare it yourself, `x != x[length]`', at)
           }
-          const srcNode = given[0]
+          // ⭐⭐ THE CALL SITE'S HISTORY. Pine keeps a `ta.change` call's history per call site: in a
+          // `?:` arm the one-argument form is the previous RUN's value (vw-arm-history T05 / K03), and
+          // the two-argument form reads the call site's own buffer, bar-indexed and carried over the
+          // bars the arm skips (vw-w4-arm-runs C01 / C02: neither n runs nor n bars back). This branch
+          // used to lower `x - x[1]` off the slot's EVERY-BAR ring wherever it stood, so
+          // `c ? ta.change(x) : 0` over a slot `x` drew the bar-back difference (RDDT bar 2: 13.80
+          // where the call site's rule answers 9.36), with nothing red.
+          // ⭐ The one-argument form in an arm takes the witnessed per-run rule (`servedCondCall`, the
+          // one served set); anything else in a region that does not run on every bar asks `r4Guard`:
+          // drawn only while the region has run on every bar (where both readings are one number) and
+          // the run stops by name at the first bar it skips (HIST-S3), else refused by name.
+          if (!atObjectDoor) {
+            if (n === 1) {
+              const served = servedCondCall(node, scope)
+              if (served) return served
+            }
+            if (objectsInRun && owner === null && r4Level() > 0) {
+              note('runtime:conditional-history')
+              throw new RuntimeRefusal('runtime:conditional-history',
+                `\`${node.name}\` inside a block that does not run on every bar — `
+                + 'Pine keeps that history per call site, and this lane serves only the shapes witnessed so far', at)
+            }
+            r4Guard(`\`${node.name}\``, at)
+          }
           if (!srcNode || srcNode.type !== 'name') {
-            // ⭐⭐⭐ `x - x[1]` NEEDS THE SAME COMMITTED SERIES, so it gets one
+            // ⭐⭐⭐ `x - x[n]` NEEDS THE SAME COMMITTED SERIES, so it gets one
             // the same way. Nothing about the lowering below changes: the
             // hoisted slot is an ordinary slot and the subtraction is still the
             // one definition of `change` this file has.
@@ -10362,7 +10455,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
                 `\`${node.name}\` over an expression needs that expression's own committed series`, at)
             }
             return binary('-', read(hoisted.slot),
-              histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, 1, at), 1))
+              histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, n, at), n))
           }
           const varSlot = scope.lookup(srcNode.name)
           if (varSlot === null) {
@@ -10370,8 +10463,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
             throw new RuntimeRefusal('runtime:function-global-state', `\`${srcNode.name}\``, at)
           }
           const prev = owner !== null
-            ? histSlot(varSlot, fnHistorySlotFor(owner, varSlot, 1, at), 1)
-            : histSlot(varSlot, historySlotFor(varSlot, 1, at), 1)
+            ? histSlot(varSlot, fnHistorySlotFor(owner, varSlot, n, at), n)
+            : histSlot(varSlot, historySlotFor(varSlot, n, at), n)
           return binary('-', read(varSlot), prev)
         }
         // ⭐⭐ `ta.atr(n)` IS `ta.rma(trueRange, n)`, AND THAT IS NOT A
