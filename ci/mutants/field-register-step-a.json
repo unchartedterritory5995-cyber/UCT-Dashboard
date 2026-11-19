@@ -4,12 +4,12 @@
  "mutants": [
   {
    "id": "A1",
-   "mutant": "a field register is registered as a plain local again (cleared every bar), dominated or not",
+   "mutant": "every field register is registered again, dominated or not (a field Step B does not serve becomes a cleared local)",
    "file": "app/src/components/chart/engine/ast/pine.js",
    "from": "    } else if (d.kind === 'local' && String(name).includes('.')",
    "to": "    } else if (false",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
-   "expectRed": "the function form"
+   "expectRed": "withheld by name"
   },
   {
    "id": "A2",

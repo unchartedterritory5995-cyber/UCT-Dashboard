@@ -24765,7 +24765,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       colls.push({ id, family: d.family, cap: MAX_OBJECT_COLLECTION_CAP, ...(d.slots ? { slots: d.slots } : {}),
         ...(d.persist ? { persist: true } : {}) })
     } else if (d.kind === 'local' && String(name).includes('.')
-        && !(collected.dominatedFields && collected.dominatedFields.has(name))) {
+        && !(collected.dominatedFields && collected.dominatedFields.has(name))
+        && !(collected.varFields && collected.varFields.has(name))
+        && !(collected.plainFields && collected.plainFields.has(name))) {
       // ⭐⭐ STEP A (b) — a field whose every read follows a write of it in the same bar keeps its register
       // (`pineObjects.js::dominatedFields`): the per-bar clear below is never observed.
       // ⭐⭐ FIELD REGISTER, STEP A (2026-11-19, coordinator ruling) — A DRAWING HELD IN A FIELD (`z.lb`, `z.a.lb`) IS
@@ -24779,7 +24781,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const id = `r${regs.length}`
       regId.set(name, id)
       regs.push({ id, family: d.family })
-      if (d.kind === 'local') locals.push(id)
+      // ⭐⭐ FIELD REGISTER, STEP B (2026-11-19, coordinator ruling) — a field takes its owner's `var`-ness
+      // (`pineObjects.js::fieldOwnerVarness`): a `var` owner's field is NOT cleared per bar (Pine's `var z` is one
+      // object kept across bars, so `z.lb` keeps last bar's label); a plain owner's is (a new object every bar). A
+      // dominated field ((b) above) keeps the per-bar clear it had: no read of it ever observes the clear.
+      const persistentField = String(name).includes('.') && !(collected.dominatedFields && collected.dominatedFields.has(name))
+        && collected.varFields && collected.varFields.has(name)
+      if (d.kind === 'local' && !persistentField) locals.push(id)
     }
   }
 
