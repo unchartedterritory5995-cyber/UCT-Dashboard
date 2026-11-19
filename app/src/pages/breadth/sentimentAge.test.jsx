@@ -161,3 +161,26 @@ describe('a carried value is marked carried, in the tooltip and aria', () => {
     expect(container.querySelector('[data-testid="freshness-age"]')).toBeNull()
   })
 })
+
+// Round 9 (2026-11-19): a column header opens the CHART's Signature menu
+// (ContextPopover `signature`): the column's name as a section label, its
+// description, then the actions; Esc closes it and focus returns to the header.
+describe('the column header menu', () => {
+  it('shows the name, the description and the actions, and Esc closes it', () => {
+    mount()
+    const btn = screen.getByRole('button', { name: 'CBOE P/C column options' })
+    fireEvent.click(btn)
+    const menu = screen.getByRole('menu')
+    expect(menu.textContent).toMatch(/^CBOE put\/call ratio/)
+    expect(menu.textContent).toMatch(/Put volume divided by call volume/)
+    expect(Array.from(menu.querySelectorAll('[role="menuitem"]')).map(b => b.textContent))
+      .toEqual(['Move left', 'Move right', 'Hide column'])
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('headers carry no native title (the card explains them)', () => {
+    const { container } = mount()
+    expect(container.querySelectorAll('thead th[title], thead button[title]')).toHaveLength(0)
+  })
+})

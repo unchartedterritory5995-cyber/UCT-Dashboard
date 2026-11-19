@@ -11,7 +11,10 @@ import MarketBreadth from '../components/tiles/MarketBreadth'
 import { SkeletonTileContent } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
 import { formatETFull } from '../utils/timeAgo'
-import Menu, { SigMenuItem as MenuItem } from './breadth/SigMenu'
+// The chart's own UCT Signature floating menu (`signature`): the Monitor's header
+// menu, its ⋯ menu and the header hover card wear exactly its panel, rows and labels.
+import ContextPopover from '../components/mobile/ContextPopover'
+import cpStyles from '../components/mobile/ContextPopover.module.css'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
@@ -392,12 +395,14 @@ function cellClass(col, val, row = null) {
 function ColumnInfoBlock({ colKey }) {
   const info = columnInfo(colKey)
   if (!info) return null
+  // The chart menu's idiom: the name is a small grey section label (ContextPopover's own
+  // `groupLabel`, like "This chart"), the description muted body text under it.
   return (
-    <>
-      <div className={styles.colInfoName}>{info.name}</div>
+    <div className={styles.colInfo}>
+      <div className={cpStyles.groupLabel}>{info.name}</div>
       <div className={styles.colInfoDesc}>{info.desc}</div>
-      {info.weekly && <div className={styles.colInfoNote}>A weekly survey: it updates once a week.</div>}
-    </>
+      {info.weekly && <div className={styles.colInfoDesc}>A weekly survey: it updates once a week.</div>}
+    </div>
   )
 }
 
@@ -804,6 +809,11 @@ export default function Breadth() {
   const [colCard, setColCard] = useState(null)
   const colCardTimer = useRef(null)
   const colMenuOpen = useRef(false)
+  // The one header menu (chart Signature ContextPopover): { key, index, anchor }.
+  const [colMenu, setColMenu] = useState(null)
+  const colMenuBtn = useRef(null)
+  const colMenuReturning = useRef(false)
+  const [moreMenu, setMoreMenu] = useState(null)
   const hideColCard = useCallback(() => {
     clearTimeout(colCardTimer.current)
     setColCard(null)
@@ -819,6 +829,19 @@ export default function Breadth() {
     }, delay)
   }, [])
   useEffect(() => () => clearTimeout(colCardTimer.current), [])
+  const openColMenu = useCallback((key, index, btn) => {
+    hideColCard()
+    if (colMenu?.key === key) { setColMenu(null); return }
+    colMenuBtn.current = btn
+    colMenuOpen.current = true
+    const r = btn.getBoundingClientRect()
+    setColMenu({ key, index, anchor: { x: r.left - 4, y: r.bottom + 6 } })
+  }, [colMenu, hideColCard])
+  const closeColMenu = useCallback(() => {
+    colMenuOpen.current = false
+    colMenuReturning.current = true   // ContextPopover hands focus back to the header next
+    setColMenu(null)
+  }, [])
 
   const [drill, setDrill] = useState(null)
   // drill = { date, label, items: [{t,pct}] | null }
@@ -1311,24 +1334,37 @@ export default function Breadth() {
                     />
                   )}
                 </div>
-                {/* ⋯ — the Signature floating menu (breadth/SigMenu, twin of the Screener's):
+                {/* ⋯ — the chart's Signature menu (ContextPopover `signature`):
                     Share (branded snapshot) and Export CSV. */}
                 <div className={customizeStyles.anchor}>
-                  <Menu
-                    label="More"
-                    trigger={(
-                      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-                        <circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" />
-                      </svg>
-                    )}
-                    align="right"
-                    width={180}
-                    testId="breadth-more-menu"
-                    triggerClassName={`${styles.hdrBtn} ${styles.moreBtn}`}
+                  <button
+                    type="button"
+                    className={`${styles.hdrBtn} ${styles.moreBtn}`}
+                    aria-label="More"
+                    aria-haspopup="menu"
+                    aria-expanded={!!moreMenu}
+                    data-testid="breadth-more-menu"
+                    onClick={(e) => {
+                      if (moreMenu) { setMoreMenu(null); return }
+                      const r = e.currentTarget.getBoundingClientRect()
+                      setMoreMenu({ x: r.right - 180, y: r.bottom + 6 })
+                    }}
                   >
-                    <MenuItem onSelect={() => setShareOpen(true)}>Share</MenuItem>
-                    <MenuItem onSelect={() => exportCsv(rows, visibleCols)}>Export CSV</MenuItem>
-                  </Menu>
+                    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                      <circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" />
+                    </svg>
+                  </button>
+                  <ContextPopover
+                    open={!!moreMenu}
+                    anchor={moreMenu}
+                    onClose={() => setMoreMenu(null)}
+                    width={180}
+                    signature
+                    items={[
+                      { key: 'share', label: 'Share', onClick: () => setShareOpen(true) },
+                      { key: 'csv', label: 'Export CSV', onClick: () => exportCsv(rows, visibleCols) },
+                    ]}
+                  />
                   {shareOpen && (
                     <ScreenshotPopover
                       title="Share Breadth"
@@ -1423,37 +1459,29 @@ export default function Breadth() {
                       className={`${styles.th} ${styles.colLabel} ${groupStartKeys.has(col.key) ? styles.groupStart : ''} ${isMa ? styles.thMa : ''}`}
                       style={isMa ? undefined : { minWidth: colMinWidth(col) }}
                     >
-                      {/* The header opens a small Signature menu (breadth/SigMenu:
-                          Enter/Space opens it, Esc closes it and
+                      {/* The header opens the chart's Signature menu (one ContextPopover
+                          for the sheet, below): Enter/Space opens it, Esc closes it and
                           focus returns here. */}
-                      <Menu
-                        label={isMa ? `${maStackTitle(col)} — column options` : `${col.label} column options`}
-                        trigger={label}
-                        align={ci > visibleCols.length / 2 ? 'right' : 'left'}
-                        width={264}
-                        testId={`col-menu-${col.key}`}
-                        triggerClassName={styles.thBtn}
-                        header={<ColumnInfoBlock colKey={col.key} />}
-                        onOpenChange={(open) => {
-                          colMenuOpen.current = open
-                          if (open) hideColCard()
+                      <button
+                        type="button"
+                        className={styles.thBtn}
+                        data-testid={`col-menu-${col.key}`}
+                        aria-label={isMa ? `${maStackTitle(col)} — column options` : `${col.label} column options`}
+                        aria-haspopup="menu"
+                        aria-expanded={colMenu?.key === col.key}
+                        aria-describedby={colCard?.key === col.key ? 'breadth-col-card' : undefined}
+                        onClick={(e) => openColMenu(col.key, ci, e.currentTarget)}
+                        onFocus={(e) => {
+                          // Focus coming back from this header's own menu is not a
+                          // request for the card.
+                          if (colMenuReturning.current) { colMenuReturning.current = false; return }
+                          if (e.currentTarget.matches(':focus-visible')) showColCard(col.key, e.currentTarget.closest('th'), 0)
                         }}
-                        triggerProps={{
-                          'aria-describedby': colCard?.key === col.key ? 'breadth-col-card' : undefined,
-                          onFocus: (e) => {
-                            // Focus returning from this header's own menu (Esc) is not a
-                            // request for the card: the menu is still marked open then.
-                            if (colMenuOpen.current) return
-                            if (e.currentTarget.matches(':focus-visible')) showColCard(col.key, e.currentTarget.closest('th'), 0)
-                          },
-                          onBlur: hideColCard,
-                          onKeyDown: (e) => { if (e.key === 'Escape') hideColCard() },
-                        }}
+                        onBlur={hideColCard}
+                        onKeyDown={(e) => { if (e.key === 'Escape') hideColCard() }}
                       >
-                        <MenuItem onSelect={() => moveCol(col.key, -1)} disabled={ci === 0}>Move left</MenuItem>
-                        <MenuItem onSelect={() => moveCol(col.key, 1)} disabled={ci === visibleCols.length - 1}>Move right</MenuItem>
-                        <MenuItem onSelect={() => hideCol(col.key)}>Hide column</MenuItem>
-                      </Menu>
+                        {label}
+                      </button>
                     </th>
                   )
                 })}
@@ -1636,10 +1664,28 @@ export default function Breadth() {
         </div>
       )}
       {colCard && activeTab === 'breadth' && columnInfo(colCard.key) && (
+        // The same Signature panel as the menu (ContextPopover's own classes).
         <div id="breadth-col-card" role="tooltip" data-testid="breadth-col-card"
-             className={styles.colCard} style={{ left: colCard.left, top: colCard.top }}>
+             className={`${cpStyles.menu} ${cpStyles.signature} ${styles.colCard}`}
+             style={{ left: colCard.left, top: colCard.top }}>
           <ColumnInfoBlock colKey={colCard.key} />
         </div>
+      )}
+      {activeTab === 'breadth' && (
+        <ContextPopover
+          open={!!colMenu}
+          anchor={colMenu?.anchor}
+          onClose={closeColMenu}
+          returnFocusTo={colMenuBtn}
+          width={264}
+          signature
+          header={colMenu ? <ColumnInfoBlock colKey={colMenu.key} /> : null}
+          items={colMenu ? [
+            { key: 'move-left', label: 'Move left', disabled: colMenu.index === 0, onClick: () => moveCol(colMenu.key, -1) },
+            { key: 'move-right', label: 'Move right', disabled: colMenu.index === visibleCols.length - 1, onClick: () => moveCol(colMenu.key, 1) },
+            { key: 'hide', label: 'Hide column', onClick: () => hideCol(colMenu.key) },
+          ] : []}
+        />
       )}
       {ageTip && activeTab === 'breadth' && (
         <div className={styles.ageTip} role="tooltip" data-testid="breadth-age-tip"
