@@ -28,14 +28,17 @@ float64 text, and record each capture's own `capturedAtUTC`. Both probes are our
 
 A test of a `var` list nothing has written yet, at the top of a `barstate.islast` block, runs no step on the host lane's
 one recompute, so these scripts' last-bar clean-up loops no longer refuse them. They are drawn on the host lane's
-capability licence; no committed capture grades them yet. Capture each from the listing, inputs at defaults (corpus
-`reference/`, licence-held: the capture is graded locally and not committed if the licence says so).
+capability licence; no committed capture grades them yet. Capture each from the listing, inputs at defaults. Each is a
+reference script, named in the one form the queue reads, `reference:<slug>` (its text is never in git: it is the
+pine_survey cache's, on the machines that fetched it). With the cache the queue makes it a LICENCE_HOLD target that
+carries `publishedScript` (the published script's `PUB;` id and its title, to add it by id), graded locally and never
+committed; without it the row is NEEDS_PROBE by name ("reference source not cached on this machine").
 
 | id | script | chart | question | live | phase |
 |---|---|---|---|---|---|
-| Q-ONCE-1a | `reference/camarilla-levels-intraday__bfb5a2b8db` | NYSE:RDDT 1D, AMEX:SPY 1D | do the levels and labels drawn on the last bar match TradingView's (objects, by family and price)? | no |  |
-| Q-ONCE-1b | `reference/rsi-support-resistance-by-dgt__ZkkLVEb1ak` | NYSE:RDDT 1D, AMEX:SPY 1D | the lines and linefills drawn on the last bar, beside its plots | no |  |
-| Q-ONCE-1c | `reference/support-resistance-fibonacci-retracement__06a1a2c80d` | NYSE:RDDT 1D, AMEX:SPY 1D | the lines and labels, including the 6 list reads (B) now carries | no |  |
+| Q-ONCE-1a | `reference:camarilla-levels-intraday__bfb5a2b8db` | NYSE:RDDT 1D, AMEX:SPY 1D | do the levels and labels drawn on the last bar match TradingView's (objects, by family and price)? | no |  |
+| Q-ONCE-1b | `reference:rsi-support-resistance-by-dgt__ZkkLVEb1ak` | NYSE:RDDT 1D, AMEX:SPY 1D | the lines and linefills drawn on the last bar, beside its plots | no |  |
+| Q-ONCE-1c | `reference:support-resistance-fibonacci-retracement__06a1a2c80d` | NYSE:RDDT 1D, AMEX:SPY 1D | the lines and labels, including the 6 list reads (B) now carries | no |  |
 
 **What each answer moves.** MATCH keeps the script drawn. **DIVERGE applies the REACH kill rule by source hash**
 (the script is withheld by name until the divergence is understood), per the coordinator's condition on ruling (B).

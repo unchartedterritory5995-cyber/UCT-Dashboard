@@ -1120,3 +1120,90 @@ def test_the_htf_forming_doc_names_one_phase_per_row_and_its_rows_are_distinct_t
     assert by["vw-request-htf-forming@AMEX:SPY@5@insession"]["rows"][0].endswith("Q-HTF-FORM-e")
     assert by["vw-request-htf-forming@AMEX:SPY@W@insession"]["rows"][0].endswith("Q-HTF-FORM-f")
     assert len(by) == 10 and not any(t["capturePhase"] is None for t in by.values())
+
+
+# ─── reference scripts (2026-11-19): ONE form, `reference:<slug>` ─────────────────────────────────────────────────────
+# A published sample's text is never in git: `corpus/reference/<slug>.json` holds its title / scriptIdPart / url and the
+# pine_survey cache (`World.cache_dir`, git-ignored) its text, on the machines that fetched it. ⚰️ Three rows spelt
+# `reference/<slug>` resolved to nothing and read as prose ("no probe file named").
+REF_SLUG = "levels-intraday__bfb5a2b8db"
+REF_OPEN = "open-sample__ZkkLVEb1ak"
+REF_HELD = 'indicator("Levels")\nplot(close)\n'                       # no licence line: licence-held
+REF_MPL = "// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n" \
+          'indicator("Open")\nplot(open)\n'                                  # a licence `corpus_licence` permits
+REF_DOC = """# Capture queue - 2026-11-19 reference
+
+Probe `alpha.pine`, NYSE:RDDT 1D.
+
+| id | script | chart | question | live |
+|---|---|---|---|---|
+| R1 | `reference:levels-intraday__bfb5a2b8db` | NYSE:RDDT 1D, AMEX:SPY 1D | the levels | no |
+| R2 | `reference:open-sample__ZkkLVEb1ak` | NYSE:RDDT 1D | the open | no |
+| R3 | `reference/levels-intraday__bfb5a2b8db` | NYSE:RDDT 1D | spelt another way | no |
+| R4 | `reference:nobody-knows__0000000000` | NYSE:RDDT 1D | no metadata | no |
+"""
+
+
+def _reference_world(world, cached=True):
+    ref = world.corpus / "reference"
+    ref.mkdir(parents=True, exist_ok=True)
+    (ref / f"{REF_SLUG}.json").write_text(json.dumps({
+        "scriptIdPart": "PUB;bfb5a2b8dbed4ec8baa5aa2c1dbacc04", "title": "Levels \u2014 Intraday",
+        "url": "https://www.tradingview.com/script/J1mDPr1s-levels/", "licence": "NONE-IN-SOURCE"}), encoding="utf-8")
+    (ref / f"{REF_OPEN}.json").write_text(json.dumps({"scriptIdPart": "ZkkLVEb1ak", "title": "Open Sample"}),
+                                         encoding="utf-8")
+    if cached:
+        src = world.cache_dir / "sources"
+        src.mkdir(parents=True, exist_ok=True)
+        (src / f"{REF_SLUG}.pine").write_text(REF_HELD, encoding="utf-8", newline="")
+        (src / f"{REF_OPEN}.pine").write_text(REF_MPL, encoding="utf-8", newline="")
+    (world.docs_dir / "capture-queue-2026-11-19-reference.md").write_text(REF_DOC, encoding="utf-8")
+    return world
+
+
+def _ref_rows_in_targets(q):
+    return {r.split("#", 1)[1] for t in q["targets"] for r in t["rows"] if "2026-11-19-reference#" in r}
+
+
+def test_a_reference_script_with_its_cached_text_is_a_target_and_a_held_one_is_licence_hold(world):
+    q = ee.build_queue(_reference_world(world))
+    by = _by_id(q)
+    held = by[f"{REF_SLUG}@NYSE:RDDT@D"]
+    assert (held["status"], held["sourceKind"], held["licence"]) == ("LICENCE_HOLD", "reference", "held")
+    assert by[f"{REF_SLUG}@AMEX:SPY@D"]["status"] == "LICENCE_HOLD"
+    # what the add-the-published-script path needs: the dialog data-id (`PUB;<scriptIdPart>`) and the title it searches
+    assert held["publishedScript"] == {"id": "PUB;bfb5a2b8dbed4ec8baa5aa2c1dbacc04", "search": "Levels \u2014 Intraday",
+                                       "url": "https://www.tradingview.com/script/J1mDPr1s-levels/",
+                                       "meta": f"corpus/reference/{REF_SLUG}.json"}
+    opened = by[f"{REF_OPEN}@NYSE:RDDT@D"]
+    assert (opened["status"], opened["licence"]) == ("QUEUED", "permitted")       # the licence is read off the text
+    assert opened["publishedScript"]["id"] == "PUB;ZkkLVEb1ak"                      # the prefix, when the json lacks it
+    assert all(t.get("publishedScript") is None for t in q["targets"] if t["sourceKind"] != "reference")
+    rows = _rows(q)
+    assert rows["R3"]["needsProbe"] == f"a reference script is named `reference:{REF_SLUG}`, not `reference/{REF_SLUG}`"
+    assert rows["R4"]["needsProbe"] == "no corpus/reference/nobody-knows__0000000000.json for `reference:nobody-knows__0000000000`"
+    assert _ref_rows_in_targets(q) == {"R1", "R2"}           # R3 / R4 never took the preamble's `alpha.pine`
+
+
+def test_a_reference_script_without_its_cached_text_is_needs_probe_by_name_and_takes_no_section_probe(world):
+    q = ee.build_queue(_reference_world(world, cached=False))
+    rows = _rows(q)
+    assert rows["R1"]["needsProbe"] == f"{ee.REF_UNCACHED}: `reference:{REF_SLUG}`"
+    assert rows["R2"]["needsProbe"] == f"{ee.REF_UNCACHED}: `reference:{REF_OPEN}`"
+    assert not any(t["sourceKind"] == "reference" for t in q["targets"])
+    assert _ref_rows_in_targets(q) == set()                  # no row of it took the preamble's `alpha.pine`
+
+
+def test_the_committed_reference_rows_derive_and_queue_check_passes_on_a_machine_without_the_cache(
+        tmp_path, monkeypatch, capsys):
+    """⭐ CI never has the pine_survey cache. There, every committed `reference:<slug>` row is NEEDS_PROBE by name
+    (REF_UNCACHED), never a target and never a refusal, and `queue --check` passes."""
+    monkeypatch.setenv("UCT_PINE_CACHE", str(tmp_path / "no-cache"))
+    q = ee.build_queue(ee.World())
+    named = {r["key"].split("#", 1)[1]: r["needsProbe"] for r in q["rowsNeedingProbe"] if ee.REF_RX.search(r["text"])}
+    assert {"Q-ONCE-1a", "Q-ONCE-1b", "Q-ONCE-1c", "TC-A1", "TC-A2"} <= set(named), sorted(named)
+    assert all(why.startswith(ee.REF_UNCACHED) for why in named.values()), named
+    assert not any(t["sourceKind"] == "reference" for t in q["targets"])
+    assert not any(ee.REF_MISSPELT_RX.search(r["text"]) for r in q["rowsNeedingProbe"])   # one form, every doc
+    assert ee.main(["queue", "--check"]) == 0
+    assert "VERDICT: PASS" in capsys.readouterr().out
