@@ -54,6 +54,7 @@
       "mansfield.crossDirection", "mansfield.lastCross", "mansfield.summary",
       "legend.summary", "legend.blankReason",
       "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
-      "inputs.themeBenchmark", "inputs.mansfieldLength", "intraday", "state"]
+      "inputs.themeBenchmark", "inputs.mansfieldLength", "intraday", "state",
+      "evidence.sentence.mansfield"]
   }
 }
