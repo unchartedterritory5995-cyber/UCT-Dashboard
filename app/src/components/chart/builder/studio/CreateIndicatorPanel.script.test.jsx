@@ -15,12 +15,15 @@ import { AuthContext } from '../../../../context/AuthContext'
 import { __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../../engine/runtimeKill'
 import CreateIndicatorPanel from './CreateIndicatorPanel'
+import { recipeBars, recipeContext, RUN_STOP_PROBES } from '../../supportLoop/assistantRecipes'
 import BuilderSheet from '../BuilderSheet'
 
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
   .match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
 vi.stubEnv(flagOf('src/components/chart/engine/objectsOnlyPaneGate.js'), '1')
 vi.stubEnv(flagOf('src/components/chart/engine/runtimePaneGate.js'), '1')
+// (a script is run on a chart only where member scripts are drawn at all: `runsHere.js` asks the gate first)
+vi.stubEnv('VITE_PINE_MEMBER_PANE_ENABLED', '1')
 
 const EXAMPLES = path.resolve(process.cwd(), 'src/components/chart/supportLoop/assistantExamples')
 const TABLE = fs.readFileSync(path.join(EXAMPLES, 'table-summary.pine'), 'utf8')
@@ -58,6 +61,8 @@ describe('an answer that is a script', () => {
     const { spy, writes, onOpenScript } = mount({ converse: async () => scriptAnswer(TABLE, 'A table of the ATR in the corner.') })
     await say('Show a table in the corner with the ATR')
     expect(spy).toHaveBeenCalledTimes(1)                                    // it ran: nothing was sent back
+    // ⭐ this window SHOWS a script, so it is the sender that tells the door it accepts one
+    expect(spy.mock.calls[0][0].gateCtx.showsScripts).toBe(true)
     const lines = [...entry().querySelectorAll(':scope > span')].map((s) => s.textContent)
     expect(lines[0]).toMatch(/^Runs on the chart/)                          // the ENGINE's headline, first
     expect(screen.getByTestId('create-indicator-said').textContent).toContain('A table of the ATR in the corner.')
@@ -96,5 +101,49 @@ describe('the script editor opens with the script in it', () => {
     )
     await act(async () => { await Promise.resolve(); await Promise.resolve() })
     expect(screen.getByTestId('pine-box').querySelector('textarea').value).toBe(TABLE)
+  }, 120_000)
+})
+
+// ═══ the dock beside a chart: "runs" is a real run on that chart ═══════════════════════════
+
+describe('the dock runs a script on the chart it sits beside', () => {
+  const TOTAL = RUN_STOP_PROBES['running-total'].source
+  const chartOn = (history) => ({ bars: recipeBars('daily'), ctx: recipeContext('daily', history) })
+  function mountBeside(engineChart, converse) {
+    const spy = vi.fn(converse)
+    render(
+      <CreateIndicatorPanel settings={mergeChartSettings({})} onChange={() => {}} sym="AAPL" tf="D" engineChart={engineChart}
+        onPreview={() => {}} onClose={() => {}} converse={spy} sessionKey={createKey('s_script_run')} onOpenScript={() => {}} />,
+    )
+    return spy
+  }
+
+  it('a script that pastes clean and is refused by the run shows the RUN\'s refusal, not "Runs", and is sent back with it', async () => {
+    const sent = []
+    const spy = mountBeside(chartOn('offListing'), async (args) => { sent.push(args); return scriptAnswer(`${TOTAL}// try ${sent.length}${String.fromCharCode(10)}`, 'A running total of volume.') })
+    await say('Plot a running total of volume')
+    // the first answer, and ONE repair: it came back refused the same way, so it is not asked again
+    await waitFor(() => expect(spy.mock.calls.length).toBe(2), { timeout: 60_000 })
+    expect(sent[1].scriptRefusal.errors[0]).toMatch(/its values never came to agree/)
+    expect(sent[1].scriptRefusal.round).toBe(1)
+    await waitFor(() => expect(entry().textContent).toMatch(/It does not run on this chart/), { timeout: 60_000 })
+    expect(screen.getByTestId('create-indicator-script').dataset.runs).toBe('false')
+    expect(entry().textContent).toMatch(/its values never came to agree/)
+    expect(entry().textContent).not.toMatch(/^Runs on the chart/)
+  }, 180_000)
+
+  it('CONTROL: the same script beside a chart whose history reaches the listing runs, and nothing is sent back', async () => {
+    const spy = mountBeside(chartOn('fromListing'), async () => scriptAnswer(TOTAL, 'A running total of volume.'))
+    await say('Plot a running total of volume')
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('create-indicator-script').dataset.runs).toBe('true')
+    expect(entry().textContent).toMatch(/^Runs on the chart/)
+  }, 120_000)
+
+  it('CONTROL: with no chart handed to it the dock is what it was (the paste check alone)', async () => {
+    const { spy } = mount({ converse: async () => scriptAnswer(TOTAL, 'A running total of volume.') })
+    await say('Plot a running total of volume')
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('create-indicator-script').dataset.runs).toBe('true')
   }, 120_000)
 })

@@ -609,7 +609,7 @@ function loadEditor() {
  *  (already mounted and already the value carrier) stays the box. Never a reload. */
 const TEXTAREA_FALLBACK = null
 
-function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry, sym = null, tf = null, savedRow = null, onStatusHeadline = null, lineJumpRef = null }) {
+function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry, sym = null, tf = null, savedRow = null, onStatusHeadline = null, lineJumpRef = null, engineChart = null }) {
   const inspect = useCallback(
     (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
@@ -656,7 +656,9 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   const statusOn = editorStatusEnabled()
   const editorRef = useRef(null)
   const [inspected, setInspected] = useState(initialSource)
-  const editorStatusNow = usePineEditorStatus({ enabled: statusOn, report, inspectedSource: inspected, savedRow })
+  // ⭐ `chart`: the chart the builder was opened over, as the engine sees it. The panel runs the script on
+  // it before it says "Runs" (`PineEditorStatus.useRunOnChart`).
+  const editorStatusNow = usePineEditorStatus({ enabled: statusOn, report, inspectedSource: inspected, savedRow, chart: engineChart })
   const statusMarks = useMemo(
     () => (editorStatusNow ? toLineMarks(editorStatusNow, inspected) : null), [editorStatusNow, inspected])
   // ⭐ STUDIO R4 — the host is told the panel's sentence and the exact text it is about, so a save
@@ -1645,7 +1647,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
 export function ImportBox({
   onPick, disabled = false, initialSource = '', dialect = 'auto', onSourceChange = null,
   onImportTelemetry = null, sym = null, tf = null, savedRow = null, onStatusHeadline = null,
-  lineJumpRef = null,
+  lineJumpRef = null, engineChart = null,
 }) {
   return (
     <PasteBox
@@ -1660,6 +1662,7 @@ export function ImportBox({
       sym={sym}
       tf={tf}
       savedRow={savedRow}
+      engineChart={engineChart}
     />
   )
 }

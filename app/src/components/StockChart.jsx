@@ -9628,6 +9628,21 @@ export default function StockChart({
   const historyFromListing = useMemo(() => historyFromListingOf({
     bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
   }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
+  // ⭐ 2026-11-19 -- THE CHART AS THE ENGINE SEES IT, for a check made BESIDE the chart
+  // (`chart/builder/runsHere.js`): the bars the binder computes on and the five facts of the compute
+  // context it is handed below (`sym`, `symbol`, `tf`, `newestBarIsForming`, `historyFromListing`).
+  // A script judged on anything else would be judged on a chart the member is not looking at.
+  // `engineChart.test.js` holds these five to the binder's own, expression for expression.
+  const engineChart = useMemo(() => ({
+    bars: filteredBars,
+    ctx: {
+      sym,
+      symbol: symbolMeta,
+      tf: resolvedTf,
+      newestBarIsForming: data?.newest_bar_is_forming ?? null,
+      historyFromListing,
+    },
+  }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing])
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
@@ -21987,6 +22002,7 @@ export default function StockChart({
             /* ⭐ THE WINDOW THE USER SEES (Phase D Task 13) — the concierge's
                compute stage runs on these. Same array the chart is drawing. */
             bars={bars}
+            engineChart={engineChart}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             color={drawColor}
@@ -22162,6 +22178,7 @@ export default function StockChart({
               chartInstances={engineInstancesRef.current}
               chartId={chartId}
               bars={bars}
+              engineChart={engineChart}
               activeTool={activeTool}
               setActiveTool={setActiveTool}
               color={drawColor}
@@ -22261,6 +22278,7 @@ export default function StockChart({
               chartInstances={engineInstancesRef.current}
               chartId={chartId}
               bars={bars}
+              engineChart={engineChart}
               activeTool={indexActiveTool}
               setActiveTool={setIndexActiveTool}
               color={drawColor}
