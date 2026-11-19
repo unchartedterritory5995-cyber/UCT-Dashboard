@@ -1,0 +1,27 @@
+//@version=5
+indicator("Volume Profile", overlay=true, max_boxes_count=100)
+n = input.int(60, "Bars", minval=5, maxval=500)
+rows = input.int(24, "Rows", minval=4, maxval=60)
+width = input.int(30, "Longest row (bars)", minval=5, maxval=200)
+hi = ta.highest(high, n)
+lo = ta.lowest(low, n)
+var box[] drawn = array.new_box(0)
+var float poc = na
+if barstate.islast and hi > lo
+    while array.size(drawn) > 0
+        oldBox = array.pop(drawn)
+        box.delete(oldBox)
+    step = (hi - lo) / rows
+    vols = array.new_float(rows, 0.0)
+    for i = 0 to n - 1
+        r = math.min(rows - 1, math.floor((close[i] - lo) / step))
+        array.set(vols, r, array.get(vols, r) + volume[i])
+    top = array.max(vols)
+    for r = 0 to rows - 1
+        v = array.get(vols, r)
+        len = math.max(1, math.round(v / top * width))
+        isPoc = v == top
+        if isPoc
+            poc := lo + (r + 0.5) * step
+        array.push(drawn, box.new(bar_index - n, lo + (r + 1) * step, bar_index - n + len, lo + r * step, bgcolor=color.new(isPoc ? color.orange : color.blue, 60), border_color=color.new(color.blue, 100)))
+plot(poc, "Point of control", color=color.orange, style=plot.style_linebr)

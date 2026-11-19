@@ -1,0 +1,32 @@
+//@version=5
+indicator("Weekday Returns", overlay=false)
+n = input.int(500, "Bars looked back", minval=20, maxval=2000)
+r = close / close[1] - 1
+names = array.from("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+var table t = table.new(position.top_right, 3, 8)
+float best = na
+if barstate.islast
+    sums = array.new_float(7, 0.0)
+    counts = array.new_int(7, 0)
+    for i = 0 to n - 1
+        if not na(r[i])
+            d = dayofweek[i] - 1
+            array.set(sums, d, array.get(sums, d) + r[i])
+            array.set(counts, d, array.get(counts, d) + 1)
+    int bestDay = na
+    for d = 0 to 6
+        if array.get(counts, d) > 0
+            avg = array.get(sums, d) / array.get(counts, d) * 100
+            if na(best) or avg > best
+                best := avg
+                bestDay := d
+    table.cell(t, 0, 0, "Day", text_color=color.white, bgcolor=color.gray)
+    table.cell(t, 1, 0, "Avg %", text_color=color.white, bgcolor=color.gray)
+    table.cell(t, 2, 0, "Days", text_color=color.white, bgcolor=color.gray)
+    for d = 0 to 6
+        k = array.get(counts, d)
+        bg = d == bestDay ? color.new(color.green, 60) : color.new(color.gray, 85)
+        table.cell(t, 0, d + 1, array.get(names, d), bgcolor=bg)
+        table.cell(t, 1, d + 1, k > 0 ? str.tostring(array.get(sums, d) / k * 100, "#.###") : "-", bgcolor=bg)
+        table.cell(t, 2, d + 1, str.tostring(k), bgcolor=bg)
+plot(best, "Best day's average return %", color=color.green, style=plot.style_circles)

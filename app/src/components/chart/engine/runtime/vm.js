@@ -156,6 +156,39 @@ export function makeContext({ bars, series, columns, confirmed = true }) {
  *  weekly read it lagged the bar that closes the week.
  *  ⛔ A nested request is handed no supply: it is recorded in `requested` and answers `na`,
  *  and the caller refuses a run that recorded one (`runtimeColumns.js`). */
+/** The bar fields `runRequest` hands a request's series in, by `READ_SERIES` index (`SERIES_NAMES` order). */
+const REQUEST_SERIES_KEYS = Object.freeze(['o', 'h', 'l', 'c', 'v'])
+const _bareFields = new WeakMap()
+let _bareFieldPickOff = false
+/** Tests: force every request through the VM sub-run (the identity rail compares both paths). */
+export function __bareFieldPickOffForTests(off) { _bareFieldPickOff = !!off }
+/** ⭐ PERF — the series indices a request region only reads and emits, in output order, or null for any other region.
+ *  The shape is exactly what `lowerIr.js` emits for a bare field or a tuple of them: `READ_SERIES s0 … s(r-1)`, then
+ *  `EMIT r-1 … EMIT 0` (a tuple's elements pop in reverse), then `HALT` — no hoisted statement, no other op. */
+export function bareFieldsOf(program, entry, results) {
+  let byEntry = _bareFields.get(program)
+  if (!byEntry) { byEntry = new Map(); _bareFields.set(program, byEntry) }
+  const memo = byEntry.get(entry)
+  if (memo !== undefined) return memo
+  const code = program.code
+  const max = program.instructions
+  const at = (pc, i) => code[pc * 3 + i]
+  let pc = Number.isInteger(entry) ? entry : -1
+  let fields = null
+  if (pc >= 0 && Number.isInteger(results) && results >= 1) {
+    const reads = []
+    while (pc < max && at(pc, 0) === OP.READ_SERIES) { reads.push(at(pc, 1)); pc += 1 }
+    let ok = reads.length === results && reads.every((s) => s >= 0 && s < REQUEST_SERIES_KEYS.length)
+    for (let k = results - 1; ok && k >= 0; k -= 1) {
+      ok = pc < max && at(pc, 0) === OP.EMIT && at(pc, 1) === k
+      pc += 1
+    }
+    if (ok && pc < max && at(pc, 0) === OP.HALT) fields = reads
+  }
+  byEntry.set(entry, fields)
+  return fields
+}
+
 function runRequest(program, site, otherBars, ctx, budget, requested, requestCache, results, requestDepth = 1, now) {
   const plain = Array.isArray(otherBars)
   const supply = plain
@@ -166,6 +199,35 @@ function runRequest(program, site, otherBars, ctx, budget, requested, requestCac
     : otherBars
   const bars = supply.runBars
   const n = bars.length
+  // ⭐⭐ PERF (Fred RS 5m profile, 2026-11-19) — A BARE-FIELD REQUEST NEEDS NO SUB-RUN. Fred RS's four requests
+  // are each `close` (region: READ_SERIES 3 · EMIT 0 · HALT), yet each ran a full VM sub-run over the OTHER series'
+  // whole history: the program's every ring, persist and output allocated at the source's length and committed on
+  // every source bar. 8 sub-runs walked 43,112 source bars for a 2,000-bar 5m chart, 525 ms of the run half's
+  // 1,365 (one alone, SP:SPX on the 11,586-bar 5m grid, 501 ms). A region that only READS fields and EMITS them
+  // answers the same values by a pick through the alignment index, exactly as READ_SERIES + EMIT would: ToNumber
+  // (`Float64Array.from`), then EMIT's laundering (a non-finite value is `na`). Any other region runs as before.
+  // ⛔ The budget the sub-run would have charged for the SERIES (`HISTORY` at the source length, `REQUEST_FANOUT`) is
+  // charged the same; the program-wide peaks it would have re-charged at the source length (rings, memory) are not,
+  // because nothing of them is allocated.
+  const fields = _bareFieldPickOff ? null : bareFieldsOf(program, site.entry, results)
+  if (fields) {
+    budget.peak('HISTORY', n)
+    if (requestDepth > 0) budget.peak('REQUEST_FANOUT', requestDepth)
+    const out = []
+    for (let k = 0; k < results; k += 1) {
+      const key = REQUEST_SERIES_KEYS[fields[k]]
+      const col = new Float64Array(ctx.bars).fill(NaN)
+      for (let i = 0; i < ctx.bars; i += 1) {
+        const j = supply.index[i]
+        if (j >= 0 && j < n) {
+          const v = +bars[j][key]
+          col[i] = Number.isFinite(v) ? v : NaN
+        }
+      }
+      out.push(col)
+    }
+    return out
+  }
   const pick = (k) => Float64Array.from(bars.map((b) => b[k]))
   const sub = execute(program, {
     bars: n,
@@ -1627,8 +1689,16 @@ export function execute(program, ctx, limits, opts) {
           ? (plan.persist ? persist[plan.slot] : locals[plan.slot])
           : held[i]
       }
-      committed += 1
     }
+    // ⭐⭐ engine 82 — `committed` IS THE BAR'S ORDINAL, SO IT ADVANCES ON EVERY BAR, ring or no ring.
+    // ⚰️ It advanced only inside `if (nHist)`. A program with no history slot kept `committed = 0` for the whole
+    // run, and the one reader that needs the ordinal without a ring, the `finite` window policy (`ta.lowest` /
+    // `highest` / `lowestbars` / `highestbars`: `committed < span - 1` is its warm-up, and the `bars` members count
+    // back from it), answered `na` on every bar whose span was above 1. A window over an in-place source (HIST-S2)
+    // keeps its own ring and holds no history slot, so `if show` + `x := ta.lowest(low * 1, k)` read
+    // [95, na, na, na, 91, ...] where the root form (and Pine) read [95, 94, 93, 92, 91, ...], and a fixed length 3
+    // read `na` on every bar (`finiteWindowNoRing.test.js`). Every other reader of `committed` reads a ring.
+    committed += 1
 
     // ─── ⭐⭐⭐ THE BAR IS FINISHED — AND A DRAWING MAY STAND ON IT ────────
     //

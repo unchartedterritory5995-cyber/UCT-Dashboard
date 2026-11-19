@@ -15,6 +15,7 @@ fails when the committed bytes differ). This file holds the server half:
 """
 from __future__ import annotations
 
+import json
 import copy
 import pathlib
 import re
@@ -212,3 +213,170 @@ def test_a_script_of_the_right_shape_goes_on_to_the_engine_and_a_long_one_does_n
     long = OK_SCRIPT + "// " + "x" * pa.SCRIPT_MAX_CHARS
     assert pa.script_problem(long).startswith("the script is ")
     assert pa.SCRIPT_MAX_CHARS < runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES
+
+
+# ═══ 5. the gaps list ════════════════════════════════════════════════════
+
+GAPS = pa.gaps()
+
+
+def test_gaps_md_is_what_the_probes_say_now():
+    """docs/pine/assistant-writes-pine/GAPS.md is GENERATED. Stale: `python tools/assistant_gaps_build.py`."""
+    assert GAPS and GAPS["version"] == 1
+    committed = pa.GAPS_DOC.read_text(encoding="utf-8").replace("\r\n", "\n")
+    assert committed == pa.gaps_document(), "GAPS.md is stale: run python tools/assistant_gaps_build.py"
+
+
+def test_a_probe_the_engine_runs_is_not_a_gap_and_one_it_refuses_is():
+    rows = {r["id"]: r for r in pa.gap_rows()}
+    assert set(rows) == {p["id"] for p in GAPS["probes"]}
+    # today: a horizontal level is withheld; a zigzag of lines runs
+    assert rows["hline"]["served"] is False and rows["hline"]["guard"] and rows["hline"]["says"]
+    assert rows["zigzag-lines"]["served"] is True and rows["zigzag-lines"]["guard"] is None
+    doc = pa.gaps_document()
+    assert "| `hline` |" in doc and "| `zigzag-lines` |" not in doc
+    assert "`zigzag-lines`" in doc.split("## Probes the engine serves today")[1].split("## The probes")[0]
+    # every probe's script is printed, whichever it is
+    for p in GAPS["probes"]:
+        assert f"### `{p['id']}`" in doc and p["source"].strip() in doc
+
+
+def test_what_the_engine_runs_bar_by_bar_is_served_only_when_the_server_admits_it():
+    """The browser's generator runs the engine with every script allowed; a member's script on the
+    bar-by-bar lane also needs the server's admission. A probe that RUNS there and uses a capability
+    the server does not admit is a gap, and says which."""
+    rows = {r["id"]: r for r in pa.gap_rows()}
+    runtime = [p for p in GAPS["probes"] if p["runs"] and p["lane"] == "runtime"]
+    assert runtime, "no probe exercises the bar-by-bar lane"
+    admitted = set(REF["admitted"])
+    for p in runtime:
+        missing = sorted(set(pine_capabilities.capabilities_of(p["source"])) - admitted)
+        assert rows[p["id"]]["served"] is (not missing), p["id"]
+        if missing:
+            assert rows[p["id"]]["guard"] == pa.NOT_ADMITTED_GUARD and all(m in rows[p["id"]]["says"] for m in missing)
+    # CONTROL: admit everything and none of them is a gap; admit nothing and every one is
+    everything = sorted(pine_capabilities.CAPABILITY_IDS)
+    assert all(r["served"] for r in pa.gap_rows(admitted=everything) if r["id"] in {p["id"] for p in runtime})
+    assert not any(r["served"] for r in pa.gap_rows(admitted=[]) if r["id"] in {p["id"] for p in runtime})
+
+
+def test_the_gaps_file_holds_capabilities_and_nothing_from_a_live_round():
+    doc = pa.gaps_document()
+    for banned in ("$", "requests sent", "built in one call", "of 64", "sweep"):
+        assert banned not in doc, banned
+    assert "no member's request, no answer and no count" in doc
+    assert set(r["kind"] for r in pa.gap_rows()) <= set(pa.GAP_KIND_TITLES)
+
+
+# ═══ 6. recipes and the stops of the run ═════════════════════════════════
+
+RECIPES_DOC = pa._recipes_doc()
+
+
+def test_every_recipe_in_the_file_is_served_and_only_served_ones_are_ever_handed_over():
+    assert RECIPES_DOC and RECIPES_DOC["version"] == 1
+    served = pa.recipes()
+    assert len(served) == len(RECIPES_DOC["recipes"]) >= 12, "a recipe in the folder stopped running: fix it or remove it"
+    for r in served:
+        assert r["source"].startswith("//@version=5") and "indicator(" in r["source"], r["id"]
+        assert pa.script_problem(r["source"]) is None, r["id"]
+        for history in ("fromListing", "offListing"):
+            assert r["runs"][history]["ok"] is True and r["runs"][history]["values"] > 0, (r["id"], history)
+    # CONTROL: a recipe the run refused, or one that is not a script, is never handed over
+    doc = json.loads(json.dumps(RECIPES_DOC))
+    doc["recipes"][0]["served"] = False
+    doc["recipes"][1]["source"] = None
+    ids = [r["id"] for r in pa.recipes(doc)]
+    assert RECIPES_DOC["recipes"][0]["id"] not in ids and RECIPES_DOC["recipes"][1]["id"] not in ids
+    assert len(ids) == len(served) - 2
+    assert pa.recipes({}) == [] and pa.recipes_for("add a zigzag", doc={}) == []
+
+
+@pytest.mark.parametrize("words,first", [
+    ("Add a zigzag that connects the swings", "zigzag-percent"),
+    ("show me a Volume Profile of the last 60 days", "volume-profile"),
+    ("mark supply and demand zones", "supply-demand-zones"),
+    ("Mark higher highs and higher lows", "market-structure"),
+    ("mark bullish divergence between price and RSI", "rsi-divergence"),
+    ("which day of the week is best", "weekday-returns-table"),
+    ("VWAP with standard deviation bands", "vwap-deviation-bands"),
+    ("a linear regression channel", "regression-channel"),
+    ("the Schaff Trend Cycle", "schaff-trend-cycle"),
+    ("fibonacci retracement from the last swing", "fibonacci-swings"),
+    ("draw trendlines for me", "auto-trendlines"),
+    ("an opening range breakout box", "opening-range"),
+    ("unfilled gaps", "gap-zones"),
+    ("anchored VWAP from March 3", "anchored-vwap-date"),
+    ("prior day high and low", "prior-day-levels"),
+])
+def test_a_request_is_handed_the_recipe_it_names(words, first):
+    found = pa.recipes_for(words)
+    assert found and found[0]["id"] == first, [r["id"] for r in found]
+    assert len(found) <= pa.RECIPES_MAX
+
+
+@pytest.mark.parametrize("words", [
+    "Plot a 21 EMA", "RSI under 30", "", None, "color the bars green when the close is above the open",
+    "the epoch of the trend", "costco style accounting", "an abstract idea",          # "poc", "stc", "st" inside other words
+    "a multi timeframe trend table",                    # no recipe on purpose: its newest bar cannot be right (see RUN_STOP_WORDS)
+])
+def test_a_request_that_names_no_recipe_is_handed_none(words):
+    assert pa.recipes_for(words) == []
+
+
+def test_recipes_are_ranked_by_the_longest_phrase_then_cut_to_the_limit():
+    # "vwap with standard deviation" (a 28-letter phrase) outranks "anchored vwap"
+    both = pa.recipes_for("an anchored vwap, and a vwap with standard deviation bands")
+    assert [r["id"] for r in both] == ["vwap-deviation-bands", "anchored-vwap-date"]
+    assert [r["id"] for r in pa.recipes_for("an anchored vwap, and a vwap with standard deviation bands", limit=1)] == ["vwap-deviation-bands"]
+    # and the longer phrase wins against the FOLDER'S order: the zigzag is the first recipe in the folder
+    ids = [r["id"] for r in pa.recipes()]
+    assert ids.index("zigzag-percent") < ids.index("fibonacci-swings")
+    assert [r["id"] for r in pa.recipes_for("a zigzag with fib retracement")] == ["fibonacci-swings", "zigzag-percent"]
+    assert pa.recipes_for("zigzag and supply and demand zones and volume profile and fibonacci", limit=0) == []
+    assert len(pa.recipes_for("zigzag and supply and demand zones and volume profile and fibonacci")) == pa.RECIPES_MAX
+    text = pa.recipes_text(pa.recipes_for("add a zigzag"))
+    assert text.startswith("RECIPES (whole scripts this engine runs as written; start from the closest):")
+    assert "### Zigzag by percent" in text and "```pine" in text and 'indicator("Zigzag"' in text
+    assert pa.recipes_text([]) == ""
+
+
+def test_the_stops_of_the_run_are_said_only_while_the_engine_still_refuses_them():
+    assert set(pa.standing_run_stops()) <= set(pa.RUN_STOP_WORDS), "a stop with no sentence: the assistant is not told"
+    now = pa.document()
+    for stop in pa.standing_run_stops():
+        assert pa.RUN_STOP_WORDS[stop] in now, stop
+    # ⭐ WHICH ONES STAND IS THE ENGINE'S ANSWER (the generated file), never this test's. 2026-11-19: this
+    # said "today the one-call delete stands"; an engine train had fixed it, and master went red on a fix.
+    # Held instead: a stop that does NOT stand is not said, each by its own sentence.
+    for stop, words in pa.RUN_STOP_WORDS.items():
+        assert (words in now) == (stop in pa.standing_run_stops()), stop
+    assert len({words[:40] for words in pa.RUN_STOP_WORDS.values()}) == len(pa.RUN_STOP_WORDS)   # no sentence answers for another
+    # `timestamp` does NOT stand: on a chart-shaped context the engine answers it, so nothing is said against it
+    assert "timestamp-clock" not in pa.standing_run_stops() and "Do not use `timestamp(...)`" not in now
+    # CONTROL: each sentence is said when its stop is handed in as standing
+    for stop, words in pa.RUN_STOP_WORDS.items():
+        assert words in pa.document(run_stops=[stop]), stop
+    # CONTROL: the day the engine computes a probe, its sentence leaves the document
+    none = pa.document(run_stops=[])
+    assert all(words not in none for words in pa.RUN_STOP_WORDS.values())
+    one = pa.document(run_stops=["timestamp-clock"])
+    assert pa.RUN_STOP_WORDS["timestamp-clock"] in one and pa.RUN_STOP_WORDS["running-total"] not in one
+    assert pa.standing_run_stops({"stops": [{"id": "x", "standing": False}, {"id": "y", "standing": True}]}) == ["y"]
+    # the new paste-level pitfalls are worded too, and said only while they stand
+    for pitfall in ("fill-with-var", "input-time", "no-plot"):
+        assert (pa.PITFALL_WORDS[pitfall] in now) is (pitfall in pa.standing_pitfalls()), pitfall
+    assert "start from the closest one" in now                       # the contract says what a recipe is for
+
+
+def test_no_recipe_does_what_the_document_says_never_to_do():
+    """A recipe is what the assistant copies from, so it may not use what the engine refuses."""
+    code = lambda src: "\n".join(line.split("//")[0] for line in src.splitlines()[1:])
+    for r in pa.recipes():
+        body = code(r["source"])
+        assert "input.time" not in body and "hline(" not in body, r["id"]
+        assert "fill(" not in body or r["lane"] == "host", r["id"]
+        assert "plot(" in body or "plotshape(" in body, r["id"]
+        assert not re.search(r"\.delete\(\s*array\.", body), f"{r['id']}: a drawing deleted in one call stays in its list"
+        for name in REF["refusedNames"]:
+            assert name not in body, (r["id"], name)

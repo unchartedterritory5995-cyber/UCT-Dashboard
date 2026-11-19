@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as registry from './nativeRegistry'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
-import { runtimeColumnsFor, computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeWarmupOf } from './runtime/runtimeColumns'
+import { runtimeColumnsFor, computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeWarmupOf, RUNTIME_KNOWN_FROM_KEY } from './runtime/runtimeColumns'
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList } from './runtimeKill'
 import {
@@ -124,6 +124,19 @@ describe('SP:SPX at timeframe.period on a 5m extended-hours chart: the latest va
     // ⛔ CONTROL: the same rows WITHOUT the marker read the bars before them as `na` (history not begun), not unknown
     const plain = symAlignmentMask(sym, CHART, { symbols: { SPX: grid.slice() } })
     expect(plain ? Array.from(plain.slice(0, 78)) : new Array(78).fill(0)).toEqual(new Array(78).fill(0))
+  })
+
+  it('a chart reaching BEFORE our index depth: the run is drawn from where our data begins, never refused whole', () => {
+    // ⚰️ 2026-11-19: Fred RS's 5m bar 0 (2026-04-27) was refused "SPX has no bar on 1777276800, after its history
+    // began", four months BEFORE our first SPX 5m row; on the served e81 build every intraday chart's run half was
+    // refused that way. The supply now names the DEPTH (`knownFrom`; its sentence is railed in
+    // `runHalfFromKnownDepth.test.js`) and the run starts there under the two-start proof.
+    const src = pine(['plot(request.security("SP:SPX", timeframe.period, close))'])
+    const cols = computeRuntimeColumns(runDef(src, ['x']), CHART, ctx5(), { now: () => 0 })
+    expect(cols.x.length).toBe(CHART.length)
+    const known = CHART.findIndex((b) => expectAt(b.t) !== null)
+    expect(cols[RUNTIME_KNOWN_FROM_KEY]).toMatchObject({ knownFrom: known })
+    for (let i = 0; i < known; i += 1) expect(Number.isNaN(cols.x[i]), `${CHART[i].t} is before our index depth`).toBe(true)
   })
 
   it('in the run, the same read: every bar from the listing; off it, every bar after the run’s own warm-up curtain', () => {

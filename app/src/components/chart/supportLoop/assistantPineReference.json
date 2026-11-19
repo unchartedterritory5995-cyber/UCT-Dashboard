@@ -1682,9 +1682,34 @@
  },
  "pitfalls": [
   {
+   "id": "candle-one-colour",
+   "state": "runs",
+   "standing": false
+  },
+  {
+   "id": "drawings-beside-plain-plots",
+   "state": "drawings-lost",
+   "standing": true
+  },
+  {
+   "id": "fill-with-var",
+   "state": "runs-withheld",
+   "standing": true
+  },
+  {
    "id": "hline",
    "state": "runs-withheld",
    "standing": true
+  },
+  {
+   "id": "input-time",
+   "state": "not-yet",
+   "standing": true
+  },
+  {
+   "id": "no-plot",
+   "state": "runs",
+   "standing": false
   },
   {
    "id": "untitled-fill-anchor",
@@ -1786,12 +1811,22 @@
   {
    "id": "levels-from-a-list",
    "title": "Several levels drawn from a list, with a label on each",
-   "shows": "array.from, for ... in, lines and labels rebuilt on the last bar",
-   "source": "//@version=5\nindicator(\"Fib levels\", overlay=true)\nn = input.int(100, \"Lookback\")\nhh = ta.highest(high, n)\nll = ta.lowest(low, n)\nvar line[] ls = array.new_line(0)\nif barstate.islast\n    for l in ls\n        line.delete(l)\n    array.clear(ls)\n    levels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)\n    for lv in levels\n        y = hh - (hh - ll) * lv\n        array.push(ls, line.new(bar_index - n, y, bar_index, y, extend=extend.right, color=color.gray))\n        label.new(bar_index, y, str.tostring(lv * 100, \"#.#\") + \"%\", style=label.style_label_left, color=color.gray, textcolor=color.white)\n",
+   "shows": "array.from, for ... in, each level's price kept in an array, lines and labels rebuilt from it on the last bar (kept in arrays, deleted before they are made again), and one value from that array PLOTTED so the run owns the drawings",
+   "source": "//@version=5\nindicator(\"Fib levels\", overlay=true)\nn = input.int(100, \"Lookback\")\nhh = ta.highest(high, n)\nll = ta.lowest(low, n)\nlevels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)\nprices = array.new_float(0)\nfor lv in levels\n    array.push(prices, hh - (hh - ll) * lv)\nvar line[] ls = array.new_line(0)\nvar label[] lbs = array.new_label(0)\nif barstate.islast\n    while array.size(ls) > 0\n        oldLine = array.pop(ls)\n        line.delete(oldLine)\n    while array.size(lbs) > 0\n        oldLabel = array.pop(lbs)\n        label.delete(oldLabel)\n    for i = 0 to array.size(prices) - 1\n        y = array.get(prices, i)\n        array.push(ls, line.new(bar_index - n, y, bar_index, y, extend=extend.right, color=color.gray))\n        array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, \"#.#\") + \"%\", style=label.style_label_left, color=color.gray, textcolor=color.white))\nplot(array.get(prices, 3), \"50% level\", color=color.gray)\n",
    "ok": true,
    "lane": "runtime",
    "state": "runs-with-notes",
    "headline": "Runs on the chart, with 3 notes"
+  },
+  {
+   "id": "heikin-ashi-candles",
+   "title": "Heikin Ashi candles",
+   "shows": "candles drawn from computed values with plotcandle; ALL THREE colours (color, wickcolor, bordercolor) are written, each a fixed colour chosen by ?:, which is the shape this engine draws as candles",
+   "source": "//@version=5\nindicator(\"Heikin Ashi\", overlay=false)\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nhaHigh = math.max(high, haOpen, haClose)\nhaLow = math.min(low, haOpen, haClose)\nc = haClose >= haOpen ? color.green : color.red\nplotcandle(haOpen, haHigh, haLow, haClose, \"Heikin Ashi\", color=c, wickcolor=c, bordercolor=c)\n",
+   "ok": true,
+   "lane": "host",
+   "state": "runs",
+   "headline": "Runs on the chart and in alerts; screens and scans need a threshold"
   }
  ]
 }

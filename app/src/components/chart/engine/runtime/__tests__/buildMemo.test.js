@@ -3,7 +3,7 @@
 // `runtimeColumns.js` keeps a run's cold build (`buildRecorder`) in a bounded memo keyed on every build option but
 // the bars and the symbol (`buildMemoKey`), the bar count's class (`buildBarCountClass`) and, checked on each hit,
 // the value of every binding constant the build READ (`bindConstsReporting`). A hit re-evaluates the recorded columns
-// over the new bars with every check the build makes (`columnsOverStrict`). These rails hold a memoised build to a
+// over the new bars with every check the build makes (`columnsOver`, with no session). These rails hold a memoised build to a
 // fresh one:
 //   * over the in-repo population (corpus/committed, the RS script, the shapes below), across a symbol switch to
 //     another industry, a symbol switch within one, and a timeframe switch away and back: every hit's IR, columns

@@ -45,12 +45,21 @@ describe('C38 — the translator writes ONE read, bounded by ONE buffer', () => 
     expect(AUTO_MAX_BARS_BACK).toBe(400)
   })
 
-  it('a declared `max_bars_back` is the buffer — the same declaration the object lane reads', () => {
-    const head = '//@version=6\nindicator("t", max_bars_back = 77)\n'
-    expect(formula('plot(close[bar_index - 3])', head)).toMatch(/, 77\)$/)
+  it('a declared `max_bars_back` at or above the automatic buffer is the buffer — the same one the object lane reads', () => {
+    const head = '//@version=6\nindicator("t", max_bars_back = 777)\n'
+    expect(formula('plot(close[bar_index - 3])', head)).toMatch(/, 777\)$/)
     // …and the object lane, on the same script, carries the same number
     const t = host('label.new(bar_index, close[bar_index - 3])', head)
-    expect(JSON.stringify(t.objects)).toContain('"limit":77')
+    expect(JSON.stringify(t.objects)).toContain('"limit":777')
+  })
+
+  // ⭐⭐ engine 83 (WS-C; coordinator ruling 2026-11-19, `vw-w4-max-bars-back-m2` and Q-MBB-1):
+  // TradingView reads past a smaller declaration. ⚰️ This case read `max_bars_back = 77` → `, 77)`.
+  it('a declaration BELOW the automatic buffer does not shrink it, on either lane', () => {
+    const head = '//@version=6\nindicator("t", max_bars_back = 77)\n'
+    expect(formula('plot(close[bar_index - 3])', head)).toMatch(new RegExp(`, ${AUTO_MAX_BARS_BACK}\\)$`))
+    const t = host('label.new(bar_index, close[bar_index - 3])', head)
+    expect(JSON.stringify(t.objects)).toContain(`"limit":${AUTO_MAX_BARS_BACK},"auto":true`)
   })
 
   it('…and never more than the index can take: `na`, a ternary, `%`, `min`, a bounded `barssince`', () => {
@@ -124,10 +133,11 @@ describe('C38 — what stays refused, by name', () => {
     expect(formula('plot(close[close > open ? 1 : 0])')).toBe('barsAgo(close, close > open ? 1 : 0, 2)')
   })
 
-  it('`max_bars_back(x, n)` — the per-series buffer this read does not model', () => {
-    const r = refusal('max_bars_back(close, 50)\nplot(close[bar_index % 3])')
-    expect(r.guard).toBe('pine:offset-literal')
-    expect(r.message).toMatch(/max_bars_back\(x, n\)/)
+  // ⭐ engine 83 (WS-C M4, `vw-w4-max-bars-back-m4-spy-1d-2026-11-18`): the per-series form bounds
+  // nothing, so a script that calls it is read like any other (it refused `pine:offset-literal`)
+  it('`max_bars_back(x, n)` bounds nothing: the per-bar read is served as in a script without it', () => {
+    expect(formula('max_bars_back(close, 50)\nplot(close[bar_index % 3])'))
+      .toBe(formula('plot(close[bar_index % 3])'))
   })
 
   it('a source the script reassigns — its history is the end-of-bar value', () => {

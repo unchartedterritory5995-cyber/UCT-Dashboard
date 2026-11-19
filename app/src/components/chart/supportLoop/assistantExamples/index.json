@@ -58,8 +58,14 @@
   {
    "id": "levels-from-a-list",
    "title": "Several levels drawn from a list, with a label on each",
-   "shows": "array.from, for ... in, lines and labels rebuilt on the last bar",
+   "shows": "array.from, for ... in, each level's price kept in an array, lines and labels rebuilt from it on the last bar (kept in arrays, deleted before they are made again), and one value from that array PLOTTED so the run owns the drawings",
    "file": "levels-from-a-list.pine"
+  },
+  {
+   "id": "heikin-ashi-candles",
+   "title": "Heikin Ashi candles",
+   "shows": "candles drawn from computed values with plotcandle; ALL THREE colours (color, wickcolor, bordercolor) are written, each a fixed colour chosen by ?:, which is the shape this engine draws as candles",
+   "file": "heikin-ashi-candles.pine"
   }
  ]
 }

@@ -3,13 +3,21 @@ indicator("Fib levels", overlay=true)
 n = input.int(100, "Lookback")
 hh = ta.highest(high, n)
 ll = ta.lowest(low, n)
+levels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)
+prices = array.new_float(0)
+for lv in levels
+    array.push(prices, hh - (hh - ll) * lv)
 var line[] ls = array.new_line(0)
+var label[] lbs = array.new_label(0)
 if barstate.islast
-    for l in ls
-        line.delete(l)
-    array.clear(ls)
-    levels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)
-    for lv in levels
-        y = hh - (hh - ll) * lv
+    while array.size(ls) > 0
+        oldLine = array.pop(ls)
+        line.delete(oldLine)
+    while array.size(lbs) > 0
+        oldLabel = array.pop(lbs)
+        label.delete(oldLabel)
+    for i = 0 to array.size(prices) - 1
+        y = array.get(prices, i)
         array.push(ls, line.new(bar_index - n, y, bar_index, y, extend=extend.right, color=color.gray))
-        label.new(bar_index, y, str.tostring(lv * 100, "#.#") + "%", style=label.style_label_left, color=color.gray, textcolor=color.white)
+        array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, "#.#") + "%", style=label.style_label_left, color=color.gray, textcolor=color.white))
+plot(array.get(prices, 3), "50% level", color=color.gray)

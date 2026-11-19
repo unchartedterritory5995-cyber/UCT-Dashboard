@@ -2845,6 +2845,19 @@
       ],
       "note": "ARMED ON web 2026-11-15 -- owner decision 2026-11-15: Create Indicator is open to every paid account (the product has not launched; the staged pilot in docs/indicators/CONVERSE-ROLLOUT-PROPOSAL-2026-11-02.md is not followed before launch). Every account is in the cohort: new signups by rollout_gate.enroll_in_create_indicator (api/routers/auth.py), existing accounts once per volume by rollout_gate.seed_existing_members_into_create_indicator (api/main.py lifespan, marker .create_indicator_seed_v1). The browser door now accepts the cohort for admins too (createIndicatorFlag.js::createIndicatorAccess). Rollback is still this flag: unset it and new conversations stop on the next request; no tag is touched. Plan: docs/pine/studio/STUDIO-TRACK-PLAN.md section 8. HISTORY (pending 2026-10-07 to 2026-11-15): the controlled member rollout of Create Indicator (UCT Intelligence conversational authoring). ENABLEMENT gate, default OFF, read per call FIRST in api/services/rollout_gate.py::create_indicator_cohort_enabled (cohort 'create-indicator', a rollout: user_tags row written only by tools/rollout_cohort.py). /converse (api/routers/user_definitions.py::require_create_indicator_access) admits an admin OR a member this flag + cohort release; the dock and BuilderSheet read the EFFECTIVE cohorts list off _access_payload (createIndicatorFlag.js). Admins keep their dark-review access regardless of this flag. Set on NO service and the cohort is empty: nobody outside the admins can reach it. Owner decision left: set CREATE_INDICATOR_COHORT_ENABLED=1 on web and tag the cohort. Rollback: unset the flag (new conversations stop on the next request / auth refresh; saved indicators are untouched ordinary user definitions), or remove one member's tag with tools/rollout_cohort.py (no redeploy)."
     },
+    "CONVERSE_SCRIPT_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-19",
+      "where": [
+        "web"
+      ],
+      "default": "",
+      "values": [
+        "",
+        "admin"
+      ],
+      "note": "DARK. THE ASSISTANT WRITES PINE (docs/pine/studio/STUDIO-TRACK-PLAN.md; owner direction 2026-11-18). Read per request in api/services/script_conversation.py::lane_open. Unset or any other value: Create Indicator's assistant answers with a formula, as it always did. `admin`: for an ADMIN account whose browser accepts a script, a NEW indicator a formula cannot hold (a table, a label, a drawn line, a list of levels) is written as a Pine script from the generated reference (api/services/pine_authoring.py); the browser's own engine judges it and its verdict is what is shown. No member gets a script turn at any value: the coordinator ruled that script turns need their own spend ceiling first, set from a measurement of their cost. Every script call is checked against the account's daily allowance before it is made and lands in the same ledger as a formula call. Rollback: unset it; the next request is a formula turn."
+    },
     "DEFINITION_LOAD_BUDGET_ENABLED": {
       "status": "armed",
       "since": "2026-11-17",

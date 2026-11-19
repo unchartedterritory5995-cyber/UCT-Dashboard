@@ -734,8 +734,37 @@ def pocket_pivot(bars):
     return out
 
 
+def _midpoint(bars, n):
+    """(highest high + lowest low) / 2 over n bars, by a plain loop over the window."""
+    h, l = col(bars, "h"), col(bars, "l")
+    return [(max(h[i - n + 1:i + 1]) + min(l[i - n + 1:i + 1])) / 2 if i >= n - 1 else NAN for i in range(len(h))]
+
+
+def _ahead(values, bars_ahead):
+    """Each value drawn `bars_ahead` bars later: the bar's value is the one worked out that long ago."""
+    return [values[i - bars_ahead] if i >= bars_ahead else NAN for i in range(len(values))]
+
+
+def ichimoku_conversion(bars, conversion=9, **_periods_it_does_not_read):
+    return _midpoint(bars, conversion)
+
+
+def ichimoku_base(bars, base=26, **_periods_it_does_not_read):
+    return _midpoint(bars, base)
+
+
+def ichimoku_span_a(bars, conversion=9, base=26, ahead=25, **_periods_it_does_not_read):
+    a, b = _midpoint(bars, conversion), _midpoint(bars, base)
+    return _ahead([(x + y) / 2 if ok(x) and ok(y) else NAN for x, y in zip(a, b)], ahead)
+
+
+def ichimoku_span_b(bars, span_b=52, ahead=25, **_periods_it_does_not_read):
+    return _ahead(_midpoint(bars, span_b), ahead)
+
+
 REFERENCES = {
     "pocket_pivot": {"pocket_pivot": pocket_pivot},
+    "ichimoku_cloud": {"conversion": ichimoku_conversion, "base": ichimoku_base, "span_a": ichimoku_span_a, "span_b": ichimoku_span_b},
     "double_exponential_moving_average": {"dema": dema},
     "triple_exponential_moving_average": {"tema": tema},
     "chande_momentum_oscillator": {"cmo": chande_momentum_oscillator},
@@ -778,6 +807,7 @@ REFERENCES = {
 #: Other numbers for the second pass: each inside the parameter's own range, none a default.
 OTHER = {
     "pocket_pivot": {},                                   # its numbers are the detector's: none is a setting
+    "ichimoku_cloud": {"conversion": 7, "base": 22, "span_b": 44, "ahead": 26},     # 26: the published shift
     "double_exponential_moving_average": {"length": 21},
     "triple_exponential_moving_average": {"length": 14},
     "chande_momentum_oscillator": {"length": 20},
@@ -1060,3 +1090,24 @@ def test_the_streak_inside_connors_rsi_is_exact_while_the_real_streak_is_shorter
     full = carried(bars, 0, lambda i: 0.0, step)
     assert max(abs(v) for v in full) < STREAK_WINDOW             # the precondition, on these bars
     assert streak(bars)[-SETTLED:] == full[-SETTLED:]
+
+
+def test_the_ichimoku_spans_are_drawn_25_bars_after_the_bar_they_are_worked_out_on():
+    """The defect this entry exists for: the spans AT the bar they are computed on are the right
+    numbers on the wrong bars. The entry's span on bar i is the unshifted value of bar i - 25, and
+    is NOT the unshifted value of bar i."""
+    e, bars = ENTRIES["ichimoku_cloud"], _bars(11)
+    out = {o["key"]: o for o in e["outputs"]}
+    span_a, span_b = _engine(out["span_a"]["tree"], bars), _engine(out["span_b"]["tree"], bars)
+    conv, base = _engine(out["conversion"]["tree"], bars), _engine(out["base"]["tree"], bars)
+    unshifted_b = _midpoint(bars, 52)
+    differs = 0
+    for i in range(len(bars) - SETTLED, len(bars)):
+        assert math.isclose(span_a[i], (conv[i - 25] + base[i - 25]) / 2, rel_tol=1e-12), i
+        assert math.isclose(span_b[i], unshifted_b[i - 25], rel_tol=1e-12), i
+        differs += not math.isclose(span_b[i], unshifted_b[i], rel_tol=1e-9)
+    assert differs > SETTLED // 2, "the shifted span equals the unshifted one: the walk cannot tell them apart"
+    # the lagging span is left out, and the entry says so
+    assert set(out) == {"conversion", "base", "span_a", "span_b"}
+    note = e["evidence"]["published"].get("note") or ""
+    assert "LAGGING SPAN IS LEFT OUT" in note and "25" in note

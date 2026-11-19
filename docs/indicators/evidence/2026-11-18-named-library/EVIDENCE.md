@@ -762,7 +762,14 @@ asking again; every built-in listed whether offered or not; a restored offer; a 
 told; a window that cannot write saying it can; any kind of action; any registry definition; a taken offer
 left on the entry; the offer dropped from the answer).
 
-### Mansfield Relative Strength: where it is today
+### Mansfield Relative Strength: a built-in since 2026-11-19
+
+`rsMansfield` ("UCT Mansfield RS") landed on master the next day: a built-in that draws the server's own
+Mansfield column, the number the Screener shows. The name now carries `built_in` and is answered like the
+RS Rating, with one tap that adds it, for a browser whose build offers it. What follows is the day it had
+no chart home, kept because it is why the name was not pointed at a control that did not exist.
+
+### Mansfield Relative Strength: where it was on 2026-11-18
 
 The first plan was to point this name at the built-in Relative Strength indicator's Mansfield reading. Read
 before a word was written: in the build members run, that indicator has no Reading control and no preset,

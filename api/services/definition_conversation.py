@@ -853,6 +853,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "An opening range needs bars that divide it (30 minutes on a 1, 5, 15 or 30-minute chart); on "
     "longer bars it is withheld and says so, so mention that an opening range is for intraday "
     "charts.\n"
+    "  A DATE THE MEMBER NAMES BY THE CALENDAR (\"this year\", \"year to date\", \"this quarter\", \"since the start of the month\", \"this week\"): you do NOT know today's date, so never work out "
+    "the year, quarter, month or week yourself. `uct_language_notes.calendar` gives today's date and the exact "
+    "start of each, in New York time, as the number `avwap(...)` takes. Use that number as it is and say the "
+    "date it stands for in `assumptions`. With no `calendar` in the notes and no date in the member's words, "
+    "ask which date.\n"
     "  When this bar is COMPARED with \"the last N\", \"the previous N\" or \"the prior N\" bars "
     "or days, the window is the N bars BEFORE this one: wrap it in an offset of 1 (volume above "
     "the highest volume of the last 10 days is volume > offset 1 of highest(volume, 10)). A "
@@ -904,6 +909,16 @@ CONVERSE_SYSTEM_PROMPT = (
     "cond && (offset 1 of barssince(cond, N)) >= N. `barssince` takes its window as its second "
     "argument and answers N when the condition was not true that recently. Never leave the "
     "\"first time\" part out: without it the mark repeats on every bar of a run.\n"
+    "  READINGS UCT HAS RULED (2026-11-19: each was measured coming back two ways, or wrong): "
+    "A BAND WITH A PUBLISHED CONSTRUCTION IS NEVER REPLACED BY ANOTHER DEVIATION. VWAP's bands are the volume-weighted deviation of price around VWAP since its anchor; a regression channel's bands are the deviation of price around the regression line. Neither is a deviation of the close over N bars, and a formula here cannot hold either: say so (unsupported) and offer the line itself (the VWAP, the regression line). For VWAP's bands, also say that UCT's built-in Session VWAP in the Indicators list draws them (its Std dev bands setting). Never draw another deviation under that name. "
+    "\"More than X\" and \"above X\" are STRICT (>); \"at least X\" and \"X or more\" are >=. "
+    "\"Volume above average\" with no length named is volume above its 50-bar simple average, UCT's usual: say so in `assumptions`. "
+    "MARK EVERY BAR the condition is true on. Add \"only the first in N bars\" ONLY when the member says first, new signal, once, or not on every bar; a request for \"new 52 week highs\" marks every bar that makes one. "
+    "A DIVERGENCE between price and an oscillator is read from swing to swing (pivot lows or pivot highs of each). A formula here cannot hold that: say so (unsupported). Never substitute \"price at an N-bar low while the oscillator is above its own\". "
+    "TIGHT CLOSES (\"three tight closes within 1 percent\"): UCT's own reader (three weeks tight) measures each close against the close BEFORE it. N tight closes within X% is every one of the last N closes within X% of the close before it (N - 1 comparisons), and nothing else. With no percent named use 1.5%, the Screener's own tolerance, and say so. "
+    "kcUpper / kcLower are the EMA plus and minus the multiple times the EMA OF TRUE RANGE over the same length (Pine's ta.kc). Describe them as that, not as \"ATR\": Wilder's ATR is a different number. "
+    "A correlation between two symbols is of their closes over N bars, as TradingView's Correlation Coefficient is; say so. "
+    "A TRAILING STOP measured from \"the highest close\" (or the highest high) with no window and no start date: ASK \"the highest close over how many bars, or since what date?\". Never pick a window silently.\n"
     "  A `sym` goes OUTSIDE a timeframe read, never under one: SPY's weekly close is "
     "sym(SPY, tf(close, W)). Wrap only what is read from the other symbol: "
     "\"close above SPY's 50 EMA\" compares the chart's close with "
@@ -974,6 +989,52 @@ def system_blocks() -> List[Dict[str, Any]]:
 _escape_json = dc.escape_json
 _block = dc.data_block
 DATA_PREAMBLE = dc.DATA_PREAMBLE
+
+
+#: ⭐ 2026-11-19 -- A REQUEST THAT NAMES A DATE BY THE CALENDAR. The defect: a line anchored to "the
+#: start of this year" was anchored to the first day of an EARLIER year and read back as the current
+#: one. The assistant is not told the date, so it used the last year it knew. The door knows it: when
+#: the member's words name a calendar start, the turn carries today's date and the exact start of
+#: this year, quarter, month and week (`calendar_notes`), and the instructions forbid working any of
+#: them out. Any other turn is byte for byte what it was (nothing is added, the clock is not read).
+_CALENDAR_WORDS = re.compile(
+    r"\b(?:this|current)\s+(?:year|quarter|month|week)\b|\byear[\s-]+to[\s-]+date\b|\bytd\b|\bqtd\b|\bmtd\b|"
+    r"\bstart\s+of\s+(?:the\s+|this\s+)?(?:year|quarter|month|week)\b|\b(?:yearly|quarterly|monthly|weekly)\s+(?:anchored\s+)?vwap\b",
+    re.I)
+CALENDAR_TZ = "America/New_York"
+
+
+def _now():
+    """The door's clock, in New York time (one function, so a test pins it)."""
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    return _dt.datetime.now(ZoneInfo(CALENDAR_TZ))
+
+
+def names_a_calendar_start(message: Any) -> bool:
+    return isinstance(message, str) and bool(_CALENDAR_WORDS.search(message))
+
+
+def calendar_notes(now: Any = None) -> Dict[str, Any]:
+    """Today's date and the start of this year, quarter, month and week, each at midnight New York
+    time as epoch seconds (what `avwap` takes). The week starts on Monday."""
+    import datetime as _dt
+    now = now or _now()
+    tz = now.tzinfo
+
+    def start(year, month, day):
+        at = _dt.datetime(year, month, day, tzinfo=tz)
+        return {"date": at.date().isoformat(), "epoch": int(at.timestamp())}
+
+    monday = now.date() - _dt.timedelta(days=now.weekday())
+    return {
+        "today": now.date().isoformat(),
+        "timezone": CALENDAR_TZ,
+        "start_of_this_year": start(now.year, 1, 1),
+        "start_of_this_quarter": start(now.year, 3 * ((now.month - 1) // 3) + 1, 1),
+        "start_of_this_month": start(now.year, now.month, 1),
+        "start_of_this_week": start(monday.year, monday.month, monday.day),
+    }
 
 
 def user_turn(message: str, notes: Mapping[str, Any], view: Mapping[str, Any],
@@ -1931,13 +1992,17 @@ def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     if t.get("section") == WITHHELD_SECTION:
         from api.services import indicator_names
         return {**out, "well_known_name": indicator_names.name_of(t.get("name")), "rule": WITHHELD_RULE}
-    twin = CHART_TWINS.get(t.get("name")) if isinstance(t.get("name"), str) else None
+    # a Screener column's twin, or a bar pattern UCT's own readers define ("inside day")
+    twin = chart_twins.house_formula(t.get("name")) if isinstance(t.get("name"), str) else None
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
         out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
                        "disclose its numbers in `assumptions`. If the member gave their own "
                        "number for it (a different length or window), keep this formula's shape "
                        "with the member's number")
+        subject = chart_twins.PATTERN_SUBJECT.get(t.get("name"))
+        if subject:
+            out["rule"] += ". " + subject
     return out
 
 
@@ -3566,7 +3631,13 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
     for phrase, column in chart_twins.spoken_phrases():
         words = dc._form_tokens(phrase)
         stems, cost = dc._stem_key(words)
-        if stems in index:
+        # ⭐ 2026-11-18 -- A BAR PATTERN TAKES A BUCKET THAT ONLY SAYS "NOT AVAILABLE": "inside day" was
+        # one value of a Screener TEXT column, which on a chart answered "not available" and left the
+        # assistant to choose a meaning. The house formula is the better answer. A bucket holding
+        # anything else is still never replaced, and a column's phrase never takes one.
+        takes = (column in chart_twins.PATTERNS and stems in index
+                 and all(r.get("kind") == dc.EXCLUDED_ENTRY for r in index[stems]))
+        if stems in index and not takes:
             continue
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": column, "section": ast_table.SCALARS_SECTION,
                          "words": words, "cost": cost}]
@@ -4178,7 +4249,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
              conversation_id: Any = None, examples: Any = False,
              browser_refusal: Any = None, memory: Any = None, accepts: Any = None,
-             saved: Any = None, addable: Any = None) -> Dict[str, Any]:
+             saved: Any = None, addable: Any = None, script_refusal: Any = None) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
 
     ``saved`` reads this member's OWN saved indicators (`saved(user_id)` -> their definitions), or
@@ -4220,12 +4291,18 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     with dc.interactive_slot(user_id) as free:
         if free:
             cancelled = threading.Event()
+            def formula_turn():
+                return _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
+                                      snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
+                                      trace=trace, admin=admin, examples=examples is True,
+                                      refused_by_browser=browser_refusal, memory=memory, cancelled=cancelled,
+                                      saved=saved, can_add=can_add_built_ins(accepts, addable))
+
             result = _bounded_turn(
-                lambda: _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
-                                       snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
-                                       trace=trace, admin=admin, examples=examples is True,
-                                       refused_by_browser=browser_refusal, memory=memory, cancelled=cancelled,
-                                       saved=saved, can_add=can_add_built_ins(accepts, addable)),
+                lambda: _with_script_lane(formula_turn, message, user_id=user_id, view=view, authoring=authoring,
+                                          snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls, trace=trace,
+                                          admin=admin, accepts=accepts, script_refusal=script_refusal,
+                                          cancelled=cancelled),
                 cancelled)
             if result is None:
                 # ⭐ THE CEILING PASSED. The member is answered now and their slot is freed as this
@@ -4555,6 +4632,53 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
             "chart_sym": chart.get("sym") if isinstance(chart, Mapping) else None}
 
 
+def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: Any, authoring: Any, snippets: Any,
+                      chart: Any, cap_usd: float, calls: List[Dict[str, Any]], trace: Dict[str, Any], admin: bool,
+                      accepts: Any, script_refusal: Any, cancelled: Optional[threading.Event]) -> Dict[str, Any]:
+    """⭐ THE ASSISTANT WRITES PINE (`script_conversation`): where a script turn stands beside the
+    formula turn. With the lane closed (the default: the switch is off, or the account is not an
+    admin, or the browser does not accept a script) this IS the formula turn, untouched.
+
+    With it open, for a NEW indicator only (an indicator already on the bench is a formula, and
+    changing it stays a formula turn):
+      * the engine refused a script this door offered (`script_refusal`): the assistant repairs it;
+      * the request names something only a script can hold (a table, a label, a drawn line): the
+        assistant writes a script, and no formula call is made;
+      * otherwise the formula turn runs as always, and ONLY if it declines is a script tried. A
+        script that could not be written leaves the formula turn's own answer standing."""
+    from api.services import script_conversation as sc
+    if not sc.lane_open(accepts, admin):
+        return formula_turn()
+    try:
+        words, bounded_view, _state, _turns = _bounded_inputs(message, view, authoring, snippets)
+    except _Refused:
+        return formula_turn()                      # the formula turn says why, in its own words
+    if not bounded_view.get("empty"):
+        return formula_turn()
+    revision = bounded_view["revision"]
+
+    def script(refused=None):
+        return sc.script_turn(words, user_id=user_id, chart=chart, cap_usd=cap_usd, calls=calls, revision=revision,
+                              contract=PATCH_CONTRACT, trace=trace, refused=refused, cancelled=cancelled)
+
+    refused = sc.script_refusal(script_refusal)
+    if refused is not None:
+        return script(refused)
+    if sc.wants_script(words):
+        return script()
+    result = formula_turn()
+    if cancelled is not None and cancelled.is_set():
+        return result
+    # a held name whose published form only a script holds (`needs_script`) was refused BY NAME, with
+    # no assistant call: here it is written as a script instead, and the refusal stands if that fails
+    by_name = (not result.get("ok")) and any(
+        named_indicators.needs_script(named_indicators.entry(i)) for i in trace.get("named_held") or [])
+    if result.get("disposition") != "unsupported" and not by_name:
+        return result
+    scripted = script()
+    return scripted if scripted.get("ok") else result
+
+
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    snippets: Any, chart: Any, cap_usd: float,
                    calls: List[Dict[str, Any]],
@@ -4644,6 +4768,9 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     # UCT's own checked builds ride along INSIDE <uct_language_notes> (data, by the instructions' own
     # rule; the cached instruction block is untouched). Dark for members; an admin turn can ask.
     # ⛔ They never cost a turn: if they would push it over the size cap, the turn goes without.
+    if names_a_calendar_start(message):
+        notes = {**notes, "calendar": calendar_notes()}
+        trace["calendar"] = True
     from api.services import worked_examples
     carried = worked_examples.for_turn(message, view, admin=admin, asked=examples)
     content = user_turn(request_text, {**notes, "worked_examples": carried} if carried else notes,
