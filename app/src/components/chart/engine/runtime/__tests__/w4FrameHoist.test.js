@@ -122,9 +122,19 @@ describe('W4-T7 what STILL refuses by name', () => {
     same(fn.out, root.out, 'nested list')
   })
 
-  it('a GLOBAL\'s history through a function stays `runtime:function-global-state`', () => {
-    const r = refusalOf('var x = 0.0\nx := close\nf() =>\n    ta.sma(x, 5)\nplot(f())\n')
+  it('a MUTABLE global\'s window through a function is its value at the call (U-FGS F2), the root\'s on every bar', () => {
+    // ⚰️ this pinned `runtime:function-global-state`. vw-udt-fn-global-history (committed) read a mutable global
+    // inside a function as its value AT THE CALL, per call site (G01-G06): the frame's own copy
+    // (`frameGlobalCopy`), never a hoist into the ROOT list. Called on every bar, the window is the root's.
+    const fn = run('var x = 0.0\nx := close\nf() =>\n    ta.sma(x, 5)\nplot(f())\n')
+    const root = run('var x = 0.0\nx := close\nplot(ta.sma(x, 5))\n')
+    same(fn.out, root.out, 'global window')
+  })
+
+  it('a global bound ONCE still refuses `runtime:function-global-state` (W13 / W14 not read yet)', () => {
+    const r = refusalOf('var x = 0.0\nx := close\ny = x + 1\nf() =>\n    ta.sma(y, 5)\nplot(f())\n')
     expect(r.guard).toBe('runtime:function-global-state')
+    expect(r.message).toMatch(/bound once/)
   })
 
   it('the root list still hoists (the frame change moved nothing)', () => {

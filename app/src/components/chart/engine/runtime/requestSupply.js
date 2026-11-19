@@ -48,6 +48,18 @@ function ladderCode(tf) {
 /** Where a request was written, for a sentence. */
 const at = (site) => (site && site.target && Number.isInteger(site.target.line) ? ` (line ${site.target.line})` : '')
 
+/** The earliest bar time of a supplied series (number or ISO date, whichever the series holds), or null. */
+function firstHeldTime(series) {
+  if (!Array.isArray(series)) return null
+  let first = null
+  for (const b of series) {
+    const t = b && typeof b === 'object' ? b.t : undefined
+    if (t === undefined || t === null) continue
+    if (first === null || (typeof t === typeof first && t < first)) first = t
+  }
+  return first
+}
+
 /** ⭐⭐ RS RATING L8 (4b) — WHY THE CHART'S OWN SYMBOL AT THIS TIMEFRAME IS NOT READ. The
  *  front end records such a request `{own: true, unread: true, code: <the literal>}` where the
  *  host's reader has no reading of it (a daily read on a weekly or an intraday chart): the
@@ -373,9 +385,19 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
     for (let i = 0; i < n - 1; i += 1) if (aligned.withheld[i]) { early = i; break }
     if (early >= 0) {
       const named = [...sink.entries()]
+      // ⭐ WHICH UNKNOWN, BY NAME (2026-11-19). A chart bar BEFORE the first row we hold of the series (an index's
+      // intraday bars: our store holds ~60 days of 5m, `SERIES_UNKNOWN_BEFORE_FIRST`) is a DEPTH gap, not a missing
+      // bar. ⚰️ The sentence said "after its history began" for Fred RS's 5m bar 0 (2026-04-27), four months before
+      // our first SPX 5m row (2026-08-26), and the cause was first misread as an extended-hours gap.
+      const earlyT = rows[early] && rows[early].t
+      const firstHeld = srcBars !== rows ? firstHeldTime(srcBars) : null
       const why = named.length ? named.map(([c, text]) => `${c}: ${text}`).join(' ')
-        : `\`${other}\` has no bar on ${String(rows[early] && rows[early].t)}, after its history began, so what the `
-          + 'request reads there is not known'
+        : (firstHeld !== null && typeof earlyT === typeof firstHeld && earlyT < firstHeld
+          ? `this chart's history reaches ${String(earlyT)}, and the \`${other}\` bars we hold begin at `
+            + `${String(firstHeld)}, so what the request reads before them is not known (a shorter chart history `
+            + 'draws it)'
+          : `\`${other}\` has no bar on ${String(earlyT)}, after its history began, so what the `
+            + 'request reads there is not known')
       out.codes.push(...sink.keys())
       return refuse(`a \`request.security\`${at(site)} cannot be read on every bar — ${why} A script drawn bar by `
         + 'bar carries its values forward from bar to bar, so one unknown read reaches every later bar; '
