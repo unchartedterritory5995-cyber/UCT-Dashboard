@@ -228,7 +228,7 @@ export function allowanceLine(left) {
 }
 
 export default function CreateIndicatorPanel({
-  onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
+  onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null, onOpenScript = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
   dockHost = null, onDocked = null, sessionKey = null, editRow = null, onEditFormula = null,
   seed = null, sendSeed = false, previewChartRef = null, readHistory = undefined,
@@ -568,6 +568,23 @@ export default function CreateIndicatorPanel({
                   {t.offer && (
                     <button type="button" className={styles.chip} data-testid="create-indicator-offer"
                       disabled={busy || saving} onClick={() => takeOffer(t)}>{t.offer.label}</button>
+                  )}
+                  {/* ⭐ A SCRIPT ANSWER — the lines above are the ENGINE's verdict. The script itself opens
+                      in the script editor, where it is checked again, previewed and saved like any
+                      pasted script. Nothing is put on the chart from here. */}
+                  {t.script && typeof t.script.pine === 'string' && (
+                    <span className={styles.said} data-testid="create-indicator-script" data-runs={t.script.runs ? 'true' : 'false'}>
+                      {onOpenScript && (
+                        <button type="button" className={styles.chip} data-testid="create-indicator-open-script"
+                          disabled={busy || saving} onClick={() => onOpenScript({ pine: t.script.pine, name: t.script.name })}>
+                          {t.script.runs ? 'Open this script' : 'Open this script to fix it'}
+                        </button>
+                      )}
+                      <details data-testid="create-indicator-script-text">
+                        <summary>The script the assistant wrote</summary>
+                        <pre>{t.script.pine}</pre>
+                      </details>
+                    </span>
                   )}
                   {/* P3 UX — the engine's code, for support, behind the member sentence */}
                   {Array.isArray(t.details) && t.details.length > 0 && (

@@ -50,7 +50,7 @@ describe('an answer that offers to add one of UCT\'s own built-in indicators', (
   it('the window tells the door what it can add; the answer shows one button; one tap adds it and says so', async () => {
     const { spy, writes } = mount()
     await say('Add the RS Rating')
-    expect(spy.mock.calls[0][0].gateCtx.builtIns).toEqual(['rsRating', 'rsPhases'])
+    expect(spy.mock.calls[0][0].gateCtx.builtIns).toEqual(['rsMansfield', 'rsRating', 'rsPhases'])
     expect(lastUct().textContent).toContain('RS Rating is one of UCT\'s own indicators')
     expect(offerButton().textContent).toBe('Add UCT RS Rating to this chart')
     expect(writes).toHaveLength(0)                                          // the answer itself changes nothing

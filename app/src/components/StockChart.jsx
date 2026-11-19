@@ -1704,7 +1704,7 @@ import {
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
 import { chromePlan, capturedPriceRange, viewLockFractions, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
-import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources } from './chart/engine/useSecondarySources'
+import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources, heldSpanFor } from './chart/engine/useSecondarySources'
 import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
@@ -8724,8 +8724,19 @@ export default function StockChart({
   const _chartFormingRef = useRef(null)
   const _chartFormingOf = useCallback(() => _chartFormingRef.current, [])
   // ⭐ RS RATING L12 PR 2 (U-DAILY) — and this chart's symbol, for a run that reads its own daily rows
+  // ⭐⭐ RS RATING (2026-11-19, the e81 live capture) — THE HELD SERIES FOLLOW THE CHART'S LOADED DEPTH. `barCount` is
+  // the REQUESTED first-paint depth (600 on intraday); the deep backfill grows the loaded rows to 3,000-28,000 without
+  // changing it, so SP:SPX was held 600 bars deep and the RS line was blank on every older bar. The loaded row count
+  // (`barCountRef`, set where the rows are bound) is read after each render and kept only when it crosses a ladder
+  // rung (`heldSpanFor`), so a filling chart refetches a few times, never once per fill step.
+  const [_heldLoaded, _setHeldLoaded] = useState(0)
+  const _heldSpan = heldSpanFor(_heldLoaded, barCount)
+  useEffect(() => {
+    const loaded = barCountRef.current
+    if (heldSpanFor(loaded, 0) !== heldSpanFor(_heldLoaded, 0)) _setHeldLoaded(loaded)
+  })
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym)
+    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)

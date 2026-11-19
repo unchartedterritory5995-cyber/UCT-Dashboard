@@ -20,7 +20,8 @@
 // ⛔ THE CLOCK IS THREADED, NEVER ASSUMED. `runtimeClockOpts` fills both halves
 // of the forming-bar tri-state from ONE value, the pair `pineRuntimeFrontendGate
 // .test.js` requires every live importer of the front end to reach.
-import { buildRuntimeIr, RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION } from '../ast/pineRuntimeFrontend.js'
+import { buildRuntimeIr, RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION, columnSinkRefusal, columnBlankRefusal,
+  buildBarCountClass } from '../ast/pineRuntimeFrontend.js'
 import { RUNTIME_IR_VERSION } from './ir.js'
 import { runtimeClockOpts, newestBarIsFormingFrom, isNewByBar } from '../ast/pineRuntimeClock.js'
 import { interpret, isIntradayTf } from '../ast/interpret.js'
@@ -929,9 +930,17 @@ export function runtimeSessionStats() {
   for (const s of _sessions.values()) bytes += s.bytes
   return { sessions: _sessions.size, cap: SESSION_CAP, byteCap: SESSION_BYTE_CAP, approxBytes: bytes }
 }
+// ⭐⭐ (2026-11-19, the B5 reuse fix) — A BAR'S TIME IS ITS OWN KEY, KEPT AS IT CAME. A daily, weekly or monthly
+// bar is keyed by its ISO date (`'2026-11-17'`), and `+'2026-11-17'` is `NaN`: the snapshot stored that `NaN` and
+// the checks compared `NaN` with `NaN`, which `Object.is` calls equal, so ANY two daily charts of one length had
+// "the same times". A session then carried its price-free clock columns (`dayofweek`, `time`, `time("W")`, …)
+// from the PREVIOUS run's bars: a daily window that slid one bar drew last window's `dayofweek` on every bar, and a
+// chart with a bar moved onto a Saturday was served where a cold build refuses `runtime:chart-clock`. The key the
+// run itself reads (`barTimes`, the columnar lane's bars) is kept and compared as it is: a string as a string, a
+// number as a number, and a key of another kind is another time (the safe direction: a rebuild).
 const rowsSnapshot = (rows) => {
   const n = rows.length
-  const out = { n, t: new Float64Array(n), o: new Float64Array(n), h: new Float64Array(n), l: new Float64Array(n),
+  const out = { n, t: new Array(n), o: new Float64Array(n), h: new Float64Array(n), l: new Float64Array(n),
     c: new Float64Array(n), v: new Float64Array(n) }
   for (let i = 0; i < n; i += 1) {
     const b = rows[i]
@@ -943,7 +952,7 @@ const sameRowsTo = (snap, rows, last) => {
   if (!snap || rows.length <= last || snap.n <= last) return false
   for (let i = 0; i <= last; i += 1) {
     const b = rows[i]
-    if (!Object.is(snap.t[i], +b.t) || !Object.is(snap.o[i], +b.o) || !Object.is(snap.h[i], +b.h)
+    if (!Object.is(snap.t[i], b.t) || !Object.is(snap.o[i], +b.o) || !Object.is(snap.h[i], +b.h)
       || !Object.is(snap.l[i], +b.l) || !Object.is(snap.c[i], +b.c) || !Object.is(snap.v[i], +b.v)) return false
   }
   return true
@@ -1020,32 +1029,45 @@ export function tickInvariant(tree) {
 /** The bars have the same times, in the same number, as a session's snapshot. */
 const sameTimes = (snap, rows) => {
   if (!snap || snap.n !== rows.length) return false
-  for (let i = 0; i < rows.length; i += 1) if (!Object.is(snap.t[i], +rows[i].t)) return false
+  for (let i = 0; i < rows.length; i += 1) if (!Object.is(snap.t[i], rows[i].t)) return false
   return true
 }
 /** Exported for its rails (`runtimeRealtimeGuards.test.js`); no product caller outside this file. */
 export function buildRecorder() {
   const trees = []
   let clean = true
+  let seenBars = undefined
   return {
     interpret(tree, bars, inputs, interpretOpts) {
+      if (seenBars === undefined && Array.isArray(bars)) seenBars = bars.length
       try {
         const v = interpret(tree, bars, inputs, undefined, undefined, interpretOpts)
         trees.push({ tree, inputs, interpretOpts, invariant: tickInvariant(tree) })
         return v
       } catch (e) { clean = false; throw e }
     },
-    /** the build to keep, or null; the IR's own columns (these bars' values) are dropped */
-    done(ir) {
+    /** the build to keep, or null; the IR's own columns (these bars' values) are dropped.
+     *  ⭐ (the B5 reuse fix) `nBars`: the count the build was made over, whose class (`buildBarCountClass`) a reuse
+     *  must share; a caller that does not say is taken at the count the columns were evaluated over. */
+    done(ir, nBars) {
       if (!clean || !ir || !Array.isArray(ir.columns) || trees.length !== ir.columns.length) return null
-      return { ir: { ...ir, columns: [] }, trees }
+      return { ir: { ...ir, columns: [] }, trees, barCountClass: buildBarCountClass(Number.isInteger(nBars) ? nBars : seenBars) }
     },
   }
 }
-/** The columns of a kept build over `rows`, made exactly as `columnOf` makes them, or null.
- *  `prev` is the session whose last run computed `prev.program.columns` with this build. */
+/** The columns of a kept build over `rows`, made AND CHECKED exactly as `columnOf` makes and checks them, or null
+ *  (the run builds afresh, and says what a cold build says). `prev` is the session whose last run computed
+ *  `prev.program.columns` with this build.
+ *  ⭐⭐ (2026-11-19, the B5 reuse fix) — ONE AUTHORITY FOR WHAT A COLUMN REFUSES: the front end's own
+ *  (`columnSinkRefusal`, the length, `columnBlankRefusal`), and the bar count's class the build was made in
+ *  (`buildBarCountClass`). ⚰️ This kept its own list, `time-*` codes only, so a reuse over new bars served a
+ *  `stoch:flat-window`, a `bool`-`na` or tie witness, a `request:other-timeframe` read and a blank left-edge column
+ *  that a cold build refuses by name, and reused a build made within Pine's history buffer over a chart grown past
+ *  it (a dynamic offset a cold build lowers piecewise). */
 export function columnsOver(build, rows, prev) {   // exported for its rails, as `buildRecorder`
   const n = rows.length
+  // a build that names its class is reused only within it (a hand-made build in a rail names none)
+  if (build.barCountClass !== undefined && build.barCountClass !== buildBarCountClass(n)) return null
   const out = new Array(build.trees.length)
   let reusedCount = 0
   const prevCols = prev && prev.program && Array.isArray(prev.program.columns)
@@ -1059,13 +1081,14 @@ export function columnsOver(build, rows, prev) {   // exported for its rails, as
     // hands back to a rebuild, which says so by name (`runtime:chart-clock`).
     const sink = new Map()
     try { value = interpret(tree, rows, inputs, undefined, undefined, { ...(interpretOpts || {}), chartClockSink: sink }) } catch { return null }
-    for (const code of sink.keys()) if (String(code).startsWith('time-')) return null
+    if (columnSinkRefusal(sink, n, null)) return null
     const arr = typeof value === 'number' ? new Float64Array(n).fill(value)
       : value instanceof Float64Array ? value : Float64Array.from(value)
     // ⚠️ FAIL-CLOSED, NOT MUTATION-PROVABLE: `interpret` over `rows` answers `n` values today
     // (deleting this line left every rail green). It stands because `columnOf` refuses the same
     // mismatch by name, and a cached column of the wrong length would be read past its end.
     if (arr.length !== n) return null
+    if (columnBlankRefusal(sink, arr, n, null)) return null
     out[k] = arr
   }
   _lastReused = reusedCount
@@ -1513,7 +1536,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     waiting.pending = true
     throw waiting
   }
-  const build = reused ? prevSession.build : (recorder ? recorder.done(built.ir) : null)
+  const build = reused ? prevSession.build : (recorder ? recorder.done(built.ir, rows.length) : null)
   // ⛔ RS RATING L5 — a run that reads requested bars never resumes from a checkpoint: the
   // checkpoint's state was computed from the requested bars of an EARLIER supply.
   const resumable = prevSession && !opts.probe && !reqSupply ? resumableFrom(prevSession, rows, program)

@@ -1963,10 +1963,12 @@ function valueWhenOccurrence(cond, src, occurrence) {
  *    · an `na` offset reads the CURRENT bar: `close[na]` is `close`
  *      (`vw-offset-na-spy-1d-2026-09-30`, all 100 na-offset bars);
  *    · a read is one this engine can answer only when its offset is a whole
- *      number of bars, not negative (a future bar), and below the buffer — the
- *      script's `max_bars_back`, or `objectProgram.js::AUTO_MAX_BARS_BACK`, the
+ *      number of bars, not negative (a future bar), and below the buffer
+ *      (`pine.js::historyReadBufferOf`): the script's `max_bars_back` when it is at
+ *      least `objectProgram.js::AUTO_MAX_BARS_BACK`, else that automatic buffer, the
  *      reach TradingView's automatic buffer was measured to cover
- *      (`vw-mbb-auto-spy-1d-2026-09-30`: offsets 0..399 ran and read its own bars). */
+ *      (`vw-mbb-auto-spy-1d-2026-09-30`: offsets 0..399 ran and read its own bars;
+ *      WS-C: a smaller declaration does not shrink it, `vw-w4-max-bars-back-m2`). */
 export const historyBackOf = (raw) => (Number.isNaN(raw) ? 0 : raw)
 export const historyReadable = (back, limit) => Number.isInteger(back) && back >= 0 && back < limit
 /** ⭐⭐ C45 — A READ THAT LANDS BEFORE THE FIRST BAR HELD: is its answer one this

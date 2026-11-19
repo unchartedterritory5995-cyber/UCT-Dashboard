@@ -100,8 +100,10 @@ export function browserRefusalBlock(refusal) {
  * still running an older build never meets a field its own validator refuses.
  *   note.by: a note may say who wrote it (`by: "uct"`).
  *   offer:   an answer may carry one action to take with one tap (`builtInOffer.js`).
+ *   script:  an answer may BE a Pine script, which this window puts through its own engine and
+ *            shows the verdict of (`scriptAnswer.js`).
  */
-export const ACCEPTS = Object.freeze(['note.by', 'offer'])
+export const ACCEPTS = Object.freeze(['note.by', 'offer', 'script'])
 
 /** The bounds the server reads `addable` under (`definition_conversation.BUILT_INS_MAX`). */
 export const BUILT_INS_LIMITS = Object.freeze({ max: 40, maxChars: 64 })
@@ -114,7 +116,7 @@ export function builtInIds(list) {
 }
 
 /** The request body for one turn — exported so tests can pin the wire shape. */
-export function converseBody({ message, state, gateCtx = {}, snippets = [], browserRefusal = null }) {
+export function converseBody({ message, state, gateCtx = {}, snippets = [], browserRefusal = null, scriptRefusal = null }) {
   const view = compactView(state.working, state, gateCtx)
   const body = {
     message: String(message || '').slice(0, CONVERSE_LIMITS.maxMessage),
@@ -141,6 +143,10 @@ export function converseBody({ message, state, gateCtx = {}, snippets = [], brow
   // door offers to add one only when its id is here (omitted when there is none)
   const builtIns = builtInIds(gateCtx.builtIns)
   if (builtIns.length) body.addable = builtIns
+  // ⭐ this window's own engine refused a script the door offered for this request: the script
+  // and the engine's words go back for a repair (`scriptAnswer.refusalOf`)
+  const refusedScript = scriptRefusalBlock(scriptRefusal)
+  if (refusedScript) body.script_refusal = refusedScript
   return body
 }
 
@@ -164,7 +170,7 @@ function retryAfterOf(r) {
   } catch { return null }
 }
 
-export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null, signal = null, browserRefusal = null }) {
+export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null, signal = null, browserRefusal = null, scriptRefusal = null }) {
   const doFetch = fetchImpl || globalThis.fetch
   let r
   try {
@@ -172,7 +178,7 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(converseBody({ message, state, gateCtx, snippets, browserRefusal })),
+      body: JSON.stringify(converseBody({ message, state, gateCtx, snippets, browserRefusal, scriptRefusal })),
       ...(signal ? { signal } : {}),
     })
   } catch {
@@ -220,7 +226,37 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
     turn: body.turn || null, envelope: body.envelope, notUnderstood, unavailable,
     ...allowanceOf(body),
     ...offerOf(body),
+    ...scriptOf(body),
   }
+}
+
+/** The bounds of a script answer and of its refusal (`pine_authoring.SCRIPT_MAX_CHARS`,
+ *  `script_conversation.REFUSAL_MAX_*`). */
+export const SCRIPT_LIMITS = Object.freeze({ maxChars: 24000, maxName: 60, maxErrors: 6, maxErrorChars: 300 })
+
+/** ⭐ The script an answer IS, as the server sent it: text, a name and the repair round. What it
+ *  is worth is the engine's to say (`scriptAnswer.checkScript`), never this function's. */
+export function scriptOf(body) {
+  const s = body && body.script
+  if (!s || typeof s !== 'object' || typeof s.pine !== 'string' || !s.pine.trim()) return {}
+  if (s.pine.length > SCRIPT_LIMITS.maxChars) return {}
+  return { script: {
+    pine: s.pine,
+    name: typeof s.name === 'string' ? s.name.slice(0, SCRIPT_LIMITS.maxName) : '',
+    round: Number.isInteger(s.round) && s.round >= 0 ? s.round : 0,
+  } }
+}
+
+/** `{pine, errors, round}` as it goes on the wire, or null when there is nothing usable to send. */
+export function scriptRefusalBlock(refusal) {
+  if (!refusal || typeof refusal !== 'object' || typeof refusal.pine !== 'string' || !refusal.pine) return null
+  if (refusal.pine.length > SCRIPT_LIMITS.maxChars) return null
+  const errors = (Array.isArray(refusal.errors) ? refusal.errors : [])
+    .filter((e) => typeof e === 'string' && e.trim())
+    .slice(0, SCRIPT_LIMITS.maxErrors)
+    .map((e) => e.replace(/[ \t\r\n]+/g, ' ').trim().slice(0, SCRIPT_LIMITS.maxErrorChars))
+  if (!errors.length) return null
+  return { pine: refusal.pine, errors, round: Number.isInteger(refusal.round) && refusal.round >= 1 ? refusal.round : 1 }
 }
 
 /** ⭐ The one action an answer offers, as the server sent it (kind and indicator id only; what

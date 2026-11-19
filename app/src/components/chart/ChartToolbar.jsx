@@ -1226,9 +1226,13 @@ function ChartToolbar({
   // ⭐ UCT SIGNATURE R2 — words to PRE-FILL into the start view's Describe it (never sent):
   // the Indicators window's "Build “…” with the UCT Agent". Every other opening clears them.
   const [builderDescription, setBuilderDescription] = useState(null)
+  // ⭐ A SCRIPT Create Indicator's assistant wrote (`builder/authoring/scriptAnswer.js`): opened on
+  // the script tab with this text in it, where it is checked, previewed and saved like a pasted one.
+  const [builderPine, setBuilderPine] = useState(null)
   const openBuilder = useCallback((mode = null, opts = null) => {
     setBuilderMode(typeof mode === 'string' ? mode : null)
     setBuilderDescription(opts && typeof opts.description === 'string' && opts.description.trim() ? opts.description : null)
+    setBuilderPine(opts && typeof opts.pine === 'string' && opts.pine.trim() ? opts.pine : null)
     setBuilderEverOpened(true)
     setBuilderOpen(true)
   }, [])
@@ -2104,6 +2108,7 @@ function ChartToolbar({
             tf={tf}
             initialMode={builderMode}
             initialDescription={builderDescription}
+            initialPine={builderPine}
             /* ⭐ PHASE 4 — "Edit formula" from the legend / inspector / Your indicators */
             editRow={builderEditRow}
           />
@@ -2126,6 +2131,7 @@ function ChartToolbar({
               onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); setCreateSendSeed(false); if (res && res.receipt) setSaveReceipt(res.receipt) }}
               seed={createSeed}
               sendSeed={!!createSeed && createSendSeed}
+              onOpenScript={({ pine }) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); setCreateSendSeed(false); setBuilderEditRow(null); openBuilder('pine', { pine }) }}
               settings={cs}
               onChange={onUpdateSettings}
               sym={currentSym}

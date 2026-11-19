@@ -1,0 +1,42 @@
+//@version=5
+indicator("Auto Trendlines", overlay=true)
+left = input.int(10, "Pivot bars left", minval=1)
+right = input.int(10, "Pivot bars right", minval=1)
+ph = ta.pivothigh(high, left, right)
+pl = ta.pivotlow(low, left, right)
+var float h1 = na
+var int h1x = na
+var float h2 = na
+var int h2x = na
+var float l1 = na
+var int l1x = na
+var float l2 = na
+var int l2x = na
+var line[] resistance = array.new_line(0)
+var line[] support = array.new_line(0)
+if not na(ph)
+    h1 := h2
+    h1x := h2x
+    h2 := ph
+    h2x := bar_index - right
+    if not na(h1)
+        while array.size(resistance) > 0
+            oldLine = array.pop(resistance)
+            line.delete(oldLine)
+        array.push(resistance, line.new(h1x, h1, h2x, h2, extend=extend.right, color=color.red, width=2))
+if not na(pl)
+    l1 := l2
+    l1x := l2x
+    l2 := pl
+    l2x := bar_index - right
+    if not na(l1)
+        while array.size(support) > 0
+            oldLine = array.pop(support)
+            line.delete(oldLine)
+        array.push(support, line.new(l1x, l1, l2x, l2, extend=extend.right, color=color.green, width=2))
+resNow = not na(h1) ? h2 + (h2 - h1) / (h2x - h1x) * (bar_index - h2x) : na
+supNow = not na(l1) ? l2 + (l2 - l1) / (l2x - l1x) * (bar_index - l2x) : na
+plot(resNow, "Resistance line here", display=display.data_window)
+plot(supNow, "Support line here", display=display.data_window)
+alertcondition(ta.crossover(close, resNow), "Break above the trendline", "Price closed above the resistance trendline")
+alertcondition(ta.crossunder(close, supNow), "Break below the trendline", "Price closed below the support trendline")
