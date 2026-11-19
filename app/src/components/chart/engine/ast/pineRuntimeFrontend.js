@@ -70,6 +70,7 @@ import {
   // uses both words as local variables; an IR constructor shadowed by one would
   // build the wrong node with nothing red.
   record as irRecord, field as irField, fieldSet as irFieldSet,
+  IrError,
 } from '../runtime/ir.js'
 import { constCompareFold, pineConstCompareExact, constantTreeValue } from '../pineCompare.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
@@ -16176,6 +16177,27 @@ const position = (e) => {
   }
 }
 
+/** ⭐⭐ ENGINE NUMBER PENDING (S14, robustness) — WHAT AN EXCEPTION THAT IS NOT A REFUSAL IS CALLED.
+ *
+ *  Anything thrown during a build that is not one of the three refusal classes (`RuntimeRefusal`,
+ *  `PineRefusal`, `TableRefusal`) used to arrive at `fail` as `runtime:statement`, "a statement shape
+ *  this front end does not recognise": a sentence about the SCRIPT, said about whatever was thrown.
+ *  Ten scripts of the coverage sample were filed under the statements unit for it (an IR invariant
+ *  broken by an uncalled helper, `undefined` read as a node, a recursion with no floor). It is
+ *  `runtime:lower` now, the guard `runtimeColumns.js` already gives a lowering that throws, and the
+ *  sentence says which of two things happened:
+ *  - a DEFECT: a JavaScript error (`TypeError`, `RangeError`, ...), a plain `Error`, a thrown
+ *    non-error, or an `IrError` (the program this lane built fails its own invariant). Nothing about
+ *    the script is known; the sentence says the engine failed, and keeps what was thrown;
+ *  - an engine module's own NAMED error (`ColourError`, `ExpansionRefusal`, ...): its message is a
+ *    sentence about the script already ("not a colour this engine can read"), and is kept as it is.
+ *  Nothing that was drawn changes: the script was refused before, and is refused now. */
+const JS_ERROR_TYPES = [TypeError, RangeError, ReferenceError, SyntaxError, EvalError, URIError]
+export const isEngineDefect = (e) => !(e instanceof Error) || e.constructor === Error
+  || e instanceof IrError || JS_ERROR_TYPES.some((T) => e instanceof T)
+export const ENGINE_DEFECT_SENTENCE = 'this lane failed inside the engine while building the script (an engine '
+  + 'defect, not a shape it refuses by name), so none of it runs here'
+
 function fail(e, diagnostics) {
   // ⭐ R1 — an `interpret.js` `TableRefusal` keeps ITS guard too. A value the
   // BINDING could not settle (`interpret:bind-time-text`: a `syminfo.*` read by
@@ -16183,16 +16205,19 @@ function fail(e, diagnostics) {
   // "a statement shape this front end does not recognise", followed by the
   // interpreter's own sentence about a symbol — a guard that contradicted its
   // message, and four corpus scripts filed under the wrong wall.
-  const guard = e instanceof RuntimeRefusal ? e.guard
-    : (e instanceof PineRefusal || e instanceof TableRefusal ? e.guard : 'runtime:statement')
+  // ⭐ S14 — an exception that is not a refusal is `runtime:lower`, never `runtime:statement` (above)
+  const refusal = e instanceof RuntimeRefusal || e instanceof PineRefusal || e instanceof TableRefusal
+  const guard = refusal ? e.guard : 'runtime:lower'
+  const thrown = String((e && e.message) || e)
   return {
     ok: false,
     refusal: {
       guard,
       // ⛔ RULING D2: a shared-vocabulary refusal whose sentence promises
       // something about the OTHER rows is re-stated for this lane, which has none.
-      message: (e instanceof PineRefusal && RUNTIME_LANE_REFUSALS[guard])
-        || String(e.message || e),
+      message: refusal
+        ? ((e instanceof PineRefusal && RUNTIME_LANE_REFUSALS[guard]) || thrown)
+        : (isEngineDefect(e) ? `${ENGINE_DEFECT_SENTENCE} (${thrown})` : thrown),
       // ⛔⛔ TWO REFUSAL CLASSES CARRY THEIR POSITION DIFFERENTLY, and reading
       // only one of them silently dropped it for the other. `RuntimeRefusal`
       // FLATTENS `at` into `line`/`column`/`token` in its constructor;
