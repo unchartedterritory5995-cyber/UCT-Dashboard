@@ -31,6 +31,30 @@ import { isTradingDay } from '../../../../lib/marketClock/sessionCalendar.js'
 
 export const REQUEST_GUARD = 'runtime:request'
 
+// ─── ⭐⭐ (the e85 live capture, 2026-11-19) — ANOTHER SERIES' NEWEST BARS NOT ARRIVED YET: A WAIT, NOT A REFUSAL ──────
+// ⚰️ CAPTURED (patrick-54, engine 85, Fred RS on RDDT 5m in market hours, the runtime worker's own messages): most
+// replies were REFUSED. Our SP:SPX 5m series ran 1-2 bars behind the chart's newest (4,653 rows refused, the same
+// chart served at 4,655; `/api/bars/SPX?tf=5` a minute later had the bar and no gap): never a hole, only "not arrived
+// yet". A withheld bar before the newest refused the whole chart, and with the DEPTH sentence of the first withheld
+// bar ("this chart's history reaches X, and the `SPX` bars we hold begin at Y"), which was not the cause.
+// THE RULE (coordinator ruling, 2026-11-19):
+//   * ⛔ NO VALUE IS CARRIED FORWARD: TradingView's feed is synchronised, so a carried SPX close is a value it never
+//     shows, and cutting the run at SPX's last bar would move Fred RS's last-bar labels onto the wrong bar;
+//   * a gap STRICTLY AFTER the series' last held bar, at the chart's live tail, makes the run PENDING (`waiting`): it
+//     runs again when the series updates (the store's own update moves the run's key, `runtimeColumns.js::
+//     requestSupplyKey`; no timer here), and the pane keeps its last served picture meanwhile (`binder.js`);
+//   * a lag past `TAIL_LAG_BOUND_INTERVALS` of the chart's bar intervals, measured back from the chart's newest bar
+//     (or any lag on a chart whose newest bar is known finished: no live tail there), is REFUSED by name
+//     (`REQUEST_LAG_GUARD`), with a sentence that says the newest bars have not arrived;
+//   * a gap INSIDE the series' history (a hole) keeps its rule, and a DEPTH gap its `knownFrom`; each refusal names
+//     ITS cause, never the first withheld bar's (`tailLag.test.js` holds every class).
+/** The guard a request carries when another series' newest bars have not arrived within the wait. */
+export const REQUEST_LAG_GUARD = 'runtime:request-lag'
+/** How many of the chart's bar intervals another series may lag the chart's newest bar while the run waits. */
+export const TAIL_LAG_BOUND_INTERVALS = 2
+/** One bar interval of an intraday chart, in seconds (a D / W / M chart counts its bars instead). */
+const INTRADAY_STEP_S = Object.freeze({ 1: 60, 5: 300, 15: 900, 30: 1800, 60: 3600 })
+
 /** ⭐ REQ — the one sentence for a look-ahead read the run does not serve (the door and the bind say it). */
 const LOOKAHEAD_UNSERVED = 'a `request.security` looks ahead (`barmerge.lookahead_on`) at a timeframe the run does not '
   + 'read ahead on: look-ahead is served for a weekly or monthly period above the chart’s own, the reading '
@@ -58,6 +82,62 @@ function firstHeldTime(series) {
     if (first === null || (typeof t === typeof first && t < first)) first = t
   }
   return first
+}
+
+/** ⭐ (e85) The newest bar time of a supplied series AT OR BEFORE `until` (the chart's newest bar: of the kind the series
+ *  holds), or null. ⛔ Not its newest row outright: the intraday SP:SPX grid holds the NEXT session's pre-market rows
+ *  (the previous close, read before the open, `otherSymbols.js::atOrBeforeGridOf`), which lie after every chart bar and
+ *  say nothing about how far its bars have arrived for this chart. */
+function lastHeldTime(series, until) {
+  if (!Array.isArray(series)) return null
+  let last = null
+  for (const b of series) {
+    const t = b && typeof b === 'object' ? b.t : undefined
+    if (t === undefined || t === null || typeof t !== typeof until || t > until) continue
+    if (last === null || t > last) last = t
+  }
+  return last
+}
+
+/** ⭐ (e85) How far the chart's newest bar runs past `lastHeld`, in the chart's bar intervals: the time between them
+ *  over one interval on an intraday chart (the chart's own clock: a chart with no bar in a slot still counts it), else
+ *  the chart bars after it (a D / W / M chart, whose bars are its intervals). */
+export function tailLagIntervals(rows, lastHeld, tf) {
+  const n = Array.isArray(rows) ? rows.length : 0
+  const newest = n ? rows[n - 1] && rows[n - 1].t : undefined
+  const step = INTRADAY_STEP_S[ladderCode(tf)]
+  if (step && typeof newest === 'number' && typeof lastHeld === 'number') return (newest - lastHeld) / step
+  let k = 0
+  for (let i = n - 1; i >= 0; i -= 1) {
+    const t = rows[i] && rows[i].t
+    if (typeof t !== typeof lastHeld || !(t > lastHeld)) break
+    k += 1
+  }
+  return k
+}
+
+/** ⭐ (e85) What a run waiting for other series' newest bars says (its pending error's message), for the series named. */
+export function requestWaitingSentence(series) {
+  const names = [...new Set(series)].map((s) => `\`${s}\``)
+  const who = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0] || 'another symbol'
+  return `this script reads ${who}, whose newest bars have not arrived yet (this chart's newest bar is ahead of `
+    + 'the bars we hold of it); it is drawn when they arrive'
+}
+
+/** The clause every whole-run request refusal ends with. */
+const CARRIES = ' A script drawn bar by bar carries its values forward from bar to bar, so one unknown read '
+  + 'reaches every later bar; nothing is drawn rather than a guess'
+
+/** ⭐ (e85) The refusal for a series whose newest bars stayed behind the chart's (`REQUEST_LAG_GUARD`): past the wait on a
+ *  live chart, or at all on a chart whose newest bar is finished (`live` false). */
+function lagMessage(site, other, lastHeld, rows, live = true) {
+  const n = Array.isArray(rows) ? rows.length : 0
+  const newest = String(n ? rows[n - 1].t : '')
+  return `a \`request.security\`${at(site)} cannot be read on every bar — \`${other}\`'s newest bars have not arrived: `
+    + `the bars we hold of it end at ${String(lastHeld)}, `
+    + (live ? `and this chart's newest bar, ${newest}, is more than ${TAIL_LAG_BOUND_INTERVALS} of its bar intervals later`
+      : `before this chart's finished newest bar, ${newest}`)
+    + `, so what the request reads after them is not known.${CARRIES} until they arrive`
 }
 
 /** ⭐⭐ RS RATING L8 (4b) — WHY THE CHART'S OWN SYMBOL AT THIS TIMEFRAME IS NOT READ. The
@@ -289,17 +369,25 @@ export function requestTargetsUnservable(targets, count) {
  * @param {object}   ctx       `{tf, symbol, secondary, exchangeOf, framed, newestBarIsForming,
  *                              historyFromListing}`
  * @returns {{supply: object[]|null, refusal: {guard, message}|null, pending: boolean,
- *            newestWithheld: boolean, newestWithheldSites: number[], codes: string[], sentences: string[]}}
+ *            newestWithheld: boolean, newestWithheldSites: number[], codes: string[], sentences: string[],
+ *            waiting: {series: string[], sentence: string}|null,
+ *            newestTail: {site: number, series: string, within: boolean, message: string|null}[]}}
+ *   ⭐ (e85) `waiting`: set with `pending` when the run waits for other series' newest bars (a live-tail lag within
+ *   `TAIL_LAG_BOUND_INTERVALS`); `newestTail`: each newest-withheld site whose newest bar lies after its series' last
+ *   held bar (the run, which knows what that bar's withholding reaches, decides whether it waits).
  */
 export function runtimeRequestSupply(requests, rows, ctx = {}) {
   ctx = withChartNewestDay(ctx, rows)   // ⭐ RS RATING L11 PR 2: the bind reads no bars
   const out = { supply: null, refusal: null, pending: false, newestWithheld: false, newestWithheldSites: [], codes: [],
-    sentences: [] }
+    sentences: [], waiting: null, newestTail: [] }
   const sites = Array.isArray(requests) ? requests : []
   if (!sites.length) return out
   const n = Array.isArray(rows) ? rows.length : 0
   const chartCode = ladderCode(ctx && ctx.tf)
   const supply = []
+  // ⭐⭐ (e85) the series whose newest bars a site waits for (a live-tail lag within the bound, below). ⛔ A wait never
+  // hides a later site's refusal: every site is read, and the run waits only when none refuses.
+  const waits = []
   // ⭐ `knownFrom` (a DEPTH gap only, below): the first chart bar from which every read of this site is known
   const refuse = (message, knownFrom) => {
     out.refusal = { guard: REQUEST_GUARD, message, ...(Number.isInteger(knownFrom) && knownFrom > 0 ? { knownFrom } : {}) }
@@ -412,37 +500,68 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
         },
       })
     }
+    const named = [...sink.entries()]
+    // ⭐⭐ (e85) WHERE EACH WITHHELD BAR LIES AGAINST THE SERIES AS HELD — before its first row (a DEPTH gap), after its
+    // last (the chart's live TAIL: not arrived yet), or between them (a HOLE). Asked only of another symbol's series
+    // (`srcBars`), and only where no chart-clock rule named the bar (`named`): those keep their own sentences.
+    const firstHeld = srcBars !== rows ? firstHeldTime(srcBars) : null
+    const lastHeld = srcBars !== rows && !named.length && n ? lastHeldTime(srcBars, rows[n - 1] && rows[n - 1].t) : null
+    // ⭐ (e85) the chart's LIVE tail: its newest bar is forming, or not known to be finished. A gap after the series' last
+    // bar on a chart whose newest bar is finished is no wait: it is refused by name, and runs again on the series' update
+    const live = !(ctx && ctx.newestBarIsForming === false)
+    const placeOf = (i) => {
+      const t = rows[i] && rows[i].t
+      if (firstHeld !== null && typeof t === typeof firstHeld && t < firstHeld) return 'depth'
+      if (lastHeld !== null && typeof t === typeof lastHeld && t > lastHeld) return 'tail'
+      return 'hole'
+    }
     let early = -1
     for (let i = 0; i < n - 1; i += 1) if (aligned.withheld[i]) { early = i; break }
     if (early >= 0) {
-      const named = [...sink.entries()]
-      // ⭐ WHICH UNKNOWN, BY NAME (2026-11-19). A chart bar BEFORE the first row we hold of the series (an index's
-      // intraday bars: our store holds ~60 days of 5m, `SERIES_UNKNOWN_BEFORE_FIRST`) is a DEPTH gap, not a missing
-      // bar. ⚰️ The sentence said "after its history began" for Fred RS's 5m bar 0 (2026-04-27), four months before
-      // our first SPX 5m row (2026-08-26), and the cause was first misread as an extended-hours gap.
-      const earlyT = rows[early] && rows[early].t
-      const firstHeld = srcBars !== rows ? firstHeldTime(srcBars) : null
-      const why = named.length ? named.map(([c, text]) => `${c}: ${text}`).join(' ')
-        : (firstHeld !== null && typeof earlyT === typeof firstHeld && earlyT < firstHeld
-          ? `this chart's history reaches ${String(earlyT)}, and the \`${other}\` bars we hold begin at `
-            + `${String(firstHeld)}, so what the request reads before them is not known (a shorter chart history `
-            + 'draws it)'
-          : `\`${other}\` has no bar on ${String(earlyT)}, after its history began, so what the `
-            + 'request reads there is not known')
       out.codes.push(...sink.keys())
+      if (named.length) {
+        return refuse(`a \`request.security\`${at(site)} cannot be read on every bar — `
+          + `${named.map(([c, text]) => `${c}: ${text}`).join(' ')}${CARRIES}`)
+      }
+      // ⭐ WHICH UNKNOWN, BY NAME (2026-11-19), and (e85) THE ONE THAT DECIDES: a hole refuses whatever lies around it;
+      // else a tail waits (a depth gap waits with it: the run starts at `knownFrom` once the tail lands); else the depth.
+      // ⚰️ The first withheld bar named the cause: the e85 tail lag was refused under the depth sentence of bar 0.
+      let hole = -1
+      let tail = -1
+      let lastDepth = -1
+      for (let i = early; i < n - 1; i += 1) {
+        if (!aligned.withheld[i]) continue
+        const place = placeOf(i)
+        if (place === 'hole') { hole = i; break }
+        if (place === 'tail') { if (tail < 0) tail = i } else lastDepth = i
+      }
+      if (hole >= 0) {
+        // ⛔ A bar missing AFTER the series began and before its newest (a hole TradingView holds): a guess, not a
+        // depth and not a wait, so no `knownFrom`
+        return refuse(`a \`request.security\`${at(site)} cannot be read on every bar — \`${other}\` has no bar on `
+          + `${String(rows[hole].t)}, after its history began, so what the request reads there is not known.${CARRIES}`)
+      }
+      if (tail >= 0) {
+        // ⭐⭐ (e85) THE LIVE TAIL: every bar the series lacks before the newest lies after its last held bar. A wait
+        // within the bound; past it, refused by name (never the depth sentence, never `knownFrom`: no cut reaches it)
+        const lag = tailLagIntervals(rows, lastHeld, ctx && ctx.tf)
+        if (!live || lag > TAIL_LAG_BOUND_INTERVALS) {
+          out.refusal = { guard: REQUEST_LAG_GUARD, message: lagMessage(site, other, lastHeld, rows, live) }
+          return out
+        }
+        waits.push(other)
+        continue
+      }
       // ⭐⭐ (the e81 live capture, 2026-11-19) — A DEPTH GAP ONLY: every withheld bar before the newest lies BEFORE
       // the first row we hold of the series (an intraday index: our store holds ~60 days of 5m, 730 of 60m, and a
       // member's chart fills far deeper). The run need not refuse the whole chart for bars our data cannot reach: it
       // starts where every read is known (`knownFrom`, `runtimeColumns.js::computeRuntimeColumns`), under the off-listing
-      // two-start proof. ⛔ A bar missing AFTER the series began (a hole TradingView holds) still refuses, with no
-      // `knownFrom`: that is a guess, not a depth.
-      let lastEarly = early
-      for (let i = early; i < n - 1; i += 1) if (aligned.withheld[i]) lastEarly = i
-      const lastT = rows[lastEarly] && rows[lastEarly].t
-      const depthOnly = !named.length && firstHeld !== null && typeof lastT === typeof firstHeld && lastT < firstHeld
-      return refuse(`a \`request.security\`${at(site)} cannot be read on every bar — ${why} A script drawn bar by `
-        + 'bar carries its values forward from bar to bar, so one unknown read reaches every later bar; '
-        + 'nothing is drawn rather than a guess', depthOnly ? lastEarly + 1 : undefined)
+      // two-start proof. ⚰️ The sentence said "after its history began" for Fred RS's 5m bar 0 (2026-04-27), four
+      // months before our first SPX 5m row (2026-08-26), and the cause was first misread as an extended-hours gap.
+      const earlyT = rows[early] && rows[early].t
+      return refuse(`a \`request.security\`${at(site)} cannot be read on every bar — this chart's history reaches `
+        + `${String(earlyT)}, and the \`${other}\` bars we hold begin at ${String(firstHeld)}, so what the request `
+        + `reads before them is not known (a shorter chart history draws it).${CARRIES}`, lastDepth + 1)
     }
     if (n && aligned.withheld[n - 1]) {
       out.newestWithheld = true
@@ -456,9 +575,22 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
         out.codes.push(REQUEST_GUARD)
         out.sentences.push(`\`${other}\` has no bar for ${String(rows[n - 1] && rows[n - 1].t)} yet, so what the `
           + "script reads from it on the newest bar is not known; that bar's values and drawings are withheld")
+        // ⭐⭐ (e85) …and when that bar lies after the series' last held bar, it is the live tail too: the run decides
+        // whether withholding it would take every drawing, and waits instead (`runtimeColumns.js`, `newestTail`)
+        if (placeOf(n - 1) === 'tail') {
+          const within = live && tailLagIntervals(rows, lastHeld, ctx && ctx.tf) <= TAIL_LAG_BOUND_INTERVALS
+          out.newestTail.push({ site: s, series: other, within,
+            message: within ? null : lagMessage(site, other, lastHeld, rows, live) })
+        }
       }
     }
     supply.push({ runBars: aligned.runBars, index: aligned.index })
+  }
+  if (waits.length) {
+    // ⭐⭐ (e85) PENDING, NOT REFUSED: nothing is supplied, and the run says which series it waits for
+    out.pending = true
+    out.waiting = { series: [...new Set(waits)], sentence: requestWaitingSentence(waits) }
+    return out
   }
   out.supply = supply
   return out

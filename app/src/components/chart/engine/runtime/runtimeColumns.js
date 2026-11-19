@@ -30,7 +30,7 @@ import { cloneValues } from './vmState.js'
 import { SLOT } from './ir.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
 import { execute, requestRegionCausal } from './vm.js'
-import { runtimeRequestSupply } from './requestSupply.js'
+import { runtimeRequestSupply, requestWaitingSentence, REQUEST_LAG_GUARD } from './requestSupply.js'
 import { symbolConstants, minContractOf } from '../ast/bind.js'
 // ⭐ RS RATING L3 — the symbol fields the fold reads, from the one list that names them.
 import { bindSymbolOf, bindConstsFor } from '../ast/bind.js'
@@ -488,6 +488,21 @@ function refusal(guard, message, limit) {
   return err
 }
 
+/** ⭐ (e85) Tests: a drawing run whose newest bar alone is on another series' live tail withholds it as before the
+ *  wait (the e85 reply after a new bar, reproduced: `tailLag.test.js`). */
+let _newestTailWaitOff = false
+export function __newestTailWaitOffForTests(off) { _newestTailWaitOff = !!off }
+
+/** ⭐ (e85) A run that WAITS for other series' bars: refusal-shaped (`runtime:request`) and `pending`; a wait for other
+ *  series' NEWEST bars (a live-tail lag, `requestSupply.js`) also names them (`waitingFor`: comma-separated plain
+ *  text, so it crosses the worker, `errorImage.js`), and the strip says what it waits for (`nativeRegistry.js`). */
+function requestWait(message, series) {
+  const err = refusal('runtime:request', message)
+  err.pending = true
+  if (Array.isArray(series) && series.length) err.waitingFor = [...new Set(series)].join(',')
+  return err
+}
+
 /** ⭐ THE MEMBER'S SENTENCE FOR A VM LIMIT — plain words, the numbers kept, no engine
  *  token (`CALL_COUNT`). Exported for its rail. */
 export function runtimeLimitSentence(err, bar, total) {
@@ -789,7 +804,9 @@ export const RUNTIME_OBJECTS_STOPPED_REASON = 'working them out stopped at a ste
 export function runtimeObjectsWithheld(err) {
   if (err && typeof err.guard === 'string' && err.guard) {
     return { status: 'WITHHELD', live: [], guard: err.guard, reason: String(err.message || err),
-      ...(err.pending === true ? { pending: true } : {}) }
+      ...(err.pending === true ? { pending: true } : {}),
+      // ⭐ (e85) and the series a live-tail wait waits for (`requestWait`)
+      ...(err.pending === true && typeof err.waitingFor === 'string' && err.waitingFor ? { waitingFor: err.waitingFor } : {}) }
   }
   return { status: 'WITHHELD', live: [], guard: 'runtime:objects', reason: RUNTIME_OBJECTS_STOPPED_REASON,
     detail: String((err && err.message) || err) }
@@ -1814,18 +1831,35 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     if (Number.isInteger(reqSupply.refusal.knownFrom)) err.knownFrom = reqSupply.refusal.knownFrom
     throw err
   }
+  const build = reused ? prevSession.build : memo ? memo.build : (recorder ? recorder.done(built.ir, rows.length) : null)
+  // ⭐ PERF (item d) — a build made cold here is kept for the next run with its key
+  if (recorder && build) keepBuildMemo(def, irOpts, build)
+  // ⭐ (e85) a run that waits keeps the build it made (above): the run its series' update asks for is not cold
   if (reqSupply && reqSupply.pending) {
     // PENDING, NOT REFUSED (2026-11-16): the guard is unchanged, and the error says the wait is
     // a wait (`pending`), so a reader that words a refusal does not word this one as final
     // (`nativeRegistry.js::withRunHalf` holds the run half instead of naming a cause).
-    const waiting = refusal('runtime:request', "this script reads another symbol whose bars are still loading; it is "
-      + 'drawn once they arrive')
-    waiting.pending = true
-    throw waiting
+    // ⭐⭐ (e85) a wait for other series' NEWEST bars (a live-tail lag, `requestSupply.js`) says so, and names them
+    // (`waitingFor`, plain text: it crosses the worker, `errorImage.js`), for the strip's status
+    const w = reqSupply.waiting
+    throw requestWait(w ? w.sentence : "this script reads another symbol whose bars are still loading; it is "
+      + 'drawn once they arrive', w ? w.series : null)
   }
-  const build = reused ? prevSession.build : memo ? memo.build : (recorder ? recorder.done(built.ir, rows.length) : null)
-  // ⭐ PERF (item d) — a build made cold here is kept for the next run with its key
-  if (recorder && build) keepBuildMemo(def, irOpts, build)
+  // ⭐⭐ (e85, the reply after a new bar) — THE NEWEST BAR ALONE ON ANOTHER SERIES' LIVE TAIL, IN A RUN THAT DRAWS. Its
+  // withholding (below) takes every drawing when the read reaches one (`requestNewestHeldOf`: `keys: null`), and off the
+  // listing the two-start proof then withheld them all as `runtime:history-start` ("a run did not finish its drawings")
+  // until the series caught up: captured on e85, the chart grew a bar and SPX had not. That bar is "not arrived yet",
+  // so the drawing run WAITS (a lag past the bound is refused by name); its plain run (`computeRuntimeColumnsAll`) still
+  // draws the plots with that bar withheld, as before. ⛔ Only when EVERY site withheld there is such a tail: a bar a
+  // chart-clock rule withholds will not arrive.
+  if (!_newestTailWaitOff && ownObjects && reqSupply && reqSupply.newestWithheld && Array.isArray(reqSupply.newestTail)
+      && reqSupply.newestTail.length && reqSupply.newestTail.length === reqSupply.newestWithheldSites.length
+      && requestNewestHeldOf(program.requests, reqSupply.newestWithheldSites, outputs).keys === null) {
+    const late = reqSupply.newestTail.find((t) => !t.within)
+    if (late) throw refusal(REQUEST_LAG_GUARD, late.message)
+    const series = reqSupply.newestTail.map((t) => t.series)
+    throw requestWait(requestWaitingSentence(series), series)
+  }
   // ⛔ RS RATING L5 — a run that reads requested bars never resumes from a checkpoint: the
   // checkpoint's state was computed from the requested bars of an EARLIER supply.
   // ⭐⭐ (item 3) …unless its supply agrees with the checkpoint's (`acrossSupplyBlocked`)

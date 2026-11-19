@@ -173,7 +173,7 @@ import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './ru
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
 import './lowerTfGate.js'
-import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf } from './runtime/runtimeObjects'
+import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf, runHalfOf } from './runtime/runtimeObjects'
 import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults, registerObjectComputeFor } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
@@ -2296,6 +2296,8 @@ export function runtimeObjectsWithheld(def, cols) {
  */
 export function runtimeRunStopOf(def, cols) {
   if (!def || !def.compute || def.compute.kind !== 'runtime' || !cols) return null
+  // ⭐ (e85) a wait is not a stop (`runtimeRunWaitingOf` says it)
+  if (cols[RUNTIME_WAITING_KEY]) return null
   const keys = Object.keys(def.compute.outputs || {})
   if (keys.some((k) => cols[k] && typeof cols[k].length === 'number')) return null
   if (runtimeErrorStopOf(cols)) return null
@@ -2567,9 +2569,49 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
     }
     // ⛔ A FAILED BUILD IS EVERY COLUMN'S FAILURE, reported, never a throw on the
     // paint path — the binder would otherwise skip the whole instance silently.
-    return reasonFor((err && err.guard) || ENGINE_ERROR,
+    const out = reasonFor((err && err.guard) || ENGINE_ERROR,
       String((err && err.message) || err))
+    // ⭐ (e85) a run WAITING for other series' newest bars is a wait, said as one (`runtimeRunWaitingOf`), never as a stop
+    if (err && err.pending === true && typeof err.waitingFor === 'string' && err.waitingFor) {
+      Object.defineProperty(out, RUNTIME_WAITING_KEY, { value: Object.freeze({ waitingFor: err.waitingFor }), enumerable: false })
+    }
+    return out
   }
+}
+
+// ─── ⭐⭐ (the e85 live capture, 2026-11-19) — A RUN WAITING FOR ANOTHER SERIES' NEWEST BARS SAYS SO ──────────────
+// A live-tail lag (`runtime/requestSupply.js`: another series' newest bars behind the chart's, within the bound) is a
+// WAIT: the run is asked again when the series updates, and the pane keeps the picture it last served for the run half
+// (`binder.js`). The strip says what it waits for, in the house voice of the worker's own sentences (what is happening,
+// what settles it), never a guard id. ⛔ A wait past the bound is a refusal (`runtime:request-lag`) and says so there.
+/** Where a runtime document's answer records the series its run waits for (non-enumerable): `{waitingFor}`. */
+export const RUNTIME_WAITING_KEY = '__runtimeWaiting'
+const waitingNames = (waitingFor) => String(waitingFor || '').split(',').filter(Boolean).map((s) => `\`${s}\``)
+const waitedFor = (names) => (names.length > 1
+  ? { what: `the newest bars of ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}, which have not arrived yet`,
+    when: 'when they do' }
+  : { what: `${names[0]}'s newest bar, which has not arrived yet`, when: 'when it does' })
+/** The strip's status for a runtime document whose run waits. */
+export function runtimeWaitingSentence(waitingFor) {
+  const w = waitedFor(waitingNames(waitingFor))
+  return `waiting for ${w.what}; this script is drawn bar by bar ${w.when}`
+}
+/** The strip's status for a host document whose run half waits (its plots are drawn; the drawings this pane last
+ *  served stay, `binder.js`). ⛔ It never claims a picture is kept: a first load that waits has none. */
+export function runtimeDrawingsWaitingSentence(waitingFor) {
+  const w = waitedFor(waitingNames(waitingFor))
+  return `waiting for ${w.what}; this script's drawings are drawn ${w.when}`
+}
+/** Is this document's run waiting for other series' newest bars on this chart? `{waitingFor, what, sentence}`, or null. */
+export function runtimeRunWaitingOf(def, cols) {
+  if (!def || !def.compute || !cols) return null
+  if (def.compute.kind === 'runtime') {
+    const w = cols[RUNTIME_WAITING_KEY]
+    return w && w.waitingFor ? { waitingFor: w.waitingFor, what: 'values', sentence: runtimeWaitingSentence(w.waitingFor) } : null
+  }
+  const half = runHalfOf(cols)
+  if (!half || half.state !== 'pending' || !half.waitingFor) return null
+  return { waitingFor: half.waitingFor, what: 'drawings', sentence: runtimeDrawingsWaitingSentence(half.waitingFor) }
 }
 
 /**
@@ -2622,6 +2664,8 @@ const RUNTIME_COLOUR_WHY = Object.freeze({
   'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is still loading, so the colours appear once it has',
   'runtime:unknown-bar': "on some bars the colour can't be worked out exactly, so none are drawn and the candles keep their own colours",
   'runtime:request': 'the script reads another symbol or timeframe, which this chart cannot hand it, so the candles keep their own colours',
+  // ⭐ (e85) `requestSupply.js::REQUEST_LAG_GUARD`
+  'runtime:request-lag': "the newest bars of another symbol the script reads haven't arrived on this chart, so the candles keep their own colours",
   'runtime:clock-zone': "this symbol's exchange time zone isn't known here, and the script reads the clock, so the candles keep their own colours",
 })
 const RUNTIME_COLOUR_WHY_LIMIT = 'running the script bar by bar needed more work than a chart is allowed, so the candles keep their own colours'
@@ -2916,7 +2960,11 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   // a code per document session, a hash-prefixed beacon; never the source)
   const src = ro && typeof ro.source === 'string' ? ro.source : null
   const refused = (code) => { noteRunHalfAnswer(def, src, code); return withRunHalfState(res, { state: 'refused', code }) }
-  const answered = (state, code) => { noteRunHalfAnswer(def, src, null); return withRunHalfState(res, { state, code }) }
+  // ⭐ (e85) a run WAITING for other series' newest bars names them (`waitingFor`, `runtimeColumns.js::requestWait`)
+  const answered = (state, code, waitingFor = null) => {
+    noteRunHalfAnswer(def, src, null)
+    return withRunHalfState(res, { state, code, ...(typeof waitingFor === 'string' && waitingFor ? { waitingFor } : {}) })
+  }
   if (!ro || typeof ro.source !== 'string' || !ro.source || !ro.outputs || typeof ro.outputs !== 'object') {
     return refused('run-half:malformed')
   }
@@ -2976,14 +3024,17 @@ function withRunHalf(def, out, bars, inputs, ctx) {
     // reads another symbol or timeframe, which this chart cannot hand that run" for the seconds
     // the bars took to load, and a different reason once they had. Held, with nothing said about
     // a cause, until the run can answer.
-    if (err && err.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING)
+    if (err && err.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING, err.waitingFor)
     return refused(err && err.name === 'runtime.error' ? 'runtime:runtime.error' : ((err && err.guard) || 'runtime:error'))
   }
   const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
   // ⛔ A run that owns its drawings always attaches them when it finishes
   // (`runtimeColumns.js`): nothing attached is a run still in flight.
   if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
-  if (payload.status === 'WITHHELD' && payload.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING)
+  // ⭐ (e85) a drawing run that waits while its plain run drew (`computeRuntimeColumnsAll`): the drawings wait too
+  if (payload.status === 'WITHHELD' && payload.pending === true) {
+    return answered('pending', RUN_HALF_REQUEST_PENDING, payload.waitingFor)
+  }
   if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
   if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
   const hostFams = hostObjectFamilies(def.objects)
