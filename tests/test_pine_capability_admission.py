@@ -10,6 +10,7 @@ Rails (each mutation-proved, `docs/pine/evidence/2026-11-13-capability-admission
   A3 an env variable adds a capability    A4 the kill list is ignored
   A5 a bad JSON admits                    A7 an object family admits without v2-run evidence
   A8 phantom evidence                     A9 a server lane admits by capability
+  A10 a row added or changed on evidence graded at an older engine (2026-11-18)
 (A6, the detector under-declaring, is `tests/test_pine_capabilities.py`.)
 And: with the variable OFF (the default) every answer is the one before Part 2.
 """
@@ -1067,6 +1068,143 @@ def test_A8_the_rail_can_fail():
     assert ("for", "names another script") in got
     assert ("for", "states the wrong community flag") in got
     assert ("obj:polyline", "the capture's script does not use it") in got
+
+
+# ═══ A10 — evidence freshness: a row ADDED or CHANGED is held to evidence graded at TODAY's engine ═══
+#
+# ⚰️ 2026-11-18: A8 checks that each evidence id EXISTS in the runtime-on snapshot and grades MATCH, never WHICH
+# engine graded it. Both snapshots were last regenerated at engine 78 (f9a976fb47) while master shipped 80, so a
+# new row could have been admitted on evidence two engines old. Ledger evidence already counts only at today's
+# engine (`rollout_gate._pine_ledger_entry_fresh`); committed-snapshot evidence had no such rule.
+# ⭐ The snapshot now names its engine (the corpus writer stamps `scriptEngineVersion`), and each admitted row
+# carries `admission: {scriptEngineVersion, rowSha256}` written by tools/pine_coverage/stamp_admission.py, which
+# refuses unless the snapshot is at today's engine. The digest is over the row's admission fields, so a NEW row
+# with a copied stamp, or evidence edited after stamping, no longer matches: no git history is needed.
+# ⛔ An engine bump invalidates NO existing row (coordinator ruling: it was valid when admitted).
+
+import re  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "tools" / "pine_coverage"))
+import stamp_admission as sa  # noqa: E402 -- the ONE definition of the row digest
+
+VERDICTS_PROD = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
+
+
+def _engine_now() -> int:
+    return svc.SCRIPT_ENGINE_VERSION
+
+
+def _freshness_problems(caps: dict, snapshot_engine, current_engine: int) -> list:
+    """(capability, why) for every admitted row not held to its stamp."""
+    if not isinstance(snapshot_engine, int) or isinstance(snapshot_engine, bool):
+        return [("*", "the runtime-on snapshot carries no scriptEngineVersion: regenerate it")]
+    bad = []
+    if snapshot_engine > current_engine:
+        bad.append(("*", f"the runtime-on snapshot claims engine {snapshot_engine}, newer than today's {current_engine}"))
+    for cap, row in caps.items():
+        if not isinstance(row, dict) or row.get("admitted") is not True:
+            continue
+        st = row.get("admission")
+        if not isinstance(st, dict):
+            bad.append((cap, "no admission stamp: run tools/pine_coverage/stamp_admission.py"))
+            continue
+        at = st.get("scriptEngineVersion")
+        if not isinstance(at, int) or isinstance(at, bool):
+            bad.append((cap, "its stamp names no engine"))
+            continue
+        if st.get("rowSha256") != sa.row_digest(row):
+            bad.append((cap, f"the row was added or changed since it was stamped: its evidence must be graded at "
+                             f"today's engine {current_engine}. Regenerate the runtime-on snapshot at {current_engine} "
+                             f"if it is not (`git log -1 -- docs/pine/vendor-harness/runtime-on/verdicts.json`), then "
+                             f"`python tools/pine_coverage/stamp_admission.py {cap}`"))
+        if at > snapshot_engine:
+            bad.append((cap, f"stamped at engine {at}, newer than the snapshot's {snapshot_engine}"))
+        if at > current_engine:
+            bad.append((cap, f"stamped at engine {at}, newer than today's {current_engine}"))
+    return bad
+
+
+def _caps() -> dict:
+    return json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))["capabilities"]
+
+
+def _snap_engine() -> int:
+    return json.loads(VERDICTS_RT.read_text(encoding="utf-8")).get("scriptEngineVersion")
+
+
+def test_A10_C1_both_snapshots_carry_the_engine_that_graded_them():
+    for p in (VERDICTS_RT, VERDICTS_PROD):
+        v = json.loads(p.read_text(encoding="utf-8")).get("scriptEngineVersion")
+        assert isinstance(v, int) and not isinstance(v, bool) and 0 < v <= _engine_now(), (p.name, v)
+    assert sa.current_engine() == _engine_now(), "the tool and the server read different engine numbers"
+
+
+def test_A10_C2_every_admitted_row_is_held_to_its_stamp():
+    assert _freshness_problems(_caps(), _snap_engine(), _engine_now()) == []
+
+
+def test_A10_C4_an_engine_bump_invalidates_no_existing_row():
+    assert _freshness_problems(_caps(), _snap_engine(), _engine_now() + 5) == []
+
+
+def test_A10_C6_a_new_row_with_a_copied_stamp_is_red_and_a_properly_stamped_one_is_not():
+    caps = copy.deepcopy(_caps())
+    snap = _snap_engine()
+    new = copy.deepcopy(caps["core"])
+    new["evidence"] = new["evidence"][:3]                       # a NEW row on (some of) the same evidence
+    caps["new-cap"] = new                                       # ...with core's stamp copied along
+    got = {c for c, _why in _freshness_problems(caps, snap, _engine_now())}
+    assert got == {"new-cap"}, got
+    new["admission"] = {"scriptEngineVersion": snap, "rowSha256": sa.row_digest(new)}   # CONTROL
+    assert _freshness_problems(caps, snap, _engine_now()) == []
+    new["admission"]["scriptEngineVersion"] = snap + 1          # a stamp claiming evidence newer than exists
+    assert [c for c, _ in _freshness_problems(caps, snap, snap + 1)] == ["new-cap"]
+    del new["admission"]
+    assert [c for c, _ in _freshness_problems(caps, snap, _engine_now())] == ["new-cap"]
+
+
+def test_A10_C3_the_rail_reads_the_snapshot_engine_it_is_given():
+    caps = _caps()
+    assert _freshness_problems(caps, None, _engine_now())[0][0] == "*"
+    assert _freshness_problems(caps, _engine_now() + 1, _engine_now())[0][0] == "*"
+
+
+def test_A10_the_digest_covers_the_evidence_and_not_the_note():
+    row = copy.deepcopy(_caps()["core"])
+    d = sa.row_digest(row)
+    row["note"] = "prose changes are not an admission"
+    assert sa.row_digest(row) == d
+    row["evidence"] = row["evidence"][1:]
+    assert sa.row_digest(row) != d
+
+
+def test_A10_C5_the_stamp_tool_refuses_stale_evidence_and_writes_nothing(tmp_path):
+    allow, snap = tmp_path / "allow.json", tmp_path / "verdicts.json"
+    allow.write_bytes(Path(rt.ALLOWLIST_PATH).read_bytes())
+    snap.write_bytes(VERDICTS_RT.read_bytes())
+    s = _snap_engine()
+    doc = json.loads(allow.read_text(encoding="utf-8"))
+    edited = allow.read_text(encoding="utf-8").replace(
+        json.dumps(doc["capabilities"]["core"]["evidence"][0], ensure_ascii=False) + ",\n", "", 1)
+    allow.write_text(edited, encoding="utf-8", newline="")      # core's evidence changed after stamping
+    before = allow.read_bytes()
+    with pytest.raises(SystemExit, match="REFUSED"):
+        sa.stamp(["core"], allowlist=allow, snapshot=snap, engine_now=s + 2)
+    assert allow.read_bytes() == before, "a refused stamp wrote the allowlist"
+    sa.stamp(["core"], allowlist=allow, snapshot=snap, engine_now=s)     # CONTROL: a fresh snapshot stamps
+    out = allow.read_bytes()
+    assert out != before and len(out.splitlines()) == len(before.splitlines())
+    row = json.loads(out)["capabilities"]["core"]
+    assert row["admission"] == {"scriptEngineVersion": s, "rowSha256": sa.row_digest(row)}
+
+
+def test_A10_C7_the_snapshot_writer_stamps_the_engine_from_its_one_authority():
+    src = (ROOT / "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js").read_text(
+        encoding="utf-8")
+    assert re.search(r"^import \{ SCRIPT_ENGINE_VERSION \} from '\.\./\.\./scriptEngineVersion\.js'", src, re.M)
+    block = src[src.index("fs.writeFileSync(path.join(OUT, 'verdicts.json')"):]
+    block = block[:block.index("results: run.results")]
+    assert "scriptEngineVersion: SCRIPT_ENGINE_VERSION," in block, "the writer no longer stamps the engine"
 
 
 # ═══ A9 — the server lanes stay per-script ═════════════════════════════════════
