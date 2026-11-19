@@ -144,7 +144,8 @@ INF = float("inf")
 #: the evaluator arm below is its port). Only the Pine door writes it; the scan door
 #: and the alert lane refuse it by name (``scan_definition.assert_scannable``,
 #: ``alert_user_series._make_value_fn``): what they read is the newest finished bar,
-#: which the merge withholds.
+#: which the merge withholds. (Since 2026-11-19 the alert lane admits a merge read only
+#: through a literal ``x[k]``, k >= 1: ``alert_user_series.merge_newest_unproven``.)
 NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
               "str", "symtext", "textop", "ltf", "tf_merge")
 

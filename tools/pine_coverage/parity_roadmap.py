@@ -614,7 +614,8 @@ def member_model(m, facts):
     return served, walls, enumerated, sorted(missing_facts)
 
 
-def wall_table(walls, enumerated):
+def wall_table(walls, enumerated, unit_fn=None):
+    unit_fn = unit_fn or unit_of
     any_c, sole_c, sole_enum = collections.Counter(), collections.Counter(), collections.Counter()
     sole_keys = collections.defaultdict(list)
     for k, ws in walls.items():
@@ -627,9 +628,43 @@ def wall_table(walls, enumerated):
                 sole_enum[ws[0]] += 1
     rows = []
     for w in sorted(any_c, key=lambda w: (-sole_c[w], -any_c[w], w)):
-        rows.append({"wall": w, "unit": unit_of(w), "sole": sole_c[w], "soleFullyEnumerated": sole_enum[w],
+        rows.append({"wall": w, "unit": unit_fn(w), "sole": sole_c[w], "soleFullyEnumerated": sole_enum[w],
                      "any": any_c[w], "soleScripts": sorted(sole_keys[w])})
     return rows
+
+
+# ── THE SERVED SET, BY WHAT THE MEMBER'S CHART DRAWS (census tools, 2026-11-19). The map's `renderGaps` (the
+# runtime-on render sweep, `render_gaps.py`, folded by `coverage_map.py --render-gaps`) says, per sample script,
+# how many captures were measured and which drawings their charts leave off, by class. A served script is
+#   servedFully             measured on at least one capture, and no measured capture leaves a drawing off;
+#   servedWithDisclosedGap  a measured capture leaves drawings off: placed nowhere, or withheld by name, and
+#                           disclosed to the member by the drawing note (`objectRenderNotice.js`);
+#   servedUnmeasured        no capture of it was measured (no capture, or none our side ran);
+#   servedDiverging         a capture of it grades DIVERGE on the sweep's lane (coordinator ruling 2026-11-19: never
+#                           "fully", whatever its drawings; the REACH rules kill it or withhold it by name, so a
+#                           script here is a finding, named in `renderGaps.diverging`).
+# The four are a partition of the served set (diverging first, then a gap, then fully, else unmeasured).
+# Each gap class is a ranked wall over the served scripts it touches (`renderWalls`, unit `render`).
+RENDER_UNIT = "render"
+
+
+def render_split(served, rg):
+    """(fully, {key: sorted gap classes}, unmeasured, diverging) over the served set; None without a sweep."""
+    if not rg:
+        return None
+    sc = rg.get("scripts") or {}
+    fully, gap, unmeasured, diverging = [], {}, [], []
+    for k in sorted(served):
+        r = sc.get(k) or {}
+        if r.get("diverge"):
+            diverging.append(k)
+        elif not r.get("measured"):
+            unmeasured.append(k)
+        elif r.get("gaps"):
+            gap[k] = sorted(r["gaps"])
+        else:
+            fully.append(k)
+    return fully, gap, unmeasured, diverging
 
 
 def pair_table(walls, keyfn=lambda w: w):
@@ -670,6 +705,8 @@ def classify(f, classes):
 def build(m, facts_doc, map_sha=None):
     facts = facts_doc["scripts"]
     served, walls, enumerated, missing_facts = member_model(m, facts)
+    rg = m.get("renderGaps")
+    split = render_split(served, rg)
     N = len(m["scripts"])
     ro = m["runtimeOn"]
     host = {s["key"] for s in m["scripts"] if s["clean"]}
@@ -808,10 +845,18 @@ def build(m, facts_doc, map_sha=None):
             "neverServe": len(never_keys),
             "dataDecision": len(set(itertools.chain.from_iterable(data_dec.values())) - never_keys),
             "missingFacts": missing_facts,
+            # ⭐ census tools: the served set by what the member's chart draws (None: the map holds no render sweep)
+            "servedFully": len(split[0]) if split else None,
+            "servedWithDisclosedGap": len(split[1]) if split else None,
+            "servedUnmeasured": len(split[2]) if split else None,
+            "servedDiverging": len(split[3]) if split else None,
         },
         "hostLane": host_tables(m),
         "hostSoleRuntimeWalls": host_sole_runtime,
         "memberWalls": wall_table(walls, enumerated),
+        "renderGaps": {"engine": rg.get("engine"), "lane": rg.get("lane"), "fully": split[0],
+                       "withDisclosedGap": split[1], "unmeasured": split[2], "diverging": split[3]} if split else None,
+        "renderWalls": wall_table(split[1], set(split[1]), lambda w: RENDER_UNIT) if split else [],
         "memberPairs": pair_table(walls)[:60],
         "wallTokens": wall_tokens,
         "units": unit_rows,
@@ -883,12 +928,18 @@ def cmd_build(a):
     h = out["headline"]
     print("SERVED %d/%d = %s%% (runtime-on %d, host-only %d; admission %s)" % (
         h["memberServed"], h["sample"], h["memberServedPct"], h["runtimeOn"], h["hostOnly"], h["admission"]))
+    if h["servedFully"] is not None:
+        print("  served fully %d + with a disclosed gap %d + unmeasured %d + diverging %d" % (
+            h["servedFully"], h["servedWithDisclosedGap"], h["servedUnmeasured"], h["servedDiverging"]))
+        for r in out["renderWalls"]:
+            print("  %-48s any=%3d sole=%3d" % (r["wall"], r["any"], r["sole"]))
     for r in out["units"]:
         print("  %-22s sole=%3d (servable %3d, enumerated %3d) any=%3d" % (
             r["unit"], r["sole"], r["soleServable"], r["soleFullyEnumerated"], r["any"]))
 
 
-DERIVED = ("headline", "hostLane", "hostSoleRuntimeWalls", "memberWalls", "memberPairs", "wallTokens", "units",
+DERIVED = ("headline", "hostLane", "hostSoleRuntimeWalls", "memberWalls", "renderGaps", "renderWalls",
+           "memberPairs", "wallTokens", "units",
            "externalWalls", "authoringClasses",
            "unitPairs",
            "buildOrder", "neverServe", "dataDecisions", "scripts")

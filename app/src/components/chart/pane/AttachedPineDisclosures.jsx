@@ -53,6 +53,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { anyPaneScaled, onPaneScaleChange } from '../engine/paneFitNotice'
 import { runtimeErrorNoticeFor, onRuntimeErrorNoticeChange } from '../engine/runtimeErrorNotice'
+import { runtimeBudgetStoppedFor, retryRuntimeBudgetStops, onRuntimeBudgetStopsChange } from '../engine/runtimeBudgetStops'
 import { chartClockNotesFor, onChartClockChange } from '../engine/chartClockNotice'
 import { objectRenderDropsFor, onObjectRenderDropsChange } from '../engine/objectRenderNotice'
 import { DRAWING_NOTE_NAME, withRenderDrops } from '../engine/ast/objectLoss'
@@ -121,7 +122,25 @@ export function attachedRuntimeErrors(settings, registry = defaultRegistry, scop
     if (!sentence) continue
     const def = typeof registry.getDefinition === 'function' ? registry.getDefinition(inst.defId) : null
     const name = (def && def.meta && def.meta.name) || 'This script'
-    out.push({ name, note: `${name} — ${sentence}` })
+    // ⭐ (engine 86) a run the time budget stopped is not run again on this chart's next bars: Retry runs it again
+    out.push({ name, note: `${name} — ${sentence}`, ...(runtimeBudgetStoppedFor(inst.defId) ? { retry: inst.defId } : {}) })
+  }
+  return out
+}
+
+/** ⭐ (engine 86) — the drawn instances whose run (or run half) the time budget stopped on this page and that no
+ *  stop row above already offers to retry: a host document's drawings say their stop on the drops store, so their
+ *  Retry rides its own row. */
+export function attachedBudgetStops(settings, registry = defaultRegistry, offered = new Set()) {
+  const instances = (settings && Array.isArray(settings.indicatorInstances)) ? settings.indicatorInstances : []
+  const out = []
+  for (const inst of instances) {
+    if (!inst || typeof inst !== 'object' || inst.hidden || typeof inst.defId !== 'string') continue
+    if (offered.has(inst.defId) || !runtimeBudgetStoppedFor(inst.defId)) continue
+    offered.add(inst.defId)
+    const def = typeof registry.getDefinition === 'function' ? registry.getDefinition(inst.defId) : null
+    const name = (def && def.meta && def.meta.name) || 'This script'
+    out.push({ name, note: `${name} — stopped by this chart's time budget, and not run again on its next bars`, retry: inst.defId })
   }
   return out
 }
@@ -244,8 +263,14 @@ export default function AttachedPineDisclosures({
   // on change, like the scale notice above.
   const [stopTick, setStopTick] = useState(0)
   useEffect(() => onRuntimeErrorNoticeChange(() => setStopTick((n) => n + 1)), [])
+  // ⭐ (engine 86) and the time-budget stops this page remembers (a Retry, or a new stop, re-reads)
+  useEffect(() => onRuntimeBudgetStopsChange(() => setStopTick((n) => n + 1)), [])
   const stopped = useMemo(
-    () => attachedRuntimeErrors(settings, registry, noticeScope),
+    () => {
+      const rows0 = attachedRuntimeErrors(settings, registry, noticeScope)
+      const offered = new Set(rows0.filter((r) => r.retry).map((r) => r.retry))
+      return [...rows0, ...attachedBudgetStops(settings, registry, offered)]
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [settings, registry, generation, stopTick, noticeScope],
   )
@@ -283,7 +308,17 @@ export default function AttachedPineDisclosures({
   if (!all.length) return null
   return (
     <ul data-testid="pine-attached-disclosures" className={styles.notes}>
-      {all.map((n) => <li key={`${n.name}::${n.note}`}>{withoutGuardIds(n.note)}</li>)}
+      {all.map((n) => (
+        <li key={`${n.name}::${n.note}`}>
+          {withoutGuardIds(n.note)}
+          {n.retry ? (
+            <>
+              {' '}
+              <button type="button" className={styles.retry} onClick={() => retryRuntimeBudgetStops(n.retry)}>Retry</button>
+            </>
+          ) : null}
+        </li>
+      ))}
     </ul>
   )
 }

@@ -507,6 +507,10 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // ⭐⭐ CBC-FMT — a windowed script whose only drawing is its host object program: that
     // program has no window yet, so it is refused by name, never "declares nothing".
     if (windowed && hostObjectsWouldDraw) return no(CALC_BARS_DRAWINGS_NOTE, 'pine:calc-bars-objects', t)
+    // ⭐ PLOTARROW — a script whose only drawing is a `plotarrow` is refused by that name, never "nothing".
+    if (carryable.some(plotarrowWithheld)) {
+      return no(`this script is not drawn: ${PLOTARROW_NOT_DRAWN}`, 'pine:plotarrow-not-drawn', t)
+    }
     return no('this script declares nothing a chart can draw', null, t)
   }
   // ⛔ A PANE SCRIPT WHOSE ONLY DRAWING IS A BACKGROUND IS REFUSED BY NAME.
@@ -1115,6 +1119,12 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     notes.push(drawingNote)
   }
   if (windowed && hostObjectsWouldDraw) notes.unshift({ name: 'Drawings', note: CALC_BARS_DRAWINGS_NOTE })
+  // ⭐ PLOTARROW — each one carried and not drawn is said so, by its title.
+  for (const o of drawable.filter(plotarrowWithheld)) {
+    const name = o.title || 'plotarrow'
+    seen.add(`${name} :: plotarrow`)
+    notes.push({ name, note: `\`${name}\` is not drawn: ${PLOTARROW_NOT_DRAWN}.` })
+  }
   // ⭐⭐ RS RATING L3 — A VALUE FROM UCT DATA IN PLACE OF TRADINGVIEW'S IS SAID SO, BY NAME
   // (`syminfo.industry` / `syminfo.sector`, `bind.js::classificationWith`). The program's
   // substitution rule: disclosed at the member door, never passed off as TradingView's.
@@ -2150,7 +2160,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const { ofKind, runtimeByKind, hostCandles, runCandles, runOutputOf } = pairing
   const seen = new Map()
   const carried = []
-  const withheld = []
+  // ⭐ PLOTARROW — this lane never drew one (`runRowPairing.RUNTIME_ROW_KINDS` leaves it out); now it says so, by name.
+  const withheld = ((t && t.outputs) || []).filter(plotarrowWithheld)
+    .map((o, i) => ({ label: o.title || `plotarrow ${i + 1}`, why: PLOTARROW_NOT_DRAWN, o }))
   // ⭐ WS-E — read once: the statements and literal settings `runtimeRowShift` reads,
   // and the settings a carried displacement pins at the author's default.
   const shiftCtx = runtimeShiftContext(source, t && t.version, runtimeInputSpecsOf(source).specs)
@@ -2889,7 +2901,19 @@ function guardInputSpecs(t, stamp, existing) {
  * ('constant' keeps its lane's rule: the runtime lane draws it (B7), the host lane hides it as before.)
  */
 function paneHides(o) {
-  return !!(o && o.hidden) && o.hiddenReason !== 'fill-anchor'
+  return (!!(o && o.hidden) && o.hiddenReason !== 'fill-anchor') || plotarrowWithheld(o)
+}
+
+/** ⭐⭐ PLOTARROW, WITHHELD BY NAME (coordinator ruling 2026-11-19). The reference: `plotarrow` "Plots up and down
+ *  arrows on the chart. Up arrow is drawn at every indicator positive value, down arrow is drawn at every negative
+ *  value." This door drew it as a LINE of its value (in the neutral ink, its colours withheld): a picture TradingView
+ *  never draws. Until arrows are built it is not drawn, on either lane, and says so; the translation still offers its
+ *  value as a column to screen on (`chooseOutput` reads the translator's own `hidden`, never this predicate), and
+ *  `plotshapeEndToEnd.test.js` still pins that it is not drawn as a marker either. */
+const PLOTARROW_NOT_DRAWN = 'TradingView draws a `plotarrow` as up and down arrows at its positive and negative '
+  + 'values, which this chart does not draw yet, so it is not drawn as a line of its value'
+function plotarrowWithheld(o) {
+  return !!o && o.kind === 'plotarrow'
 }
 
 /** A host translation row the host document CARRIES (a translated formula, not refused, not an alert condition). */

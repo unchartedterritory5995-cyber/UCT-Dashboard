@@ -173,7 +173,7 @@ import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './ru
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
 import './lowerTfGate.js'
-import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf } from './runtime/runtimeObjects'
+import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf, runHalfOf } from './runtime/runtimeObjects'
 import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults, registerObjectComputeFor } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
@@ -2306,6 +2306,30 @@ export function runtimeRunStopOf(def, cols) {
     guard: first.guard,
     sentence: `not drawn on this chart (${first.guard}): ${why || 'the per-bar run computed nothing'}`,
   }
+}
+
+/** ⭐ (engine 86) — WHAT THE STRIP SAYS WHILE A RUNTIME RUN IS STILL IN THE WORKER, in the house voice of the
+ *  worker's own sentences (`runtimeAsync.js`, `hostLaneAsync.js`: what is happening, what settles it), so an
+ *  empty pane on a first load or a symbol switch reads as work, not as broken. Never a guard id, never a
+ *  refusal: the binder shows it only where the pane has no picture yet (`binder.js`, `noteRuntimeErrorStop`). */
+export const RUNTIME_COMPUTING_SENTENCE = 'the background worker is still computing this script bar by bar on this chart; '
+  + 'it is drawn when that finishes'
+export const RUNTIME_DRAWINGS_COMPUTING_SENTENCE = "the background worker is still computing this script's drawings bar by "
+  + 'bar on this chart; they are drawn when that finishes'
+
+/** Is a run of this document still computing for these columns: a RUNTIME document whose answer is the
+ *  in-flight `{}` (`runtimeColumnsFor`; nothing refused, nothing reached), or a host document whose run half
+ *  is pending? `{what, sentence}`, or null. */
+export function runtimeRunPendingOf(def, cols) {
+  if (!def || !def.compute || !cols) return null
+  if (def.compute.kind === 'runtime') {
+    if (Object.keys(cols).length !== 0 || runtimeErrorStopOf(cols)) return null
+    if (Object.keys(columnErrors(cols) || {}).length) return null
+    return { what: 'values', sentence: RUNTIME_COMPUTING_SENTENCE }
+  }
+  const half = runHalfOf(cols)
+  if (half && half.state === 'pending') return { what: 'drawings', sentence: RUNTIME_DRAWINGS_COMPUTING_SENTENCE }
+  return null
 }
 
 // ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
