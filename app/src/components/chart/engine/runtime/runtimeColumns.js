@@ -2208,12 +2208,17 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
     // paint draws nothing for the definition; when the columns land they are
     // remembered under the same key and every listener is told, so the next
     // paint reads them here. A run is never started twice for one key.
-    perBars.set(key, { pending: true })
+    const pending = { pending: true }
+    perBars.set(key, pending)
     _runner(def, rows, ctx, (err, columns) => {
       perBars.set(key, err ? { stoppedBy: err } : columns)
       for (const fn of [..._landed]) {
         try { fn(key) } catch { /* a bad listener must not break the lane */ }
       }
+    }, () => {
+      // ⭐ (engine 86) a run that will never be answered (superseded, or stopped because its pane asked for another
+      // picture, `runtimeAsync.js`): its pending entry goes, so these bars asked again are a new run
+      if (perBars.get(key) === pending) perBars.delete(key)
     })
     return {}
   }
