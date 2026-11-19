@@ -164,18 +164,49 @@ def _evidence_cells() -> list[str]:
     return cells
 
 
-def test_every_backticked_repo_path_in_an_evidence_cell_exists_at_head():
-    tracked = _tracked()
-    assert 'docs/notebook/competitive-gap-ledger.md' in tracked, 'non-vacuity: git ls-files did not answer'
+def _tracked_at(rev: str) -> set[str]:
+    """Every path in the tree of ``rev`` (`git ls-tree -r`), the tree the scorecard says it measured."""
+    out = subprocess.run(['git', '-C', str(REPO), 'ls-tree', '-r', '--name-only', rev], capture_output=True, text=True,
+                         check=True, encoding='utf-8', errors='replace')
+    return set(out.stdout.splitlines())
+
+
+def _cited_paths(cells) -> set[str]:
     paths = set()
-    for cell in _evidence_cells():
+    for cell in cells:
         for tok in re.findall(r'`([^`\s]+)`', cell):
             if '/' not in tok or tok.startswith('http'):
                 continue
             paths.add(re.sub(r':[\d\-]+$', '', tok))
+    return paths
+
+
+def test_every_backticked_repo_path_in_an_evidence_cell_exists_in_the_tree_it_measured():
+    """PINNED to the revision the scorecard records, like the fragment check below (fix round 1): the
+    scorecard is a dated measurement, so a cited path must exist in the tree it measured. It said `at_head`
+    until 2026-11-18, and went red on master on 2026-11-12 when a3e226e11d deleted Research home
+    (`.../notebook/ResearchHome.jsx`, G-110's CODE citation) -- a later edit, the class the pin exists to
+    keep out ("a later unrelated edit never reds it"). Whether a cited file still exists today is the
+    human's question, `tools/parity_scorecard.py --verify --rev HEAD` (it says FAIL for the deleted file)."""
+    _text, rev = _written_at()
+    tracked = _tracked_at(rev)
+    assert 'docs/notebook/competitive-gap-ledger.md' in tracked, f'non-vacuity: git ls-tree {rev} did not answer'
+    paths = _cited_paths(_evidence_cells())
     assert len(paths) > 50, f'non-vacuity: only {len(paths)} cited paths found'
     missing = sorted(p for p in paths if p not in tracked)
     assert not missing, missing
+
+
+def test_the_path_check_refuses_a_path_its_measured_tree_never_had():
+    # control, at the same pinned revision: a cited path that tree does not hold is refused, and the file
+    # deleted since (present then, gone at HEAD) is exactly what the pin admits
+    _text, rev = _written_at()
+    tracked = _tracked_at(rev)
+    cells = ['CODE `app/src/never/existed.jsx`:12 "x"',
+             'CODE `app/src/pages/journal-2-0/components/notebook/ResearchHome.jsx`:507 "Continue working"']
+    assert sorted(p for p in _cited_paths(cells) if p not in tracked) == ['app/src/never/existed.jsx']
+    assert 'app/src/pages/journal-2-0/components/notebook/ResearchHome.jsx' not in _tracked(), \
+        'non-vacuity: the deleted file is back at HEAD, so this control no longer shows what the pin admits'
 
 
 def test_every_competitor_part_has_a_url_and_a_date_or_reads_not_verified():

@@ -71,12 +71,15 @@ def test_the_js_mirror_lists_every_key():
         assert f"'{key}'" in js, key
 
 
-def test_each_gate_is_declared_dark_in_the_ledger():
+def test_each_gate_is_declared_armed_on_web_in_the_ledger():
+    # Built dark 2026-10-10 (lane L5); ARMED on web 2026-10-11T02:51:30Z by owner ruling (4634e24f3e), and
+    # read 1 on web again 2026-11-18 (`railway variables --service web --kv`). The rail said dark until then.
     flags = json.load(open(os.path.join(HERE, "docs", "feature_flags.json"), encoding="utf-8"))["flags"]
     for env, _key, _mod in SURFACES:
         e = flags.get(env)
         assert e, env
-        assert e["status"] == "dark", env
+        assert e["status"] == "armed", env
+        assert "ARMED 2026-10-11T02:51:30Z on web by owner ruling 2026-10-10" in e["note"], env
         assert e.get("since") == "2026-10-10", env
         assert "web" in e.get("where", []), env
         assert "—" not in e["note"], f"{env}: no em-dash in new copy"
