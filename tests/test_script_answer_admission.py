@@ -79,7 +79,7 @@ def _every_gate_shut(monkeypatch):
     monkeypatch.setattr(pc, "capabilities_of", no_detector)
     now = time.monotonic()
     rt._verdict_member_charge(MEMBER, now, rt.VERDICT_MEMBER_SECONDS * 10)
-    rt._VERDICT_IDLE_UNTIL[0] = now + 3600
+    rt._VERDICT_BUCKET[:] = [-3600.0, now]                # the verdict bucket drained
     rt._DETECTOR_IDLE_UNTIL[0] = now + 3600
     assert rt._DETECTOR_GATE.acquire(blocking=False)
     try:

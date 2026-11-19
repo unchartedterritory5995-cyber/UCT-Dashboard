@@ -1,0 +1,93 @@
+{
+ "worker": "on",
+ "scenario": "listload",
+ "gap": 3.0,
+ "repairs": 0,
+ "worker_ready_at_s": null,
+ "worker_stats": {
+  "starts": 1,
+  "calls": 25,
+  "ok": 25,
+  "busy": 0,
+  "unavailable": 0,
+  "quarantined": 0,
+  "timeout": 0,
+  "crashed": 0,
+  "error": 0,
+  "raised": 0,
+  "killed": 0
+ },
+ "results": [
+  {
+   "script": "table",
+   "landed_s": 0.0,
+   "converse_detector_ms": 2.8,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": true,
+     "gate": "G? (state changed between snapshot and call)",
+     "ms": 7.8,
+     "admitted": false
+    },
+    {
+     "t": 1.52,
+     "pending": false,
+     "gate": "ran",
+     "ms": 9.0,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 1.52
+  },
+  {
+   "script": "pivots",
+   "landed_s": 3.0,
+   "converse_detector_ms": 0.8,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 7.3,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "zones",
+   "landed_s": 6.01,
+   "converse_detector_ms": 0.91,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 6.9,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "levels",
+   "landed_s": 9.01,
+   "converse_detector_ms": 1.42,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 8.7,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  }
+ ]
+}
