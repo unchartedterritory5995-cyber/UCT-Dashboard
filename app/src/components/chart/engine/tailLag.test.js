@@ -491,6 +491,80 @@ describe('the product path: Fred RS on a live 5m chart whose SPX lags its newest
   })
 })
 
+// ─── ⭐ (engine 87 train, #2076 x #2044) THE COMPUTING NOTE IS SAID ONLY WHERE THIS PANE HAS NO PICTURE ───────────────
+// #2044 says "the background worker is still computing this script's drawings ... drawn when that finishes" only where the
+// pane has NO picture of the instance yet. #2076 makes a pending run half KEEP its pane's served picture. ⚰️ On the merged
+// tree the note asked only the signature-keyed picture record, which SPX's own update moves: a run in the worker over a
+// KEPT picture said "still computing" while the drawings were drawn. Both now read ONE condition (`keepsServedPicture`).
+const COMPUTING = registry.RUNTIME_DRAWINGS_COMPUTING_SENTENCE
+describe('(engine 87 train) #2076 x #2044: "still computing" is never said over a kept picture, and still said where there is none', () => {
+  it('a live bar that SPX keeps up with (SPX\'s update moves the run\'s key): in the worker, the picture KEPT and the strip SILENT', async () => {
+    const f = await fredOnAChart()
+    try {
+      f.settle(rsChartThrough(13, 40), rsSecondary(spx5Through(13, 40)))
+      expect(f.servedByRun()).toBe(true)
+      const served = f.log[f.log.length - 1]
+      expect(served).toMatch(/^run:/)
+      expect(f.notice()).toBeNull()
+      // the chart's next bar and SPX's land together: a run in the worker
+      const chart = rsChartThrough(13, 45)
+      const spx = rsSecondary(spx5Through(13, 45))
+      f.sync(chart, spx)
+      expect(f.w.queue.length, 'a run is in the worker').toBe(1)
+      expect(f.log[f.log.length - 1], 'in the worker: the served picture stays').toBe(served)
+      expect(f.notice(), 'a kept picture is a picture: no "still computing"').toBeNull()
+      f.flush()
+      f.sync(chart, spx)
+      expect(f.servedByRun()).toBe(true)
+      expect(f.log[f.log.length - 1]).not.toBe(served)
+      expect(f.notice()).toBeNull()
+      // and after a WAIT: SPX's update lands, the run is in the worker over the kept picture: the wait is gone, no "computing"
+      const served2 = f.log[f.log.length - 1]
+      const chart2 = rsChartThrough(13, 55)
+      f.settle(chart2, rsSecondary(spx5Through(13, 45)))
+      expect(f.notice()).toMatch(WAITING)
+      const caughtUp = rsSecondary(spx5Through(13, 55))
+      f.sync(chart2, caughtUp)
+      expect(f.w.queue.length, 'SPX\'s update: a run is in the worker').toBe(1)
+      expect(f.log[f.log.length - 1]).toBe(served2)
+      expect(f.notice()).toBeNull()
+      f.flush()
+      f.sync(chart2, caughtUp)
+      expect(f.servedByRun()).toBe(true)
+      expect(f.notice()).toBeNull()
+    } finally { f.done() }
+  })
+
+  it('⛔ CONTROL, a first load: no picture yet, so the strip says the run is computing (#2044, unchanged)', async () => {
+    const f = await fredOnAChart()
+    try {
+      const chart = rsChartThrough(13, 40)
+      const spx = rsSecondary(spx5Through(13, 40))
+      f.sync(chart, spx)
+      expect(f.w.queue.length, 'a run is in the worker').toBe(1)
+      expect(f.log.filter((x) => x.startsWith('run:'))).toEqual([])
+      expect(f.notice()).toBe(COMPUTING)
+      f.flush()
+      f.sync(chart, spx)
+      expect(f.servedByRun()).toBe(true)
+      expect(f.notice()).toBeNull()
+    } finally { f.done() }
+  })
+
+  it('⛔ CONTROL, a symbol switch: RDDT\'s picture is not this pane\'s, so the new pane says it is computing (#2044, unchanged)', async () => {
+    const f = await fredOnAChart()
+    try {
+      f.settle(rsChartThrough(13, 40), rsSecondary(spx5Through(13, 40)))
+      expect(f.servedByRun()).toBe(true)
+      expect(f.notice()).toBeNull()
+      f.sync(rsChartThrough(13, 40, 40), rsSecondary(spx5Through(13, 40)), AGL)
+      expect(f.w.queue.length, 'AGL\'s run is in the worker').toBe(1)
+      expect(f.log[f.log.length - 1]).toBe('EMPTY')
+      expect(f.notice()).toBe(COMPUTING)
+    } finally { f.done() }
+  })
+})
+
 describe('a RUNTIME document waits by name too: a status, never a stop sentence', () => {
   const def = { ...runDef(SRC), id: 'u_tl-rt', compute: { ...runDef(SRC).compute, fn: 'runtime:u_tl-rt', objects: false } }
   it('two bars behind: no columns, the wait named (`runtimeRunWaitingOf`), no stop (`runtimeRunStopOf`)', () => {

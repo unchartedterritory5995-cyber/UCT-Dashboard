@@ -1015,6 +1015,18 @@ export function createBinder({ chart, LWC, scope = '' }) {
   /** ⭐ (e85) instanceId → the pane (`{def, pane}`) whose SERVED run-half picture its layer holds: a pending run of
    *  that same pane keeps the layer as it stands (`syncObjects`). Any other drawing of the layer forgets it. */
   const runHalfServed = new Map()
+  /** ⭐ (engine 87 train, #2076 x #2044) DOES A PENDING RUN HALF OF THIS INSTANCE KEEP THE PICTURE ITS RUN LAST SERVED ON
+   *  THIS PANE? ONE condition, read by `syncObjects` (which keeps the layer as it stands) and by the strip's computing note
+   *  (`noteRuntimeErrorStop`, said only where this pane has NO picture): the same document, the same pane (symbol, timeframe,
+   *  settings: `instancePanes`, without what the data moves), a layer that holds it, and a run half that is pending.
+   *  ⚰️ The note asked only `drawnPictures`, keyed on the FULL signature: SPX's own update moved it, so a run in the worker
+   *  over a KEPT picture said "still computing ... drawn when that finishes" while the drawings were drawn. */
+  const keepsServedPicture = (instanceId, def, cols, instancePanes) => {
+    const drawnFor = runHalfServed.get(instanceId)
+    return !!(drawnFor && carriesRunHalf(def) && objectLayers.has(instanceId) && drawnFor.def === def
+      && instancePanes && drawnFor.pane === instancePanes.get(instanceId)
+      && (runHalfOf(cols) || {}).state === 'pending')
+  }
 
   // ⭐⭐ P1 HARDENING (2026-10-11) — THE CHART MOVED, THE DRAWINGS FOLLOW.
   // An object layer repaints only when its STATE changes (`objectLayer.js::set`);
@@ -1300,15 +1312,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // would have held an empty layer for as long as SPX lagged. ⛔ ONLY the run's own SERVED picture of THIS pane
       // (`runHalfServed`: the document, symbol, timeframe and settings it was drawn for): never another symbol's or
       // timeframe's, never the host program's picture (engine 53: no host picture first and a swap after).
-      const drawnFor = runHalfServed.get(inst.instanceId)
-      runHalfServed.delete(inst.instanceId)
-      if (drawnFor && carriesRunHalf(def) && objectLayers.has(inst.instanceId) && drawnFor.def === def
-          && instancePanes && drawnFor.pane === instancePanes.get(inst.instanceId)
-          && (runHalfOf(runCols ? runCols.get(inst.instanceId) : null) || {}).state === 'pending') {
-        runHalfServed.set(inst.instanceId, drawnFor)
+      if (keepsServedPicture(inst.instanceId, def, runCols ? runCols.get(inst.instanceId) : null, instancePanes)) {
         alive.add(inst.instanceId)
         continue
       }
+      runHalfServed.delete(inst.instanceId)
       // ⭐⭐ RT5 — THE RUN'S OWN DRAWINGS: read off the column record step 1
       // already computed (one run, both answers), drawn by the same render state.
       // ⛔ No columns yet (a worker run in flight) or a run that computed nothing
@@ -2317,7 +2325,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
         heldIds.add(inst.instanceId)
       } else {
         // ⭐ C43 — reached on this chart at these settings, or no longer reached
-        noteRuntimeErrorStop(inst.instanceId, cols, def, hadPicture)
+        // ⭐ (engine 87 train) a picture is drawn when it LANDED here (`hadPicture`) or when a pending run half KEEPS this
+        // pane's served picture (`keepsServedPicture`, the very condition `syncObjects` keeps it by)
+        noteRuntimeErrorStop(inst.instanceId, cols, def, hadPicture || keepsServedPicture(inst.instanceId, def, cols, instancePanes))
         // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
         // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
         // columns the decision was made for; a registry without the report (a test
