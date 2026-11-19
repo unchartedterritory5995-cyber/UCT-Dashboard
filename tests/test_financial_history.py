@@ -247,3 +247,119 @@ class TestReportedCurrency:
     def test_no_currency_field_is_None_not_USD(self, fh, monkeypatch):
         _stub(fh, monkeypatch, _income(["2026-01-01"]))
         assert fh.get_history("AAPL")["currency"] is None
+
+
+class TestOneReadForConcurrentColdCallers:
+    """A cold symbol costs three statement responses ONCE, however many callers
+    ask at the same moment: FMP bills the account by the byte."""
+
+    def _gated(self, fh, monkeypatch):
+        """A reader stub that holds every leg until `gate` is set."""
+        import threading
+        calls, gate, started = [], threading.Event(), threading.Event()
+
+        def _fmp(path, sym, period, limit):
+            calls.append((path, sym, period))
+            started.set()
+            assert gate.wait(10), "the test never released the read"
+            if "income" in path:
+                return [dict(r, researchAndDevelopmentExpenses=7)
+                        for r in _income(["2026-01-01", "2026-04-01"])]
+            return []
+        monkeypatch.setattr(fh, "_fmp", _fmp)
+        return calls, gate, started
+
+    def _wait_for_followers(self, key, n):
+        import time
+        from api.services import single_flight
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            with single_flight._lock:
+                call = single_flight._inflight.get(key)
+                if call is not None and call.followers >= n:
+                    return
+            time.sleep(0.01)
+        raise AssertionError("the followers never joined the read in flight")
+
+    def test_concurrent_cold_callers_share_ONE_read(self, fh, monkeypatch):
+        import threading
+        calls, gate, started = self._gated(fh, monkeypatch)
+        out, errors = [None] * 5, []
+
+        def ask(i):
+            try:
+                out[i] = fh.get_history("AAPL", full=(i % 2 == 0))
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+
+        threads = [threading.Thread(target=ask, args=(i,)) for i in range(5)]
+        threads[0].start()
+        assert started.wait(10)
+        for t in threads[1:]:
+            t.start()
+        self._wait_for_followers("fin_hist::v2::AAPL::quarter", 4)
+        gate.set()
+        for t in threads:
+            t.join(10)
+        assert not errors, errors
+        assert len(calls) == 3, "five callers paid for %d statement reads, not 3" % len(calls)
+        assert all(o and o["periods"] == ["Q3 2026", "Q3 2026"] for o in out)
+        # The view each caller asked for, whoever led the read.
+        for i, o in enumerate(out):
+            assert ("extra_series" in o) == (i % 2 == 0), i
+
+    def test_the_flight_is_keyed_per_symbol_and_basis(self, fh, monkeypatch):
+        from api.services import single_flight
+        keys = []
+        real = single_flight.run
+        monkeypatch.setattr(single_flight, "run",
+                            lambda key, fn, *a, **k: (keys.append(key), real(key, fn, *a, **k))[1])
+        _stub(fh, monkeypatch, _income(["2026-01-01"]))
+        fh.get_history("aapl")
+        fh.get_history("AAPL", period="annual")
+        fh.get_history("MSFT")
+        assert keys == ["fin_hist::v2::AAPL::quarter", "fin_hist::v2::AAPL::annual",
+                        "fin_hist::v2::MSFT::quarter"]
+
+    def test_a_cache_hit_never_enters_the_flight(self, fh, monkeypatch):
+        from api.services import single_flight
+        _stub(fh, monkeypatch, _income(["2026-01-01"]))
+        first = fh.get_history("AAPL")
+
+        def boom(*a, **k):
+            raise AssertionError("a cached symbol entered the flight")
+        monkeypatch.setattr(single_flight, "run", boom)
+        assert fh.get_history("AAPL") == first
+
+    def test_a_caller_that_waited_too_long_gets_a_failed_read_not_an_exception(self, fh, monkeypatch):
+        from api.services import single_flight
+
+        def late(key, fn, *a, **k):
+            raise single_flight.SingleFlightTimeout("waited 180s")
+        monkeypatch.setattr(single_flight, "run", late)
+        _stub(fh, monkeypatch, _income(["2026-01-01"]))
+        out = fh.get_history("AAPL", period="annual", full=True)
+        assert out == {"sym": "AAPL", "period": "annual", "periods": [], "series": {},
+                       "state": "error"}
+        assert fh._cache().d == {}, "a failed shared read was stored as an answer"
+
+    def test_a_read_that_lost_the_race_to_the_cache_does_not_read_again(self, fh, monkeypatch):
+        calls = []
+
+        def _fmp(path, sym, period, limit):
+            calls.append(path)
+            return _income(["2026-01-01"]) if "income" in path else []
+        monkeypatch.setattr(fh, "_fmp", _fmp)
+        fh.get_history("AAPL")
+        assert len(calls) == 3
+        stored = fh._cache().d["fin_hist::v2::AAPL::quarter"]
+        # The caller saw a miss, then the previous read stored its answer.
+        assert fh._read_history("AAPL", "quarter", 24, "fin_hist::v2::AAPL::quarter") is stored
+        assert len(calls) == 3, "read FMP again for a symbol stored a moment earlier"
+
+    def test_the_stored_object_keeps_every_line_whichever_view_led(self, fh, monkeypatch):
+        _stub(fh, monkeypatch, _income(["2026-01-01"]))
+        lean = fh.get_history("AAPL")
+        assert "extra_series" not in lean
+        full = fh.get_history("AAPL", full=True)
+        assert "extra_series" in full and full["periods"] == lean["periods"]
