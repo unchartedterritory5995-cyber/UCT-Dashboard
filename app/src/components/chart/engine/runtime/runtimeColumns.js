@@ -275,6 +275,38 @@ const _memo = new WeakMap()
  *  a run costs the member no frame either way, and this is what stops it. */
 export const RUNTIME_PANE_TIME_BUDGET_MS = 1000
 
+/** ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, NUMBER PENDING) — THE BUDGET OF A RUN IN THE WORKER
+ *  SCALES WITH THE BARS IT COVERS. 1,000 ms is a whole-run number that an honest script crosses through chart LENGTH
+ *  alone, and the budget's own record (RT1, above) says its job is to bound a RUNAWAY, not to cap honest long work.
+ *    budget(n) = min(4,000, 1,000 + 0.35 x max(0, n - 5,000)) ms, `n` the bars the run COVERS (the rows after the depth
+ *  cut, a `calc_bars_count` or strategy window's own): 1,000 up to 5,000 bars (today's behaviour), 2,050 at 8,000,
+ *  3,282 at 11,520, 4,000 from 13,571 bars.
+ *    WHY 0.35 MS A BAR, MEASURED (desktop, 2026-11-19, engine 83 with the depth cut, the array-operation ceiling and
+ *  the session-day memo): Fred RS's run half on a filled 5m extended-hours chart covers 11,520 bars and spends
+ *  1,029 ms of what this budget counts (A's whole run, 619, and B's VM, 410: `computeOffListing`); 60m (8,000 bars)
+ *  about 670. The heaviest SERVED corpus script on SPY 1D costs 68 us a bar (one run), the p95 44, the median 5.5. ⚠️
+ *  The e81 live worker log puts a member's device at about 2.9x this desktop (its pre-VM work took 2.66-2.81 s where
+ *  this machine takes about 0.94 s): an ESTIMATE, to be confirmed by the live timing after engine 83, and the margin
+ *  resized against the confirmed number. 1,000 + 0.35 x 6,520 = 3,282 ms is 3.2x this desktop's 1,029.
+ *    WHAT STILL STOPS A RUNAWAY, unchanged: `INSTRUCTIONS_PER_BAR` (one bar), the whole-run counts and `MEMORY`
+ *  (`limits.js`), `WALL_TIME` (5,000 ms per `execute`, the absolute stop), this budget's own 4,000 ms ceiling, and the
+ *  worker watchdog (`runtimeAsync.js`, 20 s).
+ *    ⛔ WORKER ONLY (`opts.budgetScales`, passed by `runtimeWorker.js` alone): a run on the MAIN thread (the
+ *  synchronous door, `runtimeAsync.js::runHere` where a browser has no Worker, the server entry) keeps 1,000 ms, since
+ *  there a longer run is a frozen page. */
+export const RUNTIME_PANE_BUDGET_FLOOR_BARS = 5000
+export const RUNTIME_PANE_BUDGET_PER_BAR_MS = 0.35
+export const RUNTIME_PANE_BUDGET_CEILING_MS = 4000
+/** The worker's budget for a run covering `bars` bars, `floorMs` the per-run number (1,000). */
+export function runtimePaneBudgetFor(bars, floorMs = RUNTIME_PANE_TIME_BUDGET_MS) {
+  const over = Number.isInteger(bars) ? Math.max(0, bars - RUNTIME_PANE_BUDGET_FLOOR_BARS) : 0
+  return Math.max(floorMs, Math.min(RUNTIME_PANE_BUDGET_CEILING_MS, floorMs + RUNTIME_PANE_BUDGET_PER_BAR_MS * over))
+}
+/** The budget this run is held to: scaled by the bars it covers when its caller asked (`budgetScales`), else as
+ *  passed. Read where the run's rows are final, once: the curtain hands its two runs fixed numbers. */
+const budgetFor = (opts, bars) => (opts && opts.budgetScales === true && Number.isFinite(opts.budgetMs)
+  ? runtimePaneBudgetFor(bars, opts.budgetMs) : (opts ? opts.budgetMs : undefined))
+
 /** The guard a run that passes the budget carries. */
 export const RUNTIME_TIME_BUDGET_GUARD = 'runtime:time-budget'
 
@@ -730,7 +762,10 @@ function computeOffListing(def, rows, ctx, opts) {
   if (shift < 2) throw never()
   const clock = clockOf(opts)
   const t0 = clock()
-  const inner = { ...opts, warmupCurtain: false }
+  // ⭐⭐ (coordinator ruling 2026-11-19) the budget of the two runs together, scaled by the bars the chart's run covers
+  // (`budgetFor`), then handed to each as a fixed number: A's whole run, then B's VM within what A left
+  const budgetMs = budgetFor(opts, n)
+  const inner = { ...opts, warmupCurtain: false, budgetScales: false, ...(Number.isFinite(budgetMs) ? { budgetMs } : {}) }
   // ⭐⭐ UIE PHASE 3 (M1) — B stops as soon as it is PROVEN to repeat A (`warmupProbe.js`);
   // a drawing program is never probed (its object store is not encoded)
   const probe = objects || opts.warmupEarlyStop === false ? null : makeWarmupProbe(n, shift)
@@ -740,9 +775,9 @@ function computeOffListing(def, rows, ctx, opts) {
   const a = computeRuntimeColumnsOnce(plain, rows, ctx,
     probe ? { ...inner, sessionRole: 'A', probeIfCold: probe.forA, onProgram: probe.programA } : { ...inner, sessionRole: 'A' })
   const aResumed = (runtimeIncrementalOf(a) || {}).resumedFrom !== null
-  const left = Number.isFinite(opts.budgetMs) ? opts.budgetMs - (clock() - t0) : null
+  const left = Number.isFinite(budgetMs) ? budgetMs - (clock() - t0) : null
   if (left !== null && left <= 0) {
-    throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${opts.budgetMs} ms to draw bar by bar `
+    throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${budgetMs} ms to draw bar by bar `
       + "and to check where its values stop depending on this chart's first bar, which is this pane's budget "
       + 'for one indicator, so it is stopped and nothing is drawn rather than part of it.')
   }
@@ -1487,7 +1522,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     rows, forming, lastConfirmed) : null
   // ⭐⭐ RT1 — THE TIME BUDGET, checked at the end of every bar through the VM's
   // own per-bar hook (no VM change): past it the run stops by name.
-  const budgetMs = Number.isFinite(opts.budgetMs) ? opts.budgetMs : null
+  // ⭐⭐ (coordinator ruling 2026-11-19) scaled by the bars this run covers when its caller asked (`budgetFor`)
+  const budgetMs = Number.isFinite(opts.budgetMs) ? budgetFor(opts, rows.length) : null
   const now = clockOf(opts)
   const startedAt = budgetMs !== null ? now() : 0
   if (typeof opts.onProgram === 'function') opts.onProgram(program)
