@@ -874,13 +874,18 @@ def _since_key(since, tf: str):
 
 def _augment_with_contract(response, ticker: str, tf: str, session: str | None, *,
                            store_backed: bool, tail_status: bool, to: bool = False,
-                           meta: dict | None = None, since_key: int | None = None):
+                           meta: dict | None = None, since_key: int | None = None,
+                           own_history_rev: bool = False):
     """THE BAR CONTRACT (docs/architecture/bar-contract.md) onto EVERY 200 bars answer
     — every tf, every serve branch, full / `since=` / `to=` alike — in ONE parse that
     also carries `tail_status` where it always applied (`tail_status=True`: live equity
     intraday, not replay). Additive: `bars` is untouched. Computed by
     `bar_contract.compute`, the one implementation. Returns the response unchanged on
-    ANY problem — a contract field must never break a chart serve."""
+    ANY problem — a contract field must never break a chart serve.
+
+    `own_history_rev`: the answer states its own `history_rev` (a cash index: the time its
+    hole repair last changed held history, `index_bars.repair_rth_holes`) and the contract,
+    which reads only bars.db, has none for it: the answer's own value stands."""
     try:
         payload = orjson.loads(response.body)
     except Exception:
@@ -891,6 +896,7 @@ def _augment_with_contract(response, ticker: str, tf: str, session: str | None, 
     if not isinstance(rows, list):
         return response
     headers = {}
+    own_hist = payload.get("history_rev") if own_history_rev else None
     try:
         from api.services import bar_contract
         fields = bar_contract.compute(ticker, tf, session, rows,
@@ -904,6 +910,8 @@ def _augment_with_contract(response, ticker: str, tf: str, session: str | None, 
     except Exception as e:                 # noqa: BLE001
         _bars_log.warning("[bars] contract fields failed %s tf=%s: %s", ticker, tf,
                           type(e).__name__)
+    if own_hist is not None and payload.get("history_rev") is None:
+        payload["history_rev"] = own_hist
     if tail_status and tf in _INTRADAY_TFS:
         try:
             if "contract" in payload and store_backed:
@@ -1090,6 +1098,10 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
         return resp
     payload["tf"] = "60"
     payload["session"] = "eth"
+    # A cash index's 15m hole-repair record (`index_bars._repair_fields`) names 15m buckets and
+    # 15m sessions; it does not describe the hours derived here, so it is not passed on as theirs.
+    for k in ("repaired", "holes", "holes_total"):
+        payload.pop(k, None)
     base_contract = {k: payload.get(k) for k in ("series_rev", "history_rev", "sealed_through",
                                                  "verified_through", "complete_through")}
     rows = payload.get("bars")
@@ -1425,7 +1437,7 @@ def _serve_bars_impl(
                     response, ticker, tf, session,
                     store_backed=_live_equity and get_serve_layer() != "yf-only",
                     tail_status=(_live_equity and not to), to=bool(to), meta=_meta_pre,
-                    since_key=_since_key(since, tf))
+                    since_key=_since_key(since, tf), own_history_rev=is_index(ticker))
             except Exception:
                 pass
 
