@@ -29,6 +29,21 @@ const _ET_PARTS = typeof Intl !== 'undefined'
   })
   : null
 
+// ⭐ ONE ET-DATE FORMATTER (2026-11-19, measured live). `toLocaleDateString('en-CA', { timeZone })`
+// builds a fresh Intl formatter on EVERY call; the per-bar date tests (IDB gap scans, the replay
+// cutoff, the D bucket) paid that thousands of times on a deep 1h ticker switch. Same output:
+// a DateTimeFormat with no component options formats the same numeric date as toLocaleDateString.
+const _ET_DATE_FMT = typeof Intl !== 'undefined'
+  ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' })
+  : null
+
+/** 'YYYY-MM-DD' of unix second `unixSec` in New York — exactly
+ *  `new Date(unixSec * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })`. */
+export function etDateLabel(unixSec) {
+  const d = new Date(unixSec * 1000)
+  return _ET_DATE_FMT ? _ET_DATE_FMT.format(d) : d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+}
+
 // The slow, authoritative read (one Intl call). Whole seconds.
 function _rawEtOffsetSec(sec) {
   const p = {}
@@ -106,6 +121,10 @@ export const RTH_CLOSE_MIN = 960   // 16:00 ET
 // Keyed by ET DAY NUMBER (floor(chartTime / 86400)) so the per-bar hot paths (RTH view
 // filters, session shading) pay a Map hit, not a Date allocation; the ISO date is built
 // only on a miss.
+// ⛔ SIZED FOR DEEP HISTORY (2026-11-19, measured live): at 4,000 a 1h chart back to 2005
+// (~5,300 trading days) emptied the map on every pass, so every bar paid a Date, an ISO string and
+// a calendar search again. 20,000 days (~55 years) matches the offset cache above.
+const _CLOSE_DAY_CACHE_MAX = 20000
 const _closeByEtDay = new Map()
 function _rthCloseOfEtDay(etDay) {
   let m = _closeByEtDay.get(etDay)
@@ -113,7 +132,7 @@ function _rthCloseOfEtDay(etDay) {
     let ec = null
     try { ec = earlyCloseOn(new Date(etDay * 86400000).toISOString().slice(0, 10)) } catch { ec = null }
     m = ec ? ec.closeHour * 60 + ec.closeMinute : RTH_CLOSE_MIN
-    if (_closeByEtDay.size >= 4000) _closeByEtDay.clear()
+    if (_closeByEtDay.size >= _CLOSE_DAY_CACHE_MAX) _closeByEtDay.clear()
     _closeByEtDay.set(etDay, m)
   }
   return m
@@ -273,9 +292,7 @@ export function etWeekCloseLabel(unixSec) {
  */
 export function computeBarTime(tf, tickTimeSec, opts = {}) {
   if (tf === 'D') {
-    return new Date(tickTimeSec * 1000).toLocaleDateString('en-CA', {
-      timeZone: 'America/New_York',
-    })
+    return etDateLabel(tickTimeSec)
   }
   // ⛔ W/M are pure ET-calendar math on the ET date (etDateOf → UTC date arithmetic). They
   // used to re-parse an ET wall-clock STRING in the BROWSER's zone and read it back with

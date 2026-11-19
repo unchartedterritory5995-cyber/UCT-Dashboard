@@ -3462,18 +3462,6 @@
       "flip_precondition": "ON CHANGES FOR A MEMBER: every chart's bars (history, tail polling, the developing candle Writer D re-tops, the symbol handoff's prepare) come from one BarStore entry per (symbol, timeframe) instead of the SWR/IDB/mem selector. VERIFY BEFORE FLIPPING: soak with localStorage uct.barStore=1 during RTH on 1/5/15/30/60m and D (symbol scan + timeframe switches), compare against a legacy tab; confirm no blank frames, no stale tails painted as LIVE, and the request count per chart stays at one tail poll.",
       "hold": "Owner approval required to arm (P3-S1 PR). No action until then. The #1314 short-intraday warm rule is ported (data/barStore/prefetch.js SHORT_FULL_TTL_MS, parity-pinned by prefetch.shortIntraday.test.js, 2026-11-16)."
     },
-    "VITE_CHART_RENDER_TOKEN": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "owner": "operator",
-      "railway_value": "set (32 chars - a SECRET, never recorded here)",
-      "baked_value": "the set value (present in the bundle)",
-      "baked_measured_on": "1c76f9f38",
-      "last_changed": "2026-09-12 (rotated)",
-      "note": "Not a feature gate - a shared secret, and it is inlined into the PUBLIC bundle by design (api/routers/render_panels.py says so). It must equal CHART_RENDER_TOKEN on web or the /r/* client check fails every render. Rotate BOTH halves together."
-    },
     "VITE_COMING_SOON": {
       "status": "armed",
       "where": [
@@ -3611,18 +3599,6 @@
       "baked_measured_on": "1c76f9f38",
       "last_changed": "never set",
       "note": "Unset and the read defaults ON (`?? '1'`), so the Catalysts UI is live. Setting it to '0' is the kill switch."
-    },
-    "VITE_CHART_RENDER_TOKEN_PREVIOUS": {
-      "status": "armed",
-      "where": [
-        "web"
-      ],
-      "owner": "operator",
-      "railway_value": "set (a SECRET, never recorded here)",
-      "baked_value": "the set value (present in the bundle, like its current-token sibling)",
-      "baked_measured_on": "9087bc196",
-      "last_changed": "2026-09-13 (set with the rotation in 1.1)",
-      "note": "The PREVIOUS render token, accepted alongside the current one so a rotation is not a flag-day. Read by app/src/lib/renderToken.js (the one guard the 14 /r/* pages share) and mirrored server-side by CHART_RENDER_TOKEN_PREVIOUS in api/routers/render_panels.py - set BOTH halves or neither. Empty would mean single-token acceptance, which is the steady state; it is set only for the window between baking a new token and retiring the old one, and scripts/render_token_retire.py (Monday) clears BOTH halves. ⚰️ This row said status dark / railway_value UNSET when it was first written, an hour after the rotation that set it - the ledger-drift defect CLAUDE.md records, re-committed by the person who had just read the rule. Corrected against `railway variables --service web --kv`, which is the only authority."
     },
     "VITE_DISCORD_CHART_APP_ID": {
       "status": "dark",

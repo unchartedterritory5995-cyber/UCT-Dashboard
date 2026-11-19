@@ -26,8 +26,8 @@
 //
 // Public route (no AuthGuard). Data comes from /api/r/buzz?token= (a
 // token-gated public read over the buzz store — aggregate counts/tickers
-// only, never author_id/message_id/jump links). ?token= is checked against
-// VITE_CHART_RENDER_TOKEN, same pattern as ChartRender/CatalystsRender.
+// only, never author_id/message_id/jump links). ?token= is checked by the
+// server on that read; a refused read shows the "Unavailable" box below.
 //
 // window.__buzzReady is set from ROWS THAT HAVE LAID OUT (measured height >
 // 0), never from mount. A sized container is not a drawn board -- that
@@ -37,8 +37,6 @@ import { useEffect, useRef, useState } from 'react'
 import uctLogo from '../components/intro/assets/compass-mark.webp'
 import styles from './BuzzRender.module.css'
 
-
-import { renderTokenOk } from '../lib/renderToken'
 // ⛔ THE EXPORT CONTAINER'S GEOMETRY IS INLINE, AND MUST STAY INLINE.
 // `id="buzz-export"` is a literal string because buzz_image.py screenshots
 // `{"selector": "#buzz-export"}` — but this page's stylesheet is a CSS
@@ -102,7 +100,6 @@ export default function BuzzRender() {
     // never asserts readiness before it is real.
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token') || ''
-    if (!renderTokenOk(token)) { setFailed(true); return }
     const qs = new URLSearchParams({ token, window: params.get('window') || 'open' })
     fetch(`/api/r/buzz?${qs}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))

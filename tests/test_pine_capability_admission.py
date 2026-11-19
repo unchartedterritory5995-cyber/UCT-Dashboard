@@ -168,7 +168,11 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "obj:linefill",
         # admit:request-other (coordinator ruling 2026-11-19): PA ZigZag at 1W / 1M (runtime lane) and SR-MTF (the
         # forced runtime lane, #1985), both community, MATCH at engine 84; for closed-bar history only (G6)
-        "request-other"])
+        "request-other",
+        # libraries chain (coordinator ruling 2026-11-19): THE FIRST LIBRARY ROW, TradingView/ta/7 pinned at its sha
+        # (the generic `import` is met by its libraries, never a row: `missing_capabilities`); KPSaR [BackQuant]
+        # (community) + vw-library-import, MATCH runtime-on at engine 85 graded WITH production's store (A8: store-held)
+        "library:TradingView/ta/7"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -1022,7 +1026,7 @@ def _draw1_unkilled_diverging(kills: dict) -> list:
             if not isinstance(text, str):
                 continue
             caps = pc.capabilities_of(text)
-            if caps & DRAW1_NEW_OBJECT_FAMILIES and caps <= admitted and rt.source_hash(text) not in kills:
+            if caps & DRAW1_NEW_OBJECT_FAMILIES and not rt.missing_capabilities(caps, admitted) and rt.source_hash(text) not in kills:
                 out.add((r["id"], rt.source_hash(text)))
     return sorted(out)
 
@@ -1069,7 +1073,7 @@ def _request_other_unkilled_diverging(kills: dict) -> list:
                 continue
             caps = pc.capabilities_of(text)
             sha = rt.source_hash(text)
-            if "request-other" in caps and caps <= admitted and sha not in kills and sha not in own:
+            if "request-other" in caps and not rt.missing_capabilities(caps, admitted) and sha not in kills and sha not in own:
                 out.add((r["id"], sha))
     return sorted(out)
 
@@ -1148,6 +1152,23 @@ def test_A8_no_phantom_evidence():
         if row.get("admitted") is True:
             assert rg.pine_capability_admission(cap, row) == [], cap
             assert all(v[e["capture"]]["verdict"] == "MATCH" for e in row["evidence"])
+
+
+def test_the_import_rule_is_one_rule_for_the_server_and_the_census():
+    """(libraries chain, 2026-11-19) The generic `import` is met by its libraries (U15), and the census tools answer
+    with the server's own rule (`rt.missing_capabilities`), so the roadmap counts what the server serves."""
+    sys.path.insert(0, str(ROOT / "tools" / "pine_coverage"))
+    import capability_admission as ca
+    admitted = set(rt.admitted_capabilities()["admitted"])
+    assert "import" not in admitted and "library:TradingView/ta/7" in admitted
+    src = json.loads((ROOT / "tests/fixtures/vendor/harness/kalman-psar-backquant-rddt-1d-2026-11-15.json")
+                     .read_text(encoding="utf-8"))["source"]["text"]
+    assert rt.capability_admitted(src) == (True, [])
+    assert ca.admission_row(src, admitted)["admitted"] is True
+    # CONTROL: a version with no row of its own leaves `import` (and that version) missing on both
+    other = src.replace("import TradingView/ta/7", "import TradingView/ta/9")
+    assert rt.missing_capabilities(pc.capabilities_of(other), admitted) == ["import", "library:TradingView/ta/9"]
+    assert ca.admission_row(other, admitted)["missing"] == ["import", "library:TradingView/ta/9"]
 
 
 def test_A8_a_library_rows_evidence_was_graded_with_that_version(monkeypatch):
@@ -1592,7 +1613,7 @@ def _admitted_capture_ids(held_absent: dict | None = None) -> set:
             text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
         except (OSError, ValueError):
             continue
-        if isinstance(text, str) and text.strip() and pc.capabilities_of(text) <= admitted \
+        if isinstance(text, str) and text.strip() and not rt.missing_capabilities(pc.capabilities_of(text), admitted) \
                 and not rt.killed(None, text):
             out.add(r["id"])
     return out

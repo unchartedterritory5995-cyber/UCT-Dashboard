@@ -13,6 +13,8 @@ with no TradingView access. `batch` hands the page work to `batch_capture.py run
 
 ⛔ WHAT THIS NEVER DOES
   * writes Pine from a prose row (a row with no probe file is NEEDS_PROBE);
+  * reads a reference script's text from anywhere but this machine's pine_survey cache (a row names one as
+    `reference:<slug>`; without the cached text the row is NEEDS_PROBE, by name: REF_UNCACHED);
   * counts a row its doc DISPOSES of as not a capture question (a `| not a capture | disposition | reason |`
     table, see DISPOSITIONS) as needing a probe: such a row is listed, counted and reasoned in
     `rowsNotCaptureQuestions`, never dropped;
@@ -148,6 +150,17 @@ VERSION_RX = re.compile(r"//@version=(\d)")
 NO_PROBE_RX = re.compile(r"\bno probe\b", re.I)
 GUARD_RX = re.compile(r"(?<![\w:-])((?:host:)?(?:pine|runtime|fn|paint|lower-tf):[a-z][a-z0-9-]*[a-z0-9])")
 PINE_RX = re.compile(r"([A-Za-z0-9_./-]+\.pine)\b")
+#: ⭐ A REFERENCE SCRIPT (a published sample whose text is never in git) is named in ONE form: `reference:<slug>`, its
+#: census key (`coverage-map.json`). Its metadata is `corpus/reference/<slug>.json` (title, scriptIdPart, url); its
+#: text is the pine_survey cache's `sources/<slug>.pine` (`World.cache_dir`, git-ignored), on the machines that
+#: fetched it. With the text the row is a target whose licence is read off that text (`licence_of`), so a held one is
+#: LICENCE_HOLD, never QUEUED, and carries what the add-the-published-script path needs (`publishedScript`). Without
+#: it the row is NEEDS_PROBE, by name (REF_UNCACHED): CI never has the cache, and the queue derives the same there.
+REF_RX = re.compile(r"`reference:([a-z0-9][a-z0-9-]*__[A-Za-z0-9]+)`")
+#: ⚰️ `reference/<slug>` named three rows on 2026-11-19 and resolved to nothing ("no probe file named"): any other
+#: spelling is named as one, never read as prose.
+REF_MISSPELT_RX = re.compile(r"`reference/([a-z0-9][a-z0-9-]*__[A-Za-z0-9]+)(?:\.pine)?`")
+REF_UNCACHED = "reference source not cached on this machine"
 TICK_RX = re.compile(r"`([a-z0-9][a-z0-9._-]*[a-z0-9])`")
 SLUG_RX = re.compile(r"\b([a-z0-9][a-z0-9-]*__[0-9a-f]{6,12})\b")
 SYMBOL_RX = re.compile(r"\b(?:(" + "|".join(EXCHANGES) + r"):([A-Z0-9.!]{1,12})|(" + "|".join(HOUSE_SYMBOLS) + r"))\b")
@@ -367,6 +380,18 @@ class World:
             self._ledger = rows
         return self._ledger
 
+    def reference_meta(self, slug: str):
+        """`corpus/reference/<slug>.json` (title, scriptIdPart, url, ...), or None."""
+        try:
+            return json.loads((self.corpus / "reference" / f"{slug}.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+
+    def reference_source(self, slug: str):
+        """The cached text of a reference script (`<cache_dir>/sources/<slug>.pine`), or None on a machine without it."""
+        p = self.cache_dir / "sources" / f"{slug}.pine"
+        return p if p.is_file() else None
+
     def resolve_pine(self, name: str):
         """A `.pine` reference -> (kind, path) or (None, None)."""
         name = name.strip().strip("`")
@@ -582,6 +607,36 @@ def resolve_sources(world: World, text: str, refs_only: bool = False):
     return sources, owed, fx
 
 
+def resolve_references(world: World, text: str):
+    """(sources [("reference", path)], why [str]) for every reference script named in `text` (REF_RX). `why` says,
+    by name, why a named reference is no source here: its text is not cached on this machine (REF_UNCACHED), it has
+    no `corpus/reference/<slug>.json`, or it is spelt another way (REF_MISSPELT_RX)."""
+    sources, why = [], []
+    for slug in REF_RX.findall(text):
+        if world.reference_meta(slug) is None:
+            why.append(f"no corpus/reference/{slug}.json for `reference:{slug}`")
+            continue
+        p = world.reference_source(slug)
+        if p is None:
+            why.append(f"{REF_UNCACHED}: `reference:{slug}`")
+        elif all(str(p) != str(q) for _, q in sources):
+            sources.append(("reference", p))
+    for slug in REF_MISSPELT_RX.findall(text):
+        why.append(f"a reference script is named `reference:{slug}`, not `reference/{slug}`")
+    return sources, why
+
+
+def published_script(world: World, slug: str):
+    """What the add-the-published-script path needs for a reference script: `{id: "PUB;<scriptIdPart>", search:
+    <title>, url, meta}` off `corpus/reference/<slug>.json`, or None when it names no scriptIdPart or no title."""
+    meta = world.reference_meta(slug) or {}
+    sid, title = str(meta.get("scriptIdPart") or ""), meta.get("title")
+    if not sid or not title:
+        return None
+    return {"id": sid if sid.startswith("PUB;") else f"PUB;{sid}", "search": title, "url": meta.get("url"),
+            "meta": f"corpus/reference/{slug}.json"}
+
+
 def explicit_pines(world: World, text: str) -> list:
     """Sources named as `.pine` files (never a bare stem): what a section or preamble may hand down."""
     out = []
@@ -765,12 +820,15 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
             # ⛔ Only the row's REQUEST cells can ask for a probe; a prose cell ("covered by `x`", "the old `y.pine`
             # read 0") only refers to one.
             prose = [ci < len(header) and bool(PROSE_HEAD_RX.match(header[ci])) for ci in range(len(cells))]
-            sources, owed, fx = resolve_sources(world, " | ".join(c for c, pr in zip(cells, prose) if not pr))
+            request = " | ".join(c for c, pr in zip(cells, prose) if not pr)
+            sources, owed, fx = resolve_sources(world, request)
+            ref_sources, ref_why = resolve_references(world, request)
+            sources = sources + [s for s in ref_sources if s not in sources]
             _, _, fx_prose = resolve_sources(world, " | ".join(c for c, pr in zip(cells, prose) if pr), refs_only=True)
             fx = fx + [x for x in fx_prose if x not in fx]
             inherited = False
             variant = bool(VARIANT_RX.search(rtext))
-            if not sources and not owed and not NO_PROBE_RX.search(rtext) and len(inherit_from) == 1 \
+            if not sources and not owed and not ref_why and not NO_PROBE_RX.search(rtext) and len(inherit_from) == 1 \
                     and not re.search(r"\bprobe(?: shape)?:|indicator\(", rtext):
                 sources = list(inherit_from)
                 inherited = True
@@ -787,6 +845,8 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
             if not sources:
                 if NO_PROBE_RX.search(rtext):
                     needs_probe = needs_probe or "the row says no probe"
+                elif ref_why:
+                    needs_probe = needs_probe or "; ".join(ref_why)
                 elif owed:
                     needs_probe = needs_probe or f"probe file owed: {', '.join(owed)}"
                 else:
@@ -902,6 +962,7 @@ def build_queue(world: World | None = None) -> dict:
                 "stem": path.stem, "symbol": symbol, "tf": rig_tf(tf), "phase": phase, "fromListing": False,
                 "licence": licence_of(world, kind, path), "rows": [], "origins": [],
                 "needsLive": False, "needsXTable": False, "guards": set(), "named": set(), "direct": set(), "stated": [],
+                "publishedScript": published_script(world, path.stem) if kind == "reference" else None,
                 "docWaves": set(), "docDates": set(), "chartSources": set(), "unparsed": set(),
             }
         t["fromListing"] = t["fromListing"] or listing
@@ -935,6 +996,8 @@ def build_queue(world: World | None = None) -> dict:
                     t["named"].update(f"committed:{x}" for x in r["namedScripts"])
                     if s["kind"] == "corpus":
                         t["direct"].add(f"committed:{p.stem}")
+                    if s["kind"] == "reference":
+                        t["direct"].add(f"reference:{p.stem}")
                     if r["statedUnblocks"] is not None:
                         t["stated"].append(r["statedUnblocks"])
                     t["docWaves"].add(r["docWave"])
@@ -991,6 +1054,7 @@ def build_queue(world: World | None = None) -> dict:
             "capturedOn": sorted(by_sha.get(t["sha256"], ())),
             "licence": t["licence"], "needsLive": t["needsLive"],
             **({"needsXTable": True} if t["needsXTable"] else {}),
+            **({"publishedScript": t["publishedScript"]} if t["publishedScript"] else {}),
             "priority": u["priority"], "unblocks": u,
             "statedUnblocks": max(t["stated"]) if t["stated"] else None,
             "guards": sorted(t["guards"]), "planWave": plan_wave(t["guards"], t["direct"], bucket),
@@ -1112,6 +1176,7 @@ def build_manifest(queue: dict, top: int | None = None, wave: str | None = None,
             "chartDefaulted": bool(t.get("chartDefaulted")), "chartSource": t.get("chartSource"),
             "queueTargetId": t["id"], "rows": t["rows"], "priority": t["priority"],
             "planWave": t["planWave"], "localOnly": t["licence"] == "held",
+            **({"publishedScript": t["publishedScript"]} if t.get("publishedScript") else {}),
         })
     state, source = door_flag_state()
     return {"schema": MANIFEST_SCHEMA, "generatedBy": "tools/vendor_harness/evidence_engine.py manifest",

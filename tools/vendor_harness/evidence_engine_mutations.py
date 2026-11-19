@@ -52,6 +52,10 @@ BATCH_CLASH = "test_two_scripts_naming_one_capture_id_refuse_the_batch_before_an
 # ── the x-table marker (2026-11-19) ──
 XT_RAIL = "test_a_row_asking_for_the_x_table_is_not_answered_by_a_capture_without_one"
 XT_BAD = "test_an_x_table_cell_outside_yes_no_refuses_the_queue_by_name"
+# ── reference scripts (2026-11-19) ──
+REF_TARGET_RAIL = "test_a_reference_script_with_its_cached_text_is_a_target_and_a_held_one_is_licence_hold"
+REF_UNCACHED_RAIL = "test_a_reference_script_without_its_cached_text_is_needs_probe_by_name_and_takes_no_section_probe"
+REF_CI_RAIL = "test_the_committed_reference_rows_derive_and_queue_check_passes_on_a_machine_without_the_cache"
 
 MUTATIONS = [
     # ── the first eight (2026-11-02, tip ec0882c16a) ──
@@ -177,8 +181,8 @@ MUTATIONS = [
     ("an inline probe shape inherits a source", EE,
      r'                    and not re.search(r"\bprobe(?: shape)?:|indicator\(", rtext):',
      "                    and True:", PROSE),
-    ("an owed probe inherits a source", EE, "if not sources and not owed and not NO_PROBE_RX",
-     "if not sources and not NO_PROBE_RX", PROSE),
+    ("an owed probe inherits a source", EE, "if not sources and not owed and not ref_why",
+     "if not sources and not ref_why", PROSE),
     ("a version variant reads as the plain file", EE, "            variant = bool(VARIANT_RX.search(rtext))",
      "            variant = False", "test_a_version_variant_takes_its_sibling_file_or_needs_a_probe"),
     ("STALE is never derived", EE, '    if stale:\n        return "STALE"', '    if False:\n        return "STALE"',
@@ -201,8 +205,8 @@ MUTATIONS = [
     ("the preamble's listing wording flags a row on a section's chart", EE,
      '(chart_source == "preamble" and LISTING_RX.search(preamble))', "LISTING_RX.search(preamble)", SECTION),
     ("a prose cell can ask for a probe", EE,
-     '            sources, owed, fx = resolve_sources(world, " | ".join(c for c, pr in zip(cells, prose) if not pr))\n',
-     "            sources, owed, fx = resolve_sources(world, rtext)\n", PROSE_CELL),
+     '            request = " | ".join(c for c, pr in zip(cells, prose) if not pr)\n',
+     "            request = rtext\n", PROSE_CELL),
     ("no column is read as prose", EE, "bool(PROSE_HEAD_RX.match(header[ci]))", "False", PROSE_CELL),
     ("a bare probe stem in a prose cell is not filed as a reference", EE,
      "        if tok in world.probes and refs_only:\n", "        if False:\n", PROSE_CELL),
@@ -272,6 +276,21 @@ MUTATIONS = [
      '                "needsXTable": False,', XT_RAIL),
     ("an x-table cell outside yes / no is read as no", EE,
      '    raise XTableMarkerError(f"{where}: an', '    return False and (f"{where}: an', XT_BAD),
+    # ── 2026-11-19: reference scripts, ONE form `reference:<slug>` (cached text: a target; none: NEEDS_PROBE by name) ──
+    ("an uncached reference script is not named as one", EE,
+     '            why.append(f"{REF_UNCACHED}: `reference:{slug}`")\n', "            pass\n", REF_UNCACHED_RAIL),
+    ("a reference row that resolves to nothing takes the section's probe", EE,
+     "            if not sources and not owed and not ref_why and not NO_PROBE_RX",
+     "            if not sources and not owed and not NO_PROBE_RX", REF_UNCACHED_RAIL),
+    ("a held reference script is queued as if it were ours", EE, '    if kind == "corpus":\n        return "corpus"\n',
+     '    if kind in ("corpus", "reference"):\n        return "corpus"\n', REF_TARGET_RAIL),
+    ("the published script loses its PUB; prefix", EE, '"id": sid if sid.startswith("PUB;") else f"PUB;{sid}"',
+     '"id": sid', REF_TARGET_RAIL),
+    ("another spelling of a reference script reads as prose", EE,
+     '        why.append(f"a reference script is named `reference:{slug}`, not `reference/{slug}`")\n', "        pass\n",
+     REF_TARGET_RAIL),
+    ("a reference script's text is taken whether or not the cache holds it", EE,
+     "        return p if p.is_file() else None\n", "        return p\n", REF_CI_RAIL),
 ]
 
 

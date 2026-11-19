@@ -143,7 +143,9 @@ def test_get_status_exposes_ingest_and_keeps_feed_fields():
 
 def test_the_reader_loop_runs_through_the_timer():
     import inspect
-    src = inspect.getsource(bs._run_websocket)
+    # the reader body lives in _connection_loop since the hot standby (2026-11-19); _run_websocket runs it
+    assert "_connection_loop(on_bar, policy" in inspect.getsource(bs._run_websocket)
+    src = inspect.getsource(bs._connection_loop)
     assert "async for raw_msg in _timed_frames(ws)" in src
     assert "ingest_core.apply_frame(raw_msg, frame_ctx)" in src
     assert "count_event=_count_event" in src

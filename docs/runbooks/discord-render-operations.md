@@ -279,6 +279,16 @@ happened.
 | `api/routers/render_panels.py:60-82` — `_accepted_tokens()` / `_check_token()`, reading `CHART_RENDER_TOKEN` and `CHART_RENDER_TOKEN_PREVIOUS` | the `/api/r/*` **payload** endpoints |
 | `app/src/lib/renderToken.js:18-31`, imported by the **14** `app/src/pages/*Render.jsx` pages, reading `VITE_CHART_RENDER_TOKEN` / `VITE_CHART_RENDER_TOKEN_PREVIOUS` | the `/r/*` **pages** themselves. Baked in at BUILD time, so rotating it is a rebuild |
 
+**Since 2026-11-19 the check lives in ONE place.** The second row above is the record of how it
+stood until then. `app/src/lib/renderToken.js` no longer reads `VITE_CHART_RENDER_TOKEN` or
+`VITE_CHART_RENDER_TOKEN_PREVIOUS`, `Dockerfile.web` no longer declares them, and the ledger's
+`build_flags` rows for them are gone. A `/r/*` page forwards the `?token=` from its address to its
+`/api/r/*` read and takes the answer: a 401 or 403 shows the page's refused state (`unauthorized`
+on the panel pages and `/r/chart`, the `Unavailable` box on `/r/buzz`, the `unavailable` box and
+`__cotReady = 'error'` on `/r/cot`) and the page never sets its ready flag. So a rotation is the
+two server variables only, and no rebuild. The two `VITE_` variables, where still set on a
+service, are read by nothing. Rail: `app/src/lib/renderTokenSource.rail.test.js`.
+
 ⚠️ **The confusion is understandable, because chart-renderer DOES hold a secret — a different one.**
 `CHART_RENDERER_SECRET` gates `POST /render` via the `X-Render-Secret` header
 (`services/chart_renderer/app.py:62`, sent by `api/services/discord_chart_house.py:272`). Two
@@ -440,6 +450,14 @@ URL, so rotation is two-phase and never a single `--set`:
    (`C:\Users\Patrick\uct-q1-observe\render_token_retire.cmd`, Mondays 07:15 local), which refuses
    to run until that morning's wire has completed. Opt out with a `render_token_retire.disabled`
    marker beside it.
+
+**Since 2026-11-19 the `VITE_` halves are not part of a rotation.** Steps 1 to 3 above are the
+record of the 2026-09-13 procedure. Today step 1 is: on `web`, in one change, set
+`CHART_RENDER_TOKEN_PREVIOUS` to the current value and `CHART_RENDER_TOKEN` to the new one. Step 2
+is unchanged. Then give every sender the new value (the Morning Wire PC holds its own copy), and
+clear `CHART_RENDER_TOKEN_PREVIOUS` once `token_slots` shows no sender on the previous slot; a
+delete does not restart `web`, so redeploy and confirm from the pod. There is no bundle to wait
+for: the pages hold no copy of the token.
 
 ⛔ **Do NOT put `CHART_RENDER_TOKEN` on chart-renderer** — §7 above, and it is the trap on this
 path most likely to look like the fix.

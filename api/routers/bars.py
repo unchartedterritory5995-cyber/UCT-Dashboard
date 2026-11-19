@@ -1742,15 +1742,54 @@ async def get_bars_history(
         # composed on the web pod (collector rows + the OHLC store + the breadth authority
         # seam), none of which the worker has. `/api/bars` already keeps breadth local.
         try:
-            return await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
+            resp = await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
+            return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
         except Exception:
             pass  # worker unreachable/slow → fall back to the web's own shallow history
     # ⛔ (2026-10-10) OFF THE EVENT LOOP. This handler is `async`, and `serve_bars_history` is
     # synchronous: a breadth / market-indicator build here (seconds, cold) froze every request
     # on the single web pod for its whole duration. Same threadpool `/api/bars` uses.
     from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(serve_bars_history, ticker, tf, bars, v, d,
+    resp = await run_in_threadpool(serve_bars_history, ticker, tf, bars, v, d,
                                    if_none_match=request.headers.get("if-none-match", ""))
+    return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
+
+
+# ⭐⭐ A LENGTH, OR CACHE RESERVE NEVER KEEPS IT (2026-11-19). Cloudflare's Cache Reserve (the
+# persistent tier behind the edge) stores only responses that carry a Content-Length; a chunked
+# response is refused (developers.cloudflare.com/cache/advanced-configuration/cache-reserve,
+# eligibility). This route's IMMUTABLE answers went out chunked whenever the client asked for gzip,
+# which Cloudflare always does: a middleware inside GZip re-streams the body in several messages, so
+# GZipMiddleware takes its streaming branch and drops the length (measured against the origin: gzip
+# -> `transfer-encoding: chunked`, no length; identity -> `content-length: 873380`). The deep daily
+# history therefore lived only in the ordinary edge cache, which evicts it within hours: at 10:00 ET
+# on 2026-11-19, 0 of 100 tickers the 04:00 sweep had stocked were still cached, and every first
+# open of a daily chart paid the 2-3 s origin build again.
+# The body is gzipped ONCE here, with its length; GZipMiddleware passes an already-encoded response
+# through untouched (`content_encoding_set`), and the length survives to the client.
+GZIP_WITH_LENGTH_MIN_BYTES = 1000
+
+
+def gzip_with_length(resp, accept_encoding: str, *, level: int = 5):
+    """`resp` gzipped with a Content-Length when the client accepts gzip and it is a 200 worth
+    compressing; otherwise `resp` unchanged. Headers (Cache-Control, ETag, Server-Timing) carry over."""
+    import gzip as _gzip
+    from starlette.responses import Response as _Resp
+    body = getattr(resp, "body", None)
+    if (getattr(resp, "status_code", 0) != 200 or not isinstance(body, (bytes, bytearray))
+            or len(body) < GZIP_WITH_LENGTH_MIN_BYTES
+            or "gzip" not in (accept_encoding or "").lower()
+            or "content-encoding" in resp.headers):
+        return resp
+    packed = _gzip.compress(bytes(body), compresslevel=level, mtime=0)
+    headers = {k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-encoding")}
+    out = _Resp(content=packed, status_code=200, headers=headers)
+    out.headers["Content-Encoding"] = "gzip"
+    out.headers["Content-Length"] = str(len(packed))
+    vary = out.headers.get("vary", "")
+    if "accept-encoding" not in vary.lower():
+        out.headers["Vary"] = (vary + ", " if vary else "") + "Accept-Encoding"
+    return out
 
 
 @router.post("/api/admin/warm-universe")
