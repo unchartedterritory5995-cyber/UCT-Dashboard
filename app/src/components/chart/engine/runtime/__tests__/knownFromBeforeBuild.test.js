@@ -190,6 +190,14 @@ describe('a refusal from the drawn span still fires; a refusal the supply names 
     expect(off.refused).toMatch(/^runtime:chart-clock/)
     expect(on.refused).toBe(off.refused)
   })
+  it('⛔ a chart known only on its newest bar is not moved there: refused both ways, by the same sentence', () => {
+    const plain = runDef(pine(['plot(request.security("SP:SPX", timeframe.period, close))']), { x: 0 })
+    const rows = CHART.slice(0, DEPTH * 192 + 1)   // the newest bar is the first one our data answers
+    expect(knownFromBeforeBuild(plain, rows, ctx5())).toBe(rows.length - 1)
+    const { off, on } = bothWays(plain, rows, ctx5())
+    expect(off.refused).toMatch(/cannot be read on every bar/)
+    expect(on.refused).toBe(off.refused)
+  })
   it('⛔ a hole AFTER the series began still refuses with the run\'s own sentence, both ways (no depth, no move)', () => {
     const holed = SPX5_LATE.filter((b) => !(b.t >= ET(SESS[6], 9, 30) && b.t < ET(SESS[6], 10, 0)))
     const ctx = ctx5({ secondary: new Map([['SPX', { bars: holed, status: 'available' }], ['SPX@D', { bars: SPXD, status: 'available' }]]) })
