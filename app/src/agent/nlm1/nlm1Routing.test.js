@@ -217,6 +217,9 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     volumeProfile: ['turn on volume profile', 'set the vpvr bins to 30', 'hide vp on this chart'],
     // Charts family (2026-11-15): newsLibrary.*'s own words — a headline saved / noted, the library, a collection's own verbs
     newsLibrary: ['save the NVDA headline', 'show my saved headlines', 'create a collection called Earnings', 'add a note to that headline: watch it'],
+    // Charts family (2026-11-19): recentlyDeleted.*'s own words — Recently deleted / undelete, what was deleted, a bring-back of
+    // a list / layout / screen, a restore of a deleted one
+    recentlyDeleted: ['bring back my Momentum watchlist', 'undelete the Swing layout', 'show my recently deleted screens', 'what did I delete', 'restore the watchlist I deleted'],
     periodSort: ['open the period sort for themes', 'rank stocks between 2026-01-02 and 2026-03-31', 'sort sectors from mar 3 to jun 30', 'dock the ranking as a widget'],
     // uctIntelligence.set: the chart INDICATOR by name (never "… with UCT Intelligence" authoring), or one of its panel's switches
     uctIntelligence: ['add uct intelligence to this chart', 'turn off auto patterns', 'turn on the setups layer', 'show candlestick patterns on this chart'],

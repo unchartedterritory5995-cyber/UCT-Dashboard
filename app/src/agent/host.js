@@ -571,6 +571,11 @@ export function buildWatchlistSource({ getLists, getWidgets, revalidate, request
       gone.add(String(id))
       revalidate?.()
     },
+    /** A list brought back from Recently deleted (recentlyDeleted.restore): this tab stops hiding it, and the server's copy is read. */
+    async revive(id) {
+      gone.delete(String(id))
+      return this.settle(id)
+    },
     /** Only to take back a list THIS transaction just created (compensation). */
     async deleteCreated(id) {
       await json(await request(`/api/watchlists/${enc(id)}`, { method: 'DELETE' }), 'Removing the new list')

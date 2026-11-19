@@ -5647,6 +5647,56 @@
      "modes": {}
     }
    }
+  },
+  "recentlyDeleted.restore": {
+   "digest": "f6602f95f8c2a866",
+   "phrasings": {
+    "bring back my Old Breakouts screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "undelete the Old Breakouts screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "restore my deleted Old Breakouts screen": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "recover the Old Breakouts screen I deleted": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "recentlyDeleted.list": {
+   "digest": "8417baf3567c69cd",
+   "phrasings": {
+    "what have I deleted": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show my recently deleted screens": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is in recently deleted": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show my deleted layouts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

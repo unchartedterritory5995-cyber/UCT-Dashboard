@@ -103,6 +103,16 @@ export const GROUPS = [
       /\b(?:saved headlines|research library|news library)\b|\bmy (?:news )?collections\b/,
       /\b(?:create|make|start|rename|delete|remove)\b[^.;!?]*\b(?:news )?collections?\b|\b(?:into|in|to|out of|from) (?:my |the )?[\w “”"'-]{1,40} collection\b/,
       /\bnote\b[^.;!?]*\b(?:headline|story|article)\b|\b(?:headline|story|article)\b[^.;!?]*\bnote\b/] },
+  // Charts family (2026-11-19): recentlyDeleted.* — Recently deleted (bring back a deleted watchlist, saved layout or saved
+  // screen), in its OWN words-only group: never a filler. The words say "recently deleted" / "undelete", ask what was deleted,
+  // or put a bring-back / restore / recover verb with "deleted" / "removed" and a list / layout / screen noun — or "bring back"
+  // with that noun. Never "delete my list", "restore my layout to yesterday" (a version), "bring back the volume".
+  { id: 'recentlyDeleted', title: 'Recently deleted: bring back a deleted watchlist, layout or saved screen', domains: ['recentlyDeleted'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:recently deleted|undelet\w*|un-delet\w*)\b/,
+      /\bwhat (?:have|did) i (?:just |recently )?(?:delete|deleted|remove|removed)\b|\b(?:my |the )?deleted (?:watch ?lists?|lists|layouts?|saved screens?|screens?|scans?|items|stuff)\b/,
+      /\bbring\b(?=[^.;!?]*\bback\b)(?=[^.;!?]*\b(?:watch ?lists?|layouts?|saved screens?|screens?|scans?)\b)/,
+      /\b(?:restore|recover|retrieve|bring back|get back)\b[^.;!?]*\b(?:deleted|removed)\b[^.;!?]*\b(?:watch ?lists?|lists?|layouts?|screens?|scans?)\b|\b(?:restore|recover|retrieve|bring back|get back)\b[^.;!?]*\b(?:watch ?lists?|lists?|layouts?|screens?|scans?)\b[^.;!?]*\b(?:deleted|removed)\b/] },
   // Family C (right-click and header parity, 2026-11-11): a chart's right-click Ask AI and the watermark's Reset position, in
   // their OWN words-only group (as compareGroups): never a filler, so no existing group and no unrecognised request changes.
   // "ask" / "watermark" are used elsewhere, so each needs its context: Ask AI with about / on / for or a chart word; the

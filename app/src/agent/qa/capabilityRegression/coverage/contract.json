@@ -2017,6 +2017,32 @@
    ],
    "fast": false
   },
+  "recentlyDeleted.list": {
+   "domain": "recentlyDeleted",
+   "group": "recentlyDeleted",
+   "target": "recentlyDeleted",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "recentlyDeleted.restore": {
+   "domain": "recentlyDeleted",
+   "group": "recentlyDeleted",
+   "target": "recentlyDeleted",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "research.ask": {
    "domain": "research",
    "group": "data",

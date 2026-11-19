@@ -199,6 +199,8 @@
   "newsLibrary.collection": "newsLibrary",
   "newsLibrary.deleteCollection": "newsLibrary",
   "newsLibrary.place": "newsLibrary",
+  "recentlyDeleted.list": "recentlyDeleted",
+  "recentlyDeleted.restore": "recentlyDeleted",
   "compare.openView": "comparePanel",
   "multiChart.set": "multiChart",
   "multiChart.cell": "multiChart"
@@ -219,6 +221,10 @@
   {
    "id": "newsLibrary",
    "title": "Your UCT News library: save or unsave a headline, its note, collections"
+  },
+  {
+   "id": "recentlyDeleted",
+   "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
   },
   {
    "id": "chartMenu",
@@ -426,6 +432,10 @@
      {
       "id": "newsLibrary",
       "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
+      "id": "recentlyDeleted",
+      "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
      },
      {
       "id": "chartMenu",
@@ -651,6 +661,10 @@
      {
       "id": "newsLibrary",
       "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
+      "id": "recentlyDeleted",
+      "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
      },
      {
       "id": "chartMenu",
@@ -890,6 +904,10 @@
      {
       "id": "newsLibrary",
       "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
+      "id": "recentlyDeleted",
+      "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
      },
      {
       "id": "chartMenu",
@@ -1141,6 +1159,10 @@
       "title": "Your UCT News library: save or unsave a headline, its note, collections"
      },
      {
+      "id": "recentlyDeleted",
+      "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
+     },
+     {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
@@ -1362,6 +1384,10 @@
       "title": "Your UCT News library: save or unsave a headline, its note, collections"
      },
      {
+      "id": "recentlyDeleted",
+      "title": "Recently deleted: bring back a deleted watchlist, layout or saved screen"
+     },
+     {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
@@ -1518,6 +1544,7 @@
     "chartSetup",
     "compareGroups",
     "newsLibrary",
+    "recentlyDeleted",
     "chartMenu",
     "chartFeatures",
     "chartGrid",
@@ -1747,6 +1774,8 @@
     "newsLibrary.collection",
     "newsLibrary.deleteCollection",
     "newsLibrary.place",
+    "recentlyDeleted.list",
+    "recentlyDeleted.restore",
     "compare.openView",
     "multiChart.set",
     "multiChart.cell"

@@ -209,6 +209,12 @@ const READERS = {
     if (ch.drop && ch.put) return [{ state: 'template', type: 'overwrite', via: 'save', name: `your indicator template “${nm(ch.drop.name)}”` }]
     return []
   },
+  // recentlyDeleted.* (2026-11-19): a restore only ADDS (it recreates a deleted item under its old id; nothing existing is
+  // replaced). Its Undo / compensation (`sendBack`, never planned from words) deletes what it brought back — read as a delete.
+  recentlyDeleted(p) {
+    return (p.patch?.sendBack || []).filter(it => it.kind === 'watchlist' || it.kind === 'layout')
+      .map(it => ({ state: it.kind, type: 'delete', name: `your ${it.kind} “${nm(it.name)}”` }))
+  },
   // newsLibrary.* (2026-11-15): the member's UCT News library — a headline taken out (its note and collection places go
   // with it), a NON-EMPTY note replaced, a collection renamed or deleted, a headline taken out of a collection. A save, a
   // first note, an appended note, a new collection and putting a headline in one only add.
