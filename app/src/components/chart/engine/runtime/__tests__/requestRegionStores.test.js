@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/requestRegionStores.test.js
 //
-// ⭐⭐⭐ (engine 85, NUMBER PENDING) — A REQUEST REGION STORES WHAT IT READS.
+// ⭐⭐⭐ (engine 85) — A REQUEST REGION STORES WHAT IT READS.
 //
 // A request runs as its own sub-run (`vm.js::runRequest`): a fresh `execute` from the region's entry, over the
 // requested bars. ⚰️ From engine 82 (#1952, U-FGS F1) a helper's `ta.change(x)` inlined into a request declared its
