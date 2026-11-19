@@ -15,8 +15,8 @@ float64 text, and record each capture's own `capturedAtUTC`. Both probes are our
 
 | id | probe | chart | question | live | phase |
 |---|---|---|---|---|---|
-| Q-HLINE-1 | `vw-hline-written.pine` | NYSE:RDDT 1D | H1-H7: each hline's level, colour (incl. a transparency and a fully transparent colour), line style and width, as `bands` / `bandDefaults` / `bandState` record them; H5 (price only) gives TradingView's own defaults | no | any |
-| Q-FILL-HID-1 | `vw-fill-hidden-anchors.pine` | NYSE:RDDT 1D | F1 (both anchors `display.none`), F2 (both untitled, no `display`), F3 (one of each): is each fill drawn, in what colour, and is each anchor drawn as a line (`styleState[...].display` / `visible`)? | no | any |
+| Q-HLINE-1 | `vw-hline-written.pine` | NYSE:RDDT 1D | H1-H7: each hline's level, colour (incl. a transparency and a fully transparent colour), line style and width, as `bands` / `bandDefaults` / `bandState` record them; H5 (price only) gives TradingView's own defaults | no |  |
+| Q-FILL-HID-1 | `vw-fill-hidden-anchors.pine` | NYSE:RDDT 1D | F1 (both anchors `display.none`), F2 (both untitled, no `display`), F3 (one of each): is each fill drawn, in what colour, and is each anchor drawn as a line (`styleState[...].display` / `visible`)? | no |  |
 
 **What each answer moves.**
 - Q-HLINE-1 gives `compare.mjs` the key shapes a `bands` case grades (level, colour, style, width per band), and
@@ -33,9 +33,9 @@ capability licence; no committed capture grades them yet. Capture each from the 
 
 | id | script | chart | question | live | phase |
 |---|---|---|---|---|---|
-| Q-ONCE-1a | `reference/camarilla-levels-intraday__bfb5a2b8db` | NYSE:RDDT 1D, AMEX:SPY 1D | do the levels and labels drawn on the last bar match TradingView's (objects, by family and price)? | no | any |
-| Q-ONCE-1b | `reference/rsi-support-resistance-by-dgt__ZkkLVEb1ak` | NYSE:RDDT 1D, AMEX:SPY 1D | the lines and linefills drawn on the last bar, beside its plots | no | any |
-| Q-ONCE-1c | `reference/support-resistance-fibonacci-retracement__06a1a2c80d` | NYSE:RDDT 1D, AMEX:SPY 1D | the lines and labels, including the 6 list reads (B) now carries | no | any |
+| Q-ONCE-1a | `reference/camarilla-levels-intraday__bfb5a2b8db` | NYSE:RDDT 1D, AMEX:SPY 1D | do the levels and labels drawn on the last bar match TradingView's (objects, by family and price)? | no |  |
+| Q-ONCE-1b | `reference/rsi-support-resistance-by-dgt__ZkkLVEb1ak` | NYSE:RDDT 1D, AMEX:SPY 1D | the lines and linefills drawn on the last bar, beside its plots | no |  |
+| Q-ONCE-1c | `reference/support-resistance-fibonacci-retracement__06a1a2c80d` | NYSE:RDDT 1D, AMEX:SPY 1D | the lines and labels, including the 6 list reads (B) now carries | no |  |
 
 **What each answer moves.** MATCH keeps the script drawn. **DIVERGE applies the REACH kill rule by source hash**
 (the script is withheld by name until the divergence is understood), per the coordinator's condition on ruling (B).
