@@ -8,12 +8,13 @@
 // chart whose newest bar is a finished THURSDAY (the week still forming), with `w = request.security(.., "W", close)`:
 // withheld: w, nz(w), na(w) ? w[1] : w, a `var` total of w, y set inside `if w > close`, an array fed w;
 // drawn: w[1], close, the total's [1].
-// ⛔ The whole-bar rule stays where the taint cannot place what it reaches: a `fill` or a drawing fed w.
+// ⛔ The whole-bar rule stays where the taint cannot place what it reaches: a drawing fed w (likewise a `fill`, `hline`, `alert`).
 // CONTROL: the Friday chart (the week closed) withholds nothing.
 import { describe, it, expect, beforeEach } from 'vitest'
 import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, RUNTIME_REQUEST_WITHHELD_KEY,
   requestNewestHeldOf } from '../runtimeColumns.js'
-import { requestNewestReachOf } from '../../ast/strategyTaint.js'
+import { requestNewestReachOf, strategyTaintSinks } from '../../ast/strategyTaint.js'
+import { lexPine, blockStatements } from '../../ast/pine.js'
 
 beforeEach(() => { resetRuntimeSessions(); resetRuntimeLedgers() })
 
@@ -84,8 +85,8 @@ describe('a finished Thursday: only the outputs the weekly request reaches on th
 })
 
 describe('⛔ the whole-bar rule stays where the taint cannot place what the request reaches', () => {
-  it('a fill fed by w: every column withheld, keys null', () => {
-    const body = 'w = request.security(syminfo.tickerid, "W", close)\np1 = plot(w)\np2 = plot(close)\nfill(p1, p2)\n'
+  it('a drawing fed by w: every column withheld, keys null', () => {
+    const body = 'w = request.security(syminfo.tickerid, "W", close)\nplot(w)\nplot(close)\nlabel.new(bar_index, nz(w), "w")\n'
     const out = computeRuntimeColumns(doc(body, { p1: 0, p2: 1 }), THURSDAY, ctx)
     expect(Number.isNaN(newestOf(out, 'p2', THURSDAY))).toBe(true)
     expect(out[RUNTIME_REQUEST_WITHHELD_KEY].keys).toBe(null)
@@ -99,5 +100,31 @@ describe('⛔ the whole-bar rule stays where the taint cannot place what the req
     expect(requestNewestHeldOf([{}], [0], outputs).keys).toBe(null)
     expect(requestNewestHeldOf([{ newestReach: { refused: { why: 'x' }, withheld: [] } }], [0], outputs).keys).toBe(null)
     expect(requestNewestHeldOf([{ newestReach: { refused: null, withheld: [{ index: 1 }] } }], [0], outputs).keys).toEqual(['b'])
+  })
+})
+
+describe('the taint itself (`strategyTaintSinks` with `cutHistory`): which reads a newest-bar-only source reaches', () => {
+  const sinksOf = (body, cutHistory) => {
+    const { tokens, indents } = lexPine(`//@version=5
+indicator("t")
+${body}`)
+    const stmts = blockStatements(tokens, indents, 0)
+    const isSource = (t) => t.kind === 'ident' && t.value === 'request.security' && t.line === 3
+    return [...strategyTaintSinks(stmts, { isSource, cutHistory }).values()].map((v) => v.tok.line).sort()
+  }
+  const BODY = ['r = request.security(syminfo.tickerid, "W", close)',   // line 3
+    'plot(r)',                                                          // 4: reads r on the bar
+    'plot(r[1])',                                                       // 5: a scalar's past: cut
+    'var a = array.new_float(0)',                                       // 6
+    'array.push(a, r)',                                                 // 7
+    'b = a[1]',                                                         // 8: a REFERENCE's past: the same array
+    'plot(array.size(b) > 0 ? array.get(b, 0) : na)',                   // 9: never cut
+    'plot(close)'].join('
+')                                          // 10: reads no request
+  it('cut: r reaches lines 4 and 9, not 5 (r[1]) or 10', () => {
+    expect(sinksOf(BODY, true)).toEqual([4, 9])
+  })
+  it('CONTROL: without the cut (the strategy taint, unchanged) r[1] is reached too', () => {
+    expect(sinksOf(BODY, false)).toEqual([4, 5, 9])
   })
 })
