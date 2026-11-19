@@ -35,6 +35,7 @@
 // to a member and visible to a byte-for-byte vendor comparison, so it is
 // recorded rather than presented as measured.
 import { packColor, unpackColor, wholeTransparency, TRANSPARENCY_MAX, BYTE_MAX } from '../colorInt.js'
+import { themeColourOfPacked, packedThemeColour, themeColourWithTransparency } from '../objectTheme.js'
 
 /** Thrown for a colour a member could have written differently. */
 export class ColourError extends Error {
@@ -226,6 +227,10 @@ export function objectHexToPacked(hex) {
 }
 
 export function packedToObjectHex(packed) {
+  // ⭐⭐ ENGINE 84 (CO-2) — the chart's theme colour leaves the run as the REFERENCE it is
+  // (`chart.fg_color@40`, `objectTheme.themeColourOfPacked`), resolved where it is drawn like every other one
+  const ref = themeColourOfPacked(packed)
+  if (ref !== null) return ref
   // `Number.isInteger` is false for everything that is not a number (`null`, a
   // string), so the gradient's own "unmeasured" answer (`null`) stays `null`.
   if (!Number.isInteger(packed) || packed < 0 || packed > 0xffffffff) return null
@@ -289,7 +294,23 @@ function withTransparency(packed, transparency) {
  *  `text.js` states and for the same reason: hand-written checks drift, and the
  *  one that drifts is the one nobody reads again.
  */
+/** ⭐⭐ CO-2 — the internal step a colour comparison takes when its script paints with the chart's theme colour
+ *  (`pineRuntimeFrontend.js`, the TC branch): it hands its operand on, and STOPS BY NAME where that operand is a
+ *  theme reference, because the chart's colour is not in the computation (`chart.bg_color == color.white` is the
+ *  chart's answer, not this run's). ⛔ Its name has a space, so no Pine source can call it. */
+export const COLOUR_COMPARABLE = 'color comparable'
+
 export const COLOUR_FNS = Object.freeze({
+  [COLOUR_COMPARABLE]: {
+    args: ['number'], returns: 'colour', minArgs: 1, maxArgs: 1,
+    fn: (a) => {
+      if (themeColourOfPacked(Number(a[0])) !== null) {
+        throw new ColourError('a colour compared with the chart\'s theme colour: the theme colour is the chart\'s '
+          + 'own, not known to the computation, so the comparison is not answered')
+      }
+      return a[0]
+    },
+  },
   // `color.new(base, transp)` — base is already a packed colour.
   // ⛔ THE DECLARED KINDS ARE THE VM'S VOCABULARY, WHICH HAS NO `colour`.
   // At run time a colour IS a number — a packed `0xTTBBGGRR` integer — and
@@ -308,7 +329,24 @@ export const COLOUR_FNS = Object.freeze({
   // (Probe rows queued for CAP3: `docs/pine/capture-queue-2026-10-03-rt6-colour.md`.)
   'color.new': {
     args: ['number', 'number'], returns: 'colour', minArgs: 2, maxArgs: 2,
-    fn: (a) => (Number.isNaN(Number(a[0])) || Number.isNaN(Number(a[1])) ? NaN : withTransparency(a[0], a[1])),
+    fn: (a) => {
+      if (Number.isNaN(Number(a[0])) || Number.isNaN(Number(a[1]))) return NaN
+      // ⭐⭐ CO-2 — `color.new(chart.fg_color, t)` SETS the reference's transparency (Pine's `color.new` replaces
+      // it, never stacks: `objectTheme.themeColourWithTransparency`), at any whole t the bar computes, clamped as
+      // every transparency is. ⛔ A t that is not a whole number stops by name: its paint is the exact
+      // transparency (below), and a reference carries a whole one (the host reader's own rule, `pine.js::
+      // themePlotColourOf`).
+      const ref = themeColourOfPacked(Number(a[0]))
+      if (ref !== null) {
+        const t = Number(a[1])
+        if (!Number.isInteger(t)) {
+          throw new ColourError('`color.new` of the chart\'s theme colour with a transparency that is not a whole '
+            + 'number: the theme colour is carried with a whole transparency, so its exact paint is not known here')
+        }
+        return packedThemeColour(themeColourWithTransparency(ref, Math.min(Math.max(t, 0), TRANSPARENCY_MAX)))
+      }
+      return withTransparency(a[0], a[1])
+    },
   },
   // `color.rgb(r, g, b, transp = 0)` — three channels, Pine's own order.
   'color.rgb': {
@@ -338,6 +376,12 @@ export const COLOUR_FNS = Object.freeze({
     // capture pins — an `na` value or bound, an empty range — keeps the old
     // unmeasured path: the probe colour where the caller probes, else a stop by name.
     fn: (a, budget) => {
+      // ⛔ CO-2 — a gradient blends its endpoints' components, and the chart's theme colour has none in the
+      // computation (it is the chart's): an endpoint that is one stops the run by name, never a guess
+      if (themeColourOfPacked(Number(a[3])) !== null || themeColourOfPacked(Number(a[4])) !== null) {
+        throw new ColourError('`color.from_gradient` with the chart\'s theme colour as an endpoint: the theme '
+          + 'colour is the chart\'s own, not known to the computation, so the blend is not computed')
+      }
       const c = fromGradient(a[0], a[1], a[2], a[3], a[4])
       if (c !== null) return c
       const u = budget && budget.unmeasured
@@ -351,7 +395,7 @@ export const COLOUR_FNS = Object.freeze({
   },
 })
 
-export const COLOUR_NAMES = Object.freeze(Object.keys(COLOUR_FNS))
+export const COLOUR_NAMES = Object.freeze(Object.keys(COLOUR_FNS).filter((n) => n !== COLOUR_COMPARABLE))
 
 /** Does this builtin PRODUCE a colour? */
 export const producesColour = (name) => (

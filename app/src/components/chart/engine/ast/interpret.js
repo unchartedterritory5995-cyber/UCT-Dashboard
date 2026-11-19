@@ -60,6 +60,7 @@ import {
 // `export function` bindings are hoisted; `budget.js`'s header states the whole
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget, REFUSALS as BUDGET_REFUSALS } from './budget.js'
+import { TRADINGVIEW_CLOSURES_FROM, TRADINGVIEW_UNAPPLIED_CLOSURES } from '../../../../lib/marketClock/tradingViewSession.js'
 import { EXACT_CMP, PINE_CMP, compareRange, compareNarrow, pineGt, pineLt, pineLe } from '../pineCompare.js'
 import { barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, FIRST_BAR_TEST } from './barIndexShift.js'
 
@@ -1963,10 +1964,12 @@ function valueWhenOccurrence(cond, src, occurrence) {
  *    · an `na` offset reads the CURRENT bar: `close[na]` is `close`
  *      (`vw-offset-na-spy-1d-2026-09-30`, all 100 na-offset bars);
  *    · a read is one this engine can answer only when its offset is a whole
- *      number of bars, not negative (a future bar), and below the buffer — the
- *      script's `max_bars_back`, or `objectProgram.js::AUTO_MAX_BARS_BACK`, the
+ *      number of bars, not negative (a future bar), and below the buffer
+ *      (`pine.js::historyReadBufferOf`): the script's `max_bars_back` when it is at
+ *      least `objectProgram.js::AUTO_MAX_BARS_BACK`, else that automatic buffer, the
  *      reach TradingView's automatic buffer was measured to cover
- *      (`vw-mbb-auto-spy-1d-2026-09-30`: offsets 0..399 ran and read its own bars). */
+ *      (`vw-mbb-auto-spy-1d-2026-09-30`: offsets 0..399 ran and read its own bars;
+ *      WS-C: a smaller declaration does not shrink it, `vw-w4-max-bars-back-m2`). */
 export const historyBackOf = (raw) => (Number.isNaN(raw) ? 0 : raw)
 export const historyReadable = (back, limit) => Number.isInteger(back) && back >= 0 && back < limit
 /** ⭐⭐ C45 — A READ THAT LANDS BEFORE THE FIRST BAR HELD: is its answer one this
@@ -7093,7 +7096,7 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
     varOriginMask(tree, bars, inputs, budget, scalars, opts),
     // ⭐⭐ ENGINE 57 — `ta.rci` / `ta.stoch` bars no capture pins
     builtinWitnessMask(tree, bars, inputs, budget, scalars, opts),
-    tfMergeMask(tree, bars, opts),
+    tfMergeMask(tree, bars, opts, inputs, budget, scalars),
     windowHoleMask(tree, bars, inputs, budget, scalars, opts),
     // ⭐⭐ ENGINE 56 — the two per-bar witness masks (A3, S4-2)
     boolNaMask(tree, bars, inputs, budget, scalars, opts),
@@ -7249,7 +7252,7 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
  *  daily chart with no weekend bars whose first bar follows a weekday in another period —
  *  the mirror of the L3 test). Formula `tf` keeps its own behaviour.
  *  ⛔ NO `try` (`budget.test.js`): a refusal here must reach the caller as itself. */
-export function tfMergeMask(tree, bars, opts) {
+export function tfMergeMask(tree, bars, opts, inputs = {}, budget = undefined, scalars = undefined) {
   const n = Array.isArray(bars) ? bars.length : 0
   const found = []
   const stack = [[tree, false, null]]
@@ -7276,7 +7279,14 @@ export function tfMergeMask(tree, bars, opts) {
   // withheld unless known to be forming, and under another request whatever the chart says.
   const forming = !!opts && opts.newestBarIsForming === true
   const known = forming || newestClosesEveryMergePeriod(bars, found, opts)
-  if (!known || found.some((f) => f.under)) mask[n - 1] = 1
+  // ⭐⭐ HTF-NEWEST-NARROW (coordinator ruling 2026-11-19) — ONLY A ROOT THAT READS THE MERGE ON ITS NEWEST BAR.
+  // The newest bar was withheld for the WHOLE tree, so `x[1]` (the bar before's merge, settled) was blank wherever
+  // `x` was. Which root bars read the unknown merge is engine 56's dependency walk (`witnessMask`), with each
+  // merge a site unknown on its newest bar only: `x[k]` moves it k bars later, so `x[1]` draws; `nz(x)`,
+  // `na(x) ? x[1] : x`, a window or a running value over x read x on that bar and stay withheld. ⛔ A merge under
+  // another request keeps the whole-tree rule (its newest bar is another series').
+  if (found.some((f) => f.under)) mask[n - 1] = 1
+  else if (!known && newestReadsMerge(tree, bars, opts, inputs, budget, scalars)) mask[n - 1] = 1
   const firstMask = firstPeriodPartialMask(bars, found, opts)
   const supplied = (opts && opts.symbols) || {}
   for (const f of found) {
@@ -7401,6 +7411,18 @@ function tfLiveFormingMask(bars, opts) {
   return out
 }
 
+/** ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) — does the ROOT's newest bar read a `tf_merge` on that merge's newest bar
+ *  (the one bar whose merge is unknown when the bar is finished)? Engine 56's walk (`witnessMask`), every merge a
+ *  site flagged on the newest bar only, with the sinks stripped: `tfMergeMask` names the code itself. */
+function newestReadsMerge(tree, bars, opts, inputs, budget, scalars) {
+  const n = bars.length
+  const newestOnly = () => { const c = new Float64Array(n); c[n - 1] = 1; return c }
+  const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
+  const m = witnessMask(tree, bars, inputs, budget, scalars, quiet, (nd) => nd.type === TF_MERGE, newestOnly,
+    TF_MERGE_NEWEST_CODE)
+  return !!m && m[n - 1] === 1
+}
+
 /** ⭐ REVIEW L3 — the weekday of an ISO day, Mon = 1 … Sun = 7, from the day count alone. */
 function isoWeekday(iso) {
   const [y, m, d] = iso.split('-').map(Number)
@@ -7496,7 +7518,7 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
     if (!hasSite(node)) return null
     if (memo.has(node)) return memo.get(node)
     let out = null
-    if (WITNESS_NESTED.has(node.type)) out = ALL
+    if (WITNESS_NESTED.has(node.type) && !isSite(node)) out = ALL
     else {
       const args = Array.isArray(node.args) ? node.args : []
       if (isSite(node)) {
@@ -7796,10 +7818,46 @@ export function tfMergeReads(isos, code, at) {
     const b = at.get(tfBucket(iso, code))
     const next = i + 1 < length ? isos[i + 1] : null
     if (i + 1 < length && !next) continue
-    if (next === null || tfBucket(next, code) !== tfBucket(iso, code)) out[i] = b
-    else if (b > 0) out[i] = b - 1
+    // ⭐⭐ U-HTF-CALENDAR — a period a later weekday of which TradingView's session never closed
+    // closes on the NEXT bar: this bar still reads the period before (`htfClosesOnNextBar`).
+    if (next === null || tfBucket(next, code) !== tfBucket(iso, code)) {
+      out[i] = next !== null && b > 0 && htfClosesOnNextBar(iso, code) ? b - 1 : b
+    } else if (b > 0) out[i] = b - 1
   }
   return out
+}
+
+/** ⭐⭐ U-HTF-CALENDAR (2026-11-18) — A PERIOD CLOSES WHERE TRADINGVIEW'S SESSION SAYS IT DOES. One rule for
+ *  both lanes (`tfMergeReads` is the run's supply pick and the host's `tf_merge` arm; the Python twin is
+ *  `ast_interpret.py::htf_closes_on_next_bar`), read off the one authority on TradingView's session,
+ *  `lib/marketClock/tradingViewSession.js` (never restated here): it applies no closure before
+ *  `TRADINGVIEW_CLOSURES_FROM`, nor the ones listed in `TRADINGVIEW_UNAPPLIED_CLOSURES` (11-14 September 2001,
+ *  Hurricane Sandy).
+ *
+ *  With look-ahead off a completed week or month is shown on the bar that closes it (read off the next bar). When a
+ *  later weekday of that period is one TradingView's session never closed, that bar was not the period's last session
+ *  to TradingView, and it shows the period's close one bar LATER, on the next period's first session. Measured on
+ *  Q-HTF-CAL-1a / 1b (`vw-request-htf-alignment-{spy,qqq}-1d-2026-11-18`, AMEX and NASDAQ alike): every short period
+ *  through 23 Dec 1999 on the NEXT bar (SPY 13 weeks and 2 months, QQQ 2 weeks and 1 month), every one from 20 Apr
+ *  2000 on its LAST bar (46 weeks and 7 months on each, the closure of 11 Jun 2004 included), and the week of 10 Sep
+ *  2001 on the NEXT bar on both (`tests/test_pine_htf_calendar_switch_year.py`). The same session facts answer C49's
+ *  `time()` / `time_close()` anchors (`indicators.js::computePeriodCalendar`). ⛔ A weekday our bars merely lack
+ *  (a gap after 2000) moves nothing: only a day TradingView's session never closed does. */
+const TV_UNAPPLIED_CLOSURE_DAYS = new Set(TRADINGVIEW_UNAPPLIED_CLOSURES.map((e) => e.date))
+export function htfClosesOnNextBar(iso, code) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false
+  if (code !== 'W' && code !== 'M') return false
+  const [y, m, d] = iso.split('-').map(Number)
+  const z = daysFromCivil(y, m, d)
+  const key = tfBucket(iso, code)
+  for (let k = 1; k <= 31; k++) {
+    const [yy, mm, dd] = civilFromDays(z + k)
+    const next = `${String(yy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+    if (tfBucket(next, code) !== key) return false
+    const weekday = ((((z + k + 3) % 7) + 7) % 7) + 1 <= 5             // Mon = 1 ... Fri = 5 (`isoWeekKey`)
+    if (weekday && (next < TRADINGVIEW_CLOSURES_FROM || TV_UNAPPLIED_CLOSURE_DAYS.has(next))) return true
+  }
+  return false
 }
 
 /** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE LOOK-AHEAD PICK, ONE AUTHORITY: for each bar of an

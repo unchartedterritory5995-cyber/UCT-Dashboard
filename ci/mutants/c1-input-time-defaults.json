@@ -1,0 +1,60 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "C1 (feat/pine-input-time-defaults, engine 84, coordinator ruling 2026-11-19): input.time defaults the reference alone settles are served (a literal ms; timestamp(\"UTC\" | \"GMT\", y, m, d, h, mm); timestamp(y, m, d, h, mm) on a New York symbol the run is told, never in New York's clock-change hours); every other spelling stays refused. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "Q1",
+   "mutant": "a literal millisecond default is refused again",
+   "file": "app/src/components/chart/engine/runtime/runtimeInputs.js",
+   "from": "  if (literalNumber(v) !== null) return null",
+   "to": "  if (literalNumber(v) !== null) return 'its default is a literal count of milliseconds'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/inputTimeReferenceDefaults.test.js",
+   "expectRed": "literal count of milliseconds"
+  },
+  {
+   "id": "Q2",
+   "mutant": "a zone that names UTC itself is refused again",
+   "file": "app/src/components/chart/engine/runtime/runtimeInputs.js",
+   "from": "  if (args.length >= 6 && args[0].value && args[0].value.type === 'string' && UTC_ZONE_NAMES.test(args[0].value.value.trim())) {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/inputTimeReferenceDefaults.test.js",
+   "expectRed": "UTC"
+  },
+  {
+   "id": "Q3",
+   "mutant": "a zone with an offset is served (its sign is CR-S1's)",
+   "file": "app/src/components/chart/engine/runtime/runtimeInputs.js",
+   "from": "const UTC_ZONE_NAMES = /^(?:UTC|GMT)$/",
+   "to": "const UTC_ZONE_NAMES = /^(?:UTC|GMT)/",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/inputTimeReferenceDefaults.test.js",
+   "expectRed": "a zone with an offset"
+  },
+  {
+   "id": "Q4",
+   "mutant": "the exchange-zone form is read off a New York symbol",
+   "file": "app/src/components/chart/engine/runtime/runtimeInputs.js",
+   "from": "    if (args.length >= 5 && literalNumber(args[0].value) !== null && opts && opts.exchangeZone === 'America/New_York') {",
+   "to": "    if (args.length >= 5 && literalNumber(args[0].value) !== null) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/inputTimeReferenceDefaults.test.js",
+   "expectRed": "not known to be New York"
+  },
+  {
+   "id": "Q5",
+   "mutant": "a default in New York's clock-change hour is guessed",
+   "file": "app/src/components/chart/engine/runtime/runtimeInputs.js",
+   "from": "  return reads.length === 1 ? reads[0] : null",
+   "to": "  return reads.length >= 1 ? reads[0] : wall + 5 * 3600000",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/inputTimeReferenceDefaults.test.js",
+   "expectRed": "skips"
+  },
+  {
+   "id": "Q6",
+   "mutant": "the run does not hand its New York zone to the reader",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    const r = timeInputDefaultOf(call, lookup, { exchangeZone })",
+   "to": "    const r = timeInputDefaultOf(call, lookup, {})",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/inputTimeReferenceDefaults.test.js",
+   "expectRed": "New York symbol is New York wall time"
+  }
+ ]
+}

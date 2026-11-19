@@ -11,6 +11,8 @@ HOW (what the tool does, in order):
   3. dispatches `.github/workflows/remote-tests.yml` ON MASTER with that ref and the test paths. The workflow
      definition therefore always comes from master: a branch cannot change how its own tests are run;
   4. waits, prints each job's verdict and the failing test ids, then deletes the ref (`--keep-ref` keeps it).
+     The wait spends the account's shared API quota sparingly (one conditional request per poll, 30/60/90 s backoff,
+     a rate-limit answer is slept off) and prints the quota left at the start and the end: see "the GitHub API budget".
 
 Usage (from a uct-dashboard checkout, after committing):
     python tools/remote_tests.py --pytest tests/test_a.py tests/test_b.py::test_x
@@ -223,17 +225,319 @@ def decide(run_conclusion: str | None, test_jobs: int, verdicts: dict[str, str])
     return OK, f"{len(verdicts)} test job(s) green"
 
 
-def _find_run(ref: str, timeout_s: int = 120) -> str | None:
-    deadline = time.time() + timeout_s
-    while time.time() < deadline:
-        r = _run(["gh", "run", "list", "--workflow", WORKFLOW, "--limit", "20",
-                  "--json", "databaseId,displayTitle"], check=False)
-        if r.returncode == 0:
-            for run in json.loads(r.stdout or "[]"):
-                if ref in (run.get("displayTitle") or ""):
-                    return str(run["databaseId"])
-        time.sleep(4)
-    return None
+# ---- the GitHub API budget (2026-11-19) -------------------------------------------------------------------------------
+#: ⚰️ 2026-11-19 ~07:45Z the account's REST quota (5,000/hour, shared by EVERY session and agent on the PC) hit 0 and
+#: blocked everyone's checks and merges. This tool was the main spender. Measured with GH_DEBUG=api: the old wait loop's
+#: `gh run view --json status,conclusion,jobs` is THREE requests (the run, its workflow, its jobs), sent every 15 s =
+#: 720/hour per waiting session; `gh run list --workflow` (finding the run, every 4 s) is two. A 15-40 min run spent
+#: ~190-500 requests, and several sessions wait at once. Now: the dispatch returns the run id (one request), each poll is
+#: ONE conditional request (a 304 Not Modified does not count against the quota), the polls back off, and a rate-limit
+#: answer is slept off until the reset instead of failing the lane. tests/test_remote_tests_lane.py rails all of it.
+POLL_FAST_S = 15                       # the test steps are done; only the uploads are left
+POLL_EARLY_S, POLL_EARLY_UNTIL_S = 30, 120
+POLL_MID_S, POLL_MID_UNTIL_S = 60, 600
+POLL_LATE_S = 90
+RUN_CHECK_EVERY = 10                   # also read the run itself every Nth poll (a run cancelled before any job)
+FIND_RUN_POLL_S = 5
+FRESH_RUN_GRACE_S = 90                 # a just-dispatched run may answer 404 for this long before it is readable
+SECONDARY_LIMIT_WAIT_S = 60            # a secondary (abuse) limit with no Retry-After: GitHub's documented minimum
+MAX_RATE_LIMIT_WAIT_S = 3700           # the primary window is one hour
+RATE_LIMIT_RETRIES = 4
+_TEST_STEPS = ("pytest", "vitest")     # the step names in remote-tests.yml (railed by the workflow tests above)
+
+
+def poll_interval(elapsed_s: float, near_done: bool = False) -> int:
+    """Seconds to wait before the next poll: 30 s for the first 2 min, 60 s to 10 min, 90 s after; 15 s once every
+    unfinished job is past its test step (the answer is seconds away, so the result is never held up by the backoff)."""
+    if near_done:
+        return POLL_FAST_S
+    if elapsed_s < POLL_EARLY_UNTIL_S:
+        return POLL_EARLY_S
+    if elapsed_s < POLL_MID_UNTIL_S:
+        return POLL_MID_S
+    return POLL_LATE_S
+
+
+def near_done(jobs: list[dict]) -> bool:
+    """Every job finished, or every unfinished one has finished its test step (only the verdict uploads are left)."""
+    left = [j for j in jobs if j.get("status") != "completed"]
+    if not jobs:
+        return False
+    return all(any(s.get("name") in _TEST_STEPS and s.get("status") == "completed" for s in (j.get("steps") or []))
+               for j in left)
+
+
+def parse_include(stdout: str) -> tuple[int, dict[str, str], str]:
+    """`gh api --include` output -> (HTTP status, lower-cased headers, body). Status 0 when there is no status line
+    (gh never reached GitHub: no network, not signed in)."""
+    head, _, body = (stdout or "").replace("\r\n", "\n").partition("\n\n")
+    lines = head.split("\n")
+    m = re.match(r"HTTP/\S+\s+(\d{3})", lines[0] if lines else "")
+    if not m:
+        return 0, {}, stdout or ""
+    headers = {}
+    for ln in lines[1:]:
+        k, sep, v = ln.partition(":")
+        if sep:
+            headers[k.strip().lower()] = v.strip()
+    return int(m.group(1)), headers, body
+
+
+def _gh_api_subprocess(method: str, path: str, headers: dict[str, str], body: dict | None) -> tuple[int, dict, str]:
+    """One `gh api` request. gh resolves `{owner}/{repo}` from the checkout's remote locally (no request for it)."""
+    cmd = ["gh", "api", "--include", "--method", method, path]
+    for k, v in headers.items():
+        cmd += ["-H", f"{k}: {v}"]
+    if body is not None:
+        cmd += ["--input", "-"]
+    r = subprocess.run(cmd, input=json.dumps(body) if body is not None else None, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
+    status, hdrs, text = parse_include(r.stdout)
+    if status == 0 or status >= 400:
+        text = f"{text}\n{r.stderr or ''}".strip()
+    return status, hdrs, text
+
+
+def _json_or_none(text: str):
+    try:
+        return json.loads(text) if text and text.strip() else None
+    except ValueError:
+        return None
+
+
+class GitHubApi:
+    """Every REST request this tool sends, counted. A conditional GET sends the ETag of the last answer to the same
+    path and a 304 answers from that copy (free); a 403/429 rate-limit answer sleeps until the reset and retries."""
+
+    def __init__(self, runner=None, sleep=time.sleep, now=time.time, log=print):
+        self._runner = runner or _gh_api_subprocess
+        self.sleep, self.now, self._log = sleep, now, log
+        self._etags: dict[str, tuple[str, object]] = {}
+        self.sent = 0                  # requests that cost quota
+        self.not_modified = 0          # 304s: free
+        self.rate_limit_waits = 0
+        self.remaining: int | None = None
+        self.reset: int | None = None
+
+    def _note_quota(self, headers: dict[str, str]) -> None:
+        if headers.get("x-ratelimit-remaining", "").isdigit():
+            self.remaining = int(headers["x-ratelimit-remaining"])
+        if headers.get("x-ratelimit-reset", "").isdigit():
+            self.reset = int(headers["x-ratelimit-reset"])
+
+    def rate_limit_wait(self, status: int, headers: dict[str, str], text: str) -> float | None:
+        """Seconds to sleep when this answer is a rate limit (None when it is not one)."""
+        if status not in (403, 429):
+            return None
+        exhausted = headers.get("x-ratelimit-remaining") == "0"
+        if not (exhausted or status == 429 or "rate limit" in (text or "").lower()):
+            return None                # a real 403 (no access): not something waiting fixes
+        retry_after = headers.get("retry-after", "")
+        if retry_after.isdigit():
+            wait = float(retry_after)
+        elif exhausted and headers.get("x-ratelimit-reset", "").isdigit():
+            wait = int(headers["x-ratelimit-reset"]) - self.now() + 5
+        else:
+            wait = SECONDARY_LIMIT_WAIT_S
+        return min(max(wait, 5.0), MAX_RATE_LIMIT_WAIT_S)
+
+    def request(self, method: str, path: str, body: dict | None = None, conditional: bool = False,
+                wait_out_limits: bool = True):
+        """(HTTP status, parsed JSON body or None). `wait_out_limits=False` returns a rate-limit answer as it is
+        (an exit path must not sleep for up to an hour)."""
+        for attempt in range(RATE_LIMIT_RETRIES + 1 if wait_out_limits else 1):
+            cached = self._etags.get(path) if conditional else None
+            hdrs = {"If-None-Match": cached[0]} if cached else {}
+            status, headers, text = self._runner(method, path, hdrs, body)
+            self._note_quota(headers)
+            if status == 304 and cached:
+                self.not_modified += 1
+                return 200, cached[1]
+            if status:
+                self.sent += 1
+            wait = self.rate_limit_wait(status, headers, text)
+            if wait is None or not wait_out_limits:
+                data = _json_or_none(text)
+                if conditional and status == 200 and headers.get("etag"):
+                    self._etags[path] = (headers["etag"], data)
+                if data is None and (status == 0 or status >= 400):
+                    data = {"message": (text or "").strip()[:400]}
+                return status, data
+            if attempt == RATE_LIMIT_RETRIES:
+                break
+            self.rate_limit_waits += 1
+            until = time.strftime("%H:%M:%SZ", time.gmtime(self.now() + wait))
+            self._log(f"remote tests: GitHub API rate limit (HTTP {status}); sleeping {int(wait)} s until {until}, "
+                      "then retrying (the run keeps going on GitHub meanwhile)")
+            self.sleep(wait)
+        raise RuntimeError(f"GitHub API still rate limited after {RATE_LIMIT_RETRIES} waits: {method} {path}")
+
+    def quota(self) -> dict | None:
+        """The core quota. `GET /rate_limit` does not count against it."""
+        try:
+            _status, headers, text = self._runner("GET", "rate_limit", {}, None)
+        except OSError:
+            return None
+        core = ((_json_or_none(text) or {}).get("resources") or {}).get("core")
+        if core:
+            self.remaining, self.reset = core.get("remaining"), core.get("reset")
+        return core
+
+    def wait_for_budget(self, need: int) -> None:
+        """Before a burst we cannot make conditional (`gh run download`): sleep to the reset if it would not fit."""
+        if self.remaining is None or self.reset is None or self.remaining >= need:
+            return
+        wait = min(self.reset - self.now() + 5, MAX_RATE_LIMIT_WAIT_S)
+        if wait > 0:
+            self.rate_limit_waits += 1
+            self._log(f"remote tests: {self.remaining} API requests left, {need} needed; sleeping {int(wait)} s "
+                      "until the quota resets")
+            self.sleep(wait)
+
+
+def quota_line(core: dict | None) -> str:
+    if not core:
+        return "quota unreadable"
+    reset = time.strftime("%H:%M:%SZ", time.gmtime(core.get("reset") or 0))
+    return f"{core.get('remaining')}/{core.get('limit')} left, resets {reset}"
+
+
+_REPO = "repos/{owner}/{repo}"
+
+
+class RunState:
+    """What the exit path must know before it may delete the ref: was a run dispatched, which one, has it ended."""
+
+    def __init__(self):
+        self.dispatched = False
+        self.run_id: str | None = None
+        self.done = False
+
+
+def dispatch(api: GitHubApi, inputs: dict[str, str], find_timeout_s: int = 120,
+             state: RunState | None = None) -> tuple[str, str] | None:
+    """Dispatch the workflow on master; (run id, run URL). `return_run_details` makes the dispatch answer with the
+    run, so no request is spent looking for it; an older API (204, no body) falls back to listing the runs."""
+    state = state or RunState()
+    status, data = api.request("POST", f"{_REPO}/actions/workflows/{WORKFLOW}/dispatches",
+                               body={"ref": "master", "inputs": inputs, "return_run_details": True})
+    if status not in (200, 204):
+        raise RuntimeError(f"dispatch failed (HTTP {status}): {(data or {}).get('message', '')}"[:400])
+    state.dispatched = True                             # from here a run may be live and reading the ref
+    if status == 200 and isinstance(data, dict) and data.get("workflow_run_id"):
+        state.run_id = str(data["workflow_run_id"])
+        return state.run_id, str(data.get("html_url") or data.get("run_url") or "")
+    found = _find_run(api, inputs["ref"], find_timeout_s)
+    if found:
+        state.run_id = found[0]
+    return found
+
+
+def _find_run(api: GitHubApi, ref: str, timeout_s: int = 120) -> tuple[str, str] | None:
+    path = f"{_REPO}/actions/workflows/{WORKFLOW}/runs?event=workflow_dispatch&per_page=20"
+    deadline = api.now() + timeout_s
+    while True:
+        status, data = api.request("GET", path, conditional=True)
+        if status == 200:
+            for run in (data or {}).get("workflow_runs", []):
+                if ref in (run.get("display_title") or ""):
+                    return str(run["id"]), str(run.get("html_url") or "")
+        if api.now() >= deadline:
+            return None
+        api.sleep(FIND_RUN_POLL_S)
+
+
+def wait_for_run(api: GitHubApi, run_id: str, timeout_s: float, log=print) -> tuple[dict, list[dict]] | None:
+    """Poll until the run completes: (run, jobs), or None at the timeout. ONE conditional request per poll (the jobs
+    list); the run itself is read only when every job looks done, and every RUN_CHECK_EVERY-th poll."""
+    base = f"{_REPO}/actions/runs/{run_id}"
+    start = api.now()
+    last, tick = "", 0
+    answered: set[str] = set()         # the reads that have answered 200 at least once
+
+    def not_yet(path: str, status: int) -> bool:
+        """⚰️ 2026-11-19 (e83 train, run 44506488391): GitHub answered 404 for a run the dispatch had just
+        returned, the tool exited 2, deleted its ref and stranded the run. A just-created run can be unreadable
+        for a moment, so a 404 on a read that has never answered is retried for FRESH_RUN_GRACE_S."""
+        if status == 404 and path not in answered and api.now() - start <= FRESH_RUN_GRACE_S:
+            log(f"  run {run_id} not readable yet (HTTP 404); retrying")
+            api.sleep(poll_interval(api.now() - start))
+            return True
+        if status == 200:
+            answered.add(path)
+        return False
+
+    while True:
+        tick += 1
+        status, data = api.request("GET", f"{base}/jobs?per_page=100", conditional=True)
+        if not_yet("jobs", status):
+            continue
+        if status != 200:
+            raise RuntimeError(f"reading the run's jobs failed (HTTP {status}): {(data or {}).get('message', '')}")
+        jobs = (data or {}).get("jobs") or []
+        done = sum(1 for j in jobs if j.get("status") == "completed")
+        phase = "in_progress" if any(j.get("status") != "queued" for j in jobs) else "queued"
+        line = f"  {phase}: {done}/{len(jobs)} jobs done"
+        if line != last:
+            log(line)
+            last = line
+        if (jobs and done == len(jobs)) or tick % RUN_CHECK_EVERY == 0:
+            status, run = api.request("GET", base, conditional=True)
+            if not_yet("run", status):
+                continue
+            if status != 200:
+                raise RuntimeError(f"reading the run failed (HTTP {status}): {(run or {}).get('message', '')}")
+            if run.get("status") == "completed":
+                if done != len(jobs) or not jobs:           # the snapshot predates the end: one more (often a 304)
+                    status, data = api.request("GET", f"{base}/jobs?per_page=100", conditional=True)
+                    jobs = (data or {}).get("jobs") or jobs
+                return run, jobs
+        if api.now() - start > timeout_s:
+            return None
+        api.sleep(poll_interval(api.now() - start, near_done(jobs)))
+
+
+def _delete_ref(ref: str) -> None:
+    subprocess.run(["git", "push", "--quiet", "origin", f":{ref}"], capture_output=True, text=True)
+
+
+def release_ref(api: GitHubApi, ref: str, state: RunState, keep_ref: bool, delete=None, log=print) -> str:
+    """Delete our ref, unless a run we dispatched may still be live and reading it. Then the run is cancelled
+    FIRST (one request; a 409 means it already finished), and if that cannot be confirmed the ref is KEPT and
+    the cleanup is printed. Returns 'deleted' or 'kept'. ⚰️ 2026-11-19: a fatal exit deleted the ref under a
+    run that was still starting, which stranded it."""
+    delete = delete or _delete_ref
+    if keep_ref:
+        return "kept"
+    if state.dispatched and not state.done:
+        cancelled = False
+        if state.run_id:
+            try:
+                status, _ = api.request("POST", f"{_REPO}/actions/runs/{state.run_id}/cancel",
+                                        wait_out_limits=False)
+                cancelled = status in (202, 409)
+            except (RuntimeError, OSError):
+                cancelled = False
+            if cancelled:
+                log(f"remote tests: cancelled run {state.run_id} before deleting its ref")
+        if not cancelled:
+            which = f"run {state.run_id}" if state.run_id else "the dispatched run (id unknown)"
+            log(f"remote tests: KEPT {ref}: {which} may still be live and reading it. Clean up when it is done:\n"
+                + (f"  gh run cancel {state.run_id}\n" if state.run_id else "")
+                + f"  git push origin :{ref}")
+            return "kept"
+    delete(ref)
+    return "deleted"
+
+
+def _download(api: GitHubApi, run_id: str, dest: Path, artifacts_hint: int) -> None:
+    """`gh run download`: one request to list the artifacts plus one per artifact, none conditional."""
+    api.wait_for_budget(artifacts_hint + 2)
+    r = _run(["gh", "run", "download", run_id, "-D", str(dest)], check=False)
+    if r.returncode != 0 and "rate limit" in f"{r.stdout}{r.stderr}".lower():
+        api.quota()
+        api.wait_for_budget(10 ** 6)                       # sleep to the reset, then one more try
+        _run(["gh", "run", "download", run_id, "-D", str(dest)], check=False)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -263,42 +567,37 @@ def main(argv: list[str] | None = None) -> int:
     if _run(["git", "status", "--porcelain", "--untracked-files=no"]).stdout.strip():
         print("remote tests: NOTE the tree has uncommitted edits; only the committed HEAD is tested")
 
+    api = GitHubApi()
+    print(f"remote tests: GitHub API {quota_line(api.quota())} (shared by every session on this account)")
     print(f"remote tests: pushing {sha[:10]} to {ref} (no workflow triggers on this ref)")
+    state = RunState()
     try:
         _run(["git", "push", "--quiet", "origin", f"{sha}:{ref}"])
-        _run(["gh", "workflow", "run", WORKFLOW, "--ref", "master",
-              "-f", f"ref={ref}", "-f", f"pytest={' '.join(a.pytest)}", "-f", f"vitest={' '.join(a.vitest)}",
-              "-f", f"vitest_shards={a.shards}", "-f", f"label={a.label}", "-f", f"env={' '.join(a.env)}"])
-        run_id = _find_run(ref)
-        if not run_id:
+        found = dispatch(api, {"ref": ref, "pytest": " ".join(a.pytest), "vitest": " ".join(a.vitest),
+                               "vitest_shards": str(a.shards), "label": a.label, "env": " ".join(a.env)},
+                         state=state)
+        if not found:
             print("remote tests: dispatched, but the run did not appear within 2 min"); return LANE
-        repo = _run(["gh", "repo", "view", "--json", "url", "-q", ".url"]).stdout.strip()
-        print(f"remote tests: run {repo}/actions/runs/{run_id}")
-        deadline, last = time.time() + a.timeout_min * 60, ""
-        while True:
-            v = json.loads(_run(["gh", "run", "view", run_id, "--json", "status,conclusion,jobs"]).stdout)
-            done = sum(1 for j in v["jobs"] if j.get("status") == "completed")
-            line = f"  {v['status']}: {done}/{len(v['jobs'])} jobs done"
-            if line != last:
-                print(line); last = line
-            if v["status"] == "completed":
-                break
-            if time.time() > deadline:
-                print(f"remote tests: still running after {a.timeout_min} min"); return LANE
-            time.sleep(15)
-        test_jobs = [j for j in v["jobs"] if j.get("name", "").startswith(("pytest", "vitest"))
+        run_id, url = found
+        print(f"remote tests: run {url or run_id}")
+        got = wait_for_run(api, run_id, a.timeout_min * 60)
+        if got is None:
+            print(f"remote tests: still running after {a.timeout_min} min"); return LANE
+        run, jobs = got
+        state.done = True
+        test_jobs = [j for j in jobs if j.get("name", "").startswith(("pytest", "vitest"))
                      and j.get("conclusion") != "skipped"]
         tmp = Path(tempfile.mkdtemp(prefix="remote-tests-"))
-        _run(["gh", "run", "download", run_id, "-D", str(tmp)], check=False)
+        _download(api, run_id, tmp, 2 * len(test_jobs))
         verdicts = read_verdicts(tmp)
         outs = collect_outputs(tmp, Path(a.download) if a.download else None)
         if outs:
             print(f"remote tests: {OUT_DIR}/ outputs: " + ", ".join(str(o) for o in outs))
-        for j in sorted(v["jobs"], key=lambda j: j.get("name", "")):
+        for j in sorted(jobs, key=lambda j: j.get("name", "")):
             print(f"  {j.get('conclusion') or j.get('status'):<9} {j.get('name')}")
         for k in sorted(verdicts):
             print(f"  verdict   {k}: {verdicts[k]}")
-        code, why = decide(v.get("conclusion"), len(test_jobs), verdicts)
+        code, why = decide(run.get("conclusion"), len(test_jobs), verdicts)
         if code == OK:
             print(f"remote tests: GREEN ({why})"); return OK
         bad = failing_tests(tmp)
@@ -314,8 +613,10 @@ def main(argv: list[str] | None = None) -> int:
     except RuntimeError as e:
         print(f"remote tests: {e}"); return LANE
     finally:
-        if not a.keep_ref:
-            subprocess.run(["git", "push", "--quiet", "origin", f":{ref}"], capture_output=True, text=True)
+        release_ref(api, ref, state, a.keep_ref)
+        print(f"remote tests: GitHub API {quota_line(api.quota())}; this run sent {api.sent} request(s) "
+              f"(+{api.not_modified} answered 304, free; gh run download not counted), "
+              f"{api.rate_limit_waits} rate-limit wait(s)")
 
 
 if __name__ == "__main__":

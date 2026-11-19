@@ -12,8 +12,9 @@ setting of `web`, `worker` or `flow-worker`.**
   on that day. On **2026-11-14** their stored settings were written to match their files. Nothing was
   deployed. The cutoff should now change nothing for them.
 - **From now on:** the config files stay in the repo as the declared settings. After you merge a
-  change to one, run `python tools/railway_stored_settings.py --apply`. Until 2026-12-01 Railway
-  also still reads the file at deploy time; after it, `--apply` is the only way your change arrives.
+  change to one, run `python tools/railway_stored_settings.py --apply --service <name>` for each
+  service built from that file. Until 2026-12-01 Railway also still reads the file at deploy time;
+  after it, `--apply` is the only way your change arrives.
 
 ## Which services, and what they would have lost
 
@@ -42,13 +43,20 @@ with `railway.ingest.json` (watch paths included) from now on.
 ## The tool
 
 ```sh
-python tools/railway_stored_settings.py            # compare. exit 0 same / 1 different / 2 could not tell
-python tools/railway_stored_settings.py --apply    # store what the files say. Does NOT deploy.
+python tools/railway_stored_settings.py                          # compare every service. exit 0 same / 1 different / 2 could not tell
+python tools/railway_stored_settings.py --service web            # compare only web (repeat --service for more)
+python tools/railway_stored_settings.py --apply --service web    # store what web's file says. Does NOT deploy.
 python tools/railway_stored_settings.py --self-check
 ```
 
-- It compares every setting a config file supplies with what Railway has stored, for the three
-  services above (`SERVICES` in the tool).
+- It compares every setting a config file supplies with what Railway has stored, for the services
+  in `SERVICES` in the tool (the three above plus `stream-ingest` and `stream-edge`).
+- `--service NAME` (repeatable) limits a compare or an apply to the named services; an unknown name
+  is refused (exit 2), never read as "the same".
+- **`--apply` refuses to run without at least one `--service`** (since 2026-11-19). A bare `--apply`
+  wrote every service whose stored settings differed; on 2026-11-19 that included `stream-ingest`
+  and `stream-edge`, whose file says builder `NIXPACKS` while Railway has `RAILPACK` stored, with no
+  decision on which is intended. Name the service you mean to change.
 - `--apply` writes only where something differs, through Railway's `serviceInstanceUpdate` API call.
   Measured four times on 2026-11-14: the call stores the settings and starts **no** deployment. A
   service picks stored settings up at its next deployment.

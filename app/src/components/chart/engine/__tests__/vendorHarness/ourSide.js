@@ -37,10 +37,10 @@ import { evaluateObjects } from '../../objectRuntime'
 import { NOT_SHOWN, runtimeWithheldWhy, runtimeWithheldCause, runtimeUnknownSentence } from '../../ast/objectLoss'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
-import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRunObjectsOn, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
-import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
+import { setRuntimeDoorClock, RUNTIME_REQUEST_WITHHELD_KEY } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
@@ -1344,9 +1344,14 @@ function objectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
   return r && half ? { ...r, ...tag } : r
 }
 
+/** Rails only (PARITY UNIT LF): the object report the grader builds for one instance's columns. */
+export const __objectsReportForTests = (...args) => hostObjectsOf(...args)
+
 /** The object lane's LIVE set at the last bar, as counts and texts. */
 function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
-  if (drawsRuntimeObjects(def)) return runtimeObjectsReport(def, bars, ctx, cols)
+  // ⭐⭐ PARITY UNIT LF — the binder's own answer (`drawsRunObjectsOn`): a run-owned document carrying its
+  // clean host program draws that program when the run holds back a family it draws
+  if (drawsRunObjectsOn(def, cols)) return runtimeObjectsReport(def, bars, ctx, cols)
   if (!def.objects || !(def.objects.ops || []).length) {
     const w = drawingWithheldBy(built)
     return w ? { drawsObjects: false, withheld: w.guard, reason: w.reason } : { drawsObjects: false }
@@ -1777,6 +1782,18 @@ function runOurSideOnTheParityClock(capture) {
     // not compared (`compare.mjs`, `withheldNewest`), every other bar is.
     const newestHeld = new Set(((registry.chartClockReport(cols) || {}).withheld || [])
       .filter((r) => r.code === TF_MERGE_NEWEST_CODE).flatMap((r) => r.plots))
+    // ⭐ REQ-B1 (2026-11-18) — AND THE RUNTIME LANE'S OWN. A run whose request cannot know its newest bar
+    // yet withholds that bar on EVERY column, by the same name (`runtimeColumns.js`,
+    // `RUNTIME_REQUEST_WITHHELD_KEY`, RS RATING L5): the member reads it blank and named on every plot, so
+    // it is not compared on any of them. ⚰️ Unread here, a daily plot of a runtime document that also
+    // reads a monthly merge graded DIVERGE on that one named bar (SR-MTF, graded on the runtime lane forced).
+    const runNewest = cols && cols[RUNTIME_REQUEST_WITHHELD_KEY]
+    if (runNewest && Array.isArray(runNewest.codes) && runNewest.codes.includes(TF_MERGE_NEWEST_CODE)) {
+      // ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) — the plots the run blanked there (`keys`), or every plot (`null`)
+      for (const p of (def.plots || [])) {
+        if (p && typeof p.key === 'string' && (!Array.isArray(runNewest.keys) || runNewest.keys.includes(p.key))) newestHeld.add(p.key)
+      }
+    }
     // ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code
     const withheldBarsReport = registry.withheldBarsReport(calcCols)
     let colours

@@ -71,6 +71,21 @@ export const PITFALL_PROBES = Object.freeze({
   // two plots with no title, kept only to fill between: read as helper series the author hid,
   // so nothing is drawn (the same script with a title on each plot runs)
   'untitled-fill-anchor': '//@version=5\nindicator("probe", overlay=true)\na = plot(high)\nb = plot(low)\nfill(a, b, color=color.new(color.blue, 90))\n',
+  // candles that write only `color`: the wick and border fall on defaults this engine has not captured.
+  // The SAME script as the worked example but for the two colours left out, so the verdict is about them alone.
+  // Stands once the engine withholds that shape.
+  'candle-one-colour': '//@version=5\nindicator("probe")\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nplotcandle(haOpen, math.max(high, haOpen, haClose), math.min(low, haOpen, haClose), haClose, "Candles", color=haClose >= haOpen ? color.green : color.red)\n',
+  // drawings made from a list in a loop, beside plots of PLAIN formulas only: the lane that takes the
+  // plots loses every drawing (the status calls that a note). The worked example of the same levels
+  // plots a value taken from the list, and its drawings are made.
+  'drawings-beside-plain-plots': '//@version=5\nindicator("probe", overlay=true)\nn = input.int(100, "Lookback")\nhh = ta.highest(high, n)\nll = ta.lowest(low, n)\nvar line[] ls = array.new_line(0)\nif barstate.islast\n    for l in ls\n        line.delete(l)\n    array.clear(ls)\n    for lv in array.from(0.0, 0.5, 1.0)\n        array.push(ls, line.new(bar_index - n, hh - (hh - ll) * lv, bar_index, hh - (hh - ll) * lv))\nplot(hh, "Range high")\nplot(ll, "Range low")\n',
+  // a script that draws and plots NOTHING: there is no plot and no alert condition to hold on to
+  'no-plot': '//@version=5\nindicator("probe", overlay=true)\nif barstate.islast\n    label.new(bar_index, high, "last bar")\n',
+  // a `fill` in a script that also carries a value from bar to bar (`var`): that script is run bar by
+  // bar, and that run does not draw a fill between plots
+  'fill-with-var': '//@version=5\nindicator("probe", overlay=true)\nvar float top = na\ntop := na(top[1]) ? high : math.max(top[1], high)\na = plot(top, "Top")\nb = plot(low, "Low")\nfill(a, b, color=color.new(color.blue, 90))\n',
+  // a date setting: an `input.time` default is not held
+  'input-time': '//@version=5\nindicator("probe", overlay=true)\nanchor = input.time(timestamp("2026-01-01T00:00:00"), "Anchor")\nplot(time >= anchor ? close : na, "After")\n',
   // a horizontal level drawn with hline is withheld
   hline: '//@version=5\nindicator("probe")\nplot(ta.rsi(close, 14), "RSI")\nhline(70, "Overbought")\n',
 })
@@ -146,7 +161,9 @@ export function buildAssistantPineReference({ allowlist, doorNames, examples = [
     values,
     text,
     arrays,
-    colours: sorted(keysOf(COLOUR_FNS)),
+    // ⛔ only names a script can CALL: CO-2 (#1984, engine 84) put an internal step in the table (`color comparable`,
+    // `colours.js::COLOUR_COMPARABLE`, a name with a space), as `text` drops the run's internal `/` variants above
+    colours: sorted(keysOf(COLOUR_FNS).filter((k) => !/\s/.test(k))),
     colourNames: sorted(keysOf(PINE_COLOUR_NAMES).map((n) => `color.${n}`)),
     symbol: sorted([...keysOf(BUILTIN_SYMBOL_SCOPED), ...keysOf(BUILTIN_SYMBOL_NUMERIC)]),
     barstate: sorted(keysOf(BUILTIN_BARSTATE_SERIES)),

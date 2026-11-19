@@ -1,0 +1,22 @@
+//@version=5
+indicator("Schaff Trend Cycle", overlay=false)
+fast = input.int(23, "Fast EMA", minval=1)
+slow = input.int(50, "Slow EMA", minval=2)
+cycle = input.int(10, "Cycle", minval=2)
+factor = input.float(0.5, "Smoothing factor", minval=0.01, maxval=1)
+m = ta.ema(close, fast) - ta.ema(close, slow)
+lo1 = ta.lowest(m, cycle)
+r1 = ta.highest(m, cycle) - lo1
+var float k1 = na
+k1 := r1 > 0 ? (m - lo1) / r1 * 100 : nz(k1[1])
+var float d1 = na
+d1 := na(d1[1]) ? k1 : d1[1] + factor * (k1 - d1[1])
+lo2 = ta.lowest(d1, cycle)
+r2 = ta.highest(d1, cycle) - lo2
+var float k2 = na
+k2 := r2 > 0 ? (d1 - lo2) / r2 * 100 : nz(k2[1])
+var float stc = na
+stc := na(stc[1]) ? k2 : stc[1] + factor * (k2 - stc[1])
+plot(stc, "STC", color=color.teal, width=2)
+plot(75, "Upper", color=color.gray)
+plot(25, "Lower", color=color.gray)

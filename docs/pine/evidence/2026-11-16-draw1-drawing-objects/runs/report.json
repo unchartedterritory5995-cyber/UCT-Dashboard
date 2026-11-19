@@ -2,18 +2,18 @@
  "populations": {
   "capture": {
    "scripts": 940,
-   "admitted": 561,
-   "runtimeLane": 163,
-   "hostLane": 252,
-   "refused": 146,
+   "admitted": 555,
+   "runtimeLane": 165,
+   "hostLane": 250,
+   "refused": 140,
    "coreOnly": 44
   },
   "committed": {
    "scripts": 266,
-   "admitted": 118,
-   "runtimeLane": 41,
-   "hostLane": 44,
-   "refused": 33,
+   "admitted": 116,
+   "runtimeLane": 42,
+   "hostLane": 43,
+   "refused": 31,
    "coreOnly": 4
   },
   "reference": {
@@ -1529,81 +1529,6 @@
    ]
   },
   {
-   "capture": "machine-learning-moving-average-backquant-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "machine-learning-moving-average-backquant-rddt-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "machine-learning-moving-average-backquant-spy-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "madrid-moving-average-ribbon-rddt-1d-2026-09-28",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -2041,8 +1966,8 @@
   },
   {
    "capture": "optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "MATCH",
    "caps": [
     "conditional-ta",
@@ -2057,8 +1982,8 @@
   },
   {
    "capture": "optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "MATCH",
    "caps": [
     "conditional-ta",
@@ -2501,7 +2426,7 @@
   },
   {
    "capture": "rs-arm-label-last-bar-rddt-1d-2026-11-15",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -2515,7 +2440,7 @@
   },
   {
    "capture": "rs-arm-label-last-bar-spy-1d-2026-11-15",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -3713,87 +3638,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "capture": "volatility-coil-edge-bullbyte-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "volatility-coil-edge-bullbyte-rddt-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "volatility-coil-edge-bullbyte-spy-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
    ]
   },
   {
@@ -5656,7 +5500,7 @@
   },
   {
    "capture": "vw-object-gc-d-spy-1d-2026-09-28",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -5678,7 +5522,7 @@
   },
   {
    "capture": "vw-object-gc-d-spy-1d-2026-09-28",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [

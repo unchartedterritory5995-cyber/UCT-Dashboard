@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "S14 fix 2 (feat/pine-s14-canonical-passthrough, engine 84): `fromCanonical` keeps a caller's parse `call` and parse `offset` embedded in a built tree as they are, told apart from the canonical spellings by shape. Every rule, broken once, must turn its rail red. (No mutant on the canonical-offset branch: on this lane no input reaches it today, since the pivots are lowered before the built tree; a mutant there could not be killed by any rail.)",
+ "mutants": [
+  {
+   "id": "H1",
+   "mutant": "a parse call inside a built tree is read as canonical again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if ((node.args || []).some((x) => x && typeof x === 'object' && x.type === undefined && 'value' in x)) return node",
+   "to": "      if (false) return node",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/canonicalPassthrough.test.js",
+   "expectRed": "ta.sma(high, 3)"
+  },
+  {
+   "id": "H2",
+   "mutant": "a parse offset inside a built tree is read as canonical again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if (node.arg !== undefined || node.n !== undefined) return node   // ⭐ S14 fix 2: a parse `x[k]`, kept (above)",
+   "to": "      if (false) return node",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/canonicalPassthrough.test.js",
+   "expectRed": "high[2]"
+  },
+  {
+   "id": "H4",
+   "mutant": "every call passes through, canonical ones too",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if ((node.args || []).some((x) => x && typeof x === 'object' && x.type === undefined && 'value' in x)) return node",
+   "to": "      if (true) return node",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/canonicalPassthrough.test.js",
+   "expectRed": "canonical call and canonical source"
+  }
+ ]
+}

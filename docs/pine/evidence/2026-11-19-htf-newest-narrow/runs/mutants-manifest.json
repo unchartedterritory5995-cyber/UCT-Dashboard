@@ -1,0 +1,85 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "N1",
+   "mutant": "the host lane withholds the newest bar for the whole tree again (master's rule)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  else if (!known && newestReadsMerge(tree, bars, opts, inputs, budget, scalars)) mask[n - 1] = 1",
+   "to": "  else if (!known) mask[n - 1] = 1",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ast/htfNewestNarrow.test.js"
+  },
+  {
+   "id": "N2",
+   "mutant": "engine 56's walk reads a merge site as a nested read (every bar unknown)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (WITNESS_NESTED.has(node.type) && !isSite(node)) out = ALL",
+   "to": "    if (WITNESS_NESTED.has(node.type)) out = ALL",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ast/htfNewestNarrow.test.js"
+  },
+  {
+   "id": "N3",
+   "mutant": "a merge under another merge no longer keeps the whole-tree rule",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (found.some((f) => f.under)) mask[n - 1] = 1",
+   "to": "  if (false) mask[n - 1] = 1",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ast/htfNewestNarrow.test.js"
+  },
+  {
+   "id": "N4",
+   "mutant": "the Python lane withholds the whole tree again",
+   "file": "api/services/ast_interpret.py",
+   "from": "    elif not known and _newest_reads_merge(tree, bars, opts, inputs, budget, scalars):",
+   "to": "    elif not known:",
+   "rail": "python -m pytest tests/test_pine_htf_newest_narrow.py -q -p no:cacheprovider"
+  },
+  {
+   "id": "N5",
+   "mutant": "the Python walk reads a merge site as a nested read",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if kind in _WITNESS_NESTED and not is_site(node):",
+   "to": "        if kind in _WITNESS_NESTED:",
+   "rail": "python -m pytest tests/test_pine_htf_newest_narrow.py -q -p no:cacheprovider"
+  },
+  {
+   "id": "N6",
+   "mutant": "the run blanks every column again (RS RATING L5's run-wide rule)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "    const keys = newestHeld.keys === null ? Object.keys(out) : newestHeld.keys",
+   "to": "    const keys = Object.keys(out)",
+   "rail": "cd app && npx vitest run src/components/chart/engine/runtime/__tests__/requestNewestNarrow.test.js"
+  },
+  {
+   "id": "N7",
+   "mutant": "the taint no longer cuts a scalar's x[k] (k >= 1)",
+   "file": "app/src/components/chart/engine/ast/strategyTaint.js",
+   "from": "      if (names.has(v)) { if (historyCut(toks, i)) continue; return names.get(v) }",
+   "to": "      if (names.has(v)) { return names.get(v) }",
+   "rail": "cd app && npx vitest run src/components/chart/engine/runtime/__tests__/requestNewestNarrow.test.js"
+  },
+  {
+   "id": "N8",
+   "mutant": "the taint cuts a reference's [k] too (a collection read one bar back is the same object)",
+   "file": "app/src/components/chart/engine/ast/strategyTaint.js",
+   "from": "  const historyCut = (toks, i) => cutHistory && !refNames.has(toks[i].value) && isP(toks[i + 1], '[')",
+   "to": "  const historyCut = (toks, i) => cutHistory && isP(toks[i + 1], '[')",
+   "rail": "cd app && npx vitest run src/components/chart/engine/runtime/__tests__/requestNewestNarrow.test.js"
+  },
+  {
+   "id": "N9",
+   "mutant": "a site whose call is not found on its line is not refused (an unseeded trace serves everything)",
+   "file": "app/src/components/chart/engine/ast/strategyTaint.js",
+   "from": "  if (!seeded) return refuse('unseeded')",
+   "to": "  if (false) return refuse('unseeded')",
+   "rail": "cd app && npx vitest run src/components/chart/engine/runtime/__tests__/requestNewestNarrow.test.js"
+  },
+  {
+   "id": "N10",
+   "mutant": "the supply no longer names which sites are withheld (no reach is read)",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "      out.newestWithheldSites.push(s)",
+   "to": "      void s",
+   "rail": "cd app && npx vitest run src/components/chart/engine/runtime/__tests__/requestNewestNarrow.test.js"
+  }
+ ]
+}

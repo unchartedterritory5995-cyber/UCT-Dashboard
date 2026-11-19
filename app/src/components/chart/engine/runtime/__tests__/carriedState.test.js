@@ -751,11 +751,16 @@ describe('⭐ `ta.change` — lowered into semantics that already ship (§42–�
     // an expression source INSIDE A BRANCH still has nowhere to put the series
     const branch = `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := ta.change(x + 1)\nplot(y)\n`
     expect(refusalOf(branch).guard).toBe('runtime:history-expression')
-    // `ta.change(source, length)` is a CLOSED TABLE gap: the table's `change`
-    // declares one argument, so the two-argument Pine overload has no entry.
-    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.change(x, 3))\n`)
+    // ⚰️ THIS ASSERTED `ta.change(x, 3)` REFUSED as "a closed-table gap". It stopped being one on
+    // 2026-10-29 (the host's `mom` expansion, `source - source[length]`), and since engine 82
+    // (U-STMT PR 1, `taChangeLength.test.js`) this lane serves it too, as the same number the
+    // columnar door writes. What stays refused, by name: a length that is not a whole number of bars
+    // fixed before bar 0.
+    const { out } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.change(x, 3))\n`)
+    sameSeries(out, pureLane('ta.change(close, 3)'), 'two-argument change')
+    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.change(x, bar_index % 3 + 1))\n`)
     expect(r.guard).toBe('runtime:statement')
-    expect(r.message).toMatch(/closed-table gap/)
+    expect(r.message).toMatch(/whole number of bars/)
   })
 
   it('⛔⛔ the cross family is NOT an operator lowering — the NaN reason still stands', () => {

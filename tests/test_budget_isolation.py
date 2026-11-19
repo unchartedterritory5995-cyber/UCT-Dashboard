@@ -404,6 +404,8 @@ def test_G2_every_ledger_writer_is_classified_as_audited():
     interactive = {
         "api/services/definition_concierge.py": 'f"concierge:{user_id}"',
         "api/services/definition_conversation.py": 'f"concierge:{user_id}"',
+        # the script turn (2026-11-19): the same lane and the same allowance as a formula turn
+        "api/services/script_conversation.py": 'f"concierge:{user_id}"',
     }
     # vision writes its row as a RESERVATION before the model runs (cost_guard.reserve_member_call)
     vision = (ROOT / "api/services/indicator_from_image.py").read_text("utf-8")

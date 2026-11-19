@@ -29,6 +29,11 @@ def _ids(case):
 @pytest.mark.parametrize("case", CASES, ids=_ids)
 def test_a_trader_phrasing_reaches_the_model_or_is_refused_as_pinned(case):
     got = conv.understand_turn(case["message"], DATA["chart"])
+    if "gate" in case:
+        # a name the library HOLDS: refused by name, with its way forward, and no model call
+        assert got["refusal"] is not None and got["refusal"]["gate"] == case["gate"], got["refusal"]
+        assert got["refusal"]["reason"].startswith(case["says"]), got["refusal"]["reason"]
+        return
     if "refused" in case:
         assert got["refusal"] is not None, "expected a refusal with no model call"
         phrases = [n.get("phrase") for n in got["refusal"].get("not_understood") or []]
@@ -68,7 +73,10 @@ def test_every_full_name_word_is_its_own_bucket():
     # bare %K built from recollection). Still one entry per bucket.
     taken = {alias: e["id"] for e in ni.entries() if e.get("names_function") for alias in e["aliases"]}
     assert taken.get("stochastic oscillator") == "stochastic_oscillator"
-    assert {e["names_function"] for e in ni.entries() if e.get("names_function")} == {"stoch"}
+    # (2026-11-19) and the Ichimoku Cloud takes "ichimoku" / "ichimoku cloud" from the span-A function,
+    # which gives a span AT the bar it is worked out on; the indicator's spans are drawn ahead
+    assert taken.get("ichimoku cloud") == "ichimoku_cloud" and taken.get("ichimoku") == "ichimoku_cloud"
+    assert {e["names_function"] for e in ni.entries() if e.get("names_function")} == {"stoch", "ichimokuSpanA"}
     for phrase, key in conv.EXPANSION_PHRASES:
         stems, _ = dc._stem_key(dc._form_tokens(phrase))
         assert [r["key"] for r in conv.CHART_LEXICON["index"][stems]] == [taken.get(phrase, key)], phrase

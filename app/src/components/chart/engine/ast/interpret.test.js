@@ -1197,8 +1197,12 @@ describe('the interpreter is PURE', () => {
     // with the same allowlist, and its own imports pinned to the table's parser.
     // ⭐ engine 78 (#1858) — `../pineCompare.js` (Pine's float comparison, Q-FCMP / Q-FCMP2) is a SIXTH
     // edge, admitted the same way: scanned with the same allowlist, and it imports NOTHING.
+    // ⭐ U-HTF-CALENDAR (2026-11-18) — `lib/marketClock/tradingViewSession.js` (TradingView's session facts, read by
+    // `htfClosesOnNextBar`) is a SEVENTH edge that widens nothing: it is already inside the scanned closure as
+    // `indicators.js`'s one edge, scanned below with its own allowlist and its own imports pinned.
     expect(got.imports.sort())
-      .toEqual(['../../indicators.js', '../pineCompare.js', './barIndexShift.js', './budget.js', './parse.js', './sentence.js'])
+      .toEqual(['../../../../lib/marketClock/tradingViewSession.js', '../../indicators.js', '../pineCompare.js',
+        './barIndexShift.js', './budget.js', './parse.js', './sentence.js'])
     const cmpSrc = fs.readFileSync(path.join(path.dirname(SELF), '..', 'pineCompare.js'), 'utf8')
     expect(cmpSrc.length).toBeGreaterThan(2000)
     const cmpScan = scan(acorn.parse(cmpSrc, { ecmaVersion: 2023, sourceType: 'module' }))

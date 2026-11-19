@@ -1,0 +1,62 @@
+//@version=6
+indicator("UCTPROBE_VW_REQ_HTF_FORMING", overlay = false)
+
+// PROVENANCE: written 2026-11-19 (Q-HTF-FORM, docs/pine/capture-queue-2026-11-19-htf-forming.md).
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// ─── WHAT A WEEKLY / MONTHLY READ SHOWS ON THE CHART'S NEWEST BAR, IN EVERY STATE THAT BAR CAN BE IN ───
+//
+// The reference: `request.security` returns "the last confirmed values on historical bars and the most recent
+// developing values on realtime bars" (Other timeframes and data). So what the newest bar shows depends on whether
+// TradingView runs it as a REALTIME bar, and RS RATING L11 measured when it does: always in session; after the
+// close only if the chart has ticked since it loaded; never on a fresh overnight load. The committed captures are
+// both finished-bar states: `vw-request-htf-alignment-spy-1d-2026-10-02` (after the close, isrealtime 1: the
+// monthly close with look-ahead off is October SO FAR) and `vw-request-htf-alignment-{spy,qqq}-1d-2026-11-18`
+// (a fresh pre-market load, isrealtime 0: the weekly and monthly closes with look-ahead off are the last
+// CONFIRMED periods). No committed capture holds a FORMING newest bar of a daily chart reading a week or month.
+//
+// It also witnesses what the engine may draw from such a read on the newest bar. `x[1]` reads the bar before,
+// which is settled; `nz(x)`, `na(x) ? x[1] : x`, a window over x and a running total of x read x on the newest bar
+// itself; `close` reads no request at all.
+//
+//   F00          bar_index (control)
+//   F01 / F02    the weekly / monthly close, look-ahead OFF
+//   F03 / F04    the weekly / monthly close, look-ahead ON
+//   F05          the weekly HIGH, look-ahead OFF (a value that moves inside the week)
+//   F06          F01[1]                        (the bar before: settled)
+//   F07          nz(F01)                       (x on the newest bar)
+//   F08          na(F01) ? F01[1] : F01        (x on the newest bar)
+//   F09          ta.sma(F01, 3)                (a window over x)
+//   F10          a running total of nz(F01)    (`var` state carrying x)
+//   F11          close                         (reads no request: never withheld for one)
+//   F12          the weekly bar_index, look-ahead OFF (control: which week the read is)
+//   F13 / F14    barstate.isrealtime / barstate.isconfirmed, as 1 / 0 (which state the newest bar was run in)
+//   F15          dayofweek
+//
+// ⛔ CAPTURE: the queue doc above, rows Q-HTF-FORM-a to -f. On a FORMING bar read the bar rows and the plot values
+// on ONE tick (or twice, keeping the pair whose newest row did not change): the in-session probe
+// `vw-htf-window-sites-spy-1d-2026-11-16` read a weekly close of 743.35 against a captured daily row of 743.34.
+
+plot(bar_index, "F00_bar_index_CONTROL")
+
+wOff = request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_off)
+mOff = request.security(syminfo.tickerid, "M", close, lookahead = barmerge.lookahead_off)
+plot(wOff, "F01_close_W_lookahead_OFF")
+plot(mOff, "F02_close_M_lookahead_OFF")
+plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on), "F03_close_W_lookahead_ON")
+plot(request.security(syminfo.tickerid, "M", close, lookahead = barmerge.lookahead_on), "F04_close_M_lookahead_ON")
+plot(request.security(syminfo.tickerid, "W", high, lookahead = barmerge.lookahead_off), "F05_high_W_lookahead_OFF")
+
+plot(wOff[1], "F06_W_OFF_prev_bar")
+plot(nz(wOff), "F07_nz_W_OFF")
+plot(na(wOff) ? wOff[1] : wOff, "F08_na_or_prev_W_OFF")
+plot(ta.sma(wOff, 3), "F09_sma3_W_OFF")
+var float acc = 0.0
+acc += nz(wOff)
+plot(acc, "F10_running_total_W_OFF")
+plot(close, "F11_chart_close_NO_REQUEST")
+
+plot(request.security(syminfo.tickerid, "W", bar_index, lookahead = barmerge.lookahead_off), "F12_W_bar_index_OFF")
+plot(barstate.isrealtime ? 1 : 0, "F13_isrealtime")
+plot(barstate.isconfirmed ? 1 : 0, "F14_isconfirmed")
+plot(dayofweek, "F15_dayofweek")

@@ -39,7 +39,8 @@ describe('HP-1 / HP-4 / HP-7 end to end (the server bundle, built fresh)', () =>
   it('HP-7: the worker and the Node half build the same call, modulo the named exemptions', () => {
     const p = run('--adapters')
     expect(p.stdout).toContain('HP-7 GREEN')
-    expect(p.stdout).toMatch(/worker: args \(def, rows \|\| \[\], ctx \|\| \{\}\) opts \{budgetMs\}/)
+    // the worker's budget scales with the bars a run covers (`budgetScales`, coordinator ruling 2026-11-19), exempted by name
+    expect(p.stdout).toMatch(/worker: args \(def, rows \|\| \[\], ctx \|\| \{\}\) opts \{budgetMs, budgetScales\}/)
     // H6: the Node half runs with no session (`incremental: false`), as the service will
     expect(p.stdout).toContain('node: args (c.def, rows, c.ctx) opts {incremental}')
     // W5-INT: one HP-7 authority per adapter; the service's is services/pine_runtime/test/adapter.test.mjs

@@ -1067,6 +1067,9 @@ export default function BuilderSheet({
   /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
   sym = null, tf = null,
   initialMode = null, editRow = null, initialDraft = null, initialDescription = null,
+  /* ⭐ A SCRIPT TO OPEN ON THE SCRIPT TAB (Create Indicator's assistant wrote it: `authoring/scriptAnswer.js`).
+     A string, so it compares by value; it lands in the ONE script field the paste box owns. */
+  initialPine = null,
   /* ⭐ WHAT THIS WINDOW IS CALLED, BY WHERE IT OPENS (owner decision 2026-11-17, backlog 49). From a
      chart the member pressed "Create indicator", so the window says so; from the Screener the same
      window builds a scan's formula and keeps "New formula". Only the title and the footer's
@@ -1161,6 +1164,8 @@ export default function BuilderSheet({
    *  consistency."* Import was the one tab whose state was purely local, so it
    *  was the one tab that broke the rule the others follow. */
   const [pineText, setPineText] = useState('')
+  /** Bumped when a caller hands in a script (`initialPine`): the paste box mounts again and reads it. */
+  const [pineSeed, setPineSeed] = useState(0)
   // ⭐ STUDIO R4 — the status panel's sentence for the text in the script box (`PineBox` reports
   // it), and the versions it has already been put on record for in this window.
   const [statusHeadline, setStatusHeadline] = useState(null)
@@ -1559,6 +1564,9 @@ export default function BuilderSheet({
     // ⭐ TERM-087: a generated answer's draft lands in the ONE source field, AFTER
     // the reset emptied it (same effect, later line — one writer of the opening
     // state). An `editRow` still wins: `openForEdit` runs after this effect.
+    // ⭐ a script handed in by the caller lands in the script field AFTER the reset emptied it
+    // (the paste box reads its text on MOUNT, so it is given a fresh key to mount again with this one)
+    if (!editRow && typeof initialPine === 'string' && initialPine.trim()) { setPineText(initialPine); setPineSeed((n) => n + 1) }
     if (draftSourceOf(initialDraft)) {
       setSource(draftSourceOf(initialDraft))
       importTelemetryRef.current = initialDraft.importId
@@ -1571,7 +1579,7 @@ export default function BuilderSheet({
     // warning on that prop matters: a string compares by value, an object
     // compares by identity, so a row rebuilt inline per render would empty this
     // form on every parent render.
-  }, [open, editRow, initialMode, initialDraft, initialDescription, resetPlots])
+  }, [open, editRow, initialMode, initialDraft, initialDescription, initialPine, resetPlots])
 
   /** Open a stored formula for editing — its SOURCE, its name, and its id.
    *
@@ -3207,7 +3215,7 @@ export default function BuilderSheet({
             <ImportBox
               // ⭐ UIE PHASE 5 (M1) — a script opened for edit seeds a FRESH box (its
               // source is an initial value, read on mount)
-              key={editing && editing.runtime ? `edit:${editing.defId}` : 'new'}
+              key={editing && editing.runtime ? `edit:${editing.defId}` : `new:${pineSeed}`}
               dialect="auto"
               disabled={saving}
               // ⭐ STUDIO R4 — the status panel's sentence and the text it is about

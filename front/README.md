@@ -70,7 +70,7 @@ only the frontend files its Python code uses (`tools/web_frontend_reads.py`). So
 of the built frontend can be older than master. Before (or right after) moving `uctintelligence.com`
 back to `web`: redeploy `web` from the latest commit so members get the current frontend, and put
 `app/**` back in `railway.web.json`'s watch list (change `test_the_list_is_what_makes_the_saving`
-in the same commit), then run `python tools/railway_stored_settings.py --apply`.
+in the same commit), then run `python tools/railway_stored_settings.py --apply --service web`.
 
 ## Logs
 

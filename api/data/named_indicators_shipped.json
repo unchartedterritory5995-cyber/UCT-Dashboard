@@ -50,6 +50,9 @@
   "force_index": {
    "1": "sha256:e4359bd70d5f5b6ae9f923824ad9f5d27ac532e1f67fe63f1f1ac834873f651e"
   },
+  "ichimoku_cloud": {
+   "1": "sha256:22559c8e951c703fc0117057d4c594bdbdaf507f746540e6dc3ad648a4416806"
+  },
   "kaufman_adaptive_moving_average": {
    "1": "sha256:3438275e44468d8e2a2cca9417be7459712f1bd686eeaf4f27ce56c7a373e426"
   },
