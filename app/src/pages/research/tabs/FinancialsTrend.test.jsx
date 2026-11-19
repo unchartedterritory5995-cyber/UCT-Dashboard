@@ -108,11 +108,10 @@ describe('quarterly / annual basis toggle', () => {
 
 describe('the calendar-vs-fiscal label clash', () => {
   it('grids can be suppressed where FISCAL-labelled panels sit above them', () => {
-    // These grids are yfinance-derived and label CALENDAR quarters; the
-    // statement panels are FMP-derived and label FISCAL ones. For a
-    // September-fiscal company the SAME quarter — identical revenue — renders
-    // as "Q3 2026" above and "Q2 2026" below. Two names for one quarter is a
-    // correctness problem, not a layout one.
+    // The composite Financials section draws the statement panels above this
+    // tab; the grids would repeat their last eight quarters. (On the Yahoo
+    // fallback the grids also label CALENDAR quarters where the panels label
+    // FISCAL ones: one quarter under two names.)
     finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {}, currency: 'USD' }
     captured.length = 0
     render(<FinancialsTab sym="AAPL" showGrids={false} />)

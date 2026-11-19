@@ -244,8 +244,8 @@ _RTG_FUND_WHY = ("the UCT composite rates a company's earnings, growth, margins 
 def research_financial_history(sym: str = Depends(sym_path), period: str = "quarter"):
     """Deep statement series for the fundamentals panels (24q / 12y).
 
-    Separate from /financials, which returns a 5-row grid from yfinance — five
-    points cannot show a cycle.
+    Separate from /financials, which answers with compact growth grids (5 years /
+    8 quarters) built from these same statements — five points cannot show a cycle.
     """
     try:
         from api.services.research.financial_history import get_history
@@ -262,12 +262,22 @@ def research_financial_history(sym: str = Depends(sym_path), period: str = "quar
 
 @router.get("/api/research/financials/{sym}")
 def research_financials(sym: str = Depends(sym_path)):
+    """Compact growth grids (5 years / 8 quarters: revenue, EPS, margins, YoY) plus a
+    balance-sheet and profitability summary.
+
+    The grids read the FMP statements first, the ones /financial-history serves;
+    the yfinance frames stand in only for a ticker that feed returned nothing for.
+    `sources.statements` names the one that supplied the grids, per ticker.
+    """
     try:
         return _fund_marked(get_financials(sym), sym, _FA_FUND_WHY)
     except Exception as exc:
         _logger.warning("research financials failed for %s: %s", sym, exc)
+        # `unread`: the build FAILED, so the empty grids are a gap in what could be
+        # read, never "this company has no statement history".
         return _fund_marked({"sym": (sym or "").upper(), "annual": [], "quarterly": [],
-                             "balance": {}, "metrics": {}}, sym, _FA_FUND_WHY)
+                             "balance": {}, "metrics": {},
+                             "unread": ["quarterly", "annual"]}, sym, _FA_FUND_WHY)
 
 
 #: An EE consensus open slower than this logs one `[ee-slow]` line naming its legs.
