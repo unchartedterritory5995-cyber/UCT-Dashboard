@@ -2639,6 +2639,21 @@ export function collectObjectOps(stmts, h) {
     if (recv && (recv.type === 'offset' || recv.type === 'ternary')) {
       return emitOnValueReceiver(node, toks, guards, inLoop, st, scope)
     }
+    // ⭐⭐ FIELD REGISTER, STEP A (class sweep, 2026-11-19) — A DRAWING READ OUT OF A FIELD OF AN EXPRESSION:
+    // `zs.get(0).lb.delete()`, `array.get(zs, 0).lb.delete()`, `f().lb.delete()`, `(c ? a : b).lb.set_x(n)`. The
+    // handle lives in a field of an object this walker holds no register for (an array of a user type, a function's
+    // result), so the step cannot be EXECUTED, only named: a `delete` / `set_*` is `object.<method>` in `unsupported`
+    // (a removal that reaches / a lost setter, `classifyReaderName`), whatever a user method of that name might be (the
+    // tokens cannot say which one Pine calls, and both act on a drawing this program cannot address).
+    // ⚰️ Before: a `member` receiver answered false here, the bare-call branch read `zs.get` as a list method on an
+    // undeclared name and answered false too, and the statement vanished: the member door served every label the
+    // script deleted (probe: 26 where TradingView keeps 1), counting nothing.
+    if (recv && recv.type === 'member') {
+      const method = String(node.name || '')
+      if (method !== 'delete' && !method.startsWith('set_')) return false
+      diagnostics.unsupported.push(`object.${method}`)
+      return true
+    }
     // ⛔ THE ONE RECEIVER `targetRef` CAN ADDRESS. A `name` receiver never
     // reaches here — the parser folds `(b).delete()` back into the dotted name
     // `b.delete`, which is the bare-call branch's business — so this is the
