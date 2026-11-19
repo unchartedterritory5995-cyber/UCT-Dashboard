@@ -52,6 +52,7 @@ import { normalizeColor, COLOUR_WITHHELD_POINT, substitutionProblems, vendorValu
 import { substitutedFor } from '../../ast/symbolSubstitution'
 import { CLASSIFICATION_FIELD_NAMES } from '../../ast/bind'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
+import { startsAtBar0Holds, startsAtBar0Refuted, BAR_INDEX_CONTROL } from '../../../../../../../tools/vendor_harness/history_claim.mjs'
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
 // ⭐ SETTINGS PARITY (2c): a capture is graded at the settings TradingView recorded in it
 import { captureInstanceInputs } from './captureInputs.js'
@@ -556,7 +557,7 @@ function warmMetaRow(dir, name, st) {
   if (!ticker) return { ...sig, skip: true }
   return { ...sig, key: `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`, timeUnit: cap.bars.timeUnit,
     firstT: rows[0][0], lastT: rows[rows.length - 1][0],
-    listing: !!(cap.history && cap.history.startsAtBar0 === true),
+    listing: startsAtBar0Holds(cap),
     capturedAt: typeof cap.capturedAtUTC === 'string' ? cap.capturedAtUTC : '',
     times: encodeTimes(rows) }
 }
@@ -662,7 +663,7 @@ export function compareWarmSuppliers(a, b) {
  *  their metadata comes through the on-disk index (the default) or a full scan. */
 export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = true } = {}) {
   const none = (kind, reason, refused = []) => ({ kind, rows: null, file: null, bars: 0, refused, reason, historyFromListing: null })
-  if (capture && capture.history && capture.history.startsAtBar0 === true) {
+  if (startsAtBar0Holds(capture)) {
     return none('bar0', 'the capture starts at the listing (history.startsAtBar0); there is no history before bar 0')
   }
   if (barIndexStartsAtZero(capture)) {
@@ -1214,7 +1215,7 @@ function drawnColours(def, bars, ctx, inputs = undefined) {
  *  bar is checked, not the first: a row that starts at 0 and skips is not it. */
 export function barIndexStartsAtZero(capture) {
   const plots = (capture && capture.study && capture.study.plots) || []
-  const control = plots.find((p) => /^[A-Za-z]\d\d_bar_index(_CONTROL)?$/.test(p.title || ''))
+  const control = plots.find((p) => BAR_INDEX_CONTROL.test(p.title || ''))
   const pv = capture && capture.plotValues
   if (!control || !pv || !Array.isArray(pv.rows) || !pv.rows.length) return false
   const at = pv.fields.indexOf(control.id)
@@ -1622,6 +1623,8 @@ function runOurSideOnTheParityClock(capture) {
     const instanceInputs = taken.inputs
     if (instanceInputs) notes.push(`settings: graded at the capture's own moved settings ${JSON.stringify(taken.moved)}`)
     const bars = toProductBars(capture)
+    const refutedListing = startsAtBar0Refuted(capture)
+    if (refutedListing) notes.push(refutedListing)
     const tf = tfCodeOf(capture.timeframe)
     if (tf === capture.timeframe && !/^\d+$/.test(tf) && !['D', 'W', 'M'].includes(tf)) {
       notes.push(`timeframe ${JSON.stringify(capture.timeframe)} has no chart code — the bind-time fold folds nothing`)
@@ -1634,7 +1637,8 @@ function runOurSideOnTheParityClock(capture) {
       // (`StockChart`, `listingSeed.historyFromListingOf`); a capture states it as
       // `history.startsAtBar0`, asserted only when the vendor's loaded history
       // stopped growing AND began on the listing day. Same fact, same door.
-      historyFromListing: !!(capture.history && capture.history.startsAtBar0 === true),
+      // ⛔⛔ read through `history_claim.mjs`: a claim the capture's own bar_index row contradicts is FALSE
+      historyFromListing: startsAtBar0Holds(capture),
       // ⭐⭐ C45 — `bar_index` is TradingView's only where the series starts at
       // the bar TradingView counted as 0. A capture PROVES that about itself when
       // its own `plot(bar_index, …)` control row reads 0, 1, 2 … on its bars (an
