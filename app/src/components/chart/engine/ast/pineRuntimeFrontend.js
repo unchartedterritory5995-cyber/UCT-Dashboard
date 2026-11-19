@@ -9588,6 +9588,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           specIndex = simpleSpecialisation(node, scope, held)
           // ⭐ TC — a held `runtime:colour` an untyped parameter caused, settled by this call's colour.
           if (specIndex === null) specIndex = colourSpecialisation(node, scope, held)
+          // ⭐ U-LOOP — a held `runtime:loop` an untyped parameter caused, settled by this call's argument types.
+          if (specIndex === null) specIndex = typeSpecialisation(node, scope, held)
           if (specIndex === null) {
             note(held && held.guard ? held.guard : 'runtime:function')
             throw held
@@ -13089,7 +13091,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
       ? FOR_IN_SNAPSHOT_SOURCES[src] : null
     const srcNode = { type: 'name', name: src, tok: srcToks[0] }
     const srcTy = family ? makeTy('array', { elem: makeTy('drawing', { name: family }) }) : exprType(srcNode, scope)
-    if (!srcTy) refuse(`the type of \`${src}\` cannot be told`)
+    if (!srcTy) {
+      // ⭐⭐ ENGINE NUMBER PENDING (U-LOOP) — AN UNTYPED PARAMETER TAKES ITS ARGUMENT'S TYPE, PER CALL.
+      // The Pine v6 User Manual, *User-defined functions* > *Declaring parameter types*: "If a function
+      // parameter does not have a type keyword in its declaration, its type is initially undefined. In
+      // each separate call to the function, the parameter automatically inherits the same type as its
+      // specified argument." The shared body cannot know it; the refusal names the function's untyped
+      // parameters, and a call site whose arguments ARE typed compiles its own copy
+      // (`typeSpecialisation`, the C35 / TC rule), where the walk is typed.
+      note('runtime:loop')
+      const err = new RuntimeRefusal('runtime:loop', `\`for … in\`: the type of \`${src}\` cannot be told`, locate(first))
+      if (owner !== null && !atObjectDoor) {
+        const ps = [...untypedParams].filter((s) => slots[s] && slots[s].owner === owner).map((s) => slots[s].name)
+        if (ps.length) err.typeParams = [...new Set(ps)]
+      }
+      throw err
+    }
     if (srcTy.kind === 'matrix' || srcTy.kind === 'map') refuse(`a walk over a ${srcTy.kind} is not yet captured (W6-F1)`)
     if (srcTy.kind !== 'array') refuse(`\`${src}\` is not an array this lane can walk`)
     if (!forInFnDefs) forInFnDefs = readFunctionDefs(stmts, { isPunct })
@@ -13960,6 +13977,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
             locate(first))
         }
         const slotsOut = nameToks.map((nt) => scope.declare(nt.value, newSlot(nt.value, false)))
+        // ⭐ U-LOOP — `[a, b] = f(…)` over a function that hands back its own slots (`[top, btm]`): each name
+        // holds what that slot holds, so a COLLECTION keeps its type through the destructuring (the values
+        // ARE those slots' values; a collection is the same object). Nothing else is typed: ⛔ a record (a user
+        // type) element stays as it was, because what a record reads is the object lane's ground.
+        if (!atObjectDoor && lowered && lowered.kind === EXPR.CALL) {
+          const res = functions[lowered.fn] ? functions[lowered.fn].result : null
+          if (res && res.kind === EXPR.TUPLE && Array.isArray(res.elements) && res.elements.length === slotsOut.length) {
+            res.elements.forEach((el, k) => {
+              const ty = el && el.kind === EXPR.READ ? slotTy(el.slot) : null
+              if (ty && isCollectionTy(ty)) setSlotTy(slotsOut[k], plainTy(ty))
+            })
+          }
+        }
         out.push(destructure(slotsOut, lowered))
         continue
       }
@@ -14893,7 +14923,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // array passed to one is refused at its first member call rather than
       // guessed at.
       const ty = declaredTypes.get(p)
-      if (!ty) untypedParams.add(ps)
+      // ⭐ U-LOOP — a parameter this call site's copy types from its argument (`spec.paramTys`) is typed
+      const argTy = !ty && spec && spec.paramTys instanceof Map ? spec.paramTys.get(p) || null : null
+      if (argTy) setSlotTy(ps, argTy)
+      else if (!ty) untypedParams.add(ps)
       // ⭐ W6-T3a — AND ONE DECLARED AS A USER TYPE HOLDS A RECORD — the receiver
       // of `method bump(Point this, …)` — typed from the DECLARED type, exactly as
       // `bindSlotTy` types a binding, so `this.x` reads as a field path.
@@ -15395,6 +15428,71 @@ function buildRuntimeIrLinked(source, opts, holder) {
       loopDepth = 0
       try {
         defineFunction(def.st, def.toks, def.arrow, { colourParams })
+      } catch (err) {
+        rec.error = err
+        // ⛔ the record stays, valid and uncalled (`simpleSpecialisation`'s rule)
+        const r = functions[rec.index]
+        if (r) {
+          r.body = []
+          r.result = naValue()
+          r.returns = 1
+          r.valueless = false
+          r.frameSize = countFor(rec.index, SLOT.LOCAL)
+          r.persistCount = countFor(rec.index, SLOT.PERSIST)
+          r.effects = { pure: false }
+        }
+      } finally {
+        env.clear()
+        for (const [k, v] of saved.env) env.set(k, v)
+        hoistSink = saved.hoistSink
+        stmtHoistSink = saved.stmtHoistSink
+        loopDepth = saved.loopDepth
+      }
+    }
+    if (rec.error) throw rec.error
+    diagnostics.specialisedCalls = (diagnostics.specialisedCalls || 0) + 1
+    return rec.index
+  }
+  /** ⭐⭐ ENGINE NUMBER PENDING (U-LOOP) — A DEFINITION HELD AT `runtime:loop` BECAUSE A WALK'S TYPE COULD
+   *  NOT BE TOLD IN THE SHARED FRAME, COMPILED FOR THE CALL SITE WHOSE ARGUMENTS SAY IT.
+   *
+   *  The User Manual sentence `colourSpecialisation` stands on, applied to a COLLECTION: each untyped
+   *  parameter whose argument here has a collection type (`exprType`: an array, a map or a matrix, with its
+   *  element) takes that type in this copy. A copy is shared by every call site with the same types, each
+   *  keeping its own call site (its own persistent locals), as C35 / TC copies are.
+   *  ⛔ A RECORD (a user type) IS NOT TYPED HERE: what a record reads is the object lane's ground, and this
+   *  copy leaves such a parameter as the shared body has it.
+   *  ⛔ Only a refusal that named untyped parameters (`typeParams`), only when at least one of them is
+   *  typed here, never inside a request's value or at the object door. A copy that refuses again keeps
+   *  that refusal (thrown). `null` = the held refusal stands. */
+  const typeSpecialisation = (node, scope, held) => {
+    if (atObjectDoor || inRequestValue || !held || held.guard !== 'runtime:loop') return null
+    if (!Array.isArray(held.typeParams) || !held.typeParams.length) return null
+    const def = deferredFnDefs.get(node.name)
+    const params = fnParamNamesByName.get(node.name)
+    if (!def || !Array.isArray(params)) return null
+    const given = node.args || []
+    if (given.some((a) => a && a.name) || given.length !== params.length) return null
+    const typed = paramTypeHeads(def.toks, def.arrow)
+    const paramTys = new Map()
+    params.forEach((p, i) => {
+      if (typed.has(p)) return
+      let ty = null
+      try { ty = exprType(argNode(given[i]), scope) } catch { ty = null }
+      if (ty && isCollectionTy(ty)) paramTys.set(p, ty)
+    })
+    if (!held.typeParams.some((p) => paramTys.has(p))) return null
+    const key = `${node.name}|types:${[...paramTys].map(([p, t]) => `${p}=${tyKey(t)}`).sort().join(',')}`
+    let rec = specialisations.get(key)
+    if (!rec) {
+      rec = { index: functions.length }
+      specialisations.set(key, rec)
+      const saved = { env: new Map(env), hoistSink, stmtHoistSink, loopDepth }
+      hoistSink = null
+      stmtHoistSink = null
+      loopDepth = 0
+      try {
+        defineFunction(def.st, def.toks, def.arrow, { paramTys })
       } catch (err) {
         rec.error = err
         // ⛔ the record stays, valid and uncalled (`simpleSpecialisation`'s rule)

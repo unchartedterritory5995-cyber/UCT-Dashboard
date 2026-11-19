@@ -1,0 +1,42 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "U-LOOP (feat/pine-forin-param-types-v2, NUMBER PENDING): a `for … in` over an untyped parameter is typed by the call site's argument (a collection only; a record is the object lane's), and a destructured function result keeps its collection slots' types. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "L1",
+   "mutant": "the refusal no longer names the function's untyped parameters",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (ps.length) err.typeParams = [...new Set(ps)]",
+   "to": "        if (false) err.typeParams = [...new Set(ps)]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/forInParamTypes.test.js",
+   "expectRed": "untyped parameter"
+  },
+  {
+   "id": "L2",
+   "mutant": "the call site never compiles its typed copy",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (!held.typeParams.some((p) => paramTys.has(p))) return null",
+   "to": "    return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/forInParamTypes.test.js",
+   "expectRed": "untyped parameter"
+  },
+  {
+   "id": "L3",
+   "mutant": "the copy does not type its parameter from the argument",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if (argTy) setSlotTy(ps, argTy)",
+   "to": "      if (false) setSlotTy(ps, argTy)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/forInParamTypes.test.js",
+   "expectRed": "untyped parameter"
+  },
+  {
+   "id": "L4",
+   "mutant": "a destructured result's collection slots lose their types",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "              if (ty && isCollectionTy(ty)) setSlotTy(slotsOut[k], plainTy(ty))",
+   "to": "              if (false) setSlotTy(slotsOut[k], plainTy(ty))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/forInParamTypes.test.js",
+   "expectRed": "destructured"
+  }
+ ]
+}
