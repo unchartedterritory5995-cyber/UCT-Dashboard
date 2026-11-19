@@ -1012,27 +1012,60 @@ def _fmt_chg(pct: float) -> tuple[str, str]:
     return f"{sign}{pct:.2f}%", ("pos" if pct >= 0 else "neg")
 
 
+# A fund name carrying one of these is a leveraged or inverse product.
+_LEV_NAME_KEYWORDS = ("2x", "3x", "-2x", "-3x", "ultra", "leveraged", "inverse",
+                      "bull 2", "bear 2", "bull 3", "bear 3", "direxion daily",
+                      "proshares ultra")
+
+
+def _lev_by_profile_name(ticker: str) -> bool | None:
+    """The name test over the company profile's name, or None when the profile
+    cannot decide (no row, a failed read, an unnamed row, or a fund whose name
+    does not say). The profile is the one `ticker_metadata.profile_facts` holds
+    for a day."""
+    from api.services.catalyst import ticker_metadata
+    facts = ticker_metadata.profile_facts(ticker) or {}
+    name = str(facts.get("name") or "").lower()
+    if not name:
+        return None
+    if any(kw in name for kw in _LEV_NAME_KEYWORDS):
+        return True
+    # A plain name settles it for a company. For a fund, or a row that does not
+    # say what it is, the yfinance name is still read: the two sources word fund
+    # names differently, and a leveraged fund must not pass on one wording.
+    if facts.get("is_etf") is False and facts.get("is_fund") is False:
+        return False
+    return None
+
+
 def _is_leveraged_etf(ticker: str) -> bool:
-    """Return True if ticker is a leveraged/inverse ETF. Cached 24h via existing cache."""
+    """Return True if ticker is a leveraged/inverse ETF. Cached 24h via existing cache.
+
+    The company profile's name decides first; the yfinance name is read only
+    when the profile cannot decide."""
     cache_key = f"is_lev_{ticker}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
     verified = False
     try:
-        import yfinance as yf
-        info = _bounded_yf(lambda: yf.Ticker(ticker).info, None)
-        if not info:
-            result = False
-        else:
-            verified = True
-            name = (info.get("longName", "") + " " + info.get("shortName", "")).lower()
-            keywords = ["2x", "3x", "-2x", "-3x", "ultra", "leveraged", "inverse",
-                        "bull 2", "bear 2", "bull 3", "bear 3", "direxion daily",
-                        "proshares ultra"]
-            result = any(kw in name for kw in keywords)
+        decided = _lev_by_profile_name(ticker)
     except Exception:
-        result = False
+        decided = None
+    if decided is not None:
+        result, verified = decided, True
+    else:
+        try:
+            import yfinance as yf
+            info = _bounded_yf(lambda: yf.Ticker(ticker).info, None)
+            if not info:
+                result = False
+            else:
+                verified = True
+                name = (info.get("longName", "") + " " + info.get("shortName", "")).lower()
+                result = any(kw in name for kw in _LEV_NAME_KEYWORDS)
+        except Exception:
+            result = False
     # A yfinance failure/empty `.info` could not actually determine leveraged-
     # ness -- caching that unverified `False` for 24h means TQQQ/SQQQ/SOXL etc.
     # render as ordinary stocks in Top Movers for a day on a transient blip.

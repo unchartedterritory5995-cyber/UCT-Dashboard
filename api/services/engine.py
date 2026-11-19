@@ -2392,12 +2392,42 @@ def _sort_news(items: list[dict], is_premarket: bool) -> list[dict]:
     return sorted(items, key=_key)
 
 
+def _sym_cap_from_profile(sym: str) -> bool | None:
+    """The gate's verdict from the company profile, or None when the profile
+    cannot decide: no row, a failed read, or a field the gate needs is missing.
+
+    The profile is the one `ticker_metadata.profile_facts` holds for a day, so
+    the gate asks for a ticker at most once in 24 h however often news rebuilds.
+    """
+    from api.services.catalyst import ticker_metadata
+    facts = ticker_metadata.profile_facts(sym)
+    if not facts:
+        return None
+    is_etf, is_fund = facts.get("is_etf"), facts.get("is_fund")
+    if is_etf is True or is_fund is True:
+        return False
+    if is_etf is None or is_fund is None:
+        return None
+    last, adv, cap = facts.get("price"), facts.get("avg_volume"), facts.get("market_cap")
+    if not (last and adv and cap):
+        return None
+    return (last * adv) >= 5_000_000 and cap >= 300_000_000
+
+
 def _check_sym_cap(sym: str) -> tuple[str, bool]:
     """Return (sym, allowed) applying $5M dollar-volume AND $300M market-cap gates.
 
-    Fails open on yfinance errors so transient network issues don't silently
-    drop all news. ETFs and non-equity instruments are always blocked.
+    The company profile decides first; the yfinance read decides when the
+    profile cannot. Fails open on yfinance errors so transient network issues
+    don't silently drop all news. ETFs and non-equity instruments are always
+    blocked.
     """
+    try:
+        decided = _sym_cap_from_profile(sym)
+    except Exception:
+        decided = None
+    if decided is not None:
+        return sym, decided
     try:
         import yfinance as yf
 
