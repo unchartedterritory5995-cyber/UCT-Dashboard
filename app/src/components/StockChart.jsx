@@ -8735,8 +8735,10 @@ export default function StockChart({
     const loaded = barCountRef.current
     if (heldSpanFor(loaded, 0) !== heldSpanFor(_heldLoaded, 0)) _setHeldLoaded(loaded)
   })
+  // ⭐⭐ (2026-11-19, e83 live) — and the symbol BINDING the run is handed (`symbolMeta`), so the own-daily question
+  // is asked of the script as the run builds it (Fred RS branches on `syminfo.industry`)
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym)
+    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)
