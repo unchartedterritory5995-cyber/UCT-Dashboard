@@ -19,9 +19,9 @@
 // Nothing reads this yet: the supply that will is S4-3 onward.
 import CATALOG from './pineDataCatalog.json'
 
-export const DATA_LICENCE_GUARD = 'data:licence'
-export const DATA_UNKNOWN_GUARD = 'data:unknown-family'
-export const DATA_FIELD_GUARD = 'data:field-unserved'
+export const DATA_LICENCE_GUARD = 'pine-data:licence'
+export const DATA_UNKNOWN_GUARD = 'pine-data:unknown-family'
+export const DATA_FIELD_GUARD = 'pine-data:field-unserved'
 
 const fill = (template, values) => Object.entries(values)
   .reduce((out, [k, v]) => out.split(`{${k}}`).join(String(v)), template)

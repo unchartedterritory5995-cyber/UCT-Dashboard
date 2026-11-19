@@ -49,7 +49,7 @@ describe('pineDataCatalog (S4-0)', () => {
     const c = clone()
     c.families.financial.licence = { class: 'R', registerRow: 'T-83' }
     expect(dataFamilyRefusal('financial', c)).toEqual({
-      guard: 'data:licence',
+      guard: 'pine-data:licence',
       message: 'Not served: `request.financial`. The financial data rests on licensing class R '
         + "(licensing register row T-83), and a member's script reads only data classed A or LA.",
     })
@@ -57,7 +57,7 @@ describe('pineDataCatalog (S4-0)', () => {
 
   it('a hold refuses by name once the licence passes', () => {
     const out = dataFamilyRefusal('uct_short_interest')
-    expect(out.guard).toBe('data:owner-hold')
+    expect(out.guard).toBe('pine-data:owner-hold')
     expect(out.message).toContain('`uct.short_interest`, `uct.days_to_cover`')
     expect(out.message).toContain('O7')
   })
@@ -75,15 +75,15 @@ describe('pineDataCatalog (S4-0)', () => {
     expect(dataFamilyOf('')).toBeNull()
   })
 
-  // ⚰️ 2026-11-19: earnings (T-35/T-36) and dividends / splits (T-07) moved data:licence -> served when the licensing
+  // ⚰️ 2026-11-19: earnings (T-35/T-36) and dividends / splits (T-07) moved pine-data:licence -> served when the licensing
   // table followed the register's 2026-09-19 note (Bus / DDLA column in force). Nothing imports this module yet.
   it('today, by name: what the catalogue serves and refuses (the generated blocks as committed)', () => {
     const got = Object.fromEntries(FAMILIES.map((f) => [f, (dataFamilyRefusal(f) || { guard: 'served' }).guard]))
     expect(got).toEqual({
       earnings: 'served', dividends: 'served', splits: 'served', financial: 'served',
-      uct_rs_rating: 'data:licence', uct_rs_line: 'data:licence', uct_breadth: 'data:licence',
-      uct_cot: 'data:licence', uct_short_interest: 'data:owner-hold', uct_short_volume: 'data:owner-hold',
-      uct_sentiment: 'data:licence',
+      uct_rs_rating: 'pine-data:licence', uct_rs_line: 'pine-data:licence', uct_breadth: 'pine-data:licence',
+      uct_cot: 'pine-data:licence', uct_short_interest: 'pine-data:owner-hold', uct_short_volume: 'pine-data:owner-hold',
+      uct_sentiment: 'pine-data:licence',
     })
   })
 
