@@ -218,7 +218,9 @@ export const FAMILIES = Object.freeze([
     exact: ['pine:colour-value', 'pine:text-value', 'pine:plot-offset', 'pine:alert-message',
       'pine:paint-pane', 'runtime:colour', 'runtime:presentation', 'runtime:plot-id',
       // engine 58 colours (landing train 1): a colour withheld by name, never drawn in a made-up one
-      'pine:colour-unread', 'pine:colour-default-unwitnessed'],
+      'pine:colour-unread', 'pine:colour-default-unwitnessed',
+      // a `plotarrow` (TradingView's up and down arrows) is not drawn as a line of its value: withheld by name
+      'pine:plotarrow-not-drawn'],
     prefix: ['pine:offset-negative', 'paint:', 'runtime:fill-', 'format:'],
     label: 'How it is drawn',
     why: 'The value is computed, but this way of drawing it is not supported yet, so it is not drawn '
