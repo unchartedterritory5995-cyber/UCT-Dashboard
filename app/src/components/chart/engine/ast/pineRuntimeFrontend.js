@@ -70,6 +70,7 @@ import {
   // uses both words as local variables; an IR constructor shadowed by one would
   // build the wrong node with nothing red.
   record as irRecord, field as irField, fieldSet as irFieldSet,
+  IrError,
 } from '../runtime/ir.js'
 import { constCompareFold, pineConstCompareExact, constantTreeValue } from '../pineCompare.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
@@ -83,7 +84,7 @@ import { strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
 const strategyBrokerEnabled = () => strategyBrokerGateOn()
 import { strategyRepaintConstruct } from './strategyRepaint.js'
 // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what a broker document may draw when its broker run is refused
-import { strategyTaintSinks, strategyDisarmOf } from './strategyTaint.js'
+import { strategyTaintSinks, strategyDisarmOf, requestNewestReachOf } from './strategyTaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
   timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
@@ -134,7 +135,8 @@ const STRATEGY_OCA_TYPES = Object.freeze({
 
 const ARRAY_READS_ELEMENT = new Set(['array.get', 'array.pop', 'array.shift',
   'array.first', 'array.last', 'array.remove'])
-import { COLOUR_FNS, producesColour, hexToPacked, objectHexToPacked, colourTypedNamesOf } from '../runtime/colours.js'
+import { COLOUR_FNS, producesColour, hexToPacked, objectHexToPacked, colourTypedNamesOf, COLOUR_COMPARABLE } from '../runtime/colours.js'
+import { THEME_NAMES, packedThemeColour } from '../objectTheme.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
  *  Collapsing these into `pine:state` would hide the next dependency, which is
@@ -194,7 +196,16 @@ function fromCanonical(node, tok) {
     // catch a NAMED argument. A bare node in that position answers with its own
     // `name` — so a nested `max(...)` handed to `max` was read as
     // `a named argument \`max\` on \`max\``. Measured, second run.
-    case 'call': return {
+    // ⭐⭐ ENGINE 84 (S14 fix 2) — TWO DIALECTS SPELL `call` AND `offset` WITH ONE `type`, so the
+    // promise above ("A PARSE NODE PASSES THROUGH UNTOUCHED") is kept by SHAPE for those two: a parse call's
+    // arguments are `{name?, value}` records (a canonical one's are nodes), and a parse offset carries `arg` / `n`
+    // (a canonical one `args` / `value`). ⚰️ Both were read as canonical: a caller's `high[2]` handed to
+    // `ta.highestbars` (`negatedBars` embeds its source) lost its operand and threw "Cannot read properties of
+    // undefined (reading 'type')" (S14 relabelled it an engine defect), and a caller's `ta.sma(high, 3)` was
+    // double-wrapped and refused `pine:statement`, "not a shape the translator reads".
+    case 'call':
+      if ((node.args || []).some((x) => x && typeof x === 'object' && x.type === undefined && 'value' in x)) return node
+      return {
       type: 'call',
       name: node.name,
       tok: at,
@@ -204,7 +215,9 @@ function fromCanonical(node, tok) {
     // (`{type:'offset', arg, n}`, as `runtimeRespelling` writes one): the
     // canonical `{value, args}` spelling reached `lowerExpr` with no `n` and was
     // refused "a bar offset counts backwards in whole bars" for a literal shift.
-    case 'offset': return {
+    case 'offset':
+      if (node.arg !== undefined || node.n !== undefined) return node   // ⭐ S14 fix 2: a parse `x[k]`, kept (above)
+      return {
       type: 'offset', arg: fromCanonical((node.args || [])[0], at), n: node.value, tok: at,
     }
     // ⭐ ANYTHING ELSE IS ALREADY A PARSE NODE — a caller's own argument, which
@@ -1719,7 +1732,7 @@ const MAX_BARS_BACK_CEILING = 5000
 
 /** ⭐⭐ (2026-11-19, the B5 reuse fix) — EVERY FACT ABOUT THE BAR COUNT A BUILD READS, as one key. Outside the column seam the build
  *  reads `bars.length` only to ask "are there bars at all" (a compile-only build: the C23 symbol fold, the C36 clock
- *  zone, the column checks) and "are there more bars than Pine's history buffer" (`mbbDynamicColumn`). Two builds
+ *  zone, the C1 exchange zone of an `input.time` default, the column checks) and "are there more bars than Pine's history buffer" (`mbbDynamicColumn`). Two builds
  *  of one script, with equal options, over bar counts in one class, take the same path wherever the columns they
  *  evaluate do not refuse (`columnSinkRefusal`, `columnBlankRefusal`) and do not throw. ⛔ A new read of the count
  *  joins this key, or a session or the build memo (`runtime/runtimeColumns.js::columnsOver`) reuses a build over a
@@ -1876,7 +1889,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const b = env.get(n)
       return b && b.kind === 'expr' && !b.frame ? b.node : null
     }
-    const r = timeInputDefaultOf(call, lookup)
+    // ⭐ C1 — the exchange's zone, where this run is told a New York symbol (the rule `requireNewYorkExchange`
+    // states for every exchange-zone read on this lane): a `timestamp(year, …)` default reads it
+    const exchangeZone = bars.length > 0 && bindConsts['syminfo.timezone'] === 'America/New_York' ? 'America/New_York' : null
+    const r = timeInputDefaultOf(call, lookup, { exchangeZone })
     if (r.skip) throw new RuntimeRefusal('runtime:statement', '`' + name + '` is a time input, and ' + r.skip, at)
     return { type: 'number', value: r.ms, tok: call.tok }
   }
@@ -1957,6 +1973,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // trace that throws is `null`, and the disarmed run then keeps the broker's refusal.
   let brokerTaint = null
   if (brokerMode) { try { brokerTaint = strategyTaintSinks(stmts) } catch { brokerTaint = null } }
+  // ⭐⭐ HTF-NEWEST-NARROW — the ORIGINAL statements, for each request site's newest-bar reach (`requestNewestReachOf`)
+  const sourceStmts = stmts
   // ⭐⭐ W34-I6a — a wrapped `switch` arm is one expression (see `wrappedArmOf`); pane only.
   if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents, String(source || '').split(/\r?\n/))
   // ⭐⭐ W34-I4 — a v1/v2 self-referencing definition whose every self read states its
@@ -4592,10 +4610,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐ TC — the immutable bindings `holdsColour` is reading through right now (its cycle guard; see
    *  the name arm below). `touchesColour` and `fractionalColourIn` keep their own sets. */
   const colourNamesInFlight = new Set()
+  /** ⭐ CO-2 — does this script name `chart.fg_color` / `chart.bg_color` anywhere (comments and strings stripped)? */
+  let themeInScript = null
+  const THEME_IN_SCRIPT = () => {
+    if (themeInScript === null) {
+      try { themeInScript = /\bchart\.(?:fg|bg)_color\b/.test(strippedForScan(source)) } catch { themeInScript = true }
+    }
+    return themeInScript
+  }
   const holdsColour = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
       if (colourHexByName(node.name, pineVersion) !== null) return true
+      // ⭐ CO-2 — the chart's two theme colours are colours (a script's own binding of the name wins)
+      if (THEME_NAMES.includes(node.name) && lookupReadable(node.name, scope) === null && !env.has(node.name)) return true
       const slot = lookupReadable(node.name, scope)
       // ⭐ WS-E — a name TYPED `color` is one, even when it was declared `na`.
       if (slot !== null) return isColourTy(slotTy(slot)) || colourTypedNames.has(node.name)
@@ -5359,7 +5387,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'name') {
       const slot = lookupReadable(node.name, scope)
       if (slot !== null) return slotUdt(slot)
-      const path = fieldPathOf(node, scope)
+      // ⭐ S14 fix 3 — the depth travels through `fieldPathOf` and back (below)
+      const path = fieldPathOf(node, scope, depth)
       if (path) return path.type
       const bound = env.get(node.name)
       if (bound && bound.kind === 'expr') return udtTypeOf(bound.node, scope, depth + 1)
@@ -5417,7 +5446,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  the same ruling for the receiver of a method call, and for the same reason:
    *  `a.b.c` addresses `c` OF `a.b`, and reading `a.b` as the head of `c` would
    *  address the wrong object with no error anywhere. */
-  const fieldPathOf = (node, scope) => {
+  // ⭐⭐ ENGINE 84 (S14 fix 3) — THE DEPTH `udtTypeOf` BOUNDS ITS WALK WITH TRAVELS THROUGH HERE.
+  // ⚰️ This called `udtTypeOf(bound.node, scope)` with the depth reset to 0, so a binding whose own value reads
+  // a path with its name as the head (`string timeframe = timeframe.period`, then `timeframe.period` again:
+  // the head is the binding, its value is the same path) went round `udtTypeOf` -> `fieldPathOf` -> the binding
+  // -> `udtTypeOf` until the stack overflowed (an engine defect, S14: 5 walls in 3 sample scripts). With the
+  // depth carried it answers `null` at the bound, which is the answer: a `string` has no fields, so the path
+  // is not a field path and the name is read as what it is (`timeframe.period`, the built-in).
+  const fieldPathOf = (node, scope, depth = 0) => {
     if (!node || node.type !== 'name' || typeof node.name !== 'string') return null
     const parts = node.name.split('.')
     if (parts.length < 2) return null
@@ -5427,7 +5463,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (slot !== null) type = slotUdt(slot)
     else {
       const bound = env.get(head)
-      if (bound && bound.kind === 'expr') type = udtTypeOf(bound.node, scope)
+      if (bound && bound.kind === 'expr') type = udtTypeOf(bound.node, scope, depth + 1)
     }
     if (!type) return null
     const steps = []
@@ -6238,7 +6274,45 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  Two copies of the arity and named-argument checks would drift, and the one
    *  that drifted would be the statement path, which is the one a member's
    *  watchlist parser is made of. */
-  const admitArrayCall = (node, scope, asStatement) => {
+  /** ⭐⭐ ENGINE 84 (A2) — A NAMED ARGUMENT ON A SERVED BUILT-IN TAKES ITS DECLARED POSITION, by
+   *  Pine's own parameter name (the Pine v6 reference's syntax lines: `color.new(color, transp)`,
+   *  `color.rgb(red, green, blue, transp)`, `color.from_gradient(value, bottom_value, top_value, bottom_color,
+   *  top_color)`, `array.new_<type>(size, initial_value)` and `array.new<type>(size, initial_value)`). The
+   *  review-L3 rule (`ta.sma(source = …, length = …)`) made general for these: positional arguments fill from
+   *  the left, a named one goes to its parameter. ⛔ `null` (the refusal by name stands) for a name the reference
+   *  does not list, a parameter given twice, a positional argument after a named one, or a parameter skipped
+   *  before one that is given (no default is invented here). */
+  const REFERENCE_PARAM_NAMES = Object.freeze({
+    'color.new': Object.freeze(['color', 'transp']),
+    'color.rgb': Object.freeze(['red', 'green', 'blue', 'transp']),
+    'color.from_gradient': Object.freeze(['value', 'bottom_value', 'top_value', 'bottom_color', 'top_color']),
+  })
+  const ARRAY_NEW_PARAM_NAMES = Object.freeze(['size', 'initial_value'])
+  const referenceParamNames = (name) => (
+    REFERENCE_PARAM_NAMES[name] || (/^array\.new(?:_[a-z]+)?$/.test(String(name || '')) ? ARRAY_NEW_PARAM_NAMES : null))
+  const argsInReferenceOrder = (args, names) => {
+    if (!names || atObjectDoor) return null
+    const placed = []
+    let named = false
+    for (const a of args || []) {
+      if (a && a.name) {
+        named = true
+        const i = names.indexOf(String(a.name))
+        if (i < 0 || placed[i] !== undefined) return null
+        placed[i] = { ...a, name: null }
+      } else {
+        if (named) return null   // a positional argument after a named one
+        placed.push(a)
+      }
+    }
+    for (let i = 0; i < placed.length; i += 1) if (placed[i] === undefined) return null
+    return placed
+  }
+  const admitArrayCall = (node0, scope, asStatement) => {
+    // ⭐ A2 — `array.new_float(size = 3, initial_value = 0.0)` is the positional call
+    const reordered = (node0.args || []).some((a) => a && a.name)
+      ? argsInReferenceOrder(node0.args, referenceParamNames(node0.name)) : null
+    const node = reordered ? { ...node0, args: reordered } : node0
     const spec = ARRAY_FNS[node.name]
     for (const arg of node.args) {
       if (arg && arg.name) {
@@ -9216,6 +9290,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
             && scope.lookup(node.name) === null && !env.has(node.name)) {
           return str(ORDER_ENUM[node.name])
         }
+        // ⭐⭐ ENGINE 84 (CO-2) — `chart.fg_color` / `chart.bg_color` ARE COLOUR VALUES HERE, carried as
+        // the SAME theme reference the host reader carries (`objectTheme.js`, one authority), in the number form
+        // this lane's colours take (`packedThemeColour`), and resolved where they are drawn: an object's colour
+        // slot, a per-bar colour column. TradingView: they are the chart's own background and its high-contrast
+        // foreground (the light-theme capture `vw-theme-colours-spy-1d-2026-10-01` reads #0f0f0f on #ffffff),
+        // so they are never folded to a hex here. ⛔ A script's own binding of the name wins.
+        if (THEME_NAMES.includes(node.name) && scope.lookup(node.name) === null && !env.has(node.name)) {
+          return num(packedThemeColour(node.name))
+        }
         // ⭐⭐ S1 — A BROKER VALUE (`strategy.position_size`, ...), read from the run's
         // broker; the two directions are the numbers the broker reads ([B-DIR]).
         if (brokerMode && node.name.startsWith('strategy.')
@@ -9485,6 +9568,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
               `\`${node.op}\` over a colour written with a transparency that is not a whole number (or a gradient) — `
               + 'whether TradingView compares such colours by their opacity byte or their transparency is not captured '
               + 'yet (probe `vw-tc1-colour-na-compare`, rows E1-E2)', at)
+          }
+          // ⭐ CO-2 — IN A SCRIPT THAT PAINTS WITH THE CHART'S THEME COLOUR, each operand takes the step that stops
+          // the run by name where it IS one (`colours.js::COLOUR_COMPARABLE`): the chart's colour is not in the
+          // computation. Every other script's comparison is lowered exactly as before.
+          if (THEME_IN_SCRIPT()) {
+            return binary(op, colourCall(COLOUR_COMPARABLE, [lowerExpr(node.left, scope)]),
+              colourCall(COLOUR_COMPARABLE, [lowerExpr(node.right, scope)]))
           }
           return binary(op, lowerExpr(node.left, scope), lowerExpr(node.right, scope))
         }
@@ -10019,6 +10109,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           specIndex = simpleSpecialisation(node, scope, held)
           // ⭐ TC — a held `runtime:colour` an untyped parameter caused, settled by this call's colour.
           if (specIndex === null) specIndex = colourSpecialisation(node, scope, held)
+          // ⭐ U-LOOP — a held `runtime:loop` an untyped parameter caused, settled by this call's argument types.
+          if (specIndex === null) specIndex = typeSpecialisation(node, scope, held)
           if (specIndex === null) {
             note(held && held.guard ? held.guard : 'runtime:function')
             throw held
@@ -10401,13 +10493,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // above all, keeps the refusal.
         if (Object.prototype.hasOwnProperty.call(COLOUR_FNS, node.name)) {
           const spec = COLOUR_FNS[node.name]
-          for (const arg of node.args) {
+          // ⭐ A2 — `color.new(color = c, transp = 50)` is the positional call (Pine's own parameter names)
+          const reordered = node.args.some((a) => a && a.name)
+            ? argsInReferenceOrder(node.args, referenceParamNames(node.name)) : null
+          const cargs = reordered || node.args
+          for (const arg of cargs) {
             if (arg && arg.name) {
               throw new RuntimeRefusal('runtime:statement',
                 `a named argument \`${arg.name}\` on \`${node.name}\``, locate(node.tok))
             }
           }
-          const given = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
+          const given = cargs.map((x) => (x && x.value !== undefined ? x.value : x))
           const lo = spec.minArgs === undefined ? spec.args.length : spec.minArgs
           const hi = spec.maxArgs === undefined ? spec.args.length : spec.maxArgs
           if (given.length < lo || given.length > hi) {
@@ -10426,12 +10522,32 @@ function buildRuntimeIrLinked(source, opts, holder) {
           return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
-        // ⛔ REQ (coverage unit, 2026-11-16) — a v1–v4 bare `security(…)` whose value reads this run's
-        // state stays refused `runtime:request-with-state` (below), the identity included. Routing it
-        // through `admitRequest` (which serves the identity as the expression itself, as for
-        // `request.security`) was built and WITHDRAWN by the coordinator's ruling: no committed capture
-        // grades a v1–v4 bare identity over state MATCH, so the shape waits for Q-REQ4
-        // (`docs/pine/capture-queue-2026-11-16-request-security.md`).
+        // ⭐⭐ REQ-B1 (coordinator ruling 2026-11-18) — A v3 / v4 BARE `security(…)` IS THE REQUEST DOOR'S, AS
+        // `request.security` IS. `security(…)` became `request.security(…)` in v5 (a rename; `resolution` →
+        // `timeframe`, which `positionaliseRequest` reads), and v3 and v4 share its look-ahead default.
+        // TradingView's v3 migration guide, verbatim: "We added a parameter to the `security` function (the
+        // fifth one) called `lookahead`. It can take on the form of two different values:
+        // `barmerge.lookahead_off` (and this is the default for Pine Script version 3) or
+        // `barmerge.lookahead_on` (which is the default for Pine Script version 2)." ⭐ WITNESSED for v4 on
+        // `support-and-resistance-multi-time-frame-{rddt,spy}-1d-2026-10-02`: its `security(…, 'D' | 'W' | 'M',
+        // valuewhen(…))` drawn by the runtime lane equals TradingView's six plots on every bar
+        // (`vendorHarness.reqBareSecurityForced.test.js`). ⚰️ It fell to `runtime:request-with-state` below,
+        // about a value that reads none of this run's state (24 of that wall's 39 sample hits were this).
+        // ⛔ v1 / v2 (and a script with no version line) stay refused by name: their look-ahead default is
+        // the other one, and Q-REQ4 owes its capture. ⛔ A value that reads this run's own mutable state is
+        // refused first, whatever the timeframe: TradingView refuses to compile it from v3 (the same guide:
+        // "Cannot use mutable variable as an argument for security function!"). A user function of that
+        // name never reaches here (it is routed above).
+        if (node.name === 'security' && (pineVersion === 3 || pineVersion === 4)) {
+          const asked = positionaliseRequest(node)
+          const pos = (asked.args || []).filter((x) => !x || !x.name)
+          const valueNode = pos[2] && pos[2].value !== undefined ? pos[2].value : pos[2]
+          if (valueNode && readsOuterSlot(valueNode, scope)) {
+            note('runtime:request-with-state')
+            throw new RuntimeRefusal('runtime:request-with-state', '`security`', locate(node.tok))
+          }
+          return admitRequest(node, scope, opts)
+        }
         if (textInputHere(node)) return admitTextInput(node, scope)
         if (heldArray(node.name)) {
           return admitArrayCall(node, scope, false)
@@ -11856,8 +11972,26 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
       return n
     }
+    // ⭐⭐ ENGINE 84 (CO-3) — A SIDE WRITTEN AS THE PLOT ITSELF: `fill(plot(a), plot(b))`.
+    // The Pine v6 reference: `plot` "Returns: A plot object, that can be used in fill()", `hline` "Returns: An
+    // hline object, that can be used in fill()"; and the User Manual, *Fills* (pine-script-docs/visuals/fills):
+    // one `fill` call takes two plot IDs or two hline IDs, never one of each. An argument is its value, so
+    // `fill(plot(a), plot(b))` is `p1 = plot(a)`,
+    // `p2 = plot(b)`, `fill(p1, p2)`: each side's plot is emitted where it stands, left to right, before the fill
+    // (the same outputs in the same order as the bound form; railed). Only `plot` and `hline`, the two calls that
+    // return such an ID; never at the object door. A pair with an inline side that mixes the two kinds is refused
+    // by name (the Manual's rule); a pair of two BOUND names keeps master's answer.
+    const INLINE_FILL_SIDES = new Set(['plot', 'hline'])
+    const sideKind = []
+    let inlineSide = false
     const sideOf = (i) => {
-      const node = plotIdNode(argOf(positional[i]))
+      const raw = argOf(positional[i])
+      if (!atObjectDoor && raw && raw.type === 'call' && INLINE_FILL_SIDES.has(raw.name)) {
+        inlineSide = true
+        sideKind[i] = raw.name
+        return emitOutputCall(raw.name, raw, scope, out, at)
+      }
+      const node = plotIdNode(raw)
       const ref = node && node.type === 'name' ? plotRefs.get(node.name) : null
       if (!ref) {
         note('runtime:fill-target')
@@ -11865,10 +11999,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
           `argument ${i + 1} of \`fill()\` is not a plot — a fill spans two, and `
           + 'each is named by binding one (`p = plot(…)`)', at)
       }
+      sideKind[i] = ref.call
       return ref.index
     }
     const upper = sideOf(0)
     const lower = sideOf(1)
+    if (inlineSide && sideKind[0] !== sideKind[1]) {
+      note('runtime:fill-target')
+      throw new RuntimeRefusal('runtime:fill-target',
+        `\`fill()\` spans two plot IDs or two hline IDs, never one of each — this one is given a \`${sideKind[0]}\` and a `
+        + `\`${sideKind[1]}\``, at)
+    }
 
     // ⭐⭐ WS-E — THE GRADIENT FORM IS LOWERED AS AN UNDRAWN FILL, not refused.
     // `fill(p1, p2, top_value, bottom_value, top_color, bottom_color)` shades
@@ -13612,7 +13753,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
       ? FOR_IN_SNAPSHOT_SOURCES[src] : null
     const srcNode = { type: 'name', name: src, tok: srcToks[0] }
     const srcTy = family ? makeTy('array', { elem: makeTy('drawing', { name: family }) }) : exprType(srcNode, scope)
-    if (!srcTy) refuse(`the type of \`${src}\` cannot be told`)
+    if (!srcTy) {
+      // ⭐⭐ ENGINE 84 (U-LOOP) — AN UNTYPED PARAMETER TAKES ITS ARGUMENT'S TYPE, PER CALL.
+      // The Pine v6 User Manual, *User-defined functions* > *Declaring parameter types*: "If a function
+      // parameter does not have a type keyword in its declaration, its type is initially undefined. In
+      // each separate call to the function, the parameter automatically inherits the same type as its
+      // specified argument." The shared body cannot know it; the refusal names the function's untyped
+      // parameters, and a call site whose arguments ARE typed compiles its own copy
+      // (`typeSpecialisation`, the C35 / TC rule), where the walk is typed.
+      note('runtime:loop')
+      const err = new RuntimeRefusal('runtime:loop', `\`for … in\`: the type of \`${src}\` cannot be told`, locate(first))
+      if (owner !== null && !atObjectDoor) {
+        const ps = [...untypedParams].filter((s) => slots[s] && slots[s].owner === owner).map((s) => slots[s].name)
+        if (ps.length) err.typeParams = [...new Set(ps)]
+      }
+      throw err
+    }
     if (srcTy.kind === 'matrix' || srcTy.kind === 'map') refuse(`a walk over a ${srcTy.kind} is not yet captured (W6-F1)`)
     if (srcTy.kind !== 'array') refuse(`\`${src}\` is not an array this lane can walk`)
     if (!forInFnDefs) forInFnDefs = readFunctionDefs(stmts, { isPunct })
@@ -14483,6 +14639,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
             locate(first))
         }
         const slotsOut = nameToks.map((nt) => scope.declare(nt.value, newSlot(nt.value, false)))
+        // ⭐ U-LOOP — `[a, b] = f(…)` over a function that hands back its own slots (`[top, btm]`): each name
+        // holds what that slot holds, so a COLLECTION keeps its type through the destructuring (the values
+        // ARE those slots' values; a collection is the same object). Nothing else is typed: ⛔ a record (a user
+        // type) element stays as it was, because what a record reads is the object lane's ground.
+        if (!atObjectDoor && lowered && lowered.kind === EXPR.CALL) {
+          const res = functions[lowered.fn] ? functions[lowered.fn].result : null
+          if (res && res.kind === EXPR.TUPLE && Array.isArray(res.elements) && res.elements.length === slotsOut.length) {
+            res.elements.forEach((el, k) => {
+              const ty = el && el.kind === EXPR.READ ? slotTy(el.slot) : null
+              if (ty && isCollectionTy(ty)) setSlotTy(slotsOut[k], plainTy(ty))
+            })
+          }
+        }
         out.push(destructure(slotsOut, lowered))
         continue
       }
@@ -15428,7 +15597,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // array passed to one is refused at its first member call rather than
       // guessed at.
       const ty = declaredTypes.get(p)
-      if (!ty) untypedParams.add(ps)
+      // ⭐ U-LOOP — a parameter this call site's copy types from its argument (`spec.paramTys`) is typed
+      const argTy = !ty && spec && spec.paramTys instanceof Map ? spec.paramTys.get(p) || null : null
+      if (argTy) setSlotTy(ps, argTy)
+      else if (!ty) untypedParams.add(ps)
       // ⭐ W6-T3a — AND ONE DECLARED AS A USER TYPE HOLDS A RECORD — the receiver
       // of `method bump(Point this, …)` — typed from the DECLARED type, exactly as
       // `bindSlotTy` types a binding, so `this.x` reads as a field path.
@@ -15933,6 +16105,71 @@ function buildRuntimeIrLinked(source, opts, holder) {
       loopDepth = 0
       try {
         defineFunction(def.st, def.toks, def.arrow, { colourParams })
+      } catch (err) {
+        rec.error = err
+        // ⛔ the record stays, valid and uncalled (`simpleSpecialisation`'s rule)
+        const r = functions[rec.index]
+        if (r) {
+          r.body = []
+          r.result = naValue()
+          r.returns = 1
+          r.valueless = false
+          r.frameSize = countFor(rec.index, SLOT.LOCAL)
+          r.persistCount = countFor(rec.index, SLOT.PERSIST)
+          r.effects = { pure: false }
+        }
+      } finally {
+        env.clear()
+        for (const [k, v] of saved.env) env.set(k, v)
+        hoistSink = saved.hoistSink
+        stmtHoistSink = saved.stmtHoistSink
+        loopDepth = saved.loopDepth
+      }
+    }
+    if (rec.error) throw rec.error
+    diagnostics.specialisedCalls = (diagnostics.specialisedCalls || 0) + 1
+    return rec.index
+  }
+  /** ⭐⭐ ENGINE 84 (U-LOOP) — A DEFINITION HELD AT `runtime:loop` BECAUSE A WALK'S TYPE COULD
+   *  NOT BE TOLD IN THE SHARED FRAME, COMPILED FOR THE CALL SITE WHOSE ARGUMENTS SAY IT.
+   *
+   *  The User Manual sentence `colourSpecialisation` stands on, applied to a COLLECTION: each untyped
+   *  parameter whose argument here has a collection type (`exprType`: an array, a map or a matrix, with its
+   *  element) takes that type in this copy. A copy is shared by every call site with the same types, each
+   *  keeping its own call site (its own persistent locals), as C35 / TC copies are.
+   *  ⛔ A RECORD (a user type) IS NOT TYPED HERE: what a record reads is the object lane's ground, and this
+   *  copy leaves such a parameter as the shared body has it.
+   *  ⛔ Only a refusal that named untyped parameters (`typeParams`), only when at least one of them is
+   *  typed here, never inside a request's value or at the object door. A copy that refuses again keeps
+   *  that refusal (thrown). `null` = the held refusal stands. */
+  const typeSpecialisation = (node, scope, held) => {
+    if (atObjectDoor || inRequestValue || !held || held.guard !== 'runtime:loop') return null
+    if (!Array.isArray(held.typeParams) || !held.typeParams.length) return null
+    const def = deferredFnDefs.get(node.name)
+    const params = fnParamNamesByName.get(node.name)
+    if (!def || !Array.isArray(params)) return null
+    const given = node.args || []
+    if (given.some((a) => a && a.name) || given.length !== params.length) return null
+    const typed = paramTypeHeads(def.toks, def.arrow)
+    const paramTys = new Map()
+    params.forEach((p, i) => {
+      if (typed.has(p)) return
+      let ty = null
+      try { ty = exprType(argNode(given[i]), scope) } catch { ty = null }
+      if (ty && isCollectionTy(ty)) paramTys.set(p, ty)
+    })
+    if (!held.typeParams.some((p) => paramTys.has(p))) return null
+    const key = `${node.name}|types:${[...paramTys].map(([p, t]) => `${p}=${tyKey(t)}`).sort().join(',')}`
+    let rec = specialisations.get(key)
+    if (!rec) {
+      rec = { index: functions.length }
+      specialisations.set(key, rec)
+      const saved = { env: new Map(env), hoistSink, stmtHoistSink, loopDepth }
+      hoistSink = null
+      stmtHoistSink = null
+      loopDepth = 0
+      try {
+        defineFunction(def.st, def.toks, def.arrow, { paramTys })
       } catch (err) {
         rec.error = err
         // ⛔ the record stays, valid and uncalled (`simpleSpecialisation`'s rule)
@@ -16594,7 +16831,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         for (const c of locals) carried2Main.push({ ...c, site: i })
         c2base += locals.length
       }
-      for (const fn of functions) delete fn.carried2Locals
+      for (const fn of functions) {
+        // ⭐ S14 fix 1 — the count rides the function record, as `carriedCount` does: the IR's check reads a
+        // body's frame-relative `carried2` site against it
+        fn.carried2Count = (fn.carried2Locals || []).length
+        delete fn.carried2Locals
+      }
     }
 
     if (history.length > MAX_HISTORY_SLOTS) {
@@ -16632,6 +16874,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const boolNaLate = boolNaFaithfulness(statements)
   if (boolNaLate) return fail(boolNaLate, diagnostics)
 
+  // ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) — per request site, the outputs a run must withhold on its newest bar when that
+  // site cannot know it (`runtimeColumns.js` reads it; `refused` keeps the whole-bar rule)
+  for (const r of requests) r.newestReach = requestNewestReachOf(sourceStmts, r.target ? r.target.line : null, outputs, outputLines)
+
   let ir
   try {
     ir = makeIrProgram({
@@ -16644,6 +16890,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         effects: f.effects, at: f.at,
         historyCount: f.historyCount || 0, historySlots: f.historySlots || [],
         carriedCount: f.carriedCount || 0,
+        carried2Count: f.carried2Count || 0,
         windowCount: f.windowCount || 0,
       })),
       callSites,
@@ -16714,6 +16961,27 @@ const position = (e) => {
   }
 }
 
+/** ⭐⭐ ENGINE 84 (S14, robustness) — WHAT AN EXCEPTION THAT IS NOT A REFUSAL IS CALLED.
+ *
+ *  Anything thrown during a build that is not one of the three refusal classes (`RuntimeRefusal`,
+ *  `PineRefusal`, `TableRefusal`) used to arrive at `fail` as `runtime:statement`, "a statement shape
+ *  this front end does not recognise": a sentence about the SCRIPT, said about whatever was thrown.
+ *  Ten scripts of the coverage sample were filed under the statements unit for it (an IR invariant
+ *  broken by an uncalled helper, `undefined` read as a node, a recursion with no floor). It is
+ *  `runtime:lower` now, the guard `runtimeColumns.js` already gives a lowering that throws, and the
+ *  sentence says which of two things happened:
+ *  - a DEFECT: a JavaScript error (`TypeError`, `RangeError`, ...), a plain `Error`, a thrown
+ *    non-error, or an `IrError` (the program this lane built fails its own invariant). Nothing about
+ *    the script is known; the sentence says the engine failed, and keeps what was thrown;
+ *  - an engine module's own NAMED error (`ColourError`, `ExpansionRefusal`, ...): its message is a
+ *    sentence about the script already ("not a colour this engine can read"), and is kept as it is.
+ *  Nothing that was drawn changes: the script was refused before, and is refused now. */
+const JS_ERROR_TYPES = [TypeError, RangeError, ReferenceError, SyntaxError, EvalError, URIError]
+export const isEngineDefect = (e) => !(e instanceof Error) || e.constructor === Error
+  || e instanceof IrError || JS_ERROR_TYPES.some((T) => e instanceof T)
+export const ENGINE_DEFECT_SENTENCE = 'this lane failed inside the engine while building the script (an engine '
+  + 'defect, not a shape it refuses by name), so none of it runs here'
+
 function fail(e, diagnostics) {
   // ⭐ R1 — an `interpret.js` `TableRefusal` keeps ITS guard too. A value the
   // BINDING could not settle (`interpret:bind-time-text`: a `syminfo.*` read by
@@ -16721,16 +16989,19 @@ function fail(e, diagnostics) {
   // "a statement shape this front end does not recognise", followed by the
   // interpreter's own sentence about a symbol — a guard that contradicted its
   // message, and four corpus scripts filed under the wrong wall.
-  const guard = e instanceof RuntimeRefusal ? e.guard
-    : (e instanceof PineRefusal || e instanceof TableRefusal ? e.guard : 'runtime:statement')
+  // ⭐ S14 — an exception that is not a refusal is `runtime:lower`, never `runtime:statement` (above)
+  const refusal = e instanceof RuntimeRefusal || e instanceof PineRefusal || e instanceof TableRefusal
+  const guard = refusal ? e.guard : 'runtime:lower'
+  const thrown = String((e && e.message) || e)
   return {
     ok: false,
     refusal: {
       guard,
       // ⛔ RULING D2: a shared-vocabulary refusal whose sentence promises
       // something about the OTHER rows is re-stated for this lane, which has none.
-      message: (e instanceof PineRefusal && RUNTIME_LANE_REFUSALS[guard])
-        || String(e.message || e),
+      message: refusal
+        ? ((e instanceof PineRefusal && RUNTIME_LANE_REFUSALS[guard]) || thrown)
+        : (isEngineDefect(e) ? `${ENGINE_DEFECT_SENTENCE} (${thrown})` : thrown),
       // ⛔⛔ TWO REFUSAL CLASSES CARRY THEIR POSITION DIFFERENTLY, and reading
       // only one of them silently dropped it for the other. `RuntimeRefusal`
       // FLATTENS `at` into `line`/`column`/`token` in its constructor;

@@ -230,6 +230,9 @@ describe('one authority: the reuse path holds no list of refusals of its own', (
       'const blankRefusal = columnBlankRefusal(clockSink, arr, bars.length, at)',
       'if (bars.length === 0) return',
       'if (!(Array.isArray(bars) && bars.length > MAX_BARS_BACK_CEILING)) return false',
+      // ⭐ engine 84 train (#1988 C1 x #1993): an `input.time` default's exchange zone is asked only where there are
+      // bars at all, the class's own first question ('none' or not), so two builds in one class read it alike
+      "const exchangeZone = bars.length > 0 && bindConsts['syminfo.timezone'] === 'America/New_York' ? 'America/New_York' : null",
     ]
     expect(reads.filter((r) => !KNOWN.includes(r))).toEqual([])
     for (const k of KNOWN) expect(reads, k).toContain(k)

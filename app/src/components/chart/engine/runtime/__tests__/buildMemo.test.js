@@ -307,6 +307,9 @@ describe('the front end\'s reads of the bars', () => {
       'const blankRefusal = columnBlankRefusal(clockSink, arr, bars.length, at)',
       'if (bars.length === 0) return',
       'if (!(Array.isArray(bars) && bars.length > MAX_BARS_BACK_CEILING)) return false',
+      // engine 83/84: "are there bars at all" (the count's class: `none`), with the symbol's timezone read through
+      // `bindConsts` (reported, so the memo checks it); sessionReuseIdentity.test.js lists the same line
+      "const exchangeZone = bars.length > 0 && bindConsts['syminfo.timezone'] === 'America/New_York' ? 'America/New_York' : null",
     ]
     const unknown = reads.filter((r) => !KNOWN.includes(r))
     expect(unknown).toEqual([])

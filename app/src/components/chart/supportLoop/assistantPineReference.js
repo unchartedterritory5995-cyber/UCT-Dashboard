@@ -161,7 +161,9 @@ export function buildAssistantPineReference({ allowlist, doorNames, examples = [
     values,
     text,
     arrays,
-    colours: sorted(keysOf(COLOUR_FNS)),
+    // ⛔ only names a script can CALL: CO-2 (#1984, engine 84) put an internal step in the table (`color comparable`,
+    // `colours.js::COLOUR_COMPARABLE`, a name with a space), as `text` drops the run's internal `/` variants above
+    colours: sorted(keysOf(COLOUR_FNS).filter((k) => !/\s/.test(k))),
     colourNames: sorted(keysOf(PINE_COLOUR_NAMES).map((n) => `color.${n}`)),
     symbol: sorted([...keysOf(BUILTIN_SYMBOL_SCOPED), ...keysOf(BUILTIN_SYMBOL_NUMERIC)]),
     barstate: sorted(keysOf(BUILTIN_BARSTATE_SERIES)),

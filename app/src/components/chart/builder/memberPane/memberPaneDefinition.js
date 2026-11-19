@@ -293,6 +293,15 @@ function calcBarsMeta(t) {
   return { calcBarsCount: t.calcBarsCount, ...(t.calcBarsRequest === true ? { calcBarsRequest: true } : {}) }
 }
 
+/** ⭐ TEST SEAM (coordinator ruling 2026-11-18, request-other Q1) — THE RUNTIME LANE, FORCED. The vendor harness
+ *  grades a capture on the per-bar runtime lane whatever lane this door picks for a member (the host lane draws
+ *  `support-and-resistance-multi-time-frame` for members): runtime-lane evidence for a capability. Off everywhere
+ *  but a rail; while on, the door answers with `runtimeLaneDefinition` (its kill list, allowlist and admission
+ *  still decide) as soon as the translation stands. ⛔ No member surface may import it
+ *  (`vendorHarness.reqBareSecurityForced.test.js` walks `app/src` for one). */
+let runtimeLaneForced = false
+export function __forceRuntimeLaneForTests(on = true) { runtimeLaneForced = on === true }
+
 export function memberPaneDefinition({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
   const no = (reason, guard = null, t = null) => ({
     ok: false, definition: null, reason, guard, translation: t, rows: [], notes: [],
@@ -341,6 +350,13 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   if (t && t.version === null) {
     const form = modernPineSyntaxIn(source)
     if (form) return no(noVersionSentence(form), NO_VERSION_GUARD, t)
+  }
+
+  // ⭐ TEST SEAM — the harness's forced runtime lane (`__forceRuntimeLaneForTests`, off for members).
+  if (runtimeLaneForced && runtimePaneEnabled()) {
+    return runtimeLaneDefinition({
+      source, id, name, t, hostReason: 'the harness asked for the runtime lane (forced)', hostGuard: null, routed: false, no,
+    })
   }
 
   // ⭐⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — A SCRIPT WITH A COMMITTED TRADINGVIEW

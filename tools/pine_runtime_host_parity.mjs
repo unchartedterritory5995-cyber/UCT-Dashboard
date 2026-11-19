@@ -547,6 +547,8 @@ export const ADAPTER_EXEMPT = Object.freeze({
   incremental: 'H6: the service runs with no session; the cold path the incremental rails compare against',
   budgetMs: 'H5: the wall-clock safety stop; its refusal is never a verdict (INCONCLUSIVE here). This MEASUREMENT host only: '
     + 'the service adapter passes the worker\'s budget, held by services/pine_runtime/test/adapter.test.mjs',
+  budgetScales: 'the browser worker\'s budget scales with the bars a run covers (coordinator ruling 2026-11-19); a wall-clock '
+    + 'stop, never a verdict here (H5)',
 })
 
 /** -> [{file, args: [text of arg0..2], optKeys}] for every `computeRuntimeColumns(...)` call. */

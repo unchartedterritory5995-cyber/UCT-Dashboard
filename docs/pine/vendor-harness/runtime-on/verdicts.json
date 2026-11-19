@@ -84186,8 +84186,18 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "MATCH",
-   "reason": "all 6 items agree",
+   "verdict": "INCONCLUSIVE",
+   "reason": "all 6 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+   "verdictWithoutStrategy": "MATCH",
+   "strategy": {
+    "broker": true,
+    "tradesRun": 0,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "rulesExercised": [],
+    "graded": null,
+    "reason": "our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against"
+   },
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -84490,8 +84500,18 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "MATCH",
-   "reason": "all 6 items agree",
+   "verdict": "INCONCLUSIVE",
+   "reason": "all 6 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+   "verdictWithoutStrategy": "MATCH",
+   "strategy": {
+    "broker": true,
+    "tradesRun": 0,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "rulesExercised": [],
+    "graded": null,
+    "reason": "our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against"
+   },
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-object-gc-b-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ],
@@ -145751,12 +145771,124 @@
    "script": "VCE[BullByte]",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_1",
+     "title": "Local ATR",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (interpret:bind-time-text)"
+    },
+    {
+     "id": "plot_3",
+     "title": "Background ATR",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out2 (interpret:bind-time-text)"
+    },
+    {
+     "id": "plot_5",
+     "title": "Coil Bars",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out3 (interpret:bind-time-text)"
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_7",
+     "title": "VCE Long Signal",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_8",
+     "title": "VCE Short Signal",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_0",
+     "title": "Signal Bar BG",
+     "type": "bg_colorer",
+     "why": "plot type bg_colorer is not compared by v1"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:reassign) [runtime declined: runtime:colour]: a name that is reassigned later cannot be folded into one expression — `isContracted` — and the fold stopped before it, at line 378: a Pine block spans several statements and this engine stores a single expression — `for`",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "INCONCLUSIVE",
+    "reason": "our object lane did not run: the run drew nothing (interpret:bind-time-text: a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chosen, and this binding did not settle syminfo.ticker)"
+   },
+   "paints": {
+    "verdict": "DIVERGE",
+    "reason": "1 paint differs (first: bgcolor plot_0 \"Signal Bar BG\" notDrawn)",
+    "agreeing": 0,
+    "differing": 1,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_0",
+      "kind": "bgcolor",
+      "state": "notDrawn"
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 5 compared items diverge",
+   "verdictWithoutPaints": "INCONCLUSIVE",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
+    "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "objectsV2": {
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "INCONCLUSIVE",
+    "v1": "INCONCLUSIVE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: our object lane did not run: the run drew nothing (interpret:bind-time-text: a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chosen, and this binding did not settle syminfo.ticker)",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/volatility-coil-edge-bullbyte-rddt-1d-2026-11-17.json",
@@ -145765,12 +145897,124 @@
    "script": "VCE[BullByte]",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_1",
+     "title": "Local ATR",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (interpret:bind-time-text)"
+    },
+    {
+     "id": "plot_3",
+     "title": "Background ATR",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out2 (interpret:bind-time-text)"
+    },
+    {
+     "id": "plot_5",
+     "title": "Coil Bars",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out3 (interpret:bind-time-text)"
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_7",
+     "title": "VCE Long Signal",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_8",
+     "title": "VCE Short Signal",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_0",
+     "title": "Signal Bar BG",
+     "type": "bg_colorer",
+     "why": "plot type bg_colorer is not compared by v1"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:reassign) [runtime declined: runtime:colour]: a name that is reassigned later cannot be folded into one expression — `isContracted` — and the fold stopped before it, at line 378: a Pine block spans several statements and this engine stores a single expression — `for`",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "INCONCLUSIVE",
+    "reason": "our object lane did not run: the run drew nothing (interpret:bind-time-text: a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chosen, and this binding did not settle syminfo.ticker)"
+   },
+   "paints": {
+    "verdict": "DIVERGE",
+    "reason": "1 paint differs (first: bgcolor plot_0 \"Signal Bar BG\" notDrawn)",
+    "agreeing": 0,
+    "differing": 1,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_0",
+      "kind": "bgcolor",
+      "state": "notDrawn"
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 5 compared items diverge",
+   "verdictWithoutPaints": "INCONCLUSIVE",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
+    "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "objectsV2": {
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "INCONCLUSIVE",
+    "v1": "INCONCLUSIVE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: our object lane did not run: the run drew nothing (interpret:bind-time-text: a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chosen, and this binding did not settle syminfo.ticker)",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/volatility-coil-edge-bullbyte-spy-1d-2026-11-17.json",
@@ -145779,12 +146023,124 @@
    "script": "VCE[BullByte]",
    "symbol": "AMEX:SPY",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_1",
+     "title": "Local ATR",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (interpret:bind-time-text)"
+    },
+    {
+     "id": "plot_3",
+     "title": "Background ATR",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out2 (interpret:bind-time-text)"
+    },
+    {
+     "id": "plot_5",
+     "title": "Coil Bars",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for out3 (interpret:bind-time-text)"
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_7",
+     "title": "VCE Long Signal",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_8",
+     "title": "VCE Short Signal",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_0",
+     "title": "Signal Bar BG",
+     "type": "bg_colorer",
+     "why": "plot type bg_colorer is not compared by v1"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:reassign) [runtime declined: runtime:colour]: a name that is reassigned later cannot be folded into one expression — `isContracted` — and the fold stopped before it, at line 378: a Pine block spans several statements and this engine stores a single expression — `for`",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "INCONCLUSIVE",
+    "reason": "our object lane did not run: the run drew nothing (interpret:bind-time-text: a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chosen, and this binding did not settle syminfo.ticker)"
+   },
+   "paints": {
+    "verdict": "DIVERGE",
+    "reason": "1 paint differs (first: bgcolor plot_0 \"Signal Bar BG\" notDrawn)",
+    "agreeing": 0,
+    "differing": 1,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_0",
+      "kind": "bgcolor",
+      "state": "notDrawn"
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 5 compared items diverge",
+   "verdictWithoutPaints": "INCONCLUSIVE",
+   "ourNotes": [
+    "plots/objects: cold: no committed capture of SPY|D holds bars before 728317800, cold replay",
+    "paints: cold: no committed capture of SPY|D holds bars before 728317800, cold replay"
+   ],
+   "objectsV2": {
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "INCONCLUSIVE",
+    "v1": "INCONCLUSIVE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: our object lane did not run: the run drew nothing (interpret:bind-time-text: a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chosen, and this binding did not settle syminfo.ticker)",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/volatility-stop-mtf-rddt-1d-2026-11-15.json",
