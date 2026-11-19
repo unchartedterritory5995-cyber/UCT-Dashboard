@@ -640,3 +640,78 @@ def test_fresh_run_a_lasting_404_exits_2_with_the_run_cancelled_before_the_ref_i
     assert rt.main(["--pytest", "tests/test_a.py"]) == rt.LANE
     assert events == ["cancel", "delete"], events
     assert clock.t - 1_000_000.0 <= rt.FRESH_RUN_GRACE_S + rt.POLL_EARLY_S
+
+
+# ---- a dispatch answered 5xx (2026-11-19, run 44552655327) ---------------------------------------------------------
+# GitHub answered HTTP 500 to the dispatch; the tool exited 2 and abandoned the ref, but the run HAD started and ran
+# with nobody watching. A 5xx means the answer failed, not the dispatch: the tool looks for a run on its own ref for
+# DISPATCH_5XX_GRACE_S and follows one that appears; with none, it fails and KEEPS the ref (a late run must find it).
+_SERVER_ERROR = (500, {}, '{"message": "Server Error"}')
+
+
+@pytest.mark.parametrize("status", [500, 502, 503])
+def test_dispatch_a_5xx_then_a_run_on_our_ref_is_followed(status):
+    mine = {"workflow_runs": [{"id": 1, "display_title": "remote tests: someone else's ref"},
+                              {"id": 9, "display_title": f"remote tests: {GOOD_REF}", "html_url": "u9"}]}
+    api, fake, clock = _api([(status, {}, "oops"), _ok({"workflow_runs": []}, etag='"a"'), _ok(mine, etag='"b"')])
+    state = rt.RunState()
+    assert rt.dispatch(api, {"ref": GOOD_REF}, state=state) == ("9", "u9")
+    assert state.dispatched and state.run_id == "9"
+    assert [c[0] for c in fake.calls] == ["POST", "GET", "GET"]                   # one dispatch, never a second
+    assert clock.sleeps == [rt.FIND_RUN_POLL_S]
+
+
+def test_dispatch_a_5xx_and_no_run_fails_after_the_grace_and_keeps_the_ref():
+    api, fake, clock = _api([_SERVER_ERROR] + [_ok({"workflow_runs": []})] * 200)
+    state = rt.RunState()
+    with pytest.raises(RuntimeError, match=r"HTTP 500\) and no run on .* appeared within"):
+        rt.dispatch(api, {"ref": GOOD_REF}, state=state)
+    assert rt.DISPATCH_5XX_GRACE_S <= clock.t - 1_000_000.0 <= rt.DISPATCH_5XX_GRACE_S + rt.FIND_RUN_POLL_S
+    assert sum(1 for c in fake.calls if c[0] == "POST") == 1
+    assert state.dispatched and state.run_id is None
+    deleted = []
+    assert rt.release_ref(api, GOOD_REF, state, False, delete=deleted.append, log=lambda *_: None) == "kept"
+    assert deleted == []
+
+
+@pytest.mark.parametrize("status", [401, 404, 422])
+def test_dispatch_a_4xx_is_still_fatal_at_once_and_starts_nothing(status):
+    api, fake, clock = _api([(status, {}, '{"message": "no"}')])
+    state = rt.RunState()
+    with pytest.raises(RuntimeError, match=rf"dispatch failed \(HTTP {status}\)"):
+        rt.dispatch(api, {"ref": GOOD_REF}, state=state)
+    assert len(fake.calls) == 1 and clock.sleeps == [] and not state.dispatched
+
+
+def test_a_5xx_dispatch_whose_run_exists_is_waited_on_end_to_end(monkeypatch):
+    """Run 44552655327 end to end: the dispatch answers 500, the run is on our ref; main() must wait on THAT run,
+    and on the way out cancel it before deleting the ref (here the wait times out, so the run is still live)."""
+    events, clock, refs = [], _Clock(), []
+
+    def runner(method, path, headers, body):
+        if path == "rate_limit":
+            return 200, {}, json.dumps({"resources": {"core": {"remaining": 4000, "limit": 5000, "reset": 1}}})
+        if path.endswith("/dispatches"):
+            refs.append(body["inputs"]["ref"])
+            return _SERVER_ERROR
+        if "/runs?event=workflow_dispatch" in path:
+            return _ok({"workflow_runs": [{"id": 31, "display_title": f"remote tests: {refs[0]}", "html_url": "u31"}]})
+        if path.endswith("/cancel"):
+            events.append("cancel 31" if "/runs/31/" in path else f"cancel {path}")
+            return 202, {}, ""
+        raise AssertionError(f"unexpected request {method} {path}")
+
+    class _Proc:
+        def __init__(self, stdout=""):
+            self.stdout, self.stderr, self.returncode = stdout, "", 0
+
+    monkeypatch.setattr(rt.shutil, "which", lambda t: t)
+    monkeypatch.setattr(rt, "_run", lambda cmd, check=True, capture=True:
+                        _Proc("0123456789abcdef0123\n" if cmd[:2] == ["git", "rev-parse"] else ""))
+    real_api = rt.GitHubApi
+    monkeypatch.setattr(rt, "GitHubApi",
+                        lambda: real_api(runner=runner, sleep=clock.sleep, now=clock.now, log=lambda *_: None))
+    monkeypatch.setattr(rt, "wait_for_run", lambda api, run_id, timeout_s, log=print: events.append(f"wait {run_id}"))
+    monkeypatch.setattr(rt, "_delete_ref", lambda ref: events.append("delete"))
+    assert rt.main(["--pytest", "tests/test_a.py"]) == rt.LANE        # the stubbed wait answers "still running"
+    assert events == ["wait 31", "cancel 31", "delete"], events
