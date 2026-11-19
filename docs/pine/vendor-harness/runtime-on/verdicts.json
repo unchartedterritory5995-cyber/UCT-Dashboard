@@ -1,5 +1,6 @@
 {
  "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
+ "scriptEngineVersion": 78,
  "dirs": [
   "tests/fixtures/vendor"
  ],
