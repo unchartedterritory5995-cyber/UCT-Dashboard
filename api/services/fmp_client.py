@@ -785,14 +785,21 @@ def get_grades_news(ticker: str, *, limit: Optional[int] = None, timeout: Option
     per date with no firm attached; this one carries the
     `gradingCompany`/`action`/`previousGrade`/`newGrade` fields.
 
-    `data_class="analyst_grades"` (not "news") because the payload IS the
-    grade action — the `newsURL`/`newsPublisher` fields are the citation
-    for it, not the content."""
+    `data_class="analyst_actions_news"` — neither "news" nor "analyst_grades"
+    (2026-11-19). The payload IS a grade action, but its ORIGIN is TheFly /
+    StreetInsider: the live capture in tests/test_analyst_intel_fmp_shapes.py
+    reads `newsPublisher: "TheFly"`, `newsURL: thefly.com/...`. Licensing
+    register T-45 names that sublicence chain and holds it at U even with the
+    DDLA, so the pair is deliberately UNREGISTERED in
+    `provider_licensing_class._TABLE` and stamps "U". ⚰️ It stamped
+    "analyst_grades" until the 2026-11-19 restatement moved that class to LA
+    (T-34): the split had to land first, or the restatement would have
+    reached a TheFly-origin feed."""
     params: dict = {"symbol": ticker.upper()}
     if limit is not None:
         params["limit"] = limit
     return _fetch("/stable/grades-news", params,
-                   source_activity="fmp_client.get_grades_news", data_class="analyst_grades",
+                   source_activity="fmp_client.get_grades_news", data_class="analyst_actions_news",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
@@ -801,12 +808,16 @@ def get_grades_latest_news(*, limit: Optional[int] = None, timeout: Optional[int
     (`/stable/grades-latest-news`) — `catalyst/sources.py`'s analyst pull.
     Market-wide, not per-symbol, so like `get_earnings_calendar` /
     `get_economic_calendar` / `get_ipo_calendar` it does NOT take
-    `ticker: str`; the caller filters by symbol from the returned rows."""
+    `ticker: str`; the caller filters by symbol from the returned rows.
+
+    `data_class="analyst_actions_news"`, unregistered, stamps "U": this is
+    the endpoint licensing register T-45 names (TheFly + StreetInsider
+    origin, DDLA U). See `get_grades_news` above."""
     params: dict = {}
     if limit is not None:
         params["limit"] = limit
     return _fetch("/stable/grades-latest-news", params,
-                   source_activity="fmp_client.get_grades_latest_news", data_class="analyst_grades",
+                   source_activity="fmp_client.get_grades_latest_news", data_class="analyst_actions_news",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 

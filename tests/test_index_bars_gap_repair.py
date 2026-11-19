@@ -356,7 +356,7 @@ def test_the_typed_function_sends_the_documented_request_and_parses_as_et_bar_st
     assert url == fmp_client._BASE_URL + "/stable/historical-chart/5min"
     assert {k: kw["params"][k] for k in ("symbol", "from", "to")} == {
         "symbol": "^GSPC", "from": "2026-02-02", "to": "2026-02-02"}
-    assert kw["timeout"] == 10 and res.licensing_class == "R"
+    assert kw["timeout"] == 10 and res.licensing_class == "LA"     # T-40 DDLA column (restated 2026-11-19)
 
     bars = index_bars._parse_fmp_intraday(res.value, FEB2)
     assert sorted(bars) == [1770042600, 1770042900, 1770043200]          # 09:30 / 09:35 / 09:40 EST
@@ -367,4 +367,4 @@ def test_the_typed_function_sends_the_documented_request_and_parses_as_et_bar_st
 def test_the_licensing_row_names_the_intraday_endpoint():
     from api.services import provider_licensing_class as plc
     e = plc.entry_for("fmp", "indices")
-    assert e.licensing_class == "R" and "historical-chart" in e.note and "T-40" in e.register_row
+    assert e.licensing_class == "LA" and "historical-chart" in e.note and "T-40" in e.register_row

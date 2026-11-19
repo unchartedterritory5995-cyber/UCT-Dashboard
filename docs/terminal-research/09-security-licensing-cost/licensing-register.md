@@ -100,6 +100,8 @@ original **Ind/noDDLA** scenario values rather than hand-edited one at a time (a
 the wrong place to risk a transcription slip on 15 separate cells) — **read each FMP-gated row's own
 `DDLA` scenario column as the row's live class now**, per this note.
 
+⭐ **2026-11-19: the code's licensing table now follows this note** (`api/services/provider_licensing_class.py`): T-01, T-03/T-04, T-05, T-06, T-07, T-33, T-34, T-35/T-36, T-37, T-38, T-39, T-40 read **LA**, each scoped to member display (AI use, external publication and attribution stay their own rows); T-11 (ESC-03) and T-43 (ESC-11) are held at R, and the TheFly-origin grade-news feeds (T-45) stamp U. The row cells below are unchanged, as this note intends.
+
 ## Legend (read before the table)
 
 | Column | Meaning |
