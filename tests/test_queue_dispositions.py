@@ -188,6 +188,9 @@ COMMITTED = {
     # 2026-11-17 (d49d6ab6c9 / 5f19bf9415, strategy-decl): the daily chart's ISO bar dates in the broker is a build
     # (engine-gap); TradingView's built-in strategies are a second, uncommittable script (builtin), as the doc states
     "capture-queue-2026-11-17-strategy-decl": {"strategy run bar dates": "engine-gap", "built-in strategies": "builtin"},
+    # 2026-11-18 (coordinator ruling, parity2 BI1'): TradingView's own `ta.sar` is graded on the built-in Parabolic SAR
+    # taken from the listing; no probe file stands in for a built-in
+    "capture-queue-2026-11-18-parity2": {"Q-BLT-3a": "builtin", "Q-BLT-3b": "builtin"},
 }
 
 
