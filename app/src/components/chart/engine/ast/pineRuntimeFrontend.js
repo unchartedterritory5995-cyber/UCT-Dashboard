@@ -87,7 +87,7 @@ import { strategyRepaintConstruct } from './strategyRepaint.js'
 import { strategyTaintSinks, strategyDisarmOf, requestNewestReachOf } from './strategyTaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
-  timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
+  timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs, textInputVarsOf,
   isTimeframeText, movedTimeframeServed, movedTimeframeRefusal,
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
@@ -2423,6 +2423,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐ PHASE 3 WS-D — `var NAME = <literal>` nothing reassigns, folded into input arguments
   // (`runtimeInputs.js::constantVarsOf`): an input default that reads one reads a constant.
   const inputConsts = atObjectDoor ? new Map() : constantVarsOf(stmts)
+  // ⭐⭐ PINE DATA UNIT S4-1 — `var NAME = <text input>` nothing reassigns (`runtimeInputs.js::textInputVarsOf`),
+  // read ONLY by the data-dead switch below (`dataDeadSwitchArm`): a fixed subject there may be such a `var`.
+  const dataTextInputVars = atObjectDoor ? new Map() : textInputVarsOf(stmts)
   /** name → { call, index, at } for `p = plot(…)`.
    *
    *  ⛔⛔ ITS OWN MAP, NEVER `env`. `env` holds PURE EXPRESSION macros and the
@@ -13136,6 +13139,66 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     return false
   }
+  /** ⭐⭐ PINE DATA UNIT S4-1 (2026-11-19) — THE ARM A FIXED-TEXT `switch` TAKES, WHEN AN ARM IT NEVER
+   *  TAKES READS DATA. Pine runs the arm a `switch` takes and no other. When the subject is text fixed
+   *  before bar 0 (a literal, a name bound once to one, an `input.string` at the value in force, or a
+   *  `var` nothing reassigns that holds one: `dataTextInputVars`) and every match is fixed text, the arm
+   *  taken is the same on every bar: the first match equal to the subject, else the default. TradingView's
+   *  own VWAP is the case: `switch anchor` with `"Earnings" => request.earnings(…)` and `"Session" =>
+   *  timeframe.change("D")`, anchor "Session" by default, so its earnings, dividends and splits are never
+   *  read and the run need not be handed them.
+   *
+   *  ⛔ NARROW ON PURPOSE: it answers only when an arm NOT taken holds a data request
+   *  (`request.earnings` / `dividends` / `splits` / `financial` / `economic` / `quandl`), so every other
+   *  `switch` lowers exactly as before. ⛔ The member's value decides (the run is built per input
+   *  values: `runtimeColumns.js::runKey`): a member who picks "Earnings" builds the arm that reads it,
+   *  and that read keeps its refusal by name. ⛔ Anything this cannot settle (a per-bar subject or match,
+   *  an arm without `=>`, an arm after the default, no arm matching and no default, a member value the
+   *  author's options refuse) answers null and the switch lowers as before, refusals included.
+   *  @returns {number|null} the index into `armLines` of the arm taken on every bar */
+  const DATA_REQUEST_CALL = /(?:^|[^\w.])request\s*\.\s*(?:earnings|dividends|splits|financial|economic|quandl)\s*\(/
+  const armTokensText = (arm) => {
+    const parts = []
+    const walk = (lines) => {
+      for (const ln of lines || []) {
+        for (const t of (ln && ln.header) || []) parts.push(t && t.value !== undefined ? String(t.value) : '')
+        parts.push('\n')
+        walk(ln && ln.sub)
+      }
+    }
+    walk([{ header: arm.header || [], sub: arm.sub || [] }])
+    return parts.join('')
+  }
+  const dataDeadSwitchArm = (armLines, subject, scope) => {
+    if (atObjectDoor || !subject || !Array.isArray(armLines) || !armLines.length) return null
+    let subjectText = null
+    try {
+      const v = subject.type === 'name' && typeof subject.name === 'string' ? dataTextInputVars.get(subject.name) : undefined
+      // ⛔ only the MAIN program's own `var`: a block, a loop or a function that declares the name shadows it
+      subjectText = v !== undefined && scope && scope.lookup(subject.name) === root.lookup(subject.name)
+        ? fixedTextOf(v, scope) : fixedTextOf(subject, scope)
+    } catch { subjectText = null }
+    if (typeof subjectText !== 'string') return null
+    let taken = null
+    let fallbackAt = null
+    for (let k = 0; k < armLines.length; k += 1) {
+      const arm = armLines[k]
+      const at = findTop(arm.header || [], (t) => isPunct(t, '=>'))
+      if (at < 0 || fallbackAt !== null) return null
+      if (at === 0) { fallbackAt = k; continue }
+      let text = null
+      try { text = fixedTextOf(parseWholeExpression(arm.header.slice(0, at)), scope) } catch { text = null }
+      if (typeof text !== 'string') return null
+      if (taken === null && text === subjectText) taken = k
+    }
+    if (taken === null) taken = fallbackAt
+    if (taken === null) return null
+    for (let k = 0; k < armLines.length; k += 1) {
+      if (k !== taken && DATA_REQUEST_CALL.test(armTokensText(armLines[k]))) return taken
+    }
+    return null
+  }
+
   const lowerSwitchInto = (armLines, subjToks, scope, mkArm, label, atTok) => {
     // ── `name = switch …` ──
     //
@@ -13148,6 +13211,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // case that separates a real lowering from a constant fold, because a
     // subject that moves bar to bar cannot be folded at all.
     let subject = subjToks.length ? parseWholeExpression(subjToks) : null
+    // ⭐⭐ S4-1 — asked of the subject AS WRITTEN, before the hoist below names it a slot
+    const dataTaken = dataDeadSwitchArm(armLines, subject, scope)
     // ⛔ (review M1) WS-C's invariance is a property of what the member WROTE.
     // Asked after the hoist below, it saw the hidden slot (a per-bar value) and
     // made every arm of `switch input.string(…)` a conditional region.
@@ -13174,7 +13239,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     const allInv = subjInv && (armLines || []).every(matchInv)
     let armInv = subjInv
-    for (const arm of (armLines || [])) {
+    let dataTakenBody = null
+    for (const [armIndex, arm] of (armLines || []).entries()) {
       const at = findTop(arm.header, (t) => isPunct(t, '=>'))
       if (at < 0) {
         throw new RuntimeRefusal('runtime:block-value',
@@ -13204,6 +13270,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (at > 0) armInv = armInv && matchInv(arm)
       const inv = at === 0 ? allInv : armInv
       const armRhs = arm.header.slice(at + 1)
+      // ⭐⭐ S4-1 — the subject takes ONE arm on every bar (`dataDeadSwitchArm`): only that arm is
+      // lowered, as code that runs on every bar; an arm never taken is not lowered at all
+      if (dataTaken !== null) {
+        if (armIndex === dataTaken) {
+          dataTakenBody = inR4Region(true, () => (armRhs.length
+            ? mkArm([{ header: armRhs, body: [], sub: arm.sub || [] }], arm.header[at])
+            : mkArm(arm.sub, arm.header[0])))
+        }
+        continue
+      }
       // ⭐ AN INLINE `=>` ARM IS A ONE-LINE BLOCK, so it takes the shared rule
       // too — `mkArm` registers its own scope, so this site must not push again.
       // WS-C / R4: the arm is lowered inside its conditional region either way.
@@ -13213,6 +13289,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (at === 0) fallback = body
       else cases.push({ matchToks: arm.header.slice(0, at), body })
     }
+    if (dataTaken !== null && dataTakenBody !== null) return pre.concat(dataTakenBody)
     if (!cases.length && !fallback) {
       throw new RuntimeRefusal('runtime:block-value',
         `\`${label ? `${label} ` : ''}switch …\` has no arms`, locate(atTok))
