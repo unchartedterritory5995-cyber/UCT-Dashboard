@@ -122,10 +122,29 @@ def capture_store() -> pathlib.Path:
     return pathlib.Path(v) if v else DEFAULT_CAPTURE_STORE
 
 
+#: ⭐ THE ONE CAPTURE-PHASE VOCABULARY (coordinator, 2026-11-19). Two rows of ONE probe on the same symbol, timeframe
+#: and day (in session, then after the close on a fresh load) named the same capture and collided. A capture id may
+#: therefore end with one phase: `<stem>-<sym>-<tf>-<yyyy-mm-dd>[-<phase>]`. Closed: a phase outside this tuple is
+#: refused wherever one is read (a queue doc's `phase` column, a manifest's `capturePhase`, an id). Defined HERE
+#: only; `evidence_engine.py` and `batch_capture.py` import it and never restate it.
+CAPTURE_PHASES = ("insession", "postclose-open", "postclose-fresh", "preopen")
+#: The optional `-<phase>` an id may end with, as a regex fragment (every id pattern appends it; built from the tuple).
+PHASE_SUFFIX_RX = "(?:-(?:" + "|".join(re.escape(p) for p in CAPTURE_PHASES) + "))?"
+_ID_RX = re.compile(r"^(.*)-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}(" + PHASE_SUFFIX_RX + ")$")
+
+
 def script_key(capture_id: str) -> str:
-    """The script part of a capture id `<script>-<sym>-<tf>-<yyyy-mm-dd>` (the capture stem)."""
-    m = re.match(r"^(.*)-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}$", capture_id or "")
+    """The script part of a capture id `<script>-<sym>-<tf>-<yyyy-mm-dd>[-<phase>]` (the capture stem). The phase is
+    never part of it: two phases of one probe are one script."""
+    m = _ID_RX.match(capture_id or "")
     return m.group(1) if m else (capture_id or "")
+
+
+def capture_phase(capture_id: str):
+    """The phase a capture id ends with (one of CAPTURE_PHASES), or None for an unphased id or a string that is not
+    an id at all."""
+    m = _ID_RX.match(capture_id or "")
+    return m.group(2)[1:] if m and m.group(2) else None
 
 
 def source_shas(text: str) -> set:

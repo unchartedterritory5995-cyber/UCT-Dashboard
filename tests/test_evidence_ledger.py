@@ -77,6 +77,22 @@ def test_L1_a_row_carries_no_source_text_no_provenance_and_what_rechecks_it():
     assert el.row_problems(r) == []
 
 
+def test_L1_a_phased_captures_row_files_the_same_script_key_and_an_unknown_phase_is_no_id():
+    """The capture phase (2026-11-19, `el.CAPTURE_PHASES`) names WHEN a capture was taken, never which script it is:
+    the phased capture's row joins the same samples (`classify` by script key) as an unphased one."""
+    for ph in el.CAPTURE_PHASES:
+        r = _row(cid=f"held-momentum-rddt-1d-2026-11-13-{ph}")
+        assert r["scriptKey"] == "held-momentum" and el.row_problems(r) == [], ph
+        assert el.capture_phase(r["captureId"]) == ph
+    assert el.script_key("held-momentum-rddt-1d-2026-11-13") == "held-momentum"
+    assert el.capture_phase("held-momentum-rddt-1d-2026-11-13") is None
+    # a word outside the vocabulary is not a phase: the string is not an id, so nothing is stripped from it
+    assert el.script_key("held-momentum-rddt-1d-2026-11-13-midday") == "held-momentum-rddt-1d-2026-11-13-midday"
+    out = el.classify([_row(cid="held-momentum-rddt-1d-2026-11-13-insession")], SAMPLES, engine=ENGINE,
+                      lane="production", slug_of=SLUGS)
+    assert out["byKey"]["reference:held-momentum"]["captures"] == ["held-momentum-rddt-1d-2026-11-13-insession"]
+
+
 def test_L1_the_row_check_refuses_source_text_and_unknown_keys():
     r = _row()
     assert el.row_problems(dict(r, source={"text": HELD})) != []                       # a key outside the schema
