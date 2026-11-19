@@ -711,7 +711,11 @@ PINE_OBJECTS_X_DIVERGE = "DIVERGE"
 #: `scope: closed-bar-history`; the member door then refuses it by name on a forming bar.
 #: `varip` (coordinator ruling 2026-11-18, the varip frame rule): it differs from `var` only within
 #: a forming bar, which no capture grades, so its evidence can only ever be closed-bar history.
-PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state", "varip"})
+#: `request-other` (coordinator ruling 2026-11-19, admit:request-other): every committed capture that admits it holds a
+#: FINISHED newest bar. On a forming one a weekly / monthly read with look-ahead on is withheld by name (Q-HTF-FORM,
+#: `docs/pine/capture-queue-2026-11-19-htf-forming.md`) and the developing value with look-ahead off is witnessed only by
+#: an uncommitted probe, so it admits for closed-bar history only until that capture lands.
+PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state", "varip", "request-other"})
 #: U15 (coordinator ruling 2026-11-15): one row PER LIBRARY VERSION, `library:Author/Library/N`.
 #: The row pins the version by `sha256` (the sha of the library source the evidence graded), and an
 #: evidence entry counts only when its `library` names that path AND that sha: an entry graded

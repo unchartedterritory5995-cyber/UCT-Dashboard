@@ -164,7 +164,10 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "strategy-decl",
         # PARITY UNIT LF step 3 (2026-11-18): linefill.* on FVG Finder + AlgoAlpha Trend Targets, each drawn by its RUN
         # (LF step 1), with the count-at-cap carve-out (LF step 2): test_LF3_obj_linefill_is_admitted_on_run_drawn_captures
-        "obj:linefill"])
+        "obj:linefill",
+        # admit:request-other (coordinator ruling 2026-11-19): PA ZigZag at 1W / 1M (runtime lane) and SR-MTF (the
+        # forced runtime lane, #1985), both community, MATCH at engine 84; for closed-bar history only (G6)
+        "request-other"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -602,7 +605,8 @@ def test_G6_realtime_state_without_the_closed_bar_scope_is_not_admitted():
 def test_G6_the_admitted_set_names_it_history_only(tmp_path, monkeypatch):
     _with_realtime_row(tmp_path, monkeypatch, scope="closed-bar-history")
     rep = rt.admitted_capabilities()
-    assert "realtime-state" in rep["admitted"] and rep["historyOnly"] == ["realtime-state"]
+    # (2026-11-19) request-other is admitted for closed-bar history too (admit:request-other, G6)
+    assert "realtime-state" in rep["admitted"] and rep["historyOnly"] == ["realtime-state", "request-other"]
 
 
 def test_G6_the_door_answers_history_only_for_a_script_that_reads_bar_state(tmp_path, monkeypatch, store, on):
@@ -1027,6 +1031,68 @@ def test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_kill
     assert named == draw1, (named, draw1)
 
 
+#: ⭐⭐ admit:request-other (coordinator ruling 2026-11-19): admitting `request-other` admits every source whose only missing
+#: capability it was. Each one with a committed capture grading DIVERGE on either lane is on the committed kill list (the
+#: DRAW-1 rule), by its sha, except rs-rating-fred6724, which is served through its own sha allowlist entry and is NOT
+#: killed (SERVED_BY_OWN_SHA names its differences).
+REQUEST_OTHER_KILLED_SLUGS = {"artemis-oscillator-pro", "average-day-range-adr-pivots",
+                              "dual-view-htf-candlestick-patterns-theultimator5", "ema-ribbon-trend-filter-strixedge",
+                              "htf-liquidity-dashboard-tfo", "pmax-explorer", "position-size-calc",
+                              "request-realtime-alignment", "rs-seed-rsrating", "vold-market-breadth", "vw-other-symbol"}
+
+
+def _request_other_unkilled_diverging(kills: dict) -> list:
+    """Sources using request-other, admitted on capabilities, with a committed capture grading DIVERGE on either lane,
+    whose sha256 is neither in `kills` nor served through its own sha allowlist entry."""
+    admitted = set(rt.admitted_capabilities()["admitted"])
+    own = _allowlisted_shas()
+    lanes = [json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"],
+             json.loads(VERDICTS_PROD.read_text(encoding="utf-8"))["results"]]
+    out = set()
+    for results in lanes:
+        for r in results:
+            if r.get("verdict") != "DIVERGE":
+                continue
+            at = licence_held.fixture_path(r["file"])
+            try:
+                text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+            except (OSError, ValueError):
+                continue
+            if not isinstance(text, str):
+                continue
+            caps = pc.capabilities_of(text)
+            sha = rt.source_hash(text)
+            if "request-other" in caps and caps <= admitted and sha not in kills and sha not in own:
+                out.add((r["id"], sha))
+    return sorted(out)
+
+
+def test_REQOTHER_every_newly_admitted_request_script_with_a_DIVERGE_capture_is_killed():
+    assert "request-other" in rt.admitted_capabilities()["admitted"]
+    kills = rt.committed_kills()
+    assert _request_other_unkilled_diverging(kills) == []
+    doc = json.loads(KILL_DOC.read_text(encoding="utf-8"))
+    assert {s["slug"] for s in doc["scripts"]} >= REQUEST_OTHER_KILLED_SLUGS
+    # CONTROL: without those entries the same scan names exactly their sources
+    mine = {s["sha256"] for s in doc["scripts"] if s["slug"] in REQUEST_OTHER_KILLED_SLUGS}
+    named = {sha for _cid, sha in _request_other_unkilled_diverging({k: v for k, v in kills.items() if k not in mine})}
+    assert named == mine, (named, mine)
+
+
+def test_REQOTHER_rs_rating_is_served_by_its_own_sha_and_its_differences_are_re_proved():
+    rtv = {r["id"]: r for r in json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"]}
+    src = (ROOT / "docs" / "pine" / "rs-rating" / "rs-rating-fred6724__pziQwiT2.pine").read_text(encoding="utf-8")
+    assert rt.source_hash(src) in _allowlisted_shas() and rt.source_hash(src) not in rt.committed_kills()
+    for cid in SERVED_BY_OWN_SHA:
+        assert rtv[cid]["verdict"] == "DIVERGE" and served_by_own_sha(rtv[cid]), cid
+    # CONTROL: a named capture whose PLOT diverges is no longer that shape; an unnamed DIVERGE never is
+    doctored = copy.deepcopy(rtv[next(iter(SERVED_BY_OWN_SHA))])
+    doctored["plots"][0]["verdict"] = "DIVERGE"
+    assert not served_by_own_sha(doctored)
+    other = next(r for r in rtv.values() if r["verdict"] == "DIVERGE" and r["id"] not in SERVED_BY_OWN_SHA)
+    assert not served_by_own_sha(other)
+
+
 def test_RT1_a_broken_committed_file_kills_nothing_extra(tmp_path, monkeypatch):
     for content in ("{ not json", "[]", '{"scripts": [{"sha256": "zz"}]}'):
         f = tmp_path / "kill.json"
@@ -1399,6 +1465,47 @@ WITHHELD_WHOLE = {
 }
 
 
+#: ⭐⭐ admit:request-other (coordinator ruling 2026-11-19) — ONE SCRIPT IS SERVED THROUGH ITS OWN SHA ALLOWLIST ENTRY, NOT BY
+#: CAPABILITY, AND IS NOT KILLED: rs-rating-fred6724 (the owner's priority script; `api/data/pine_runtime_allowlist.json`
+#: `scripts`). Admitting `request-other` puts its captures in the reach run; four grade DIVERGE on the runtime-on lane (the
+#: door draws them on the HOST lane under admission, so they list as host-drawn DIVERGE, never a REACH stop). They are its
+#: known differences, named here with why and re-proved on every run (`served_by_own_sha`: its source is the allowlisted sha,
+#: no plot diverges, and the family named does), so the kill rail's exemption for it covers exactly these and nothing else.
+SERVED_BY_OWN_SHA = {
+    "rs-rating-fred6724-pc-agl-1d-2026-11-17": (
+        "objects", "the rating labels are WITHHELD by name (pine:object-removal-lost: the object gate withholds the whole "
+        "drawing program for a lost removal) where TradingView holds 2 labels; the RS line and every plot agree"),
+    "rs-rating-fred6724-pc-nvda-1d-2026-11-17": ("objects", "the same, on NASDAQ:NVDA 1D"),
+    "rs-rating-fred6724-pc-rddt-1d-2026-11-17": ("objects", "the same, on NYSE:RDDT 1D"),
+    "rs-rating-fred6724-pm-alab-1d-2026-11-16": (
+        "objectsV2", "one label's y on the newest bar after the close (vendor 91.67, ours 89.91): TradingView read SP:SPX's "
+        "same-session close there while its own witnesses read the previous session's, three minutes apart "
+        "(docs/pine/capture-queue-2026-11-17-spx-after-close.md, Q-SPX-AFTERCLOSE); every plot agrees"),
+}
+
+
+def _allowlisted_shas() -> set:
+    doc = json.loads((ROOT / "api" / "data" / "pine_runtime_allowlist.json").read_text(encoding="utf-8"))
+    return {s.get("sha256") for s in doc.get("scripts") or [] if isinstance(s, dict)}
+
+
+def served_by_own_sha(record: dict) -> bool:
+    """Is this runtime-on verdict record one of SERVED_BY_OWN_SHA's, still in the shape named (above)?"""
+    if not isinstance(record, dict) or record.get("id") not in SERVED_BY_OWN_SHA:
+        return False
+    at = licence_held.fixture_path(record["file"])
+    try:
+        text = (json.loads((at or ROOT / record["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+    except (OSError, ValueError):
+        return False
+    if not isinstance(text, str) or rt.source_hash(text) not in _allowlisted_shas():
+        return False
+    if any(p.get("verdict") == "DIVERGE" for p in record.get("plots") or []):
+        return False
+    family = SERVED_BY_OWN_SHA[record["id"]][0]
+    return (record.get(family) or {}).get("verdict") == "DIVERGE"
+
+
 def withheld_whole(record: dict) -> bool:
     """Is this runtime-on verdict record a by-name withholding of the WHOLE run (see above)?"""
     if not isinstance(record, dict) or record.get("verdictWithoutPaints") != "INCONCLUSIVE":
@@ -1488,6 +1595,27 @@ def test_REACH_no_runtime_lane_DIVERGE_and_no_MATCH_to_DIVERGE():
     problems = reach_rule_violations(report, json.loads(VERDICTS_RT.read_text(encoding="utf-8")),
                                      json.loads(VERDICTS_PROD.read_text(encoding="utf-8")))
     assert problems == [], problems
+
+
+def test_REACH_the_population_block_is_derived_from_its_rows():
+    """⭐⭐ (2026-11-19, the e84 train's finding) the report's `populations` block is DERIVED from its rows
+    (`capability_admission.py::populations_of`): git merged two units' identical hand-edits to it as one, and master's
+    block was 4 rows off its own rows. Recomputed here; `capture` and `committed` sizes held to what they count."""
+    sys.path.insert(0, str(ROOT / "tools" / "pine_coverage"))
+    import capability_admission as ca  # noqa: PLC0415
+    report = json.loads(REPORT.read_text(encoding="utf-8"))
+    assert report["populations"] == ca.populations_of(report)
+    sizes = report["populationSizes"]
+    assert sizes["capture"] == len(json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"])
+    assert sizes["committed"] == len(list((ROOT / "corpus" / "committed").glob("*.pine")))
+    # CONTROL: one row's lane moved, or one row dropped, and the block no longer derives
+    moved = copy.deepcopy(report)
+    row = next(c for c in moved["captures"] if c["lane"] == "runtime")
+    row["lane"] = "host"
+    assert moved["populations"] != ca.populations_of(moved)
+    dropped = copy.deepcopy(report)
+    dropped["admittedGraded"] = dropped["admittedGraded"][1:]
+    assert dropped["populations"] != ca.populations_of(dropped)
 
 
 def held_kills_or_synthetic(rtv: dict, tmp_path, monkeypatch) -> dict:
