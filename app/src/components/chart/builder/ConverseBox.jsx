@@ -35,6 +35,7 @@ import {
 } from './authoring'
 import { converseTurn, transcriptSnippets, distinctNotUnderstood } from './authoring/converseClient'
 import { classifyTurn, OUTCOMES } from './authoring/turnOutcome'
+import { settleScript, checkScript } from './authoring/scriptAnswer'
 import { preflight } from './authoring/preflight'
 import { readSession, writeSession, clearSession, editKey } from './authoring/conversationSessions'
 import { storeConversation, attachConversation, armConversationAlerts } from './conversationSave'
@@ -58,6 +59,8 @@ const S = {
   head: { fontSize: 11.5, fontWeight: 600, color: '#c9c6be' },
   identity: { fontSize: 13, color: '#f8f7f3', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' },
   muted: { fontSize: 11.5, color: '#93939a' },
+  script: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, marginTop: 6 },
+  pre: { margin: '6px 0 0', maxHeight: 220, overflow: 'auto', fontSize: 11, whiteSpace: 'pre-wrap', color: '#c9c6be' },
   list: { margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 2, fontSize: 12, color: '#c9c6be' },
   transcript: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' },
   member: { alignSelf: 'flex-end', fontSize: 13, color: '#f8f7f3', background: '#222327', padding: '6px 10px', borderRadius: 9 },
@@ -131,7 +134,7 @@ function errorLine(e, ops, working = null) {
 export default function ConverseBox({
   settings = null, onChange = null, sym = null, tf = null, editing = null, disabled = false,
   converse = converseTurn, onSaved = null, sessionKey = null, onCommitState = null, commitRef = null,
-  variant = 'ask', prefill = null,
+  variant = 'ask', prefill = null, onOpenScript = null, engineChart = null,
 }) {
   /** ⭐ DIRECTION A — 'start' is the start view's "Describe it" well (nothing to undo,
    *  no identity line until there is an indicator); 'ask' is the editor's Ask tab. */
@@ -177,7 +180,18 @@ export default function ConverseBox({
   /** The stored document this session last opened or saved — the `prior` the
    *  preview's semantics rule reads, exactly as the sheet's preview does. */
   const storedRef = useRef(null)
-  const gateCtx = useMemo(() => ({ tf, symbol: sym }), [tf, sym])
+  // ⭐ A SCRIPT ANSWER, HERE TOO (2026-11-19). This box sits beside the script editor: a script the
+  // assistant writes is checked by this window's engine (the dock's own check and repair loop,
+  // `scriptAnswer.settleScript`), shown with the engine's verdict, and opened IN the script editor
+  // (`onOpenScript`, the host's). ⛔ It tells the door it accepts a script ONLY where it can open one:
+  // the start view of a NEW indicator, with a host that handed it the opener. The editor's Ask tab
+  // changes an indicator that exists; a script would replace it, so it stays on the formula turn.
+  const opensScripts = startWell && !editing && typeof onOpenScript === 'function'
+  const gateCtx = useMemo(() => (opensScripts ? { tf, symbol: sym, showsScripts: true } : { tf, symbol: sym }),
+    [tf, sym, opensScripts])
+  /** The chart's bars and compute context, as they are when a script is checked (`runsHere.js`). */
+  const chartRef = useRef(engineChart)
+  useEffect(() => { chartRef.current = engineChart }, [engineChart])
   const say = useCallback((entry) => setTranscript((t) => [...t, { id: t.length, ...entry }]), [])
 
   const rb = useMemo(() => readback(state.working, state, gateCtx), [state, gateCtx])
@@ -270,6 +284,18 @@ export default function ConverseBox({
     try {
       let res = await converse({ message: words, state: before, gateCtx, snippets })
       let turn = classifyTurn(res)
+      // ⭐ THE ANSWER IS A SCRIPT: this window's own engine judges it. While it does not run fully the
+      // engine's refusal goes back for a repair, a bounded number of times; the entry leads with the
+      // ENGINE's verdict, whatever it is. The working indicator is not touched: the script is opened
+      // in the script editor, never applied as a patch. (Asked for only when `opensScripts`.)
+      if (turn.outcome === OUTCOMES.ANSWER && res && res.script && opensScripts) {
+        const settled = await settleScript(res,
+          (refusal) => converse({ message: words, state: before, gateCtx, snippets, scriptRefusal: refusal }),
+          chartRef.current ? { check: (pine) => checkScript(pine, { chart: chartRef.current }) } : {})
+        say(settled.entry)
+        setPartial(null)
+        return
+      }
       // ⭐ 2026-11-18 — ONE REPAIR, WITH THIS ENGINE'S OWN WORDS, HERE TOO. The dock has sent its
       // engine's refusal back to the door for one repair since 2026-11-17 (`authoringSession.
       // modelTurn`). This sheet did not: it applied the door's patch itself, so a change the door
@@ -314,7 +340,7 @@ export default function ConverseBox({
     } finally {
       setBusy(false)
     }
-  }, [busy, transcript, converse, gateCtx, sym, tf, say, applyEnvelope, offeredEnvelope])
+  }, [busy, transcript, converse, gateCtx, sym, tf, say, applyEnvelope, offeredEnvelope, opensScripts])
 
   const applyValidPart = useCallback(() => {
     if (!partial) return
@@ -478,6 +504,23 @@ export default function ConverseBox({
                 <ul style={S.list}>{(t.lines || []).map((l, i) => <li key={i}>{l}</li>)}</ul>
                 {t.reply && t.kind !== 'answer' && (
                   <p style={S.assistantReply} data-testid="converse-assistant-reply">UCT Agent: {t.reply}</p>
+                )}
+                {/* ⭐ A SCRIPT ANSWER: the lines above are the ENGINE's verdict. The script opens in the
+                    script editor, where it is checked again, previewed and saved like any pasted script. */}
+                {t.script && typeof t.script.pine === 'string' && (
+                  <div style={S.script} data-testid="converse-script" data-runs={t.script.runs ? 'true' : 'false'}>
+                    {t.said ? <p style={S.assistantReply} data-testid="converse-script-said">UCT Agent: {t.said}</p> : null}
+                    {typeof onOpenScript === 'function' && (
+                      <button type="button" style={S.button} data-testid="converse-open-script" disabled={busy || saving}
+                        onClick={() => onOpenScript({ pine: t.script.pine, name: t.script.name })}>
+                        {t.script.runs ? 'Open this script in the editor' : 'Open this script in the editor to fix it'}
+                      </button>
+                    )}
+                    <details style={S.muted} data-testid="converse-script-text">
+                      <summary>The script the assistant wrote</summary>
+                      <pre style={S.pre}>{t.script.pine}</pre>
+                    </details>
+                  </div>
                 )}
               </>
             )}

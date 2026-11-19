@@ -22,7 +22,7 @@ import { openAuthoringState } from './authoringState'
 import { converseTurn, STOPPED_GATE, distinctNotUnderstood } from './converseClient'
 import { classifyTurn, OUTCOMES } from './turnOutcome'
 import { liveOffer, withoutOffer } from './builtInOffer'
-import { settleScript } from './scriptAnswer'
+import { settleScript, checkScript as defaultCheckScript } from './scriptAnswer'
 import { preflight } from './preflight'
 import { readSession, clearSession } from './conversationSessions'
 import { storeConversation, attachConversation, armConversationAlerts } from '../conversationSave'
@@ -309,7 +309,7 @@ export function nameFromAssistant(state, envelope, words, gateCtx, keep, keepLab
  * @returns `{ok, entries, state: next|null, changed}` — `changed`: a new revision of the
  *          definition (the preview acknowledgement resets, the "updated" cue fires).
  */
-export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null, keepCreateLabel = null, signal = null, browserRefusal = null, checkScript = undefined } = {}) {
+export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null, keepCreateLabel = null, signal = null, browserRefusal = null, checkScript = undefined, chartOf = undefined } = {}) {
   const res = await converse({ message: words, state: before, gateCtx, snippets, signal, ...(browserRefusal ? { browserRefusal } : {}) })
   // ⭐ STOP (2026-11-16) — the member stopped waiting. Whatever came back (or did not) is
   // NOT read: no reply, no patch, no refusal. Checked on the signal as well as the gate,
@@ -327,9 +327,12 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
     // does not run fully the engine's refusal goes back for a repair, a bounded number of times;
     // the entry leads with the ENGINE's verdict, whatever it is. The working indicator is not
     // touched: a script is opened in the script editor, never applied as a patch.
+    // ⭐ `chartOf()` is the chart's bars and compute context NOW (asked per check: a repair is checked
+    // on the bars of that moment), so the verdict is a real run on this chart (`scriptAnswer.checkScript`)
+    const onChart = typeof chartOf === 'function' ? (pine) => (checkScript || defaultCheckScript)(pine, { chart: chartOf() }) : checkScript
     const settled = await settleScript(res,
       (refusal) => converse({ message: words, state: before, gateCtx, snippets, signal, scriptRefusal: refusal }),
-      checkScript ? { check: checkScript } : {})
+      onChart ? { check: onChart } : {})
     if (signal && signal.aborted) {
       return { ok: false, state: null, changed: false, outcome: 'stopped', stopped: true,
         entries: [{ role: 'uct', kind: 'stopped', lines: [STOPPED_LINE, NOTHING_CHANGED] }] }

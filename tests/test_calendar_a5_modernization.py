@@ -164,8 +164,9 @@ class TestFmpRangeWeek:
 # ── D1 typed transport: economic + IPO legs, and the licensing table ─────────
 
 class TestLicensingClassTable:
-    def test_economic_data_class_is_registered_r(self):
-        assert plc.licensing_class_for("fmp", "economic") == "R"
+    def test_economic_data_class_is_registered_la(self):
+        """T-37's DDLA column, in force since the register's 2026-09-19 note (restated 2026-11-19)."""
+        assert plc.licensing_class_for("fmp", "economic") == "LA"
 
     def test_ipo_data_class_is_honestly_unregistered(self):
         """No licensing-register row covers FMP's `stable/ipos-calendar`

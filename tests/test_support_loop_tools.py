@@ -135,7 +135,7 @@ class TestSourceStaysInTheWorkDir:
         assert triage.purge(FakeClient(), closed=True) == [RID]
         assert not workdir.report_dir(RID).exists()
 
-    @pytest.mark.parametrize("fname", ["../escape.pine", "..\\escape.pine", "/abs.pine", "sub/x.pine", "", ".."])
+    @pytest.mark.parametrize("fname", ["../escape.pine", "..\\escape.pine", "/abs.pine", "sub/x.pine", "sub\\x.pine", "", ".."])
     def test_the_writer_refuses_any_path_outside_the_report_dir(self, fname, work):
         with pytest.raises(workdir.WorkdirError):
             workdir.write_report_file(RID, fname, SOURCE)

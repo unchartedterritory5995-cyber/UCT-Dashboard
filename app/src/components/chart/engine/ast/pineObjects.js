@@ -820,6 +820,96 @@ export function collectObjectOps(stmts, h) {
     if (rootPos >= 0) stampTop(ops.slice(rootMark), rootPos, rootTok)
     rootMark = ops.length
   }
+  // ─── ⭐⭐ ONCE-EMPTY LIST (coordinator ruling (B), 2026-11-19) — A TEST OF A LIST NOTHING HAS WRITTEN YET ───────────
+  //
+  // `var ps = array.new<P>()`, and every write to `ps` stands LATER in the script, inside an `if` that is provably
+  // `barstate.islast` (`guardIsLastBarOnly`, C42): on every bar the host lane runs, a test of `ps` standing BEFORE those
+  // writes (`if ps.size() > 0`, `if array.size(ps) > 0`, `for p in ps`), in no loop, meets an EMPTY list, so the block
+  // under it runs no step. It is not walked: nothing in it is carried or counted. ⚰️ Walked, the class guard counted
+  // the deletes in it (`htf-candle-footprint-cartel-console`: `l.delete()` / `b.delete()` over the profiles an EARLIER
+  // run drew, of which a loaded chart has none) and withheld a picture its captures grade MATCH (the three body boxes,
+  // TradingView's bars and prices, `vendorHarness.c31Loops` / `f4SpyDrawings`).
+  //
+  // ⛔ SOUND IN THE HOST LANE'S EXECUTION MODEL: a chart's drawings are ONE full recompute over the bars it holds
+  // (`hostObjects.js::hostObjectRun` over the whole array, `objectRuntime.js::evaluateObjects` from a fresh state), and
+  // the newest bar is its only `barstate.islast` bar (`lastBarOnly`) — C42's premise. TradingView re-runs a last-bar
+  // block on every new realtime bar with the list committed from the bar before; that is a chart left open, which no
+  // recompute here reproduces for any script (C42), and `hostOnceEmptyList.test.js` checks the htf shape against it.
+  // ⛔ PROVED FROM THE TOKENS OR NOT AT ALL: the list is a top-level `var` made by `array.new<…>()` with nothing between
+  // the brackets; the test stands in no loop; EVERY other token naming the list stands after the
+  // test's whole block and inside such an `if`. Anything else walks the block as before.
+  const onceEmpty = (() => {
+    const lists = new Map()
+    const lastIndex = (st) => {
+      let m = -1
+      for (const x of (st && st.header) || []) if (x && Number.isFinite(x.index) && x.index > m) m = x.index
+      for (const sub of (st && st.sub) || []) { const k = lastIndex(sub); if (k > m) m = k }
+      return m
+    }
+    for (const st of stmts || []) {
+      const t = st && st.header
+      if (!t || !t.length || !(t[0].kind === 'ident' && t[0].value === 'var')) continue
+      const eq = t.findIndex((x) => h.isPunct(x, '='))
+      const nameTok = eq > 1 ? t[eq - 1] : null
+      if (!nameTok || nameTok.kind !== 'ident') continue
+      const name = String(nameTok.value)
+      const r = t.slice(eq + 1)
+      const n = r.length
+      // `array.new<T>()` (the lexer carries `<T>` on the head as `typeArgs`, `stripTypeArguments`) or
+      // `array.new_<type>()`: the call and `()` with nothing between the brackets.
+      const empty = n === 3 && r[0].kind === 'ident' && /^array\.new(?:_\w+)?$/.test(String(r[0].value))
+        && h.isPunct(r[1], '(') && h.isPunct(r[2], ')')
+      lists.set(name, empty ? { lo: t[0].index, hi: lastIndex(st) } : null)
+    }
+    if (![...lists.values()].some(Boolean)) return null
+    const refs = new Map()
+    const blocks = new Map()
+    const visit = (list, once, loop) => {
+      for (const st of list || []) {
+        const t = st && st.header
+        if (!t || !t.length) continue
+        const w = t[0].kind === 'ident' ? t[0].value : null
+        if (Number.isFinite(t[0].index)) blocks.set(t[0].index, { loop, hi: lastIndex(st) })
+        for (const x of t) {
+          if (!x || x.kind !== 'ident') continue
+          const v = String(x.value)
+          const dot = v.indexOf('.')
+          const head = dot > 0 ? v.slice(0, dot) : v
+          if (!lists.get(head)) continue
+          if (!refs.has(head)) refs.set(head, [])
+          refs.get(head).push({ at: x.index, once })
+        }
+        visit(st.sub, once || (w === 'if' && guardIsLastBarOnly(t.slice(1))), loop + (w === 'for' || w === 'while' ? 1 : 0))
+      }
+    }
+    visit(stmts, false, 0)
+    return { lists, refs, blocks }
+  })()
+  /** Is the list `name` provably EMPTY wherever the test statement `st` runs? (see `onceEmpty` above) */
+  const listEmptyOnOnce = (name, st) => {
+    const decl = onceEmpty && name ? onceEmpty.lists.get(name) : null
+    const lo = st && st.header && st.header[0] ? st.header[0].index : null
+    const me = decl && Number.isFinite(lo) ? onceEmpty.blocks.get(lo) : null
+    if (!me || me.loop !== 0) return false
+    for (const r of onceEmpty.refs.get(name) || []) {
+      if ((r.at >= decl.lo && r.at <= decl.hi) || (r.at >= lo && r.at <= me.hi)) continue
+      if (!(r.at > me.hi) || !r.once) return false
+    }
+    return true
+  }
+  /** `ps.size() > 0` / `array.size(ps) > 0` → `ps`, else null. */
+  const sizeTestedList = (c) => {
+    const zero = (x) => !!x && x.kind === 'number' && Number(x.value) === 0
+    if (c && c.length === 5 && c[0].kind === 'ident' && /^[A-Za-z_]\w*\.size$/.test(String(c[0].value))
+      && h.isPunct(c[1], '(') && h.isPunct(c[2], ')') && h.isPunct(c[3], '>') && zero(c[4])) return String(c[0].value).slice(0, -'.size'.length)
+    if (c && c.length === 6 && c[0].kind === 'ident' && c[0].value === 'array.size' && h.isPunct(c[1], '(') && c[2].kind === 'ident'
+      && h.isPunct(c[3], ')') && h.isPunct(c[4], '>') && zero(c[5])) return String(c[2].value)
+    return null
+  }
+  /** `for p in ps` → `ps`, else null. */
+  const forInList = (t) => (t && t.length === 4 && t[1].kind === 'ident' && t[2].kind === 'ident' && t[2].value === 'in'
+    && t[3].kind === 'ident' ? String(t[3].value) : null)
+
   const walk = (list, guards, inLoop, scope) => {
     // ⭐⭐ C22 — EVERY earlier condition of the chain, not the last one: see `else`.
     let prevIfConds = []
@@ -1056,7 +1146,10 @@ export function collectObjectOps(stmts, h) {
           const f = foldLocalChain(walkItems, wi, localScope)
           if (f) pendingFold = { ...f, st }
         }
-        walk(st.sub || [], [...guards, { toks: cond, negate: false, locals: localScope }], inLoop, localScope)
+        // ⭐⭐ ONCE-EMPTY LIST — `if ps.size() > 0` over a list nothing has written yet runs no step (`listEmptyOnOnce`).
+        if (!listEmptyOnOnce(sizeTestedList(cond), st)) {
+          walk(st.sub || [], [...guards, { toks: cond, negate: false, locals: localScope }], inLoop, localScope)
+        }
         // ⭐⭐ R2 STEP 3 — A NAME THE CHAIN REASSIGNS IS A NEW BINDING FOR EVERY
         // STATEMENT AFTER IT. `string atrMultText = ''` then `atrMultText := …`
         // inside an `if` leaves TWO bindings for one name, and the cell below the
@@ -1126,6 +1219,11 @@ export function collectObjectOps(stmts, h) {
         // an unrecorded reassignment both ways, which `scopeFor` refuses by name.
         const loopRe = [...reassignedIn(st.sub || [])].map((name) => ({ name, toks: t, st, reassign: true }))
         const bodyScope = loopRe.length ? [...localScope, ...loopRe] : localScope
+        // ⭐⭐ ONCE-EMPTY LIST — `for p in ps` over a list nothing has written yet runs no pass (`listEmptyOnOnce`).
+        if (word === 'for' && !head && listEmptyOnOnce(forInList(t), st)) {
+          if (loopRe.length) localScope = [...localScope, ...loopRe]
+          continue
+        }
         // ⭐⭐ C40 — A `for … in` OVER A LIST THIS LANE HOLDS, AND THE CAP `while`.
         // Both become loop ops the object runtime runs (`forInPlan`, `capWhileOf`);
         // every other shape falls through to the refusal below, unchanged.

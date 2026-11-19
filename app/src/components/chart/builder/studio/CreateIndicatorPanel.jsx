@@ -232,7 +232,18 @@ export default function CreateIndicatorPanel({
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
   dockHost = null, onDocked = null, sessionKey = null, editRow = null, onEditFormula = null,
   seed = null, sendSeed = false, previewChartRef = null, readHistory = undefined,
+  engineChart = null,
 }) {
+  // ⭐ THE CHART THIS DOCK SITS BESIDE, as the engine sees it (`StockChart`'s `engineChart`: the bars
+  // its binder computes on and the compute context it hands that binder). Kept in a ref and read
+  // through a stable getter, so a new bar does not re-render the conversation and a script is run on
+  // the bars of the moment it is checked.
+  const chartRef = useRef(engineChart)
+  useEffect(() => { chartRef.current = engineChart }, [engineChart])
+  const chartOf = useCallback(() => {
+    const c = chartRef.current
+    return c && c.ctx && Array.isArray(c.bars) ? c : null
+  }, [])
   // ⭐ PHASE 4 — held once: the row this studio was opened on (a later list refresh
   // must not re-open it under the member's feet).
   const [open] = useState(() => (editRow && editRow.definition && editRow.def_id
@@ -249,7 +260,7 @@ export default function CreateIndicatorPanel({
     () => offerableBuiltIns({ registry: engineRegistry, isOffered: isDefinitionOffered, canWrite: !!onChange }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- serverVersion is the re-read signal
     [serverVersion, onChange])
-  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open, builtIns,
+  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open, builtIns, chartOf,
     ...(readHistory ? { readHistory } : {}) })
   const { state, transcript, rb, busy, saving, previewDefinition } = conv
   const previewCalcTf = (state && state.requests && state.requests.calculationTimeframe) || null
@@ -362,10 +373,11 @@ export default function CreateIndicatorPanel({
    *  list's own write, and says what happened. One tap settles the offer either way. */
   const takeOffer = useCallback((entry) => {
     if (!entry || !entry.offer || busy || saving) return
-    const out = applyOffer(entry.offer, { settings: settingsRef.current, registry: engineRegistry, isOffered: isDefinitionOffered })
+    // (`tf`: so the line can say when a built-in that draws only on some timeframes will not show here)
+    const out = applyOffer(entry.offer, { settings: settingsRef.current, registry: engineRegistry, isOffered: isDefinitionOffered, tf })
     if (out.ok && onChange) onChange(out.next)
     conv.settleOffer(entry.id, out.ok && !onChange ? 'This chart cannot be changed from here, so nothing was added.' : out.line)
-  }, [busy, saving, conv, onChange])
+  }, [busy, saving, conv, onChange, tf])
 
   const submit = useCallback(async (text) => {
     const words = String(text ?? message).trim()

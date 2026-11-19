@@ -100,10 +100,20 @@ export function browserRefusalBlock(refusal) {
  * still running an older build never meets a field its own validator refuses.
  *   note.by: a note may say who wrote it (`by: "uct"`).
  *   offer:   an answer may carry one action to take with one tap (`builtInOffer.js`).
- *   script:  an answer may BE a Pine script, which this window puts through its own engine and
- *            shows the verdict of (`scriptAnswer.js`).
  */
-export const ACCEPTS = Object.freeze(['note.by', 'offer', 'script'])
+export const ACCEPTS = Object.freeze(['note.by', 'offer'])
+
+/**
+ * ⭐ `script`: an answer may BE a Pine script. ⛔ NOT every sender of this build accepts one: only a
+ * window that puts the script through its own engine and SHOWS it and its verdict (`scriptAnswer.js`).
+ * A sender says so with `gateCtx.showsScripts === true`; with anything else the word is not sent and
+ * the door answers with the formula turn it always gave.
+ * ⚰️ 2026-11-19, found live while the lane was admin-only: this word was in `ACCEPTS`, so the builder's
+ * own "Describe it" box (`ConverseBox`) and the UCT Agent door told the door they accept a script.
+ * Neither shows one: an admin there read "This draws a zigzag ..." about a script that was nowhere
+ * on the screen. The senders that show one are held by `scriptAccepts.test.js`.
+ */
+export const ACCEPTS_SCRIPT = 'script'
 
 /** The bounds the server reads `addable` under (`definition_conversation.BUILT_INS_MAX`). */
 export const BUILT_INS_LIMITS = Object.freeze({ max: 40, maxChars: 64 })
@@ -121,7 +131,7 @@ export function converseBody({ message, state, gateCtx = {}, snippets = [], brow
   const body = {
     message: String(message || '').slice(0, CONVERSE_LIMITS.maxMessage),
     view,
-    accepts: [...ACCEPTS],
+    accepts: [...ACCEPTS, ...(gateCtx && gateCtx.showsScripts === true ? [ACCEPTS_SCRIPT] : [])],
     authoring: { assumptions: view.assumptions, openQuestions: view.openQuestions },
     snippets: boundedSnippets(snippets),
     chart: {
@@ -259,13 +269,29 @@ export function scriptRefusalBlock(refusal) {
   return { pine: refusal.pine, errors, round: Number.isInteger(refusal.round) && refusal.round >= 1 ? refusal.round : 1 }
 }
 
-/** ⭐ The one action an answer offers, as the server sent it (kind and indicator id only; what
- *  it means here is `builtInOffer.liveOffer`'s to say). Anything else is no offer. */
+/** The settings an offer carries (one setting of a built-in), as a small map of short words, or
+ *  null when what was sent is anything else. */
+export const OFFER_INPUTS_LIMITS = Object.freeze({ max: 4, maxChars: 40 })
+function offerInputs(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const pairs = Object.entries(raw)
+  const short = (s) => typeof s === 'string' && s.length > 0 && s.length <= OFFER_INPUTS_LIMITS.maxChars
+  if (!pairs.length || pairs.length > OFFER_INPUTS_LIMITS.max || !pairs.every(([k, v]) => short(k) && short(v))) return null
+  return Object.fromEntries(pairs)
+}
+
+/** ⭐ The one action an answer offers, as the server sent it (kind and indicator id, and the
+ *  settings of an offer that is one setting of a built-in; what it means here is
+ *  `builtInOffer.liveOffer`'s to say). Anything else is no offer. ⛔ An offer whose `inputs` do
+ *  not read is NO offer, never the same offer without them: adding the built-in without its
+ *  setting would add something other than what the answer said. */
 export function offerOf(body) {
   const o = body && body.offer
   if (!o || typeof o !== 'object' || typeof o.kind !== 'string' || typeof o.indicator !== 'string') return {}
   if (!o.indicator || o.indicator.length > BUILT_INS_LIMITS.maxChars || o.kind.length > 40) return {}
-  return { offer: { kind: o.kind, indicator: o.indicator } }
+  if (!('inputs' in o)) return { offer: { kind: o.kind, indicator: o.indicator } }
+  const inputs = offerInputs(o.inputs)
+  return inputs ? { offer: { kind: o.kind, indicator: o.indicator, inputs } } : {}
 }
 
 /** ⭐ F1: the share of today's allowance left (0 to 1) when the server sent one. */

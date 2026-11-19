@@ -101,6 +101,7 @@ NOT_RUNTIME = {
     "api/services/journal_two/note_connectors/convert/enml_parity_fixtures_gen.py": "a generator, run by hand",
     "api/services/journal_two/note_connectors/convert/obsidian_parity_fixtures_gen.py": "a generator, run by hand",
     "tools/alert_replay.py": "its parity bars are reached only from a corpus helper, not from arming an alert",
+    "api/services/pine_data_catalog.py": "Pine data unit S4-0: imported only by tests and its own `--check` / `--write` CLI; the S4 request supply that reads it at runtime moves pineDataCatalog.json to DECLARED_READS (and the watch list) when it lands",
 }
 
 #: Single mentions that are not runtime reads, in files that may hold real ones. (file, path) -> reason.

@@ -125,19 +125,23 @@ function sameEntries(a, b) {
  */
 /** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — does any instance's run read this chart symbol's own daily rows on a `tf`
  *  chart (its run half's script, or a runtime document's, built for `tf`: `runtimeReadsOwnDaily`)? */
-export function ownDailyNeeded(instances, defOf, tf) {
+// ⭐⭐ RS RATING (2026-11-19, the e83 live capture) — built with the chart's SYMBOL (`symbol`, the chart's
+// `symbolMeta`: the same binding the run is handed), so a script that branches on `syminfo.*` answers as its run
+// does. ⚰️ Without it Fred RS's build refused at `syminfo.industry` and this said no on every intraday chart.
+export function ownDailyNeeded(instances, defOf, tf, symbol = null) {
   for (const inst of Array.isArray(instances) ? instances : []) {
     const def = inst && defOf ? defOf(inst.defId) : null
     const c = def && def.compute
     if (!c) continue
     const src = c.runtimeObjects && typeof c.runtimeObjects.source === 'string' ? c.runtimeObjects.source
       : (c.kind === 'runtime' && typeof c.source === 'string' ? c.source : null)
-    if (src && runtimeReadsOwnDaily(src, tf)) return true
+    if (src && runtimeReadsOwnDaily(src, tf, symbol)) return true
   }
   return false
 }
 
-export function useSecondarySources(instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol = null) {
+export function useSecondarySources(instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol = null,
+  chartSymbolMeta = null) {
   const [state, setState] = useState(EMPTY)
 
   useEffect(() => {
@@ -145,7 +149,8 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
     const listed = instances ? instances() : null
     const symbols = symbolsNeeded(listed, defOf, tf)
     // ⭐ RS RATING L12 PR 2 — and this chart symbol's own daily rows, for a run that reads them above the chart
-    if (chartSymbol && ownDailyNeeded(listed, defOf, tf)) symbols.push(OWN_DAILY_KEY)
+    // (asked with the chart's symbol binding, `chartSymbolMeta`: the run's own, so a `syminfo.*` branch settles)
+    if (chartSymbol && ownDailyNeeded(listed, defOf, tf, chartSymbolMeta)) symbols.push(OWN_DAILY_KEY)
     const key = `${symbols.join(',')}|${tf}|${barCount}`
     let alive = true
 
@@ -175,7 +180,7 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
       liveTailTick(symbols, tf, barCount, fetcher, typeof chartFormingOf === 'function' ? chartFormingOf() : null, chartSymbol)
     }, LIVE_TAIL_MS)
     return () => { alive = false; unsub(); clearInterval(timer) }
-  }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf])
+  }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol, chartSymbolMeta])
 
   return state.map
 }

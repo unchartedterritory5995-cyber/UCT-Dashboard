@@ -109,5 +109,5 @@ def test_weekly_and_intraday_stay_on_yfinance(calls):
 
 def test_the_licensing_register_records_the_ruling():
     from api.services import provider_licensing_class as plc
-    assert plc.licensing_class_for("fmp", "indices") == "R"
+    assert plc.licensing_class_for("fmp", "indices") == "LA"   # T-40 DDLA column (restated 2026-11-19)
     assert plc.licensing_class_for("yahoo", "indices") == "X"    # the licence fact stands

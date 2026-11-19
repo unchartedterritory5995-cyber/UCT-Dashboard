@@ -448,3 +448,79 @@ def test_a_study_this_batch_did_not_add_is_never_removed_or_saved_over(tmp_path)
     out = drv.guarded_clean_save(ORIG, "t")
     assert out["saved"] is False and "did not add" in out["refused"]
     assert page.persisted["studies"] == [stranger]
+
+
+# ── the capture phase (coordinator, 2026-11-19): one probe, one chart, one day, two session states ──────────────────
+PROBE = '//@version=6\nindicator("One")\nplot(close)\n'
+
+
+def _phased(tmp_path, phases, stem="stemx", symbol="AMEX:SPY", tf="1D"):
+    """One probe, one chart, one script per phase (None = an unphased script), the way the evidence engine's
+    manifest hands them over."""
+    manifest, beh = bd.make_manifest(tmp_path, [(f"s{i}", PROBE, {}) for i in range(len(phases))])
+    for s, ph in zip(manifest["scripts"], phases):
+        s.update(captureStem=stem, symbol=symbol, tf=tf)
+        if ph is not None:
+            s["capturePhase"] = ph
+    return manifest, beh
+
+
+def test_the_capture_id_carries_the_phase_and_an_unphased_id_is_unchanged():
+    o = bd.fast_opts(symbol="AMEX:SPY", tf="1D")
+    s = {"slug": "s0", "captureStem": "stemx"}
+    assert bc.capture_id_for(s, o) == "stemx-spy-1d-2026-09-28"
+    for ph in bc.CAPTURE_PHASES:
+        assert bc.capture_id_for(dict(s, capturePhase=ph), o) == f"stemx-spy-1d-2026-09-28-{ph}"
+    assert bc.capture_id_for(dict(s, capturePhase=None), bd.fast_opts(symbol="AMEX:SPY", tf="5")) == "stemx-spy-5-2026-09-28"
+
+
+def test_a_capture_phase_outside_the_vocabulary_is_refused_before_any_page_step(tmp_path):
+    for bad in ("midday", "", "INSESSION", "postclose"):
+        with pytest.raises(bc.GateFailed, match="is not one of") as exc:
+            bc.capture_id_for({"slug": "s0", "captureStem": "stemx", "capturePhase": bad}, bd.fast_opts())
+        assert exc.value.abort is True
+    # the driver itself, handed such a script, stops before its first page step and stops the batch
+    manifest, beh = _phased(tmp_path, ["midday"])
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+    drv = bc.Driver(page, bd.FakeClock(page), bd.fast_opts(), bc.RunDir(tmp_path / "run1", "t"), bc.NodeVerifier(),
+                    log=lambda *a: None)
+    r = drv.run_one(manifest["scripts"][0])
+    assert r["outcome"] == bc.GATE_FAILED and "capturePhase" in r["reason"] and drv.abort and drv.abort[0] == 1
+    assert "gate:script start" not in r["steps"] and "SET_SOURCE" not in page.names() and "ADD" not in page.names()
+    # and a batch carrying it is refused at its start: nothing is claimed, nothing reaches the page
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+    code, rd, _ = bd.run(page, manifest, tmp_path / "run2")
+    assert code == 1 and rd.results() == {} and "STATE" not in page.names()
+
+
+def test_two_scripts_naming_one_capture_id_refuse_the_batch_before_any_page_step(tmp_path):
+    from pine_vendor_capture import acquire
+    for phases in ([None, None], ["insession", "insession"]):
+        manifest, beh = _phased(tmp_path / str(phases[0]), phases)
+        page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+        assert acquire(page, 5) == 0
+        before = len(page.calls)
+        rd = bc.RunDir(tmp_path / str(phases[0]) / "run", "t")
+        code = bc.run_batch(page, manifest, rd, bd.fast_opts(), bd.FakeClock(page), bc.NodeVerifier(), log=lambda *a: None)
+        assert code == 1, phases
+        assert page.calls[before:] == [], "the refusal touched the page"
+        assert rd.results() == {} and not list((rd.root / "captures").glob("*.json"))
+        (abort,) = [e for e in _ledger(rd.root) if e["event"] == "abort"]
+        want = "stemx-spy-1d-2026-09-28" + (f"-{phases[0]}" if phases[0] else "")
+        assert "s0 and s1 both name " + want in abort["reason"], abort
+
+
+def test_distinct_phases_of_one_probe_on_one_chart_both_capture_under_their_own_ids(tmp_path):
+    """The CONTROL of the refusal above: the same two scripts, each with its own phase, run and capture."""
+    manifest, beh = _phased(tmp_path, ["insession", "postclose-fresh"])
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+    code, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    res = rd.results()
+    assert code == 0 and [res[s]["outcome"] for s in ("s0", "s1")] == [bc.CAPTURED, bc.CAPTURED]
+    assert (res["s0"]["captureId"], res["s1"]["captureId"]) == ("stemx-spy-1d-2026-09-28-insession",
+                                                               "stemx-spy-1d-2026-09-28-postclose-fresh")
+    for r in res.values():
+        f = pathlib.Path(r["capture"])
+        assert f.name == r["captureId"] + ".json" and json.loads(f.read_text(encoding="utf-8"))["id"] == r["captureId"]
+    assert sorted(p.name for p in (tmp_path / "run" / "captures").glob("*.json")) == [
+        "stemx-spy-1d-2026-09-28-insession.json", "stemx-spy-1d-2026-09-28-postclose-fresh.json"]

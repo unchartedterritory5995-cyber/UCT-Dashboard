@@ -18,6 +18,7 @@ census loop (`run_census.drive`) is driven with a fake vitest. What must stay tr
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import sys
 
@@ -420,6 +421,78 @@ def test_drive_raises_when_the_lane_was_not_measured(monkeypatch, tmp_path):
     _fake_vitest(monkeypatch, lambda its: its, lane_ok=False)
     with pytest.raises(RC.CensusRunError, match="LANE NOT MEASURED"):
         RC.drive(items, str(tmp_path / "lane"), PROD)
+
+
+# ── the library store (libraries chain L1, 2026-11-19) ─────────────────────────
+
+def _store(tmp_path, paths):
+    root = tmp_path / "store"
+    for i, p in enumerate(paths):
+        f = root / (p + ".json")
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps({"path": p, "sha256": ("%02d" % i) * 32, "source": "x"}), encoding="utf-8")
+    return root
+
+
+def _fake_vitest_store(monkeypatch, seen, loaded=None):
+    """A census that loads the store PINE_LIBRARY_STORE names (`loaded(n)` may load fewer) and says how many."""
+    def call(cmd, cwd=None, env=None):
+        seen.append(env.get("PINE_LIBRARY_STORE"))
+        items = json.loads(open(env["COVERAGE_INPUT"], encoding="utf-8").read())
+        out = env["COVERAGE_OUT"]
+        n = len(RC.store_manifest(env.get("PINE_LIBRARY_STORE")))
+        n = loaded(n) if loaded else n
+        with open(out, "a", encoding="utf-8") as f:
+            for it in items:
+                f.write(json.dumps({"key": it["key"], "lane": PROD, "clean": True, "attached": True, "steps": [{}],
+                                    **({"libraryStore": n} if n else {})}) + "\n")
+        with open(pathlib.Path(out).parent / "lane.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"requested": PROD, "ok": True, "line": "x"}) + "\n")
+        return 0
+    monkeypatch.setattr(RC.subprocess, "call", call)
+
+
+def test_drive_measures_the_store_it_is_given_and_records_it(monkeypatch, tmp_path):
+    root = _store(tmp_path, ["TradingView/ta/11", "TradingView/RelativeValue/3"])
+    items = [{"key": f"committed:x{i}", "path": "unused", "cap": 1} for i in range(3)]
+    seen = []
+    _fake_vitest_store(monkeypatch, seen)
+    cache = tmp_path / "c"
+    assert RC.drive(items, str(cache), PROD, library_store=str(root)) == 3
+    assert seen == [os.path.abspath(str(root))]
+    rec = json.loads((cache / RC.LIBRARY_STORE_FILE).read_text(encoding="utf-8"))
+    assert [r["path"] for r in rec] == ["TradingView/RelativeValue/3", "TradingView/ta/11"]
+
+
+def test_drive_without_a_store_never_inherits_one_and_records_it_empty(monkeypatch, tmp_path):
+    root = _store(tmp_path, ["TradingView/ta/11"])
+    monkeypatch.setenv("PINE_LIBRARY_STORE", str(root))     # the caller's environment: not the measurement's
+    items = [{"key": "committed:x0", "path": "unused", "cap": 1}]
+    seen = []
+    _fake_vitest_store(monkeypatch, seen)
+    cache = tmp_path / "c"
+    assert RC.drive(items, str(cache), PROD) == 1
+    assert seen == [None]
+    assert json.loads((cache / RC.LIBRARY_STORE_FILE).read_text(encoding="utf-8")) == []
+
+
+def test_drive_refuses_a_census_that_did_not_load_the_whole_store(monkeypatch, tmp_path):
+    root = _store(tmp_path, ["TradingView/ta/11", "TradingView/RelativeValue/3"])
+    items = [{"key": "committed:x0", "path": "unused", "cap": 1}]
+    _fake_vitest_store(monkeypatch, [], loaded=lambda n: n - 1)   # the registry refused one entry
+    with pytest.raises(RC.CensusRunError, match="LIBRARY STORE NOT LOADED"):
+        RC.drive(items, str(tmp_path / "c"), PROD, library_store=str(root))
+
+
+def test_a_store_entry_that_names_another_path_refuses_the_census(tmp_path):
+    root = _store(tmp_path, ["TradingView/ta/11"])
+    (root / "TradingView" / "ta" / "11.json").write_text(json.dumps({"path": "TradingView/ta/12", "sha256": "0" * 64}),
+                                                         encoding="utf-8")
+    with pytest.raises(RC.CensusRunError):
+        RC.store_manifest(str(root))
+    with pytest.raises(RC.CensusRunError):
+        RC.store_manifest(str(tmp_path / "missing"))
+    assert RC.store_manifest(None) == [] and RC.store_manifest("") == []
 
 
 # ── the committed snapshot ────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computePrevDayLevels, buildPrevDayLines } from './prevDayLevelsPrimitive'
+import { computePrevDayLevels, buildPrevDayLines, createPrevDayLevelsPrimitive } from './prevDayLevelsPrimitive'
 
 // Build intraday bars for a given ET day index at 5-min spacing.
 function day(dayIdx, ohlc) {
@@ -59,5 +59,34 @@ describe('buildPrevDayLines', () => {
   it('returns [] for null levels/cfg', () => {
     expect(buildPrevDayLines(null, {})).toEqual([])
     expect(buildPrevDayLines(levels, null)).toEqual([])
+  })
+})
+
+describe('the primitive draws to the newest candle without copying the series', () => {
+  // A series whose data() would copy every row: the draw must find the newest one by index instead
+  // (2026-11-19: a whole-series copy on every repaint of a 50,000-bar hourly chart).
+  function world({ newest = 1_800_000_600, endTime = 1_800_000_000 } = {}) {
+    const strokes = []
+    let copies = 0
+    const series = {
+      data: () => { copies++; return [] },
+      dataByIndex: (i, dir) => (i === Number.MAX_SAFE_INTEGER && dir === -1 ? { time: newest, close: 1 } : null),
+      priceToCoordinate: (p) => p,
+    }
+    const chart = { timeScale: () => ({ timeToCoordinate: (t) => (t - 1_800_000_000) / 10 }) }
+    const ctx = { save() {}, restore() {}, beginPath() {}, setLineDash() {}, stroke() {},
+      moveTo(x, y) { strokes.push({ from: x, y }) }, lineTo(x) { strokes[strokes.length - 1].to = x } }
+    const p = createPrevDayLevelsPrimitive()
+    p.primitive.attached({ chart, series, requestUpdate: () => {} })
+    p.setLines([{ key: 'pdh', price: 50, startTime: 1_800_000_100, color: '#fff', style: 'solid', width: 1 }], endTime)
+    const draw = () => p.primitive.paneViews()[0].renderer().draw({ useMediaCoordinateSpace: (fn) => fn({ context: ctx, mediaSize: { width: 999 } }) })
+    return { draw, strokes, copies: () => copies }
+  }
+
+  it('the line runs from its anchor candle to the NEWEST candle (past the static end), with no data() copy', () => {
+    const w = world()
+    for (let i = 0; i < 5; i++) w.draw()
+    expect(w.strokes[0]).toEqual({ from: 10, y: 50.5, to: 60 })   // newest bar at x=60, not endTime's x=0
+    expect(w.copies()).toBe(0)
   })
 })
