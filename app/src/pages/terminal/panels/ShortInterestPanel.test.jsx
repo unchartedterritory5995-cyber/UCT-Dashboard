@@ -170,7 +170,7 @@ describe('SHINT states', () => {
     expect(n).toBeGreaterThanOrEqual(2)
   }, 15_000)
 
-  it('a refused data plan is said in plain words: not an error, no Retry, no as-of, and where the old figure still is', async () => {
+  it('a refused data plan is said in plain words: not an error, no Retry, no as-of, and OWN is not offered as another source', async () => {
     serve({ [URL]: { status: 'unavailable', sym: 'ZZA', interest: REFUSED, volume: REFUSED, float: { shares: null, pct_float: null, withheld: false, state: 'missing' } } })
     const { setFreshness, open } = renderPanel()
     const state = await screen.findByTestId('terminal-short-unavailable')
@@ -179,6 +179,9 @@ describe('SHINT states', () => {
     expect(state.textContent).toContain('Short interest is not available on the data plan right now (the data vendor answered 403).')
     expect(state.textContent).toContain('through its stock-data vendor, Massive, and the vendor did not allow it. That is not the same as no short interest.')
     expect(state.textContent).toContain('The server asks again by itself in a few hours; nothing here needs a retry.')
+    // OWN's short interest card reads this same record: it is named as that, never as a second figure.
+    expect(state.textContent).toContain('its short interest card reads this same record, so it is not available there either.')
+    expect(state.textContent).not.toMatch(/undated figure|from the screener is still/)
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
     expect(screen.queryByTestId('terminal-short-reports')).toBeNull()
     expect(screen.getByTestId('terminal-short').getAttribute('data-state')).toBe('unavailable')

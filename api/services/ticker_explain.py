@@ -573,26 +573,37 @@ def _estimates_evidence(est: dict) -> list[dict]:
 
 
 def _ownership_evidence(own: dict) -> list[dict]:
-    """Institutional/short snapshot (yfinance), float/shares-outstanding
-    (D1 where available), Form 13F (~45-day lag, disclosed explicitly), and
-    a bounded slice of insider activity (exact schema per `insider.py`:
+    """The institutional percent (the Form 13F summary's), short interest (the
+    newest FINRA report the short interest service holds, with its settlement
+    date -- absent when none is held, never a zero), float/shares-outstanding
+    (D1), Form 13F (~45-day lag, disclosed explicitly), and a bounded slice of
+    insider activity (exact schema per `insider.py`:
     name/title/type/shares/price/amount/date)."""
     out = []
     inst = own.get("institutional") or {}
     short = own.get("short") or {}
-    snap = []
     if inst.get("pct_held") is not None:
-        snap.append(f"institutional ownership {inst['pct_held']}%")
-    if short.get("short_pct_float") is not None:
-        snap.append(f"short interest {short['short_pct_float']}% of float")
-    if short.get("days_to_cover") is not None:
-        snap.append(f"{short['days_to_cover']} days to cover")
-    if snap:
+        quarter = inst.get("quarter")
         out.append({
             "type": "ownership_snapshot",
-            "date": "current snapshot",
-            "source": "UCT Ownership (yfinance)",
-            "text": "Ownership snapshot: " + ", ".join(snap) + ".",
+            "date": f"{quarter} (Form 13F quarter)" if quarter else "latest filed Form 13F quarter",
+            "source": "FMP, via UCT Ownership (Form 13F)",
+            "text": f"Ownership snapshot: institutional ownership {inst['pct_held']}% of shares "
+                    "outstanding, as held by Form 13F filers.",
+            "url": None,
+        })
+    if short.get("settlement_date") and short.get("shares_short") is not None:
+        snap = [f"{short['shares_short']:,.0f} shares short"]
+        if short.get("short_pct_float") is not None:
+            snap.append(f"{short['short_pct_float']}% of float")
+        if short.get("days_to_cover") is not None:
+            snap.append(f"{short['days_to_cover']} days to cover")
+        out.append({
+            "type": "ownership_short",
+            "date": f"{short['settlement_date']} (FINRA settlement date; published about two "
+                    "weeks later, so not today's position)",
+            "source": "FINRA short interest through Massive, via UCT Ownership",
+            "text": "Short interest: " + ", ".join(snap) + ".",
             "url": None,
         })
 
@@ -607,7 +618,7 @@ def _ownership_evidence(own: dict) -> list[dict]:
         out.append({
             "type": "ownership_float",
             "date": _fmt_date(meta.get("sourceObservedAt")) if meta else "current snapshot",
-            "source": "FMP, via UCT Ownership" if meta else "UCT Ownership (yfinance)",
+            "source": "FMP, via UCT Ownership",
             "text": "Share count: " + ", ".join(parts) + ".",
             "url": None,
         })
