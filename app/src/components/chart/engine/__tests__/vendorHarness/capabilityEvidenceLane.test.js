@@ -121,6 +121,13 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // that PR's run (44482185005) every compared item agrees, but the runtime lane runs the strategy's broker and the
 // captures hold no Strategy Tester report, so both grade INCONCLUSIVE (as seven committed strategy captures already
 // do), not DIVERGE: no stop (docs/pine/evidence/2026-11-19-a2-named-builtin-args/EVIDENCE.md).
+// ⭐ PARITY UNIT LF step 3 (feat/parity-lf3-admit-linefill-e84, engine 84): the reach run is RE-DERIVED (input,
+// CAPADMIT_MODE=admission, report) after admitting obj:linefill. 25 rows join, none moves: the 16 captures of the
+// scripts whose last unadmitted capability was obj:linefill (trend-targets x6 and FVG Finder x2 on the runtime lane;
+// liquidity-pools, price-action-as-in-book, k-clustering and vdubus-pattern-gen-v2 x2 each on the host lane) and 9
+// captures new since the report was last derived (vw-fcmp-arrays x2, macd-shortlong-strategy-is and
+// supertrend-strategy-is on the runtime lane; vw-w4-max-bars-back-m1..m4 host, m5 runtime). Stops: vw-deadband only
+// (named); MATCH -> DIVERGE: none (docs/pine/evidence/2026-11-18-admit-obj-linefill/EVIDENCE.md section 7).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {
