@@ -734,3 +734,32 @@ class TestStoredCopyFreshness:
                 t.join(10)
         assert "WMT" not in fs._refreshing
         assert [(s, t) for _, s, _, t in env.store.puts] == [("WMT", fs._QUIET_TTL)]
+
+
+class TestWarmerMarkReachesTheReaderThreads:
+    """The statements reader shares one FMP read between concurrent callers, and a
+    member never waits on a read a WARMER leads. That mark is per thread, and the
+    two statement bases are read on threads of their own."""
+
+    def _spy(self, monkeypatch):
+        from api.services import single_flight
+        from api.services.research import financial_history
+        seen = []
+
+        def get_history(sym, period="quarter", full=False):
+            seen.append((period, full, single_flight.in_background()))
+            return {"sym": sym, "period": period, "periods": [], "series": {}}
+        monkeypatch.setattr(financial_history, "get_history", get_history)
+        return seen
+
+    def test_a_warmers_statement_reads_are_marked_as_background(self, monkeypatch):
+        from api.services import single_flight
+        seen = self._spy(monkeypatch)
+        with single_flight.background():
+            fs._read_licensed("AAPL")
+        assert sorted(seen) == [("annual", True, True), ("quarter", True, True)]
+
+    def test_a_members_statement_reads_are_not(self, monkeypatch):
+        seen = self._spy(monkeypatch)
+        fs._read_licensed("AAPL")
+        assert sorted(seen) == [("annual", True, False), ("quarter", True, False)]
