@@ -544,8 +544,25 @@ export function makeProgram({
 /** ⛔ VALIDATED BEFORE IT CAN RUN, per §44 — a malformed program is a compiler
  *  bug and must say so at the boundary rather than reaching the dispatch loop
  *  and being reported as a runtime failure. */
+/** ⭐⭐ engine NUMBER PENDING — WHICH FUNCTION A PC BELONGS TO, or `null` for the main program and a request
+ *  region (both read history at base 0). The lowering lays the code out as ONE array: the main program, its HALT,
+ *  then each function body from its `entry`, then each request region from its `entry` (`lowerIr.js`). So the
+ *  owner of a pc is the region whose start is the last one at or below it. */
+function regionOwnerOf(p) {
+  const starts = []
+  ;(p.functions || []).forEach((f, i) => { if (Number.isInteger(f.entry)) starts.push([f.entry, i]) })
+  ;(p.requests || []).forEach((r) => { if (Number.isInteger(r.entry)) starts.push([r.entry, null]) })
+  starts.sort((x, y) => x[0] - y[0])
+  return (pc) => {
+    let owner = null
+    for (const [at, fn] of starts) { if (at <= pc) owner = fn; else break }
+    return owner
+  }
+}
+
 export function validateProgram(p) {
   const n = p.instructions
+  const ownerOf = regionOwnerOf(p)
   for (let pc = 0; pc < n; pc += 1) {
     const op = p.code[pc * 3]
     const a = p.code[pc * 3 + 1]
@@ -717,12 +734,11 @@ export function validateProgram(p) {
       // `x[5]` against a ring the front end sized for 2 would answer `na` on
       // every bar — a wrong number that looks exactly like a warm-up, forever.
       // Refusing it at the boundary makes it a compiler bug, which is what it is.
-      // ⚠️ P7.2 LOOSENED THIS, DELIBERATELY AND FOR THE SAME REASON THE PERSIST
+      // ⚠️ P7.2 LOOSENED THE SLOT BOUND, DELIBERATELY AND FOR THE SAME REASON THE PERSIST
       // BOUND ABOVE IS LOOSE. `a` is now FRAME-RELATIVE: the main program reads
       // at base 0 and an invocation reads at its call site's `historyBase`, so
-      // the exact per-frame bound is a property of the function a pc belongs to,
-      // which the lowering already guarantees by construction. Checking it here
-      // would need a pc→function map, and a wrong one would refuse valid programs.
+      // the exact per-frame bound is a property of the function a pc belongs to
+      // (`regionOwnerOf`, the pc→function map the DEPTH check below now uses).
       const maxHist = Math.max(p.history.length, 1)
       if (a < 0 || a >= maxHist) {
         throw new ProgramError(`pc ${pc}: READ_HIST_SLOT ${a} outside ${maxHist} history slots`)
@@ -733,16 +749,29 @@ export function validateProgram(p) {
           `pc ${pc}: READ_HIST_SLOT offset ${b2} — history counts whole bars BACKWARDS from 1; `
           + '`x[0]` is the live value and lowers to a slot read, never to this opcode')
       }
-      // ⛔ THE DEPTH CHECK STAYS EXACT FOR MAIN-FRAME READS, where `a` IS the
-      // entry. A read deeper than its planned ring would answer `na` on every
-      // bar — a wrong number wearing a warm-up's clothes — so where the bound can
-      // be proved it still is.
-      const mainEntry = p.history[a]
-      if (mainEntry && mainEntry.site === null && b2 > mainEntry.depth) {
-        throw new ProgramError(
-          `pc ${pc}: READ_HIST_SLOT reads \`${mainEntry.name}\`[${b2}] but its ring was `
-          + `planned for depth ${mainEntry.depth} — the static demand analysis and the `
-          + 'lowering disagree about how far back this program looks')
+      // ⛔ THE DEPTH CHECK IS EXACT, AND FRAME-AWARE. A read deeper than its planned ring would answer `na` on
+      // every bar — a wrong number wearing a warm-up's clothes — so the bound is proved for every read.
+      // ⭐⭐ engine NUMBER PENDING — ⚰️ it compared EVERY read with `p.history[a]`, the main frame's entry, even
+      // inside a function body where `a` is FRAME-relative. A body's `s[4]` whose frame index collided with a main
+      // ring of depth 1 (`m[1]`) was refused at lowering, naming `m`, a variable the function never reads: a wrong
+      // refusal of a valid program (`frameHistoryDepth.test.js`). Now the owner of the pc decides: the main
+      // program and a request region read at base 0, so `a` IS the entry; a function body is checked against its
+      // own ring at EVERY call site (`historyBase + a`), each of which must exist.
+      const fn = ownerOf(pc)
+      const entries = fn === null
+        ? [p.history[a]]
+        : (p.callSites || []).filter((c) => c.fn === fn).map((c) => p.history[(c.historyBase || 0) + a])
+      for (const entry of entries) {
+        if (!entry) {
+          throw new ProgramError(`pc ${pc}: READ_HIST_SLOT ${a} of \`${p.functions[fn].name}\` has no ring at one `
+            + 'of its call sites')
+        }
+        if (b2 > entry.depth) {
+          throw new ProgramError(
+            `pc ${pc}: READ_HIST_SLOT reads \`${entry.name}\`[${b2}] but its ring was `
+            + `planned for depth ${entry.depth} — the static demand analysis and the `
+            + 'lowering disagree about how far back this program looks')
+        }
       }
     }
     if (op === OP.READ_HIST_SLOT_DYN) {
