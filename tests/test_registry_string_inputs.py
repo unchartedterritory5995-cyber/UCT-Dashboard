@@ -25,6 +25,7 @@ from api.services import alert_rs_series
 from api.services import relative_strength as rsm
 from api.services import rs_benchmarks as rb
 from api.services.signature import registry_defs as rd
+from tests.support.ledger_line_endings import assert_ledger_line_endings
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 FIXTURE = REPO / "tests" / "fixtures" / "rs_line_rows_pre_phase3.json"
@@ -351,8 +352,7 @@ def test_an_rs_alert_on_custom_is_refused_with_a_reason():
 def test_the_ledger_carries_rs_v3_armed_on_web_with_its_arming_note():
     """Armed in production: read live from Railway (web) as 1 on 2026-11-18. The arming
     note stays, because it is also the rollback recipe."""
-    raw = LEDGER.read_bytes()
-    assert raw.count(b"\n") == raw.count(b"\r\n"), "docs/feature_flags.json is a CRLF file"
+    raw = assert_ledger_line_endings(LEDGER)      # one ending on disk, an LF blob (tests/support/ledger_line_endings.py)
     flags = json.loads(raw.decode("utf-8"))["flags"]
     e = flags["RS_V3_ENABLED"]
     assert e["status"] == "armed" and e["where"] == ["web"] and e["railway_value"] == "1"
