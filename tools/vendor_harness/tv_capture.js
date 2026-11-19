@@ -763,6 +763,12 @@
         filledAreas: arrOrNull(mi.filledAreas),
         filledAreaDefaults: objOrNull(mi.defaults && mi.defaults.filledAreasStyle),
         filledAreaState: objOrNull(state && state.filledAreasStyle),
+        // ⭐ CANDLES (objects agent, W4-P1): a `plotcandle` / `plotbar` is a metaInfo OHLC PLOT (keyed by its id), its
+        // body, wick and border colours and drawWick / drawBorder in `defaults.ohlcPlots`, the chart's live values in
+        // the state's `ohlcPlots`. Same three layers, same null rule; the keys are unwitnessed until the first capture.
+        ohlcPlots: objOrNull(mi.ohlcPlots),
+        ohlcPlotDefaults: objOrNull(mi.defaults && mi.defaults.ohlcPlots),
+        ohlcPlotState: objOrNull(state && state.ohlcPlots),
         inputs,
       },
       window: {

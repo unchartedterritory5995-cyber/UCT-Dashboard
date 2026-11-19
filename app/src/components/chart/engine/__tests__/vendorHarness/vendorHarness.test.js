@@ -231,7 +231,7 @@ describe('2 · the TradingView-side snippet, against a RECORDING DOUBLE of the m
     expect(vh.cleanup().globalsLeft).toEqual([])
   })
 
-  it('records an hline (metaInfo band) and a fill (filled area): declared, defaults and live state — null when absent', () => {
+  it('records an hline (metaInfo band), a fill (filled area) and a candle (OHLC plot): declared, defaults and live state — null when absent', () => {
     const read = (study) => {
       const vh = install({ studies: [study], bars: BARS })
       const sum = vh.capture({ study: 'UCTVH probe', source: SRC, newestBarIsForming: false, chunkSize: 1500 })
@@ -245,13 +245,19 @@ describe('2 · the TradingView-side snippet, against a RECORDING DOUBLE of the m
     const band = { id: 'hline_0', name: 'Zero' }
     const fill = { id: 'fill_0', objAId: 'plot_0', objBId: 'plot_1', type: 'plot_plot', title: 'Band fill' }
     const base = mkStudy()
+    const candle = { plotcandle_0: { title: 'Candles' } }
+    const candleDefaults = { plotcandle_0: { color: '#26A69A', wickColor: '#737375', borderColor: '#378658', drawWick: true, drawBorder: true, visible: true } }
+    const candleState = { plotcandle_0: { color: '#EF5350', wickColor: '#737375', borderColor: '#378658', drawWick: false, drawBorder: true, visible: true } }
     const st = read(mkStudy({
-      mi: { ...base.mi, bands: [band], filledAreas: [fill],
+      mi: { ...base.mi, bands: [band], filledAreas: [fill], ohlcPlots: candle,
         defaults: { ...base.mi.defaults, bands: [{ color: '#787B86', linestyle: 2, linewidth: 1, value: 0, visible: true }],
-          filledAreasStyle: { fill_0: { color: '#2196F3', transparency: 90, visible: true } } } },
+          filledAreasStyle: { fill_0: { color: '#2196F3', transparency: 90, visible: true } }, ohlcPlots: candleDefaults } },
       state: { ...base.state, bands: [{ color: '#FF0000', linestyle: 0, linewidth: 2, value: 50, visible: true }],
-        filledAreasStyle: { fill_0: { color: '#2196F3', transparency: 80, visible: true } } },
+        filledAreasStyle: { fill_0: { color: '#2196F3', transparency: 80, visible: true } }, ohlcPlots: candleState },
     }))
+    expect(st.ohlcPlots).toEqual(candle)
+    expect(st.ohlcPlotDefaults).toEqual(candleDefaults)
+    expect(st.ohlcPlotState).toEqual(candleState)
     expect(st.bands).toEqual([band])
     expect(st.bandDefaults).toEqual([{ color: '#787B86', linestyle: 2, linewidth: 1, value: 0, visible: true }])
     expect(st.bandState).toEqual([{ color: '#FF0000', linestyle: 0, linewidth: 2, value: 50, visible: true }])
@@ -260,7 +266,8 @@ describe('2 · the TradingView-side snippet, against a RECORDING DOUBLE of the m
     expect(st.filledAreaState).toEqual({ fill_0: { color: '#2196F3', transparency: 80, visible: true } })
     // a study with no hline and no fill: every field is null (the model held none), and the plots are unchanged
     const plainStudy = read(mkStudy())
-    for (const k of ['bands', 'bandDefaults', 'bandState', 'filledAreas', 'filledAreaDefaults', 'filledAreaState']) {
+    for (const k of ['bands', 'bandDefaults', 'bandState', 'filledAreas', 'filledAreaDefaults', 'filledAreaState',
+      'ohlcPlots', 'ohlcPlotDefaults', 'ohlcPlotState']) {
       expect(plainStudy[k]).toBeNull()
     }
     expect(plainStudy.plots.map((p) => p.title)).toEqual(['B', 'A', null])
