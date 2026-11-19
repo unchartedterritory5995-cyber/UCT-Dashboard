@@ -4,7 +4,8 @@
  "map": {
   "measuredOn": "2026-11-18",
   "masterSha": "99de72e7c0",
-  "sha256": "13cdfba46a24547b139e6ebbb0d683e201f3fc784ebef9d9e32fcfa9ddc8b525"
+  "sha256": "13cdfba46a24547b139e6ebbb0d683e201f3fc784ebef9d9e32fcfa9ddc8b525",
+  "libraryStore": null
  },
  "engine": 73,
  "headline": {
@@ -33,7 +34,7 @@
   "servedOnHistoryOnly": 11,
   "notServed": 404,
   "notServedFullyEnumerated": 201,
-  "neverServe": 12,
+  "neverServe": 15,
   "dataDecision": 5,
   "missingFacts": []
  },
@@ -8480,7 +8481,7 @@
    "neededBy": null,
    "size": 4,
    "unlocks": 14,
-   "touches": 137,
+   "touches": 135,
    "unlocksPerSize": 3.5,
    "unlocksFullyEnumerated": 10,
    "cumulativeServed": 358,
@@ -8524,7 +8525,7 @@
    "neededBy": null,
    "size": 2,
    "unlocks": 15,
-   "touches": 57,
+   "touches": 55,
    "unlocksPerSize": 7.5,
    "unlocksFullyEnumerated": 7,
    "cumulativeServed": 419,
@@ -8579,7 +8580,7 @@
    "neededBy": "libraries",
    "size": 2,
    "unlocks": 1,
-   "touches": 8,
+   "touches": 7,
    "unlocksPerSize": 0.5,
    "unlocksFullyEnumerated": 0,
    "cumulativeServed": 456,
@@ -8590,7 +8591,7 @@
    "neededBy": null,
    "size": 4,
    "unlocks": 33,
-   "touches": 56,
+   "touches": 53,
    "unlocksPerSize": 8.25,
    "unlocksFullyEnumerated": 9,
    "cumulativeServed": 489,
@@ -8601,7 +8602,7 @@
    "neededBy": null,
    "size": 1,
    "unlocks": 8,
-   "touches": 25,
+   "touches": 22,
    "unlocksPerSize": 8.0,
    "unlocksFullyEnumerated": 3,
    "cumulativeServed": 497,
@@ -8630,17 +8631,6 @@
    "cumulativePct": 75.0
   },
   {
-   "unit": "admit:collections:matrix",
-   "neededBy": null,
-   "size": 1,
-   "unlocks": 5,
-   "touches": 10,
-   "unlocksPerSize": 5.0,
-   "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 514,
-   "cumulativePct": 75.7
-  },
-  {
    "unit": "imperative-host",
    "neededBy": null,
    "size": 1,
@@ -8648,8 +8638,19 @@
    "touches": 6,
    "unlocksPerSize": 5.0,
    "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 519,
-   "cumulativePct": 76.4
+   "cumulativeServed": 514,
+   "cumulativePct": 75.7
+  },
+  {
+   "unit": "lower-tf",
+   "neededBy": null,
+   "size": 2,
+   "unlocks": 9,
+   "touches": 12,
+   "unlocksPerSize": 4.5,
+   "unlocksFullyEnumerated": 4,
+   "cumulativeServed": 523,
+   "cumulativePct": 77.0
   },
   {
    "unit": "state-calls",
@@ -8659,19 +8660,19 @@
    "touches": 14,
    "unlocksPerSize": 4.5,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 528,
-   "cumulativePct": 77.8
+   "cumulativeServed": 532,
+   "cumulativePct": 78.4
   },
   {
-   "unit": "lower-tf",
+   "unit": "admit:collections:matrix",
    "neededBy": null,
-   "size": 2,
-   "unlocks": 10,
-   "touches": 12,
+   "size": 1,
+   "unlocks": 5,
+   "touches": 8,
    "unlocksPerSize": 5.0,
-   "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 538,
-   "cumulativePct": 79.2
+   "unlocksFullyEnumerated": 2,
+   "cumulativeServed": 537,
+   "cumulativePct": 79.1
   },
   {
    "unit": "detector",
@@ -8681,8 +8682,8 @@
    "touches": 7,
    "unlocksPerSize": 5.0,
    "unlocksFullyEnumerated": 1,
-   "cumulativeServed": 543,
-   "cumulativePct": 80.0
+   "cumulativeServed": 542,
+   "cumulativePct": 79.8
   },
   {
    "unit": "call-mapping",
@@ -8692,8 +8693,8 @@
    "touches": 7,
    "unlocksPerSize": 6.0,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 549,
-   "cumulativePct": 80.9
+   "cumulativeServed": 548,
+   "cumulativePct": 80.7
   },
   {
    "unit": "block-value",
@@ -8703,19 +8704,19 @@
    "touches": 12,
    "unlocksPerSize": 4.5,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 558,
-   "cumulativePct": 82.2
+   "cumulativeServed": 557,
+   "cumulativePct": 82.0
   },
   {
    "unit": "admit:calc-bars",
    "neededBy": null,
    "size": 1,
    "unlocks": 4,
-   "touches": 9,
+   "touches": 7,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 1,
-   "cumulativeServed": 562,
-   "cumulativePct": 82.8
+   "cumulativeServed": 561,
+   "cumulativePct": 82.6
   },
   {
    "unit": "admit:obj:polyline",
@@ -8725,41 +8726,30 @@
    "touches": 9,
    "unlocksPerSize": 5.0,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 567,
-   "cumulativePct": 83.5
+   "cumulativeServed": 566,
+   "cumulativePct": 83.4
+  },
+  {
+   "unit": "collections",
+   "neededBy": null,
+   "size": 2,
+   "unlocks": 7,
+   "touches": 8,
+   "unlocksPerSize": 3.5,
+   "unlocksFullyEnumerated": 3,
+   "cumulativeServed": 573,
+   "cumulativePct": 84.4
   },
   {
    "unit": "admit:collections:map",
    "neededBy": null,
    "size": 1,
    "unlocks": 4,
-   "touches": 8,
+   "touches": 6,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 571,
-   "cumulativePct": 84.1
-  },
-  {
-   "unit": "collections",
-   "neededBy": null,
-   "size": 2,
-   "unlocks": 8,
-   "touches": 8,
-   "unlocksPerSize": 4.0,
-   "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 579,
-   "cumulativePct": 85.3
-  },
-  {
-   "unit": "admit:enum",
-   "neededBy": null,
-   "size": 1,
-   "unlocks": 4,
-   "touches": 4,
-   "unlocksPerSize": 4.0,
-   "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 583,
-   "cumulativePct": 85.9
+   "cumulativeServed": 577,
+   "cumulativePct": 85.0
   },
   {
    "unit": "admit:varip",
@@ -8769,8 +8759,19 @@
    "touches": 6,
    "unlocksPerSize": 3.0,
    "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 586,
-   "cumulativePct": 86.3
+   "cumulativeServed": 580,
+   "cumulativePct": 85.4
+  },
+  {
+   "unit": "admit:enum",
+   "neededBy": null,
+   "size": 1,
+   "unlocks": 3,
+   "touches": 3,
+   "unlocksPerSize": 3.0,
+   "unlocksFullyEnumerated": 0,
+   "cumulativeServed": 583,
+   "cumulativePct": 85.9
   },
   {
    "unit": "compute-budget",
@@ -8780,8 +8781,8 @@
    "touches": 4,
    "unlocksPerSize": 2.0,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 590,
-   "cumulativePct": 86.9
+   "cumulativeServed": 587,
+   "cumulativePct": 86.5
   },
   {
    "unit": "realtime",
@@ -8791,8 +8792,8 @@
    "touches": 3,
    "unlocksPerSize": 1.5,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 593,
-   "cumulativePct": 87.3
+   "cumulativeServed": 590,
+   "cumulativePct": 86.9
   }
  ],
  "neverServe": [
@@ -8837,6 +8838,17 @@
     "reference:custom-screener-with-alerts__dd1bf69eb8": "40 crypto pairs (XRPUSDT, BTCUSDT ...) as symbol input defaults; TradingView refuses it at its defaults (\"Invalid symbol\"), run objunit-2026-11-18",
     "reference:screener-for-40-instruments__a009097811": "40 crypto pairs (XRPUSDT, BTCUSDT ...) as symbol input defaults; TradingView refuses it at its defaults (\"Invalid symbol\"), run objunit-2026-11-18"
    }
+  },
+  {
+   "class": "licence",
+   "title": "A library imported under a non-commercial licence (CC-BY-NC-SA): never served on this paid product unless its author relicenses (tools/pine_library/promotion_allowlist.json `neverPromoted`)",
+   "refusal": "`pine:library-licence` at the import line in both lanes (`pine_library_store.licence_problem`, store answer 409 `library:licence`); with an empty store `runtime:library` / `pine:module`",
+   "scripts": [
+    "reference:auto-chart-patterns-trendoscope__257dbd8cad",
+    "reference:divergence-screener-trendoscope__5bfc8355aa",
+    "reference:recursive-reversal-chart-patterns-trendoscope__c1da465c0a"
+   ],
+   "count": 3
   },
   {
    "class": "broker",
