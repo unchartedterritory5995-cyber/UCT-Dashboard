@@ -1501,6 +1501,11 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // ⭐ REQ — inside the off-listing warm-up runs (`computeOffListing`, `warmupCurtain: false`) the partial
   // first period of a look-ahead read is the curtain's to judge: the two runs agree only where it no longer
   // reaches, and every bar before that is withheld by the curtain (`requestSupply.js`, `curtained`).
+  // ⛔ (item 3, 2026-11-19, measured; coordinator ruling: DROPPED) — the supply is computed afresh on every run, a tick
+  // included. A memo keyed on the rows' times and the other-symbol cache's fingerprints was approved and then dropped:
+  // during the session the newest requested bar moves on every tick, so that key misses on every tick. Only a supply
+  // DERIVED from the previous one when the newest bar alone moved would pay, and after #1977 and #2003 the supply costs
+  // ~9 ms a run on 11,520 5m bars (a resumed tick: ~116 ms in all). Re-open with a measured tick where it dominates.
   const reqSupply = requestSites.length
     ? runtimeRequestSupply(program.requests, rows, opts && opts.warmupCurtain === false ? { ...ctx, curtained: true } : ctx)
     : null
