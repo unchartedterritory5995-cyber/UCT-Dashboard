@@ -10,8 +10,9 @@ import process from 'node:process'
 import {
   verdictFrom, refusalOf, sameRefusals, checkScript, settleScript, scriptEntry,
   MAX_REPAIR_ROUNDS, SCRIPT_REFUSAL_LIMITS, RUNS_STATES, drawingLossOf, DRAWINGS_NOTE, LOST_DRAWINGS_HEADLINE,
+  PENDING_RECHECKS, PENDING_RECHECK_MS, STILL_CHECKING_LINE, isChecking, scriptNeedsFixing,
 } from './scriptAnswer'
-import { RUN, STOPPED_HEADLINE, runHereWhenLanded, verdictOnChart } from '../runsHere'
+import { RUN, STOPPED_HEADLINE, CHECKING_HEADLINE, WAITING_HEADLINE, runHereWhenLanded, verdictOnChart } from '../runsHere'
 import { recipeBars, recipeContext, RUN_STOP_PROBES } from '../../supportLoop/assistantRecipes'
 import { inspectSource } from '../PineBox'
 import { memberPaneDefinition } from '../memberPane/memberPaneDefinition'
@@ -392,4 +393,100 @@ describe('a script is run on the chart\'s own bars before the dock says it runs'
     expect(out.ok).toBe(true)                                        // the repair was checked on the second chart, and ran
     expect(out.rounds).toBe(1)
   }, 120_000)
+})
+
+// ─── a check that has not finished is not a refusal ───────────────────────────────────
+//
+// ⚰️ Found live 2026-11-19: the server answered "still being checked" to the chart's admission question for a
+// few seconds, the dock settled on it, and a script that was fine read "Still being checked on this chart"
+// beside a button that said "to fix it".
+describe('a script the chart is still checking', () => {
+  const checking = { runs: false, checking: true, attaches: true, state: 'runs', lane: 'runtime', headline: CHECKING_HEADLINE,
+    withheld: [], notes: [], errors: [], ranHere: RUN.PENDING }
+
+  it('the run\'s own verdict marks it, and only it', () => {
+    const pasted = { ...runs }
+    expect(verdictOnChart(pasted, { state: RUN.PENDING, stops: [], unchecked: [], waiting: [], notes: [] }).checking).toBe(true)
+    for (const state of [RUN.RAN, RUN.STOPPED, RUN.NOT_RUN]) {
+      const v = verdictOnChart(pasted, { state, stops: state === RUN.STOPPED ? [{ guard: 'g', sentence: 's' }] : [], unchecked: [], waiting: [], notes: [] })
+      expect(v.checking, state).toBeUndefined()
+    }
+    expect(isChecking(checking)).toBe(true)
+    expect(isChecking(runs)).toBe(false)
+    expect(isChecking(refused('line 3: x'))).toBe(false)
+    expect(isChecking({ ...checking, runs: true })).toBe(false)        // "runs" always wins
+    expect(isChecking(null)).toBe(false)
+  })
+
+  it('is asked again, and the answer that lands is what is shown: no repair, no "to fix it"', async () => {
+    const verdicts = [checking, checking, runs]
+    const check = vi.fn(async () => verdicts.shift())
+    const wait = vi.fn(async () => {})
+    const repair = vi.fn()
+    const out = await settleScript(answer(TABLE), repair, { check, wait })
+    expect(check).toHaveBeenCalledTimes(3)
+    expect(wait.mock.calls.map((c) => c[0])).toEqual([PENDING_RECHECK_MS, PENDING_RECHECK_MS])
+    expect(repair).not.toHaveBeenCalled()
+    expect(out.entry.script.runs).toBe(true)
+    expect(out.entry.script.checking).toBeUndefined()
+    expect(out.entry.lines[0]).toBe('Runs on the chart')
+    expect(scriptNeedsFixing(out.entry.script)).toBe(false)
+  })
+
+  it('never more than the bound; still checking then, it says so and nothing is sent for repair', async () => {
+    const check = vi.fn(async () => checking)
+    const wait = vi.fn(async () => {})
+    const repair = vi.fn()
+    const out = await settleScript(answer(TABLE), repair, { check, wait })
+    expect(check).toHaveBeenCalledTimes(1 + PENDING_RECHECKS)
+    expect(wait).toHaveBeenCalledTimes(PENDING_RECHECKS)
+    expect(repair).not.toHaveBeenCalled()
+    expect(out.rounds).toBe(0)
+    expect(out.entry.lines[0]).toBe(CHECKING_HEADLINE)
+    expect(out.entry.lines[out.entry.lines.length - 1]).toBe(STILL_CHECKING_LINE)
+    expect(out.entry.script).toEqual({ name: 'ATR table', pine: TABLE, runs: false, attaches: true, state: 'runs', checking: true })
+    expect(scriptNeedsFixing(out.entry.script)).toBe(false)
+    expect(PENDING_RECHECKS).toBeGreaterThan(0)
+    expect(PENDING_RECHECKS * PENDING_RECHECK_MS).toBeLessThanOrEqual(8000)      // a bounded wait, said in one place
+  })
+
+  it('a re-check that finds a real refusal sends it for repair, and the repair is re-checked the same way', async () => {
+    const verdicts = [checking, refused('line 3: not a built-in here'), checking, runs]
+    const check = vi.fn(async () => verdicts.shift())
+    const wait = vi.fn(async () => {})
+    const repair = vi.fn(async () => answer(TABLE, 'Fixed.'))
+    const out = await settleScript(answer(BROKEN), repair, { check, wait })
+    expect(repair).toHaveBeenCalledTimes(1)
+    expect(repair.mock.calls[0][0].errors).toEqual(['line 3: not a built-in here'])
+    expect(check).toHaveBeenCalledTimes(4)
+    expect(wait).toHaveBeenCalledTimes(2)
+    expect(out.rounds).toBe(1)
+    expect(out.entry.script.runs).toBe(true)
+  })
+
+  it('CONTROL: a refusal is not waited on, and a refused script IS one to fix', async () => {
+    const check = vi.fn(async () => refused('line 3: the same thing'))
+    const wait = vi.fn(async () => {})
+    const out = await settleScript(answer(BROKEN), async () => answer(BROKEN), { check, wait })
+    expect(wait).not.toHaveBeenCalled()
+    expect(out.entry.script.checking).toBeUndefined()
+    expect(scriptNeedsFixing(out.entry.script)).toBe(true)
+    expect(out.entry.lines).not.toContain(STILL_CHECKING_LINE)
+    // and the other two states the button reads
+    expect(scriptNeedsFixing({ runs: true })).toBe(false)
+    expect(scriptNeedsFixing(scriptEntry({ script: { name: 'x', pine: TABLE }, reply: '', verdict: { ...runs, waits: true, headline: WAITING_HEADLINE } }).script)).toBe(false)
+    expect(scriptNeedsFixing(null)).toBe(false)
+  })
+
+  it('both windows word their button with the one rule', () => {
+    const builder = path.resolve(process.cwd(), 'src/components/chart/builder')
+    const code = (file) => fs.readFileSync(path.join(builder, file), 'utf8').split(String.fromCharCode(10))
+      .map((line) => line.replace(/\/\/.*$/, '')).join(String.fromCharCode(10))
+    for (const file of ['ConverseBox.jsx', 'studio/CreateIndicatorPanel.jsx']) {
+      const src = code(file)
+      expect(src, file).toContain('scriptNeedsFixing(t.script)')
+      expect(src, file).not.toMatch(/t\.script\.runs \? 'Open this script/)
+      expect(src.match(/to fix it'/g) || [], file).toHaveLength(1)
+    }
+  })
 })
