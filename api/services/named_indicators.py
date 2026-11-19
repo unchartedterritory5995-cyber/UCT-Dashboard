@@ -97,7 +97,32 @@ def built_in(e: Any) -> Optional[Mapping[str, Any]]:
     got = e.get("built_in") if isinstance(e, Mapping) else None
     if not isinstance(got, Mapping):
         return None
-    return got if all(isinstance(got.get(k), str) and got[k] for k in ("indicator", "name", "what")) else None
+    if not all(isinstance(got.get(k), str) and got[k] for k in ("indicator", "name", "what")):
+        return None
+    # ⛔ a `setting` that does not read is NOT a plain built-in: adding the indicator without the
+    # setting would add something other than what the member asked for
+    return got if "setting" not in got or _setting_of(got) is not None else None
+
+
+def _setting_of(b: Mapping[str, Any]) -> Optional[Mapping[str, Any]]:
+    got = b.get("setting")
+    if not isinstance(got, Mapping):
+        return None
+    values = got.get("values")
+    ok = (all(isinstance(got.get(k), str) and got[k] for k in ("input", "label", "default"))
+          and isinstance(values, list) and bool(values) and all(isinstance(v, str) and v for v in values)
+          and got["default"] in values)
+    return got if ok else None
+
+
+def built_in_setting(e: Any) -> Optional[Mapping[str, Any]]:
+    """⭐ `built_in.setting` {input, label, values, default} when this name is ONE SETTING of a
+    built-in indicator, not an indicator of its own (2026-11-19: VWAP's standard-deviation bands are
+    the Session VWAP with its "Std dev bands" setting on). `input` and `label` are the native
+    registry's input key and its label there; `values` are the values the door may ask for, and
+    `default` the one it asks for when the member named none."""
+    b = built_in(e)
+    return _setting_of(b) if b is not None else None
 
 
 def built_ins() -> List[Dict[str, Any]]:
@@ -109,6 +134,10 @@ def built_in_answer(e: Mapping[str, Any]) -> str:
     """What a member is told when the browser CAN add the built-in from where they are: what it
     is. The offer to add it rides beside this sentence, never inside it."""
     b = built_in(e) or {}
+    s = built_in_setting(e)
+    if s is not None:
+        return (f"{b['name']}, one of UCT's own indicators, draws {e['name']} itself when its {s['label']} setting "
+                f"is on: {b['what']}. It is not a formula to build here.")
     return f"{e['name']} is one of UCT's own indicators, {b['name']}: {b['what']}. It is not a formula to build here."
 
 
@@ -127,6 +156,10 @@ def way_forward(e: Mapping[str, Any]) -> str:
     if b is not None:
         # a browser that did not say it can add it (an older tab, or a build that does not offer
         # it): where to look, and nothing promised about what that list shows
+        s = built_in_setting(e)
+        if s is not None:
+            return (f"{e['name']} is a setting of one of UCT's own indicators ({b['name']}), not a formula this window "
+                    f"builds. Look for {b['name']} in the Indicators list and turn on its {s['label']} setting.")
         return (f"{e['name']} is one of UCT's own indicators ({b['name']}), not a formula this window builds. "
                 f"Look for {b['name']} in the Indicators list.")
     because = needs_script(e)

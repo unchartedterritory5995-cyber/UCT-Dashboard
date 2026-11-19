@@ -43,10 +43,12 @@ def ask(conv, words, **kw):
 # ═══ 1. the names ════════════════════════════════════════════════════════
 
 def test_the_built_in_names_and_what_each_carries():
-    assert [e["id"] for e in ni.built_ins()] == ["mansfield_relative_strength", "rs_rating", "rs_phases"]
+    # (the fourth is ONE SETTING of a built-in, with `setting` beside the three: tests/test_vwap_bands_offer.py)
+    assert [e["id"] for e in ni.built_ins()] == ["mansfield_relative_strength", "rs_rating", "rs_phases", "session_vwap_bands"]
+    assert [e["id"] for e in ni.built_ins() if ni.built_in_setting(e) is not None] == ["session_vwap_bands"]
     for e in ni.built_ins():
         b = ni.built_in(e)
-        assert set(b) == {"indicator", "name", "what"}
+        assert set(b) == {"indicator", "name", "what"} | ({"setting"} if ni.built_in_setting(e) is not None else set())
         assert not ni.passes(e) and e in ni.held_names()             # never a formula the assistant is handed
         assert not ({"outputs", "formula", "tree", "params", "evidence"} & set(e))
         assert len(ni.built_in_answer(e)) <= ni.SENTENCE_MAX and len(ni.way_forward(e)) <= ni.SENTENCE_MAX
@@ -65,6 +67,8 @@ def test_the_indicator_and_its_name_are_the_native_registrys_own():
     for e in ni.built_ins():
         b = ni.built_in(e)
         blocks = re.findall(r"\n  id: '" + re.escape(b["indicator"]) + r"',\n(.{0,900}?)\n    name: '([^']+)'", registry, re.S)
+        # (a definition written with the registry's `nativeDef(id, fn, {name: ...})` helper)
+        blocks += re.findall(r"nativeDef\('" + re.escape(b["indicator"]) + r"', '[^']+',(\s*)\{\s*name: '([^']+)'", registry)
         assert blocks, f"no definition with id {b['indicator']} in the native registry"
         assert {name for _between, name in blocks} == {b["name"]}, (b["indicator"], blocks)
     # CONTROL: the reader can miss
@@ -82,7 +86,11 @@ def test_a_record_with_a_field_missing_is_not_a_built_in():
 def test_the_browsers_copy_lists_them():
     doc = json.loads((ROOT / "app" / "src" / "components" / "chart" / "builder" / "authoring" / "checkedLibrary.json").read_text(encoding="utf-8"))
     assert doc["builtIns"] == [{"id": e["id"], "name": e["name"], "indicator": e["built_in"]["indicator"],
-                                "builtInName": e["built_in"]["name"]} for e in ni.built_ins()]
+                                "builtInName": e["built_in"]["name"],
+                                **({"setting": {"input": ni.built_in_setting(e)["input"],
+                                                "values": ni.built_in_setting(e)["values"]}}
+                                   if ni.built_in_setting(e) is not None else {})} for e in ni.built_ins()]
+    assert [row["indicator"] for row in doc["builtIns"] if "setting" in row] == ["vwap"]
 
 
 # ═══ 2. what the door reads ══════════════════════════════════════════════

@@ -77,8 +77,15 @@ def test_the_lane_is_closed_unless_everything_says_open(monkeypatch):
     assert sc.lane_open(ACCEPTS, "yes") is False
     assert sc.lane_open(["note.by", "offer"], True) is False              # a browser that does not accept one
     assert sc.lane_open("script", True) is False and sc.lane_open(None, True) is False
-    monkeypatch.setenv(sc.SCRIPT_ENABLED_ENV, "1")                        # only the word "admin" opens it
-    assert sc.lane_open(ACCEPTS, True) is False
+    for other in ("1", "true", "on", "members", "admins", "ALL ACCOUNTS", " "):   # only the two words open it
+        monkeypatch.setenv(sc.SCRIPT_ENABLED_ENV, other)
+        assert sc.lane_open(ACCEPTS, True) is False and sc.lane_open(ACCEPTS, False) is False, other
+    # ⭐ `all` (coordinator's ruling 2026-11-19): every account the door admits, a member included
+    for spelled in ("all", "ALL", " all "):
+        monkeypatch.setenv(sc.SCRIPT_ENABLED_ENV, spelled)
+        assert sc.lane_open(ACCEPTS, False) is True and sc.lane_open(ACCEPTS, True) is True, spelled
+        assert sc.lane_open(ACCEPTS, None) is True                           # (a member is whoever is not an admin)
+        assert sc.lane_open(["note.by", "offer"], False) is False            # still only a browser that accepts one
     monkeypatch.setenv(sc.SCRIPT_ENABLED_ENV, "admin")
     monkeypatch.setattr(pine_authoring, "available", lambda *a, **k: False)   # no document, no script turn
     assert sc.lane_open(ACCEPTS, True) is False
@@ -117,8 +124,9 @@ def test_a_request_only_a_script_can_hold_is_written_as_a_script_with_no_formula
     assert sent["system"][0]["text"] == pine_authoring.document() and sent["system"][0]["cache_control"] == {"type": "ephemeral"}
     assert TABLE_REQUEST in sent["messages"][0]["content"] and "NVDA" in sent["messages"][0]["content"]
     assert r["ok"] is True and r["turn"] == "script" and r["disposition"] == "answer"
-    assert r["script"] == {"name": "ATR table", "pine": GOOD, "round": 0}
-    assert r["reply"] == "A table of the ATR."
+    # (no recipe is behind a table of the ATR: `reference` is None and the answer says so, section 6)
+    assert r["script"] == {"name": "ATR table", "pine": GOOD, "round": 0, "reference": None}
+    assert r["reply"] == "A table of the ATR. " + pine_authoring.UNCHECKED_LINE
     # the answer itself changes nothing: the script is not a patch, and the door does not say it runs
     assert r["envelope"]["ops"] == [] and r["envelope"]["disposition"] == "answer"
     assert conv.check_envelope(r["envelope"], 0, empty_view(0))
@@ -192,7 +200,7 @@ def test_the_engines_refusal_is_put_to_the_assistant_in_the_engines_words(conv, 
     told = sent["messages"][2]["content"][0]
     assert told["is_error"] is True and told["content"].startswith("[engine:refused]")
     assert "(1) line 3: `ta.atr` needs a length (2) the table has no cells" in told["content"]
-    assert r["ok"] is True and r["script"] == {"name": "ATR table", "pine": fixed, "round": 1}
+    assert r["ok"] is True and r["script"] == {"name": "ATR table", "pine": fixed, "round": 1, "reference": None}
 
 
 def test_a_request_is_repaired_a_bounded_number_of_times(conv, clean_env, model, lane):
@@ -278,3 +286,147 @@ def test_a_request_that_names_a_recipe_carries_it_and_any_other_request_is_what_
     first = sc._messages("Add a zigzag", {"sym": "NVDA", "tf": "D"}, None)
     assert first[0]["content"] == sc._request_text("Add a zigzag", {"sym": "NVDA", "tf": "D"})
     assert len(pa.recipes_for("Add a zigzag")) == 1
+
+
+# ═══ 6. the disclosure: a script with no value-checked recipe behind it says so ═══════════════
+#
+# Coordinator's ruling 2026-11-19. A recipe's numbers are proven against an independent calculation; a
+# script written from the member's words alone runs faithfully and its READING is the assistant's. The
+# member is told which they got, by the door (never by the assistant), by counting.
+
+def _recipe(recipe_id):
+    return next(r for r in pine_authoring.recipes() if r["id"] == recipe_id)
+
+
+def _with_settings(source):
+    """A recipe the way the assistant hands it back: a new title, two settings added, a comment."""
+    lines = source.rstrip("\n").split("\n")
+    title = next(i for i, line in enumerate(lines) if line.startswith("indicator("))
+    lines[title] = 'indicator("My own title", overlay=true, max_lines_count=200)'
+    lines.insert(title + 1, 'upCol = input.color(color.green, "Up colour")')
+    lines.insert(title + 2, 'lw = input.int(2, "Line width", minval=1)   // the member can change it')
+    return "\n".join(lines) + "\n"
+
+
+def test_a_recipe_handed_back_with_settings_added_is_that_recipe():
+    zig = _recipe("zigzag-percent")
+    assert pine_authoring.recipe_share(zig["source"], zig["source"]) == 1.0
+    assert pine_authoring.recipe_share(zig["source"], _with_settings(zig["source"])) == 1.0
+    assert pine_authoring.backed_by("Add a zigzag of 8 percent swings", _with_settings(zig["source"])) == "zigzag-percent"
+    # layout and comments are not the script
+    spaced = "\n".join("  " + line.replace(" = ", "   =   ") + "  // note" for line in zig["source"].split("\n"))
+    assert pine_authoring.recipe_share(zig["source"], spaced) == 1.0
+    # a comment in the RECIPE is not something a script must repeat to be that recipe
+    commented = "// what this recipe does, in a sentence" + chr(10) + chr(10).join(
+        line + "  // why this line" for line in zig["source"].split(chr(10)))
+    assert pine_authoring.recipe_share(commented, zig["source"]) == 1.0
+
+
+def test_every_recipe_is_itself_and_no_other():
+    """CONTROL on the measure: each recipe scores 1 against itself and under the bar against every other."""
+    every = pine_authoring.recipes()
+    assert len(every) >= 10
+    for a in every:
+        for b in every:
+            share = pine_authoring.recipe_share(a["source"], b["source"])
+            if a["id"] == b["id"]:
+                assert share == 1.0, a["id"]
+            else:
+                assert share < pine_authoring.RECIPE_BACKED_SHARE - 0.15, (a["id"], b["id"], round(share, 2))
+
+
+def test_a_script_that_is_not_the_recipe_is_not_vouched_for_by_it():
+    zig = _recipe("zigzag-percent")
+    # the maths changed: half the script is not the recipe's
+    lines = zig["source"].split("\n")
+    rewritten = "\n".join(lines[: len(lines) // 2] + ["plot(ta.sma(close, 20), \"Something else\")"]) + "\n"
+    assert pine_authoring.recipe_share(zig["source"], rewritten) < pine_authoring.RECIPE_BACKED_SHARE
+    assert pine_authoring.backed_by("Add a zigzag", rewritten) is None
+    # a recipe the request did NOT name never vouches, even for its own text
+    assert pine_authoring.backed_by("Show a table in the corner with the ATR", zig["source"]) is None
+    assert pine_authoring.backed_by("Add a zigzag", GOOD) is None
+    for nothing in (None, "", 7):
+        assert pine_authoring.backed_by("Add a zigzag", nothing) is None and pine_authoring.backed_by(nothing, zig["source"]) is None
+    assert pine_authoring.recipe_share("", zig["source"]) == 0.0 and pine_authoring.recipe_share(zig["source"], "") == 0.0
+
+
+def test_the_line_is_said_once_never_cut_and_only_without_a_reference():
+    line = pine_authoring.UNCHECKED_LINE
+    assert line == ("Built from your description; there's no checked reference for this pattern, so check it "
+                    "against your own reading.")
+    assert pine_authoring.said_with_disclosure("It marks the pattern.", None) == "It marks the pattern. " + line
+    assert pine_authoring.said_with_disclosure("It marks the pattern.", "zigzag-percent") == "It marks the pattern."
+    assert pine_authoring.said_with_disclosure("", None) == line and pine_authoring.said_with_disclosure(None, None) == line
+    long = "x" * (pine_authoring.REPLY_MAX_CHARS * 2)
+    told = pine_authoring.said_with_disclosure(long, None)
+    assert told.endswith(" " + line) and len(told) <= pine_authoring.REPLY_MAX_CHARS
+    assert pine_authoring.said_with_disclosure(told, None) == told             # never twice
+    assert pine_authoring.said_with_disclosure("It marks the pattern. " + line, None) == "It marks the pattern. " + line
+    assert len(pine_authoring.said_with_disclosure(long, "zigzag-percent")) == pine_authoring.REPLY_MAX_CHARS
+
+
+def test_a_recipe_backed_answer_carries_no_line_and_names_its_recipe(conv, clean_env, model, lane):
+    zig = _recipe("zigzag-percent")
+    model([writes(_with_settings(zig["source"]), name="8% ZigZag", reply="A zigzag between 8 percent swings.")])
+    r = ask(conv, "Add a zigzag that connects swings of at least 8 percent")
+    assert r["ok"] is True and r["turn"] == "script" and r["script"]["reference"] == "zigzag-percent"
+    assert r["reply"] == "A zigzag between 8 percent swings." == r["envelope"]["reply"]
+    assert pine_authoring.UNCHECKED_LINE not in r["reply"]
+
+
+def test_an_answer_with_no_recipe_behind_it_says_so_whatever_the_assistant_wrote(conv, clean_env, model, lane):
+    # (a) a request no recipe is for
+    model([writes(GOOD, reply="A table of the ATR.")])
+    r = ask(conv)
+    assert r["script"]["reference"] is None and r["reply"].endswith(pine_authoring.UNCHECKED_LINE)
+    assert r["envelope"]["reply"] == r["reply"]                               # the same words everywhere the window reads them
+    # (b) a request that names a recipe, answered with something that is NOT that recipe
+    model([writes(GOOD, reply="A zigzag.")])
+    r = ask(conv, "Add a zigzag that connects swings of at least 8 percent")
+    assert r["script"]["reference"] is None and r["reply"] == "A zigzag. " + pine_authoring.UNCHECKED_LINE
+    # (c) the assistant said nothing at all
+    model([writes(GOOD, reply="")])
+    assert ask(conv)["reply"].endswith(pine_authoring.UNCHECKED_LINE)
+
+
+def test_every_script_answer_is_recipe_backed_or_carries_the_line(conv, clean_env, model, lane):
+    """THE RULE, over every recipe: asked of `script_turn` itself, the one function every script answer
+    comes out of (whichever way the request reached it), with the recipe handed back and with a script
+    of the assistant's own."""
+    judged = 0
+    for r_ in pine_authoring.recipes():
+        words = "Add " + r_["asks"][0]
+        assert r_["id"] in [h["id"] for h in pine_authoring.recipes_for(words)], (r_["id"], words)
+        for pine, expect in ((_with_settings(r_["source"]), r_["id"]), (GOOD, None)):
+            model([writes(pine, reply="Here it is.")])
+            got = sc.script_turn(words, user_id="u1", chart=CHART, cap_usd=5.0, calls=[], revision=0,
+                                 contract=conv.PATCH_CONTRACT)
+            assert got["ok"] is True and got["turn"] == "script", (r_["id"], got.get("gate"))
+            judged += 1
+            backed = got["script"]["reference"] is not None
+            assert backed != (pine_authoring.UNCHECKED_LINE in got["reply"]), (r_["id"], expect)
+            assert got["script"]["reference"] == expect, (r_["id"], expect)
+            assert got["envelope"]["reply"] == got["reply"]
+    # not vacuous: both answers of every recipe's request were judged
+    assert judged == 2 * len(pine_authoring.recipes()) and judged >= 20
+
+
+def test_a_repair_is_judged_again(conv, clean_env, model, lane):
+    zig = _recipe("zigzag-percent")
+    refused = {"pine": GOOD, "errors": ["line 3: `ta.atr` needs a length"], "round": 1}
+    model([writes(_with_settings(zig["source"]), reply="Now it is the zigzag.")])
+    r = ask(conv, "Add a zigzag that connects swings of at least 8 percent", script_refusal=refused)
+    assert r["script"]["round"] == 1 and r["script"]["reference"] == "zigzag-percent"
+    assert pine_authoring.UNCHECKED_LINE not in r["reply"]
+
+
+def test_a_member_gets_a_script_when_the_switch_says_all(conv, clean_env, model, monkeypatch):
+    monkeypatch.setenv(sc.SCRIPT_ENABLED_ENV, "all")
+    client = model([writes()])
+    r = ask(conv, admin=False)
+    assert r["ok"] is True and r["turn"] == "script" and len(client.calls) == 1
+    # and at `admin` the same member is on the formula turn (the control beside it)
+    monkeypatch.setenv(sc.SCRIPT_ENABLED_ENV, "admin")
+    client = model([emits(DECLINE), emits(DECLINE)])
+    r = ask(conv, admin=False)
+    assert r.get("turn") != "script" and "script" not in r

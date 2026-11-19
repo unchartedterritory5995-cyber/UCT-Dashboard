@@ -37,8 +37,10 @@ from api.services import pine_authoring
 logger = logging.getLogger(__name__)
 
 ACCEPTS_SCRIPT = "script"
-#: The lane's switch. "admin": admin accounts only. Anything else, or unset: off.
+#: The lane's switch. "admin": admin accounts only. "all": every account the Create Indicator door
+#: admits. Anything else, or unset: off.
 SCRIPT_ENABLED_ENV = "CONVERSE_SCRIPT_ENABLED"
+SCRIPT_MODE_ADMIN, SCRIPT_MODE_ALL = "admin", "all"
 TOOL_NAME = "emit_script"
 #: One answer, and one more call when the answer's SHAPE is wrong (`pine_authoring.script_problem`).
 MAX_SCRIPT_CALLS = 2
@@ -88,7 +90,11 @@ TOOL = {
 
 def lane_open(accepts: Any, admin: Any) -> bool:
     """May this request be answered with a script at all? (Module docstring: who gets one.)"""
-    if admin is not True or os.environ.get(SCRIPT_ENABLED_ENV, "").strip().lower() != "admin":
+    mode = os.environ.get(SCRIPT_ENABLED_ENV, "").strip().lower()
+    # ⭐ `all` (coordinator's ruling 2026-11-19, after the admin measurement): every account the Create
+    # Indicator door itself admits. A script turn spends that account's own daily allowance and the same
+    # ledger as a formula turn, so there is no second ceiling. `admin`: admin accounts only.
+    if not (mode == SCRIPT_MODE_ALL or (mode == SCRIPT_MODE_ADMIN and admin is True)):
         return False
     if not (isinstance(accepts, list) and ACCEPTS_SCRIPT in accepts):
         return False
@@ -237,10 +243,17 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
             name = answer.get("name")
             name = re.sub(r"\s+", " ", name).strip()[:pine_authoring.NAME_MAX_CHARS] if isinstance(name, str) else ""
             said = reply or "Here is a script for that. The chart's own check decides whether it runs."
+            # ⭐ THE DISCLOSURE (ruling 2026-11-19): a script with no value-checked recipe behind it says
+            # so, in UCT's own words, whatever the assistant wrote. Decided by counting
+            # (`pine_authoring.backed_by`), on THIS script: a repair is judged again.
+            reference = pine_authoring.backed_by(message, pine)
+            said = pine_authoring.said_with_disclosure(said, reference)
             trace["script"]["chars"] = len(pine)
-            logger.info("[converse:script] a script of %d characters (round %d, %d call(s))", len(pine), rnd, attempts)
+            trace["script"]["reference"] = reference
+            logger.info("[converse:script] a script of %d characters (round %d, %d call(s), reference %s)",
+                        len(pine), rnd, attempts, reference or "none")
             return {"ok": True, "disposition": "answer", "turn": "script", "reply": said,
-                    "script": {"name": name, "pine": pine, "round": rnd},
+                    "script": {"name": name, "pine": pine, "round": rnd, "reference": reference},
                     "envelope": {"contract": contract, "baseRevision": revision, "ops": [], "disposition": "answer",
                                  "reply": said},
                     "answered_by": "assistant", "not_understood": [], "unavailable": [], **extra()}

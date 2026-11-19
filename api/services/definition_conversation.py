@@ -1953,11 +1953,87 @@ def can_add_built_ins(accepts: Any, built_ins: Any) -> frozenset:
     return frozenset(i for i in built_ins[:BUILT_INS_MAX] if isinstance(i, str) and 0 < len(i) <= BUILT_IN_ID_MAX)
 
 
-def built_in_offer(entry: Mapping[str, Any]) -> Dict[str, Any]:
-    """The one action an answer about a built-in name offers."""
+def built_in_offer(entry: Mapping[str, Any], value: Any = None) -> Dict[str, Any]:
+    """The one action an answer about a built-in name offers. ⭐ For a name that is one SETTING of a
+    built-in, the offer carries that setting's value (`inputs`): the one asked for when the library
+    allows it, else the library's default. It is never offered without it."""
     b = named_indicators.built_in(entry) or {}
-    return {"kind": OFFER_ADD_BUILT_IN, "indicator": b["indicator"], "name": b["name"],
-            "label": f"Add {b['name']} to this chart"}
+    offer = {"kind": OFFER_ADD_BUILT_IN, "indicator": b["indicator"], "name": b["name"],
+             "label": f"Add {b['name']} to this chart"}
+    setting = named_indicators.built_in_setting(entry)
+    if setting is not None:
+        offer["inputs"] = {setting["input"]: value if value in setting["values"] else setting["default"]}
+        offer["label"] = f"Add {b['name']} with its {setting['label']} on to this chart"
+    return offer
+
+
+# ⭐ VWAP'S STANDARD-DEVIATION BANDS (coordinator's approval 2026-11-19). They are not a formula: UCT's
+# built-in Session VWAP draws them when its "Std dev bands" setting is on. A request that is ONLY that
+# is answered by the door, with no assistant call, and offered in one tap.
+#
+# ⛔ A CLOSED-FORM READER, NOT A JUDGEMENT OF MEANING. The request must be "vwap", "band(s)", multiples
+# of 1, 2 or 3, and words from the list below, and NOTHING else. One other word ("anchored", "weekly",
+# "when", "price", "alert", "2.5") and the door does not answer: the assistant reads the request, as
+# before. So the door can be wrong one way only: by not offering.
+VWAP_BANDS_ENTRY = "session_vwap_bands"
+_VWAP_BANDS_WORDS = frozenset(
+    "add show plot draw put give display get me the a an with and at on to of its it my this chart charts "
+    "session intraday standard std dev devs deviation deviations stdev sigma sigmas sd upper lower above below "
+    "around lines line please i want need can you could would like plus minus both either side sides too also "
+    "in for times".split())
+_VWAP_BANDS_NUMBER = r"(?:\+/-|\+-|±|\+|-)?\s*\d+(?:\.\d+)?"
+_VWAP_BANDS_TOKEN = re.compile(_VWAP_BANDS_NUMBER + r"|[a-z]+|σ")
+_VWAP_BANDS_REST = re.compile(_VWAP_BANDS_NUMBER + r"|[a-z]+|σ|[\s,.;:!?()&/'\"-]+")
+VWAP_BANDS_MAX_CHARS = 160
+
+
+def vwap_bands_ask(message: Any) -> Optional[str]:
+    """The value of Session VWAP's bands setting this message asks for, when the WHOLE message is a
+    request for VWAP with its standard-deviation bands; else None. The value is the largest multiple
+    named (the setting draws every band up to it), or the library's default when none is named."""
+    entry = named_indicators.entry(VWAP_BANDS_ENTRY)
+    setting = named_indicators.built_in_setting(entry)
+    text = str(message or "").lower() if isinstance(message, str) else ""
+    if setting is None or not text.strip() or len(text) > VWAP_BANDS_MAX_CHARS or _VWAP_BANDS_REST.sub("", text):
+        return None
+    words, multiples = [], []
+    for token in _VWAP_BANDS_TOKEN.findall(text):
+        if token == "σ":                                     # (a letter to `isalpha`, and not a word here)
+            continue
+        if token[0].isalpha():
+            words.append(token)
+        else:
+            number = float(re.sub(r"[^0-9.]", "", token))
+            if not number.is_integer() or str(int(number)) not in setting["values"]:
+                return None                                  # a multiple the setting does not draw (2.5, 4)
+            multiples.append(int(number))
+    if words.count("vwap") != 1 or not any(w in ("band", "bands") for w in words):
+        return None
+    if any(w not in _VWAP_BANDS_WORDS and w not in ("vwap", "band", "bands") for w in words):
+        return None
+    return str(max(multiples)) if multiples else setting["default"]
+
+
+def _door_offer(pointer: Mapping[str, Any], revision: Any, view: Any, trace: Dict[str, Any],
+                read: Mapping[str, Any], value: Any = None) -> Optional[Dict[str, Any]]:
+    """⭐ THE DOOR ANSWERS, with no model call, and OFFERS THE ACTION: this browser said it can add that
+    built-in now. Nothing is built and nothing is changed by the answer itself. None when the door's own
+    answer does not pass the door (never: if it ever is, the turn goes on as if nothing was offered)."""
+    said = named_indicators.built_in_answer(pointer)
+    answer = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "answer",
+              "reply": said}
+    try:
+        answer = check_envelope(answer, revision, view)
+    except _Refused:
+        logger.exception("[converse] the door's own answer did not pass the door")
+        return None
+    trace["offered"] = pointer["id"]
+    logger.info("[converse] the door offered the built-in %s (no model call)", pointer["id"])
+    return {"ok": True, "disposition": "answer", "reply": said, "turn": "offer", "envelope": answer,
+            "answered_by": "door", "offer": built_in_offer(pointer, value),
+            "not_understood": read.get("not_understood") or [],
+            "unavailable": read.get("unavailable") or [],
+            "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
 
 
 def accepts_note_by(accepts: Any) -> bool:
@@ -4707,27 +4783,23 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         trace["unknown_name"] = asked_names(message, refused_as_names)
     except Exception:                              # noqa: BLE001
         logger.exception("[converse] the name catalogue could not be read for the record")
+    # ⭐ ONE SETTING OF A BUILT-IN: a request that is only "VWAP with its standard-deviation bands" is
+    # answered here and offered in one tap, for a browser that can add Session VWAP now. Any other
+    # browser, and any request with one more word in it, goes on exactly as before.
+    bands = vwap_bands_ask(message)
+    if bands is not None:
+        pointer = named_indicators.entry(VWAP_BANDS_ENTRY)
+        if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in can_add:
+            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"] or understood_turn, bands)
+            if offered is not None:
+                return offered
     if understood_turn["refusal"] is not None:
         trace["named_held"] = understood_turn.get("held") or []
         pointer = understood_turn.get("built_in")
         if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in can_add:
-            # ⭐ THE DOOR ANSWERS, with no model call, and OFFERS THE ACTION: this browser said it can
-            # add that built-in now. Nothing is built and nothing is changed by the answer itself.
-            said = named_indicators.built_in_answer(pointer)
-            answer = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "answer",
-                      "reply": said}
-            try:
-                answer = check_envelope(answer, revision, view)
-            except _Refused:                       # never: the answer is this door's own. If it ever is, the sentence stands.
-                logger.exception("[converse] the door's own answer did not pass the door")
-            else:
-                trace["offered"] = pointer["id"]
-                logger.info("[converse] the door offered the built-in %s (no model call)", pointer["id"])
-                return {"ok": True, "disposition": "answer", "reply": said, "turn": "offer", "envelope": answer,
-                        "answered_by": "door", "offer": built_in_offer(pointer),
-                        "not_understood": understood_turn["refusal"].get("not_understood") or [],
-                        "unavailable": understood_turn["refusal"].get("unavailable") or [],
-                        "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
+            offered = _door_offer(pointer, revision, view, trace, understood_turn["refusal"])
+            if offered is not None:
+                return offered
         if understood_turn["refusal"].get("preflight"):
             logger.info("[converse] preflight %s (no model call)", understood_turn["refusal"]["gate"])
         return understood_turn["refusal"]

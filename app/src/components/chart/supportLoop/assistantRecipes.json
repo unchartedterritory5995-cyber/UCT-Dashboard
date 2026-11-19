@@ -138,7 +138,7 @@
    ],
    "shows": "VWAP's own bands, worked by hand because `ta.vwap`'s three-value form is not served: three running sums restart on each new day (`var`, reset when the day changes), VWAP is the volume-weighted mean of hlc3 and the band is the volume-weighted standard deviation of hlc3 around it; no `fill` (a script that carries values in `var` is run bar by bar, and that run does not draw a fill between plots yet)",
    "chart": "intraday",
-   "source": "//@version=5\nindicator(\"VWAP with Deviation Bands\", overlay=true)\nm1 = input.float(1.0, \"Inner band (deviations)\", minval=0.1)\nm2 = input.float(2.0, \"Outer band (deviations)\", minval=0.1)\nsrc = hlc3\nnewDay = ta.change(dayofmonth) != 0\nvar float sumV = 0.0\nvar float sumPV = 0.0\nvar float sumP2V = 0.0\nif newDay\n    sumV := 0.0\n    sumPV := 0.0\n    sumP2V := 0.0\nsumV += volume\nsumPV += src * volume\nsumP2V += src * src * volume\nvwap = sumV > 0 ? sumPV / sumV : na\ndev = sumV > 0 ? math.sqrt(math.max(sumP2V / sumV - vwap * vwap, 0)) : na\nplot(vwap, \"VWAP\", color=color.orange, width=2)\nplot(vwap + m1 * dev, \"Upper 1\", color=color.gray)\nplot(vwap - m1 * dev, \"Lower 1\", color=color.gray)\nplot(vwap + m2 * dev, \"Upper 2\", color=color.silver)\nplot(vwap - m2 * dev, \"Lower 2\", color=color.silver)\n",
+   "source": "//@version=5\nindicator(\"VWAP with Deviation Bands\", overlay=true)\nm1 = input.float(1.0, \"Inner band (deviations)\", minval=0.1)\nm2 = input.float(2.0, \"Outer band (deviations)\", minval=0.1)\nsrc = hlc3\nnewDay = ta.change(dayofmonth) != 0\nvar float sumV = 0.0\nvar float sumPV = 0.0\nvar float sumP2V = 0.0\nif newDay\n    sumV := 0.0\n    sumPV := 0.0\n    sumP2V := 0.0\nsumV += volume\nsumPV += src * volume\nsumP2V += src * src * volume\nvwap = sumV > 0 ? sumPV / sumV : na\ndev = sumV > 0 ? math.sqrt(math.max(sumP2V / sumV - vwap * vwap, 0)) : na\nplot(vwap, \"VWAP\", color=color.orange, linewidth=2)\nplot(vwap + m1 * dev, \"Upper 1\", color=color.gray)\nplot(vwap - m1 * dev, \"Lower 1\", color=color.gray)\nplot(vwap + m2 * dev, \"Upper 2\", color=color.silver)\nplot(vwap - m2 * dev, \"Lower 2\", color=color.silver)\n",
    "lane": "runtime",
    "state": "runs-with-notes",
    "headline": "Runs on the chart, with 1 note",
@@ -306,7 +306,7 @@
    ],
    "shows": "two stochastic stages, each smoothed with a value CARRIED from the bar before (`var`, updated with `:=`): the first stage is where the MACD sits in its own range, the second where the smoothed first stage sits in its own; a flat range keeps the value before",
    "chart": "daily",
-   "source": "//@version=5\nindicator(\"Schaff Trend Cycle\", overlay=false)\nfast = input.int(23, \"Fast EMA\", minval=1)\nslow = input.int(50, \"Slow EMA\", minval=2)\ncycle = input.int(10, \"Cycle\", minval=2)\nfactor = input.float(0.5, \"Smoothing factor\", minval=0.01, maxval=1)\nm = ta.ema(close, fast) - ta.ema(close, slow)\nlo1 = ta.lowest(m, cycle)\nr1 = ta.highest(m, cycle) - lo1\nvar float k1 = na\nk1 := r1 > 0 ? (m - lo1) / r1 * 100 : nz(k1[1])\nvar float d1 = na\nd1 := na(d1[1]) ? k1 : d1[1] + factor * (k1 - d1[1])\nlo2 = ta.lowest(d1, cycle)\nr2 = ta.highest(d1, cycle) - lo2\nvar float k2 = na\nk2 := r2 > 0 ? (d1 - lo2) / r2 * 100 : nz(k2[1])\nvar float stc = na\nstc := na(stc[1]) ? k2 : stc[1] + factor * (k2 - stc[1])\nplot(stc, \"STC\", color=color.teal, width=2)\nplot(75, \"Upper\", color=color.gray)\nplot(25, \"Lower\", color=color.gray)\n",
+   "source": "//@version=5\nindicator(\"Schaff Trend Cycle\", overlay=false)\nfast = input.int(23, \"Fast EMA\", minval=1)\nslow = input.int(50, \"Slow EMA\", minval=2)\ncycle = input.int(10, \"Cycle\", minval=2)\nfactor = input.float(0.5, \"Smoothing factor\", minval=0.01, maxval=1)\nm = ta.ema(close, fast) - ta.ema(close, slow)\nlo1 = ta.lowest(m, cycle)\nr1 = ta.highest(m, cycle) - lo1\nvar float k1 = na\nk1 := r1 > 0 ? (m - lo1) / r1 * 100 : nz(k1[1])\nvar float d1 = na\nd1 := na(d1[1]) ? k1 : d1[1] + factor * (k1 - d1[1])\nlo2 = ta.lowest(d1, cycle)\nr2 = ta.highest(d1, cycle) - lo2\nvar float k2 = na\nk2 := r2 > 0 ? (d1 - lo2) / r2 * 100 : nz(k2[1])\nvar float stc = na\nstc := na(stc[1]) ? k2 : stc[1] + factor * (k2 - stc[1])\nplot(stc, \"STC\", color=color.teal, linewidth=2)\nplot(75, \"Upper\", color=color.gray)\nplot(25, \"Lower\", color=color.gray)\n",
    "lane": "runtime",
    "state": "runs-with-notes",
    "headline": "Runs on the chart, with 1 note",
@@ -407,7 +407,7 @@
    ],
    "shows": "the anchor date is three whole-number inputs compared with the bar's own `year`, `month` and `dayofmonth` (an `input.time` default is not held by this engine, so the date is not one setting); two running sums start at the first bar on or after that date, and nothing is drawn before it",
    "chart": "daily",
-   "source": "//@version=5\nindicator(\"Anchored VWAP\", overlay=true)\ny = input.int(2026, \"Anchor year\", minval=1990, maxval=2100)\nmo = input.int(1, \"Anchor month\", minval=1, maxval=12)\nd = input.int(1, \"Anchor day\", minval=1, maxval=31)\nstarted = year > y or (year == y and (month > mo or (month == mo and dayofmonth >= d)))\nsrc = hlc3\nvar float sumV = 0.0\nvar float sumPV = 0.0\nif started\n    sumV += volume\n    sumPV += src * volume\navwap = started and sumV > 0 ? sumPV / sumV : na\nplot(avwap, \"Anchored VWAP\", color=color.orange, width=2)\n",
+   "source": "//@version=5\nindicator(\"Anchored VWAP\", overlay=true)\ny = input.int(2026, \"Anchor year\", minval=1990, maxval=2100)\nmo = input.int(1, \"Anchor month\", minval=1, maxval=12)\nd = input.int(1, \"Anchor day\", minval=1, maxval=31)\nstarted = year > y or (year == y and (month > mo or (month == mo and dayofmonth >= d)))\nsrc = hlc3\nvar float sumV = 0.0\nvar float sumPV = 0.0\nif started\n    sumV += volume\n    sumPV += src * volume\navwap = started and sumV > 0 ? sumPV / sumV : na\nplot(avwap, \"Anchored VWAP\", color=color.orange, linewidth=2)\n",
    "lane": "runtime",
    "state": "runs-with-notes",
    "headline": "Runs on the chart, with 1 note",
@@ -535,6 +535,35 @@
     }
    },
    "served": true
+  },
+  {
+   "id": "heikin-ashi-candles",
+   "title": "Heikin Ashi candles, in their own pane",
+   "asks": [
+    "heikin ashi",
+    "heiken ashi",
+    "heikinashi",
+    "ha candles",
+    "smoothed candles"
+   ],
+   "shows": "each candle is made from the bar and the candle before it: its close is the average of the bar's four prices, its open is halfway between the open and close of the candle before (the first one uses the bar's own open and close), and its high and low reach the bar's high and low. The candles are drawn in their OWN pane under the chart (a script cannot replace the chart's candles). All three colours of a candle are written (body, wick and border): a candle given only one is drawn half in the chart's default colours",
+   "chart": "daily",
+   "source": "//@version=5\nindicator(\"Heikin Ashi\", overlay=false)\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nhaHigh = math.max(high, haOpen, haClose)\nhaLow = math.min(low, haOpen, haClose)\ncandleColor = haClose >= haOpen ? color.green : color.red\nplotcandle(haOpen, haHigh, haLow, haClose, \"Heikin Ashi\", color=candleColor, wickcolor=candleColor, bordercolor=candleColor)\n",
+   "lane": "host",
+   "state": "runs",
+   "headline": "Runs on the chart and in alerts; screens and scans need a threshold",
+   "draws": false,
+   "runs": {
+    "fromListing": {
+     "ok": true,
+     "values": 2000
+    },
+    "offListing": {
+     "ok": true,
+     "values": 1750
+    }
+   },
+   "served": true
   }
  ],
  "stops": [
@@ -549,6 +578,12 @@
    "history": "fromListing",
    "standing": true,
    "guard": "newest-bar-blank"
+  },
+  {
+   "id": "higher-timeframe-one-bar-back",
+   "history": "fromListing",
+   "standing": false,
+   "guard": null
   },
   {
    "id": "running-total",
