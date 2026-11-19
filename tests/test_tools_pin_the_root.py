@@ -368,6 +368,12 @@ EXEMPT_TOOLS: dict[str, str] = {
         "ModuleNotFoundError, and the job gates the promotion of production: #260 was refused "
         "on 2026-10-01. The tool writes one committed JSON fixture under app/ and opens no "
         "database."),
+    "index_gap_scan.py": (
+        "Runs in CI: `.github/workflows/index-gap-scan.yml` executes it on a runner that installs "
+        "requirements.txt only (no pytest, no repo conftest). It reads the PUBLIC `GET /api/bars` "
+        "answers over HTTP and nothing else; its one api import, `api.services.intraday_gap_audit` "
+        "(the expected-RTH-bucket authority, a pure calendar calculation), is function-local. It "
+        "opens no database and writes no file. (Ruled 2026-11-19.)"),
 }
 
 #: Named members, never a count: the walk must see these three PINNED tools and these three

@@ -1,0 +1,12 @@
+//@version=5
+indicator("EMA ribbon", overlay=true)
+fast = input.int(10, "Fast")
+slow = input.int(21, "Slow")
+e1 = ta.ema(close, fast)
+e2 = ta.ema(close, slow)
+p1 = plot(e1, "Fast", color=color.green, linewidth=2)
+p2 = plot(e2, "Slow", color=color.red, linewidth=2)
+fill(p1, p2, color=e1 > e2 ? color.new(color.green, 80) : color.new(color.red, 80))
+plotshape(ta.crossover(e1, e2), "Cross up", shape.triangleup, location.belowbar, color.green)
+bgcolor(e1 > e2 and e1 > e1[1] ? color.new(color.green, 92) : na)
+barcolor(close > e1 ? color.green : color.red)

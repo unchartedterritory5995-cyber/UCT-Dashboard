@@ -1682,7 +1682,7 @@ def _render_op(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
                  parts, f"operator {name}", path)
 
 
-#: ⭐ NUMBER PENDING (studio, 2026-11-18) -- a bar-field argument is named by its ROLE when the
+#: ⭐ engine 81 (studio, 2026-11-18) -- a bar-field argument is named by its ROLE when the
 #: arguments are not the bar's own fields in the table's order (`sentence.js::barFieldLead`, where
 #: the reason is said once). The roles are the manifest's `argRoles`; a role that is one of the
 #: manifest's SERIES names is a bar field and is said as that name in the plural. No field name

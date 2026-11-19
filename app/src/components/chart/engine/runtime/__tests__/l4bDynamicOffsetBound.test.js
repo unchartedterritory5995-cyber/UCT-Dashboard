@@ -151,43 +151,76 @@ describe('(b) no proved top: a DECLARED buffer sizes the ring, and a read past i
       's = 0.0', 'for i = d to d + 3', '    s := s + nz(x[i - 1])', 'plot(s)')
     for (const objectsInRun of [false, true]) expect(guardOf(src, objectsInRun)).toBe('runtime:history-dynamic-offset')
   })
-  it('⛔ a read past the declared buffer STOPS the run by name, never `na`', () => {
-    // `ta.barssince(bar_index == 0)` is the bar index, so bar 21 reads x[21] past 20
+  it('a read past the declared buffer is the REAL history, never a stop and never `na` (WS-C Q1 M2 / Q-MBB, captured 2026-11-18)', () => {
+    // `ta.barssince(bar_index == 0)` is the bar index, so bar 21 reads x[21], past the declared 20: TradingView answers it
+    // (Fred RS's seed loop reads `curveRsPerf[423 ..]` past its declared 253 on a 5m chart and still draws its labels)
     const src = v5(', max_bars_back = 20', 'var float x = 0.0', 'x := close',
       'd = ta.barssince(bar_index == 0)', 's = 0.0', 'for i = d to d', '    s := x[i]', 'plot(s)')
     for (const objectsInRun of [false, true]) {
-      const program = programOf(src, objectsInRun)
-      const ok = runOn(program, 21).outputs[0]
-      for (let b = 0; b < 21; b += 1) expect(ok[b]).toBe(C[0])   // x[bar] is bar 0's close
-      expect(() => runOn(program, 22)).toThrow(/x`\[21\] reaches past Pine's history buffer of 20 bars/)
+      const out = runOn(programOf(src, objectsInRun), 40).outputs[0]
+      for (let b = 0; b < 40; b += 1) expect(out[b]).toBe(C[0])   // x[bar] is bar 0's close, past 20 too
     }
   })
 })
 
 describe('the memory budget sees a declared ring', () => {
-  it('a proved top past a declared buffer keeps a ring of the BUFFER, not of the top', () => {
+  it('a proved top past a declared buffer keeps a ring of the TOP: the declared number bounds nothing', () => {
     const src = v5(', max_bars_back = 20', 'var float x = 0.0', 'x := close', 'plot(x[math.min(bar_index, 4000)])')
     const built = build(src)
     expect(built.ok).toBe(true)
     const rings = lowerIrProgram(built.ir).history.filter((h) => h.name === 'x')
-    expect(rings.map((h) => h.depth)).toEqual([20])
-    // and the read past the buffer still stops the run, on bar 21
-    expect(() => runOn(programOf(src), 21)).not.toThrow()
-    expect(() => runOn(programOf(src), 22)).toThrow(/history buffer of 20 bars/)
+    expect(rings.map((h) => h.depth)).toEqual([4000])
+    const out = runOn(programOf(src), 40).outputs[0]
+    expect(out[30]).toBe(C[0])                                   // x[30], past the declared 20
+  })
+  it('a declared ring with NO proved top is Pine\'s 5,000, never the declared number and never the chart\'s length', () => {
+    const src = v5(', max_bars_back = 20', 'var float x = 0.0', 'x := close',
+      'd = ta.barssince(bar_index == 0)', 's = 0.0', 'for i = d to d', '    s := x[i]', 'plot(s)')
+    const rings = lowerIrProgram(build(src).ir).history.filter((h) => h.name === 'x')
+    expect(rings.map((h) => h.depth)).toEqual([5000])
+  })
+  it('⛔ TRAP A — the ring does not depend on the chart the build saw: built on N bars or on 4,000, one 5,000 ring, and the grown chart reads the real history', () => {
+    const src = v5(', max_bars_back = 20', 'var float x = 0.0', 'x := close',
+      'd = bar_index', 's = 0.0', 'for i = d to d', '    s := x[i]', 'plot(s)')
+    const M = 4000
+    const grown = Array.from({ length: M }, (_, i) => ({ ...BARS[i % N], t: BARS[0].t + i * 86400 }))
+    const ringOf = (bars) => {
+      const b = buildRuntimeIr(src, { ...opts(false), bars })
+      expect(b.ok, b.ok ? '' : b.refusal.message).toBe(true)
+      return { program: lowerIrProgram(b.ir), depth: lowerIrProgram(b.ir).history.filter((h) => h.name === 'x').map((h) => h.depth) }
+    }
+    const small = ringOf(BARS)
+    const big = ringOf(grown)
+    expect(small.depth).toEqual([5000])
+    expect(big.depth).toEqual(small.depth)                       // a reused build's ring holds the grown chart too
+    const out = execute(big.program, {
+      bars: M, series: ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(grown.map((b) => b[k]))), columns: big.program.columns,
+      confirmed: true, barTimes: grown.map((b) => b.t),
+    }).outputs[0]
+    expect(out[M - 1]).toBe(grown[0].c)                          // x[3,999] is bar 0's close
   })
   const many = (k) => v5(', max_bars_back = 4999',
     ...Array.from({ length: k }, (_, j) => [`var float x${j} = 0.0`, `x${j} := close + ${j}`]).flat(),
     'd = ta.barssince(close > open)', 's = 0.0', 'for i = d to d',
     ...Array.from({ length: k }, (_, j) => `    s := s + nz(x${j}[i])`), 'plot(s)')
-  it('60 rings of 4,999 bars pass HISTORY_VALUES (262,144): the run is refused before bar 0, by name', () => {
-    const program = programOf(many(60))
+  // the rings are sized to the CHART now (`boundedSlotOffset`), so the budget is proved on a chart long enough to fill
+  // them: 5,000 bars, every ring Pine's 5,000
+  const LONG = Array.from({ length: 5000 }, (_, i) => ({ ...BARS[i % N], t: BARS[0].t + i * 86400 }))
+  const programOnLong = (src) => {
+    const built = buildRuntimeIr(src, { ...opts(false), bars: LONG })
+    if (!built.ok) throw new Error(`refused: ${built.refusal.guard} — ${built.refusal.message}`)
+    return lowerIrProgram(built.ir)
+  }
+  it('60 rings of 5,000 bars pass HISTORY_VALUES (262,144): the run is refused before bar 0, by name', () => {
+    const program = programOnLong(many(60))
+    expect(program.history.filter((h) => /^x\d+$/.test(h.name)).every((h) => h.depth === 5000)).toBe(true)
     let err = null
     try { runOn(program, 5) } catch (e) { err = e }
     expect(err && err.name).toBe('RuntimeLimitError')
     expect(err.limit).toBe('HISTORY_VALUES')
   })
   it('CONTROL: 50 such rings fit, and run', () => {
-    expect(() => runOn(programOf(many(50)), 5)).not.toThrow()
+    expect(() => runOn(programOnLong(many(50)), 5)).not.toThrow()
   })
 })
 

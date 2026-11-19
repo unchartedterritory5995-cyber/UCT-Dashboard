@@ -90,11 +90,44 @@ def acronym_entry(wrote: Any) -> Optional[str]:
     return next((e["id"] for e in entries() if want in (e.get("acronyms") or ())), None)
 
 
+def built_in(e: Any) -> Optional[Mapping[str, Any]]:
+    """⭐ `built_in` {indicator, name, what} when this name IS one of UCT's own built-in indicators
+    (ruling 2026-11-18): computed by the server, already shipped, and not a formula this library
+    holds. `indicator` is the native registry's id and `name` its name there."""
+    got = e.get("built_in") if isinstance(e, Mapping) else None
+    if not isinstance(got, Mapping):
+        return None
+    return got if all(isinstance(got.get(k), str) and got[k] for k in ("indicator", "name", "what")) else None
+
+
+def built_ins() -> List[Dict[str, Any]]:
+    """The held names that are UCT's own built-in indicators."""
+    return [e for e in held_names() if built_in(e) is not None]
+
+
+def built_in_answer(e: Mapping[str, Any]) -> str:
+    """What a member is told when the browser CAN add the built-in from where they are: what it
+    is. The offer to add it rides beside this sentence, never inside it."""
+    b = built_in(e) or {}
+    return f"{e['name']} is one of UCT's own indicators, {b['name']}: {b['what']}. It is not a formula to build here."
+
+
 def way_forward(e: Mapping[str, Any]) -> str:
     """What a member is told when they name something UCT will not build by name yet."""
     example = f" (for example: {e['describe']})" if e.get("describe") else ""
-    return (f"{e['name']} isn't in UCT's checked library yet. Describe the rule itself in your own words{example} "
-            "and the assistant will build exactly that, as your own formula.")
+    describe = (f"describe the rule itself in your own words{example} and the assistant will build exactly that, "
+                "as your own formula.")
+    b = built_in(e)
+    if b is not None:
+        # a browser that did not say it can add it (an older tab, or a build that does not offer
+        # it): where to look, and nothing promised about what that list shows
+        return (f"{e['name']} is one of UCT's own indicators ({b['name']}), not a formula this window builds. "
+                f"Look for {b['name']} in the Indicators list.")
+    lives = e.get("lives_in") if isinstance(e.get("lives_in"), Mapping) else None
+    if lives and lives.get("what") and lives.get("where"):
+        return (f"{e['name']} is {lives['what']} in UCT today ({lives['where']}), not a chart line yet. To draw "
+                f"something like it here, {describe}")
+    return f"{e['name']} isn't in UCT's checked library yet. D{describe[1:]}"
 
 
 # ── text ─────────────────────────────────────────────────────────────────────
