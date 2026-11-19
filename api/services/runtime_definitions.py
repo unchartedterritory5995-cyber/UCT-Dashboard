@@ -1211,15 +1211,24 @@ def capability_admitted(source: Any, *, budget: Optional[DetectorBudget] = None,
     except Exception:  # noqa: BLE001 - fail closed: what cannot be read is not admitted
         log.warning("[runtime_definitions] capability admission unreadable; not admitted")
         return False, [pine_capabilities.UNREADABLE]
+    missing = missing_capabilities(caps, admitted)
+    return (not missing), missing
+
+
+def missing_capabilities(caps, admitted) -> list:
+    """The ids of `caps` the registry does not admit (`admitted`: a set), sorted. THE ONE RULE: the server's
+    `capability_admitted` and the census tools (`capability_admission.admission_row`) both read it. Pure.
+
+    U15 -- THE GENERIC `import` IS MET BY ITS LIBRARIES. It is never a registry row of its own: a script that
+    imports is admitted only when it names at least one library version and EVERY version it imports is admitted
+    on that version's own evidence (one row per version)."""
+    from api.services import pine_capabilities
     missing = sorted(c for c in caps if c not in admitted)
-    # U15 -- THE GENERIC `import` IS MET BY ITS LIBRARIES. It is never a registry row of its own:
-    # a script that imports is admitted only when it names at least one library version and EVERY
-    # version it imports is admitted on that version's own evidence (one row per version).
     if "import" in missing:
         libs = [c for c in caps if pine_capabilities.is_library_capability(c)]
         if libs and all(c in admitted for c in libs):
             missing = [c for c in missing if c != "import"]
-    return (not missing), missing
+    return missing
 
 
 def runtime_admission(source: Any, member: Any = None) -> dict:

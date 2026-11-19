@@ -468,9 +468,8 @@ def cmd_facts(a):
     rtrows = cm.read_census(a.runtime_cache, cm.LANE_RUNTIME_ON, "--runtime-cache")
     reg = rt.admitted_capabilities()
     admitted = set(reg["admitted"])
-    if any(pc.is_library_capability(c) for c in admitted):
-        sys.exit("a library version is admitted: `runtime_definitions.capability_admitted`'s import rule now "
-                 "decides scripts here, and `admission_row` does not apply it - update `_admission` first")
+    # (libraries chain, 2026-11-19) a library version is admitted: `admission_row` applies the server's import rule
+    # (`runtime_definitions.missing_capabilities`), so `_admission` answers as the server does
     allow = rt.graded_allow_list()
     history_only = set(reg.get("historyOnly") or [])
 
