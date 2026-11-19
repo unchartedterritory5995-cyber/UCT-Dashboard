@@ -40,8 +40,9 @@
     "point of control",
     "poc"
    ],
-   "shows": "drawn once, on the last bar: the range of the last N bars is cut into rows, each bar's volume is added to the row its close falls in, and each row is a box whose length is its share of the largest row; the point of control is PLOTTED so the script has an output besides its drawings",
+   "shows": "the range of the last N bars is cut into rows, each bar's volume is added to the row its close falls in, and each row is a box whose length is its share of the largest row; the point of control is PLOTTED so the script has an output besides its drawings. ⛔ THE WORK IS DONE UNDER `if barstate.islast` ON PURPOSE: it loops over past bars, which is too slow to repeat on every bar. A script that reads where the chart ends is drawn only on a FINISHED bar, so on a live chart this one appears when the newest bar closes",
    "chart": "daily",
+   "finishedBarsOnly": true,
    "file": "volume-profile.pine"
   },
   {
@@ -137,8 +138,9 @@
     "seasonality",
     "average return by day"
    ],
-   "shows": "statistics are worked over a FIXED window of the last N bars, by a loop on the last bar only: a running total kept since the first bar depends on where the chart's history starts, and this engine does not draw that on a chart that does not reach the listing; the table is written once, and the best day's average is PLOTTED so the script has an output besides the table",
+   "shows": "statistics are worked over a FIXED window of the last N bars, by a loop: a running total kept since the first bar depends on where the chart's history starts, and this engine does not draw that on a chart that does not reach the listing; the best day's average is PLOTTED so the script has an output besides the table. ⛔ THE WORK IS DONE UNDER `if barstate.islast` ON PURPOSE: it loops over past bars, which is too slow to repeat on every bar. A script that reads where the chart ends is drawn only on a FINISHED bar, so on a live chart this one appears when the newest bar closes",
    "chart": "daily",
+   "finishedBarsOnly": true,
    "file": "weekday-returns-table.pine"
   },
   {
@@ -195,7 +197,7 @@
     "retracement levels",
     "fibonacci levels"
    ],
-   "shows": "the last confirmed pivot high and pivot low are kept in `var` with their bars; each level's PRICE is worked out on every bar into an array, the lines and labels are redrawn from it on the last bar only (kept in arrays, deleted before they are made again), and the 61.8% level is plotted so it can be alerted on",
+   "shows": "the last confirmed pivot high and pivot low are kept in `var` with their bars; each level's PRICE is worked out on every bar into an array; the lines and labels are made ONCE (kept in arrays) and MOVED on every bar with their setters, so nothing waits for the last bar and nothing is deleted and remade; and the 61.8% level is plotted so it can be alerted on",
    "chart": "daily",
    "file": "fibonacci-swings.pine"
   },

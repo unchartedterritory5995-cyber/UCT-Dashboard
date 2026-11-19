@@ -11,6 +11,15 @@ THE RULE. In a run that does not hold a row's pins (a store-less run holds none)
 never counted as lost, as MATCH or as DIVERGE, and every consumer names it ("store-held: <path@sha>, ...") the way
 `itNeedsHeld` names a licence-held capture. Every other row is compared as before. This module is the one
 authority over the spelling and the rule; the consumers import it.
+
+⭐⭐ HELD INPUTS, TWO KINDS, ONE RULE (coordinator ruling 2026-11-19, Q-FRED-NHDOT). A grade can also depend on a
+LOCAL supply record: the bars a capture's other symbols were served from (`uct.harness-supply/v1`), recorded beside a
+capture but never committed when they carry a vendor's or a store's bars the owner has not cleared for the public
+repository. Such a record is read from the HELD supply directory (`UCT_HARNESS_SUPPLY_HELD`, `ourSide.js`), never from
+`tests/fixtures/vendor-supply`, and the row graded with it records it in `supplyHeld`: `supply/<captureId>@<sha256 of
+the record's bytes>`. A run carries what it loaded as `libraryStore` and `supplyHeldStore` ([{captureId, sha256}]).
+`pins_of`, `store_pins`, `held_from` and `reading` cover both kinds, so every consumer that goes through them names a
+supply-held row ("supply-held: supply/<id>@<sha>") exactly as it names a store-held one.
 """
 from __future__ import annotations
 
@@ -23,31 +32,59 @@ SNAPSHOTS = {lane: os.path.join(ROOT, "docs", "pine", "vendor-harness", lane, "v
              for lane in ("production", "runtime-on")}
 ALLOWLIST = os.path.join(ROOT, "tools", "pine_library", "promotion_allowlist.json")
 FIELD = "storeHeld"
+SUPPLY_FIELD = "supplyHeld"
+SUPPLY_STORE = "supplyHeldStore"
 _PIN = re.compile(r"^([A-Za-z0-9_]+/[A-Za-z0-9_]+/[1-9][0-9]*)@([0-9a-f]{64})$")
+#: a capture id (`evidence_engine.ID_RX`'s alphabet, a phase suffix included), behind the `supply/` kind
+_SUPPLY_PIN = re.compile(r"^(supply/[a-z0-9][a-z0-9.!-]*)@([0-9a-f]{64})$")
 
 
 def parse_pin(pin):
-    """`path@sha256` -> (path, sha256), or None for anything else."""
-    m = _PIN.match(str(pin or ""))
+    """`path@sha256` -> (path, sha256), or None for anything else. A supply pin's path is `supply/<captureId>`."""
+    m = _PIN.match(str(pin or "")) or _SUPPLY_PIN.match(str(pin or ""))
     return (m.group(1), m.group(2)) if m else None
+
+
+def kind_of(pin):
+    """'store' (a library version), 'supply' (a local supply record) or None (malformed)."""
+    if _SUPPLY_PIN.match(str(pin or "")):
+        return "supply"
+    return "store" if _PIN.match(str(pin or "")) else None
 
 
 def pin_of(path, sha256):
     return "%s@%s" % (path, str(sha256).lower())
 
 
+def supply_pin_of(capture_id, sha256):
+    return pin_of("supply/%s" % capture_id, sha256)
+
+
 def pins_of(row):
-    """The row's store pins (sorted), [] for a row graded without needing the store."""
-    v = (row or {}).get(FIELD) if isinstance(row, dict) else None
-    return sorted(v) if isinstance(v, list) else []
+    """The row's held pins (sorted): its library versions AND its local supply records; [] for a row graded
+    without needing either."""
+    if not isinstance(row, dict):
+        return []
+    out = []
+    for field in (FIELD, SUPPLY_FIELD):
+        v = row.get(field)
+        if isinstance(v, list):
+            out.extend(v)
+    return sorted(out)
 
 
 def store_pins(store):
-    """{path@sha} of a `libraryStore` list ([{path, sha256}]), or of a run document carrying one."""
+    """{pin} a run holds: its `libraryStore` ([{path, sha256}]) and, for a run document, its `supplyHeldStore`
+    ([{captureId, sha256}]); a bare `libraryStore` list gives its library pins alone."""
+    supply = []
     if isinstance(store, dict):
+        supply = store.get(SUPPLY_STORE) or []
         store = store.get("libraryStore")
-    return {pin_of(e["path"], e["sha256"]) for e in (store or [])
-            if isinstance(e, dict) and isinstance(e.get("path"), str) and isinstance(e.get("sha256"), str)}
+    out = {pin_of(e["path"], e["sha256"]) for e in (store or [])
+           if isinstance(e, dict) and isinstance(e.get("path"), str) and isinstance(e.get("sha256"), str)}
+    out |= {supply_pin_of(e["captureId"], e["sha256"]) for e in supply
+            if isinstance(e, dict) and isinstance(e.get("captureId"), str) and isinstance(e.get("sha256"), str)}
+    return out
 
 
 def held_from(row, loaded):
@@ -56,8 +93,12 @@ def held_from(row, loaded):
 
 
 def reading(pins):
-    """The name a consumer gives a store-held row."""
-    return "store-held: " + ", ".join(pins)
+    """The name a consumer gives a held row: "store-held: …" for library versions, "supply-held: …" for local supply
+    records, both when it needs both (a store-only row reads exactly as it always did)."""
+    store = [p for p in pins if kind_of(p) != "supply"]
+    supply = [p for p in pins if kind_of(p) == "supply"]
+    parts = (["store-held: " + ", ".join(store)] if store else []) + (["supply-held: " + ", ".join(supply)] if supply else [])
+    return "; ".join(parts) if parts else "store-held: "
 
 
 def promoted_store(allowlist=ALLOWLIST):
@@ -100,12 +141,19 @@ def snapshot_store_problems(doc, promoted):
     out = []
     want = store_pins(promoted)
     have = store_pins(doc)
-    if have != want:
-        out.append("graded with store %s, production serves %s" % (sorted(have), sorted(want)))
+    have_library = {p for p in have if kind_of(p) == "store"}
+    if have_library != want:
+        out.append("graded with store %s, production serves %s" % (sorted(have_library), sorted(want)))
     for r in (doc or {}).get("results") or []:
         bad = [p for p in pins_of(r) if p not in have]
         if bad:
             out.append("%s needs %s, which the snapshot's store does not hold" % (r.get("id"), bad))
-        if r.get(FIELD) is not None and not all(parse_pin(p) for p in r.get(FIELD) or [None]):
-            out.append("%s has a malformed %s %r" % (r.get("id"), FIELD, r.get(FIELD)))
+        for field, kind in ((FIELD, "store"), (SUPPLY_FIELD, "supply")):
+            if r.get(field) is not None and not all(kind_of(p) == kind for p in r.get(field) or [None]):
+                out.append("%s has a malformed %s %r" % (r.get("id"), field, r.get(field)))
+        # a supply pin names THIS row's own record: a row never claims another capture's supply
+        for p in r.get(SUPPLY_FIELD) or []:
+            got = parse_pin(p)
+            if got and got[0] != "supply/%s" % r.get("id"):
+                out.append("%s claims another capture's supply record %s" % (r.get("id"), p))
     return out

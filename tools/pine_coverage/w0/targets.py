@@ -167,10 +167,13 @@ def runtime_on_verdicts(d, source_of):
 
     The map keeps that run only as changes against production (runtimeOn.parity.changes:
     capture file, from, to). A script's verdict is coverage_map.script_verdict over its
-    captures, so when every change moves UP that rule (INCONCLUSIVE -> DIVERGE or MATCH,
-    DIVERGE -> MATCH) a script's runtime-on verdict is the rule over its production verdict
-    plus the verdicts its changed captures moved to. A change that moves DOWN would need the
-    per-capture production verdicts, which the map does not carry: refused, never guessed.
+    captures, the highest in one order (any DIVERGE dominates since 2026-11-19: DIVERGE, then
+    MATCH, MATCH_SUBSTITUTED, INCONCLUSIVE), so when every change moves UP that order
+    (INCONCLUSIVE -> MATCH, MATCH -> DIVERGE) a script's runtime-on verdict is the rule over its
+    production verdict plus the verdicts its changed captures moved to. A change that moves DOWN
+    (DIVERGE -> MATCH, MATCH -> INCONCLUSIVE) would need the per-capture production verdicts,
+    which the map does not carry: refused, never guessed. The order is read from
+    script_verdict itself, so this follows the rule wherever it is set.
 
     Captures join scripts as in coverage_map.main (norm_src over the local sources), and the
     join is checked against the map first: the scripts it finds a capture for must be exactly

@@ -24752,6 +24752,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const regs = []
   const colls = []
   const locals = []
+  /** ⭐⭐ FIELD REGISTER, STEP A — the field names held as no register (see below). */
+  const untracedFieldRegs = []
   for (const [name, d] of collected.decls) {
     if (d.kind === 'coll') {
       const id = `c${colls.length}`
@@ -24762,11 +24764,30 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // family off the listing).
       colls.push({ id, family: d.family, cap: MAX_OBJECT_COLLECTION_CAP, ...(d.slots ? { slots: d.slots } : {}),
         ...(d.persist ? { persist: true } : {}) })
+    } else if (d.kind === 'local' && String(name).includes('.')
+        && !(collected.dominatedFields && collected.dominatedFields.has(name))
+        && !(collected.varFields && collected.varFields.has(name))
+        && !(collected.plainFields && collected.plainFields.has(name))) {
+      // ⭐⭐ STEP A (b) — a field whose every read follows a write of it in the same bar keeps its register
+      // (`pineObjects.js::dominatedFields`): the per-bar clear below is never observed.
+      // ⭐⭐ FIELD REGISTER, STEP A (2026-11-19, coordinator ruling) — A DRAWING HELD IN A FIELD (`z.lb`, `z.a.lb`) IS
+      // UNTRACED. Registered as a plain local it was CLEARED EVERY BAR (`locals` below), whatever its owner's
+      // `var`-ness: for `var z = Z.new(na)` the delete of yesterday's `z.lb` read `na`, and the host lane drew every
+      // label the script deleted (26 where TradingView keeps 1), counting nothing. Not registered, everything acting
+      // through the field is counted where it is read (`delete:target`, `update:target`), so the drawing is withheld by
+      // name. Step B (the field takes its owner's `var`-ness) serves it again, on the reference's `var` sentence.
+      untracedFieldRegs.push(name)
     } else {
       const id = `r${regs.length}`
       regId.set(name, id)
       regs.push({ id, family: d.family })
-      if (d.kind === 'local') locals.push(id)
+      // ⭐⭐ FIELD REGISTER, STEP B (2026-11-19, coordinator ruling) — a field takes its owner's `var`-ness
+      // (`pineObjects.js::fieldOwnerVarness`): a `var` owner's field is NOT cleared per bar (Pine's `var z` is one
+      // object kept across bars, so `z.lb` keeps last bar's label); a plain owner's is (a new object every bar). A
+      // dominated field ((b) above) keeps the per-bar clear it had: no read of it ever observes the clear.
+      const persistentField = String(name).includes('.') && !(collected.dominatedFields && collected.dominatedFields.has(name))
+        && collected.varFields && collected.varFields.has(name)
+      if (d.kind === 'local' && !persistentField) locals.push(id)
     }
   }
 
@@ -24910,7 +24931,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   for (const [list, via] of [[collected.diagnostics.loopBlocked, 'reader:loop'], [collected.diagnostics.unsupported, 'reader:unsupported']]) {
     for (const name of list || []) {
       const m = /^([a-z]+)\.(set_[a-z0-9_]+)$/.exec(String(name))
-      if (m) lostSetterName(m[1], m[2], via, null)
+      // ⭐⭐ UNTRACED HANDLE (class sweep, 2026-11-19) — `object.<setter>` is a setter whose FAMILY the reader could
+      // not name (a value receiver, a chained element, a field read off an expression): it reaches every family that
+      // has a setter of that name. ⚰️ Read as a family called `object`, it matched no setter table and noted nothing:
+      // the drawing stayed where it was made, with only a "not supported" note.
+      if (m) lostSetterName(m[1] === 'object' ? null : m[1], m[2], via, null)
     }
   }
 
@@ -26611,7 +26636,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐⭐ C45 — the setter is lost AND its object cannot be named: what it would
       // have moved or captioned is withheld by list or family (`lostUnaddressed`),
       // never left drawn where it was made. Counted where it always was.
-      if (!target) { stateLostFamilies.add(op.family || null); lostUnaddressed(op, 'update:target'); dropped('update:target'); continue }
+      if (!target) {
+        stateLostFamilies.add(op.family || null)
+        lostUnaddressed(op, 'update:target')
+        // ⭐⭐ CLASS GUARD (2026-11-19) — a method-form setter on a handle the reader could not trace
+        // (`pineObjects.js::emitMethodForm`): every family its NAME reaches loses what it moves or writes
+        if (op.untraced) lostSetterName(null, op.untraced, 'update:target', op.line)
+        dropped('update:target')
+        continue
+      }
       const props = {}
       let bad = false
       stateOk = !loopIds.length

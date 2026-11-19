@@ -160,12 +160,87 @@ THE RULES
 2. Use ONLY the functions, constants, outputs and language features listed in this document. This engine is not TradingView: a built-in that is not listed here is refused, and a script that uses one does not run. If the request cannot be met with what is listed, say so (disposition `unsupported`) and name the closest thing that can be built. Never substitute a different indicator under the same name.
 3. UCT's engine checks the script after you write it, and the member is shown the ENGINE's verdict, not yours. Do not claim it runs. In `reply`, say in one or two plain sentences what the script draws and which numbers a member can change.
 4. Every number a member might want to change is an `input.*` with a title. Every `plot` has a title.
-5. Draw on the last bar what only needs drawing once (a summary table, a set of levels): `if barstate.islast`. Keep a drawing you redraw in a `var` handle and delete it before making it again, so the chart never fills with stale copies.
+5. A drawing that shows only the newest state (a summary table, a set of levels, a range box) is made ONCE, kept in a `var` handle, and UPDATED ON EVERY BAR with its setters (`table.cell`, `label.set_xy`, `label.set_text`, `line.set_xy1`, `line.set_xy2`, `box.set_lefttop`, `box.set_rightbottom`). Do not delete and remake it on every bar.{last_bar}
 6. Stay inside the limits listed below. A script is at most a few hundred lines.
 7. If you are sent an engine refusal for a script you wrote, fix exactly what it names and return the whole corrected script. Do not change what the member asked for to make the refusal go away; if the engine cannot do it, say so.
 8. When the request comes with RECIPES, start from the closest one: each is a whole script this engine runs as written and whose numbers were checked. Keep its structure, change what the request needs (the numbers, the condition, the colours, the title), and never import a habit from another platform that the recipe does not use.
 9. Say what the script MEANS by a term that has more than one reading (which pivot rule, which window, which average) in `reply`, in plain words.
 10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function: do not re-derive its maths by hand. {own_functions}When this document lists none, write the published calculation yourself and say in `reply` which definition you used."""
+
+#: ⭐⭐ ADMITTED FOR FINISHED BARS ONLY, SAID TO THE ASSISTANT (found live 2026-11-19). The engine admits some
+#: capabilities on CLOSED-BAR evidence only (G6, `historyOnly` in the generated reference, held equal to the
+#: server's own list): a script that uses one is not drawn bar by bar while the chart's newest bar is forming,
+#: which on a live chart is the whole session. Rule 5 used to TEACH `if barstate.islast`, three recipes and three
+#: worked examples did it, and every one was proven on a chart whose newest bar had finished: before the open
+#: they ran, and all session long a member's chart refused them.
+#: {capability: the reads that make a script one, as the rule says them}. A history-only capability must be
+#: worded here or be one the assistant is not offered at all (`NOT_FOR_THE_ASSISTANT`); a test holds that, and
+#: holds each read named here to the server's own detector.
+HISTORY_ONLY_READS: Dict[str, str] = {
+    "realtime-state": "`barstate.*` other than `barstate.isfirst`, `last_bar_index`, `last_bar_time`, `timenow`",
+}
+#: The work that may still wait for the last bar: too slow to repeat on every bar (measured 2026-11-19 on 5,000
+#: bars against the engine's one-second run budget: a profile's loops came within a fifth of it, a 500-bar
+#: statistics loop went past it).
+_LAST_BAR_WORK = "work that loops over past bars on every update (a volume profile, statistics over the last N bars)"
+#: What UCT says beside a script that waits for the bar, whatever the assistant wrote (decided by the server's
+#: own detector on THE SCRIPT, never by the assistant).
+FINISHED_BARS_LINE = "On a live chart this is drawn when the newest bar closes, not while it is forming."
+
+
+def history_only(ref: Optional[Mapping[str, Any]] = None) -> List[str]:
+    """The admitted capabilities admitted for finished bars only, from the generated reference."""
+    ref = reference() if ref is None else ref
+    return [c for c in ref.get("historyOnly") or [] if isinstance(c, str)]
+
+
+def _last_bar_said(ref: Optional[Mapping[str, Any]] = None) -> str:
+    """The second half of rule 5: what waiting for the last bar costs today, and the one thing that may."""
+    reads = [HISTORY_ONLY_READS[c] for c in history_only(ref) if c in HISTORY_ONLY_READS]
+    if not reads:
+        return f" Do {_LAST_BAR_WORK} once, under `if barstate.islast`."
+    return (f" Do not wait for the last bar to draw it: a script that reads where the chart ends ({'; '.join(reads)}) "
+            "is drawn only once the chart's newest bar has FINISHED, so on a live chart it shows nothing all session. "
+            f"The ONE exception is {_LAST_BAR_WORK}: that is too slow to repeat on every bar, so do it under "
+            "`if barstate.islast`.")
+
+
+def script_capabilities(script: Any) -> Optional[frozenset]:
+    """The server's own capability detector on THIS script, run ONCE per script answer: the set answers
+    both `waits_for_the_bar` and the admission verdict that rides the answer
+    (`runtime_definitions.script_answer_admission`). ``None`` for an unreadable script or a detector that
+    raised (the engine's verdict still stands; the window then asks the verdict door as before)."""
+    if not isinstance(script, str) or not script.strip():
+        return None
+    from api.services import pine_capabilities
+    try:
+        return frozenset(pine_capabilities.capabilities_of(script))
+    except Exception:                              # noqa: BLE001 -- the engine's verdict still stands
+        return None
+
+
+def waits_for_the_bar(script: Any, ref: Optional[Mapping[str, Any]] = None,
+                      caps: Optional[frozenset] = None) -> bool:
+    """Does THIS script read where the chart ends, so that it is drawn only on a finished bar? The server's
+    own capability detector, asked about the worded history-only capabilities (`caps`: its set when the
+    caller already has it, `script_capabilities`). Fails closed to False only on an unreadable script
+    (which the engine refuses anyway)."""
+    worded = set(history_only(ref)) & set(HISTORY_ONLY_READS)
+    if not worded or not isinstance(script, str) or not script.strip():
+        return False
+    if caps is None:
+        caps = script_capabilities(script)
+    return bool(caps is not None and set(caps) & worded)
+
+
+def said_with_the_bar(said: Any, waits: bool) -> str:
+    """The reply with UCT's own line when the script waits for the bar. Never cut, never said twice."""
+    text = str(said or "").strip()
+    if not waits or FINISHED_BARS_LINE in text:
+        return text[:REPLY_MAX_CHARS]
+    room = REPLY_MAX_CHARS - len(FINISHED_BARS_LINE) - 1
+    return (text[:room].rstrip() + " " + FINISHED_BARS_LINE).strip()
+
 
 #: Pine's own functions for well-known indicators, as candidates for rule 10's examples. ⛔ ONLY the ones
 #: the generated reference lists as served are ever named to the assistant (`_own_functions_said`): naming a
@@ -234,7 +309,7 @@ def _lines(title: str, rows: List[str]) -> List[str]:
 
 def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
     """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
-    return CONTRACT.replace("{own_functions}", _own_functions_said(ref))
+    return CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
 
 
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:
@@ -528,8 +603,14 @@ def said_with_disclosure(said: Any, reference: Optional[str]) -> str:
     text = str(said or "").strip()
     if reference is not None or UNCHECKED_LINE in text:
         return text[:REPLY_MAX_CHARS]
-    room = REPLY_MAX_CHARS - len(UNCHECKED_LINE) - 1
+    # (room is kept for UCT's other line too, `FINISHED_BARS_LINE`, so neither is ever cut by the other)
+    room = REPLY_MAX_CHARS - len(UNCHECKED_LINE) - len(FINISHED_BARS_LINE) - 2
     return (text[:room].rstrip() + " " + UNCHECKED_LINE).strip()
+
+
+#: Said under a recipe that does its work on the last bar (`finishedBarsOnly` in the generated file).
+LAST_BAR_RECIPE_LINE = ("(This recipe waits for the last bar on purpose: keep its `if barstate.islast`. In `reply`, say "
+                        "that on a live chart it is drawn when the newest bar closes.)")
 
 
 def recipes_text(found: List[Mapping[str, Any]]) -> str:
@@ -539,4 +620,6 @@ def recipes_text(found: List[Mapping[str, Any]]) -> str:
     out = ["RECIPES (whole scripts this engine runs as written; start from the closest):"]
     for r in found:
         out += [f"### {r['title']}", f"How it works: {r['shows']}.", "```pine", r["source"].rstrip("\n"), "```"]
+        if r.get("finishedBarsOnly") is True:
+            out += [LAST_BAR_RECIPE_LINE]
     return "\n".join(out)
