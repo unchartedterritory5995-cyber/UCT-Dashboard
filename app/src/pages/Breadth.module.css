@@ -33,9 +33,9 @@
   --br-down: var(--loss);
   /* Shade strength by rarity (round 5): Notable (top/bottom 10% of all history),
      Strong (3%), Extreme (0.5%) — breadth/shading.js decides the level. */
-  --br-tint-1: 10%;
-  --br-tint-2: 20%;
-  --br-tint-3: 34%;
+  --br-tint-1: 14%;
+  --br-tint-2: 30%;
+  --br-tint-3: 55%;
   font-family: var(--font-sans);
 }
 /* Inside a UCT Terminal panel the shell insets the body (--panel-inset). */
@@ -293,10 +293,10 @@
    The middle 80% is unshaded. Tints of the THEME's own up / down colour. */
 .shUp1 { background: color-mix(in srgb, var(--br-up) var(--br-tint-1), transparent); }
 .shUp2 { background: color-mix(in srgb, var(--br-up) var(--br-tint-2), transparent); color: var(--br-bright); }
-.shUp3 { background: color-mix(in srgb, var(--br-up) var(--br-tint-3), transparent); color: var(--br-bright); font-weight: 600; }
+.shUp3 { background: color-mix(in srgb, var(--br-up) var(--br-tint-3), transparent); color: var(--br-bright); font-weight: 700; }
 .shDn1 { background: color-mix(in srgb, var(--br-down) var(--br-tint-1), transparent); }
 .shDn2 { background: color-mix(in srgb, var(--br-down) var(--br-tint-2), transparent); color: var(--br-bright); }
-.shDn3 { background: color-mix(in srgb, var(--br-down) var(--br-tint-3), transparent); color: var(--br-bright); font-weight: 600; }
+.shDn3 { background: color-mix(in srgb, var(--br-down) var(--br-tint-3), transparent); color: var(--br-bright); font-weight: 700; }
 
 /* ── The shared heat ladder (source of truth for tokens.css --heat-*) ──────────
    No longer drawn by the Monitor sheet (it uses the Signature shading above); kept
