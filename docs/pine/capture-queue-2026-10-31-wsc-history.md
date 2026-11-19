@@ -38,11 +38,11 @@ This is the safe direction (no wrong number is drawn), but it is not yet Trading
 | row | TradingView | the build that follows it |
 |---|---|---|
 | M1 | `close[30]` under a declared 20: real from bar 30, `na` before it | constant half: served on both lanes (engine NUMBER PENDING, `feat/pine-wsc-history`) |
-| M2 | `close[n]` with `n` = 25 after bar 100, declared 20: real on every bar, no error | dynamic half (a separate build) |
+| M2 | `close[n]` with `n` = 25 after bar 100, declared 20: real on every bar, no error | the runtime lane's dynamic reads (#1917, engine 81); the host lanes' read window, which a declaration no longer shrinks (`pine.js::historyReadBufferOf`, `feat/pine-wsc-history`): MATCH on both lanes |
 | M3 | no declaration, 250 after bar 300: real (MATCH before any change) | none |
 | M4 | `max_bars_back(x, 50)`, then `x[60]` and `ta.sma(x, 60)`: both real | constant half: `max_bars_back(x, n)` bounds nothing |
 | M5 | `close[6000]`: real on the bars past bar 6,000, `na` before it | constant half: drawn by the runtime lane; the production lane refuses it by name (the host lookback budget, kept by ruling) |
-| Q-MBB-1 / -2 | dynamic offsets past a declared 50 are real, early or late | dynamic half |
+| Q-MBB-1 / -2 | dynamic offsets past a declared 50 are real, early or late | the same two builds as M2 |
 
 ## Q2. An infinity inside a bar (plan 3.6 item 4)
 

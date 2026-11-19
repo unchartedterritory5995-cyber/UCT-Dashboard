@@ -45,12 +45,21 @@ describe('C38 — the translator writes ONE read, bounded by ONE buffer', () => 
     expect(AUTO_MAX_BARS_BACK).toBe(400)
   })
 
-  it('a declared `max_bars_back` is the buffer — the same declaration the object lane reads', () => {
-    const head = '//@version=6\nindicator("t", max_bars_back = 77)\n'
-    expect(formula('plot(close[bar_index - 3])', head)).toMatch(/, 77\)$/)
+  it('a declared `max_bars_back` at or above the automatic buffer is the buffer — the same one the object lane reads', () => {
+    const head = '//@version=6\nindicator("t", max_bars_back = 777)\n'
+    expect(formula('plot(close[bar_index - 3])', head)).toMatch(/, 777\)$/)
     // …and the object lane, on the same script, carries the same number
     const t = host('label.new(bar_index, close[bar_index - 3])', head)
-    expect(JSON.stringify(t.objects)).toContain('"limit":77')
+    expect(JSON.stringify(t.objects)).toContain('"limit":777')
+  })
+
+  // ⭐⭐ engine NUMBER PENDING (WS-C; coordinator ruling 2026-11-19, `vw-w4-max-bars-back-m2` and Q-MBB-1):
+  // TradingView reads past a smaller declaration. ⚰️ This case read `max_bars_back = 77` → `, 77)`.
+  it('a declaration BELOW the automatic buffer does not shrink it, on either lane', () => {
+    const head = '//@version=6\nindicator("t", max_bars_back = 77)\n'
+    expect(formula('plot(close[bar_index - 3])', head)).toMatch(new RegExp(`, ${AUTO_MAX_BARS_BACK}\\)$`))
+    const t = host('label.new(bar_index, close[bar_index - 3])', head)
+    expect(JSON.stringify(t.objects)).toContain(`"limit":${AUTO_MAX_BARS_BACK},"auto":true`)
   })
 
   it('…and never more than the index can take: `na`, a ternary, `%`, `min`, a bounded `barssince`', () => {
