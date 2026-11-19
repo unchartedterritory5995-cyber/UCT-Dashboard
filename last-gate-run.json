@@ -2,9 +2,9 @@
   "master_sha": "36b78874301e120768f44256924224dfd86570d4",
   "gate_run_id": null,
   "gate_conclusion": null,
-  "promoted": "no",
-  "production_head_after": "4e4004dfe707467717de9958627ea6b1fed0c01c",
+  "promoted": "already",
+  "production_head_after": "36b78874301e120768f44256924224dfd86570d4",
   "held_by_freeze": true,
-  "decision": "HOLD",
-  "ts": "2026-11-19T18:37:05.228640Z"
+  "decision": "ALREADY_PROMOTED",
+  "ts": "2026-11-19T18:56:00.945081Z"
 }
