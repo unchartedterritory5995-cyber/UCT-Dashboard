@@ -20,9 +20,9 @@ written to match their files on 2026-11-14, with no deploy. This tool keeps it t
 
 `--service` may be repeated. `--apply` REFUSES to run without at least one `--service`: a bare
 `--apply` would write every service whose stored settings differ, and on 2026-11-19 that list held
-two services (`stream-ingest`, `stream-edge`) whose file and stored builder disagree with nobody
-having decided which one is intended. Naming the services makes the write's reach a decision, not a
-side effect. Comparing (no `--apply`) stays all-services by default: it writes nothing.
+two services (`stream-ingest`, `stream-edge`) whose file and stored builder disagreed with nobody
+having decided which one was intended (settled the same day: their files now equal what Railway
+stores, except watch paths). Naming the services makes the write's reach a decision, not a side effect. Comparing (no `--apply`) stays all-services by default: it writes nothing.
 
 The config files stay in the repo as the declared settings: review a change there, merge it,
 then run `--apply`. Until 2026-12-01 Railway also still reads them at deploy time. After it,
@@ -54,6 +54,8 @@ SERVICES = {
     "flow-worker": "railway.json",
     # Created 2026-11-14 as a NEW service, which never reads a config file: its first
     # deploy ran the default start command. Its stored settings were typed in by hand.
+    # The two stream files name no builder on purpose (owner decision 2026-11-19): Railway
+    # stores RAILPACK for both yet builds them with Nixpacks; see the runbook.
     "stream-ingest": "railway.ingest.json",
     "stream-edge": "railway.edge.json",
 }
