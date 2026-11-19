@@ -39,6 +39,7 @@ import sys  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "tools" / "vendor_harness"))
 import licence_held  # noqa: E402 -- licence-held captures: read from the local store, skipped by name
+import store_held  # noqa: E402 -- rows graded with production's library store: the one authority over their pins
 FIXTURE = ROOT / "tests" / "fixtures" / "runtime_documents" / "documents.json"
 DOCS = {d["slug"]: d for d in json.loads(FIXTURE.read_text(encoding="utf-8"))["documents"]}
 ADX = DOCS["adx-and-di-for-v4"]["definition"]
@@ -712,6 +713,12 @@ def _phantoms(registry: dict) -> list:
                 bad.append((cap, cid, "names another script"))
             if e.get("community") is not community:
                 bad.append((cap, cid, "states the wrong community flag"))
+            # ⭐ STORE-HELD (libraries chain, 2026-11-19): a library row's evidence row must have been GRADED WITH that
+            # version at the sha the row pins (the snapshot row's `storeHeld`); a row graded without it drew nothing
+            if cap.startswith(rg.PINE_CAPABILITY_LIBRARY_PREFIX):
+                want = store_held.pin_of(cap[len(rg.PINE_CAPABILITY_LIBRARY_PREFIX):], row.get("sha256") or "")
+                if want not in store_held.pins_of(r):
+                    bad.append((cap, cid, "its snapshot row was not graded with that library version at the row's sha"))
             fixture = licence_held.fixture_path(r["file"])
             if fixture is None or not fixture.is_file():
                 bad.append((cap, cid, "no fixture"))
@@ -1141,6 +1148,28 @@ def test_A8_no_phantom_evidence():
         if row.get("admitted") is True:
             assert rg.pine_capability_admission(cap, row) == [], cap
             assert all(v[e["capture"]]["verdict"] == "MATCH" for e in row["evidence"])
+
+
+def test_A8_a_library_rows_evidence_was_graded_with_that_version(monkeypatch):
+    """(libraries chain, 2026-11-19) A `library:` row's evidence counts only where the snapshot row was GRADED WITH that
+    version at the row's sha (its `storeHeld`): a row graded without the store drew nothing of that library."""
+    v = copy.deepcopy(_verdicts())
+    cid = "kalman-psar-backquant-rddt-1d-2026-11-15"
+    sha = "c" * 64
+    v[cid]["verdict"] = "MATCH"
+    v[cid][store_held.FIELD] = [store_held.pin_of("TradingView/ta/7", sha)]
+    monkeypatch.setattr(sys.modules[__name__], "_verdicts", lambda: v)
+    fam, comm = rg.pine_evidence_script(v[cid]["script"], cid)
+    why_not = "its snapshot row was not graded with that library version at the row's sha"
+
+    def whys(row_sha):
+        row = {"admitted": True, "sha256": row_sha, "evidence": [{"capture": cid, "script": fam, "community": comm}]}
+        return {w for _c, _i, w in _phantoms({"library:TradingView/ta/7": row})}
+
+    assert why_not not in whys(sha)
+    assert why_not in whys("d" * 64)          # graded with other code under the same version
+    v[cid].pop(store_held.FIELD)
+    assert why_not in whys(sha)               # graded without the store at all
 
 
 def test_A8_the_rail_can_fail():
