@@ -22,6 +22,9 @@
 
 /* Two separate panels: the header strip, a gap, then the list + chart. */
 .dialog {
+  /* The chart's own canvas when the member set one, else the theme's surface: the band, the
+     list and the frame then match the chart exactly. */
+  --dr-panel: var(--drill-canvas, var(--bg-surface));
   width: 100%;
   height: 100%;
   display: flex;

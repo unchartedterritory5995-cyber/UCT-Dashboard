@@ -7,52 +7,38 @@
    template + layout over the chart). Equal heights are what make the two panes
    read as one surface instead of two widgets parked side by side. */
 
-/* ── UCT Signature values for the drill window (docs/uct-signature-style.md) ──
-   Set once for the scan window, the reading-only window and the History drawer. Dark is the
-   spec; under the light theme each name points at the app's own light token. Gold appears
-   ONLY on the open view's underline, the selected row's 2px bar, the chart's chosen timeframe
-   underline and today's sparkline tick. */
+/* ── UCT Signature roles for the drill window (docs/uct-signature-style.md) ──
+   Set once for the scan window, the reading-only window and the History drawer, and built
+   from the APP THEME's own tokens exactly as Breadth.module.css builds its --br-* roles (owner
+   2026-11-19): Slate is slate, the dark default dark, Light light, OLED OLED — and the panels
+   are the chart widget's own surface (`--bg-surface`, which `appThemeSurface` hands the chart),
+   so band, list and chart read as one window. ⛔ No hard-coded near-black here.
+   Gold appears ONLY on the open view's underline, the selected row's 2px bar, the chart's
+   chosen timeframe underline and today's sparkline tick. */
 :global(:root) {
-  --dr-panel: #111214;
-  --dr-card: #1a1b1f;
-  --dr-raised: #222327;
-  --dr-selected: #2c2e33;
-  --dr-outline: #383b41;
-  --dr-line: #26282c;
-  --dr-track: #2a2c31;
-  --dr-text: #ededed;
-  --dr-bright: #f8f7f3;
-  --dr-dim: #a9a59b;
-  --dr-rest: #c9c6be;
-  --dr-faint: #93939a;
-  --dr-soft: rgba(248, 247, 243, 0.06);
-  --dr-soft-hi: rgba(248, 247, 243, 0.11);
-  --dr-ring: rgba(248, 247, 243, 0.45);
-  --dr-up: #3fbf9a;
-  --dr-down: #e8665a;
-  --dr-bar: #4a4c52;
-  --dr-shadow-window: 0 24px 60px rgba(0, 0, 0, 0.6);
-}
-:global([data-theme='light']) {
-  --dr-panel: var(--bg-elevated);
-  --dr-card: var(--bg-surface);
-  --dr-raised: #eceef0;
-  --dr-selected: #e3e5e7;
-  --dr-outline: var(--border-accent);
+  --dr-panel: var(--bg-surface);
+  --dr-card: var(--bg-elevated);
+  --dr-raised: color-mix(in srgb, var(--text-bright) 5%, var(--bg-elevated));
+  --dr-selected: color-mix(in srgb, var(--text-bright) 13%, var(--bg-surface));
+  --dr-outline: var(--border-accent, var(--border));
   --dr-line: var(--border);
-  --dr-track: #e3e5e7;
+  --dr-track: color-mix(in srgb, var(--text-bright) 12%, transparent);
   --dr-text: var(--text);
   --dr-bright: var(--text-bright);
   --dr-dim: var(--text-muted);
   --dr-rest: var(--text-muted);
-  --dr-faint: var(--text-muted);
-  --dr-soft: rgba(0, 0, 0, 0.05);
-  --dr-soft-hi: rgba(0, 0, 0, 0.09);
-  --dr-ring: rgba(0, 0, 0, 0.5);
+  --dr-faint: color-mix(in srgb, var(--text-muted) 72%, var(--bg));
+  --dr-soft: color-mix(in srgb, var(--text-bright) 6%, transparent);
+  --dr-soft-hi: color-mix(in srgb, var(--text-bright) 11%, transparent);
+  --dr-soft-top: color-mix(in srgb, var(--text-bright) 8%, transparent);
+  --dr-chosen-ring: color-mix(in srgb, var(--text-bright) 22%, transparent);
+  --dr-well: var(--bg);
+  --dr-ring: color-mix(in srgb, var(--text-bright) 45%, transparent);
   --dr-up: var(--gain);
   --dr-down: var(--loss);
-  --dr-bar: #c4c7cc;
-  --dr-shadow-window: var(--shadow-modal);
+  --dr-bar: color-mix(in srgb, var(--text-muted) 45%, transparent);
+  --dr-shadow-window: var(--shadow-modal, 0 24px 60px rgba(0, 0, 0, 0.6));
+  --dr-shadow-menu: var(--shadow-popover, 0 14px 36px rgba(0, 0, 0, 0.55));
 }
 
 /* ── Masthead ───────────────────────────────────────────────────────────── */
@@ -114,19 +100,19 @@ span.metric:hover { background-color: transparent; }
 
 /* The readouts: label on top, value (with its picture) under it. */
 .tile {
-  display: flex; flex-direction: column; justify-content: center; gap: 8px;
+  display: flex; flex-direction: column; justify-content: center; gap: 6px;
   align-self: stretch; padding: 0 18px; min-width: 0; flex-shrink: 0;
   border-right: 1px solid var(--dr-line);
   white-space: nowrap;
 }
 .tileLbl { font-size: 11.5px; font-weight: 600; color: var(--dr-rest); }
-.tileVal { display: flex; align-items: flex-end; gap: 10px; min-width: 0; height: 30px; }
+.tileVal { display: flex; align-items: flex-end; gap: 12px; min-width: 0; height: 40px; }
+.countNum { display: inline-flex; align-items: baseline; gap: 6px; flex: 0 0 auto; white-space: nowrap; }
 .tileVal b { font-size: 24px; font-weight: 700; color: var(--dr-bright); font-variant-numeric: tabular-nums; line-height: 1; }
-.tileVal small { font-size: 12px; font-weight: 500; padding-bottom: 1px; }
+.tileVal small { font-size: 12.5px; font-weight: 500; }
 .muted { color: var(--dr-faint); }
 .tileCount { flex: 0 1 440px; width: 440px; min-width: 300px; }
 .tileCount .tileLbl { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.tileCount .tileVal b { min-width: 3.2ch; }
 .tileHead { display: flex; align-items: center; justify-content: space-between; gap: 14px; height: 18px; }
 /* 1M / 3M / 6M / 1Y — chips (owner: keep them chips), the chosen one on the Selected tone. */
 .rangeSeg { display: inline-flex; gap: 2px; }
@@ -137,9 +123,9 @@ span.metric:hover { background-color: transparent; }
 .rangeSeg button:hover { color: var(--dr-text); background: var(--dr-soft); }
 .rangeSeg button[aria-pressed='true'] { background: var(--dr-selected); color: var(--dr-bright); }
 .rangeSeg button:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
-.countDay { color: var(--dr-faint); min-width: 78px; }
-.countDay[data-past] { color: var(--dr-text); }
-.spark { flex: 1 1 auto; width: 0; min-width: 0; height: 30px; display: block; }
+.countDay { color: var(--dr-faint); }
+.tileLbl[data-past] { color: var(--dr-bright); }
+.spark { flex: 1 1 0; width: 0; min-width: 0; height: 40px; display: block; }
 .spark rect + rect { fill: var(--dr-bar); }
 .spark rect[data-now] { fill: var(--dr-rest); }
 .spark rect[data-hover] { fill: var(--dr-bright); }
@@ -328,7 +314,7 @@ span.metric:hover { background-color: transparent; }
 .expanded {
   position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column;
   background: var(--drill-canvas, var(--bg)); border: 1px solid var(--dr-outline); border-radius: 9px; overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--dr-shadow-menu);
 }
 .expandedHead { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 8px 0 14px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
 .expandedSym { font-size: 16px; font-weight: 700; color: var(--text-bright); }

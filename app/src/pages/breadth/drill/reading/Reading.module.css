@@ -58,7 +58,7 @@
   position: absolute; top: 0; right: 0; bottom: 0; width: 440px; max-width: 100%; z-index: 8;
   display: flex; flex-direction: column;
   background: var(--dr-panel); border-left: 1px solid var(--dr-outline);
-  box-shadow: -18px 0 40px rgba(0, 0, 0, 0.45);
+  box-shadow: -18px 0 40px color-mix(in srgb, var(--bg) 60%, transparent);
   animation: drawerIn 160ms ease-out;
   font-family: var(--font-sans); color: var(--dr-text);
 }

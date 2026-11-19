@@ -1,7 +1,7 @@
 /* ── Joined look (breadth drill window): ‹ | date | › as one control ───────── */
 .joined {
   display: inline-flex; align-items: stretch; height: 28px;
-  border: 0; border-radius: 7px; overflow: hidden; background: var(--dr-soft, rgba(248, 247, 243, .06));
+  border: 0; border-radius: 7px; overflow: hidden; background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
 }
 .jStep {
   width: 28px; display: inline-flex; align-items: center; justify-content: center;

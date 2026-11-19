@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { GROUP_HUES, UNCLASSIFIED } from './scanDeckModel'
 import RankLine from '../reading/RankLine'
 import styles from './ScanDeck.module.css'
@@ -95,6 +95,15 @@ function CountHistory({
 }) {
   const [range, setRange] = useState(readRange)
   const [hover, setHover] = useState(null)
+  // While the pointer runs along the bars the number changes; its block keeps the width it had
+  // when the hover began, so the sparkline never resizes under the pointer.
+  const numRef = useRef(null)
+  const [lockW, setLockW] = useState(null)
+  const enter = (i) => {
+    if (hover == null && numRef.current) setLockW(numRef.current.getBoundingClientRect().width)
+    setHover(i)
+  }
+  const leave = () => { setHover(null); setLockW(null) }
   const r = RANGES.find(x => x.key === range) || RANGES[1]
   // A range longer than the history on hand asks the window for more.
   const have = ctx?.series?.length || 0
@@ -107,13 +116,13 @@ function CountHistory({
   const vals = all.slice(start)
   const days = dates.slice(start)
   const last = vals.length - 1
-  const pick = (k) => { setRange(k); setHover(null); try { localStorage.setItem(RANGE_LS, k) } catch { /* private mode */ } }
+  const pick = (k) => { setRange(k); leave(); try { localStorage.setItem(RANGE_LS, k) } catch { /* private mode */ } }
 
   const shownVal = hover != null ? vals[hover] : count
-  // The open day's date is already in the box to the left; only a hovered past
-  // bar names its day.
+  // The open day's date is already in the box to the left; a hovered past bar names its day in
+  // the label above (a fixed slot), so "stocks" always sits right after the number.
   const past = hover != null && hover !== last
-  const shownDay = past ? fmtDay(days[hover]) : (shownValIsOne(count) ? unitOne : unitMany)
+  const shownUnit = shownValIsOne(shownVal) ? unitOne : unitMany
   const show = (v) => (Number.isFinite(v) ? (fmt ? fmt(v) : v.toLocaleString()) : '—')
   const finite = vals.filter(Number.isFinite)
   const max = Math.max(...finite, 1)
@@ -124,7 +133,9 @@ function CountHistory({
   return (
     <div className={`${styles.tile} ${styles.tileCount}`}>
       <span className={styles.tileHead}>
-        <span className={styles.tileLbl}>{label || 'Stocks'} each day · {r.words}</span>
+        <span className={styles.tileLbl} data-past={past || undefined}>
+          {past ? fmtDay(days[hover]) : `${label || 'Stocks'} each day · ${r.words}`}
+        </span>
         <span className={styles.rangeSeg} role="group" aria-label="Chart range">
           {RANGES.map(x => (
             <button key={x.key} type="button" aria-pressed={x.key === range} onClick={() => pick(x.key)}>{x.key}</button>
@@ -132,15 +143,19 @@ function CountHistory({
         </span>
       </span>
       <span className={styles.tileVal}>
-        <b>{show(shownVal)}</b>
-        <small className={styles.countDay} data-past={past || undefined}>{shownDay}</small>
+        {/* The number with its unit right after it ("60 stocks", "1,125 stocks"); the sparkline
+            takes all the width that is left. */}
+        <span className={styles.countNum} ref={numRef} style={lockW ? { minWidth: lockW } : undefined}>
+          <b>{show(shownVal)}</b>
+          {shownUnit && <small className={styles.countDay}>{shownUnit}</small>}
+        </span>
         {finite.length > 1 && (
           <svg className={styles.spark} viewBox={`0 0 ${vals.length * 3} 28`} preserveAspectRatio="none"
-            role="img" aria-label={`${label || 'Stocks on this list'} each day, ${r.words}`} onMouseLeave={() => setHover(null)}>
+            role="img" aria-label={`${label || 'Stocks on this list'} each day, ${r.words}`} onMouseLeave={leave}>
             {vals.map((v, i) => {
               const h = Number.isFinite(v) ? Math.max(1.5, (Math.max(0, v - lo) / span) * 24) : 0
               return (
-                <g key={i} onMouseEnter={() => setHover(i)}>
+                <g key={i} onMouseEnter={() => enter(i)}>
                   <rect x={i * 3} y={0} width={3} height={24} fill="transparent" />
                   <rect x={i * 3 + 0.4} y={24 - h} width={2.2} height={h} rx={0.6}
                     data-now={i === last || undefined} data-hover={i === hover || undefined} />
