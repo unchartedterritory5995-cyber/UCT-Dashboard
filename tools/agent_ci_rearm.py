@@ -47,6 +47,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import pathlib
 import re
 import subprocess
 import sys
@@ -167,10 +168,28 @@ def build_merge(run, repo: str, number: int, tip: str, head: str) -> tuple[str, 
     return tree, commit
 
 
+
+def _this_repo(fallback: str) -> str:
+    """owner/name of this repository: $GITHUB_REPOSITORY in Actions, else this checkout's origin remote.
+
+    Derived, never hardcoded, so moving the repository to another owner needs no edit here. `fallback`
+    is used only when neither answers (no git, no origin)."""
+    env = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if env:
+        return env
+    try:
+        url = subprocess.run(["git", "-C", str(pathlib.Path(__file__).resolve().parent), "remote", "get-url", "origin"],
+                             capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        url = ""
+    m = re.search(r"github\.com[:/]+([^/\s]+/[^/\s]+?)(?:\.git)?/?$", url)
+    return m.group(1) if m else fallback
+
+
 def main(argv=None, get=_get, run=subprocess.run) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--pr", type=int, action="append", required=True, help="the ONE PR to re-arm (given once)")
-    ap.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", "unchartedterritory5995-cyber/UCT-Dashboard"))
+    ap.add_argument("--repo", default=_this_repo("unchartedterritory5995-cyber/UCT-Dashboard"))
     ap.add_argument("--dry-run", action="store_true", help="build the merge locally; push and dispatch nothing")
     a = ap.parse_args(argv)
     if len(a.pr) != 1 or not PR_RE.match(str(a.pr[0])):
