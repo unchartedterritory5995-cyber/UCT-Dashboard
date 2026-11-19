@@ -107,6 +107,10 @@ export function runtimeOwnObjectsOf({ source, t }) {
       // whenever the run holds back a family it draws (`runtimeObjects.js::drawsRunObjectsOn`), so no
       // member loses a drawing the host program showed. Otherwise the host program keeps drawing,
       // exactly as before.
+      // ⛔ NOT A STRATEGY: its trade markers are merged into the HOST program's picture on the host path
+      // (W9-T12, `w9T12MarkersDoor.test.js`), and strategy serving is owner-gated (U-STRAT), so a
+      // strategy's clean host program keeps drawing its objects, exactly as before.
+      if (t && t.declaration === 'strategy') return { probe: null, why: null, valueProbe }
       const runOwn = probeRuntimeProgram(source, { objectsInRun: true })
       if (runOwn && runOwn.ok && runOwn.objectOps > 0) return { probe: runOwn, hostFallback: true, valueProbe }
       return { probe: null, why: null, valueProbe }

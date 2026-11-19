@@ -977,7 +977,8 @@
       "out2": 2,
       "out3": 0,
       "out4": 3
-     }
+     },
+     "objects": true
     },
     "meta": {
      "name": "inside-bar-range-mother-candle-breakoutb",
@@ -1013,8 +1014,8 @@
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       },
       {
-       "name": "Settings",
-       "note": "Kept at the author's default: `lineColor` (it colours nothing this pane draws from its own run, so a colour picked here would change nothing)."
+       "name": "Drawings",
+       "note": "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. Where the run holds back a kind of drawing that the script’s formula drawing program draws, this chart draws that program’s drawings instead, so nothing it showed is lost."
       }
      ],
      "requirementTags": []
@@ -1089,6 +1090,12 @@
       "type": "bool",
       "default": false,
       "label": "Show Volume Threshold"
+     },
+     {
+      "key": "lineColor",
+      "type": "color",
+      "default": "#B2B5BE",
+      "label": "Line Color"
      },
      {
       "key": "styleOption",
@@ -11489,7 +11496,8 @@
       "out4": 4,
       "out5": 5,
       "out7": 3
-     }
+     },
+     "objects": true
     },
     "meta": {
      "name": "trend-targets-algoalpha",
@@ -11536,6 +11544,10 @@
       {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "Drawings",
+       "note": "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. Where the run holds back a kind of drawing that the script’s formula drawing program draws, this chart draws that program’s drawings instead, so nothing it showed is lost."
       }
      ],
      "requirementTags": []
