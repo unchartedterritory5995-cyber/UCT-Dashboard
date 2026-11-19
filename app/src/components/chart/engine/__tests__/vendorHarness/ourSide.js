@@ -513,7 +513,9 @@ const warmCandidateRows = new Map()
 // malformed, stale, or an unreadable index) is rebuilt from the file itself, so the index can
 // never pick a supplier the full scan would not. Gitignored; rewritten atomically when it changes.
 export const WARM_INDEX_NAME = '.warm-candidates.index'
-export const WARM_INDEX_SCHEMA = 'uct.warm-candidates-index/v2'
+// ⛔ v3 (2026-11-19): a row's `listing` is the claim as `history_claim.mjs` reads it (a claim the capture's own
+// bar_index row refutes is false), so every v2 row, which stored the raw claim, is rebuilt.
+export const WARM_INDEX_SCHEMA = 'uct.warm-candidates-index/v3'
 
 /** A capture's bar times, run-length encoded on their deltas: `t0;d1xn1,d2xn2,...`. Small enough to
  *  keep in the index for every capture, and enough to place the window's first bar exactly. */

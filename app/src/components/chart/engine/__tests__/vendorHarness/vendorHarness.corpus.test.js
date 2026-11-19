@@ -64,6 +64,7 @@ import { fixturePath } from '../../ast/__tests__/licenceHeld'
 import { strategyBrokerFlag, strategyEvidenceOf, assertStrategyLaneMeasured } from './strategyLane.js'
 import { runtimePaneEnabled, __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
+import { memberDoorsAtCollection } from '../../../../../testing/runtimeGate'
 import { __admitEveryRunHalfForTests } from '../../runHalfRailSeam'
 import { __serveEveryTimeframeSettingForTests } from '../../runtime/runtimeInputs.js'
 // ⭐ (2026-11-18) the engine that graded a snapshot is written INTO it: an admission rail can then hold new
@@ -100,6 +101,13 @@ if (REQUESTED) {
     // ⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — and a capture taken at a MOVED timeframe setting is
     // graded at it: the lane's grade is the evidence that would admit one (`runtimeInputs.js::movedTimeframeServed`)
     __serveEveryTimeframeSettingForTests()
+    // ⭐⭐ THE MEMBER'S HOST-KNOWN-DIVERGENCE LIST, APPLIED (coordinator ruling 2026-11-19, GATE-BLIND follow-up (a)):
+    // a member's door refuses a listed script on the host lane, so the runtime lane draws it (or the door refuses it
+    // by name), and this lane's grade must be of THAT. ⚰️ With the list ignored (the test grant), the 67 rows of the
+    // 28 listed scripts were graded on the HOST lane here, and the reach run and capability evidence read those
+    // host grades as runtime-on evidence. ⛔ The PRODUCTION lane keeps the list ignored: it grades what the host lane
+    // WOULD draw, which is what the list is derived from (`tools/vendor_harness/host_divergence.py`).
+    memberDoorsAtCollection({ hkd: true })
   }
 }
 

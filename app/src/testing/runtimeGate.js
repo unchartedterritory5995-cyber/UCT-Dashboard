@@ -78,6 +78,15 @@ export function gateNarrowedOutsideTest({ granted, after, now }) {
     + 'the member\'s doors under the grant. Narrow in beforeEach instead: asMember({...}) from src/testing/runtimeGate.js.'
 }
 
+/** ⛔ ONLY FOR A FILE THAT MEASURES WHILE IT IS COLLECTED (the vendor corpus harness grades every capture in its
+ *  describe body, then its tests assert the STORED run, never the live gate). Takes back the doors it names at
+ *  once, so the measurement that follows in the same collection sees the member's doors; the root hooks re-grant
+ *  before the first test, which is harmless only because no test reads the gate. Anywhere else, use `asMember`.
+ *    hkd  true: the host lane's known-divergence list APPLIED (the app's state). */
+export function memberDoorsAtCollection({ hkd = true } = {}) {
+  if (hkd === true) __resetHostKnownDivergence()
+}
+
 /** ⭐ Run every test in this scope behind the MEMBER'S doors. Call it at module or describe scope
  *  (it registers a `beforeEach`, which runs after the root re-grant). Each option names a door the
  *  test grant opens and this takes back:
