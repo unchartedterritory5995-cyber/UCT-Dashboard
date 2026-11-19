@@ -539,6 +539,14 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   const strategy = !!(def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
   let cut = 0
   for (let pass = 0; ; pass += 1) {
+    // ⭐⭐ (Fred RS filled chart, item 1) — WHERE THE CHART BECOMES KNOWN, ASKED BEFORE THE RUN BUILDS OVER IT
+    // (`knownFromBeforeBuild`): the move this pass would make on a depth refusal is made without the build over
+    // bars the run never draws, under the same limits (a strategy never moves; at most `KNOWN_FROM_PASSES`; never
+    // to the last bar). A probe that finds no depth gap leaves the pass exactly as before.
+    if (!strategy && pass + 1 < KNOWN_FROM_PASSES) {
+      const k = knownFromBeforeBuild(def, cut ? rows.slice(cut) : rows, cut ? { ...(ctx || {}), historyFromListing: false } : ctx, opts)
+      if (k > 0 && cut + k < rows.length - 1) { cut += k; continue }
+    }
     try {
       const cols = computeRuntimeColumnsAll(def, cut ? rows.slice(cut) : rows,
         cut ? { ...(ctx || {}), historyFromListing: false } : ctx, opts)
@@ -551,6 +559,65 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
       }
       cut += k
     }
+  }
+}
+
+// ─── ⭐⭐ (Fred RS filled chart, item 1) — A CHART DEEPER THAN ITS REQUESTED SERIES IS CUT BEFORE IT IS BUILT OVER ──
+//
+// MEASURED (the e81 live worker log, and the filled-chart timing on the e83 head): a member's 5m chart fills to
+// 20,001-27,871 bars, our store holds ~60 sessions of SP:SPX 5m, and the run reached its depth refusal only after
+// building over EVERY bar: the front end evaluates every precomputed column over the whole chart before the supply is
+// asked, then the supply refuses with `knownFrom` and the run is built again from there. The first build over the
+// bars before `knownFrom` is work for bars the run never draws and never reads.
+// So the supply is asked FIRST, with the requests a bar-free build reads (`program.requests`: the targets are the
+// host's reading of the source and settings, and read no bar), whenever a requested series could begin after the
+// chart's first bar (`depthGapPossible`, from the other-symbol cache alone, no build). Only a DEPTH refusal
+// (`knownFrom`) moves the start; any other answer (served, pending, a refusal of another kind, a probe build that
+// does not stand) leaves the pass to the run, exactly as before.
+// ⭐ (coordinator ruling 2026-11-19) A refusal raised ONLY by bars before `knownFrom` (a column the front end refuses
+// over them, the bar count's class of the whole chart) is about bars the run never draws and never reads: dropping
+// it is honest, not a loosening. A refusal from bars INSIDE the drawn span still fires (the run's own build over
+// them). NUMBER PENDING.
+let _knownFromProbeOff = false
+/** Tests / timing: build over the whole chart first, as before (the identity rails compare both ways). */
+export function __knownFromProbeOffForTests(off) { _knownFromProbeOff = !!off }
+const firstTimeOf = (bars) => (Array.isArray(bars) && bars.length && bars[0] ? bars[0].t : undefined)
+/** Could a requested series begin after the chart's first bar? Read from the other-symbol cache alone: an entry whose
+ *  first bar is later than the chart's (or whose key kind cannot be compared with it) says yes. */
+function depthGapPossible(rows, ctx) {
+  const sec = ctx && ctx.secondary && typeof ctx.secondary.values === 'function' ? ctx.secondary : null
+  const first = firstTimeOf(rows)
+  if (!sec || first === undefined) return false
+  for (const e of sec.values()) {
+    const t = firstTimeOf(e && e.bars)
+    if (t === undefined) continue
+    if (typeof t !== typeof first || t > first) return true
+  }
+  return false
+}
+/** The first chart bar every requested read is known from, when the run would be refused for a DEPTH gap alone,
+ *  asked of the supply with a bar-free build's requests; or 0. Never throws. */
+export function knownFromBeforeBuild(def, rows, ctx, opts = {}) {
+  if (_knownFromProbeOff || !Array.isArray(rows) || rows.length < 2) return 0
+  const compute = (def && def.compute) || {}
+  const source = String(compute.source || '')
+  if (!/\brequest\.(security|seed)\b/.test(source) || !depthGapPossible(rows, ctx)) return 0
+  if (opts.slidingWindow === true || !!(ctx && ctx.framed === true)) return 0
+  try {
+    const slides = false
+    const sessionKey = opts.incremental === false || opts.limits ? null : 'probe'
+    const built = withTranslateClock(opts.now, () => buildRuntimeIr(source, { ...runtimeIrOptions(def, [], ctx, { sessionKey, slides }) }))
+    if (!built || !built.ok) return 0
+    const program = lowerIrProgram(built.ir, { historyFromListing: !!(ctx && ctx.historyFromListing === true) })
+    const sites = program.requests || []
+    if (!sites.length) return 0
+    // the ctx the run's first supply is asked with: off the listing, the curtain's (`computeOffListing`)
+    const offListing = !!(def && def.meta && def.meta.runtimeHistory === 'listing') && !(ctx && ctx.historyFromListing === true)
+    const sup = runtimeRequestSupply(sites, rows, offListing ? { ...ctx, curtained: true } : ctx)
+    const k = sup && sup.refusal && Number.isInteger(sup.refusal.knownFrom) ? sup.refusal.knownFrom : 0
+    return k > 0 ? k : 0
+  } catch {
+    return 0
   }
 }
 
@@ -733,6 +800,14 @@ function computeOffListing(def, rows, ctx, opts) {
   const inner = { ...opts, warmupCurtain: false }
   // ⭐⭐ UIE PHASE 3 (M1) — B stops as soon as it is PROVEN to repeat A (`warmupProbe.js`);
   // a drawing program is never probed (its object store is not encoded)
+  // ⛔ (Fred RS filled chart, 2026-11-19: MEASURED, not to re-propose blind) — probing a program that DRAWS (its
+  // object store in the probe's state) was designed and approved, then DROPPED: for Fred RS's run half it pays 0 ms.
+  // (1) Its drawings' x is `bar_index`, a column B reads `shift` lower on every bar, so no column check can pass; a
+  // throwaway hack that drew the store into the state AND excluded that column showed (2): the state never
+  // re-converges. On 60m (an 8,000-bar run half) the first checkpoint past its 5,000-deep ring is A's bar 6,495, and
+  // there `var float[] different_values` ("the first 7 DIFFERENT seed values", in the order the run first meets
+  // them) holds the same set in another order in A and B: the plots agree, the state never does. On 30m (3,840
+  // bars) B never commits 5,000 bars at all. Re-open only with a measured beneficiary whose state does converge.
   const probe = objects || opts.warmupEarlyStop === false ? null : makeWarmupProbe(n, shift)
   // ⭐ UIE PHASE 5 (M2) — each run keeps its own session (`sessionRole`); A is probed only
   // when it runs from scratch (`probeIfCold`): a resumed A visits none of the early bars
@@ -1308,25 +1383,12 @@ function plainCopy(col) {
   return out
 }
 
-function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
+/** ⭐⭐ (Fred RS filled chart, item 1) — EVERY OPTION A RUN'S BUILD IS HANDED (`buildRuntimeIr`), but the
+ *  recorder's hook: one function, so the run's build and the depth probe (`knownFromBeforeBuild`) read the same
+ *  object. `sessionKey`: the run keeps a session (a `varip` builds only where its ledger runs); `slides`: the run
+ *  is over a window that slides (a `calc_bars_count` window or a framed instance). */
+export function runtimeIrOptions(def, rows, ctx, { sessionKey = null, slides = false } = {}) {
   const compute = (def && def.compute) || {}
-  const outputs = compute.outputs || {}
-  // ⛔ RT1 — R-W FOR THIS LANE (`memberPaneDefinition`, `runtimeHistory`): a
-  // document that needs its run to start at TradingView's bar 0 computes nothing
-  // on a series that is not proven to start at the symbol's listing — refused by
-  // name, never drawn off a seed TradingView never used.
-  const strategyDoc = !!(def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
-  if (def && def.meta && def.meta.runtimeHistory === 'listing' && !(ctx && ctx.historyFromListing === true)) {
-    // ⭐⭐ UIE PHASE 2 — R-W's WARM-UP CURTAIN, MEASURED PER RUN (`computeOffListing`):
-    // the bars whose values do not depend on where the chart starts are drawn; the
-    // ones before them are withheld; a script that never forgets its start is refused.
-    if (opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
-    throw refusal(RUNTIME_HISTORY_GUARD, "this script is drawn bar by bar from its first bar, and this chart's "
-      + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
-      + "would start from a different bar than TradingView's. Nothing is drawn rather than a guess. "
-      + 'TO UNBLOCK: a chart whose loaded history reaches the listing (a daily chart of a symbol listed '
-      + 'within the bars it loads) draws it.')
-  }
   const tf = ctx && typeof ctx.tf === 'string' ? ctx.tf : undefined
   const forming = newestBarIsFormingFrom(ctx)
   const symbol = symbolOf(ctx)
@@ -1334,24 +1396,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // ⭐⭐ RT5 — a document that draws its OWN objects builds them into the run
   // (`objectsInRun`); every other runtime document keeps the host lane's.
   const ownObjects = compute.objects === true
-  const tooBig = sourceSizeRefusal(compute.source)
-  if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig, 'PROGRAM_SIZE')
-  // ⭐ UIE PHASE 5 (M2) — the session, and whether this run resumes from it
-  // ⛔⛔ (re-review M1, M2) a run over a window that SLIDES: a calc_bars_count window
-  // (`opts.slidingWindow`, set by the window itself) or a framed instance (`ctx.framed`)
-  const slides = opts.slidingWindow === true || !!(ctx && ctx.framed === true)
-  const sessionKey = opts.incremental === false || opts.limits ? null
-    // ⛔ a sliding run keeps its OWN session: a build made with a ledger (a `varip` built) must
-    // never be reused by a run that refuses one
-    : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}`
-  const prevSession = sessionKey ? _sessions.get(sessionKey) : null
-  // ⭐⭐ P3 WS-F (B5) — THE SESSION'S BUILD, REUSED: the front end is not run again, only
-  // the columns are re-evaluated over THESE bars (`buildRecorder`, `columnsOver`).
-  const reused = prevSession && prevSession.build && rows.length ? columnsOver(prevSession.build, rows, prevSession) : null
-  const reusedLast = reused ? _lastReused : 0
-  const recorder = !reused && sessionKey && rows.length ? buildRecorder() : null
-  const built = reused ? { ok: true, ir: { ...prevSession.build.ir, columns: reused } } : withTranslateClock(opts.now, () => buildRuntimeIr(String(compute.source || ''), {
-    ...(recorder ? { columnInterpret: recorder.interpret } : {}),
+  return {
     // ⭐ P3 WS-F (review M3) — a `varip` builds only where its ledger runs: a run with a session
     ...(sessionKey && !slides ? { realtimeLedger: true } : {}),
     ...(slides ? { varipRefusal: SLIDING_VARIP_WHY } : {}),
@@ -1378,6 +1423,53 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // front end too, so a `?:` folded into a pure column reads an `na` test as
     // the VM does (`pineRuntimeFrontend.js::columnInterpretOpts`).
     ...(ctx && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
+  }
+}
+
+function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
+  const compute = (def && def.compute) || {}
+  const outputs = compute.outputs || {}
+  // ⛔ RT1 — R-W FOR THIS LANE (`memberPaneDefinition`, `runtimeHistory`): a
+  // document that needs its run to start at TradingView's bar 0 computes nothing
+  // on a series that is not proven to start at the symbol's listing — refused by
+  // name, never drawn off a seed TradingView never used.
+  const strategyDoc = !!(def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
+  if (def && def.meta && def.meta.runtimeHistory === 'listing' && !(ctx && ctx.historyFromListing === true)) {
+    // ⭐⭐ UIE PHASE 2 — R-W's WARM-UP CURTAIN, MEASURED PER RUN (`computeOffListing`):
+    // the bars whose values do not depend on where the chart starts are drawn; the
+    // ones before them are withheld; a script that never forgets its start is refused.
+    if (opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
+    throw refusal(RUNTIME_HISTORY_GUARD, "this script is drawn bar by bar from its first bar, and this chart's "
+      + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
+      + "would start from a different bar than TradingView's. Nothing is drawn rather than a guess. "
+      + 'TO UNBLOCK: a chart whose loaded history reaches the listing (a daily chart of a symbol listed '
+      + 'within the bars it loads) draws it.')
+  }
+  const tf = ctx && typeof ctx.tf === 'string' ? ctx.tf : undefined
+  const forming = newestBarIsFormingFrom(ctx)
+  const symbol = symbolOf(ctx)
+  // ⭐⭐ RT5 — a document that draws its OWN objects builds them into the run
+  // (`objectsInRun`); every other runtime document keeps the host lane's.
+  const ownObjects = compute.objects === true
+  const tooBig = sourceSizeRefusal(compute.source)
+  if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig, 'PROGRAM_SIZE')
+  // ⭐ UIE PHASE 5 (M2) — the session, and whether this run resumes from it
+  // ⛔⛔ (re-review M1, M2) a run over a window that SLIDES: a calc_bars_count window
+  // (`opts.slidingWindow`, set by the window itself) or a framed instance (`ctx.framed`)
+  const slides = opts.slidingWindow === true || !!(ctx && ctx.framed === true)
+  const sessionKey = opts.incremental === false || opts.limits ? null
+    // ⛔ a sliding run keeps its OWN session: a build made with a ledger (a `varip` built) must
+    // never be reused by a run that refuses one
+    : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}`
+  const prevSession = sessionKey ? _sessions.get(sessionKey) : null
+  // ⭐⭐ P3 WS-F (B5) — THE SESSION'S BUILD, REUSED: the front end is not run again, only
+  // the columns are re-evaluated over THESE bars (`buildRecorder`, `columnsOver`).
+  const reused = prevSession && prevSession.build && rows.length ? columnsOver(prevSession.build, rows, prevSession) : null
+  const reusedLast = reused ? _lastReused : 0
+  const recorder = !reused && sessionKey && rows.length ? buildRecorder() : null
+  const built = reused ? { ok: true, ir: { ...prevSession.build.ir, columns: reused } } : withTranslateClock(opts.now, () => buildRuntimeIr(String(compute.source || ''), {
+    ...(recorder ? { columnInterpret: recorder.interpret } : {}),
+    ...runtimeIrOptions(def, rows, ctx, { sessionKey, slides }),
   }))
   if (!built.ok) {
     const r = built.refusal || {}
