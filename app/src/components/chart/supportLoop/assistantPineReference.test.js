@@ -275,31 +275,55 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
   it('a stop of the run stands only while the engine still refuses its probe, and the paste check passes each', () => {
     const out = recipes()
     expect(out.stops.map((s) => s.id)).toEqual(Object.keys(RUN_STOP_PROBES).sort())
-    // today both stand, each by the engine's own name for it
+    // ⭐ WHICH STOPS STAND IS THE ENGINE'S ANSWER, NEVER THIS TEST'S. ⚰️ 2026-11-19: this block said
+    // "today the one-call delete stands"; an engine train had fixed it an hour before this file merged,
+    // and master went red on a fix. What is held now: a stop that stands, stands under ITS OWN guard;
+    // each fact a sentence states is true exactly while its stop stands; and each probe can report both
+    // answers (the CONTROLS, with a made-up run). The generated file follows the engine (the
+    // byte-for-byte test above: regenerate after an engine change); these lines follow the file.
     const by = Object.fromEntries(out.stops.map((s) => [s.id, s]))
-    expect(by['running-total']).toEqual({ id: 'running-total', history: 'offListing', standing: true, guard: 'runtime:warmup-never-converges' })
+    const GUARD = {
+      'running-total': 'runtime:warmup-never-converges', 'timestamp-clock': 'runtime:clock-zone',
+      'delete-in-one-call': WRONG_VALUE_GUARD, 'higher-timeframe-newest-bar': NEWEST_BAR_BLANK_GUARD,
+    }
+    expect(Object.keys(by).sort()).toEqual(Object.keys(GUARD).sort())
+    for (const [id, s] of Object.entries(by)) {
+      expect(s, id).toEqual({ id, history: RUN_STOP_PROBES[id].history, standing: s.standing, guard: s.standing ? GUARD[id] : null })
+    }
     // ⛔ the clock probe does NOT stand: on the chart's own context (a symbol with its exchange) `timestamp`
     // is answered. It was "refused" only while this harness passed no symbol (see the context rail below).
-    expect(by['timestamp-clock']).toEqual({ id: 'timestamp-clock', history: 'fromListing', standing: false, guard: null })
-    // ⛔ and one is a WRONG VALUE: the run finishes and the list it trims is not five long
-    expect(by['delete-in-one-call']).toEqual({ id: 'delete-in-one-call', history: 'fromListing', standing: true, guard: WRONG_VALUE_GUARD })
+    expect(by['timestamp-clock'].standing).toBe(false)
+    // ⛔ the one-call delete is a WRONG VALUE while it stands: the run finishes and the list it trims is
+    // not five long (every label ever pushed is still in it). Written in two steps it is right on any engine.
     const oneCall = computeOf(RUN_STOP_PROBES['delete-in-one-call'].source, 'daily', 'fromListing')
     expect(oneCall.ok).toBe(true)
-    expect(oneCall.last).toBeGreaterThan(100)                       // every label ever pushed is still in the list
+    expect(by['delete-in-one-call'].standing).toBe(oneCall.last !== 5)
     const twoSteps = RUN_STOP_PROBES['delete-in-one-call'].source
       .replace('    label.delete(array.shift(xs))', `    old = array.shift(xs)${LF}    label.delete(old)`)
     expect(twoSteps).not.toBe(RUN_STOP_PROBES['delete-in-one-call'].source)
-    expect(computeOf(twoSteps, 'daily', 'fromListing').last).toBe(5)        // CONTROL: in two steps it is right
-    expect(buildRunStops({ computeOf: () => ({ ok: true, values: 5, last: 5 }), probes: { p: { ...RUN_STOP_PROBES['delete-in-one-call'] } } }))
+    expect(computeOf(twoSteps, 'daily', 'fromListing').last).toBe(5)
+    // CONTROLS: the probe reports both answers
+    const deleteProbe = { p: { ...RUN_STOP_PROBES['delete-in-one-call'] } }
+    expect(buildRunStops({ computeOf: () => ({ ok: true, values: 5, last: 5 }), probes: deleteProbe }))
       .toEqual([{ id: 'p', history: 'fromListing', standing: false, guard: null }])
-    // ⛔ and one is a BLANK on the chart's newest bar: a weekly read mid-week
-    expect(by['higher-timeframe-newest-bar']).toEqual({ id: 'higher-timeframe-newest-bar', history: 'fromListing', standing: true, guard: NEWEST_BAR_BLANK_GUARD })
+    expect(buildRunStops({ computeOf: () => ({ ok: true, values: 5, last: 212 }), probes: deleteProbe }))
+      .toEqual([{ id: 'p', history: 'fromListing', standing: true, guard: WRONG_VALUE_GUARD }])
+    // ⛔ the weekly read is a BLANK on the chart's newest bar, mid-week, while it stands
     const midWeek = computeOf(RUN_STOP_PROBES['higher-timeframe-newest-bar'].source, 'daily', 'fromListing', { dropLast: 3 })
     expect(midWeek.ok).toBe(true)
-    expect(Number.isFinite(midWeek.newest)).toBe(false)             // the newest bar, mid-week: blank
-    expect(midWeek.values).toBe(RECIPE_BARS.daily.length - 3 - 1 - 4)  // every other bar from the first finished week on has one
-    // CONTROL: on a chart that ends on the last bar of its week, the newest bar has the value
+    expect(by['higher-timeframe-newest-bar'].standing).toBe(!Number.isFinite(midWeek.newest))
+    // (every other bar from the first finished week on has a value either way)
+    expect(midWeek.values).toBe(RECIPE_BARS.daily.length - 3 - 4 - (Number.isFinite(midWeek.newest) ? 0 : 1))
+    // on a chart that ends on the last bar of its week, the newest bar has the value on any engine
     expect(Number.isFinite(computeOf(RUN_STOP_PROBES['higher-timeframe-newest-bar'].source, 'daily', 'fromListing').newest)).toBe(true)
+    // CONTROLS: the probe reports both answers
+    const weeklyProbe = { p: { ...RUN_STOP_PROBES['higher-timeframe-newest-bar'] } }
+    expect(buildRunStops({ computeOf: () => ({ ok: true, values: 5, newest: 1 }), probes: weeklyProbe })[0].standing).toBe(false)
+    expect(buildRunStops({ computeOf: () => ({ ok: true, values: 5, newest: Number.NaN }), probes: weeklyProbe })[0])
+      .toEqual({ id: 'p', history: 'fromListing', standing: true, guard: NEWEST_BAR_BLANK_GUARD })
+    // the running total, while it stands, is refused by the engine's own name for it
+    expect(buildRunStops({ computeOf: () => ({ ok: false, guard: 'runtime:warmup-never-converges' }), probes: { p: { ...RUN_STOP_PROBES['running-total'] } } })[0])
+      .toEqual({ id: 'p', history: 'offListing', standing: true, guard: 'runtime:warmup-never-converges' })
     // ⛔ the reason these are probed by a RUN: the member's paste check says each one runs
     for (const id of Object.keys(RUN_STOP_PROBES)) {
       const v = verdictOf(RUN_STOP_PROBES[id].source)
