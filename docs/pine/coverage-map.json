@@ -114,16 +114,17 @@
   },
   "sampleScriptsWithACapture": 228,
   "sampleByTransferAndVerdict": {
-   "does-not-transfer:DIVERGE": 13,
+   "does-not-transfer:DIVERGE": 14,
    "does-not-transfer:INCONCLUSIVE": 144,
-   "does-not-transfer:MATCH": 10,
+   "does-not-transfer:MATCH": 9,
    "does-not-transfer:unproven (stale)": 185,
+   "transfers:DIVERGE": 1,
    "transfers:INCONCLUSIVE": 7,
-   "transfers:MATCH": 54,
+   "transfers:MATCH": 53,
    "transfers:unproven (stale)": 164
   },
-  "verifiedTransfer": 54,
-  "verifiedTransferPct": 8.0,
+  "verifiedTransfer": 53,
+  "verifiedTransferPct": 7.8,
   "note": "vendor-harness verdicts over tests/fixtures/vendor/harness (RDDT/SPY daily captures of corpus scripts and probes)",
   "ledger": {
    "fresh": 0,
@@ -21096,7 +21097,7 @@
     "droppedOps": 7,
     "split": "dropped"
    },
-   "vendorVerdict": "MATCH"
+   "vendorVerdict": "DIVERGE"
   },
   {
    "key": "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
@@ -27542,7 +27543,7 @@
     "droppedOps": 0,
     "split": "no-output-other"
    },
-   "vendorVerdict": "MATCH"
+   "vendorVerdict": "DIVERGE"
   },
   {
    "key": "committed:std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764",
