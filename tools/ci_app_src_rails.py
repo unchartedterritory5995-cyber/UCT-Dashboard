@@ -131,6 +131,13 @@ KNOWN_RED: dict[str, str] = {
         "5 server preference keys missing from the persistence manifest: `node tools/persistence_census.mjs --write`",
     "tests/test_scan_not_computable_inputs.py::test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST":
         "openingRangeHigh: the 'computable' fixture produced no value, so the 'holed' assertions would pass vacuously",
+    # ⛔ red on master SINCE #2016 (c4f411c38c, 2026-11-19 16:51Z, admit:request-other): the server now admits the
+    # request-other strategies, and neither strategyServeCensus.test.js's SERVER_ADMITS nor this rail's control was
+    # re-latched. No PR job ran this rail on #2016; this job, the first time it ran after, found it.
+    "tests/test_strategy_serve_arming.py::test_the_server_admits_exactly_the_census_list":
+        "since #2016: the server admits 5 more strategies (request-other) than SERVER_ADMITS in the JS census latches",
+    "tests/test_strategy_serve_arming.py::test_CONTROL_admission_is_a_door_not_a_pin":
+        "since #2016: request-other is admitted now, so the control's (False, ['request-other']) reads (True, [])",
     "tests/test_terminal_next_kill_switch.py::test_every_frontend_gate_answers_from_the_payload_the_switch_empties":
         "a new frontend Terminal-Next gate exists and is not acknowledged in ACKNOWLEDGED_FRONTEND_GATES",
     "tests/test_voice_client_request_shapes.py::test_the_declared_exceptions_are_exactly_the_ones_that_exist":
