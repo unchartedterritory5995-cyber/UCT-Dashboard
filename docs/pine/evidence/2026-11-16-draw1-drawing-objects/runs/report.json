@@ -2426,7 +2426,7 @@
   },
   {
    "capture": "rs-arm-label-last-bar-rddt-1d-2026-11-15",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -2440,7 +2440,7 @@
   },
   {
    "capture": "rs-arm-label-last-bar-spy-1d-2026-11-15",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -5581,7 +5581,7 @@
   },
   {
    "capture": "vw-object-gc-d-spy-1d-2026-09-28",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -5603,7 +5603,7 @@
   },
   {
    "capture": "vw-object-gc-d-spy-1d-2026-09-28",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
