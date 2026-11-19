@@ -3645,9 +3645,12 @@ def _build_enrichment_for_date(target: str) -> dict:
     def _compute_hist_stats(sym: str) -> dict | None:
         """Return compact hist_stats from get_historical_earnings_moves.
 
-        Uses _fetch_quarterly_history (FMP → AV fallback) to get the AV-shaped
-        quarters list required by get_historical_earnings_moves, then computes
+        Uses _fetch_quarterly_history to get the AV-shaped quarters list
+        required by get_historical_earnings_moves, then computes
         avg_abs_move, up_count, total, and last_n (newest first, capped at 8).
+        The prices behind the moves are our own daily bars first, Yahoo when
+        they cannot answer; the read of our bars waits a bounded time, so one
+        symbol's slow read never holds this sweep.
         """
         try:
             from api.services.engine import _fetch_quarterly_history
