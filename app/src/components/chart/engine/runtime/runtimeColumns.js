@@ -20,7 +20,8 @@
 // ⛔ THE CLOCK IS THREADED, NEVER ASSUMED. `runtimeClockOpts` fills both halves
 // of the forming-bar tri-state from ONE value, the pair `pineRuntimeFrontendGate
 // .test.js` requires every live importer of the front end to reach.
-import { buildRuntimeIr, RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION } from '../ast/pineRuntimeFrontend.js'
+import { buildRuntimeIr, RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION, columnSinkRefusal, columnBlankRefusal,
+  buildBarCountClass } from '../ast/pineRuntimeFrontend.js'
 import { RUNTIME_IR_VERSION } from './ir.js'
 import { runtimeClockOpts, newestBarIsFormingFrom, isNewByBar } from '../ast/pineRuntimeClock.js'
 import { interpret, isIntradayTf } from '../ast/interpret.js'
@@ -517,7 +518,57 @@ function computeStrategyWindow(def, rows, ctx, opts) {
  * `runtime.error` and the two run-wide budgets are the run's answer, not the
  * drawings', and stay as they are.
  */
+/** ⭐⭐ (the e81 live capture, 2026-11-19) — the record of a run started where every requested series is known
+ *  (non-enumerable): `{knownFrom, firstKnownT}` in the chart's own indices. */
+export const RUNTIME_KNOWN_FROM_KEY = '__runtimeKnownFrom'
+/** How many times a run may move its start for a depth gap (one per requested series that begins later). */
+const KNOWN_FROM_PASSES = 4
+
+/**
+ * ⭐⭐ (the e81 live capture, 2026-11-19) — A CHART DEEPER THAN OUR DATA IS DRAWN FROM WHERE OUR DATA BEGINS.
+ * ⚰️ On the served build every intraday chart's run half was refused whole: the chart's backfill reached far before
+ * the first SP:SPX row our store holds (5m ~60 days, 60m 730), every bar before it was UNKNOWN, and a run that
+ * carries state bar to bar refused the chart (`runtime:request`). A refusal that names ONLY such a depth gap carries
+ * `knownFrom` (`requestSupply.js`); the run then starts there, as a chart whose history does not reach the listing,
+ * so the off-listing two-start proof decides it (`computeOffListing`): drawn where both starts agree, withheld BY
+ * NAME where they never do. Its columns are widened back to the chart (`NaN` before), its drawings shifted, and its
+ * warm-up record moved by the same cut, so the run half's column rail starts after it. ⛔ A bar missing AFTER a
+ * series began carries no `knownFrom` and refuses as before; a strategy is never moved (its trades would change).
+ */
 export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
+  const strategy = !!(def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
+  let cut = 0
+  for (let pass = 0; ; pass += 1) {
+    try {
+      const cols = computeRuntimeColumnsAll(def, cut ? rows.slice(cut) : rows,
+        cut ? { ...(ctx || {}), historyFromListing: false } : ctx, opts)
+      return cut ? fromKnownDepth(cols, cut, rows[cut]) : cols
+    } catch (err) {
+      const k = err && Number.isInteger(err.knownFrom) ? err.knownFrom : 0
+      if (strategy || pass + 1 >= KNOWN_FROM_PASSES || k <= 0 || cut + k >= rows.length - 1) {
+        if (cut && err && Number.isInteger(err.bar)) err.bar += cut
+        throw err
+      }
+      cut += k
+    }
+  }
+}
+
+/** The run over `rows.slice(cut)`, as the chart reads it: widened (`NaN` before `cut`), drawings shifted, the
+ *  warm-up record moved by `cut`, and the depth recorded. */
+function fromKnownDepth(cols, cut, firstRow) {
+  const out = widenToChart(cols, cut, RUNTIME_OBJECTS_KEY)
+  const warm = cols && cols[RUNTIME_WARMUP_KEY]
+  const moved = warm && Number.isInteger(warm.withheldBars)
+    ? { ...warm, withheldBars: warm.withheldBars + cut, knownFrom: cut }
+    : { withheldBars: cut, knownFrom: cut }
+  Object.defineProperty(out, RUNTIME_WARMUP_KEY, { value: moved, enumerable: false, configurable: true })
+  Object.defineProperty(out, RUNTIME_KNOWN_FROM_KEY, {
+    value: Object.freeze({ knownFrom: cut, firstKnownT: firstRow ? firstRow.t : null }), enumerable: false, configurable: true })
+  return out
+}
+
+function computeRuntimeColumnsAll(def, rows, ctx, opts = {}) {
   // ⭐⭐ W9-T11 — a strategy document runs over the most recent `ctx.historyWindowBars` bars
   if (def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY) return computeStrategyWindow(def, rows, ctx, opts)
   // ⭐ WS-E — `calc_bars_count = N`: the run takes the chart's last N bars, as
@@ -804,9 +855,17 @@ export function runtimeSessionStats() {
   for (const s of _sessions.values()) bytes += s.bytes
   return { sessions: _sessions.size, cap: SESSION_CAP, byteCap: SESSION_BYTE_CAP, approxBytes: bytes }
 }
+// ⭐⭐ (2026-11-19, the B5 reuse fix) — A BAR'S TIME IS ITS OWN KEY, KEPT AS IT CAME. A daily, weekly or monthly
+// bar is keyed by its ISO date (`'2026-11-17'`), and `+'2026-11-17'` is `NaN`: the snapshot stored that `NaN` and
+// the checks compared `NaN` with `NaN`, which `Object.is` calls equal, so ANY two daily charts of one length had
+// "the same times". A session then carried its price-free clock columns (`dayofweek`, `time`, `time("W")`, …)
+// from the PREVIOUS run's bars: a daily window that slid one bar drew last window's `dayofweek` on every bar, and a
+// chart with a bar moved onto a Saturday was served where a cold build refuses `runtime:chart-clock`. The key the
+// run itself reads (`barTimes`, the columnar lane's bars) is kept and compared as it is: a string as a string, a
+// number as a number, and a key of another kind is another time (the safe direction: a rebuild).
 const rowsSnapshot = (rows) => {
   const n = rows.length
-  const out = { n, t: new Float64Array(n), o: new Float64Array(n), h: new Float64Array(n), l: new Float64Array(n),
+  const out = { n, t: new Array(n), o: new Float64Array(n), h: new Float64Array(n), l: new Float64Array(n),
     c: new Float64Array(n), v: new Float64Array(n) }
   for (let i = 0; i < n; i += 1) {
     const b = rows[i]
@@ -818,7 +877,7 @@ const sameRowsTo = (snap, rows, last) => {
   if (!snap || rows.length <= last || snap.n <= last) return false
   for (let i = 0; i <= last; i += 1) {
     const b = rows[i]
-    if (!Object.is(snap.t[i], +b.t) || !Object.is(snap.o[i], +b.o) || !Object.is(snap.h[i], +b.h)
+    if (!Object.is(snap.t[i], b.t) || !Object.is(snap.o[i], +b.o) || !Object.is(snap.h[i], +b.h)
       || !Object.is(snap.l[i], +b.l) || !Object.is(snap.c[i], +b.c) || !Object.is(snap.v[i], +b.v)) return false
   }
   return true
@@ -895,32 +954,45 @@ export function tickInvariant(tree) {
 /** The bars have the same times, in the same number, as a session's snapshot. */
 const sameTimes = (snap, rows) => {
   if (!snap || snap.n !== rows.length) return false
-  for (let i = 0; i < rows.length; i += 1) if (!Object.is(snap.t[i], +rows[i].t)) return false
+  for (let i = 0; i < rows.length; i += 1) if (!Object.is(snap.t[i], rows[i].t)) return false
   return true
 }
 /** Exported for its rails (`runtimeRealtimeGuards.test.js`); no product caller outside this file. */
 export function buildRecorder() {
   const trees = []
   let clean = true
+  let seenBars = undefined
   return {
     interpret(tree, bars, inputs, interpretOpts) {
+      if (seenBars === undefined && Array.isArray(bars)) seenBars = bars.length
       try {
         const v = interpret(tree, bars, inputs, undefined, undefined, interpretOpts)
         trees.push({ tree, inputs, interpretOpts, invariant: tickInvariant(tree) })
         return v
       } catch (e) { clean = false; throw e }
     },
-    /** the build to keep, or null; the IR's own columns (these bars' values) are dropped */
-    done(ir) {
+    /** the build to keep, or null; the IR's own columns (these bars' values) are dropped.
+     *  ⭐ (the B5 reuse fix) `nBars`: the count the build was made over, whose class (`buildBarCountClass`) a reuse
+     *  must share; a caller that does not say is taken at the count the columns were evaluated over. */
+    done(ir, nBars) {
       if (!clean || !ir || !Array.isArray(ir.columns) || trees.length !== ir.columns.length) return null
-      return { ir: { ...ir, columns: [] }, trees }
+      return { ir: { ...ir, columns: [] }, trees, barCountClass: buildBarCountClass(Number.isInteger(nBars) ? nBars : seenBars) }
     },
   }
 }
-/** The columns of a kept build over `rows`, made exactly as `columnOf` makes them, or null.
- *  `prev` is the session whose last run computed `prev.program.columns` with this build. */
+/** The columns of a kept build over `rows`, made AND CHECKED exactly as `columnOf` makes and checks them, or null
+ *  (the run builds afresh, and says what a cold build says). `prev` is the session whose last run computed
+ *  `prev.program.columns` with this build.
+ *  ⭐⭐ (2026-11-19, the B5 reuse fix) — ONE AUTHORITY FOR WHAT A COLUMN REFUSES: the front end's own
+ *  (`columnSinkRefusal`, the length, `columnBlankRefusal`), and the bar count's class the build was made in
+ *  (`buildBarCountClass`). ⚰️ This kept its own list, `time-*` codes only, so a reuse over new bars served a
+ *  `stoch:flat-window`, a `bool`-`na` or tie witness, a `request:other-timeframe` read and a blank left-edge column
+ *  that a cold build refuses by name, and reused a build made within Pine's history buffer over a chart grown past
+ *  it (a dynamic offset a cold build lowers piecewise). */
 export function columnsOver(build, rows, prev) {   // exported for its rails, as `buildRecorder`
   const n = rows.length
+  // a build that names its class is reused only within it (a hand-made build in a rail names none)
+  if (build.barCountClass !== undefined && build.barCountClass !== buildBarCountClass(n)) return null
   const out = new Array(build.trees.length)
   let reusedCount = 0
   const prevCols = prev && prev.program && Array.isArray(prev.program.columns)
@@ -934,13 +1006,14 @@ export function columnsOver(build, rows, prev) {   // exported for its rails, as
     // hands back to a rebuild, which says so by name (`runtime:chart-clock`).
     const sink = new Map()
     try { value = interpret(tree, rows, inputs, undefined, undefined, { ...(interpretOpts || {}), chartClockSink: sink }) } catch { return null }
-    for (const code of sink.keys()) if (String(code).startsWith('time-')) return null
+    if (columnSinkRefusal(sink, n, null)) return null
     const arr = typeof value === 'number' ? new Float64Array(n).fill(value)
       : value instanceof Float64Array ? value : Float64Array.from(value)
     // ⚠️ FAIL-CLOSED, NOT MUTATION-PROVABLE: `interpret` over `rows` answers `n` values today
     // (deleting this line left every rail green). It stands because `columnOf` refuses the same
     // mismatch by name, and a cached column of the wrong length would be read past its end.
     if (arr.length !== n) return null
+    if (columnBlankRefusal(sink, arr, n, null)) return null
     out[k] = arr
   }
   _lastReused = reusedCount
@@ -1356,7 +1429,12 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const reqSupply = requestSites.length
     ? runtimeRequestSupply(program.requests, rows, opts && opts.warmupCurtain === false ? { ...ctx, curtained: true } : ctx)
     : null
-  if (reqSupply && reqSupply.refusal) throw refusal(reqSupply.refusal.guard, reqSupply.refusal.message)
+  if (reqSupply && reqSupply.refusal) {
+    const err = refusal(reqSupply.refusal.guard, reqSupply.refusal.message)
+    // ⭐⭐ a DEPTH gap only (`requestSupply.js`): the caller may start the run where every read is known
+    if (Number.isInteger(reqSupply.refusal.knownFrom)) err.knownFrom = reqSupply.refusal.knownFrom
+    throw err
+  }
   if (reqSupply && reqSupply.pending) {
     // PENDING, NOT REFUSED (2026-11-16): the guard is unchanged, and the error says the wait is
     // a wait (`pending`), so a reader that words a refusal does not word this one as final
@@ -1366,7 +1444,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     waiting.pending = true
     throw waiting
   }
-  const build = reused ? prevSession.build : (recorder ? recorder.done(built.ir) : null)
+  const build = reused ? prevSession.build : (recorder ? recorder.done(built.ir, rows.length) : null)
   // ⛔ RS RATING L5 — a run that reads requested bars never resumes from a checkpoint: the
   // checkpoint's state was computed from the requested bars of an EARLIER supply.
   const resumable = prevSession && !opts.probe && !reqSupply ? resumableFrom(prevSession, rows, program)

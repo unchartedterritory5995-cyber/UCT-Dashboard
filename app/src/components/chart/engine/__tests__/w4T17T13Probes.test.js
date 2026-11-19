@@ -112,10 +112,14 @@ describe('W4-D1 baseline: ours today (the captures settle which of these are RIG
 })
 
 describe('W4-M1..M5 baseline: ours today', () => {
-  it('M1 / M5 refuse the constant offset by name; M4 refuses max_bars_back(x, n); M2 / M3 build', () => {
-    expect(guardOf(read(MBB_FILES.M1))).toBe('runtime:directive')
-    expect(guardOf(read(MBB_FILES.M5))).toBe('runtime:directive')
-    expect(guardOf(read(MBB_FILES.M4))).toBe('runtime:directive')
+  // ⭐ engine 83 (WS-C M1 / M4 / M5, captured 2026-11-18, packet 6f54e4c81044): TradingView draws all
+  // three (M1 `close[30]` past a declared 20, M5 `close[6000]`, M4 `x[60]` / `ta.sma(x, 60)` after
+  // `max_bars_back(x, 50)`), so they BUILD now; the values are railed against the captures in
+  // `runtime/__tests__/wscConstantOffsets.test.js`. They refused `runtime:directive` until then.
+  it('M1 / M5 / M4 build (a constant offset past the buffer or 5,000 is served; max_bars_back(x, n) bounds nothing); M2 / M3 build', () => {
+    expect(guardOf(read(MBB_FILES.M1))).toBe('ok')
+    expect(guardOf(read(MBB_FILES.M5))).toBe('ok')
+    expect(guardOf(read(MBB_FILES.M4))).toBe('ok')
     expect(guardOf(read(MBB_FILES.M2), mkBars(400))).toBe('ok')
     expect(guardOf(read(MBB_FILES.M3), mkBars(400))).toBe('ok')
   })
