@@ -1,5 +1,5 @@
 // What every Breadth Monitor column means — ONE place, keyed by metric key (owner
-// 2026-11-19). The header's hover card and the top of its click menu read it.
+// 2026-11-19). The top of the header's click menu and its screen-reader description read it.
 //
 // Reconciled with the engine's own definitions: `api/services/breadth_metrics.py`
 // DESCRIPTIONS (windows and thresholds are the ones the code applies) and the notes

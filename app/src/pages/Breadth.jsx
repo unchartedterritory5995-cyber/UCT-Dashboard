@@ -12,9 +12,8 @@ import { SkeletonTileContent } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
 import { formatETFull } from '../utils/timeAgo'
 // The chart's own UCT Signature floating menu (`signature`): the Monitor's header
-// menu, its ⋯ menu and the header hover card wear exactly its panel, rows and labels.
+// menu and its ⋯ menu wear exactly its panel and rows.
 import ContextPopover from '../components/mobile/ContextPopover'
-import cpStyles from '../components/mobile/ContextPopover.module.css'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
@@ -147,9 +146,29 @@ export const VIEWS_DAY_CHOICES = [90, 180, 365]
 // (date box) drives WHERE the fixed window ends instead of how wide it is. This
 // is the fixed span it always shows (was the 90d default the pills topped out at).
 export const MONITOR_WINDOW = 90
-// Fixed Monitor row height in px — must match `.table td` height in Breadth.module.css.
+// Fixed Monitor row height in px — must match `.table` --br-row-h in Breadth.module.css.
 // A fixed height keeps virtual scroll-to-index pixel-exact across the whole timeline.
 export const MONITOR_ROW_H = 32
+// Wide screens (owner 2026-11-19): the sheet is ~10% larger at this width and up —
+// the SAME query as the `@media (min-width: 1700px)` block in Breadth.module.css.
+export const MONITOR_WIDE_QUERY = '(min-width: 1700px)'
+export const MONITOR_ROW_H_WIDE = 35
+
+/** The active Monitor row height: follows the wide-screen breakpoint live, so the
+ *  virtualizer's fixed size always equals the CSS row height. */
+function useMonitorRowH() {
+  const read = () => (typeof window !== 'undefined' && window.matchMedia?.(MONITOR_WIDE_QUERY).matches
+    ? MONITOR_ROW_H_WIDE : MONITOR_ROW_H)
+  const [h, setH] = useState(read)
+  useEffect(() => {
+    const mq = typeof window !== 'undefined' ? window.matchMedia?.(MONITOR_WIDE_QUERY) : null
+    if (!mq) return undefined
+    const on = () => setH(mq.matches ? MONITOR_ROW_H_WIDE : MONITOR_ROW_H)
+    mq.addEventListener?.('change', on)
+    return () => mq.removeEventListener?.('change', on)
+  }, [])
+  return h
+}
 
 export const COLS = [
   // ── Score ─────────────────────────────────────────────────────────────────
@@ -383,7 +402,12 @@ function valueCh(col) {
   return 6                                  // counts: 00,000
 }
 // +1ch for the live row's "≈" mark; 32px = the cell padding (incl. a family start).
-const colMinWidth = (col) => `calc(${valueCh(col) + 1}ch + 32px)`
+// `ch` here is the HEADER font's; × --br-fs-ratio makes it the cell font's, and the
+// padding follows --br-cell-px, so the widths scale with the wide-screen size too.
+// The centered value box (owner 2026-11-19): the column's widest value in the CELL
+// font (`ch` of the box itself), so every row's box is the same width.
+const numBoxWidth = (col) => `${valueCh(col)}ch`
+const colMinWidth = (col) => `calc(${valueCh(col) + 1}ch * var(--br-fs-ratio, 1.087) + 2 * var(--br-cell-px, 12px) + 8px)`
 
 function cellClass(col, val, row = null) {
   const s = shadeFor(col.key, row)
@@ -391,15 +415,16 @@ function cellClass(col, val, row = null) {
 }
 
 // A column's name in plain words + what it measures (breadth/columnInfo.js): the
-// header's hover card and the top of its click menu.
+// top of the header's click menu, and its screen-reader description.
 function ColumnInfoBlock({ colKey }) {
   const info = columnInfo(colKey)
   if (!info) return null
-  // The chart menu's idiom: the name is a small grey section label (ContextPopover's own
-  // `groupLabel`, like "This chart"), the description muted body text under it.
+  // In the chart menu's panel (ContextPopover `signature`), the description header is a
+  // real title + readable body (owner round 10): its own classes, so the chart menu's
+  // grey section labels (`groupLabel`) are untouched.
   return (
     <div className={styles.colInfo}>
-      <div className={cpStyles.groupLabel}>{info.name}</div>
+      <div className={styles.colInfoName}>{info.name}</div>
       <div className={styles.colInfoDesc}>{info.desc}</div>
       {info.weekly && <div className={styles.colInfoDesc}>A weekly survey: it updates once a week.</div>}
     </div>
@@ -804,44 +829,18 @@ export default function Breadth() {
   // The one floating as-of tooltip over a carried (older-than-its-cadence) cell.
   const [ageTip, setAgeTip] = useState(null)
 
-  // The column header's hover card (owner 2026-11-19): what the column means, after
-  // a short hover or on keyboard focus; hidden while that header's menu is open.
-  const [colCard, setColCard] = useState(null)
-  const colCardTimer = useRef(null)
-  const colMenuOpen = useRef(false)
-  // The one header menu (chart Signature ContextPopover): { key, index, anchor }.
+  // The one header menu (chart Signature ContextPopover): { key, index, anchor }. It is
+  // the ONLY popup a header has (owner 2026-11-19: no hover card).
   const [colMenu, setColMenu] = useState(null)
   const colMenuBtn = useRef(null)
-  const colMenuReturning = useRef(false)
   const [moreMenu, setMoreMenu] = useState(null)
-  const hideColCard = useCallback(() => {
-    clearTimeout(colCardTimer.current)
-    setColCard(null)
-  }, [])
-  const showColCard = useCallback((key, el, delay) => {
-    clearTimeout(colCardTimer.current)
-    if (!el) return
-    colCardTimer.current = setTimeout(() => {
-      if (colMenuOpen.current) return
-      const r = el.getBoundingClientRect()
-      const left = Math.max(8, Math.min(r.left, window.innerWidth - 288))
-      setColCard({ key, left, top: r.bottom + 6 })
-    }, delay)
-  }, [])
-  useEffect(() => () => clearTimeout(colCardTimer.current), [])
   const openColMenu = useCallback((key, index, btn) => {
-    hideColCard()
     if (colMenu?.key === key) { setColMenu(null); return }
     colMenuBtn.current = btn
-    colMenuOpen.current = true
     const r = btn.getBoundingClientRect()
     setColMenu({ key, index, anchor: { x: r.left - 4, y: r.bottom + 6 } })
-  }, [colMenu, hideColCard])
-  const closeColMenu = useCallback(() => {
-    colMenuOpen.current = false
-    colMenuReturning.current = true   // ContextPopover hands focus back to the header next
-    setColMenu(null)
-  }, [])
+  }, [colMenu])
+  const closeColMenu = useCallback(() => setColMenu(null), [])
 
   const [drill, setDrill] = useState(null)
   // drill = { date, label, items: [{t,pct}] | null }
@@ -992,13 +991,15 @@ export default function Breadth() {
   //    scroll-to-index; only the visible rows fetch, so scrolling stays light. ──
   const grid = useMonitorGrid({ enabled: activeTab === 'breadth', liveRow: liveBreadth.row })
   const tableWrapRef = useRef(null)
+  const rowH = useMonitorRowH()
   const rowVirtualizer = useVirtualizer({
     count: grid.count,
     getScrollElement: () => tableWrapRef.current,
-    // FIXED row height (enforced in CSS: .table td is 32px border-box). No dynamic
-    // measurement — a fixed size makes scrollToIndex pixel-exact across all ~4,700
-    // rows, so a jump to any year lands on the right session with zero drift.
-    estimateSize: () => MONITOR_ROW_H,
+    // FIXED row height (enforced in CSS: .table --br-row-h, 32px or 35px on wide
+    // screens; `rowH` follows the same breakpoint). No dynamic measurement — a fixed
+    // size makes scrollToIndex pixel-exact across all ~4,700 rows, so a jump to any
+    // year lands on the right session with zero drift.
+    estimateSize: () => rowH,
     overscan: 14,
   })
   const virtualItems = rowVirtualizer.getVirtualItems()
@@ -1006,9 +1007,21 @@ export default function Breadth() {
   // NOT virtualItems[0], which is the first OVERSCAN row rendered above the
   // viewport and would put the date box ~14 rows off.
   const monitorTopIndex = grid.count
-    ? Math.min(grid.count - 1, Math.max(0, Math.round((rowVirtualizer.scrollOffset ?? 0) / MONITOR_ROW_H)))
+    ? Math.min(grid.count - 1, Math.max(0, Math.round((rowVirtualizer.scrollOffset ?? 0) / rowH)))
     : 0
   const monitorTopDate = grid.allDates[monitorTopIndex] ?? null
+  // Crossing the breakpoint changes every row's size: re-measure, and keep the same
+  // session at the top (the index read at the OLD height, before this render's change).
+  const topIndexRef = useRef(0)
+  const lastRowH = useRef(rowH)
+  useEffect(() => {
+    if (lastRowH.current === rowH) { topIndexRef.current = monitorTopIndex; return }
+    lastRowH.current = rowH
+    rowVirtualizer.measure()
+    // Fixed rows: the session's offset is exactly index × height.
+    const el = tableWrapRef.current
+    if (el) el.scrollTop = topIndexRef.current * rowH
+  })
 
   // Keep the visible (and just-off-screen) rows loaded as the user scrolls.
   const visFirst = virtualItems[0]?.index ?? 0
@@ -1452,10 +1465,8 @@ export default function Breadth() {
                     <th
                       scope="col"
                       key={col.key}
-                      // No native title: the column's meaning shows in the Signature
-                      // hover card (and atop the click menu) — never a double tooltip.
-                      onPointerEnter={(e) => showColCard(col.key, e.currentTarget, 300)}
-                      onPointerLeave={hideColCard}
+                      // No native title and no hover card: the column's meaning is the
+                      // header of its click menu (and the hidden description below).
                       className={`${styles.th} ${styles.colLabel} ${groupStartKeys.has(col.key) ? styles.groupStart : ''} ${isMa ? styles.thMa : ''}`}
                       style={isMa ? undefined : { minWidth: colMinWidth(col) }}
                     >
@@ -1469,19 +1480,18 @@ export default function Breadth() {
                         aria-label={isMa ? `${maStackTitle(col)} — column options` : `${col.label} column options`}
                         aria-haspopup="menu"
                         aria-expanded={colMenu?.key === col.key}
-                        aria-describedby={colCard?.key === col.key ? 'breadth-col-card' : undefined}
+                        aria-describedby={columnInfo(col.key) ? `breadth-col-info-${col.key}` : undefined}
                         onClick={(e) => openColMenu(col.key, ci, e.currentTarget)}
-                        onFocus={(e) => {
-                          // Focus coming back from this header's own menu is not a
-                          // request for the card.
-                          if (colMenuReturning.current) { colMenuReturning.current = false; return }
-                          if (e.currentTarget.matches(':focus-visible')) showColCard(col.key, e.currentTarget.closest('th'), 0)
-                        }}
-                        onBlur={hideColCard}
-                        onKeyDown={(e) => { if (e.key === 'Escape') hideColCard() }}
                       >
                         {label}
                       </button>
+                      {/* The explanation for screen readers (the visible one is the
+                          menu's header): visually hidden, never a native title. */}
+                      {columnInfo(col.key) && (
+                        <span id={`breadth-col-info-${col.key}`} className={styles.srOnly}>
+                          {`${columnInfo(col.key).name}. ${columnInfo(col.key).desc}`}
+                        </span>
+                      )}
                     </th>
                   )
                 })}
@@ -1646,7 +1656,10 @@ export default function Breadth() {
                             + `${row._live ? ', live session' : `, ${row.date}`} — open the list of stocks`,
                         } : {})}
                       >
-                        {fmtCell(col, val)}
+                        {/* The value right-aligned in a box as wide as the column's widest
+                            value, the box centered in the cell: ones stay under ones and
+                            each column's numbers sit in its middle (owner 2026-11-19). */}
+                        <span className={styles.numBox} style={{ width: numBoxWidth(col) }}>{fmtCell(col, val)}</span>
                       </td>
                     )
                   })}
@@ -1661,14 +1674,6 @@ export default function Breadth() {
               )}
             </tbody>
           </table>
-        </div>
-      )}
-      {colCard && activeTab === 'breadth' && columnInfo(colCard.key) && (
-        // The same Signature panel as the menu (ContextPopover's own classes).
-        <div id="breadth-col-card" role="tooltip" data-testid="breadth-col-card"
-             className={`${cpStyles.menu} ${cpStyles.signature} ${styles.colCard}`}
-             style={{ left: colCard.left, top: colCard.top }}>
-          <ColumnInfoBlock colKey={colCard.key} />
         </div>
       )}
       {activeTab === 'breadth' && (

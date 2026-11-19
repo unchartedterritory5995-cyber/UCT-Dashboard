@@ -184,3 +184,20 @@ describe('the column header menu', () => {
     expect(container.querySelectorAll('thead th[title], thead button[title]')).toHaveLength(0)
   })
 })
+
+// Owner 2026-11-19 (round 10): the click menu is a header's only popup — no hover card.
+describe('a column header has one popup', () => {
+  it('hovering a header opens nothing; its explanation is a hidden description', () => {
+    mount()
+    const btn = screen.getByRole('button', { name: 'CBOE P/C column options' })
+    const th = btn.closest('th')
+    fireEvent.pointerOver(th)
+    fireEvent.pointerEnter(th)
+    fireEvent.mouseOver(btn)
+    fireEvent.focus(btn)
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    const desc = document.getElementById(btn.getAttribute('aria-describedby'))
+    expect(desc.textContent).toMatch(/^CBOE put\/call ratio\. Put volume divided by call volume/)
+  })
+})
