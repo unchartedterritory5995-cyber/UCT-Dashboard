@@ -133,6 +133,44 @@ controls that read the same under both rules. Every array is sorted ascending wi
 epsilon or out), so every binary-search row has one answer under each rule. A reading that matches neither column
 is a finding: record it as read.
 
+### Readings of Q-FCMP3 (run `fcmp3b-2026-11-18`, packet sha256 `b400024aa71d2d2c895f04bf449f4cb310dd28e49d25f988cd002d2a9f0ad0ef`)
+
+Both captures are committed: `tests/fixtures/vendor/harness/vw-fcmp-arrays-{spy,rddt}-1d-2026-11-18.json`, from the
+listing (`history.startsAtBar0`), AMEX:SPY 8,510 bars and NYSE:RDDT 669 bars, captured 22:05Z.
+
+- The source is master's `vw-fcmp-arrays.pine` as committed (sha256 `180b5093...`, 3,469 bytes). The engine-78 entry
+  rewrote one comment line of the `58219b53...` text filed above.
+- This RE-CAPTURE supersedes run `fcmp3-2026-11-18` (packet `c82872f0c9fe`, licence-held, never committed). That run
+  read the same 16 values.
+- Every row reads the same on every bar of both symbols.
+
+| row | site | tolerant / exact predicted | TradingView | reads |
+|---|---|---|---:|---|
+| A01 | lastindexof, exact control | 2 / 2 | 2 | control |
+| A02 | lastindexof, the last element 1 + 3e-14 | 2 / 0 | 2 | TOLERANT |
+| A03 | lastindexof, target 1 + 3e-14 | 0 / -1 | 0 | TOLERANT |
+| A04 | lastindexof, target 1 + 9e-11 | 0 / -1 | 0 | TOLERANT |
+| A05 | lastindexof, 3e-10 control | -1 / -1 | -1 | control |
+| A06 | binary_search, exact control | 1 / 1 | 1 | control |
+| A07 | binary_search 2 + 3e-14 | 1 / -1 | -1 | EXACT |
+| A08 | binary_search 2 - 3e-14 | 1 / -1 | -1 | EXACT |
+| A09 | binary_search 2 + 9e-11 | 1 / -1 | -1 | EXACT |
+| A10 | binary_search, 3e-10 control | -1 / -1 | -1 | control |
+| A11 | binary_search_leftmost 2 - 3e-14 | 1 / 0 | 0 | EXACT |
+| A12 | binary_search_leftmost 2 - 9e-11 | 1 / 0 | 0 | EXACT |
+| A13 | binary_search_rightmost 2 + 3e-14 | 1 / 2 | 2 | EXACT |
+| A14 | binary_search_rightmost 2 + 9e-11 | 1 / 2 | 2 | EXACT |
+| A15 | binary_search_leftmost, 3e-10 control | 0 / 0 | 0 | control |
+| A16 | binary_search_rightmost, 3e-10 control | 2 / 2 | 2 | control |
+
+Results:
+
+- `array.lastindexof` compares a number within the operators' epsilon, as `array.indexof` / `array.includes` do
+  (Q-FCMP2 B27 / B28 / Z12).
+- The three binary searches compare exactly.
+- No reading falls outside the two predicted columns.
+- The engine change follows these readings (engine NUMBER PENDING, `feat/pine-tolerant-lastindexof`).
+
 ## Readings each model predicts (what each plot answers)
 
 **The code.** Every `cmp(a, b)` plot packs the six operators into one integer: 1·(a == b) + 2·(a != b) + 4·(a < b) +
