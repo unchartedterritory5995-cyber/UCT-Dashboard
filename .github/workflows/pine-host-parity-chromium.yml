@@ -1,0 +1,92 @@
+# promotion-gate: no — ADVISORY. It never runs on a master push and never decides promotion.
+# ─── THE HOST-PARITY RAIL'S CHROMIUM HALF (HP-2 / HP-3), ON A RUNNER ─────────────────────────────
+#
+# docs/pine/SERVER-RUNTIME-DESIGN.md 2.3: the corpus (app/src/components/chart/engine/runtime/__fixtures__/
+# hostParity) runs on BOTH hosts. The Node half (HP-1, HP-4) runs in the master deploy gate. The Chromium half,
+# the production worker chunk (`assets/runtimeWorker-*.js` of a vite build) driven in Playwright's bundled
+# Chromium by tools/pine_runtime_host_parity.py, ran by hand only.
+# ⚰️ WHY (2026-11-19). So it sat red, unseen: from engine 59 the harness ran no case windowed (it never stamped
+# `meta.calcBarsCount`, the window's one authority since CBC-FMT), and `h_varip_window` was refused by the Node
+# half for having no realtime ledger and SERVED by the browser's session ledger. Found by a hand run on
+# 2026-11-19, after the harness had been blind for 26 engine numbers.
+#
+# What runs: a vite build; then, OFFLINE (tools/ci_offline.sh), the Chromium half against the committed digests
+# and a fresh Node half over the server bundle. Exit 0 = equal (the corpus's `reportOnly` cases may differ and
+# are reported, not gated); 1 = a case differs, named; 2 = inconclusive (the worker never loaded, or a
+# wall-clock stop). Anything but 0 fails the job.
+# ⛔ Playwright's Chromium is installed BEFORE the offline step (it is the one download); the run itself has
+# no network. Committed fixtures only: the licence-held stores are pinned to empty directories, as in
+# pine-heavy.yml (the same setup action checks them).
+# Its own workflow, not a pine-heavy job: that workflow is PR/dispatch only by rule (tests/test_ci_pine_heavy.py),
+# and this one also runs nightly on master, where a merge that no PR run covered can still move a host.
+# Rails: tests/test_ci_host_parity_chromium.py.
+
+name: pine host parity, Chromium half
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/pine-host-parity-chromium.yml'
+      - '.github/actions/pine-heavy-setup/**'
+      - 'app/src/components/chart/engine/**'
+      - 'app/scripts/build-pine-runtime.mjs'
+      - 'app/vite.config.js'
+      - 'app/package-lock.json'
+      - 'tools/pine_runtime_host_parity.mjs'
+      - 'tools/pine_runtime_host_parity.py'
+      - 'tools/runtime_pane_worker_probe.py'
+      - 'tools/ci_offline.sh'
+      - 'api/services/pine_runtime_codec.py'
+      - 'tests/test_ci_host_parity_chromium.py'
+  schedule:
+    # nightly, on the default branch (master)
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # ⛔ the out-of-git stores, pinned to directories the setup action creates EMPTY (and refuses if not)
+  UCT_VENDOR_CAPTURE_STORE: /tmp/hp-chromium-empty-store/captures
+  UCT_HARNESS_SUPPLY_STORE: /tmp/hp-chromium-empty-store/supply
+  NODE_OPTIONS: --max-old-space-size=6144
+
+jobs:
+  chromium-half:
+    name: host parity, Chromium half (HP-2, HP-3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      # Node 20 + cached node_modules, the empty licence-held stores, and the no-network wrapper's self-check
+      - uses: ./.github/actions/pine-heavy-setup
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Playwright's Chromium and the tool's Python packages (the one download, BEFORE the offline run)
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pytest playwright==1.58.0
+          python -m playwright install --with-deps chromium
+      - name: The production build (the worker chunk the browser runs)
+        working-directory: app
+        run: npx vite build --logLevel warn
+      - name: The Chromium half against the committed digests and a fresh Node half (offline)
+        run: |
+          set -euo pipefail
+          rc=0
+          bash tools/ci_offline.sh python tools/pine_runtime_host_parity.py --dist app/dist --out "$RUNNER_TEMP/hp" || rc=$?
+          echo "host parity, Chromium half: exit $rc (0 equal; 1 a case differs, named in the log; 2 inconclusive)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-host-parity-chromium
+          path: ${{ runner.temp }}/hp/
+          if-no-files-found: warn
