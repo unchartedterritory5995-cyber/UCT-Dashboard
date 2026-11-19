@@ -42,6 +42,8 @@
       "app/src/components/chart/engine/runtime/runtimeRepaint.json",
       "app/src/components/chart/engine/scriptEngineVersion.js",
       "app/src/components/chart/indicators.js",
+      "app/src/components/chart/supportLoop/assistantPineReference.json",
+      "app/src/components/chart/supportLoop/assistantRecipes.json",
       "app/src/components/chart/supportLoop/doorNameCoverage.json",
       "app/src/components/chart/supportLoop/pineBuiltins.json",
       "app/src/constants/quotes.json",
