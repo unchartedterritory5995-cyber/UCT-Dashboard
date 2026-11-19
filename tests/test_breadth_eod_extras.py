@@ -227,3 +227,80 @@ def test_market_phase_falls_back_to_that_days_wire_only(tmp_path, monkeypatch):
         "date": "2026-10-09", "breadth": {"market_phase": "Rally Attempt"}})
     assert bee.market_phase_for("2026-10-09") == "Rally Attempt"
     assert bee.market_phase_for("2026-10-08") is None
+
+
+# ── sp500_close: the licensed daily index feed first, yfinance only on a miss ────────────
+
+class _Answer:
+    def __init__(self, value):
+        self.value = value
+
+
+def _no_yahoo(monkeypatch):
+    """Any reach to the fallback fails the test."""
+    from api.services import yf_util
+
+    def boom(*a, **k):
+        raise AssertionError("the fallback was reached")
+    monkeypatch.setattr(yf_util, "bounded_call", boom)
+
+
+def _licensed(monkeypatch, rows, seen=None):
+    from api.services import fmp_client
+
+    def fake(symbol, from_date, to_date, **k):
+        if seen is not None:
+            seen.append((symbol, from_date, to_date))
+        if isinstance(rows, Exception):
+            raise rows
+        return _Answer(rows)
+    monkeypatch.setattr(fmp_client, "get_index_history_eod_full", fake)
+
+
+def test_the_sp500_close_is_the_licensed_row_for_exactly_that_session(monkeypatch):
+    seen = []
+    _licensed(monkeypatch, [{"date": "2026-10-09", "close": 6712.3456},
+                            {"date": "2026-10-08", "close": 6690.1}], seen)
+    _no_yahoo(monkeypatch)
+    assert bee.sp500_close("2026-10-09") == 6712.35
+    assert seen == [("^GSPC", "2026-10-02", "2026-10-09")]      # one request, one short window
+
+
+def test_a_neighbouring_sessions_close_is_never_used(monkeypatch):
+    """The feed answered, but not for the session asked: that is a miss, and the fallback's
+    answer (here: none) stands. The day before's close must not be carried forward."""
+    from api.services import yf_util
+    _licensed(monkeypatch, [{"date": "2026-10-08", "close": 6690.1}])
+    monkeypatch.setattr(yf_util, "bounded_call", lambda fn, default, **k: default)
+    assert bee.sp500_close("2026-10-09") is None
+
+
+@pytest.mark.parametrize("rows", [
+    RuntimeError("vendor down"),
+    [],
+    {"error": "not a list"},
+    [{"date": "2026-10-09", "close": None}],
+    [{"date": "2026-10-09", "close": "n/a"}],
+    [{"date": "2026-10-09", "close": 0}],
+    [{"date": "2026-10-09", "close": float("nan")}],
+    [{"date": "2026-10-09"}],
+    ["2026-10-09"],
+])
+def test_a_licensed_miss_falls_back_and_never_writes_a_zero(monkeypatch, rows):
+    from api.services import yf_util
+    _licensed(monkeypatch, rows)
+    asked = []
+
+    def fallback(fn, default, **k):
+        asked.append(k.get("timeout"))
+        return 6700.12
+    monkeypatch.setattr(yf_util, "bounded_call", fallback)
+    assert bee.sp500_close("2026-10-09") == 6700.12
+    assert asked == [20.0]
+
+
+def test_a_date_that_does_not_parse_is_a_miss_not_a_raise(monkeypatch):
+    from api.services import yf_util
+    _licensed(monkeypatch, AssertionError("the licensed feed was asked with a bad date"))
+    monkeypatch.setattr(yf_util, "bounded_call", lambda fn, default, **k: default)
+    assert bee.sp500_close("not-a-date") is None
