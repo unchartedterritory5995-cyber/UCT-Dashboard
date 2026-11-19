@@ -1,5 +1,5 @@
 {
-  "fingerprint": "service:bars-api=running d3c11248e9, which is NOT on master: a rollback or a hand deploy of other code|tests:nightly NEW failures=run 43726736793 found 120 NEW failures against the previous valid master run|tests:nightly full suite=no VALID master run for over 36 h (newest valid is run 43726736793)",
-  "posted_at": "2026-11-19T01:28:59.123682+00:00",
+  "fingerprint": "tests:nightly NEW failures=run 43726736793 found 120 NEW failures against the previous valid master run|tests:nightly full suite=no VALID master run for over 36 h (newest valid is run 43726736793)",
+  "posted_at": "2026-11-19T01:42:59.140954+00:00",
   "reason": "new stuck item"
 }
