@@ -2523,7 +2523,38 @@ an OOM, and thirteen concurrent contexts is still an account limit. **Scoping ea
 bound the sum of the jobs.** The cap is on the sum, which is why it is a number and not a
 principle.
 
-Worktrees live in `.worktrees/` (project-local, gitignored).
+## ⛔⛔ WORKTREES: create with `wt_new.py` on C:, never by hand; the sweep is the only reaper (2026-11-18)
+
+⚰️ C: reached **0 GB** on 2026-11-18 when four agents ran `git worktree add` + `npm ci` at once (about 2.6 GB
+each), with no floor and no ordering. Measured: a dashboard checkout is 2.24 GB (`docs/notebook` 0.86,
+`tests/fixtures` 0.71); `app/node_modules` is 0.31 GB. Worktrees live in `C:\Users\Patrick\uct-worktrees\`
+(⚰️ this line used to say `.worktrees/`; that folder holds only old ones).
+
+```sh
+python C:/Users/Patrick/uct-monitors/wt_new.py <name> --branch <branch> --session <your session id>
+python C:/Users/Patrick/uct-monitors/wt_new.py <name> --done --session <your session id>   # once merged
+```
+
+- **One at a time, with a floor.** It holds a short create-lock, then refuses (exit 3, nothing created) when
+  the target drive would drop below 15 GB free. It never deletes anything to make room: it prints the
+  sweep's dry run to read, and the answer is to ask the coordinator.
+- **C:, always, for active work.** D: is a spinning HDD (owner rule): `--drive D` is only for a COLD lane
+  nobody builds or tests in. A backend or test started from a D: directory also writes `D:\data`.
+- **`node_modules` is `npm ci --prefer-offline` in the worktree. NEVER a junction.** Every recursive delete
+  (`git worktree remove`, `rm -rf`, `Remove-Item -Recurse`) follows a junction and empties the shared target
+  (five recorded wipes); `npm ci` inside a junctioned worktree rebuilds the shared tree under every borrower;
+  a branch with a different lockfile silently tests against the wrong packages.
+- **It writes `.uct-session-owner`** (the ownership rule below). `--done` removes ONLY your own worktree,
+  merged into origin/master and clean, through the same guards as the sweep.
+- **Every other removal is the sweep's job: `C:\Users\Patrick\uct-monitors\weekly_sweep.ps1`**, at 02:30 and,
+  while C: is below 40 GB free, every 2 h ("UCT Worktree Reclaim"). It removes a worktree only when it is
+  merged into GitHub master (or pushed and idle 3 days), clean, idle 6 h, not `git worktree lock`ed, not the
+  target of a junction anywhere on C: or D:, and not in use: no process names it or has its current
+  directory inside it, and no live Claude session mentioned it in the last 12 h. Small local-only ignored
+  files are archived to `D:\uct-archive\sweeps\ignored-<stamp>\` first; every removal writes a recovery line.
+  Thresholds: `worktree_policy.json`; guards: `wt_guards.ps1`, both in `C:\Users\Patrick\uct-monitors`.
+- **To keep a worktree the sweep would take:** `git worktree lock --reason "<why>" <path>` (unlock when done).
+  Dry run, read-only and safe at any time: `pwsh -NoProfile -File C:\Users\Patrick\uct-monitors\weekly_sweep.ps1`.
 
 ## ⛔⛔ WORKTREE OWNERSHIP — A SESSION DELETES ONLY WHAT IT CREATED
 

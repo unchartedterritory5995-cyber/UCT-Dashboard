@@ -1,0 +1,6 @@
+//@version=5
+indicator("RS vs SPY")
+s = request.security("SPY", timeframe.period, close)
+rs = close / s
+plot(rs, "RS line")
+plot(ta.ema(rs, 21), "RS 21 EMA", color=color.orange)
