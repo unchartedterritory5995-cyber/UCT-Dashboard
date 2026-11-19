@@ -5,8 +5,8 @@
    "id": "C1",
    "mutant": "the REACH report's population block drifts one row from its rows (a hand edit)",
    "file": "docs/pine/evidence/2026-11-16-draw1-drawing-objects/runs/report.json",
-   "from": "   \"runtimeLane\": 182,",
-   "to": "   \"runtimeLane\": 181,",
+   "from": "   \"runtimeLane\": 190,",
+   "to": "   \"runtimeLane\": 189,",
    "rail": "python -m pytest tests/test_pine_capability_admission.py -q -p no:cacheprovider -k REACH_the_population_block"
   },
   {
