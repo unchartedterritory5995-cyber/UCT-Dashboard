@@ -18,14 +18,20 @@ import process from 'node:process'
 import util from 'node:util'
 import {
   computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, RUNTIME_KNOWN_FROM_KEY, runtimeIrOptions,
-  knownFromBeforeBuild, __knownFromProbeOffForTests, __knownFromProbeMemoOffForTests,
+  knownFromBeforeBuild, __knownFromProbeOffForTests, __knownFromProbeMemoOffForTests, __probedSupplyOffForTests,
 } from '../runtimeColumns.js'
 import { RUNTIME_OBJECTS_KEY } from '../runtimeObjects.js'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
+import { runtimeRequestSupply } from '../requestSupply.js'
 import { OWN_DAILY_KEY } from '../../otherSymbols.js'
 
 // every build the run makes is counted (the front end itself, wrapped): the whole-chart build must not happen
+// every supply the run asks is counted (the supplier itself, wrapped)
+vi.mock('../requestSupply.js', async (importOriginal) => {
+  const m = await importOriginal()
+  return { ...m, runtimeRequestSupply: vi.fn(m.runtimeRequestSupply) }
+})
 vi.mock('../../ast/pineRuntimeFrontend.js', async (importOriginal) => {
   const m = await importOriginal()
   return { ...m, buildRuntimeIr: vi.fn(m.buildRuntimeIr) }
@@ -205,6 +211,26 @@ describe('a refusal from the drawn span still fires; a refusal the supply names 
     const { off, on } = bothWays(plain, CHART, ctx)
     expect(off.refused).toMatch(/cannot be read on every bar/)
     expect(on.refused).toBe(off.refused)
+  })
+})
+
+describe("the run of a pass takes the probe's supply where it is its own", () => {
+  it('a request run on a deep chart asks the supply once fewer, and draws the same, bit for bit (⛔ CONTROL: hand-over off)', () => {
+    const def = runDef(pine(['x = request.security("SP:SPX", timeframe.period, ta.sma(close, 3))', 'plot(x)', 'plot(ta.sma(close, 5))']), { x: 0, s: 1 })
+    const run = (off) => {
+      __probedSupplyOffForTests(off)
+      resetRuntimeSessions(); resetRuntimeLedgers()
+      runtimeRequestSupply.mockClear()
+      try {
+        const cols = computeRuntimeColumns(def, CHART, ctx5(), { now: () => 0 })
+        return { cols, asks: runtimeRequestSupply.mock.calls.length }
+      } finally { __probedSupplyOffForTests(false) }
+    }
+    const off = run(true)
+    const on = run(false)
+    expect(on.asks).toBe(off.asks - 1)
+    sameDrawn(on.cols, off.cols, 'hand-over on vs off')
+    expect(on.cols[RUNTIME_KNOWN_FROM_KEY]).toEqual(off.cols[RUNTIME_KNOWN_FROM_KEY])
   })
 })
 
