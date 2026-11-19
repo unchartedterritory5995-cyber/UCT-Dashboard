@@ -581,6 +581,9 @@ def test_I8_no_vendor_call_is_reachable(app, client, today, monkeypatch):
     monkeypatch.setattr(live_prices, "get_live_prices", vendor("live_prices"))
     monkeypatch.setattr(earnings_prep, "_window", vendor("earnings_prep._window"))
     monkeypatch.setattr(earnings_enrichment, "get_implied_move", vendor("get_implied_move"))
+    from api.services import implied_move
+    monkeypatch.setattr(implied_move, "report_move", vendor("report_move"))
+    monkeypatch.setattr(implied_move, "get_expected_move", vendor("get_expected_move"))
     default_breadth = vendor("get_breadth(default)")
     monkeypatch.setattr(engine, "get_breadth", lambda held_only=False: None if held_only else default_breadth())
     # A HELD window that gives AMD a report date today, so the expected-move path really runs.
