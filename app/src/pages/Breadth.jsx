@@ -1456,7 +1456,7 @@ export default function Breadth() {
                     {/* Follow-Through Day: a quiet tag on the date instead of its own
                         column (owner 2026-11-19; the FTD column stays in Columns). */}
                     {!!row.is_ftd && (
-                      <span className={styles.ftdTag} title="Follow-Through Day" aria-label="Follow-Through Day">FTD</span>
+                      <span className={styles.ftdTag} role="img" title="Follow-Through Day" aria-label="Follow-Through Day" />
                     )}
                   </td>
                   {visibleCols.map(col => {
