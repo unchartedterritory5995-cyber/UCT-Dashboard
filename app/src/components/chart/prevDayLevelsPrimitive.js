@@ -9,6 +9,7 @@
 // CANVAS (not DOM) so branded screenshot export captures it (see levelZonesPrimitive).
 
 const DASH = { solid: [], dashed: [5, 4], dotted: [1, 3] }
+const NEAREST_LEFT = -1   // lightweight-charts MismatchDirection.NearestLeft
 
 // Compute the previous session's H/L/C + the times of the candles that made them,
 // plus the current (last) bar time, from the chart's INTRADAY bars. Intraday bar
@@ -87,13 +88,15 @@ export function createPrevDayLevelsPrimitive() {
         // update, so reading its last bar time here keeps the right end pinned to the
         // newest candle even between SWR refreshes (when the static `endTime` lags).
         let liveEnd = endTime
+        // ⛔ ONE BY-INDEX LOOKUP, NEVER `series.data()` (2026-11-19). data() rebuilds every row of the
+        // series as a new object, and this runs on EVERY repaint: on a 50,000-bar hourly chart it was
+        // 23 ms of each flip's first 700 ms (production CPU profile) and a copy per pan/zoom frame.
+        // The newest row is the same row data()'s last one was (the library's own search).
         try {
-          const d = series.data()
-          if (d && d.length) {
-            const lt = d[d.length - 1]?.time
-            if (lt != null) liveEnd = lt
-          }
-        } catch { /* series.data unavailable → fall back to endTime */ }
+          const last = series.dataByIndex?.(Number.MAX_SAFE_INTEGER, NEAREST_LEFT)
+          const lt = last?.time
+          if (lt != null) liveEnd = lt
+        } catch { /* lookup unavailable → fall back to endTime */ }
         try {
           target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
             ctx.save()
