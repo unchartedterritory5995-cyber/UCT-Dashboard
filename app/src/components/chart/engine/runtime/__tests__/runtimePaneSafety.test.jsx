@@ -339,13 +339,17 @@ describe('RF — a live chart floods the worker: only the newest waiting run of 
     expect(answered.length).toBe(2)
   })
 
-  it('⛔ CONTROL — two different panes are not coalesced', () => {
+  it('⛔ CONTROL — two different panes are not coalesced: each one runs and is answered', () => {
     const slow = fakeWorkers('manual')
     const run = workerRunner(slow.factory)
-    run(rtDef(TINY, 'u_rf_a'), rows(30), { tf: 'D' }, () => {})
-    run(rtDef(TINY, 'u_rf_b'), rows(30), { tf: 'D' }, () => {})
-    run(rtDef(TINY, 'u_rf_a'), rows(30), { tf: '60' }, () => {})
+    const answered = []
+    run(rtDef(TINY, 'u_rf_a'), rows(30), { tf: 'D' }, (err) => answered.push(['a D', err]))
+    run(rtDef(TINY, 'u_rf_b'), rows(30), { tf: 'D' }, (err) => answered.push(['b D', err]))
+    run(rtDef(TINY, 'u_rf_a'), rows(30), { tf: '60' }, (err) => answered.push(['a 60', err]))
+    // (engine 86) one job in the worker at a time, the others waiting on this thread, in order
+    for (let k = 0; k < 3; k += 1) slow.made[0].flush()
     expect(slow.made[0].posted.length).toBe(3)
+    expect(answered).toEqual([['a D', null], ['b D', null], ['a 60', null]])
   })
 })
 

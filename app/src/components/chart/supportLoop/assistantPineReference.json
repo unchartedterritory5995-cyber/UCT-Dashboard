@@ -1650,10 +1650,10 @@
   },
   {
    "name": "plotarrow",
-   "ok": true,
+   "ok": false,
    "lane": "host",
-   "state": "runs-with-notes",
-   "headline": "Runs on the chart and in alerts, with 1 note"
+   "state": "runs-elsewhere",
+   "headline": "Runs in alerts; the chart cannot draw it yet: How it is drawn"
   },
   {
    "name": "plotchar",

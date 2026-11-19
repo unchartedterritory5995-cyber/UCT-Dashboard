@@ -30,3 +30,19 @@
 .notes li + li {
   margin-top: 4px;
 }
+
+/* (engine 86) Retry on a run the time budget stopped: a quiet text button in the strip's own colour */
+.retry {
+  margin-left: 4px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.retry:hover {
+  color: var(--color-text, inherit);
+}

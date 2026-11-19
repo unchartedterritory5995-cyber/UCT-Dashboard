@@ -1,0 +1,2027 @@
+{
+ "_about": "ALERT TF_MERGE (coordinator ruling 2026-11-19, option A). WRITTEN by app/src/components/chart/engine/alertTfMergeHistory.test.js (ALERT_TF_MERGE_HISTORY_WRITE=1), READ by it and by tests/test_alert_tf_merge_history.py. `expect`: the alert lane's answer for the plot, the ruling's, held by evaluability.js (alert) and by alert_user_series (_gate_lane + plot_admissions). `served`: for an admitted shape that reads a merge, the chart's column (computeFor, tf D, newest bar finished) on `days` (ISO keys; bar i: o = i + 0.5, h = i + 1.5, l = i, c = i + 1, v = 100 + i); the alert lane's column on the same bars keyed YYYYMMDD must equal it bar for bar, newest included.",
+ "chart": {
+  "tf": "D",
+  "newestBarIsForming": false
+ },
+ "days": {
+  "tuesday": [
+   "2026-09-02",
+   "2026-09-03",
+   "2026-09-04",
+   "2026-09-08",
+   "2026-09-09",
+   "2026-09-10",
+   "2026-09-11",
+   "2026-09-14",
+   "2026-09-15",
+   "2026-09-16",
+   "2026-09-17",
+   "2026-09-18",
+   "2026-09-21",
+   "2026-09-22",
+   "2026-09-23",
+   "2026-09-24",
+   "2026-09-25",
+   "2026-09-28",
+   "2026-09-29",
+   "2026-09-30",
+   "2026-10-01",
+   "2026-10-02",
+   "2026-10-05",
+   "2026-10-06",
+   "2026-10-07",
+   "2026-10-08",
+   "2026-10-09",
+   "2026-10-12",
+   "2026-10-13",
+   "2026-10-14",
+   "2026-10-15",
+   "2026-10-16",
+   "2026-10-19",
+   "2026-10-20",
+   "2026-10-21",
+   "2026-10-22",
+   "2026-10-23",
+   "2026-10-26",
+   "2026-10-27",
+   "2026-10-28",
+   "2026-10-29",
+   "2026-10-30",
+   "2026-11-02",
+   "2026-11-03",
+   "2026-11-04",
+   "2026-11-05",
+   "2026-11-06",
+   "2026-11-09",
+   "2026-11-10",
+   "2026-11-11",
+   "2026-11-12",
+   "2026-11-13",
+   "2026-11-16",
+   "2026-11-17"
+  ],
+  "friday": [
+   "2026-09-02",
+   "2026-09-03",
+   "2026-09-04",
+   "2026-09-08",
+   "2026-09-09",
+   "2026-09-10",
+   "2026-09-11",
+   "2026-09-14",
+   "2026-09-15",
+   "2026-09-16",
+   "2026-09-17",
+   "2026-09-18",
+   "2026-09-21",
+   "2026-09-22",
+   "2026-09-23",
+   "2026-09-24",
+   "2026-09-25",
+   "2026-09-28",
+   "2026-09-29",
+   "2026-09-30",
+   "2026-10-01",
+   "2026-10-02",
+   "2026-10-05",
+   "2026-10-06",
+   "2026-10-07",
+   "2026-10-08",
+   "2026-10-09",
+   "2026-10-12",
+   "2026-10-13",
+   "2026-10-14",
+   "2026-10-15",
+   "2026-10-16",
+   "2026-10-19",
+   "2026-10-20",
+   "2026-10-21",
+   "2026-10-22",
+   "2026-10-23",
+   "2026-10-26",
+   "2026-10-27",
+   "2026-10-28",
+   "2026-10-29",
+   "2026-10-30",
+   "2026-11-02",
+   "2026-11-03",
+   "2026-11-04",
+   "2026-11-05",
+   "2026-11-06",
+   "2026-11-09",
+   "2026-11-10",
+   "2026-11-11",
+   "2026-11-12",
+   "2026-11-13"
+  ]
+ },
+ "cases": [
+  {
+   "name": "x[1] (k = 1)",
+   "definition": {
+    "id": "u_0000tfm00001",
+    "name": "u_0000tfm00001",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00001",
+     "source": "x[1] (k = 1)",
+     "ast": {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "supported",
+    "gate": null,
+    "codes": []
+   },
+   "served": {
+    "tuesday": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3,
+     7,
+     7,
+     7,
+     7,
+     7,
+     12,
+     12,
+     12,
+     12,
+     12,
+     17,
+     17,
+     17,
+     17,
+     17,
+     22,
+     22,
+     22,
+     22,
+     22,
+     27,
+     27,
+     27,
+     27,
+     27,
+     32,
+     32,
+     32,
+     32,
+     32,
+     37,
+     37,
+     37,
+     37,
+     37,
+     42,
+     42,
+     42,
+     42,
+     42,
+     47,
+     47,
+     47,
+     47,
+     47,
+     52,
+     52
+    ],
+    "friday": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3,
+     7,
+     7,
+     7,
+     7,
+     7,
+     12,
+     12,
+     12,
+     12,
+     12,
+     17,
+     17,
+     17,
+     17,
+     17,
+     22,
+     22,
+     22,
+     22,
+     22,
+     27,
+     27,
+     27,
+     27,
+     27,
+     32,
+     32,
+     32,
+     32,
+     32,
+     37,
+     37,
+     37,
+     37,
+     37,
+     42,
+     42,
+     42,
+     42,
+     42,
+     47,
+     47,
+     47,
+     47,
+     47
+    ]
+   }
+  },
+  {
+   "name": "x[2] (k = 2)",
+   "definition": {
+    "id": "u_0000tfm00002",
+    "name": "u_0000tfm00002",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00002",
+     "source": "x[2] (k = 2)",
+     "ast": {
+      "type": "offset",
+      "value": 2,
+      "args": [
+       {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "supported",
+    "gate": null,
+    "codes": []
+   },
+   "served": {
+    "tuesday": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3,
+     3,
+     7,
+     7,
+     7,
+     7,
+     7,
+     12,
+     12,
+     12,
+     12,
+     12,
+     17,
+     17,
+     17,
+     17,
+     17,
+     22,
+     22,
+     22,
+     22,
+     22,
+     27,
+     27,
+     27,
+     27,
+     27,
+     32,
+     32,
+     32,
+     32,
+     32,
+     37,
+     37,
+     37,
+     37,
+     37,
+     42,
+     42,
+     42,
+     42,
+     42,
+     47,
+     47,
+     47,
+     47,
+     47,
+     52
+    ],
+    "friday": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3,
+     3,
+     7,
+     7,
+     7,
+     7,
+     7,
+     12,
+     12,
+     12,
+     12,
+     12,
+     17,
+     17,
+     17,
+     17,
+     17,
+     22,
+     22,
+     22,
+     22,
+     22,
+     27,
+     27,
+     27,
+     27,
+     27,
+     32,
+     32,
+     32,
+     32,
+     32,
+     37,
+     37,
+     37,
+     37,
+     37,
+     42,
+     42,
+     42,
+     42,
+     42,
+     47,
+     47,
+     47,
+     47
+    ]
+   }
+  },
+  {
+   "name": "sma(x[1], 3) - close (a computed expression over x[1])",
+   "definition": {
+    "id": "u_0000tfm00003",
+    "name": "u_0000tfm00003",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00003",
+     "source": "sma(x[1], 3) - close (a computed expression over x[1])",
+     "ast": {
+      "type": "op",
+      "name": "-",
+      "args": [
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "offset",
+          "value": 1,
+          "args": [
+           {
+            "type": "tf_merge",
+            "value": "W",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 3
+         }
+        ]
+       },
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "supported",
+    "gate": null,
+    "codes": []
+   },
+   "served": {
+    "tuesday": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -4,
+     -3.666666666666667,
+     -3.333333333333333,
+     -3,
+     -4,
+     -5,
+     -4.333333333333334,
+     -3.666666666666666,
+     -3,
+     -4,
+     -5,
+     -4.333333333333334,
+     -3.666666666666666,
+     -3,
+     -4,
+     -5,
+     -4.333333333333332,
+     -3.666666666666668,
+     -3,
+     -4,
+     -5,
+     -4.333333333333332,
+     -3.666666666666668,
+     -3,
+     -4,
+     -5,
+     -4.333333333333332,
+     -3.666666666666668,
+     -3,
+     -4,
+     -5,
+     -4.333333333333336,
+     -3.6666666666666643,
+     -3,
+     -4,
+     -5,
+     -4.333333333333336,
+     -3.6666666666666643,
+     -3,
+     -4,
+     -5,
+     -4.333333333333336,
+     -3.6666666666666643,
+     -3,
+     -4,
+     -5,
+     -4.333333333333336,
+     -3.6666666666666643
+    ],
+    "friday": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -4,
+     -3.666666666666667,
+     -3.333333333333333,
+     -3,
+     -4,
+     -5,
+     -4.333333333333334,
+     -3.666666666666666,
+     -3,
+     -4,
+     -5,
+     -4.333333333333334,
+     -3.666666666666666,
+     -3,
+     -4,
+     -5,
+     -4.333333333333332,
+     -3.666666666666668,
+     -3,
+     -4,
+     -5,
+     -4.333333333333332,
+     -3.666666666666668,
+     -3,
+     -4,
+     -5,
+     -4.333333333333332,
+     -3.666666666666668,
+     -3,
+     -4,
+     -5,
+     -4.333333333333336,
+     -3.6666666666666643,
+     -3,
+     -4,
+     -5,
+     -4.333333333333336,
+     -3.6666666666666643,
+     -3,
+     -4,
+     -5,
+     -4.333333333333336,
+     -3.6666666666666643,
+     -3,
+     -4,
+     -5
+    ]
+   }
+  },
+  {
+   "name": "close > tf_merge(high, 'M')[1] (a condition over last month's high)",
+   "definition": {
+    "id": "u_0000tfm00004",
+    "name": "u_0000tfm00004",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00004",
+     "source": "close > tf_merge(high, 'M')[1] (a condition over last month's high)",
+     "ast": {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "tf_merge",
+          "value": "M",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "supported",
+    "gate": null,
+    "codes": []
+   },
+   "served": {
+    "tuesday": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "friday": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "name": "na(x[1]) ? x[2] : x[1] (a conditional whose every arm reads through an offset)",
+   "definition": {
+    "id": "u_0000tfm00005",
+    "name": "u_0000tfm00005",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00005",
+     "source": "na(x[1]) ? x[2] : x[1] (a conditional whose every arm reads through an offset)",
+     "ast": {
+      "type": "op",
+      "name": "?:",
+      "args": [
+       {
+        "type": "call",
+        "name": "na",
+        "args": [
+         {
+          "type": "offset",
+          "value": 1,
+          "args": [
+           {
+            "type": "tf_merge",
+            "value": "W",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "offset",
+        "value": 2,
+        "args": [
+         {
+          "type": "tf_merge",
+          "value": "W",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "tf_merge",
+          "value": "W",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "supported",
+    "gate": null,
+    "codes": []
+   },
+   "served": {
+    "tuesday": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3,
+     7,
+     7,
+     7,
+     7,
+     7,
+     12,
+     12,
+     12,
+     12,
+     12,
+     17,
+     17,
+     17,
+     17,
+     17,
+     22,
+     22,
+     22,
+     22,
+     22,
+     27,
+     27,
+     27,
+     27,
+     27,
+     32,
+     32,
+     32,
+     32,
+     32,
+     37,
+     37,
+     37,
+     37,
+     37,
+     42,
+     42,
+     42,
+     42,
+     42,
+     47,
+     47,
+     47,
+     47,
+     47,
+     52,
+     52
+    ],
+    "friday": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3,
+     7,
+     7,
+     7,
+     7,
+     7,
+     12,
+     12,
+     12,
+     12,
+     12,
+     17,
+     17,
+     17,
+     17,
+     17,
+     22,
+     22,
+     22,
+     22,
+     22,
+     27,
+     27,
+     27,
+     27,
+     27,
+     32,
+     32,
+     32,
+     32,
+     32,
+     37,
+     37,
+     37,
+     37,
+     37,
+     42,
+     42,
+     42,
+     42,
+     42,
+     47,
+     47,
+     47,
+     47,
+     47
+    ]
+   }
+  },
+  {
+   "name": "the Pine door: request.security(syminfo.tickerid, \"W\", close)[1]",
+   "definition": {
+    "id": "u_0000tfm00006",
+    "name": "u_0000tfm00006",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00006",
+     "source": "the Pine door: request.security(syminfo.tickerid, \"W\", close)[1]",
+     "ast": {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "!=",
+          "args": [
+           {
+            "type": "num",
+            "value": 86400
+           },
+           {
+            "type": "series",
+            "name": "periodseconds"
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "num",
+            "value": 0
+           },
+           {
+            "type": "num",
+            "value": 0
+           }
+          ]
+         },
+         {
+          "type": "tf_merge",
+          "value": "W",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "supported",
+    "gate": null,
+    "codes": []
+   },
+   "served": {
+    "tuesday": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3,
+     7,
+     7,
+     7,
+     7,
+     7,
+     12,
+     12,
+     12,
+     12,
+     12,
+     17,
+     17,
+     17,
+     17,
+     17,
+     22,
+     22,
+     22,
+     22,
+     22,
+     27,
+     27,
+     27,
+     27,
+     27,
+     32,
+     32,
+     32,
+     32,
+     32,
+     37,
+     37,
+     37,
+     37,
+     37,
+     42,
+     42,
+     42,
+     42,
+     42,
+     47,
+     47,
+     47,
+     47,
+     47,
+     52,
+     52
+    ],
+    "friday": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3,
+     7,
+     7,
+     7,
+     7,
+     7,
+     12,
+     12,
+     12,
+     12,
+     12,
+     17,
+     17,
+     17,
+     17,
+     17,
+     22,
+     22,
+     22,
+     22,
+     22,
+     27,
+     27,
+     27,
+     27,
+     27,
+     32,
+     32,
+     32,
+     32,
+     32,
+     37,
+     37,
+     37,
+     37,
+     37,
+     42,
+     42,
+     42,
+     42,
+     42,
+     47,
+     47,
+     47,
+     47,
+     47
+    ]
+   }
+  },
+  {
+   "name": "x (a direct read)",
+   "definition": {
+    "id": "u_0000tfm00007",
+    "name": "u_0000tfm00007",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00007",
+     "source": "x (a direct read)",
+     "ast": {
+      "type": "tf_merge",
+      "value": "W",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "x[0]",
+   "definition": {
+    "id": "u_0000tfm00008",
+    "name": "u_0000tfm00008",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00008",
+     "source": "x[0]",
+     "ast": {
+      "type": "offset",
+      "value": 0,
+      "args": [
+       {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "sym('SPY', x)[1] (a merge under another symbol)",
+   "definition": {
+    "id": "u_0000tfm00009",
+    "name": "u_0000tfm00009",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00009",
+     "source": "sym('SPY', x)[1] (a merge under another symbol)",
+     "ast": {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "sym",
+        "value": "SPY",
+        "args": [
+         {
+          "type": "tf_merge",
+          "value": "W",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "tf_merge(tf_merge(close, 'M'), 'W')[1] (a merge under another merge)",
+   "definition": {
+    "id": "u_0000tfm00010",
+    "name": "u_0000tfm00010",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00010",
+     "source": "tf_merge(tf_merge(close, 'M'), 'W')[1] (a merge under another merge)",
+     "ast": {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+         {
+          "type": "tf_merge",
+          "value": "M",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "tf(x, 'M')[1] (a merge under another request)",
+   "definition": {
+    "id": "u_0000tfm00011",
+    "name": "u_0000tfm00011",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00011",
+     "source": "tf(x, 'M')[1] (a merge under another request)",
+     "ast": {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "tf",
+        "value": "M",
+        "args": [
+         {
+          "type": "tf_merge",
+          "value": "W",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "tf_merge(sym('SPY', close), 'W')[1] (another request inside the merge)",
+   "definition": {
+    "id": "u_0000tfm00012",
+    "name": "u_0000tfm00012",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00012",
+     "source": "tf_merge(sym('SPY', close), 'W')[1] (another request inside the merge)",
+     "ast": {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+         {
+          "type": "sym",
+          "value": "SPY",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "na(x) ? x[1] : x (a mixed conditional)",
+   "definition": {
+    "id": "u_0000tfm00013",
+    "name": "u_0000tfm00013",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00013",
+     "source": "na(x) ? x[1] : x (a mixed conditional)",
+     "ast": {
+      "type": "op",
+      "name": "?:",
+      "args": [
+       {
+        "type": "call",
+        "name": "na",
+        "args": [
+         {
+          "type": "tf_merge",
+          "value": "W",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "tf_merge",
+          "value": "W",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "x[1] + x (one path reads x)",
+   "definition": {
+    "id": "u_0000tfm00014",
+    "name": "u_0000tfm00014",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00014",
+     "source": "x[1] + x (one path reads x)",
+     "ast": {
+      "type": "op",
+      "name": "+",
+      "args": [
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "tf_merge",
+          "value": "W",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "barsAgo(x, 1, 5) (a dynamic offset, spelled with a literal)",
+   "definition": {
+    "id": "u_0000tfm00015",
+    "name": "u_0000tfm00015",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00015",
+     "source": "barsAgo(x, 1, 5) (a dynamic offset, spelled with a literal)",
+     "ast": {
+      "type": "call",
+      "name": "barsAgo",
+      "args": [
+       {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 1
+       },
+       {
+        "type": "num",
+        "value": 5
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "barsAgo(x, mod(close, 2) + 1, 5) (an unprovable dynamic offset)",
+   "definition": {
+    "id": "u_0000tfm00016",
+    "name": "u_0000tfm00016",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00016",
+     "source": "barsAgo(x, mod(close, 2) + 1, 5) (an unprovable dynamic offset)",
+     "ast": {
+      "type": "call",
+      "name": "barsAgo",
+      "args": [
+       {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "call",
+          "name": "mod",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 2
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 5
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "x[len] (an offset a parameter setting moves)",
+   "definition": {
+    "id": "u_0000tfm00017",
+    "name": "u_0000tfm00017",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00017",
+     "source": "x[len] (an offset a parameter setting moves)",
+     "ast": {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     },
+     "paramManifest": {
+      "__uct_param_1001": {
+       "sourceName": "len",
+       "title": "Back",
+       "type": "int",
+       "default": 1,
+       "min": null,
+       "max": null,
+       "step": null,
+       "options": null,
+       "locators": [
+        {
+         "treeIndex": null,
+         "astPath": [
+          "value"
+         ]
+        }
+       ]
+      }
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "pivothigh(x, 2, 2)[2] (a forward-reaching call: it reads x on the newest bar)",
+   "definition": {
+    "id": "u_0000tfm00018",
+    "name": "u_0000tfm00018",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00018",
+     "source": "pivothigh(x, 2, 2)[2] (a forward-reaching call: it reads x on the newest bar)",
+     "ast": {
+      "type": "offset",
+      "value": 2,
+      "args": [
+       {
+        "type": "call",
+        "name": "pivothigh",
+        "args": [
+         {
+          "type": "tf_merge",
+          "value": "W",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 2
+         },
+         {
+          "type": "num",
+          "value": 2
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "the Pine door: request.security(syminfo.tickerid, \"W\", close[1]) (the offset is inside the merge)",
+   "definition": {
+    "id": "u_0000tfm00019",
+    "name": "u_0000tfm00019",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00019",
+     "source": "the Pine door: request.security(syminfo.tickerid, \"W\", close[1]) (the offset is inside the merge)",
+     "ast": {
+      "type": "op",
+      "name": "?:",
+      "args": [
+       {
+        "type": "op",
+        "name": "!=",
+        "args": [
+         {
+          "type": "num",
+          "value": 86400
+         },
+         {
+          "type": "series",
+          "name": "periodseconds"
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         {
+          "type": "num",
+          "value": 0
+         },
+         {
+          "type": "num",
+          "value": 0
+         }
+        ]
+       },
+       {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+         {
+          "type": "offset",
+          "value": 1,
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "refused",
+    "gate": "withheld",
+    "codes": [
+     "request:htf-newest-unconfirmed"
+    ]
+   }
+  },
+  {
+   "name": "CONTROL close > open (no merge)",
+   "definition": {
+    "id": "u_0000tfm00020",
+    "name": "u_0000tfm00020",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00020",
+     "source": "CONTROL close > open (no merge)",
+     "ast": {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "series",
+        "name": "open"
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "supported",
+    "gate": null,
+    "codes": []
+   }
+  },
+  {
+   "name": "CONTROL pivothigh(close, 2, 2)[1] (no merge: the forward check never fires alone)",
+   "definition": {
+    "id": "u_0000tfm00021",
+    "name": "u_0000tfm00021",
+    "version": 1,
+    "plots": [
+     {
+      "key": "value",
+      "style": "line"
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "u_0000tfm00021",
+     "source": "CONTROL pivothigh(close, 2, 2)[1] (no merge: the forward check never fires alone)",
+     "ast": {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "call",
+        "name": "pivothigh",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 2
+         },
+         {
+          "type": "num",
+          "value": 2
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "meta": {
+     "recurrenceOrigin": "pine"
+    }
+   },
+   "plotKey": "value",
+   "expect": {
+    "status": "supported",
+    "gate": null,
+    "codes": []
+   }
+  }
+ ]
+}
