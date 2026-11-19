@@ -66,6 +66,7 @@ def env(monkeypatch, tmp_path):
     import api.routers.live_prices as lp
     import api.services.bars_sqlite as bars
     import api.services.earnings_enrichment as ee
+    import api.services.implied_move as im
     import api.services.journal_two.earnings_prep as ep
     import api.services.journal_two.regime as regime
 
@@ -74,7 +75,9 @@ def env(monkeypatch, tmp_path):
 
     monkeypatch.setattr(lp, "get_live_prices", fake_prices)
     monkeypatch.setattr(bars, "get_bars", lambda sym, tf, n: [(i, 0, 0, 0, 100.0 + i, 0) for i in range(n)])
-    monkeypatch.setattr(ee, "get_implied_move", lambda sym, d=None, t=None: {"pct": 6.5})
+    monkeypatch.setattr(im, "report_move", lambda sym, d=None, **_kw: {"pct": 6.5})
+    monkeypatch.setattr(ee, "get_implied_move",
+                        lambda *a, **k: pytest.fail("a widget read earnings_enrichment.get_implied_move"))
     monkeypatch.setattr(regime, "get_current_regime", lambda *a, **k: {"regime": "uptrend"})
     soon = {"items": [{"symbol": "NVDA", "date": "2026-10-21", "daysAway": 1, "timing": "amc",
                        "sources": ["watchlist"]}], "partial": False}

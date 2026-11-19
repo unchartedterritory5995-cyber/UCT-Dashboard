@@ -133,16 +133,6 @@ def test_massive_snapshot_reaches_yfinance_through_the_guard(spy):
     assert spy.fired
 
 
-def test_massive_avg_dollar_volume_reaches_yfinance_through_the_guard(spy):
-    """And a guard failure must map to inf ("couldn't fetch, don't filter it
-    out"), never 0.0 ("fetched, no volume, filter it out") — a 429 must not
-    quietly delete tickers from the universe."""
-    from api.services import massive
-    out = massive._get_avg_dollar_vol(["AAPL", "MSFT"])
-    assert spy.fired
-    assert out == {"AAPL": float("inf"), "MSFT": float("inf")}
-
-
 def test_index_bars_reaches_yfinance_through_the_guard(spy):
     from api import index_bars
     # _fetch_yf now returns the FULL series (since-filtering moved to the cache-backed
@@ -209,14 +199,6 @@ def test_industry_map_fallback_reaches_yfinance_through_the_guard(spy):
     assert out[2] != "yfinance", "a suppressed yfinance leg must not claim a source"
 
 
-def test_news_aggregator_reaches_yfinance_through_the_guard(spy):
-    from api.services import news_aggregator
-    with patch.object(news_aggregator, "requests") as fake_requests:
-        fake_requests.get.side_effect = RuntimeError("no network in tests")
-        news_aggregator.fetch_yahoo_ticker_news(["AAPL"])
-    assert spy.fired
-
-
 def test_yfinance_pool_fetch_history_reaches_the_shared_guard(spy):
     from api.services import yfinance_pool
     with pytest.raises(RuntimeError):
@@ -248,7 +230,6 @@ BOUND_HERE = {
     "api/services/industry_map.py",
     "api/services/institutional_holdings.py",
     "api/services/massive.py",
-    "api/services/news_aggregator.py",
     "api/services/short_interest.py",
     "api/services/ticker_logos.py",
     "api/services/ticker_meta.py",

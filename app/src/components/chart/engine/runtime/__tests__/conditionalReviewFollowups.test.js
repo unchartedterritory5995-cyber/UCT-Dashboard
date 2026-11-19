@@ -90,9 +90,11 @@ describe('M1 — `(expr)[k]` in a block', () => {
 
 describe('M2 — a dynamic offset in a pure subtree meets the buffer stop', () => {
   const LONG = mkBars(5100)
-  it('past a DECLARED buffer: the run stops (it was served)', () => {
+  it('past a DECLARED buffer: the REAL history, as TradingView answers it (WS-C Q1 M2 / Q-MBB-1, captured 2026-11-18)', () => {
     const src = '//@version=6\nindicator("t", max_bars_back = 20)\nplot(close[bar_index % 30])\n'
-    expect(() => run(src, LONG)).toThrow(/history buffer of 20 bars/)
+    const [y] = run(src, LONG)
+    expect(y[29]).toBe(LONG[0].c)                         // 29 bars back, past the declared 20
+    expect(y[5025]).toBe(LONG[5025 - (5025 % 30)].c)
   })
   it('past 5,000 on a longer chart: the run stops (it answered `na`)', () => {
     expect(() => run(v6('plot(close[bar_index])\n'), LONG)).toThrow(/history buffer of 5000 bars/)

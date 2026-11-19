@@ -668,6 +668,20 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
             {"AAA": {"ibd": 50 + k, "m1": 1, "m3": 2, "m6": 3, "m12": 4,
                      "score": 1.1, "bars": 253}})
 
+    # ── short_columns (2026-11-18): the two short-interest columns' own
+    # reader. The held FINRA list is stubbed at its read-only accessor (never
+    # a vendor read) with a row for AAA; the export leg reads the finviz
+    # artifact written above, where AAA carries a float and both figures, so
+    # the reader emits BOTH of its columns whichever leg answers. ──
+    from api.services import short_data
+    from api.services.screener import short_columns
+    monkeypatch.setattr(short_data, "held_market_rows", lambda: ({
+        "rows": {"AAA": {"sym": "AAA", "short_interest": 0, "days_to_cover": 1.5}},
+        "count": 1, "settlement_date": "2026-10-30",
+        "previous_settlement_date": "2026-10-15", "publication_estimate": "2026-11-10",
+        "read_at": "2026-11-18T00:00:00+00:00", "source": "stub", "float_source": "stub"},
+        "held"))
+
     return {
         "fundamentals_bulk": set(fb.COLUMNS_WRITTEN),
         "rs_fields": set(b.rs_fields({"rs_rank": 90, "rs_score": 12.5})),
@@ -678,6 +692,7 @@ def _source_key_sets(monkeypatch, tmp_path) -> dict:
         "context.index": set(cj.read_index_flags(["AAA"])["AAA"]),
         "context.etf": set(cj.read_etf_flags(["AAA"])["AAA"]),
         "finviz_universe": set(finviz_universe.read_finviz_fields(["AAA"])["AAA"]),
+        "short_columns": set(short_columns.read_short_columns(["AAA"])["AAA"]),
         "earnings_dates": set(earnings_dates.read_earnings_dates(["AAA"])["AAA"]),
         "earnings_context.last_move":
             set(earnings_context.read_last_report_move(["AAA"])["AAA"]),
@@ -725,11 +740,16 @@ def test_no_two_screener_sources_write_the_same_column(monkeypatch, tmp_path):
     # 17 -> 18 (2026-10-16): archive_join, the display-only trader-archive join.
     # 18 -> 19 (2026-11-06, UCT RS Phase 2a unit 2a-06): rs_history, the seven
     # history-derived rating columns from the `rs_rating_history` side table.
-    assert len(sets) == 19, (
-        f"_source_key_sets returned {len(sets)} sources, expected 19 — a "
+    # 19 -> 20 (2026-11-18): short_columns, the one writer of `short_float_pct`
+    # and `short_ratio`. finviz_universe gave the two up in the same change
+    # (`finviz_universe.SHORT_EXPORT_COLUMNS`); no shared-column allowance.
+    assert len(sets) == 20, (
+        f"_source_key_sets returned {len(sets)} sources, expected 20 — a "
         f"source was added or removed from the fixture; bump this pin "
         f"deliberately")
     assert "rs_history" in sets, "the 19th source is rs_history, by name"
+    assert sets["short_columns"] == {"short_float_pct", "short_ratio"},         "the 20th source is short_columns, and it writes exactly its two columns"
+    assert not (sets["finviz_universe"] & sets["short_columns"]),         "finviz_universe must not hand build_row the two short-interest columns"
     # The derivation proves nothing if a source emitted nothing.
     for label, keys in sets.items():
         assert keys, f"{label} emitted no columns — the derivation is broken"
