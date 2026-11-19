@@ -6,7 +6,8 @@
   "Non-commercial (CC-BY-NC*) libraries are never promoted (the store refuses to serve them: pine:library-licence).",
   "Promotion is a separate, coordinator-authorised step after U15 Phase A merges. Nothing in this file enables anything: no store is written by it. Measured 2026-11-15 on the local store (docs/pine/evidence/2026-11-15-u15-library-pinning/EVIDENCE.md, P0 and the host-only re-grade).",
   "tests/test_pine_library_pinning.py holds this file to its own rule (every promoted row: a sha256, a licence the store serves, not on the deny list, and every hostOnly capture MATCH).",
-  "Re-grade on engine 61 (2026-11-16, U15 Phase B, docs/pine/evidence/2026-11-16-u15b-libraries/EVIDENCE.md): TradingView/ta/11 and RelativeValue/3 join `promote` (Aroon oscillator now MATCH). Every row records what it `imports`; the rail requires every import of a promoted version to be promoted too. `notAttaching` lists importers refused by name, which draw nothing."
+  "Re-grade on engine 61 (2026-11-16, U15 Phase B, docs/pine/evidence/2026-11-16-u15b-libraries/EVIDENCE.md): TradingView/ta/11 and RelativeValue/3 join `promote` (Aroon oscillator now MATCH). Every row records what it `imports`; the rail requires every import of a promoted version to be promoted too. `notAttaching` lists importers refused by name, which draw nothing.",
+  "Runtime-only promotion (coordinator ruling 2026-11-19, libraries chain L2): since 2026-11-17 every member is on the runtime lane, and a version's `library:Author/Library/N` admission row is the member gate there. A version no importer draws on the host lane may carry an EMPTY `hostOnly` when `notAttaching` names every importer capture with its host-only refusal and `runtimeOn` carries the full admission evidence (>= 2 MATCH captures from >= 2 importing scripts, >= 1 community) pinned to the sha it graded and stamped `gradedAtEngine`. TradingView/ta/7 and RelativeValue/2 are the first."
  ],
  "gradedWith": "member door + harness (f4Sweep.measure.test.js with PINE_LIBRARY_STORE), objects pane on. `hostOnly` = VITE_PINE_RUNTIME_PANE_ENABLED unset (the sweep's `on` state); `runtimeOn` = the same capture with the runtime pane on (the sweep's `runtime` state).",
  "promote": [
@@ -126,6 +127,94 @@
     "ulcer-index-rddt-1d-2026-11-15": "MATCH",
     "aroon-oscillator-rddt-1d-2026-11-15": "MATCH"
    }
+  },
+  {
+   "path": "TradingView/ta/7",
+   "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876",
+   "licence": "MPL-2.0",
+   "licenceBasis": "header",
+   "imports": [
+    "TradingView/RelativeValue/2"
+   ],
+   "reason": "RUNTIME-ONLY promotion (coordinator ruling 2026-11-19): no importer draws on the host lane, so the promotion draws nothing new there; on the runtime lane its importers are served only once the `library:TradingView/ta/7` admission row lands. Imported by KPSaR [BackQuant] (community) and our probe vw-library-import, both MATCH with the runtime pane on at engine 84 with this sha linked; the sample's other importers are refused by name (notAttaching)",
+   "hostOnly": {},
+   "notAttaching": {
+    "kalman-psar-backquant-rddt-1d-2026-11-15": "host-only: refused by name (pine:state, a running total with no window); with the runtime pane on it grades MATCH",
+    "machine-learning-rsi-bullvision-rddt-1d-2026-11-15": "host-only: refused by name (pine:tuple); with the runtime pane on, runtime:conditional-history",
+    "smart-money-concept-tradingfinder-major-minor-ob-fvg-smc-rddt-1d-2026-11-15": "refused by name on both lanes (pine:module): the five TFlab library versions it also imports are not promoted",
+    "vw-library-import-rddt-1d-2026-10-02": "host-only: refused by name (pine:function-def); with the runtime pane on it grades MATCH",
+    "relative-volume-at-time-rddt-1d-2026-11-15": "licence-held capture (local run s11-2026-11-15), a v6 built-in: refused by name on both lanes (pine:library-version), ta/7 is not on the cross-version admission table"
+   },
+   "gradedAtEngine": 84,
+   "runtimeOn": [
+    {
+     "capture": "kalman-psar-backquant-rddt-1d-2026-11-15",
+     "script": "KPSaR [BackQuant]",
+     "community": true,
+     "verdict": "MATCH",
+     "runtimePane": "on",
+     "library": {
+      "path": "TradingView/ta/7",
+      "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"
+     },
+     "scriptEngineVersion": 84
+    },
+    {
+     "capture": "vw-library-import-rddt-1d-2026-10-02",
+     "script": "UCTPROBE L1 library import",
+     "community": false,
+     "verdict": "MATCH",
+     "runtimePane": "on",
+     "library": {
+      "path": "TradingView/ta/7",
+      "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"
+     },
+     "scriptEngineVersion": 84
+    }
+   ]
+  },
+  {
+   "path": "TradingView/RelativeValue/2",
+   "sha256": "ae9639a064ce36ed9ad40f54d3758ded64b6d5f429947908cf044c814d183fe2",
+   "licence": "MPL-2.0",
+   "licenceBasis": "header",
+   "imports": [],
+   "reason": "imported by TradingView/ta/7 (promoted with it, runtime-only); graded through ta/7's importers, as RelativeValue/3 is through ta/11's. No capture imports it directly, and none of the graded importers reaches it (the linker links a nested version only where the script's calls reach it)",
+   "hostOnly": {},
+   "notAttaching": {
+    "kalman-psar-backquant-rddt-1d-2026-11-15": "host-only: refused by name (pine:state, a running total with no window); with the runtime pane on it grades MATCH",
+    "machine-learning-rsi-bullvision-rddt-1d-2026-11-15": "host-only: refused by name (pine:tuple); with the runtime pane on, runtime:conditional-history",
+    "smart-money-concept-tradingfinder-major-minor-ob-fvg-smc-rddt-1d-2026-11-15": "refused by name on both lanes (pine:module): the five TFlab library versions it also imports are not promoted",
+    "vw-library-import-rddt-1d-2026-10-02": "host-only: refused by name (pine:function-def); with the runtime pane on it grades MATCH",
+    "relative-volume-at-time-rddt-1d-2026-11-15": "licence-held capture (local run s11-2026-11-15), a v6 built-in: refused by name on both lanes (pine:library-version), ta/7 is not on the cross-version admission table"
+   },
+   "gradedAtEngine": 84,
+   "runtimeOn": [
+    {
+     "capture": "kalman-psar-backquant-rddt-1d-2026-11-15",
+     "script": "KPSaR [BackQuant]",
+     "community": true,
+     "verdict": "MATCH",
+     "runtimePane": "on",
+     "library": {
+      "path": "TradingView/ta/7",
+      "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"
+     },
+     "scriptEngineVersion": 84
+    },
+    {
+     "capture": "vw-library-import-rddt-1d-2026-10-02",
+     "script": "UCTPROBE L1 library import",
+     "community": false,
+     "verdict": "MATCH",
+     "runtimePane": "on",
+     "library": {
+      "path": "TradingView/ta/7",
+      "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"
+     },
+     "scriptEngineVersion": 84
+    }
+   ]
   }
  ],
  "heldOut": [

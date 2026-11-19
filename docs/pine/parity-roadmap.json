@@ -4,8 +4,12 @@
  "map": {
   "measuredOn": "2026-11-19",
   "masterSha": "3685713d65",
-  "sha256": "1b55ac56bab24d492fe1e0ce7973b797ce63d0e0aa917cd059c045902881c5ae",
+  "sha256": "f8567b762723dc483b84d641b3d10d83c0d5ed6e83b0167d90489d1644724aa8",
   "libraryStore": [
+   {
+    "path": "TradingView/RelativeValue/2",
+    "sha256": "ae9639a064ce36ed9ad40f54d3758ded64b6d5f429947908cf044c814d183fe2"
+   },
    {
     "path": "TradingView/RelativeValue/3",
     "sha256": "44d71612a7596a11258e244e500c0ce56b563eceac2f07973b16b5dec4c7480d"
@@ -13,6 +17,10 @@
    {
     "path": "TradingView/ta/11",
     "sha256": "da37dca4bc18ce3b825d1d9c8b682f97859508cc5bb8bd3e51e1a28713edee80"
+   },
+   {
+    "path": "TradingView/ta/7",
+    "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"
    },
    {
     "path": "theEccentricTrader/PubLibCandleTrend/2",
@@ -37,22 +45,24 @@
   "sample": 679,
   "memberServed": 286,
   "memberServedPct": 42.1,
-  "runtimeOn": 298,
-  "runtimeOnPct": 43.9,
+  "runtimeOn": 299,
+  "runtimeOnPct": 44.0,
   "hostOnly": 226,
   "hostOnlyPct": 33.3,
-  "runtimeAdded": 72,
+  "runtimeAdded": 73,
   "runtimeLost": 0,
   "admission": {
    "allowlisted": 1,
    "capability": 59,
-   "not-admitted": 12
+   "not-admitted": 13
   },
   "declinedCapabilities": {
    "obj:linefill": 4,
    "request-other": 3,
    "collections:matrix": 2,
    "calc-bars": 1,
+   "import": 1,
+   "library:TradingView/ta/7": 1,
    "method-def": 1,
    "varip": 1
   },
@@ -186,7 +196,7 @@
     "blocker": "[imports-libraries]",
     "capability": "imports-libraries",
     "sole": 11,
-    "any": 54,
+    "any": 52,
     "soleScripts": [
      "builtin:auto-fib-extension__Auto1Fib1Ext",
      "builtin:auto-fib-retracement__Auto1Fib1Ret",
@@ -2057,7 +2067,7 @@
    {
     "capability": "imports-libraries",
     "sole": 11,
-    "any": 54
+    "any": 52
    },
    {
     "capability": "user-functions",
@@ -2143,7 +2153,7 @@
      "[imperative]",
      "[user-functions]"
     ],
-    "count": 9
+    "count": 10
    },
    {
     "walls": [
@@ -2727,6 +2737,7 @@
    "admission:calc-bars": 2,
    "admission:collections:matrix": 2,
    "admission:library:Trendoscope/utils/6": 2,
+   "runtime:history-dynamic-offset": 2,
    "admission:library:BarefootJoey/AstroLib/1": 1,
    "admission:library:HeWhoMustNotBeNamed/arraymethods/1": 1,
    "admission:library:RicardoSantos/MathOperator/2": 1,
@@ -2755,7 +2766,6 @@
    "runtime:array": 1,
    "runtime:expression-statement": 1,
    "runtime:function": 1,
-   "runtime:history-dynamic-offset": 1,
    "runtime:history-expression": 1,
    "runtime:no-output": 1,
    "runtime:udt-method": 1
@@ -2949,6 +2959,18 @@
    ]
   },
   {
+   "wall": "runtime:history-dynamic-offset",
+   "unit": "dynamic-history",
+   "sole": 3,
+   "soleFullyEnumerated": 2,
+   "any": 31,
+   "soleScripts": [
+    "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
+    "reference:obv-macd-indicator__5JF4Np02Ma",
+    "reference:range-filter-v1__T5nXpEBeCh"
+   ]
+  },
+  {
    "wall": "runtime:statement",
    "unit": "statements",
    "sole": 3,
@@ -2958,18 +2980,6 @@
     "committed:machine-learning-knn-based-strategy__lj1Gjlbycb",
     "committed:support-and-resistance__c4792aabd0",
     "reference:trend-speed-analyzer-zeiierman__bd2f816c88"
-   ]
-  },
-  {
-   "wall": "runtime:history-dynamic-offset",
-   "unit": "dynamic-history",
-   "sole": 3,
-   "soleFullyEnumerated": 2,
-   "any": 30,
-   "soleScripts": [
-    "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
-    "reference:obv-macd-indicator__5JF4Np02Ma",
-    "reference:range-filter-v1__T5nXpEBeCh"
    ]
   },
   {
@@ -3263,7 +3273,7 @@
    "unit": "libraries",
    "sole": 0,
    "soleFullyEnumerated": 0,
-   "any": 53,
+   "any": 50,
    "soleScripts": []
   },
   {
@@ -4819,6 +4829,14 @@
    "soleScripts": []
   },
   {
+   "wall": "pine:library-version",
+   "unit": "libraries",
+   "sole": 0,
+   "soleFullyEnumerated": 0,
+   "any": 1,
+   "soleScripts": []
+  },
+  {
    "wall": "pine:member",
    "unit": "types",
    "sole": 0,
@@ -5098,6 +5116,16 @@
    ],
    "scripts": [
     "committed:atr-trailing-stoploss-strategy__oayb1wVXkZ"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "admission:import",
+    "admission:library:TradingView/ta/7"
+   ],
+   "scripts": [
+    "committed:kalman-psar-backquant__0a389f529b"
    ],
    "count": 1
   },
@@ -5701,6 +5729,12 @@
     5
    ]
   ],
+  "pine:library-version": [
+   [
+    "import",
+    1
+   ]
+  ],
   "pine:member": [
    [
     "(a script's own identifier)",
@@ -6085,6 +6119,10 @@
     12
    ],
    [
+    "ta.lowest",
+    2
+   ],
+   [
     "ta.wma",
     2
    ],
@@ -6114,10 +6152,6 @@
    ],
    [
     "ta.highest",
-    1
-   ],
-   [
-    "ta.lowest",
     1
    ],
    [
@@ -6152,7 +6186,7 @@
   "runtime:library": [
    [
     "import",
-    53
+    50
    ]
   ],
   "runtime:loop": [
@@ -6361,6 +6395,7 @@
     "admission:library:reees/Algebra/3",
     "admission:library:reees/TA/11",
     "pine:library-denied",
+    "pine:library-version",
     "runtime:library"
    ],
    "sole": 2,
@@ -6373,14 +6408,10 @@
    ],
    "evidence": {
     "counts": {
-     "committedOther": 1,
+     "committedMatch": 1,
      "ledgerOnly": 1
     },
     "queue": [
-     {
-      "script": "committed:kalman-psar-backquant__0a389f529b",
-      "status": "committedOther"
-     },
      {
       "script": "reference:volume-profile-heatmap__89dbe956a4",
       "status": "ledgerOnly"
@@ -9068,7 +9099,7 @@
    "admission:import",
    "admission:library:TradingView/ta/7",
    "pine:function",
-   "runtime:library",
+   "pine:library-version",
    "runtime:nothing-drawn"
   ],
   "builtin:rob-booker-adx-breakout__Rob1Booker1A": [
@@ -9596,8 +9627,7 @@
   ],
   "committed:kalman-psar-backquant__0a389f529b": [
    "admission:import",
-   "admission:library:TradingView/ta/7",
-   "runtime:library"
+   "admission:library:TradingView/ta/7"
   ],
   "committed:linear-regression-channel-200__243d67c804": [
    "runtime:call-undeclared-builtin-state"
@@ -9653,8 +9683,7 @@
    "admission:import",
    "admission:library:TradingView/ta/7",
    "runtime:conditional-history",
-   "runtime:function-global-state",
-   "runtime:library"
+   "runtime:function-global-state"
   ],
   "committed:market-profile-with-tpo__b2b119d8ab": [
    "pine:builtin",
@@ -9890,6 +9919,7 @@
    "admission:library:TFlab/OrderBlockDrawing_TradingFinder/1",
    "admission:library:TFlab/OrderBlockRefiner_TradingFinder/2",
    "admission:library:TradingView/ta/7",
+   "runtime:history-dynamic-offset",
    "runtime:history-expression",
    "runtime:library"
   ],
@@ -12522,11 +12552,11 @@
      "pine:function": [
       "(a script's own identifier)"
      ],
+     "pine:library-version": [
+      "import"
+     ],
      "pine:undefined": [
       "(a script's own identifier)"
-     ],
-     "runtime:library": [
-      "import"
      ]
     },
     "captures": [],
@@ -16980,21 +17010,17 @@
      ],
      "historyOnly": false
     },
-    "rtAttached": false,
+    "rtAttached": true,
     "rtEnumerated": true,
     "dataLimited": [],
     "venues": [],
     "otherSymbol": [],
-    "tokens": {
-     "runtime:library": [
-      "import"
-     ]
-    },
+    "tokens": {},
     "captures": [
      {
       "id": "kalman-psar-backquant-rddt-1d-2026-11-15",
       "production": "INCONCLUSIVE",
-      "runtimeOn": "INCONCLUSIVE"
+      "runtimeOn": "MATCH"
      }
     ],
     "ledger": [
@@ -17625,9 +17651,6 @@
     "tokens": {
      "runtime:conditional-history": [
       "(a script's own identifier)"
-     ],
-     "runtime:library": [
-      "import"
      ]
     },
     "captures": [
@@ -19914,6 +19937,9 @@
     "venues": [],
     "otherSymbol": [],
     "tokens": {
+     "runtime:history-dynamic-offset": [
+      "ta.lowest"
+     ],
      "runtime:library": [
       "import"
      ]
