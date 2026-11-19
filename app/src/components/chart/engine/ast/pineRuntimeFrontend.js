@@ -5355,7 +5355,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'name') {
       const slot = lookupReadable(node.name, scope)
       if (slot !== null) return slotUdt(slot)
-      const path = fieldPathOf(node, scope)
+      // ⭐ S14 fix 3 — the depth travels through `fieldPathOf` and back (below)
+      const path = fieldPathOf(node, scope, depth)
       if (path) return path.type
       const bound = env.get(node.name)
       if (bound && bound.kind === 'expr') return udtTypeOf(bound.node, scope, depth + 1)
@@ -5413,7 +5414,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  the same ruling for the receiver of a method call, and for the same reason:
    *  `a.b.c` addresses `c` OF `a.b`, and reading `a.b` as the head of `c` would
    *  address the wrong object with no error anywhere. */
-  const fieldPathOf = (node, scope) => {
+  // ⭐⭐ ENGINE NUMBER PENDING (S14 fix 3) — THE DEPTH `udtTypeOf` BOUNDS ITS WALK WITH TRAVELS THROUGH HERE.
+  // ⚰️ This called `udtTypeOf(bound.node, scope)` with the depth reset to 0, so a binding whose own value reads
+  // a path with its name as the head (`string timeframe = timeframe.period`, then `timeframe.period` again:
+  // the head is the binding, its value is the same path) went round `udtTypeOf` -> `fieldPathOf` -> the binding
+  // -> `udtTypeOf` until the stack overflowed (an engine defect, S14: 5 walls in 3 sample scripts). With the
+  // depth carried it answers `null` at the bound, which is the answer: a `string` has no fields, so the path
+  // is not a field path and the name is read as what it is (`timeframe.period`, the built-in).
+  const fieldPathOf = (node, scope, depth = 0) => {
     if (!node || node.type !== 'name' || typeof node.name !== 'string') return null
     const parts = node.name.split('.')
     if (parts.length < 2) return null
@@ -5423,7 +5431,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (slot !== null) type = slotUdt(slot)
     else {
       const bound = env.get(head)
-      if (bound && bound.kind === 'expr') type = udtTypeOf(bound.node, scope)
+      if (bound && bound.kind === 'expr') type = udtTypeOf(bound.node, scope, depth + 1)
     }
     if (!type) return null
     const steps = []

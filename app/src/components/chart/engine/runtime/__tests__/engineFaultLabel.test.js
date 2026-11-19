@@ -68,17 +68,11 @@ describe('S14 — an exception that is not a refusal is `runtime:lower`, never `
     expect(r.refusal.message).not.toContain('engine defect')
   })
 
-  it('END TO END, a real defect: a variable named like a namespace sends the user-type reader round in a loop', () => {
-    // ⭐ A defect still on S14's queue (`udtTypeOf` -> `fieldPathOf` -> the binding -> `udtTypeOf` with its depth
-    // reset: a `string timeframe = …` read back through `timeframe.period`). It moves along the queue as each fix
-    // lands. ⚰️ It was the uncalled helper's IR check (S14 fix 1, `uncalledHelperState.test.js`), then the parse
-    // offset `fromCanonical` lost (S14 fix 2, `canonicalPassthrough.test.js`).
-    const r = build(`${HEAD}string timeframe = timeframe.period\nx = timeframe.period == "D" ? 1 : 0\nplot(close + x)\n`)
-    expect(r.ok).toBe(false)
-    expect(r.refusal.guard).toBe('runtime:lower')
-    expect(r.refusal.message.startsWith(ENGINE_DEFECT_SENTENCE)).toBe(true)
-    expect(r.refusal.message).toMatch(/Maximum call stack size exceeded/)
-  })
+  // ⚰️ AN END-TO-END REAL DEFECT STOOD HERE, AND S14's QUEUE IS EMPTY NOW. It moved along the queue as each
+  // root cause was fixed: the uncalled helper's IR check (fix 1, `uncalledHelperState.test.js`), the parse offset
+  // `fromCanonical` lost (fix 2, `canonicalPassthrough.test.js`), the user-type reader's loop (fix 3,
+  // `udtReaderDepth.test.js`). No sample script throws during a build any more, so the injected faults above are
+  // the rail for each kind, and the next real defect, when one is found, is the next end-to-end case.
 
   it('END TO END, a named error: an unreadable colour literal keeps "not a colour this engine can read"', () => {
     const r = build(`${HEAD}myCol = #00e6761\nbgcolor(myCol)\nplot(close)\n`)

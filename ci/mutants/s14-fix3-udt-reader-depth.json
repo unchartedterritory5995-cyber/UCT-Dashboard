@@ -1,0 +1,24 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "S14 fix 3 (feat/pine-s14-udt-reader-depth, NUMBER PENDING): the depth `udtTypeOf` bounds its walk with travels through `fieldPathOf` and back, so a binding named like a namespace no longer loops until the stack overflows. Every hop of the depth, dropped once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "J1",
+   "mutant": "udtTypeOf asks fieldPathOf with the depth dropped",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      const path = fieldPathOf(node, scope, depth)",
+   "to": "      const path = fieldPathOf(node, scope)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/udtReaderDepth.test.js",
+   "expectRed": "timeframe"
+  },
+  {
+   "id": "J2",
+   "mutant": "fieldPathOf asks udtTypeOf with the depth reset to 0",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if (bound && bound.kind === 'expr') type = udtTypeOf(bound.node, scope, depth + 1)",
+   "to": "      if (bound && bound.kind === 'expr') type = udtTypeOf(bound.node, scope)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/udtReaderDepth.test.js",
+   "expectRed": "timeframe"
+  }
+ ]
+}
