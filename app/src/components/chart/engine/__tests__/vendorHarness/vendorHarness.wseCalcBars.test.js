@@ -41,7 +41,9 @@ describe('WS-E — wyckoff, graded on both sides of its `calc_bars_count`', () =
     expect(v.verdict, v.reason).toBe('MATCH')
     expect(v.plots.map((p) => p.title).sort()).toEqual([...SHAPES].sort())
     for (const p of v.plots) expect(p.verdict, `${p.title}: ${p.reason}`).toBe('MATCH')
-    expect(v.paints.rows).toEqual([{ id: 'plot_0', kind: 'barcolor', state: 'agree' }])
+    // (each row also says which of our paints it is and whether it differs, 2026-11-19, held evidence)
+    expect(v.paints.rows.map(({ id, kind, state, differs }) => ({ id, kind, state, differs })))
+      .toEqual([{ id: 'plot_0', kind: 'barcolor', state: 'agree', differs: false }])
     expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
   })
 
