@@ -40,11 +40,11 @@
    }
   ]
  },
- "engine": 84,
+ "engine": 85,
  "headline": {
   "sample": 679,
-  "memberServed": 286,
-  "memberServedPct": 42.1,
+  "memberServed": 294,
+  "memberServedPct": 43.3,
   "runtimeOn": 299,
   "runtimeOnPct": 44.0,
   "hostOnly": 226,
@@ -53,22 +53,18 @@
   "runtimeLost": 0,
   "admission": {
    "allowlisted": 1,
-   "capability": 59,
-   "not-admitted": 13
+   "capability": 67,
+   "not-admitted": 5
   },
   "declinedCapabilities": {
-   "obj:linefill": 4,
-   "request-other": 3,
    "collections:matrix": 2,
    "calc-bars": 1,
-   "import": 1,
-   "library:TradingView/ta/7": 1,
    "method-def": 1,
    "varip": 1
   },
-  "servedOnHistoryOnly": 14,
-  "notServed": 393,
-  "notServedFullyEnumerated": 203,
+  "servedOnHistoryOnly": 18,
+  "notServed": 385,
+  "notServedFullyEnumerated": 195,
   "neverServe": 16,
   "dataDecision": 5,
   "missingFacts": []
@@ -2664,9 +2660,7 @@
  "hostSoleRuntimeWalls": {
   "[compute-budget]": {
    "(served on the runtime lane)": 4,
-   "admission:request-other": 4,
    "budget:lookback": 3,
-   "admission:obj:linefill": 1,
    "budget:series": 1,
    "pine:builtin": 1,
    "pine:drawing": 1,
@@ -2675,7 +2669,6 @@
   },
   "[drawing-never-attempted]": {
    "admission:method-def": 1,
-   "admission:obj:linefill": 1,
    "runtime:expression-statement": 1,
    "runtime:statement": 1,
    "runtime:udt-method": 1
@@ -2684,9 +2677,7 @@
    "host:pine:constant-only": 2,
    "(served on the runtime lane)": 1,
    "admission:method-def": 1,
-   "admission:obj:linefill": 1,
-   "admission:obj:polyline": 1,
-   "admission:request-other": 1
+   "admission:obj:polyline": 1
   },
   "[history-offsets]": {
    "host:pine:constant-only": 3,
@@ -2695,8 +2686,7 @@
    "runtime:history-dynamic-offset": 1
   },
   "[imperative]": {
-   "(served on the runtime lane)": 16,
-   "admission:request-other": 8,
+   "(served on the runtime lane)": 17,
    "runtime:conditional-history": 6,
    "pine:builtin": 4,
    "runtime:history-dynamic-offset": 4,
@@ -2712,7 +2702,6 @@
    "runtime:withheld-all": 2,
    "admission:collections:map": 1,
    "admission:collections:matrix": 1,
-   "admission:obj:linefill": 1,
    "lower-tf:store-unmeasured": 1,
    "pine:state": 1,
    "runtime:block-value": 1,
@@ -2727,7 +2716,6 @@
    "runtime:library": 11,
    "pine:builtin": 7,
    "admission:method-def": 4,
-   "admission:obj:linefill": 4,
    "runtime:call-undeclared-builtin-state": 4,
    "runtime:unbound": 4,
    "admission:collections:map": 3,
@@ -2747,7 +2735,6 @@
    "admission:library:TFlab/OrderBlockDrawing_TradingFinder/1": 1,
    "admission:library:TFlab/OrderBlockRefiner_TradingFinder/2": 1,
    "admission:library:TradingView/ZigZag/9": 1,
-   "admission:library:TradingView/ta/7": 1,
    "admission:library:Trendoscope/Drawing/2": 1,
    "admission:library:Trendoscope/LineWrapper/2": 1,
    "admission:library:Trendoscope/TradeTracker/1": 1,
@@ -2762,7 +2749,6 @@
    "admission:library:kaigouthro/hsvColor/15": 1,
    "admission:library:reees/Algebra/3": 1,
    "admission:library:reees/TA/11": 1,
-   "admission:request-other": 1,
    "runtime:array": 1,
    "runtime:expression-statement": 1,
    "runtime:function": 1,
@@ -2773,7 +2759,6 @@
   "[output-contract]": {
    "pine:function": 2,
    "runtime:no-output": 2,
-   "admission:request-other": 1,
    "host:pine:constant-only": 1,
    "host:pine:presentation-only": 1,
    "runtime:expression-statement": 1,
@@ -2783,7 +2768,6 @@
    "[paint-withheld]": 2
   },
   "[request-security]": {
-   "admission:request-other": 15,
    "pine:request": 11,
    "host:pine:constant-only": 3,
    "runtime:request": 3,
@@ -2798,14 +2782,12 @@
   },
   "[translator-robustness]": {
    "(served on the runtime lane)": 3,
-   "admission:request-other": 1,
    "runtime:output-map": 1,
    "runtime:request": 1,
    "runtime:statement": 1
   },
   "[udt-methods]": {
    "admission:method-def": 2,
-   "admission:request-other": 2,
    "admission:collections:map": 1,
    "pine:builtin": 1,
    "pine:type": 1,
@@ -2818,7 +2800,6 @@
    "runtime:udt-method": 1
   },
   "[user-functions]": {
-   "admission:request-other": 7,
    "pine:function": 5,
    "runtime:history-dynamic-offset": 3,
    "runtime:request-with-state": 3,
@@ -2882,6 +2863,64 @@
    ]
   },
   {
+   "wall": "pine:request",
+   "unit": "request",
+   "sole": 14,
+   "soleFullyEnumerated": 9,
+   "any": 36,
+   "soleScripts": [
+    "committed:4c-nyse-market-breadth-ratio__722410befd",
+    "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f",
+    "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
+    "committed:mtf-key-levels-support-and-resistance__29f470a089",
+    "committed:previous-n-daysweeksmonths-high-low__78f5b05522",
+    "committed:sub__1xYROVYMlX",
+    "committed:swing-points-and-liquidity-by-leviathan__919c1fd9c6",
+    "reference:bitcoin-futures-funding-rates-v5__zGOXiHPIn3",
+    "reference:chases-buysell-indicator-advance-decline__37714ef0a5",
+    "reference:earnings-sr-levels-lazybear__453",
+    "reference:global-liquidity-index__1b7ae64e24",
+    "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH",
+    "reference:my-cme-open-interest__ndAEr9lJjO",
+    "reference:price-action-doji-harami-v02-by-justunclel__4219"
+   ]
+  },
+  {
+   "wall": "runtime:request",
+   "unit": "request",
+   "sole": 9,
+   "soleFullyEnumerated": 8,
+   "any": 29,
+   "soleScripts": [
+    "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
+    "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0",
+    "committed:multi-timeframe-trend-indicator__fa4022ecf5",
+    "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
+    "reference:best-abcd-pattern-screener__ROdc6mWjx4",
+    "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f",
+    "reference:best-rsi-divergences-screener__TmlpugZKr6",
+    "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029",
+    "reference:saty-atr-levels__99165984ef"
+   ]
+  },
+  {
+   "wall": "pine:function",
+   "unit": "builtins",
+   "sole": 8,
+   "soleFullyEnumerated": 6,
+   "any": 53,
+   "soleScripts": [
+    "committed:asianrange-and-killzones__ef41eb5ad6",
+    "committed:screener-mean-reversion-channel__nTK2sHWDlB",
+    "committed:zigzag-ma-pattern-recognition__1302",
+    "reference:cm-forex-sessions-highlight-v1__41",
+    "reference:fvg-instantaneous-mitigation-signals-luxalgo__4769478b4b",
+    "reference:squeeze-momentum-indicator-lazybear-vx-by-dgt__bjAASLSxLp",
+    "reference:supertrendrange-by-dgt__jDAxwdo5u7",
+    "reference:vp-period__iO1NrPRRG5"
+   ]
+  },
+  {
    "wall": "runtime:conditional-history",
    "unit": "conditional-history",
    "sole": 6,
@@ -2897,41 +2936,16 @@
    ]
   },
   {
-   "wall": "pine:function",
+   "wall": "runtime:call-undeclared-builtin-state",
    "unit": "builtins",
    "sole": 4,
    "soleFullyEnumerated": 3,
-   "any": 53,
+   "any": 55,
    "soleScripts": [
-    "reference:cm-forex-sessions-highlight-v1__41",
-    "reference:fvg-instantaneous-mitigation-signals-luxalgo__4769478b4b",
-    "reference:squeeze-momentum-indicator-lazybear-vx-by-dgt__bjAASLSxLp",
-    "reference:vp-period__iO1NrPRRG5"
-   ]
-  },
-  {
-   "wall": "admission:obj:linefill",
-   "unit": "admit:obj:linefill",
-   "sole": 4,
-   "soleFullyEnumerated": 4,
-   "any": 19,
-   "soleScripts": [
-    "builtin:linear-regression-channel__Linear_Regre",
-    "committed:fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606",
-    "committed:trend-targets-algoalpha__92ff5628d7",
-    "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84"
-   ]
-  },
-  {
-   "wall": "admission:request-other",
-   "unit": "admit:request-other",
-   "sole": 3,
-   "soleFullyEnumerated": 3,
-   "any": 132,
-   "soleScripts": [
-    "committed:fair-value-gap__1048fa103a",
-    "reference:intraday-power-3-visual__f9b34d80bb",
-    "reference:support-resistance-fibonacci-retracement__06a1a2c80d"
+    "committed:correlation-matrix__dzN3DMCFJL",
+    "committed:linear-regression-channel-200__243d67c804",
+    "committed:previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d",
+    "committed:volume-profile-auto-line-v2__b0e947fd20"
    ]
   },
   {
@@ -2944,18 +2958,6 @@
     "builtin:visible-average-price__Visible1Aver",
     "committed:session-tpo-profile__41088ef96d",
     "reference:rsi-entry-engine-trade-w-samet__6fa55b9515"
-   ]
-  },
-  {
-   "wall": "runtime:call-undeclared-builtin-state",
-   "unit": "builtins",
-   "sole": 3,
-   "soleFullyEnumerated": 3,
-   "any": 55,
-   "soleScripts": [
-    "committed:linear-regression-channel-200__243d67c804",
-    "committed:previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d",
-    "committed:volume-profile-auto-line-v2__b0e947fd20"
    ]
   },
   {
@@ -2983,6 +2985,42 @@
    ]
   },
   {
+   "wall": "runtime:request-with-state",
+   "unit": "request-with-state",
+   "sole": 3,
+   "soleFullyEnumerated": 3,
+   "any": 27,
+   "soleScripts": [
+    "committed:boom-hunter-entry-point-screener-alerts__0fc5982548",
+    "reference:money-flow-index-mtf-alerts__RkKU95fUai",
+    "reference:supertrend-mtf-heatmap__ODcEBlvB3g"
+   ]
+  },
+  {
+   "wall": "lower-tf:store-unmeasured",
+   "unit": "lower-tf",
+   "sole": 3,
+   "soleFullyEnumerated": 2,
+   "any": 10,
+   "soleScripts": [
+    "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8",
+    "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0",
+    "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326"
+   ]
+  },
+  {
+   "wall": "budget:lookback",
+   "unit": "compute-budget",
+   "sole": 3,
+   "soleFullyEnumerated": 2,
+   "any": 5,
+   "soleScripts": [
+    "reference:trend-range-detector-zeiierman__56816eee0d",
+    "reference:ut-bot-linreg-candles-longevity-zones-sr-dashboard__26fb08b910",
+    "reference:vwapmvwapema-crossover__N16MOYK6AE"
+   ]
+  },
+  {
    "wall": "runtime:output-map",
    "unit": "output-contract",
    "sole": 3,
@@ -3004,6 +3042,17 @@
     "committed:machine-learning-moving-average-backquant__4d7ff59e68",
     "committed:momentum-based-zigzag__38d39d2d6c",
     "committed:volatility-coil-edge-bullbyte__604f0fd1c6"
+   ]
+  },
+  {
+   "wall": "host:pine:constant-only",
+   "unit": "output-contract",
+   "sole": 2,
+   "soleFullyEnumerated": 0,
+   "any": 13,
+   "soleScripts": [
+    "builtin:chop-zone__Chop1Zone",
+    "committed:camarilla-screener__UsBJPF3MkA"
    ]
   },
   {
@@ -3029,17 +3078,6 @@
    ]
   },
   {
-   "wall": "budget:lookback",
-   "unit": "compute-budget",
-   "sole": 2,
-   "soleFullyEnumerated": 1,
-   "any": 5,
-   "soleScripts": [
-    "reference:trend-range-detector-zeiierman__56816eee0d",
-    "reference:vwapmvwapema-crossover__N16MOYK6AE"
-   ]
-  },
-  {
    "wall": "[paint-withheld]",
    "unit": "objects",
    "sole": 2,
@@ -3058,16 +3096,6 @@
    "any": 25,
    "soleScripts": [
     "committed:volatility-trend-score-backquant__0794882a37"
-   ]
-  },
-  {
-   "wall": "host:pine:constant-only",
-   "unit": "output-contract",
-   "sole": 1,
-   "soleFullyEnumerated": 0,
-   "any": 13,
-   "soleScripts": [
-    "builtin:chop-zone__Chop1Zone"
    ]
   },
   {
@@ -3161,6 +3189,16 @@
    ]
   },
   {
+   "wall": "pine:arity",
+   "unit": "call-mapping",
+   "sole": 1,
+   "soleFullyEnumerated": 1,
+   "any": 5,
+   "soleScripts": [
+    "committed:blackflag-fts__GdkmXaTINI"
+   ]
+  },
+  {
    "wall": "runtime:object-op",
    "unit": "objects",
    "sole": 1,
@@ -3168,6 +3206,16 @@
    "any": 5,
    "soleScripts": [
     "committed:fibonacci-retracement-mtflog__54a8dbfa8e"
+   ]
+  },
+  {
+   "wall": "lower-tf:lookahead",
+   "unit": "lower-tf",
+   "sole": 1,
+   "soleFullyEnumerated": 1,
+   "any": 4,
+   "soleScripts": [
+    "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G"
    ]
   },
   {
@@ -3221,6 +3269,16 @@
    ]
   },
   {
+   "wall": "host:pine:object-removal-lost",
+   "unit": "objects",
+   "sole": 1,
+   "soleFullyEnumerated": 0,
+   "any": 1,
+   "soleScripts": [
+    "reference:camarilla-levels-intraday__bfb5a2b8db"
+   ]
+  },
+  {
    "wall": "host:pine:presentation-only",
    "unit": "output-contract",
    "sole": 1,
@@ -3261,11 +3319,21 @@
    ]
   },
   {
+   "wall": "pine:window-dependent",
+   "unit": "dynamic-history",
+   "sole": 1,
+   "soleFullyEnumerated": 1,
+   "any": 1,
+   "soleScripts": [
+    "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16"
+   ]
+  },
+  {
    "wall": "admission:import",
    "unit": "libraries",
    "sole": 0,
    "soleFullyEnumerated": 0,
-   "any": 53,
+   "any": 50,
    "soleScripts": []
   },
   {
@@ -3274,30 +3342,6 @@
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 50,
-   "soleScripts": []
-  },
-  {
-   "wall": "pine:request",
-   "unit": "request",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 36,
-   "soleScripts": []
-  },
-  {
-   "wall": "runtime:request",
-   "unit": "request",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 29,
-   "soleScripts": []
-  },
-  {
-   "wall": "runtime:request-with-state",
-   "unit": "request-with-state",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 27,
    "soleScripts": []
   },
   {
@@ -3322,14 +3366,6 @@
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 13,
-   "soleScripts": []
-  },
-  {
-   "wall": "lower-tf:store-unmeasured",
-   "unit": "lower-tf",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 10,
    "soleScripts": []
   },
   {
@@ -3445,14 +3481,6 @@
    "soleScripts": []
   },
   {
-   "wall": "pine:arity",
-   "unit": "call-mapping",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 5,
-   "soleScripts": []
-  },
-  {
    "wall": "pine:collection",
    "unit": "collections",
    "sole": 0,
@@ -3503,22 +3531,6 @@
   {
    "wall": "admission:library:TradingView/ZigZag/7",
    "unit": "libraries",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 4,
-   "soleScripts": []
-  },
-  {
-   "wall": "admission:library:TradingView/ta/7",
-   "unit": "libraries",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 4,
-   "soleScripts": []
-  },
-  {
-   "wall": "lower-tf:lookahead",
-   "unit": "lower-tf",
    "sole": 0,
    "soleFullyEnumerated": 0,
    "any": 4,
@@ -4365,14 +4377,6 @@
    "soleScripts": []
   },
   {
-   "wall": "host:pine:object-removal-lost",
-   "unit": "objects",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 1,
-   "soleScripts": []
-  },
-  {
    "wall": "host:pine:objects-only",
    "unit": "objects",
    "sole": 0,
@@ -4861,14 +4865,6 @@
    "soleScripts": []
   },
   {
-   "wall": "pine:window-dependent",
-   "unit": "dynamic-history",
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "any": 1,
-   "soleScripts": []
-  },
-  {
    "wall": "polyline.*",
    "unit": "objects",
    "sole": 0,
@@ -4904,47 +4900,6 @@
  "memberPairs": [
   {
    "walls": [
-    "admission:request-other",
-    "pine:request"
-   ],
-   "scripts": [
-    "committed:4c-nyse-market-breadth-ratio__722410befd",
-    "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f",
-    "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-    "committed:mtf-key-levels-support-and-resistance__29f470a089",
-    "committed:previous-n-daysweeksmonths-high-low__78f5b05522",
-    "committed:sub__1xYROVYMlX",
-    "committed:swing-points-and-liquidity-by-leviathan__919c1fd9c6",
-    "reference:bitcoin-futures-funding-rates-v5__zGOXiHPIn3",
-    "reference:chases-buysell-indicator-advance-decline__37714ef0a5",
-    "reference:earnings-sr-levels-lazybear__453",
-    "reference:global-liquidity-index__1b7ae64e24",
-    "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH",
-    "reference:my-cme-open-interest__ndAEr9lJjO",
-    "reference:price-action-doji-harami-v02-by-justunclel__4219"
-   ],
-   "count": 14
-  },
-  {
-   "walls": [
-    "admission:request-other",
-    "runtime:request"
-   ],
-   "scripts": [
-    "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
-    "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0",
-    "committed:multi-timeframe-trend-indicator__fa4022ecf5",
-    "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
-    "reference:best-abcd-pattern-screener__ROdc6mWjx4",
-    "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f",
-    "reference:best-rsi-divergences-screener__TmlpugZKr6",
-    "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029",
-    "reference:saty-atr-levels__99165984ef"
-   ],
-   "count": 9
-  },
-  {
-   "walls": [
     "[strategy]",
     "pine:strategy-call"
    ],
@@ -4961,38 +4916,38 @@
   },
   {
    "walls": [
-    "admission:request-other",
-    "pine:function"
+    "pine:function",
+    "runtime:request-with-state"
    ],
    "scripts": [
-    "committed:asianrange-and-killzones__ef41eb5ad6",
-    "committed:screener-mean-reversion-channel__nTK2sHWDlB",
-    "committed:zigzag-ma-pattern-recognition__1302",
-    "reference:supertrendrange-by-dgt__jDAxwdo5u7"
+    "committed:3-level-zigzag-semafor__3078",
+    "committed:ad-line-of-sp-sectors__af306a4359",
+    "committed:moving-averages-as-support-resistance-mtf__gcBksfRvvy",
+    "reference:spy-moving-averages-and-signals__KSz0yeOiH2"
    ],
    "count": 4
   },
   {
    "walls": [
-    "admission:request-other",
-    "lower-tf:store-unmeasured"
+    "host:pine:constant-only",
+    "pine:request"
    ],
    "scripts": [
-    "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8",
-    "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0",
-    "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326"
+    "builtin:advance-decline-line__Advance1Decl",
+    "builtin:cumulative-volume-index__Cumulative1V",
+    "committed:cumulative-volume-delta__c772250751"
    ],
    "count": 3
   },
   {
    "walls": [
-    "admission:request-other",
-    "runtime:request-with-state"
+    "pine:builtin",
+    "pine:state"
    ],
    "scripts": [
-    "committed:boom-hunter-entry-point-screener-alerts__0fc5982548",
-    "reference:money-flow-index-mtf-alerts__RkKU95fUai",
-    "reference:supertrend-mtf-heatmap__ODcEBlvB3g"
+    "reference:vwap-mtf__2809",
+    "reference:vwap-stdev-bands-v2-mod__2741",
+    "reference:vwap-stdev-bands-v2-mod__2744"
    ],
    "count": 3
   },
@@ -5020,12 +4975,45 @@
   },
   {
    "walls": [
+    "pine:builtin",
+    "pine:request"
+   ],
+   "scripts": [
+    "builtin:volume-weighted-average-price__VWAP",
+    "committed:delta-imbalance-map-joat__b80f337fb3"
+   ],
+   "count": 2
+  },
+  {
+   "walls": [
     "pine:function",
     "runtime:call-undeclared-builtin-state"
    ],
    "scripts": [
     "builtin:moon-phases__Moon1Phases",
     "reference:rsi-kernel-optimized-flux-charts__427926d08f"
+   ],
+   "count": 2
+  },
+  {
+   "walls": [
+    "pine:function",
+    "runtime:fill-target"
+   ],
+   "scripts": [
+    "reference:ict-killzone__fE0Mzs0mp0",
+    "reference:kz-boxes__zed4AoolEW"
+   ],
+   "count": 2
+  },
+  {
+   "walls": [
+    "runtime:request",
+    "runtime:statement"
+   ],
+   "scripts": [
+    "committed:renderingnature-smc-reversal-engine-v71__f8734584d9",
+    "reference:rsi-multi-timeframe-dashboard-by-giua64__cb0cdabd5f"
    ],
    "count": 2
   },
@@ -5121,71 +5109,11 @@
   },
   {
    "walls": [
-    "admission:import",
-    "admission:library:TradingView/ta/7"
+    "admission:collections:matrix",
+    "pine:function"
    ],
    "scripts": [
-    "committed:kalman-psar-backquant__0a389f529b"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "admission:request-other",
-    "host:pine:constant-only"
-   ],
-   "scripts": [
-    "committed:camarilla-screener__UsBJPF3MkA"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "admission:request-other",
-    "host:pine:object-removal-lost"
-   ],
-   "scripts": [
-    "reference:camarilla-levels-intraday__bfb5a2b8db"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "admission:request-other",
-    "lower-tf:lookahead"
-   ],
-   "scripts": [
-    "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "admission:request-other",
-    "pine:arity"
-   ],
-   "scripts": [
-    "committed:blackflag-fts__GdkmXaTINI"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "admission:request-other",
-    "pine:window-dependent"
-   ],
-   "scripts": [
-    "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "admission:request-other",
-    "runtime:call-undeclared-builtin-state"
-   ],
-   "scripts": [
-    "committed:correlation-matrix__dzN3DMCFJL"
+    "committed:open-interest-suite-aggregated-by-leviathan__44b150b3df"
    ],
    "count": 1
   },
@@ -5221,6 +5149,16 @@
   },
   {
    "walls": [
+    "budget:lookback",
+    "pine:function"
+   ],
+   "scripts": [
+    "committed:volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
     "host:pine:constant-only",
     "pine:function"
    ],
@@ -5236,6 +5174,26 @@
    ],
    "scripts": [
     "builtin:hull-moving-average__Hull1MA"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "lower-tf:store-unmeasured",
+    "pine:builtin"
+   ],
+   "scripts": [
+    "committed:liquidity-engulfing-displacement-msf__58824c94f0"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "lower-tf:store-unmeasured",
+    "pine:drawing"
+   ],
+   "scripts": [
+    "reference:ct-displacement-fvg-toolkit__1ae5bb663e"
    ],
    "count": 1
   },
@@ -5321,6 +5279,26 @@
   },
   {
    "walls": [
+    "pine:arity",
+    "runtime:request"
+   ],
+   "scripts": [
+    "reference:trendlines-2x__rzuOQrVQWt"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "pine:builtin",
+    "pine:function"
+   ],
+   "scripts": [
+    "reference:bb-custom-indicator-tradingview-version__Vf3832aju8"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
     "pine:builtin",
     "runtime:conditional-history"
    ],
@@ -5332,10 +5310,30 @@
   {
    "walls": [
     "pine:builtin",
+    "runtime:request"
+   ],
+   "scripts": [
+    "builtin:open-interest__OpenInterest"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "pine:builtin",
     "runtime:statement"
    ],
    "scripts": [
     "reference:interactive-atr-stop-loss__6d419f128f"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "pine:function",
+    "pine:request"
+   ],
+   "scripts": [
+    "reference:halftrend-longshort-signal-engine-bigbeluga__07070e14d6"
    ],
    "count": 1
   },
@@ -5401,6 +5399,46 @@
   },
   {
    "walls": [
+    "pine:request",
+    "pine:window"
+   ],
+   "scripts": [
+    "reference:most-screener__d7d9ae5349"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "pine:state",
+    "runtime:request-with-state"
+   ],
+   "scripts": [
+    "reference:thelark-lma-v2-laguerre__1029"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "runtime:call-undeclared-builtin-state",
+    "runtime:request"
+   ],
+   "scripts": [
+    "committed:mtf-watchlist-charts-anan__3453680ea1"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "runtime:conditional-history",
+    "runtime:function-global-state"
+   ],
+   "scripts": [
+    "committed:machine-learning-rsi-bullvision__50b4566edd"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
     "runtime:conditional-history",
     "runtime:history-expression"
    ],
@@ -5416,6 +5454,26 @@
    ],
    "scripts": [
     "committed:market-structure-break-order-block__3a1fb6197f"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "runtime:history-dynamic-offset",
+    "runtime:request"
+   ],
+   "scripts": [
+    "committed:strong-start-rvol-dashboard__36140b1cbe"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "runtime:history-dynamic-offset",
+    "runtime:request-with-state"
+   ],
+   "scripts": [
+    "committed:camarilla__jw9faob08r"
    ],
    "count": 1
   },
@@ -6367,7 +6425,6 @@
     "admission:library:TradingView/ta/11",
     "admission:library:TradingView/ta/12",
     "admission:library:TradingView/ta/14",
-    "admission:library:TradingView/ta/7",
     "admission:library:TradingView/ta/8",
     "admission:library:TradingView/ta/9",
     "admission:library:Trendoscope/Drawing/2",
@@ -6398,20 +6455,29 @@
     "pine:library-version",
     "runtime:library"
    ],
-   "sole": 2,
-   "soleFullyEnumerated": 2,
-   "soleServable": 2,
-   "any": 60,
+   "sole": 3,
+   "soleFullyEnumerated": 3,
+   "soleServable": 3,
+   "any": 58,
    "soleScripts": [
-    "committed:kalman-psar-backquant__0a389f529b",
+    "builtin:performance__Performance",
+    "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
     "reference:volume-profile-heatmap__89dbe956a4"
    ],
    "evidence": {
     "counts": {
-     "committedMatch": 1,
-     "ledgerOnly": 1
+     "committedOther": 1,
+     "ledgerOnly": 2
     },
     "queue": [
+     {
+      "script": "builtin:performance__Performance",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2",
+      "status": "committedOther"
+     },
      {
       "script": "reference:volume-profile-heatmap__89dbe956a4",
       "status": "ledgerOnly"
@@ -6687,14 +6753,34 @@
    "walls": [
     "runtime:request-with-state"
    ],
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "soleServable": 0,
+   "sole": 3,
+   "soleFullyEnumerated": 3,
+   "soleServable": 3,
    "any": 27,
-   "soleScripts": [],
+   "soleScripts": [
+    "committed:boom-hunter-entry-point-screener-alerts__0fc5982548",
+    "reference:money-flow-index-mtf-alerts__RkKU95fUai",
+    "reference:supertrend-mtf-heatmap__ODcEBlvB3g"
+   ],
    "evidence": {
-    "counts": {},
-    "queue": []
+    "counts": {
+     "committedOther": 1,
+     "ledgerOnly": 2
+    },
+    "queue": [
+     {
+      "script": "committed:boom-hunter-entry-point-screener-alerts__0fc5982548",
+      "status": "committedOther"
+     },
+     {
+      "script": "reference:money-flow-index-mtf-alerts__RkKU95fUai",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:supertrend-mtf-heatmap__ODcEBlvB3g",
+      "status": "ledgerOnly"
+     }
+    ]
    }
   },
   {
@@ -6706,14 +6792,127 @@
     "pine:request",
     "runtime:request"
    ],
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "soleServable": 0,
+   "sole": 23,
+   "soleFullyEnumerated": 17,
+   "soleServable": 21,
    "any": 64,
-   "soleScripts": [],
+   "soleScripts": [
+    "committed:4c-nyse-market-breadth-ratio__722410befd",
+    "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
+    "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f",
+    "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0",
+    "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
+    "committed:mtf-key-levels-support-and-resistance__29f470a089",
+    "committed:multi-timeframe-trend-indicator__fa4022ecf5",
+    "committed:previous-n-daysweeksmonths-high-low__78f5b05522",
+    "committed:sub__1xYROVYMlX",
+    "committed:swing-points-and-liquidity-by-leviathan__919c1fd9c6",
+    "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
+    "reference:best-abcd-pattern-screener__ROdc6mWjx4",
+    "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f",
+    "reference:best-rsi-divergences-screener__TmlpugZKr6",
+    "reference:bitcoin-futures-funding-rates-v5__zGOXiHPIn3",
+    "reference:chases-buysell-indicator-advance-decline__37714ef0a5",
+    "reference:earnings-sr-levels-lazybear__453",
+    "reference:global-liquidity-index__1b7ae64e24",
+    "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH",
+    "reference:my-cme-open-interest__ndAEr9lJjO",
+    "reference:price-action-doji-harami-v02-by-justunclel__4219",
+    "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029",
+    "reference:saty-atr-levels__99165984ef"
+   ],
    "evidence": {
-    "counts": {},
-    "queue": []
+    "counts": {
+     "committedOther": 10,
+     "ledgerOnly": 7,
+     "none": 4
+    },
+    "queue": [
+     {
+      "script": "committed:4c-nyse-market-breadth-ratio__722410befd",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
+      "status": "none"
+     },
+     {
+      "script": "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:mtf-key-levels-support-and-resistance__29f470a089",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:multi-timeframe-trend-indicator__fa4022ecf5",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:previous-n-daysweeksmonths-high-low__78f5b05522",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:sub__1xYROVYMlX",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:swing-points-and-liquidity-by-leviathan__919c1fd9c6",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
+      "status": "committedOther"
+     },
+     {
+      "script": "reference:best-abcd-pattern-screener__ROdc6mWjx4",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f",
+      "status": "none"
+     },
+     {
+      "script": "reference:best-rsi-divergences-screener__TmlpugZKr6",
+      "status": "none"
+     },
+     {
+      "script": "reference:bitcoin-futures-funding-rates-v5__zGOXiHPIn3",
+      "status": "none"
+     },
+     {
+      "script": "reference:chases-buysell-indicator-advance-decline__37714ef0a5",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:global-liquidity-index__1b7ae64e24",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:price-action-doji-harami-v02-by-justunclel__4219",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:saty-atr-levels__99165984ef",
+      "status": "ledgerOnly"
+     }
+    ]
    }
   },
   {
@@ -6726,14 +6925,39 @@
     "lower-tf:store-unmeasured",
     "lower-tf:unwitnessed"
    ],
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "soleServable": 0,
+   "sole": 4,
+   "soleFullyEnumerated": 3,
+   "soleServable": 4,
    "any": 14,
-   "soleScripts": [],
+   "soleScripts": [
+    "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G",
+    "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8",
+    "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0",
+    "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326"
+   ],
    "evidence": {
-    "counts": {},
-    "queue": []
+    "counts": {
+     "committedOther": 2,
+     "ledgerOnly": 2
+    },
+    "queue": [
+     {
+      "script": "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0",
+      "status": "committedOther"
+     },
+     {
+      "script": "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326",
+      "status": "ledgerOnly"
+     }
+    ]
    }
   },
   {
@@ -6747,29 +6971,35 @@
     "runtime:call-undeclared-builtin-state",
     "runtime:clock-zone"
    ],
-   "sole": 12,
-   "soleFullyEnumerated": 11,
-   "soleServable": 12,
+   "sole": 18,
+   "soleFullyEnumerated": 15,
+   "soleServable": 18,
    "any": 150,
    "soleScripts": [
     "builtin:moon-phases__Moon1Phases",
     "builtin:visible-average-price__Visible1Aver",
+    "committed:asianrange-and-killzones__ef41eb5ad6",
+    "committed:correlation-matrix__dzN3DMCFJL",
     "committed:linear-regression-channel-200__243d67c804",
     "committed:previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d",
+    "committed:screener-mean-reversion-channel__nTK2sHWDlB",
     "committed:session-tpo-profile__41088ef96d",
     "committed:volume-profile-auto-line-v2__b0e947fd20",
+    "committed:zigzag-ma-pattern-recognition__1302",
+    "reference:bb-custom-indicator-tradingview-version__Vf3832aju8",
     "reference:cm-forex-sessions-highlight-v1__41",
     "reference:fvg-instantaneous-mitigation-signals-luxalgo__4769478b4b",
     "reference:rsi-entry-engine-trade-w-samet__6fa55b9515",
     "reference:rsi-kernel-optimized-flux-charts__427926d08f",
     "reference:squeeze-momentum-indicator-lazybear-vx-by-dgt__bjAASLSxLp",
+    "reference:supertrendrange-by-dgt__jDAxwdo5u7",
     "reference:vp-period__iO1NrPRRG5"
    ],
    "evidence": {
     "counts": {
-     "committedOther": 3,
-     "ledgerOnly": 8,
-     "none": 1
+     "committedOther": 6,
+     "ledgerOnly": 10,
+     "none": 2
     },
     "queue": [
      {
@@ -6781,11 +7011,23 @@
       "status": "ledgerOnly"
      },
      {
+      "script": "committed:asianrange-and-killzones__ef41eb5ad6",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:correlation-matrix__dzN3DMCFJL",
+      "status": "none"
+     },
+     {
       "script": "committed:linear-regression-channel-200__243d67c804",
       "status": "committedOther"
      },
      {
       "script": "committed:previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d",
+      "status": "committedOther"
+     },
+     {
+      "script": "committed:screener-mean-reversion-channel__nTK2sHWDlB",
       "status": "committedOther"
      },
      {
@@ -6795,6 +7037,14 @@
      {
       "script": "committed:volume-profile-auto-line-v2__b0e947fd20",
       "status": "committedOther"
+     },
+     {
+      "script": "committed:zigzag-ma-pattern-recognition__1302",
+      "status": "committedOther"
+     },
+     {
+      "script": "reference:bb-custom-indicator-tradingview-version__Vf3832aju8",
+      "status": "ledgerOnly"
      },
      {
       "script": "reference:cm-forex-sessions-highlight-v1__41",
@@ -6814,6 +7064,10 @@
      },
      {
       "script": "reference:squeeze-momentum-indicator-lazybear-vx-by-dgt__bjAASLSxLp",
+      "status": "ledgerOnly"
+     },
+     {
+      "script": "reference:supertrendrange-by-dgt__jDAxwdo5u7",
       "status": "ledgerOnly"
      },
      {
@@ -6888,12 +7142,13 @@
     "runtime:history-dynamic-offset",
     "runtime:history-expression"
    ],
-   "sole": 5,
-   "soleFullyEnumerated": 3,
+   "sole": 6,
+   "soleFullyEnumerated": 4,
    "soleServable": 5,
    "any": 44,
    "soleScripts": [
     "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn",
+    "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16",
     "reference:obv-macd-indicator__5JF4Np02Ma",
     "reference:range-filter-v1__T5nXpEBeCh",
     "reference:rsi-cyclic-smoothed__ckgSq3I4CY",
@@ -7270,9 +7525,9 @@
     "runtime:nothing-drawn",
     "runtime:object-op"
    ],
-   "sole": 42,
+   "sole": 43,
    "soleFullyEnumerated": 41,
-   "soleServable": 38,
+   "soleServable": 39,
    "any": 71,
    "soleScripts": [
     "builtin:multi-time-period-charts__Multi-TimePe",
@@ -7289,6 +7544,7 @@
     "committed:trend-lines-supports-and-resistances__413ee2ee3b",
     "committed:vdubus-pattern-gen-v2-restored-refined__66dc68412e",
     "committed:volume-profile__X0dKLxdLh4",
+    "reference:camarilla-levels-intraday__bfb5a2b8db",
     "reference:cobra039s-crypto-market-visualizer__c3636f55f4",
     "reference:crypto-correlation-matrix__0f59de2d3d",
     "reference:cryptosignalscanner-rsi-overboughtoversold-divergence-indicator-new__918919b267",
@@ -7322,7 +7578,7 @@
     "counts": {
      "committedMatch": 4,
      "committedOther": 8,
-     "ledgerOnly": 26
+     "ledgerOnly": 27
     },
     "queue": [
      {
@@ -7360,6 +7616,10 @@
      {
       "script": "committed:volume-profile__X0dKLxdLh4",
       "status": "committedOther"
+     },
+     {
+      "script": "reference:camarilla-levels-intraday__bfb5a2b8db",
+      "status": "ledgerOnly"
      },
      {
       "script": "reference:crypto-correlation-matrix__0f59de2d3d",
@@ -7477,13 +7737,14 @@
     "runtime:output-map",
     "runtime:withheld-all"
    ],
-   "sole": 6,
+   "sole": 7,
    "soleFullyEnumerated": 0,
-   "soleServable": 6,
+   "soleServable": 7,
    "any": 32,
    "soleScripts": [
     "builtin:bollinger-bars__Bollinger1Ba",
     "builtin:chop-zone__Chop1Zone",
+    "committed:camarilla-screener__UsBJPF3MkA",
     "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888",
     "reference:coral-trend-indicator-lazybear__836",
     "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd",
@@ -7492,7 +7753,8 @@
    "evidence": {
     "counts": {
      "committedOther": 1,
-     "ledgerOnly": 5
+     "ledgerOnly": 5,
+     "none": 1
     },
     "queue": [
      {
@@ -7502,6 +7764,10 @@
      {
       "script": "builtin:chop-zone__Chop1Zone",
       "status": "ledgerOnly"
+     },
+     {
+      "script": "committed:camarilla-screener__UsBJPF3MkA",
+      "status": "none"
      },
      {
       "script": "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888",
@@ -7549,23 +7815,28 @@
     "budget:lookback",
     "budget:series"
    ],
-   "sole": 2,
-   "soleFullyEnumerated": 1,
-   "soleServable": 2,
+   "sole": 3,
+   "soleFullyEnumerated": 2,
+   "soleServable": 3,
    "any": 6,
    "soleScripts": [
     "reference:trend-range-detector-zeiierman__56816eee0d",
+    "reference:ut-bot-linreg-candles-longevity-zones-sr-dashboard__26fb08b910",
     "reference:vwapmvwapema-crossover__N16MOYK6AE"
    ],
    "evidence": {
     "counts": {
-     "ledgerOnly": 1,
+     "ledgerOnly": 2,
      "none": 1
     },
     "queue": [
      {
       "script": "reference:trend-range-detector-zeiierman__56816eee0d",
       "status": "none"
+     },
+     {
+      "script": "reference:ut-bot-linreg-candles-longevity-zones-sr-dashboard__26fb08b910",
+      "status": "ledgerOnly"
      },
      {
       "script": "reference:vwapmvwapema-crossover__N16MOYK6AE",
@@ -7583,14 +7854,23 @@
     "pine:arity",
     "pine:input-kind"
    ],
-   "sole": 0,
-   "soleFullyEnumerated": 0,
-   "soleServable": 0,
+   "sole": 1,
+   "soleFullyEnumerated": 1,
+   "soleServable": 1,
    "any": 7,
-   "soleScripts": [],
+   "soleScripts": [
+    "committed:blackflag-fts__GdkmXaTINI"
+   ],
    "evidence": {
-    "counts": {},
-    "queue": []
+    "counts": {
+     "committedOther": 1
+    },
+    "queue": [
+     {
+      "script": "committed:blackflag-fts__GdkmXaTINI",
+      "status": "committedOther"
+     }
+    ]
    }
   },
   {
@@ -7789,45 +8069,6 @@
    "runtimeDrawnWithMatch": []
   },
   {
-   "unit": "admit:obj:linefill",
-   "title": "capability admission of `obj:linefill` (registry evidence: runtime-on MATCH captures)",
-   "kind": "evidence",
-   "size": 1,
-   "walls": [
-    "admission:obj:linefill"
-   ],
-   "sole": 4,
-   "soleFullyEnumerated": 4,
-   "soleServable": 4,
-   "any": 19,
-   "soleScripts": [
-    "builtin:linear-regression-channel__Linear_Regre",
-    "committed:fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606",
-    "committed:trend-targets-algoalpha__92ff5628d7",
-    "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84"
-   ],
-   "evidence": {
-    "counts": {
-     "committedMatch": 2,
-     "ledgerOnly": 2
-    },
-    "queue": [
-     {
-      "script": "builtin:linear-regression-channel__Linear_Regre",
-      "status": "ledgerOnly"
-     },
-     {
-      "script": "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84",
-      "status": "ledgerOnly"
-     }
-    ]
-   },
-   "runtimeDrawnWithMatch": [
-    "committed:fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606",
-    "committed:trend-targets-algoalpha__92ff5628d7"
-   ]
-  },
-  {
    "unit": "admit:obj:polyline",
    "title": "capability admission of `obj:polyline` (registry evidence: runtime-on MATCH captures)",
    "kind": "evidence",
@@ -7845,43 +8086,6 @@
     "queue": []
    },
    "runtimeDrawnWithMatch": []
-  },
-  {
-   "unit": "admit:request-other",
-   "title": "capability admission of `request-other` (registry evidence: runtime-on MATCH captures)",
-   "kind": "evidence",
-   "size": 1,
-   "walls": [
-    "admission:request-other"
-   ],
-   "sole": 3,
-   "soleFullyEnumerated": 3,
-   "soleServable": 3,
-   "any": 132,
-   "soleScripts": [
-    "committed:fair-value-gap__1048fa103a",
-    "reference:intraday-power-3-visual__f9b34d80bb",
-    "reference:support-resistance-fibonacci-retracement__06a1a2c80d"
-   ],
-   "evidence": {
-    "counts": {
-     "committedMatch": 1,
-     "ledgerOnly": 2
-    },
-    "queue": [
-     {
-      "script": "reference:intraday-power-3-visual__f9b34d80bb",
-      "status": "ledgerOnly"
-     },
-     {
-      "script": "reference:support-resistance-fibonacci-retracement__06a1a2c80d",
-      "status": "ledgerOnly"
-     }
-    ]
-   },
-   "runtimeDrawnWithMatch": [
-    "committed:fair-value-gap__1048fa103a"
-   ]
   },
   {
    "unit": "admit:varip",
@@ -7915,35 +8119,20 @@
  "unitPairs": [
   {
    "walls": [
-    "admit:request-other",
-    "request"
+    "builtins",
+    "libraries"
    ],
    "scripts": [
-    "committed:4c-nyse-market-breadth-ratio__722410befd",
-    "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
-    "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f",
-    "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0",
-    "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q",
-    "committed:mtf-key-levels-support-and-resistance__29f470a089",
-    "committed:multi-timeframe-trend-indicator__fa4022ecf5",
-    "committed:previous-n-daysweeksmonths-high-low__78f5b05522",
-    "committed:sub__1xYROVYMlX",
-    "committed:swing-points-and-liquidity-by-leviathan__919c1fd9c6",
-    "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca",
-    "reference:best-abcd-pattern-screener__ROdc6mWjx4",
-    "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f",
-    "reference:best-rsi-divergences-screener__TmlpugZKr6",
-    "reference:bitcoin-futures-funding-rates-v5__zGOXiHPIn3",
-    "reference:chases-buysell-indicator-advance-decline__37714ef0a5",
-    "reference:earnings-sr-levels-lazybear__453",
-    "reference:global-liquidity-index__1b7ae64e24",
-    "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH",
-    "reference:my-cme-open-interest__ndAEr9lJjO",
-    "reference:price-action-doji-harami-v02-by-justunclel__4219",
-    "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029",
-    "reference:saty-atr-levels__99165984ef"
+    "committed:atr-stop-loss-indicator__LOfv1FvRhL",
+    "committed:deviation-scaled-moving-average-w-dsl-loxx__878af32b43",
+    "committed:machine-learning-lorentzian-classification__21f5ec5277",
+    "committed:rate-of-change__5efd12f955",
+    "committed:rolling-vwap__043320bb57",
+    "committed:smart-money-breakout-channels-algoalpha__8c2d234156",
+    "committed:std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764",
+    "committed:volatility-stop-mtf__K5XG42uHV9"
    ],
-   "count": 23
+   "count": 8
   },
   {
    "walls": [
@@ -7964,42 +8153,29 @@
   },
   {
    "walls": [
-    "admit:request-other",
-    "builtins"
+    "builtins",
+    "request"
    ],
    "scripts": [
-    "committed:asianrange-and-killzones__ef41eb5ad6",
-    "committed:correlation-matrix__dzN3DMCFJL",
-    "committed:screener-mean-reversion-channel__nTK2sHWDlB",
-    "committed:zigzag-ma-pattern-recognition__1302",
-    "reference:bb-custom-indicator-tradingview-version__Vf3832aju8",
-    "reference:supertrendrange-by-dgt__jDAxwdo5u7"
+    "builtin:open-interest__OpenInterest",
+    "builtin:volume-weighted-average-price__VWAP",
+    "committed:delta-imbalance-map-joat__b80f337fb3",
+    "committed:mtf-watchlist-charts-anan__3453680ea1",
+    "reference:halftrend-longshort-signal-engine-bigbeluga__07070e14d6",
+    "reference:ot-mtf-trend-dashboard-10__d43fa61404"
    ],
    "count": 6
   },
   {
    "walls": [
-    "admit:request-other",
-    "lower-tf"
-   ],
-   "scripts": [
-    "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G",
-    "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8",
-    "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0",
-    "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326"
-   ],
-   "count": 4
-  },
-  {
-   "walls": [
     "builtins",
-    "libraries"
+    "request-with-state"
    ],
    "scripts": [
-    "committed:atr-stop-loss-indicator__LOfv1FvRhL",
-    "committed:machine-learning-lorentzian-classification__21f5ec5277",
-    "committed:rolling-vwap__043320bb57",
-    "committed:smart-money-breakout-channels-algoalpha__8c2d234156"
+    "committed:3-level-zigzag-semafor__3078",
+    "committed:ad-line-of-sp-sectors__af306a4359",
+    "committed:moving-averages-as-support-resistance-mtf__gcBksfRvvy",
+    "reference:spy-moving-averages-and-signals__KSz0yeOiH2"
    ],
    "count": 4
   },
@@ -8018,26 +8194,39 @@
   },
   {
    "walls": [
-    "admit:request-other",
-    "request-with-state"
+    "builtins",
+    "colour"
    ],
    "scripts": [
-    "committed:boom-hunter-entry-point-screener-alerts__0fc5982548",
-    "reference:money-flow-index-mtf-alerts__RkKU95fUai",
-    "reference:supertrend-mtf-heatmap__ODcEBlvB3g"
+    "reference:ict-killzone__fE0Mzs0mp0",
+    "reference:kz-boxes__zed4AoolEW",
+    "reference:mema-bb-parabolic-sar__nurAC4OTMa"
    ],
    "count": 3
   },
   {
    "walls": [
-    "admit:request-other",
-    "libraries"
+    "builtins",
+    "imperative-host"
    ],
    "scripts": [
-    "builtin:performance__Performance",
-    "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2"
+    "reference:vwap-mtf__2809",
+    "reference:vwap-stdev-bands-v2-mod__2741",
+    "reference:vwap-stdev-bands-v2-mod__2744"
    ],
-   "count": 2
+   "count": 3
+  },
+  {
+   "walls": [
+    "output-contract",
+    "request"
+   ],
+   "scripts": [
+    "builtin:advance-decline-line__Advance1Decl",
+    "builtin:cumulative-volume-index__Cumulative1V",
+    "committed:cumulative-volume-delta__c772250751"
+   ],
+   "count": 3
   },
   {
    "walls": [
@@ -8047,6 +8236,17 @@
    "scripts": [
     "committed:power-of-3-ict-01-tradingfinder-amd-ict-smc-accumulations__c8dd500862",
     "reference:kalman-trend-levels-bigbeluga__3fb104b310"
+   ],
+   "count": 2
+  },
+  {
+   "walls": [
+    "builtins",
+    "dynamic-history"
+   ],
+   "scripts": [
+    "reference:angled-volume-profile-feeblev3__Z9Gy9K2ptd",
+    "reference:triangular-hull-moving-average-volatility-bigbeluga__f20311448f"
    ],
    "count": 2
   },
@@ -8086,6 +8286,17 @@
   {
    "walls": [
     "dynamic-history",
+    "request"
+   ],
+   "scripts": [
+    "committed:strong-start-rvol-dashboard__36140b1cbe",
+    "reference:most-screener__d7d9ae5349"
+   ],
+   "count": 2
+  },
+  {
+   "walls": [
+    "dynamic-history",
     "statements"
    ],
    "scripts": [
@@ -8107,6 +8318,17 @@
   },
   {
    "walls": [
+    "request",
+    "statements"
+   ],
+   "scripts": [
+    "committed:renderingnature-smc-reversal-engine-v71__f8734584d9",
+    "reference:rsi-multi-timeframe-dashboard-by-giua64__cb0cdabd5f"
+   ],
+   "count": 2
+  },
+  {
+   "walls": [
     "request-with-state",
     "strategy"
    ],
@@ -8118,41 +8340,21 @@
   },
   {
    "walls": [
-    "admit:request-other",
-    "call-mapping"
+    "admit:collections:matrix",
+    "builtins"
    ],
    "scripts": [
-    "committed:blackflag-fts__GdkmXaTINI"
+    "committed:open-interest-suite-aggregated-by-leviathan__44b150b3df"
    ],
    "count": 1
   },
   {
    "walls": [
-    "admit:request-other",
-    "dynamic-history"
+    "admit:obj:polyline",
+    "lower-tf"
    ],
    "scripts": [
-    "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "admit:request-other",
-    "objects"
-   ],
-   "scripts": [
-    "reference:camarilla-levels-intraday__bfb5a2b8db"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "admit:request-other",
-    "output-contract"
-   ],
-   "scripts": [
-    "committed:camarilla-screener__UsBJPF3MkA"
+    "reference:gex-levels-breakout-structure-session-avwap-esspxspy__4e5d712bec"
    ],
    "count": 1
   },
@@ -8179,20 +8381,10 @@
   {
    "walls": [
     "builtins",
-    "colour"
+    "compute-budget"
    ],
    "scripts": [
-    "reference:mema-bb-parabolic-sar__nurAC4OTMa"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "builtins",
-    "dynamic-history"
-   ],
-   "scripts": [
-    "reference:triangular-hull-moving-average-volatility-bigbeluga__f20311448f"
+    "committed:volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f"
    ],
    "count": 1
   },
@@ -8209,10 +8401,30 @@
   {
    "walls": [
     "builtins",
+    "lower-tf"
+   ],
+   "scripts": [
+    "committed:liquidity-engulfing-displacement-msf__58824c94f0"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "builtins",
     "strategy"
    ],
    "scripts": [
     "reference:trend-following-parabolic-buy-sell-strategy-tradedots__bb6d929535"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "call-mapping",
+    "request"
+   ],
+   "scripts": [
+    "reference:trendlines-2x__rzuOQrVQWt"
    ],
    "count": 1
   },
@@ -8259,6 +8471,16 @@
   {
    "walls": [
     "conditional-history",
+    "function-global-state"
+   ],
+   "scripts": [
+    "committed:machine-learning-rsi-bullvision__50b4566edd"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "conditional-history",
     "libraries"
    ],
    "scripts": [
@@ -8298,31 +8520,41 @@
   },
   {
    "walls": [
+    "dynamic-history",
+    "request-with-state"
+   ],
+   "scripts": [
+    "committed:camarilla__jw9faob08r"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "imperative-host",
+    "request-with-state"
+   ],
+   "scripts": [
+    "reference:thelark-lma-v2-laguerre__1029"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
+    "lower-tf",
+    "objects"
+   ],
+   "scripts": [
+    "reference:ct-displacement-fvg-toolkit__1ae5bb663e"
+   ],
+   "count": 1
+  },
+  {
+   "walls": [
     "lower-tf",
     "strategy"
    ],
    "scripts": [
     "committed:multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "objects",
-    "strategy"
-   ],
-   "scripts": [
-    "committed:pmax-explorer__jN9HBNhynF"
-   ],
-   "count": 1
-  },
-  {
-   "walls": [
-    "statements",
-    "strategy"
-   ],
-   "scripts": [
-    "committed:atr-trailing-stoploss-strategy__oayb1wVXkZ"
    ],
    "count": 1
   }
@@ -8332,56 +8564,34 @@
    "unit": "objects",
    "neededBy": null,
    "size": 4,
-   "unlocks": 38,
+   "unlocks": 39,
    "touches": 64,
-   "unlocksPerSize": 9.5,
+   "unlocksPerSize": 9.75,
    "unlocksFullyEnumerated": 37,
-   "cumulativeServed": 324,
-   "cumulativePct": 47.7
-  },
-  {
-   "unit": "known-lists",
-   "neededBy": null,
-   "size": 2,
-   "unlocks": 11,
-   "touches": 11,
-   "unlocksPerSize": 5.5,
-   "unlocksFullyEnumerated": 11,
-   "cumulativeServed": 335,
-   "cumulativePct": 49.3
-  },
-  {
-   "unit": "output-contract",
-   "neededBy": null,
-   "size": 2,
-   "unlocks": 8,
-   "touches": 31,
-   "unlocksPerSize": 4.0,
-   "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 343,
-   "cumulativePct": 50.5
-  },
-  {
-   "unit": "admit:request-other",
-   "neededBy": null,
-   "size": 1,
-   "unlocks": 5,
-   "touches": 120,
-   "unlocksPerSize": 5.0,
-   "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 348,
-   "cumulativePct": 51.3
+   "cumulativeServed": 333,
+   "cumulativePct": 49.0
   },
   {
    "unit": "request",
    "neededBy": null,
    "size": 2,
-   "unlocks": 22,
+   "unlocks": 19,
    "touches": 51,
-   "unlocksPerSize": 11.0,
+   "unlocksPerSize": 9.5,
    "unlocksFullyEnumerated": 15,
-   "cumulativeServed": 370,
-   "cumulativePct": 54.5
+   "cumulativeServed": 352,
+   "cumulativePct": 51.8
+  },
+  {
+   "unit": "output-contract",
+   "neededBy": null,
+   "size": 2,
+   "unlocks": 12,
+   "touches": 31,
+   "unlocksPerSize": 6.0,
+   "unlocksFullyEnumerated": 2,
+   "cumulativeServed": 364,
+   "cumulativePct": 53.6
   },
   {
    "unit": "builtins",
@@ -8391,8 +8601,8 @@
    "touches": 127,
    "unlocksPerSize": 6.0,
    "unlocksFullyEnumerated": 15,
-   "cumulativeServed": 394,
-   "cumulativePct": 58.0
+   "cumulativeServed": 388,
+   "cumulativePct": 57.1
   },
   {
    "unit": "dynamic-history",
@@ -8402,8 +8612,8 @@
    "touches": 38,
    "unlocksPerSize": 6.5,
    "unlocksFullyEnumerated": 5,
-   "cumulativeServed": 407,
-   "cumulativePct": 59.9
+   "cumulativeServed": 401,
+   "cumulativePct": 59.1
   },
   {
    "unit": "conditional-history",
@@ -8413,8 +8623,8 @@
    "touches": 29,
    "unlocksPerSize": 7.5,
    "unlocksFullyEnumerated": 8,
-   "cumulativeServed": 422,
-   "cumulativePct": 62.2
+   "cumulativeServed": 416,
+   "cumulativePct": 61.3
   },
   {
    "unit": "statements",
@@ -8424,19 +8634,19 @@
    "touches": 44,
    "unlocksPerSize": 6.0,
    "unlocksFullyEnumerated": 6,
-   "cumulativeServed": 434,
-   "cumulativePct": 63.9
+   "cumulativeServed": 428,
+   "cumulativePct": 63.0
   },
   {
    "unit": "function-global-state",
    "neededBy": "libraries",
    "size": 2,
-   "unlocks": 4,
+   "unlocks": 5,
    "touches": 7,
-   "unlocksPerSize": 2.0,
+   "unlocksPerSize": 2.5,
    "unlocksFullyEnumerated": 1,
-   "cumulativeServed": 438,
-   "cumulativePct": 64.5
+   "cumulativeServed": 433,
+   "cumulativePct": 63.8
   },
   {
    "unit": "functions",
@@ -8446,8 +8656,8 @@
    "touches": 16,
    "unlocksPerSize": 1.5,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 441,
-   "cumulativePct": 64.9
+   "cumulativeServed": 436,
+   "cumulativePct": 64.2
   },
   {
    "unit": "types",
@@ -8457,30 +8667,19 @@
    "touches": 7,
    "unlocksPerSize": 0.0,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 441,
-   "cumulativePct": 64.9
+   "cumulativeServed": 436,
+   "cumulativePct": 64.2
   },
   {
    "unit": "libraries",
    "neededBy": null,
    "size": 4,
-   "unlocks": 26,
-   "touches": 47,
-   "unlocksPerSize": 6.5,
-   "unlocksFullyEnumerated": 8,
-   "cumulativeServed": 467,
-   "cumulativePct": 68.8
-  },
-  {
-   "unit": "admit:obj:linefill",
-   "neededBy": null,
-   "size": 1,
-   "unlocks": 7,
-   "touches": 18,
-   "unlocksPerSize": 7.0,
-   "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 474,
-   "cumulativePct": 69.8
+   "unlocks": 27,
+   "touches": 45,
+   "unlocksPerSize": 6.75,
+   "unlocksFullyEnumerated": 7,
+   "cumulativeServed": 463,
+   "cumulativePct": 68.2
   },
   {
    "unit": "admit:method-def",
@@ -8490,8 +8689,8 @@
    "touches": 22,
    "unlocksPerSize": 8.0,
    "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 482,
-   "cumulativePct": 71.0
+   "cumulativeServed": 471,
+   "cumulativePct": 69.4
   },
   {
    "unit": "colour",
@@ -8501,8 +8700,8 @@
    "touches": 13,
    "unlocksPerSize": 7.0,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 489,
-   "cumulativePct": 72.0
+   "cumulativeServed": 478,
+   "cumulativePct": 70.4
   },
   {
    "unit": "request-with-state",
@@ -8512,6 +8711,17 @@
    "touches": 24,
    "unlocksPerSize": 6.5,
    "unlocksFullyEnumerated": 8,
+   "cumulativeServed": 491,
+   "cumulativePct": 72.3
+  },
+  {
+   "unit": "known-lists",
+   "neededBy": null,
+   "size": 2,
+   "unlocks": 11,
+   "touches": 11,
+   "unlocksPerSize": 5.5,
+   "unlocksFullyEnumerated": 11,
    "cumulativeServed": 502,
    "cumulativePct": 73.9
   },
@@ -8905,19 +9115,16 @@
   "builtin:24-hour-volume__24hVolume": [
    "admission:import",
    "admission:library:PineCoders/getSeries/1",
-   "admission:request-other",
    "host:pine:constant-only",
    "pine:builtin",
    "runtime:library",
    "runtime:request"
   ],
   "builtin:advance-decline-line__Advance1Decl": [
-   "admission:request-other",
    "host:pine:constant-only",
    "pine:request"
   ],
   "builtin:advance-decline-ratio__Advance1Decl": [
-   "admission:request-other",
    "pine:function",
    "runtime:no-output",
    "runtime:request-with-state"
@@ -8925,7 +9132,6 @@
   "builtin:auto-fib-extension__Auto1Fib1Ext": [
    "admission:import",
    "admission:library:TradingView/ZigZag/7",
-   "admission:obj:linefill",
    "pine:builtin",
    "runtime:history-dynamic-offset",
    "runtime:library"
@@ -8933,7 +9139,6 @@
   "builtin:auto-fib-retracement__Auto1Fib1Ret": [
    "admission:import",
    "admission:library:TradingView/ZigZag/7",
-   "admission:obj:linefill",
    "pine:builtin",
    "runtime:function",
    "runtime:library",
@@ -8942,7 +9147,6 @@
   "builtin:auto-pitchfork__Auto1Pitchfo": [
    "admission:import",
    "admission:library:TradingView/ZigZag/7",
-   "admission:obj:linefill",
    "pine:builtin",
    "runtime:call-undeclared-builtin-state",
    "runtime:library",
@@ -8977,7 +9181,6 @@
    "runtime:nothing-drawn"
   ],
   "builtin:cumulative-volume-index__Cumulative1V": [
-   "admission:request-other",
    "host:pine:constant-only",
    "pine:request"
   ],
@@ -9013,9 +9216,6 @@
   "builtin:keltner-channels-strategy__Keltner1Chan": [
    "[strategy]"
   ],
-  "builtin:linear-regression-channel__Linear_Regre": [
-   "admission:obj:linefill"
-  ],
   "builtin:macd-strategy__MACD1Strateg": [
    "[strategy]"
   ],
@@ -9043,7 +9243,6 @@
    "runtime:nothing-drawn"
   ],
   "builtin:open-interest__OpenInterest": [
-   "admission:request-other",
    "pine:builtin",
    "runtime:request"
   ],
@@ -9060,7 +9259,6 @@
   "builtin:performance__Performance": [
    "admission:import",
    "admission:library:TradingView/ValueAtTime/2",
-   "admission:request-other",
    "pine:library-denied"
   ],
   "builtin:pivot-extension-strategy__Pivot1Extens": [
@@ -9069,7 +9267,6 @@
   "builtin:pivot-points-standard__Pivot1Points": [
    "admission:collections:matrix",
    "admission:method-def",
-   "admission:request-other",
    "pine:builtin",
    "runtime:request"
   ],
@@ -9087,7 +9284,6 @@
    "runtime:nothing-drawn"
   ],
   "builtin:price-target__Price1Target": [
-   "admission:obj:linefill",
    "pine:builtin",
    "pine:drawing",
    "runtime:expression-statement"
@@ -9096,8 +9292,6 @@
    "runtime:conditional-history"
   ],
   "builtin:relative-volume-at-time__Relative1Vol": [
-   "admission:import",
-   "admission:library:TradingView/ta/7",
    "pine:function",
    "pine:library-version",
    "runtime:nothing-drawn"
@@ -9107,7 +9301,6 @@
    "pine:strategy-call"
   ],
   "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G": [
-   "admission:request-other",
    "lower-tf:lookahead"
   ],
   "builtin:rsi-strategy__RSI1Strategy": [
@@ -9116,7 +9309,6 @@
   "builtin:seasonality__Seasonality": [
    "admission:collections:matrix",
    "admission:method-def",
-   "admission:request-other",
    "runtime:block-value",
    "runtime:call-undeclared-builtin-state",
    "runtime:input-state",
@@ -9139,7 +9331,6 @@
    "admission:import",
    "admission:library:TradingView/TechnicalRating/3",
    "admission:method-def",
-   "admission:request-other",
    "pine:builtin",
    "pine:type",
    "runtime:call-undeclared-builtin-state",
@@ -9148,7 +9339,6 @@
   ],
   "builtin:trading-sessions__Trading1Sess": [
    "admission:method-def",
-   "admission:obj:linefill",
    "runtime:expression-statement",
    "runtime:statement",
    "runtime:udt-method"
@@ -9182,7 +9372,6 @@
    "runtime:nothing-drawn"
   ],
   "builtin:volume-weighted-average-price__VWAP": [
-   "admission:request-other",
    "pine:builtin",
    "pine:request"
   ],
@@ -9195,12 +9384,10 @@
    "runtime:no-output"
   ],
   "committed:3-level-zigzag-semafor__3078": [
-   "admission:request-other",
    "pine:function",
    "runtime:request-with-state"
   ],
   "committed:4c-nyse-market-breadth-ratio__722410befd": [
-   "admission:request-other",
    "pine:request"
   ],
   "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt": [
@@ -9211,7 +9398,6 @@
    "runtime:history-dynamic-offset"
   ],
   "committed:ad-line-of-sp-sectors__af306a4359": [
-   "admission:request-other",
    "pine:function",
    "runtime:request-with-state"
   ],
@@ -9222,7 +9408,6 @@
    "runtime:library"
   ],
   "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4": [
-   "admission:request-other",
    "lower-tf:lookahead",
    "pine:builtin",
    "runtime:request-with-state"
@@ -9233,7 +9418,6 @@
    "runtime:call-windowed-state"
   ],
   "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80": [
-   "admission:request-other",
    "pine:arity",
    "runtime:call-windowed-state",
    "runtime:statement"
@@ -9243,7 +9427,6 @@
    "object op dropped: cell:text <- pine:reassign"
   ],
   "committed:asianrange-and-killzones__ef41eb5ad6": [
-   "admission:request-other",
    "pine:function"
   ],
   "committed:atr-god-strategy-by-tradesmart__4369755a29": [
@@ -9296,23 +9479,19 @@
    "object op dropped: guard:delete <- pine:state"
   ],
   "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs": [
-   "admission:request-other",
    "runtime:request"
   ],
   "committed:bigbeluga-smart-money-concepts__e41b7abd03": [
    "admission:method-def",
-   "admission:obj:linefill",
    "admission:obj:polyline",
    "host:pine:constant-only"
   ],
   "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2": [
    "admission:import",
    "admission:library:loxx/loxxexpandedsourcetypes/4",
-   "admission:request-other",
    "pine:library-denied"
   ],
   "committed:blackflag-fts__GdkmXaTINI": [
-   "admission:request-other",
    "pine:arity"
   ],
   "committed:bolingger-bands-inside-bar-boxes__3294017d4f": [
@@ -9320,7 +9499,6 @@
    "runtime:history-dynamic-offset"
   ],
   "committed:boom-hunter-entry-point-screener-alerts__0fc5982548": [
-   "admission:request-other",
    "runtime:request-with-state"
   ],
   "committed:breaks-and-retests-hg__ddba061af8": [
@@ -9336,7 +9514,6 @@
    "admission:library:RicardoSantos/MathOperator/2",
    "admission:library:kaigouthro/hsvColor/15",
    "admission:method-def",
-   "admission:obj:linefill",
    "admission:obj:polyline",
    "runtime:array",
    "runtime:library",
@@ -9347,11 +9524,9 @@
    "pine:strategy-call"
   ],
   "committed:camarilla-screener__UsBJPF3MkA": [
-   "admission:request-other",
    "host:pine:constant-only"
   ],
   "committed:camarilla__jw9faob08r": [
-   "admission:request-other",
    "runtime:history-dynamic-offset",
    "runtime:request-with-state"
   ],
@@ -9373,7 +9548,6 @@
    "runtime:statement"
   ],
   "committed:chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2": [
-   "admission:request-other",
    "budget:series",
    "pine:builtin",
    "pine:drawing"
@@ -9387,15 +9561,12 @@
    "runtime:statement"
   ],
   "committed:correlation-matrix__dzN3DMCFJL": [
-   "admission:request-other",
    "runtime:call-undeclared-builtin-state"
   ],
   "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f": [
-   "admission:request-other",
    "pine:request"
   ],
   "committed:cumulative-volume-delta__c772250751": [
-   "admission:request-other",
    "host:pine:constant-only",
    "pine:request"
   ],
@@ -9405,7 +9576,6 @@
    "admission:library:PineCoders/Time/5",
    "admission:library:PineCoders/lower_tf/5",
    "admission:library:TradingView/ta/12",
-   "admission:request-other",
    "pine:builtin",
    "runtime:call-undeclared-builtin-state",
    "runtime:library",
@@ -9418,14 +9588,12 @@
    "admission:library:PineCoders/VisibleChart/5",
    "admission:library:PineCoders/lower_tf/5",
    "admission:library:TradingView/ta/12",
-   "admission:request-other",
    "pine:builtin",
    "runtime:call-undeclared-builtin-state",
    "runtime:library",
    "runtime:request-with-state"
   ],
   "committed:delta-imbalance-map-joat__b80f337fb3": [
-   "admission:request-other",
    "pine:builtin",
    "pine:request"
   ],
@@ -9434,21 +9602,18 @@
    "admission:library:LucF/ta/3",
    "admission:library:PineCoders/Time/2",
    "admission:library:PineCoders/lower_tf/4",
-   "admission:request-other",
    "pine:builtin",
    "pine:collection",
    "pine:request",
    "runtime:library"
   ],
   "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0": [
-   "admission:request-other",
    "runtime:request"
   ],
   "committed:deviation-scaled-moving-average-w-dsl-loxx__878af32b43": [
    "admission:import",
    "admission:library:loxx/loxxexpandedsourcetypes/4",
    "admission:library:loxx/loxxmas/1",
-   "admission:request-other",
    "pine:builtin",
    "pine:library-denied",
    "runtime:library"
@@ -9469,7 +9634,6 @@
    "object op dropped: update:props"
   ],
   "committed:elliot-wave-detector-pro__ce1cc9553e": [
-   "admission:request-other",
    "pine:builtin",
    "runtime:request-with-state",
    "runtime:unbound"
@@ -9483,14 +9647,10 @@
    "object op dropped: cell:text <- pine:builtin",
    "object op dropped: cell:text <- pine:request"
   ],
-  "committed:fair-value-gap__1048fa103a": [
-   "admission:request-other"
-  ],
   "committed:fibonacci-retracement-mtflog__54a8dbfa8e": [
    "runtime:object-op"
   ],
   "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce": [
-   "admission:request-other",
    "pine:drawing",
    "pine:request",
    "runtime:conditional-history"
@@ -9502,21 +9662,15 @@
    "admission:collections:map",
    "admission:enum",
    "admission:method-def",
-   "admission:obj:linefill",
-   "admission:request-other",
    "pine:builtin",
    "runtime:no-output",
    "runtime:request-with-state"
-  ],
-  "committed:fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606": [
-   "admission:obj:linefill"
   ],
   "committed:fx-market-sessions__3KZoMPYziy": [
    "admission:import",
    "admission:library:boitoki/AwesomeColor/9",
    "admission:library:boitoki/Utilities/11",
    "admission:method-def",
-   "admission:obj:linefill",
    "pine:builtin",
    "runtime:block-value",
    "runtime:expression-statement",
@@ -9541,7 +9695,6 @@
   ],
   "committed:higher-time-frame-fair-value-gap-zeroherotrading__202f1347b8": [
    "admission:obj:polyline",
-   "admission:request-other",
    "pine:builtin",
    "pine:function",
    "pine:type",
@@ -9569,7 +9722,6 @@
   ],
   "committed:ict-institutional-order-flow-fadi__25d4834579": [
    "admission:method-def",
-   "admission:obj:linefill",
    "pine:builtin",
    "pine:function",
    "runtime:block-value",
@@ -9607,7 +9759,6 @@
    "runtime:statement"
   ],
   "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q": [
-   "admission:request-other",
    "pine:request"
   ],
   "committed:inside-bar-boxes__2f747d848b": [
@@ -9625,10 +9776,6 @@
    "runtime:call-undeclared-builtin-state",
    "runtime:function"
   ],
-  "committed:kalman-psar-backquant__0a389f529b": [
-   "admission:import",
-   "admission:library:TradingView/ta/7"
-  ],
   "committed:linear-regression-channel-200__243d67c804": [
    "runtime:call-undeclared-builtin-state"
   ],
@@ -9637,7 +9784,6 @@
    "pine:strategy-call"
   ],
   "committed:liquidity-engulfing-displacement-msf__58824c94f0": [
-   "admission:request-other",
    "lower-tf:store-unmeasured",
    "pine:builtin"
   ],
@@ -9645,7 +9791,6 @@
    "object op dropped: guard:create <- pine:request"
   ],
   "committed:liquidity-levels-sonarlab__bba13c46c4": [
-   "admission:request-other",
    "pine:builtin",
    "runtime:history-dynamic-offset",
    "runtime:statement"
@@ -9657,7 +9802,6 @@
    "runtime:statement"
   ],
   "committed:machine-learning-logistic-regression-v3__TDlqz0q9TN": [
-   "admission:request-other",
    "pine:offset-literal",
    "runtime:call-text-state",
    "runtime:conditional-history"
@@ -9680,8 +9824,6 @@
    "runtime:kill-list"
   ],
   "committed:machine-learning-rsi-bullvision__50b4566edd": [
-   "admission:import",
-   "admission:library:TradingView/ta/7",
    "runtime:conditional-history",
    "runtime:function-global-state"
   ],
@@ -9692,7 +9834,6 @@
    "runtime:statement"
   ],
   "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a": [
-   "admission:request-other",
    "pine:builtin",
    "pine:function",
    "pine:request",
@@ -9722,25 +9863,20 @@
    "runtime:kill-list"
   ],
   "committed:moving-averages-as-support-resistance-mtf__gcBksfRvvy": [
-   "admission:request-other",
    "pine:function",
    "runtime:request-with-state"
   ],
   "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8": [
-   "admission:request-other",
    "lower-tf:store-unmeasured"
   ],
   "committed:mtf-key-levels-support-and-resistance__29f470a089": [
-   "admission:request-other",
    "pine:request"
   ],
   "committed:mtf-watchlist-charts-anan__3453680ea1": [
-   "admission:request-other",
    "runtime:call-undeclared-builtin-state",
    "runtime:request"
   ],
   "committed:multi-timeframe-fvg-tfo__adbed9f590": [
-   "admission:request-other",
    "lower-tf:lookahead",
    "pine:member",
    "runtime:expression-statement"
@@ -9755,7 +9891,6 @@
    "object op dropped: loop:bounds"
   ],
   "committed:multi-timeframe-trend-indicator__fa4022ecf5": [
-   "admission:request-other",
    "runtime:request"
   ],
   "committed:multicator-table__486858895c": [
@@ -9772,7 +9907,6 @@
    "polyline.delete.*"
   ],
   "committed:multiple-mtf-moving-average-xdecow__aArjfk9ShG": [
-   "admission:request-other",
    "pine:builtin",
    "runtime:call-text-state",
    "runtime:call-undeclared-builtin-state",
@@ -9788,7 +9922,6 @@
    "runtime:history-dynamic-offset"
   ],
   "committed:one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64": [
-   "admission:request-other",
    "runtime:expression-statement",
    "runtime:function",
    "runtime:no-output"
@@ -9797,15 +9930,12 @@
    "admission:collections:matrix"
   ],
   "committed:open-interest-profile-fixed-range-by-leviathan__875691ab51": [
-   "admission:request-other",
    "host:pine:constant-only",
    "pine:builtin",
    "runtime:statement"
   ],
   "committed:open-interest-suite-aggregated-by-leviathan__44b150b3df": [
    "admission:collections:matrix",
-   "admission:obj:linefill",
-   "admission:request-other",
    "pine:function"
   ],
   "committed:optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84": [
@@ -9842,26 +9972,22 @@
    "runtime:call-undeclared-builtin-state"
   ],
   "committed:previous-n-daysweeksmonths-high-low__78f5b05522": [
-   "admission:request-other",
    "pine:request"
   ],
   "committed:rate-of-change__5efd12f955": [
    "admission:import",
    "admission:library:ClassicScott/MyMovingAveragesLibrary/4",
    "admission:library:ClassicScott/MyVolatilityBands/7",
-   "admission:request-other",
    "pine:builtin",
    "runtime:library"
   ],
   "committed:relative-volume-at-time__gei8CBKbc5": [
-   "admission:request-other",
    "pine:function",
    "runtime:call-undeclared-builtin-state",
    "runtime:function-global-state",
    "runtime:request"
   ],
   "committed:renderingnature-smc-reversal-engine-v71__f8734584d9": [
-   "admission:request-other",
    "runtime:request",
    "runtime:statement"
   ],
@@ -9875,7 +10001,6 @@
    "admission:import",
    "admission:library:HoanGhetti/SimpleTrendlines/3",
    "admission:method-def",
-   "admission:request-other",
    "pine:builtin",
    "runtime:call-undeclared-builtin-state",
    "runtime:expression-statement",
@@ -9890,7 +10015,6 @@
    "runtime:conditional-history"
   ],
   "committed:screener-mean-reversion-channel__nTK2sHWDlB": [
-   "admission:request-other",
    "pine:function"
   ],
   "committed:sector-rotation__0fca060bf4": [
@@ -9918,7 +10042,6 @@
    "admission:library:TFlab/LiquidityFinderLibrary/1",
    "admission:library:TFlab/OrderBlockDrawing_TradingFinder/1",
    "admission:library:TFlab/OrderBlockRefiner_TradingFinder/2",
-   "admission:library:TradingView/ta/7",
    "runtime:history-dynamic-offset",
    "runtime:history-expression",
    "runtime:library"
@@ -9932,14 +10055,12 @@
    "runtime:request"
   ],
   "committed:smart-money-volume-activity-algoalpha__699c36ad31": [
-   "admission:request-other",
    "pine:builtin",
    "pine:type",
    "runtime:call-text-state",
    "runtime:call-undeclared-builtin-state"
   ],
   "committed:smarter-snr__ac98ab25d5": [
-   "admission:request-other",
    "pine:drawing",
    "runtime:conditional-history",
    "runtime:request"
@@ -9948,17 +10069,13 @@
    "admission:import",
    "admission:library:TradingView/ZigZag/7",
    "admission:method-def",
-   "admission:obj:linefill",
-   "admission:request-other",
    "runtime:expression-statement",
    "runtime:history-dynamic-offset"
   ],
   "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0": [
-   "admission:request-other",
    "lower-tf:store-unmeasured"
   ],
   "committed:smt-divergence-ict-killzones__c932d56665": [
-   "admission:request-other",
    "lower-tf:unwitnessed",
    "runtime:builtin-args",
    "runtime:call-undeclared-builtin-state",
@@ -9967,7 +10084,6 @@
   "committed:std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764": [
    "admission:import",
    "admission:library:loxx/loxxexpandedsourcetypes/4",
-   "admission:request-other",
    "pine:builtin",
    "pine:library-denied"
   ],
@@ -9985,7 +10101,6 @@
    "admission:library:TradingView/ta/12",
    "admission:method-def",
    "admission:obj:polyline",
-   "admission:request-other",
    "pine:builtin",
    "pine:type",
    "runtime:library"
@@ -9999,12 +10114,10 @@
    "runtime:unbound"
   ],
   "committed:strong-start-rvol-dashboard__36140b1cbe": [
-   "admission:request-other",
    "runtime:history-dynamic-offset",
    "runtime:request"
   ],
   "committed:sub__1xYROVYMlX": [
-   "admission:request-other",
    "pine:request"
   ],
   "committed:supertrend-explorer__V4MsmtCeKs": [
@@ -10025,7 +10138,6 @@
   ],
   "committed:supply-demand-mtf-flux-charts__7fb4bff229": [
    "admission:collections:map",
-   "admission:request-other",
    "pine:builtin",
    "runtime:block-value",
    "runtime:call-undeclared-builtin-state",
@@ -10041,7 +10153,6 @@
   ],
   "committed:support-resistance-mtf-flux-charts__dd04862677": [
    "admission:collections:map",
-   "admission:request-other",
    "pine:type",
    "runtime:block-value",
    "runtime:call-undeclared-builtin-state",
@@ -10054,7 +10165,6 @@
    "object op dropped: guard:update <- pine:type"
   ],
   "committed:swing-points-and-liquidity-by-leviathan__919c1fd9c6": [
-   "admission:request-other",
    "pine:request"
   ],
   "committed:take-profit-multi-timeframe__8c16588ae9": [
@@ -10064,7 +10174,6 @@
    "runtime:statement"
   ],
   "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca": [
-   "admission:request-other",
    "runtime:request"
   ],
   "committed:tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy": [
@@ -10094,9 +10203,6 @@
    "label.new",
    "line.new"
   ],
-  "committed:trend-targets-algoalpha__92ff5628d7": [
-   "admission:obj:linefill"
-  ],
   "committed:trendlinesample__61d59f90bc": [
    "runtime:conditional-history"
   ],
@@ -10110,7 +10216,6 @@
    "admission:import",
    "admission:library:PineCoders/Time/5",
    "admission:library:TradingView/ta/12",
-   "admission:request-other",
    "runtime:call-undeclared-builtin-state",
    "runtime:library"
   ],
@@ -10127,8 +10232,6 @@
    "runtime:call-undeclared-builtin-state"
   ],
   "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37": [
-   "admission:obj:linefill",
-   "admission:request-other",
    "pine:collection",
    "pine:drawing",
    "pine:request",
@@ -10140,14 +10243,12 @@
    "admission:import",
    "admission:library:TradingView/ta/14",
    "admission:obj:polyline",
-   "admission:request-other",
    "pine:builtin",
    "pine:input-kind",
    "pine:request",
    "runtime:library"
   ],
   "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4": [
-   "admission:request-other",
    "pine:builtin",
    "runtime:array",
    "runtime:request"
@@ -10157,8 +10258,6 @@
   ],
   "committed:volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156": [
    "admission:method-def",
-   "admission:obj:linefill",
-   "admission:request-other",
    "pine:request",
    "runtime:expression-statement",
    "runtime:function"
@@ -10169,7 +10268,6 @@
    "admission:library:algotraderdev/contrast/1",
    "admission:method-def",
    "admission:obj:polyline",
-   "admission:request-other",
    "pine:builtin",
    "runtime:library",
    "runtime:statement"
@@ -10187,18 +10285,15 @@
    "object op dropped: update:target"
   ],
   "committed:volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f": [
-   "admission:request-other",
    "budget:lookback",
    "pine:function"
   ],
   "committed:volume-suite-by-leviathan__48da793360": [
-   "admission:request-other",
    "pine:arity",
    "pine:collection",
    "pine:request"
   ],
   "committed:volumized-order-blocks-flux-charts__1675b2b8e3": [
-   "admission:request-other",
    "pine:builtin",
    "runtime:call-undeclared-builtin-state",
    "runtime:function",
@@ -10211,7 +10306,6 @@
    "admission:calc-bars"
   ],
   "committed:zigzag-ma-pattern-recognition__1302": [
-   "admission:request-other",
    "pine:function"
   ],
   "reference:ai-moving-average-expo__cddaa37ee5": [
@@ -10220,21 +10314,18 @@
    "runtime:statement"
   ],
   "reference:all-in-one-sessions-weekly-monday-previous-highslows__26254838fe": [
-   "admission:request-other",
    "lower-tf:store-unmeasured",
    "pine:builtin",
    "runtime:conditional-history",
    "runtime:request"
   ],
   "reference:anchored-vwap__u9vU8nIMXA": [
-   "admission:request-other",
    "host:pine:constant-only",
    "pine:builtin",
    "pine:request",
    "pine:state"
   ],
   "reference:angled-volume-profile-feeblev3__Z9Gy9K2ptd": [
-   "admission:request-other",
    "pine:builtin",
    "runtime:call-undeclared-builtin-state",
    "runtime:history-dynamic-offset"
@@ -10267,30 +10358,22 @@
    "runtime:library"
   ],
   "reference:bb-custom-indicator-tradingview-version__Vf3832aju8": [
-   "admission:request-other",
    "pine:builtin",
    "pine:function"
   ],
   "reference:best-abcd-pattern-screener__ROdc6mWjx4": [
-   "admission:request-other",
    "runtime:request"
   ],
   "reference:best-engulfing-ma__Vh6SGyOD3H": [
    "[strategy]"
   ],
   "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f": [
-   "admission:request-other",
    "runtime:request"
   ],
   "reference:best-rsi-divergences-screener__TmlpugZKr6": [
-   "admission:request-other",
    "runtime:request"
   ],
-  "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84": [
-   "admission:obj:linefill"
-  ],
   "reference:bitcoin-futures-funding-rates-v5__zGOXiHPIn3": [
-   "admission:request-other",
    "pine:request"
   ],
   "reference:bollinger-bands-filter__M8AKuon90n": [
@@ -10305,14 +10388,12 @@
    "runtime:statement"
   ],
   "reference:camarilla-levels-intraday__bfb5a2b8db": [
-   "admission:request-other",
    "host:pine:object-removal-lost"
   ],
   "reference:camarillastrategyv1__1913": [
    "[strategy]"
   ],
   "reference:chases-buysell-indicator-advance-decline__37714ef0a5": [
-   "admission:request-other",
    "pine:request"
   ],
   "reference:cm-forex-sessions-highlight-v1__41": [
@@ -10336,12 +10417,10 @@
    "object op dropped: cell:text <- pine:text-value"
   ],
   "reference:ct-displacement-fvg-toolkit__1ae5bb663e": [
-   "admission:request-other",
    "lower-tf:store-unmeasured",
    "pine:drawing"
   ],
   "reference:cumulative-volume-delta-divergence__fbc538f076": [
-   "admission:request-other",
    "pine:builtin",
    "runtime:loop",
    "runtime:request-with-state"
@@ -10350,7 +10429,6 @@
    "object op dropped: guard:loop <- pine:collection"
   ],
   "reference:delta-volume-columns-lucf__HmUxm6bIQC": [
-   "admission:request-other",
    "admission:varip",
    "pine:builtin",
    "runtime:call-undeclared-builtin-state",
@@ -10371,7 +10449,6 @@
    "runtime:library"
   ],
   "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16": [
-   "admission:request-other",
    "pine:window-dependent"
   ],
   "reference:dot-dynamics__Zd1PZqZcep": [
@@ -10405,12 +10482,10 @@
    "runtime:object-op"
   ],
   "reference:earnings-sr-levels-lazybear__453": [
-   "admission:request-other",
    "pine:request"
   ],
   "reference:enhanced-mcclellan-summation-index__f2989eaa65": [
    "admission:method-def",
-   "admission:request-other",
    "pine:builtin",
    "runtime:function-global-state",
    "runtime:udt-method"
@@ -10467,26 +10542,22 @@
    "runtime:call-text-state"
   ],
   "reference:fxn-asian-session-range__jNLZBfpYDO": [
-   "admission:request-other",
    "runtime:fill-target",
    "runtime:history-dynamic-offset",
    "runtime:statement"
   ],
   "reference:gex-levels-breakout-structure-session-avwap-esspxspy__4e5d712bec": [
    "admission:obj:polyline",
-   "admission:request-other",
    "lower-tf:lookahead",
    "lower-tf:store-unmeasured"
   ],
   "reference:global-liquidity-index__1b7ae64e24": [
-   "admission:request-other",
    "pine:request"
   ],
   "reference:golden-cross-sma-200-long-only-moving-average-strategy-by-chartart__2811": [
    "[strategy]"
   ],
   "reference:halftrend-longshort-signal-engine-bigbeluga__07070e14d6": [
-   "admission:request-other",
    "pine:function",
    "pine:request"
   ],
@@ -10511,7 +10582,6 @@
    "runtime:history-dynamic-offset"
   ],
   "reference:ict-killzone__fE0Mzs0mp0": [
-   "admission:request-other",
    "pine:function",
    "runtime:fill-target"
   ],
@@ -10519,15 +10589,11 @@
    "pine:builtin",
    "runtime:statement"
   ],
-  "reference:intraday-power-3-visual__f9b34d80bb": [
-   "admission:request-other"
-  ],
   "reference:kalman-trend-levels-bigbeluga__3fb104b310": [
    "pine:function",
    "runtime:conditional-history"
   ],
   "reference:kz-boxes__zed4AoolEW": [
-   "admission:request-other",
    "pine:function",
    "runtime:fill-target"
   ],
@@ -10543,7 +10609,6 @@
   ],
   "reference:liquidity-pools-pro-willyalgotrader__409687ce4a": [
    "admission:method-def",
-   "admission:request-other",
    "pine:colour-value",
    "runtime:block-value"
   ],
@@ -10570,7 +10635,6 @@
    "admission:import",
    "admission:library:DskyzInvestments/DafeVisLib/1",
    "admission:library:DskyzInvestments/MarketStructureLib/1",
-   "admission:request-other",
    "pine:request",
    "pine:type",
    "runtime:call-undeclared-builtin-state",
@@ -10618,7 +10682,6 @@
    "runtime:colour"
   ],
   "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb": [
-   "admission:request-other",
    "pine:colour-value",
    "runtime:block-value",
    "runtime:request"
@@ -10634,27 +10697,22 @@
    "runtime:object-op"
   ],
   "reference:money-flow-index-mtf-alerts__RkKU95fUai": [
-   "admission:request-other",
    "runtime:request-with-state"
   ],
   "reference:most-screener__d7d9ae5349": [
-   "admission:request-other",
    "pine:request",
    "pine:window"
   ],
   "reference:mtf-order-block-finder__ce13bf1b46": [
-   "admission:request-other",
    "runtime:call-undeclared-builtin-state",
    "runtime:request",
    "runtime:request-with-state",
    "runtime:statement"
   ],
   "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH": [
-   "admission:request-other",
    "pine:request"
   ],
   "reference:my-cme-open-interest__ndAEr9lJjO": [
-   "admission:request-other",
    "pine:request"
   ],
   "reference:nadaraya-watson-trend-quantalgo__052bdb2a18": [
@@ -10671,21 +10729,18 @@
   "reference:open-interest-stochastic-money-flow-index__kGyXZBhXgx": [
    "admission:import",
    "admission:library:TradingView/LibraryCOT/3",
-   "admission:request-other",
    "pine:builtin",
    "pine:request",
    "runtime:call-undeclared-builtin-state",
    "runtime:library"
   ],
   "reference:ot-mtf-trend-dashboard-10__d43fa61404": [
-   "admission:request-other",
    "pine:builtin",
    "pine:function",
    "pine:request",
    "runtime:request"
   ],
   "reference:price-action-doji-harami-v02-by-justunclel__4219": [
-   "admission:request-other",
    "pine:request"
   ],
   "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd": [
@@ -10722,7 +10777,6 @@
    "[paint-withheld]"
   ],
   "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029": [
-   "admission:request-other",
    "runtime:request"
   ],
   "reference:rsi-cyclic-smoothed__ckgSq3I4CY": [
@@ -10736,7 +10790,6 @@
    "runtime:call-undeclared-builtin-state"
   ],
   "reference:rsi-multi-timeframe-dashboard-by-giua64__cb0cdabd5f": [
-   "admission:request-other",
    "runtime:request",
    "runtime:statement"
   ],
@@ -10755,7 +10808,6 @@
    "runtime:call-conversion-state"
   ],
   "reference:saty-atr-levels__99165984ef": [
-   "admission:request-other",
    "runtime:request"
   ],
   "reference:screener-for-40-instruments__a009097811": [
@@ -10790,7 +10842,6 @@
    "runtime:statement"
   ],
   "reference:spy-moving-averages-and-signals__KSz0yeOiH2": [
-   "admission:request-other",
    "pine:function",
    "runtime:request-with-state"
   ],
@@ -10806,7 +10857,6 @@
    "runtime:request-with-state"
   ],
   "reference:strong-knn-classifier__852c26b11d": [
-   "admission:request-other",
    "pine:collection",
    "runtime:function",
    "runtime:request-with-state"
@@ -10822,11 +10872,9 @@
    "runtime:library"
   ],
   "reference:supertrend-mtf-heatmap__ODcEBlvB3g": [
-   "admission:request-other",
    "runtime:request-with-state"
   ],
   "reference:supertrendrange-by-dgt__jDAxwdo5u7": [
-   "admission:request-other",
    "pine:function"
   ],
   "reference:supply-and-demand-zones-bigbeluga__6f46de6c8a": [
@@ -10837,7 +10885,6 @@
    "object op dropped: loop:bounds"
   ],
   "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326": [
-   "admission:request-other",
    "lower-tf:store-unmeasured"
   ],
   "reference:support-and-resistance-step-4__d24e4b30cf": [
@@ -10862,15 +10909,11 @@
    "object op dropped: loop:empty",
    "object op dropped: update:props"
   ],
-  "reference:support-resistance-fibonacci-retracement__06a1a2c80d": [
-   "admission:request-other"
-  ],
   "reference:swing-parabolic-sar-strategy__i5Ni9xpTee": [
    "[strategy]",
    "pine:strategy-call"
   ],
   "reference:thelark-lma-v2-laguerre__1029": [
-   "admission:request-other",
    "pine:state",
    "runtime:request-with-state"
   ],
@@ -10913,7 +10956,6 @@
    "pine:strategy-call"
   ],
   "reference:trendlines-2x__rzuOQrVQWt": [
-   "admission:request-other",
    "pine:arity",
    "runtime:request"
   ],
@@ -10925,8 +10967,6 @@
    "runtime:history-dynamic-offset"
   ],
   "reference:ut-bot-linreg-candles-longevity-zones-sr-dashboard__26fb08b910": [
-   "admission:obj:linefill",
-   "admission:request-other",
    "budget:lookback"
   ],
   "reference:ut-bot-strategy__VynMPwQs9U": [
@@ -10966,23 +11006,19 @@
    "pine:function"
   ],
   "reference:vumanchu-b-divergences__uA35GeckoT": [
-   "admission:request-other",
    "pine:function",
    "runtime:request",
    "runtime:request-with-state"
   ],
   "reference:vwap-mtf__2809": [
-   "admission:request-other",
    "pine:builtin",
    "pine:state"
   ],
   "reference:vwap-stdev-bands-v2-mod__2741": [
-   "admission:request-other",
    "pine:builtin",
    "pine:state"
   ],
   "reference:vwap-stdev-bands-v2-mod__2744": [
-   "admission:request-other",
    "pine:builtin",
    "pine:state"
   ],
@@ -11009,7 +11045,7 @@
  "facts": {
   "schema": "uct.pine-parity-facts/v1",
   "generatedBy": "tools/pine_coverage/parity_roadmap.py facts",
-  "engine": 84,
+  "engine": 85,
   "admittedCapabilities": [
    "collections:array",
    "compound-assign",
@@ -11022,6 +11058,7 @@
    "generics",
    "history-expr",
    "if-block",
+   "library:TradingView/ta/7",
    "max_bars_back",
    "method-call",
    "obj:box",
@@ -11030,9 +11067,11 @@
    "obj:getter",
    "obj:label",
    "obj:line",
+   "obj:linefill",
    "obj:table",
    "realtime-state",
    "reassign",
+   "request-other",
    "strategy-decl",
    "switch",
    "ternary",
@@ -11043,7 +11082,8 @@
    "while"
   ],
   "historyOnly": [
-   "realtime-state"
+   "realtime-state",
+   "request-other"
   ],
   "gradedAllowList": 2,
   "note": "identifiers only: capability ids, guard names, identifier tokens, exchange prefixes, capture and run ids; no source, no message text",
@@ -11053,8 +11093,7 @@
      "status": "not-admitted",
      "missing": [
       "import",
-      "library:PineCoders/getSeries/1",
-      "request-other"
+      "library:PineCoders/getSeries/1"
      ],
      "historyOnly": true
     },
@@ -11099,11 +11138,9 @@
    },
    "builtin:advance-decline-line__Advance1Decl": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -11140,11 +11177,9 @@
    },
    "builtin:advance-decline-ratio__Advance1Decl": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -11187,8 +11222,7 @@
      "status": "not-admitted",
      "missing": [
       "import",
-      "library:TradingView/ZigZag/7",
-      "obj:linefill"
+      "library:TradingView/ZigZag/7"
      ],
      "historyOnly": true
     },
@@ -11228,8 +11262,7 @@
      "status": "not-admitted",
      "missing": [
       "import",
-      "library:TradingView/ZigZag/7",
-      "obj:linefill"
+      "library:TradingView/ZigZag/7"
      ],
      "historyOnly": true
     },
@@ -11275,8 +11308,7 @@
      "status": "not-admitted",
      "missing": [
       "import",
-      "library:TradingView/ZigZag/7",
-      "obj:linefill"
+      "library:TradingView/ZigZag/7"
      ],
      "historyOnly": false
     },
@@ -11488,11 +11520,9 @@
    },
    "builtin:cumulative-volume-index__Cumulative1V": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -11774,10 +11804,8 @@
    },
    "builtin:linear-regression-channel__Linear_Regre": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "obj:linefill"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": true,
@@ -11998,8 +12026,7 @@
      "status": "not-admitted",
      "missing": [
       "enum",
-      "method-def",
-      "request-other"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -12078,10 +12105,8 @@
    },
    "builtin:open-interest__OpenInterest": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -12216,8 +12241,7 @@
      "status": "not-admitted",
      "missing": [
       "import",
-      "library:TradingView/ValueAtTime/2",
-      "request-other"
+      "library:TradingView/ValueAtTime/2"
      ],
      "historyOnly": true
     },
@@ -12273,8 +12297,7 @@
      "status": "not-admitted",
      "missing": [
       "collections:matrix",
-      "method-def",
-      "request-other"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -12430,10 +12453,8 @@
    },
    "builtin:price-target__Price1Target": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "obj:linefill"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -12536,11 +12557,8 @@
    },
    "builtin:relative-volume-at-time__Relative1Vol": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "import",
-      "library:TradingView/ta/7"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -12594,10 +12612,8 @@
    },
    "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -12650,8 +12666,7 @@
      "status": "not-admitted",
      "missing": [
       "collections:matrix",
-      "method-def",
-      "request-other"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -12779,8 +12794,7 @@
      "missing": [
       "import",
       "library:TradingView/TechnicalRating/3",
-      "method-def",
-      "request-other"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -12889,8 +12903,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "method-def",
-      "obj:linefill"
+      "method-def"
      ],
      "historyOnly": false
     },
@@ -13098,10 +13111,8 @@
    },
    "builtin:volume-weighted-average-price__VWAP": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -13281,10 +13292,8 @@
    },
    "committed:3-level-zigzag-semafor__3078": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -13345,10 +13354,8 @@
    },
    "committed:4c-nyse-market-breadth-ratio__722410befd": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -13427,10 +13434,8 @@
    },
    "committed:ad-line-of-sp-sectors__af306a4359": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -13525,10 +13530,8 @@
    },
    "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -13668,10 +13671,8 @@
    },
    "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -13724,10 +13725,8 @@
    },
    "committed:artemis-oscillator-pro__ea1097ca9e": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "killed",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -13780,10 +13779,8 @@
    },
    "committed:asianrange-and-killzones__ef41eb5ad6": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -14201,10 +14198,8 @@
    },
    "committed:average-day-range-adr-pivots__38b8c996e9": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "killed",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -14257,11 +14252,9 @@
    },
    "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -14280,7 +14273,6 @@
      "status": "not-admitted",
      "missing": [
       "method-def",
-      "obj:linefill",
       "obj:polyline"
      ],
      "historyOnly": true
@@ -14302,8 +14294,7 @@
      "status": "not-admitted",
      "missing": [
       "import",
-      "library:loxx/loxxexpandedsourcetypes/4",
-      "request-other"
+      "library:loxx/loxxexpandedsourcetypes/4"
      ],
      "historyOnly": true
     },
@@ -14369,11 +14360,9 @@
    },
    "committed:blackflag-fts__GdkmXaTINI": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -14526,11 +14515,9 @@
    },
    "committed:boom-hunter-entry-point-screener-alerts__0fc5982548": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -14628,7 +14615,6 @@
       "library:RicardoSantos/MathOperator/2",
       "library:kaigouthro/hsvColor/15",
       "method-def",
-      "obj:linefill",
       "obj:polyline"
      ],
      "historyOnly": true
@@ -14675,10 +14661,8 @@
    },
    "committed:camarilla-screener__UsBJPF3MkA": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -14695,10 +14679,8 @@
    },
    "committed:camarilla__jw9faob08r": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -14875,10 +14857,8 @@
    },
    "committed:chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -14981,10 +14961,8 @@
    },
    "committed:correlation-matrix__dzN3DMCFJL": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -15005,10 +14983,8 @@
    },
    "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -15055,11 +15031,9 @@
    },
    "committed:cumulative-volume-delta__c772250751": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -15111,8 +15085,7 @@
       "import",
       "library:PineCoders/Time/5",
       "library:PineCoders/lower_tf/5",
-      "library:TradingView/ta/12",
-      "request-other"
+      "library:TradingView/ta/12"
      ],
      "historyOnly": true
     },
@@ -15181,8 +15154,7 @@
       "library:PineCoders/Time/5",
       "library:PineCoders/VisibleChart/5",
       "library:PineCoders/lower_tf/5",
-      "library:TradingView/ta/12",
-      "request-other"
+      "library:TradingView/ta/12"
      ],
      "historyOnly": true
     },
@@ -15265,10 +15237,8 @@
    },
    "committed:delta-imbalance-map-joat__b80f337fb3": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -15357,8 +15327,7 @@
       "import",
       "library:LucF/ta/3",
       "library:PineCoders/Time/2",
-      "library:PineCoders/lower_tf/4",
-      "request-other"
+      "library:PineCoders/lower_tf/4"
      ],
      "historyOnly": true
     },
@@ -15419,10 +15388,8 @@
    },
    "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -15473,10 +15440,9 @@
      "missing": [
       "import",
       "library:loxx/loxxexpandedsourcetypes/4",
-      "library:loxx/loxxmas/1",
-      "request-other"
+      "library:loxx/loxxmas/1"
      ],
-     "historyOnly": false
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -15561,10 +15527,8 @@
    },
    "committed:dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "killed",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -15605,10 +15569,8 @@
    },
    "committed:elliot-wave-detector-pro__ce1cc9553e": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -15746,10 +15708,8 @@
    },
    "committed:ema-ribbon-trend-filter-strixedge__737f5c58ad": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "killed",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -15790,10 +15750,8 @@
    },
    "committed:fair-value-gap__1048fa103a": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": true,
@@ -15916,10 +15874,8 @@
    },
    "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -16003,9 +15959,7 @@
      "missing": [
       "collections:map",
       "enum",
-      "method-def",
-      "obj:linefill",
-      "request-other"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -16059,10 +16013,8 @@
    },
    "committed:fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "obj:linefill"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": false
     },
     "rtAttached": true,
@@ -16185,8 +16137,7 @@
       "import",
       "library:boitoki/AwesomeColor/9",
       "library:boitoki/Utilities/11",
-      "method-def",
-      "obj:linefill"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -16407,8 +16358,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "obj:polyline",
-      "request-other"
+      "obj:polyline"
      ],
      "historyOnly": true
     },
@@ -16501,10 +16451,8 @@
    },
    "committed:htf-liquidity-dashboard-tfo__ec8f8316a4": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "killed",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -16547,8 +16495,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "method-def",
-      "obj:linefill"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -16701,10 +16648,8 @@
    },
    "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -17003,11 +16948,8 @@
    },
    "committed:kalman-psar-backquant__0a389f529b": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "import",
-      "library:TradingView/ta/7"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": false
     },
     "rtAttached": true,
@@ -17145,10 +17087,8 @@
    },
    "committed:liquidity-engulfing-displacement-msf__58824c94f0": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -17201,10 +17141,8 @@
    },
    "committed:liquidity-heatmap-nephew-sam__7628c72c3d": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -17245,11 +17183,9 @@
    },
    "committed:liquidity-levels-sonarlab__bba13c46c4": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -17426,10 +17362,8 @@
    },
    "committed:machine-learning-logistic-regression-v3__TDlqz0q9TN": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -17636,11 +17570,8 @@
    },
    "committed:machine-learning-rsi-bullvision__50b4566edd": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "import",
-      "library:TradingView/ta/7"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": false
     },
     "rtAttached": false,
@@ -17707,10 +17638,8 @@
    },
    "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -17983,10 +17912,8 @@
    },
    "committed:moving-averages-as-support-resistance-mtf__gcBksfRvvy": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -18082,10 +18009,8 @@
    },
    "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -18135,10 +18060,8 @@
    },
    "committed:mtf-key-levels-support-and-resistance__29f470a089": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -18181,11 +18104,9 @@
    },
    "committed:mtf-watchlist-charts-anan__3453680ea1": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -18248,10 +18169,8 @@
    },
    "committed:multi-timeframe-fvg-tfo__adbed9f590": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -18343,10 +18262,8 @@
    },
    "committed:multi-timeframe-supply-demand-zones__a98a2ab367": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -18387,11 +18304,9 @@
    },
    "committed:multi-timeframe-trend-indicator__fa4022ecf5": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -18468,10 +18383,8 @@
    },
    "committed:multiple-mtf-moving-average-xdecow__aArjfk9ShG": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -18725,11 +18638,9 @@
    },
    "committed:one-indicator-multiple-max-40-checked-symbols-and-quotinfinitequot-num__015bb66e64": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -18819,10 +18730,8 @@
    },
    "committed:open-interest-profile-fixed-range-by-leviathan__875691ab51": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -18848,9 +18757,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "collections:matrix",
-      "obj:linefill",
-      "request-other"
+      "collections:matrix"
      ],
      "historyOnly": true
     },
@@ -19111,10 +19018,8 @@
    },
    "committed:position-size-calc__a42db1a620": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "killed",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -19217,10 +19122,8 @@
    },
    "committed:previous-n-daysweeksmonths-high-low__78f5b05522": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -19307,10 +19210,9 @@
      "missing": [
       "import",
       "library:ClassicScott/MyMovingAveragesLibrary/4",
-      "library:ClassicScott/MyVolatilityBands/7",
-      "request-other"
+      "library:ClassicScott/MyVolatilityBands/7"
      ],
-     "historyOnly": false
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -19359,10 +19261,8 @@
    },
    "committed:relative-volume-at-time__gei8CBKbc5": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -19416,10 +19316,8 @@
    },
    "committed:renderingnature-smc-reversal-engine-v71__f8734584d9": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -19580,8 +19478,7 @@
      "missing": [
       "import",
       "library:HoanGhetti/SimpleTrendlines/3",
-      "method-def",
-      "request-other"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -19674,11 +19571,9 @@
    },
    "committed:screener-mean-reversion-channel__nTK2sHWDlB": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -19724,10 +19619,8 @@
    },
    "committed:sector-rotation__0fca060bf4": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -19926,8 +19819,7 @@
       "library:TFlab/FVGDetectorLibrary/1",
       "library:TFlab/LiquidityFinderLibrary/1",
       "library:TFlab/OrderBlockDrawing_TradingFinder/1",
-      "library:TFlab/OrderBlockRefiner_TradingFinder/2",
-      "library:TradingView/ta/7"
+      "library:TFlab/OrderBlockRefiner_TradingFinder/2"
      ],
      "historyOnly": false
     },
@@ -20021,10 +19913,8 @@
    },
    "committed:smart-money-volume-activity-algoalpha__699c36ad31": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -20082,10 +19972,8 @@
    },
    "committed:smarter-snr__ac98ab25d5": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -20150,9 +20038,7 @@
      "missing": [
       "import",
       "library:TradingView/ZigZag/7",
-      "method-def",
-      "obj:linefill",
-      "request-other"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -20203,10 +20089,8 @@
    },
    "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -20253,10 +20137,8 @@
    },
    "committed:smt-divergence-ict-killzones__c932d56665": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -20318,10 +20200,9 @@
      "status": "not-admitted",
      "missing": [
       "import",
-      "library:loxx/loxxexpandedsourcetypes/4",
-      "request-other"
+      "library:loxx/loxxexpandedsourcetypes/4"
      ],
-     "historyOnly": false
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -20403,8 +20284,7 @@
       "import",
       "library:TradingView/ta/12",
       "method-def",
-      "obj:polyline",
-      "request-other"
+      "obj:polyline"
      ],
      "historyOnly": true
     },
@@ -20485,10 +20365,8 @@
    },
    "committed:strong-start-rvol-dashboard__36140b1cbe": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -20535,11 +20413,9 @@
    },
    "committed:sub__1xYROVYMlX": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -20587,10 +20463,8 @@
    },
    "committed:supertrend-explorer__V4MsmtCeKs": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -20735,8 +20609,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "collections:map",
-      "request-other"
+      "collections:map"
      ],
      "historyOnly": true
     },
@@ -20959,8 +20832,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "collections:map",
-      "request-other"
+      "collections:map"
      ],
      "historyOnly": true
     },
@@ -21050,10 +20922,8 @@
    },
    "committed:swing-points-and-liquidity-by-leviathan__919c1fd9c6": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -21151,10 +21021,8 @@
    },
    "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -21427,10 +21295,8 @@
    },
    "committed:trend-targets-algoalpha__92ff5628d7": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "obj:linefill"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": false
     },
     "rtAttached": true,
@@ -21619,10 +21485,8 @@
    },
    "committed:vdubus-pattern-gen-v2-restored-refined__66dc68412e": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "obj:linefill"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -21749,8 +21613,7 @@
      "missing": [
       "import",
       "library:PineCoders/Time/5",
-      "library:TradingView/ta/12",
-      "request-other"
+      "library:TradingView/ta/12"
      ],
      "historyOnly": true
     },
@@ -21839,10 +21702,8 @@
    },
    "committed:vold-market-breadth__9c5cde9557": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "killed",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -21927,11 +21788,8 @@
    },
    "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "obj:linefill",
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -22058,8 +21916,7 @@
       "enum",
       "import",
       "library:TradingView/ta/14",
-      "obj:polyline",
-      "request-other"
+      "obj:polyline"
      ],
      "historyOnly": true
     },
@@ -22094,10 +21951,8 @@
    },
    "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -22191,9 +22046,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "method-def",
-      "obj:linefill",
-      "request-other"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -22258,8 +22111,7 @@
       "import",
       "library:algotraderdev/contrast/1",
       "method-def",
-      "obj:polyline",
-      "request-other"
+      "obj:polyline"
      ],
      "historyOnly": true
     },
@@ -22359,10 +22211,8 @@
    },
    "committed:volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -22417,11 +22267,9 @@
    },
    "committed:volume-suite-by-leviathan__48da793360": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -22477,10 +22325,8 @@
    },
    "committed:volumized-order-blocks-flux-charts__1675b2b8e3": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -22599,10 +22445,8 @@
    },
    "committed:zigzag-ma-pattern-recognition__1302": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -22768,10 +22612,8 @@
    },
    "reference:all-in-one-sessions-weekly-monday-previous-highslows__26254838fe": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -22841,11 +22683,9 @@
    },
    "reference:anchored-vwap__u9vU8nIMXA": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -22871,11 +22711,9 @@
    },
    "reference:angled-volume-profile-feeblev3__Z9Gy9K2ptd": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -23124,10 +22962,8 @@
    },
    "reference:bb-custom-indicator-tradingview-version__Vf3832aju8": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -23166,10 +23002,8 @@
    },
    "reference:best-abcd-pattern-screener__ROdc6mWjx4": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -23219,10 +23053,8 @@
    },
    "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -23243,10 +23075,8 @@
    },
    "reference:best-rsi-divergences-screener__TmlpugZKr6": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -23267,10 +23097,8 @@
    },
    "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "obj:linefill"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": false
     },
     "rtAttached": true,
@@ -23309,10 +23137,8 @@
    },
    "reference:bitcoin-futures-funding-rates-v5__zGOXiHPIn3": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -23395,10 +23221,8 @@
    },
    "reference:camarilla-levels-intraday__bfb5a2b8db": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -23444,10 +23268,8 @@
    },
    "reference:chases-buysell-indicator-advance-decline__37714ef0a5": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -23604,8 +23426,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "method-def",
-      "request-other"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -23716,10 +23537,8 @@
    },
    "reference:crypto-correlation-matrix__0f59de2d3d": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -23751,10 +23570,8 @@
    },
    "reference:cryptosignalscanner-rsi-overboughtoversold-divergence-indicator-new__918919b267": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -23786,10 +23603,8 @@
    },
    "reference:ct-displacement-fvg-toolkit__1ae5bb663e": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -23832,10 +23647,8 @@
    },
    "reference:cumulative-volume-delta-divergence__fbc538f076": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -23883,8 +23696,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "collections:matrix",
-      "request-other"
+      "collections:matrix"
      ],
      "historyOnly": true
     },
@@ -23904,7 +23716,6 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "request-other",
       "varip"
      ],
      "historyOnly": true
@@ -24002,10 +23813,8 @@
    },
    "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -24097,10 +23906,8 @@
    },
    "reference:dynamic-higher-timeframe-fibonacci-pivot-points__8Hv70DXiZU": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -24132,10 +23939,8 @@
    },
    "reference:dynamic-linear-regression-channels__17ec799bc1": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "obj:linefill"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -24236,11 +24041,9 @@
    },
    "reference:earnings-sr-levels-lazybear__453": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -24320,10 +24123,9 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "method-def",
-      "request-other"
+      "method-def"
      ],
-     "historyOnly": false
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -24614,10 +24416,8 @@
    },
    "reference:fxn-asian-session-range__jNLZBfpYDO": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -24661,8 +24461,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "obj:polyline",
-      "request-other"
+      "obj:polyline"
      ],
      "historyOnly": true
     },
@@ -24690,11 +24489,9 @@
    },
    "reference:global-liquidity-index__1b7ae64e24": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -24745,10 +24542,8 @@
    },
    "reference:halftrend-longshort-signal-engine-bigbeluga__07070e14d6": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -24956,11 +24751,9 @@
    },
    "reference:ict-killzone__fE0Mzs0mp0": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -25034,10 +24827,8 @@
    },
    "reference:intraday-power-3-visual__f9b34d80bb": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -25158,11 +24949,9 @@
    },
    "reference:kz-boxes__zed4AoolEW": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -25315,8 +25104,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "method-def",
-      "request-other"
+      "method-def"
      ],
      "historyOnly": true
     },
@@ -25362,11 +25150,9 @@
    },
    "reference:liquidity-sniper-pro__da4b93aa0a": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -25397,11 +25183,9 @@
    },
    "reference:liquidity-swings-luxalgo__780e612168": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -25465,8 +25249,7 @@
      "missing": [
       "import",
       "library:DskyzInvestments/DafeVisLib/1",
-      "library:DskyzInvestments/MarketStructureLib/1",
-      "request-other"
+      "library:DskyzInvestments/MarketStructureLib/1"
      ],
      "historyOnly": true
     },
@@ -25783,10 +25566,8 @@
    },
    "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -25876,11 +25657,9 @@
    },
    "reference:money-flow-index-mtf-alerts__RkKU95fUai": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -25921,11 +25700,9 @@
    },
    "reference:most-screener__d7d9ae5349": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -25965,10 +25742,8 @@
    },
    "reference:mtf-order-block-finder__ce13bf1b46": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -26038,11 +25813,9 @@
    },
    "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -26141,10 +25914,8 @@
    },
    "reference:my-cme-open-interest__ndAEr9lJjO": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -26319,10 +26090,8 @@
    },
    "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -26357,8 +26126,7 @@
      "status": "not-admitted",
      "missing": [
       "import",
-      "library:TradingView/LibraryCOT/3",
-      "request-other"
+      "library:TradingView/LibraryCOT/3"
      ],
      "historyOnly": true
     },
@@ -26433,10 +26201,8 @@
    },
    "reference:ot-mtf-trend-dashboard-10__d43fa61404": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -26517,11 +26283,9 @@
    },
    "reference:price-action-doji-harami-v02-by-justunclel__4219": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -26697,11 +26461,9 @@
    },
    "reference:range-filter-x-hull-suite__8430e18838": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -26806,10 +26568,8 @@
    },
    "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -26947,10 +26707,8 @@
    },
    "reference:rsi-multi-timeframe-dashboard-by-giua64__cb0cdabd5f": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -26989,10 +26747,8 @@
    },
    "reference:rsi-support-resistance-by-dgt__ZkkLVEb1ak": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "obj:linefill"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -27061,10 +26817,8 @@
    },
    "reference:saty-atr-levels__99165984ef": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -27100,10 +26854,8 @@
    },
    "reference:screener-for-40-instruments__a009097811": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -27177,8 +26929,7 @@
     "admission": {
      "status": "not-admitted",
      "missing": [
-      "collections:matrix",
-      "obj:linefill"
+      "collections:matrix"
      ],
      "historyOnly": true
     },
@@ -27268,10 +27019,8 @@
    },
    "reference:spy-moving-averages-and-signals__KSz0yeOiH2": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -27398,10 +27147,8 @@
    },
    "reference:strong-knn-classifier__852c26b11d": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -27555,10 +27302,8 @@
    },
    "reference:supertrend-mtf-heatmap__ODcEBlvB3g": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -27600,10 +27345,8 @@
    },
    "reference:supertrendrange-by-dgt__jDAxwdo5u7": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -27669,11 +27412,9 @@
    },
    "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -27820,10 +27561,8 @@
    },
    "reference:support-resistance-fibonacci-retracement__06a1a2c80d": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -27873,11 +27612,9 @@
    },
    "reference:thelark-lma-v2-laguerre__1029": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -28051,10 +27788,8 @@
    },
    "reference:trend-channels-with-liquidity-breaks-chartprime__6cabbffddf": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "obj:linefill"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -28200,11 +27935,9 @@
    },
    "reference:trendlines-2x__rzuOQrVQWt": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": false,
@@ -28404,11 +28137,8 @@
    },
    "reference:ut-bot-linreg-candles-longevity-zones-sr-dashboard__26fb08b910": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "obj:linefill",
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -28728,10 +28458,8 @@
    },
    "reference:vumanchu-b-divergences__uA35GeckoT": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
+     "status": "capability",
+     "missing": [],
      "historyOnly": true
     },
     "rtAttached": false,
@@ -28779,11 +28507,9 @@
    },
    "reference:vwap-mtf__2809": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -28821,11 +28547,9 @@
    },
    "reference:vwap-stdev-bands-v2-mod__2741": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,
@@ -28863,11 +28587,9 @@
    },
    "reference:vwap-stdev-bands-v2-mod__2744": {
     "admission": {
-     "status": "not-admitted",
-     "missing": [
-      "request-other"
-     ],
-     "historyOnly": false
+     "status": "capability",
+     "missing": [],
+     "historyOnly": true
     },
     "rtAttached": false,
     "rtEnumerated": true,

@@ -2,7 +2,7 @@
 //   - ?spy=&qqq=&label= override the SPY/QQQ prints with the letter's own
 //     (pre-market) numbers, with a small label; absent = unchanged (control);
 //   - a zero exposure-rating change shows NO arrow ("100 ↑0" in the letter).
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -87,6 +87,59 @@ describe('InternalsRender', () => {
     await screen.findByText('100')
     expect(document.body.textContent).not.toMatch(/[↑↓]0\b/)
     expect(document.body.textContent).not.toMatch(/↑/)
+  })
+})
+
+// One check, on the server: the page forwards ?token= on both reads and takes the answer.
+describe('InternalsRender and the server\'s answer', () => {
+  const mountVariant = (variant) => render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <MemoryRouter initialEntries={[`/r/internals?variant=${variant}&w=728&token=token-from-the-address`]}>
+        <InternalsRender />
+      </MemoryRouter>
+    </SWRConfig>)
+  const answerAll = (status) => {
+    const fetchMock = vi.fn(() => Promise.resolve({
+      ok: status >= 200 && status < 300, status, json: () => Promise.resolve({}),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+  const settle = () => act(async () => { await vi.advanceTimersByTimeAsync(6000) })
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    delete window.__panelReady
+  })
+  afterEach(() => vi.useRealTimers())
+
+  // exposure reads /api/r/breadth, treemap reads /api/r/breadth-monitor, combo reads both.
+  describe.each(['exposure', 'treemap', 'combo'])('variant=%s', (variant) => {
+    it.each([403, 401])('a %i answer shows "unauthorized", no panel, and the ready flag stays false', async (status) => {
+      const fetchMock = answerAll(status)
+      const { container } = mountVariant(variant)
+
+      expect(await screen.findByText('unauthorized')).toBeInTheDocument()
+      expect(container.querySelector('#panel-export')).toBeNull()
+      await settle()
+      expect(window.__panelReady).toBe(false)
+      expect(container.textContent).toBe('unauthorized')
+
+      const doors = fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => u.startsWith('/api/r/'))
+      expect(doors.length).toBe(variant === 'combo' ? 2 : 1)
+      for (const u of doors) expect(u).toContain('token=token-from-the-address')
+    })
+
+    it('CONTROL: any other failed read keeps the soft fallback: the panel is drawn and ready is set', async () => {
+      answerAll(500)
+      const { container } = mountVariant(variant)
+
+      await waitFor(() => expect(container.querySelector('#panel-export')).not.toBeNull())
+      await settle()
+      expect(screen.queryByText('unauthorized')).toBeNull()
+      expect(container.querySelector('#panel-export')).not.toBeNull()
+      expect(window.__panelReady).toBe(true)
+    })
   })
 })
 

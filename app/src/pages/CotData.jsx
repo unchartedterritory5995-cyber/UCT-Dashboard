@@ -153,7 +153,8 @@ function initialCotSymbol() {
 // The same page, minus everything a screenshot cannot use: no picker, lookback or
 // resize handles, no chart animation, every read through the token-gated /api/r/cot
 // doors (the site's /api/cot/* reads are paid and the renderer is logged out), and
-// `onState('ready' | 'error')` once the charts AND the written read have settled.
+// `onState('ready' | 'error', status)` once the charts AND the written read have
+// settled; `status` is the HTTP status of the rows read (null before it answers).
 export default function CotData({ render = null } = {}) {
   const pal = useCotPalette()
   const SERIES_COLORS = pal.series
@@ -337,12 +338,14 @@ export default function CotData({ render = null } = {}) {
   }
 
   // Fetch the full history once per symbol; lookback is a client-side slice.
+  const rowsStatusRef = useRef(null)
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
     fetch(render ? `/api/r/cot/${symbol}?weeks=${FETCH_WEEKS}&${tokenQs}` : `/api/cot/${symbol}?weeks=${FETCH_WEEKS}`)
       .then(r => {
+        rowsStatusRef.current = r.status
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
@@ -410,7 +413,7 @@ export default function CotData({ render = null } = {}) {
     : null
   useEffect(() => {
     if (!render || !renderState) return undefined
-    const t = setTimeout(() => render.onState?.(renderState), 400)
+    const t = setTimeout(() => render.onState?.(renderState, rowsStatusRef.current), 400)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderState])

@@ -11,7 +11,7 @@
  */
 
 import { classifyIntradayTail } from './marketSession'
-import { isOnSixtyMinGrid, logicTfOf } from '../components/chart/barTime'
+import { isOnSixtyMinGrid, logicTfOf, etDateLabel } from '../components/chart/barTime'
 import { mergeDelta, mergeMonotonic, _closeMismatch } from './barsMerge'
 
 const DB_NAME    = 'uct_bars_v1'
@@ -183,7 +183,7 @@ export function _hasOldSixtyMinGrid(bars, tf) {
 function _maxOkGapSec(tf) {
   return { '1': 900, '5': 600, '15': 3600, '30': 5400, '60': 7200 }[tf]
 }
-const _etDay = (t) => new Date(t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+const _etDay = etDateLabel   // one shared formatter (barTime): this runs per overnight gap of a whole series
 
 /**
  * P4 — the deep-history segment's hole rule (persist.js hydrate). Scans the WHOLE series
@@ -233,11 +233,7 @@ export function _intradayGapStart(bars, tf) {
     if (gap <= MAX_OK_GAP_SEC) continue
     // Cross-ET-day gaps are legit session boundaries (overnight, weekend,
     // holiday closure). Only same-day gaps over the threshold are bugs.
-    const prevEtDate = new Date(bars[i - 1].t * 1000)
-      .toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-    const currEtDate = new Date(bars[i].t * 1000)
-      .toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-    if (prevEtDate !== currEtDate) continue
+    if (_etDay(bars[i - 1].t) !== _etDay(bars[i].t)) continue
     return bars[i - 1].t
   }
   return null

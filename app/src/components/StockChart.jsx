@@ -1,7 +1,8 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
-import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar } from './chart/barTime'
+import { recordPaint } from './chart/paintLog'
+import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
@@ -2024,6 +2025,11 @@ const _BAR_INFO_MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG'
 // ⛔ A NUMERIC `time` HERE IS CHART TIME (ET wall clock read as UTC — what the
 // crosshair's param.time carries), so it is printed in UTC. Printing it in
 // America/New_York shifted the hovered intraday time a SECOND time (10:30 → 06:30).
+// Built once: a fresh formatter per call showed in the live ticker-switch profile (2026-11-19).
+const _BAR_INFO_FMT = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'UTC', month: 'short', day: 'numeric',
+  hour: '2-digit', minute: '2-digit', hour12: false,
+})
 export function formatBarInfoDate(time) {
   if (typeof time === 'string') {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(time)
@@ -2033,10 +2039,7 @@ export function formatBarInfoDate(time) {
   }
   if (!Number.isFinite(time)) return ''
   const d = new Date(time * 1000)
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'UTC', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(d).reduce((a, p) => { a[p.type] = p.value; return a }, {})
+  const parts = _BAR_INFO_FMT.formatToParts(d).reduce((a, p) => { a[p.type] = p.value; return a }, {})
   if (!parts.month) return ''
   return `${String(parts.month).toUpperCase()} ${parts.day} ${parts.hour}:${parts.minute}`
 }
@@ -4443,7 +4446,7 @@ export default function StockChart({
       // For daily/weekly, convert to YYYY-MM-DD date string in ET so it aligns with daily bars
       let time
       if (isDailyWeekly) {
-        time = new Date(tsRaw * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+        time = etDateLabel(tsRaw)
       } else {
         time = toChartTime(tsRaw)
       }
@@ -9344,7 +9347,7 @@ export default function StockChart({
       if (replayCutoff && out?.length) {
         out = out.filter(b => (
           typeof b.t === 'number'
-            ? new Date(b.t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) <= replayCutoff
+            ? etDateLabel(b.t) <= replayCutoff
             : String(b.t).slice(0, 10) <= replayCutoff
         ))
       }
@@ -11433,6 +11436,7 @@ export default function StockChart({
     // re-apply below.
     const _noop = _cfgSame && _plan.mode === 'noop' && !_freshChart
     lastCfgSigRef.current = _cfgSig
+    recordPaint(sym, resolvedTf, displayBars?.length ?? 0, _noop ? 'noop' : _incr ? 'incr' : 'full')
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
     if (typeof window !== 'undefined' && window.__uctBarsDebug && paintSymRef.current !== `${sym}_${resolvedTf}`) {

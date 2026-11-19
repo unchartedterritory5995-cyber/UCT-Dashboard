@@ -763,6 +763,17 @@
         {"capture": "support-and-resistance-multi-time-frame-spy-1d-2026-10-02", "script": "SNR", "community": true, "verdict": "MATCH", "runtimePane": "on", "runtimeLane": "forced"}
       ],
       "note": "request.security for another timeframe (and the v3 / v4 bare `security`, #1985), every request the runtime lane serves: admitted for CLOSED-BAR HISTORY only (scope closed-bar-history, rollout_gate.PINE_CAPABILITY_FORMING_UNGRADED, coordinator ruling 2026-11-19): every capture that admits it holds a finished newest bar, and on a forming one a look-ahead-on weekly / monthly read is withheld by name while the look-ahead-off developing value is witnessed only by an uncommitted probe (Q-HTF-FORM). Evidence, graded at engine 84 in the runtime-on harness (this row's stamp): PA ZigZag Fibonacci FAN (corpus/committed, MPL-2.0, community) with Alt Timeframe 1W and 1M on NYSE:RDDT and AMEX:SPY 1D from the listing (run rozz-2026-11-18, promoted 2026-11-19): MATCH 10 / 10 each, drawn by the runtime lane, through #1958's region series (engine 82) and the harness's moved-timeframe seam; and Support and Resistance Multi Time frame (SR-MTF, //@version=4, community) on RDDT and SPY 1D 2026-10-02, whose member door draws the HOST lane: its runtime-lane witness is the harness's forced lane (runtimeLane: forced; #1985's REQ-B1, all six plots MATCH; capabilityEvidenceLane.test.js grades each forced). Every source this row newly admits with a committed capture grading DIVERGE on either lane is on the kill list (11 sources, DRAW-1 rule) except rs-rating-fred6724, served through its own sha allowlist entry (tests/test_pine_capability_admission.py SERVED_BY_OWN_SHA names its four differences). docs/pine/evidence/2026-11-19-admit-request-other/EVIDENCE.md."
+    },
+    "library:TradingView/ta/7": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 85, "rowSha256": "5f0f967c27407fc0c407d6e7e10b06a9cb7f8a069c1494a95facaac48136c12e"},
+      "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876",
+      "evidence": [
+        {"capture": "kalman-psar-backquant-rddt-1d-2026-11-15", "script": "KPSaR [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on", "library": {"path": "TradingView/ta/7", "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"}},
+        {"capture": "vw-library-import-rddt-1d-2026-10-02", "script": "UCTPROBE L1 library import", "community": false, "verdict": "MATCH", "runtimePane": "on", "library": {"path": "TradingView/ta/7", "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"}}
+      ],
+      "note": "THE FIRST LIBRARY ROW (U15: one row per library version, pinned by the sha256 of the code its evidence graded; rollout_gate counts an entry only when its `library` names this path at this sha). TradingView/ta/7 (MPL-2.0), promoted runtime-only (#2046): no importer draws on the host lane. Evidence, graded at engine 85 with production's store: KPSaR [BackQuant] (community) and our probe vw-library-import, both MATCH with the runtime pane on and drawn by the runtime lane; each snapshot row is store-held at this sha (A8). The ta/7 importers this does not serve stay walled by their own guards: machine-learning-rsi-bullvision (runtime:conditional-history), smart-money-concept-tradingfinder (its five TFlab libraries), relative-volume-at-time (v6 on a v5 library, pine:library-version). Libraries chain, 2026-11-19."
     }
   }
 }
