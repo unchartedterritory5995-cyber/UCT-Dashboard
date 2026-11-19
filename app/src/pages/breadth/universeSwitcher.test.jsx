@@ -112,14 +112,16 @@ describe('the universe switcher', () => {
     expect(seen.universes.every(u => u === 'uct')).toBe(true)
   })
 
-  it('off UCT: Health is hidden (—), Up Vol / HVC / >7×ATR / ATH read n/a, and no cell drills', () => {
+  it('off UCT: Health is hidden (—), Up Vol / HVC / >7×ATR / ATH read n/a, and no cell opens a list', () => {
     mount('&universe=us')
     expect(cellOf('breadth_score')).toHaveTextContent('—')
     for (const k of ['up_vol_ratio', 'hvc_52w', 'atr_ext_7', 'new_ath']) {
       expect(cellOf(k)).toHaveTextContent('n/a')
       expect(cellOf(k)).toHaveAttribute('title', 'Not available for this universe yet.')
     }
-    expect(document.querySelector('td[data-drill]')).toBeNull()
+    // No lists off UCT yet: no cell opens one. Every value cell still opens its reading.
+    expect(document.querySelector('td[data-drill-list]')).toBeNull()
+    expect(cellOf('breadth_score').hasAttribute('data-drill')).toBe(false)
   })
 
   it('UCT cells drill as before', () => {

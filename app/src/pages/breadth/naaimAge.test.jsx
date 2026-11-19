@@ -208,7 +208,9 @@ describe('a carried reading is marked carried, in the tooltip and aria', () => {
     const td = cellFor(container, FRESH.value)
     expect(td.textContent).toBe(FRESH.value)
     expect(td.className).not.toMatch(/carriedValue/)
-    expect(td.getAttribute('aria-label')).toBeNull()
+    // Every value cell opens its reading now (owner 2026-11-19), so it is named as a control,
+    // but never with a carried as-of.
+    expect(td.getAttribute('aria-label')).not.toMatch(/as of|undated|survey/)
   })
 
   it('no NAAIM label on any other column, and none that says UNKNOWN', () => {

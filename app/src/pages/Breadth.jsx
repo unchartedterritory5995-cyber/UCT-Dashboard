@@ -17,7 +17,7 @@ import ContextPopover from '../components/mobile/ContextPopover'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
-import { shadeFor } from './breadth/shading'
+import { shadeFor, SHADE_SPEC } from './breadth/shading'
 import { defaultsFor } from './breadth/defaultColumns'
 import { columnInfo } from './breadth/columnInfo'
 import { fetchDrill, peekDrill, prefetchDrill, forgetDrill } from './breadth/drillFetch'
@@ -548,6 +548,17 @@ const maStackTitle = (col) => `${maStackSym(col)} above its ${col.maLabels.slice
 const loadDrillModal = () => import('./breadth/drill/BreadthDrillModal')
 const BreadthDrillModal = lazyDeferrable(loadDrillModal)
 function preloadDrillModal() { loadDrillModal().catch(() => {}) }
+// The READING-ONLY window: a Monitor cell with no stock list behind it (a ratio, a percent, a
+// market-wide reading, any cell off UCT) opens its History instead of a list. Its own small
+// chunk, preloaded on hover like the scan window.
+const loadReadingModal = () => import('./breadth/drill/BreadthReadingModal')
+const BreadthReadingModal = lazyDeferrable(loadReadingModal)
+function preloadReadingModal() { loadReadingModal().catch(() => {}) }
+const isFiniteNum = (v) => typeof v === 'number' && Number.isFinite(v)
+// A count column (ranked as a share of the universe) reads "stocks" in the window.
+const isCountCol = (key) => key === 'universe_count' || SHADE_SPEC.cols[key]?.per === 'universe_count'
+// A value cell (a number on the sheet), not a dot strip or a sparkline.
+const isCellReadable = (col) => !!col && !col.type
 
 // ── COLS lookup map ────────────────────────────────────────────────────────
 const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
@@ -949,6 +960,8 @@ export default function Breadth() {
   const closeColMenu = useCallback(() => setColMenu(null), [])
 
   const [drill, setDrill] = useState(null)
+  const drillRef = useRef(null)
+  drillRef.current = drill
   // drill = { date, label, items: [{t,pct}] | null }
 
   // Takes the ROW, not a date: only the row knows whether it is the live one,
@@ -983,9 +996,26 @@ export default function Breadth() {
     setDrill({ date: target.date, label: col.label, live: target.live,
                colKey: col.key, drillKey: col.drillKey,
                asOf: target.live ? live?.asOf ?? null : null,
-               url: target.url, items: cached ? (cached.items ?? []) : null, error: null })
+               url: target.url, items: cached ? (cached.items ?? []) : null, error: null,
+               // The reading strip: the cell's own value (ranked when today's session is not
+               // stored yet) and how the column prints a number.
+               universe: 'uct', value: isFiniteNum(row[col.key]) ? row[col.key] : null,
+               per: isFiniteNum(row.universe_count) ? row.universe_count : null,
+               valueText: fmtCell(col, row[col.key]), fmt: (v) => fmtCell(col, v), isCount: isCountCol(col.key) })
     if (!cached) loadDrill(target.url, target.live)
   }, [loadDrill])
+
+  // A cell with no list (or any cell off UCT): the reading-only window. ⛔ No list fetch.
+  const openReading = useCallback((row, col, uni = 'uct') => {
+    const val = row?.[col.key]
+    if (!row?.date || !isFiniteNum(val) && !row?._synthetic) return
+    setDrill({ readingOnly: true, date: row.date, label: col.label, live: !!row._live,
+               colKey: col.key, drillKey: col.drillKey || null, universe: uni,
+               value: isFiniteNum(val) ? val : null,
+               per: isFiniteNum(row.universe_count) ? row.universe_count : null,
+               valueText: isFiniteNum(val) ? fmtCell(col, val) : null,
+               fmt: (v) => fmtCell(col, v), isCount: isCountCol(col.key), hasList: !!col.drillKey })
+  }, [])
 
   const retryDrill = useCallback(() => {
     setDrill(prev => {
@@ -1024,7 +1054,7 @@ export default function Breadth() {
   const onCellKey = useCallback((e, row, col) => {
     if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
       e.preventDefault()
-      openDrill(row, col, liveBreadth)
+      openCellRef.current?.(row, col, liveBreadth)
       return
     }
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return
@@ -1042,7 +1072,8 @@ export default function Breadth() {
     cell.tabIndex = -1
     next.tabIndex = 0
     next.focus()
-  }, [openDrill, liveBreadth])
+  }, [liveBreadth])
+  const openCellRef = useRef(null)
 
   // Views/Overview read the latest window, today's live row on top.
   const rows = useMemo(
@@ -1058,6 +1089,7 @@ export default function Breadth() {
   // click opens onto rows rather than "Loading…".
   const prefetchCell = useCallback((row, col) => {
     preloadDrillModal()
+    preloadReadingModal()
     const t = drillTarget(row, col, liveBreadth)
     if (t) prefetchDrill(t.url, { live: t.live })
   }, [liveBreadth])
@@ -1085,12 +1117,30 @@ export default function Breadth() {
     }
   }, [drillUrl, drillColKey, drillDateNow, drillIsLive, rows, liveBreadth])
 
+  // ⭐ A date outside the page's window (a similar past day from the History drawer) resolves
+  // through the Monitor grid's rows, else a bare `{ date }`: a settled drill needs only the
+  // date. The Monitor table scrolls to the same day, so the sheet and the window agree.
+  const gridNavRef = useRef(null)
   const navigateDrill = useCallback(({ colKey, date, live }) => {
     const col = COLS_BY_KEY[colKey]
-    if (!col?.drillKey) return
-    const row = live ? rows.find(r => r?._live) : rows.find(r => !r?._live && r?.date === date)
-    if (row) openDrill(row, col, liveBreadth)
-  }, [rows, openDrill, liveBreadth])
+    if (!col) return
+    const nav = gridNavRef.current
+    let row = live ? rows.find(r => r?._live) : rows.find(r => !r?._live && r?.date === date)
+    if (!row && !live && date) {
+      const i = nav?.grid?.indexOfDate?.(date)
+      row = (Number.isInteger(i) && i >= 0 ? nav.grid.getRow(i) : null) || { date, _synthetic: true }
+    }
+    if (!row) return
+    if (!live && date && nav?.active) {
+      const i = nav.grid.indexOfDate?.(date)
+      if (Number.isInteger(i) && i >= 0) nav.monitorScrollTo(i)
+    }
+    // The reading-only window stays reading-only; the scan window stays the scan window.
+    const cur = drillRef.current
+    const uni = cur?.universe || 'uct'
+    if (cur?.readingOnly || uni !== 'uct' || !col.drillKey) openReading(row, col, uni)
+    else openDrill(row, col, liveBreadth)
+  }, [rows, openDrill, openReading, liveBreadth])
 
   // ── Monitor grid: virtualized over the FULL timeline index, rows loaded on
   //    demand in blocks (see useMonitorGrid). A teleport to any year is an instant
@@ -1098,6 +1148,12 @@ export default function Breadth() {
   const grid = useMonitorGrid({ enabled: activeTab === 'breadth', liveRow: liveBreadth.row, universe })
   // ⛔ Drill lists are UCT's (the collector's ticker lists): off UCT no cell is drillable yet.
   const gridDrill = useCallback((row, col, live) => (isUct ? drillTarget(row, col, live) : null), [isUct])
+  // ⭐ EVERY Monitor value cell opens a window (owner 2026-11-19): its stock list when it has one
+  // on this universe, else the reading-only window with its History.
+  const openCell = useCallback((row, col, live) => {
+    if (gridDrill(row, col, live)) openDrill(row, col, live)
+    else openReading(row, col, universe)
+  }, [gridDrill, openDrill, openReading, universe])
   const tableWrapRef = useRef(null)
   const rowH = useMonitorRowH()
   const rowVirtualizer = useVirtualizer({
@@ -1147,6 +1203,21 @@ export default function Breadth() {
   // they arrive on screen). Works for any date/year, loaded or not.
   const onDatePick = useCallback((iso) => monitorScrollTo(grid.indexOfDate(iso)),
     [grid, monitorScrollTo])
+  // The drill window's navigation reads these (it is defined above the grid).
+  gridNavRef.current = { grid, monitorScrollTo, active: activeTab === 'breadth' }
+  openCellRef.current = openCell
+  const closeDrill = () => setDrill(null)
+  const drillWindow = drill ? (
+    <Suspense fallback={null}>
+      {drill.readingOnly ? (
+        <BreadthReadingModal drill={drill} onClose={closeDrill} rows={rows}
+          onNavigate={navigateDrill} universe={drill.universe || 'uct'} />
+      ) : (
+        <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={closeDrill}
+          rows={rows} drillCols={DRILL_COLS} onNavigate={navigateDrill} universe={drill.universe || 'uct'} />
+      )}
+    </Suspense>
+  ) : null
   const onYearPick = useCallback((y) => monitorScrollTo(grid.indexOfYearStart(y)),
     [grid, monitorScrollTo])
   const onDateStep = useCallback((dir) => {
@@ -1410,12 +1481,7 @@ export default function Breadth() {
             )}
           <MarketBreadth />
         </div>
-        {drill && (
-          <Suspense fallback={null}>
-            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={() => setDrill(null)}
-              rows={rows} drillCols={DRILL_COLS} onNavigate={navigateDrill} />
-          </Suspense>
-        )}
+        {drillWindow}
       </div>
     )
   }
@@ -1769,7 +1835,8 @@ export default function Breadth() {
                 // that IS the render order below — a second ordering here would
                 // put the stop on a cell that is not the first one on screen.
                 const firstDrillKey = visibleCols.find(
-                  c => gridDrill(row, c, liveBreadth),
+                  c => gridDrill(row, c, liveBreadth)
+                    || (isCellReadable(c) && !universeCellOverride(c.key, universe) && isFiniteNum(row[c.key])),
                 )?.key ?? null
                 return (
                 <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${row._live ? styles.liveRow : ''}`}>
@@ -1838,7 +1905,9 @@ export default function Breadth() {
                     // drills the session its number came from. `drillTarget`
                     // owns that choice so the tiles below make it identically.
                     const drillTo = gridDrill(row, col, liveBreadth)
-                    const isDrillable = !!drillTo
+                    const hasList = !!drillTo
+                    // No list here: the cell still opens its reading (History).
+                    const isDrillable = hasList || (isCellReadable(col) && isFiniteNum(val))
                     // Off UCT: Health is hidden ("—") and the Phase 3 columns read "n/a".
                     const override = universeCellOverride(col.key, universe)
                     if (override) {
@@ -1867,6 +1936,10 @@ export default function Breadth() {
                     const age = col.age ? col.age(row) : null
                     const carried = !!age?.mustLabel
                     const ageTitle = carried ? carriedNote(age) : null
+                    const showAgeTip = (e) => {
+                      const r = e.currentTarget.getBoundingClientRect()
+                      setAgeTip({ left: r.left, top: r.bottom + 4, key: `${row.date}:${col.key}`, note: ageTitle, age })
+                    }
                     return (
                       <td
                         key={col.key}
@@ -1880,23 +1953,24 @@ export default function Breadth() {
                                 ? 'Builds through the session — only complete at the close'
                                 : carried ? undefined   // its as-of shows in the age tooltip below
                                   : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
-                                    : isDrillable ? 'Click to see stocks' : undefined
+                                    : hasList ? 'Click to see stocks'
+                                      : isDrillable ? 'Click to see where this reading sits in history' : undefined
                         }
                         {...(carried ? {
                           'data-value-age': col.key,
                           'aria-label': `${col.label} ${fmtCell(col, val)}, ${ageTitle.toLowerCase()}`,
                           // Hover shows the value's own as-of as the provenance badge
                           // (FreshnessBadge), in one floating tooltip for the sheet.
-                          onPointerEnter: (e) => {
-                            const r = e.currentTarget.getBoundingClientRect()
-                            setAgeTip({ left: r.left, top: r.bottom + 4, key: `${row.date}:${col.key}`, note: ageTitle, age })
-                          },
+                          onPointerEnter: showAgeTip,
                           onPointerLeave: () => setAgeTip(null),
                         } : {})}
-                        onClick={isDrillable ? () => openDrill(row, col, liveBreadth) : undefined}
+                        onClick={isDrillable ? () => openCell(row, col, liveBreadth) : undefined}
                         {...(isDrillable ? {
-                          onPointerEnter: () => prefetchCell(row, col),
+                          // a carried value's as-of tip still shows on hover
+                          onPointerEnter: carried ? (e) => { showAgeTip(e); prefetchCell(row, col) } : () => prefetchCell(row, col),
                           'data-drill': '',
+                          // a list behind it (the scan window), or only its reading (History)
+                          ...(hasList ? { 'data-drill-list': '' } : {}),
                           role: 'button',
                           tabIndex: col.key === firstDrillKey ? 0 : -1,
                           onKeyDown: (e) => onCellKey(e, row, col),
@@ -1904,8 +1978,11 @@ export default function Breadth() {
                           // number. Name it with the metric, the value and the
                           // session, because "134" alone says nothing about what
                           // pressing it opens.
-                          'aria-label': `${col.label} ${val === null || val === undefined ? 'no reading' : val}`
-                            + `${row._live ? ', live session' : `, ${row.date}`} — open the list of stocks`,
+                          // A carried value keeps its own name (metric, value, as-of), set above.
+                          ...(carried && !hasList ? {} : {
+                            'aria-label': `${col.label} ${val === null || val === undefined ? 'no reading' : val}`
+                              + `${row._live ? ', live session' : `, ${row.date}`} — ${hasList ? 'open the list of stocks' : 'open its history'}`,
+                          }),
                         } : {})}
                       >
                         {fmtCell(col, val)}
@@ -1948,12 +2025,7 @@ export default function Breadth() {
           <FreshnessBadge age={{ dataClass: ageTip.age.dataClass, asOfDate: ageTip.age.asOfDate }} />
         </div>
       )}
-      {drill && (
-          <Suspense fallback={null}>
-            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={() => setDrill(null)}
-              rows={rows} drillCols={DRILL_COLS} onNavigate={navigateDrill} />
-          </Suspense>
-        )}
+      {drillWindow}
     </div>
   )
 }

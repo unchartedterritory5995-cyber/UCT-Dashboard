@@ -7,107 +7,174 @@
    template + layout over the chart). Equal heights are what make the two panes
    read as one surface instead of two widgets parked side by side. */
 
+/* ── UCT Signature values for the drill window (docs/uct-signature-style.md) ──
+   Set once for the scan window, the reading-only window and the History drawer. Dark is the
+   spec; under the light theme each name points at the app's own light token. Gold appears
+   ONLY on the open view's underline, the selected row's 2px bar, the chart's chosen timeframe
+   underline and today's sparkline tick. */
+:global(:root) {
+  --dr-panel: #111214;
+  --dr-card: #1a1b1f;
+  --dr-raised: #222327;
+  --dr-selected: #2c2e33;
+  --dr-outline: #383b41;
+  --dr-line: #26282c;
+  --dr-track: #2a2c31;
+  --dr-text: #ededed;
+  --dr-bright: #f8f7f3;
+  --dr-dim: #a9a59b;
+  --dr-rest: #c9c6be;
+  --dr-faint: #93939a;
+  --dr-soft: rgba(248, 247, 243, 0.06);
+  --dr-soft-hi: rgba(248, 247, 243, 0.11);
+  --dr-ring: rgba(248, 247, 243, 0.45);
+  --dr-up: #3fbf9a;
+  --dr-down: #e8665a;
+  --dr-bar: #4a4c52;
+  --dr-shadow-window: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+:global([data-theme='light']) {
+  --dr-panel: var(--bg-elevated);
+  --dr-card: var(--bg-surface);
+  --dr-raised: #eceef0;
+  --dr-selected: #e3e5e7;
+  --dr-outline: var(--border-accent);
+  --dr-line: var(--border);
+  --dr-track: #e3e5e7;
+  --dr-text: var(--text);
+  --dr-bright: var(--text-bright);
+  --dr-dim: var(--text-muted);
+  --dr-rest: var(--text-muted);
+  --dr-faint: var(--text-muted);
+  --dr-soft: rgba(0, 0, 0, 0.05);
+  --dr-soft-hi: rgba(0, 0, 0, 0.09);
+  --dr-ring: rgba(0, 0, 0, 0.5);
+  --dr-up: var(--gain);
+  --dr-down: var(--loss);
+  --dr-bar: #c4c7cc;
+  --dr-shadow-window: var(--shadow-modal);
+}
+
 /* ── Masthead ───────────────────────────────────────────────────────────── */
-/* One 48px line on the window's canvas. Typography and the view toggle are
-   borrowed from the chart header so the window and the chart read as one. */
+/* One fixed-height band (84px: the 64px strip plus the reading's two lines, owner pick B).
+   ⛔ Fixed, never content-sized: the window must not move when the reading loads. */
 .header {
   display: flex;
   align-items: center;
   gap: 0;
-  height: 64px;
+  height: 84px;
   padding: 0 8px 0 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--dr-outline);
+  border-radius: 12px;
   overflow: hidden;
   flex-shrink: 0;
   min-width: 0;
-  background: var(--drill-canvas, var(--bg));
+  background: var(--dr-panel);
+  font-family: var(--font-sans);
+  color: var(--dr-text);
 }
 .identity {
-  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px;
-  align-self: stretch; padding: 0 18px; min-width: 230px; flex-shrink: 0;
-  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px;
+  align-self: stretch; padding: 0 16px; min-width: 210px; flex-shrink: 0;
+  border-right: 1px solid var(--dr-line);
 }
-.idTop { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.idTop { display: flex; align-items: center; gap: 8px; }
 .metric {
   font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 700;
-  color: var(--ut-gold);
+  color: var(--dr-bright);
   background: transparent;
   border: 0;
-  padding: 0 16px 0 0;
-  margin: 0;
+  border-radius: 7px;
+  padding: 3px 22px 3px 8px;
+  margin: 0 0 0 -8px;
   cursor: pointer;
-  max-width: 200px;
+  max-width: 220px;
   field-sizing: content;
-  line-height: 1.1;
+  line-height: 1.2;
   appearance: none;
   -webkit-appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
-  background-position: calc(100% - 7px) 55%, calc(100% - 3px) 55%;
+  background-image: linear-gradient(45deg, transparent 50%, var(--dr-faint) 50%), linear-gradient(135deg, var(--dr-faint) 50%, transparent 50%);
+  background-position: calc(100% - 11px) 55%, calc(100% - 7px) 55%;
   background-size: 4px 4px;
   background-repeat: no-repeat;
 }
-.metric:focus-visible { outline: 1px solid var(--ut-gold); outline-offset: 3px; border-radius: 2px; }
+.metric:hover { background-color: var(--dr-soft); }
+.metric:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 .metric option { background: var(--bg-elevated); color: var(--text); font-size: var(--text-base); }
-span.metric { background-image: none; padding-right: 0; cursor: default; }
+span.metric { background-image: none; padding-right: 8px; cursor: default; }
+span.metric:hover { background-color: transparent; }
+.badge { font-size: 12px; font-weight: 600; color: var(--dr-dim); background: var(--dr-soft); border-radius: 6px; padding: 3px 7px; white-space: nowrap; }
 /* The shared date box sits in its own slot here, not pushed to an edge. */
 .dateWrap { display: flex; align-items: center; }
 .dateWrap > * { margin-left: 0 !important; }
-.live { display: inline-flex; align-items: center; gap: 6px; color: var(--gain); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
-.live i { width: 6px; height: 6px; border-radius: 50%; background: var(--gain); }
+.live { display: inline-flex; align-items: center; gap: 6px; color: var(--dr-up); font-weight: 600; font-size: 12px; }
+.live i { width: 6px; height: 6px; border-radius: 50%; background: var(--dr-up); }
 
 /* The readouts: label on top, value (with its picture) under it. */
 .tile {
-  display: flex; flex-direction: column; justify-content: center; gap: 5px;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
   align-self: stretch; padding: 0 18px; min-width: 0; flex-shrink: 0;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--dr-line);
   white-space: nowrap;
 }
-.tileLbl { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }
-.tileVal { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.tileVal b { font-size: 18px; font-weight: 700; color: var(--text-bright); font-variant-numeric: tabular-nums; line-height: 1; }
-.tileVal small { font-size: 11.5px; font-weight: 600; }
-.muted { color: var(--text-muted); }
-.tileCount { flex: 0 1 500px; width: 500px; min-width: 400px; }
+.tileLbl { font-size: 11.5px; font-weight: 600; color: var(--dr-rest); }
+.tileVal { display: flex; align-items: flex-end; gap: 8px; min-width: 0; height: 24px; }
+.tileVal b { font-size: 20px; font-weight: 700; color: var(--dr-bright); font-variant-numeric: tabular-nums; line-height: 1; }
+.tileVal small { font-size: 12px; font-weight: 500; padding-bottom: 1px; }
+.muted { color: var(--dr-faint); }
+.tileCount { flex: 0 1 520px; width: 520px; min-width: 420px; }
 .tileCount .tileLbl { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .tileCount .tileVal b { min-width: 3.2ch; }
-.tileHead { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.rangeSeg { display: inline-flex; gap: 1px; padding: 1px; border: 1px solid var(--border); border-radius: 4px; }
+.tileHead { display: flex; align-items: center; justify-content: space-between; gap: 14px; height: 18px; }
+/* 1M / 3M / 6M / 1Y — chips (owner: keep them chips), the chosen one on the Selected tone. */
+.rangeSeg { display: inline-flex; gap: 2px; }
 .rangeSeg button {
-  background: transparent; border: 0; border-radius: 3px; cursor: pointer;
-  padding: 1px 6px; font-family: var(--font-sans); font-size: 9.5px; font-weight: 700; color: var(--text-muted);
+  background: transparent; border: 0; border-radius: 6px; cursor: pointer; height: 18px;
+  padding: 0 6px; font-family: var(--font-sans); font-size: 11px; font-weight: 600; color: var(--dr-faint);
 }
-.rangeSeg button:hover { color: var(--text); }
-.rangeSeg button[aria-pressed='true'] { background: color-mix(in srgb, var(--ut-gold) 16%, transparent); color: var(--ut-gold); }
-.countDay { color: var(--text-muted); min-width: 78px; }
-.countDay[data-past] { color: var(--text); }
+.rangeSeg button:hover { color: var(--dr-text); background: var(--dr-soft); }
+.rangeSeg button[aria-pressed='true'] { background: var(--dr-selected); color: var(--dr-bright); }
+.rangeSeg button:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
+.countDay { color: var(--dr-faint); min-width: 78px; }
+.countDay[data-past] { color: var(--dr-text); }
 .spark { flex: 1 1 auto; width: 0; min-width: 0; height: 24px; display: block; }
-.spark rect + rect { fill: color-mix(in srgb, var(--text-muted) 45%, transparent); }
-.spark rect[data-now] { fill: var(--ut-gold); }
-.spark rect[data-hover] { fill: var(--text-bright); }
+.spark rect + rect { fill: var(--dr-bar); }
+.spark rect[data-now] { fill: var(--dr-rest); }
+.spark rect[data-hover] { fill: var(--dr-bright); }
+.spark rect[data-tick] { fill: var(--ut-gold); }
 .tileMix { flex: 1 1 auto; max-width: 820px; min-width: 300px; flex-shrink: 1; }
-.mixGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 18px; row-gap: 7px; }
+.headNote { flex: 1 1 auto; min-width: 0; padding: 0 18px; font-size: 12px; line-height: 1.45; color: var(--dr-faint); white-space: normal; }
+.mixGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; row-gap: 8px; }
 .mixRow { display: grid; grid-template-columns: minmax(0, auto) minmax(14px, 1fr) 24px; align-items: center; gap: 7px; font-size: 12px; cursor: default; }
-.mixName { display: flex; align-items: center; gap: 6px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
-.mixName i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
-.mixTrack { height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text-muted) 18%, transparent); overflow: hidden; }
-.mixTrack b { display: block; height: 100%; border-radius: 3px; }
-.mixCount { text-align: right; color: var(--text-bright); font-weight: 700; font-variant-numeric: tabular-nums; }
+.mixName { display: flex; align-items: center; gap: 6px; color: var(--dr-rest); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.mixName i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.mixTrack { height: 4px; border-radius: 2px; background: var(--dr-raised); overflow: hidden; }
+.mixTrack b { display: block; height: 100%; border-radius: 2px; opacity: .85; }
+.mixCount { text-align: right; color: var(--dr-dim); font-weight: 500; font-variant-numeric: tabular-nums; }
 .up { color: var(--gain); }
 .dn { color: var(--loss); }
 
-.viewBtn { padding: 5px 12px; font-size: 10.5px; }
+/* Focus / Grid / Table — chips with the open view's gold underline (a §2b mark). */
+.viewTabs { display: inline-flex; gap: 2px; }
+.viewBtn {
+  height: 30px; padding: 0 10px; border: 0; border-radius: 6px 6px 0 0; background: transparent; cursor: pointer;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--dr-rest); white-space: nowrap;
+}
+.viewBtn:hover { color: var(--dr-bright); background: var(--dr-soft); }
+.viewBtn[aria-pressed='true'] { color: var(--dr-bright); font-weight: 600; box-shadow: inset 0 -2px 0 var(--ut-gold); }
+.viewBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 
-.headEnd { display: flex; align-items: center; gap: 10px; padding: 0 12px 0 16px; margin-left: auto; flex-shrink: 0; }
+.headEnd { display: flex; align-items: center; gap: 10px; padding: 0 8px 0 16px; margin-left: auto; flex-shrink: 0; }
 .closeBtn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px;
-  border-radius: var(--radius-sm);
-  background: transparent; border: 1px solid transparent; color: var(--text-muted); cursor: pointer;
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  background: var(--dr-soft); border: 0; color: var(--dr-dim); cursor: pointer;
 }
-.closeBtn:hover { background: var(--bg-hover); color: var(--text); border-color: var(--border); }
+.closeBtn:hover { background: var(--dr-soft-hi); color: var(--dr-text); }
+.closeBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 
 .spacer { flex: 1; }
 .seg {
@@ -131,7 +198,7 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
   white-space: nowrap;
 }
 .seg button:hover { color: var(--text); }
-.seg button[aria-pressed='true'] { background: color-mix(in srgb, var(--ut-gold) 16%, transparent); color: var(--ut-gold); }
+.seg button[aria-pressed='true'] { background: var(--dr-selected); color: var(--dr-bright); }
 .segSm button { font-size: 11px; padding: 3px 9px; }
 
 /* ── The 40px band (both columns) ─────────────────────────────────────────── */
@@ -173,7 +240,7 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
   flex-shrink: 0;
 }
 .chip:hover { color: var(--text); border-color: var(--text-muted); }
-.chip[aria-pressed='true'] { color: var(--ut-gold); border-color: color-mix(in srgb, var(--ut-gold) 70%, transparent); background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
+.chip[aria-pressed='true'] { color: var(--dr-bright); border-color: transparent; background: var(--dr-selected); }
 .bandCount { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
 .bandCount b { color: var(--text); font-weight: 600; }
 /* The sector mix as a 3px rule under the band — the composition at a glance
@@ -206,7 +273,7 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 .cell { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
 .cell > * { flex: 1 1 auto; min-height: 0; }
 
-.linkBtn { background: none; border: 0; padding: 0; color: var(--ut-gold); font: inherit; cursor: pointer; }
+.linkBtn { background: none; border: 0; padding: 0; color: var(--dr-bright); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .linkBtn:hover { text-decoration: underline; }
 
 /* ── Grid view ──────────────────────────────────────────────────────────── */
@@ -234,7 +301,7 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
 .cardFloat { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .cardFloat[data-selected] { border-color: var(--ut-gold); }
 .cardFloat[data-selected]::after { border-radius: 8px; box-shadow: inset 0 0 0 1px var(--ut-gold); }
-.cardFloat:not([data-selected]):hover { border-color: color-mix(in srgb, var(--ut-gold) 35%, var(--border)); }
+.cardFloat:not([data-selected]):hover { border-color: var(--dr-outline); }
 .floatHead {
   display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 4px 0 10px; flex-shrink: 0;
   border-bottom: 1px solid var(--border);
@@ -243,8 +310,8 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
   display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; height: 100%; padding: 0;
   background: transparent; border: 0; color: var(--text); font-family: var(--font-sans); text-align: left; cursor: pointer;
 }
-.floatIdBtn:hover .cardSym { color: var(--ut-gold); }
-.floatIdBtn:focus-visible { outline: 1px solid var(--ut-gold); outline-offset: -2px; border-radius: 4px; }
+.floatIdBtn:hover .cardSym { color: var(--dr-bright); text-decoration: underline; text-underline-offset: 2px; }
+.floatIdBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: -2px; border-radius: 4px; }
 .floatId { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
 .floatLine { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1 1 auto; overflow: hidden; white-space: nowrap; }
 .floatLine > :not(.cardMeta) { flex-shrink: 0; }
@@ -254,13 +321,13 @@ span.metric { background-image: none; padding-right: 0; cursor: default; }
   flex-shrink: 0; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer;
 }
-.expandBtn:hover, .expandClose:hover { color: var(--ut-gold); border-color: var(--border); background: var(--bg-hover); }
-.expandBtn:focus-visible, .expandClose:focus-visible { outline: 1px solid var(--ut-gold); outline-offset: 1px; }
+.expandBtn:hover, .expandClose:hover { color: var(--dr-text); background: var(--dr-soft); }
+.expandBtn:focus-visible, .expandClose:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 .floatHead .expandBtn { width: 24px; height: 24px; }
 /* Enlarged chart: fills the grid area, the classic always-on UCT legend. */
 .expanded {
   position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column;
-  background: var(--drill-canvas, var(--bg)); border: 1px solid var(--ut-gold); border-radius: 8px; overflow: hidden;
+  background: var(--drill-canvas, var(--bg)); border: 1px solid var(--dr-outline); border-radius: 9px; overflow: hidden;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 .expandedHead { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 8px 0 14px; flex-shrink: 0; border-bottom: 1px solid var(--border); }

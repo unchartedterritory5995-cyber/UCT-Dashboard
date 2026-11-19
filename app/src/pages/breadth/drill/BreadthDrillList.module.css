@@ -68,18 +68,19 @@
   color: var(--text-muted);
 }
 .retryBtn {
-  font-family: var(--font-mono);
-  font-size: var(--text-base);
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--ut-gold) 40%, transparent);
-  color: var(--ut-gold);
-  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--dr-soft);
+  border: 0;
+  color: var(--dr-bright);
+  border-radius: 7px;
   padding: 6px 16px;
   min-height: var(--tap-min);
   cursor: pointer;
   transition: background 0.15s;
 }
-.retryBtn:hover { background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
+.retryBtn:hover { background: var(--dr-soft-hi); }
 .when { color: var(--text-muted); }
 
 /* Scan Deck: Filters + group switch where the list title used to be. */

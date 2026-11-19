@@ -1280,6 +1280,42 @@ def get_breadth_analogues(top_n: int = Query(default=5, ge=3, le=10),
         raise HTTPException(status_code=503, detail=str(e))
 
 
+_METRIC_KEY = re.compile(r"[a-z][a-z0-9_]{0,47}")
+
+
+@router.get("/api/breadth-monitor/reading")
+def get_breadth_reading(universe: str = Query(default="uct"),
+                        metric: str = Query(...),
+                        date: str = Query(...),
+                        value: float | None = Query(default=None),
+                        per: float | None = Query(default=None),
+                        _user: dict = Depends(require_paid)):
+    """Where one Monitor reading sits in its history: the drill window's reading strip + History
+    drawer (`api/services/breadth_reading.py`). `value` / `per` are the CELL's number and its
+    universe count: the reading ranked is the one the member is looking at (today's provisional
+    cell has no stored row at all), against the stored point-in-time history. Without them the
+    stored row for `date` is ranked."""
+    universe = _resolve_universe(universe)
+    _require_iso_date(date)
+    if not _METRIC_KEY.fullmatch(metric or ""):
+        raise HTTPException(status_code=400, detail="unknown metric")
+    from api.services import breadth_reading as br
+    live_row = None
+    if value is not None and math.isfinite(value):
+        live_row = {"date": date, metric: value}
+        if per is not None and math.isfinite(per):
+            live_row["universe_count"] = per
+    try:
+        return br.reading(universe, metric, date, live_row=live_row)
+    except br.NoReading:
+        return {"ok": False, "universe": universe, "metric": metric, "date": date,
+                "reason": "no-history"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=type(e).__name__)
+
+
 @router.get("/api/breadth-monitor/score-components/{date}")
 def get_breadth_score_components(date: str,
                                  # ⚰️ 3650 -> 8000, FOLLOWING THE SIBLING. `days` selects a

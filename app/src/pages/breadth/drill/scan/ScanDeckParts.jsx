@@ -1,7 +1,6 @@
 import { useEffect, useId, useState } from 'react'
-import UIcon from '../../../../components/ui/UIcon'
 import { GROUP_HUES, UNCLASSIFIED } from './scanDeckModel'
-import ws from '../../../charts/ChartsWorkspace.module.css'
+import RankLine from '../reading/RankLine'
 import styles from './ScanDeck.module.css'
 
 const MODE_LABEL = { focus: 'Focus', grid: 'Grid', table: 'Table' }
@@ -13,6 +12,8 @@ const MODE_LABEL = { focus: 'Focus', grid: 'Grid', table: 'Table' }
 export function ScanHeader({
   label, count, live, drillCols, colKey, onPickMetric,
   dateNav, ctx, onWantDays, summary, mode, onMode, modes, onClose, children,
+  reading = null, readingLoading = false, onHistory = null, histOpen = false,
+  tile = null, badge = null, note = null,
 }) {
   const metricId = useId()
   return (
@@ -30,26 +31,33 @@ export function ScanHeader({
             <span className={styles.metric}>{label}</span>
           )}
           {live && <span className={styles.live}><i />Live</span>}
+          {badge && <span className={styles.badge}>{badge}</span>}
         </div>
         {dateNav && <div className={styles.dateWrap}>{dateNav}</div>}
       </div>
 
-      <CountHistory count={count} ctx={ctx} onWantDays={onWantDays} />
+      <CountHistory count={count} ctx={ctx} onWantDays={onWantDays}
+        reading={reading} readingLoading={readingLoading} onHistory={onHistory} histOpen={histOpen} {...(tile || {})} />
 
-      <SectorMix sectors={summary?.sectors} />
+      {note ? <span className={styles.headNote}>{note}</span> : <SectorMix sectors={summary?.sectors} />}
 
       <div className={styles.headEnd}>
         {children}
-        <div className={ws.sessionToggle} role="group" aria-label="View">
-          {modes.map(m => (
-            <button key={m} type="button" aria-pressed={mode === m} onClick={() => onMode(m)}
-              className={`${ws.sessionBtn} ${styles.viewBtn}${mode === m ? ' ' + ws.sessionBtnActive : ''}`}>
-              {MODE_LABEL[m]}
-            </button>
-          ))}
-        </div>
+        {modes?.length > 0 && (
+          <div className={styles.viewTabs} role="group" aria-label="View">
+            {modes.map(m => (
+              <button key={m} type="button" aria-pressed={mode === m} onClick={() => onMode(m)}
+                className={styles.viewBtn}>
+                {MODE_LABEL[m]}
+              </button>
+            ))}
+          </div>
+        )}
         <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close" title="Close">
-          <UIcon name="x" size={15} />
+          {/* A plain line icon in the text colour (UIcon's metallic gold is not Signature). */}
+          <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          </svg>
         </button>
       </div>
     </div>
@@ -77,7 +85,11 @@ const fmtDay = (d) => {
   return new Date(y, m - 1, dd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function CountHistory({ count, ctx, onWantDays }) {
+function CountHistory({
+  count, ctx, onWantDays, reading = null, readingLoading = false, onHistory = null, histOpen = false,
+  // A reading-only window (a ratio, a percent, another universe) names its own column and units.
+  label = null, fmt = null, unitOne = 'stock', unitMany = 'stocks',
+}) {
   const [range, setRange] = useState(readRange)
   const [hover, setHover] = useState(null)
   const r = RANGES.find(x => x.key === range) || RANGES[1]
@@ -98,13 +110,18 @@ function CountHistory({ count, ctx, onWantDays }) {
   // The open day's date is already in the box to the left; only a hovered past
   // bar names its day.
   const past = hover != null && hover !== last
-  const shownDay = past ? fmtDay(days[hover]) : (shownValIsOne(count) ? 'stock' : 'stocks')
+  const shownDay = past ? fmtDay(days[hover]) : (shownValIsOne(count) ? unitOne : unitMany)
+  const show = (v) => (Number.isFinite(v) ? (fmt ? fmt(v) : v.toLocaleString()) : '—')
   const finite = vals.filter(Number.isFinite)
   const max = Math.max(...finite, 1)
+  // Counts start at zero; a signed or ratio column is drawn from its own low.
+  const minV = Math.min(...finite, 0)
+  const lo = minV < 0 ? minV : 0
+  const span = Math.max(max - lo, 1e-9)
   return (
     <div className={`${styles.tile} ${styles.tileCount}`}>
       <span className={styles.tileHead}>
-        <span className={styles.tileLbl}>Stocks each day · {r.words}</span>
+        <span className={styles.tileLbl}>{label || 'Stocks'} each day · {r.words}</span>
         <span className={styles.rangeSeg} role="group" aria-label="Chart range">
           {RANGES.map(x => (
             <button key={x.key} type="button" aria-pressed={x.key === range} onClick={() => pick(x.key)}>{x.key}</button>
@@ -112,24 +129,27 @@ function CountHistory({ count, ctx, onWantDays }) {
         </span>
       </span>
       <span className={styles.tileVal}>
-        <b>{Number.isFinite(shownVal) ? shownVal.toLocaleString() : '—'}</b>
+        <b>{show(shownVal)}</b>
         <small className={styles.countDay} data-past={past || undefined}>{shownDay}</small>
         {finite.length > 1 && (
-          <svg className={styles.spark} viewBox={`0 0 ${vals.length * 3} 24`} preserveAspectRatio="none"
-            role="img" aria-label={`Stocks on this list each day, ${r.words}`} onMouseLeave={() => setHover(null)}>
+          <svg className={styles.spark} viewBox={`0 0 ${vals.length * 3} 28`} preserveAspectRatio="none"
+            role="img" aria-label={`${label || 'Stocks on this list'} each day, ${r.words}`} onMouseLeave={() => setHover(null)}>
             {vals.map((v, i) => {
-              const h = Number.isFinite(v) ? Math.max(1.5, (v / max) * 24) : 0
+              const h = Number.isFinite(v) ? Math.max(1.5, (Math.max(0, v - lo) / span) * 24) : 0
               return (
                 <g key={i} onMouseEnter={() => setHover(i)}>
                   <rect x={i * 3} y={0} width={3} height={24} fill="transparent" />
                   <rect x={i * 3 + 0.4} y={24 - h} width={2.2} height={h} rx={0.6}
                     data-now={i === last || undefined} data-hover={i === hover || undefined} />
+                  {/* Today's tick: the one gold mark on the sparkline. */}
+                  {i === last && <rect x={i * 3} y={25.5} width={3} height={2.5} rx={0.6} data-tick="" />}
                 </g>
               )
             })}
           </svg>
         )}
       </span>
+      <RankLine reading={reading} loading={readingLoading} onHistory={onHistory} histOpen={histOpen} />
     </div>
   )
 }

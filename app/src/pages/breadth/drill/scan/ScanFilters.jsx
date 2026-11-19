@@ -32,7 +32,7 @@ export function FilterButton({ filters, total, shown }) {
       <button ref={btnRef} type="button" className={styles.filterBtn} aria-expanded={open} aria-haspopup="dialog"
         data-active={n > 0 || undefined} onClick={() => { setAnchorRect(btnRef.current?.getBoundingClientRect() || null); setOpen(o => !o) }} title="Filter this list"
         aria-label={n > 0 ? `Filters, ${n} applied` : "Filters"}>
-        <UIcon name="sliders" size={13} />
+        <UIcon name="sliders" size={13} gold={false} />
         <span>Filters</span>
         {n > 0 && <b className={styles.badge}>{n}</b>}
       </button>
@@ -128,7 +128,7 @@ function FilterPanel({ anchorRect, anchorRef, filters, total, shown, onClose }) 
         <span className={styles.panelCount}><b>{shown.toLocaleString()}</b> of {total.toLocaleString()} stocks</span>
         <span className={styles.spacer} />
         {filters.count > 0 && <button type="button" className={styles.clearLink} onClick={filters.clear}>Reset</button>}
-        <button type="button" className={styles.close} onClick={onClose} aria-label="Close filters"><UIcon name="x" size={13} /></button>
+        <button type="button" className={styles.close} onClick={onClose} aria-label="Close filters"><UIcon name="x" size={13} gold={false} /></button>
       </div>
       <div className={styles.panelBody}>
         {m.signals.length > 0 && (
