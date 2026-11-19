@@ -37,7 +37,7 @@ This is the safe direction (no wrong number is drawn), but it is not yet Trading
 
 | row | TradingView | the build that follows it |
 |---|---|---|
-| M1 | `close[30]` under a declared 20: real from bar 30, `na` before it | constant half: served on both lanes (engine NUMBER PENDING, `feat/pine-wsc-history`) |
+| M1 | `close[30]` under a declared 20: real from bar 30, `na` before it | constant half: served on both lanes (engine 83, `feat/pine-wsc-history`) |
 | M2 | `close[n]` with `n` = 25 after bar 100, declared 20: real on every bar, no error | the runtime lane's dynamic reads (#1917, engine 81); the host lanes' read window, which a declaration no longer shrinks (`pine.js::historyReadBufferOf`, `feat/pine-wsc-history`): MATCH on both lanes |
 | M3 | no declaration, 250 after bar 300: real (MATCH before any change) | none |
 | M4 | `max_bars_back(x, 50)`, then `x[60]` and `ta.sma(x, 60)`: both real | constant half: `max_bars_back(x, n)` bounds nothing |

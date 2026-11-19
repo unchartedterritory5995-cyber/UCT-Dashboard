@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/wscConstantOffsets.test.js
 //
-// ⭐⭐ engine NUMBER PENDING — WS-C, THE CONSTANT HALF: TRADINGVIEW NEVER STOPS A CONSTANT OFFSET, AND
+// ⭐⭐ engine 83 — WS-C, THE CONSTANT HALF: TRADINGVIEW NEVER STOPS A CONSTANT OFFSET, AND
 // `max_bars_back(x, n)` BOUNDS NOTHING. The captures (run wsc-mbb-2026-11-18, AMEX:SPY 1D from the listing,
 // 8,510 bars, packet sha256 6f54e4c81044ba73efe4c1af249f217698793fb20c476a76e338f47c7e457011, committed):
 //   M1 `indicator(max_bars_back = 20)`, `plot(close[30])`: real from bar 30 on, `na` before it;

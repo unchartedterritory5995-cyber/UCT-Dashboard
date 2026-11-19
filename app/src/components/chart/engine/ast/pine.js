@@ -6919,7 +6919,7 @@ function declaredMaxBarsBackOf(source) {
   }
 }
 
-/** ⭐⭐ engine NUMBER PENDING (WS-C; coordinator ruling 2026-11-19) — THE BUFFER A PER-BAR READ `x[e]` MAY
+/** ⭐⭐ engine 83 (WS-C; coordinator ruling 2026-11-19) — THE BUFFER A PER-BAR READ `x[e]` MAY
  *  REACH INTO, the ONE authority both lanes that build one size it from: the plot lane's
  *  `Resolver.historyReadOf` (`barsAgo`'s window) and the object lane's `historyReadRef` (`{v:'at'}`).
  *
@@ -11970,7 +11970,7 @@ export class Resolver {
    *  parameter map (`docs/pine/param-ids.json`), an owner-ruled act this lane
    *  does not take. Deleting this arm is the whole change, once ruled.
    *
-   *  ⭐ engine NUMBER PENDING (WS-C M4): a script that calls `max_bars_back(x, n)` is read like any other.
+   *  ⭐ engine 83 (WS-C M4): a script that calls `max_bars_back(x, n)` is read like any other.
    *  TradingView drew `x[60]` and `ta.sma(x, 60)` after `max_bars_back(x, 50)` on every bar
    *  (`vw-w4-max-bars-back-m4`): the per-series form bounds nothing, so it no longer refuses this read.
    *

@@ -5,7 +5,7 @@
 //   1. `max_bars_back`: a read past Pine's history buffer STOPS the script on
 //      TradingView. An offset over runtime state stops the run by name in the VM.
 //      The buffer is 5,000 bars, or the `max_bars_back = N` the declaration names.
-//      ⭐ engine NUMBER PENDING (WS-C M1 / M5, captured 2026-11-18): a CONSTANT offset is
+//      ⭐ engine 83 (WS-C M1 / M5, captured 2026-11-18): a CONSTANT offset is
 //      SERVED past both (TradingView never stopped one): it used to refuse the build.
 //   2. Infinity: `x[1]` of a slot that held `1/0` reads `na`, as the columnar
 //      lane's shifted column does — the two lanes now agree on `x[1] > y`.
@@ -39,7 +39,7 @@ const refusal = (src) => { const b = built(src); return b.ok ? null : b.refusal 
 
 describe('1 — max_bars_back: a read past the buffer is an error, never an answer', () => {
   const v5 = (decl, body) => `//@version=5\nindicator("t"${decl})\n${body}`
-  // ⭐ engine NUMBER PENDING (WS-C M5, `vw-w4-max-bars-back-m5-spy-1d-2026-11-18`): `close[6000]` with no
+  // ⭐ engine 83 (WS-C M5, `vw-w4-max-bars-back-m5-spy-1d-2026-11-18`): `close[6000]` with no
   // declaration is real on every bar past bar 6,000 and `na` before it. It used to refuse `runtime:directive`.
   it('a constant offset past 5,000 is SERVED: the bar 6,000 back, `na` only before it (M5)', () => {
     const LONG = Array.from({ length: 6100 }, (_, i) => ({ t: 1600000000 + i * 86400, o: 1, h: 2, l: 0.5, c: 10 + i, v: 1 }))
@@ -51,7 +51,7 @@ describe('1 — max_bars_back: a read past the buffer is an error, never an answ
     expect(y.slice(0, 6000).every(Number.isNaN)).toBe(true)
     expect(y.slice(6000)).toEqual(LONG.slice(0, 100).map((x) => x.c))
   })
-  // ⭐ engine NUMBER PENDING (WS-C M1, `vw-w4-max-bars-back-m1-spy-1d-2026-11-18`): `close[30]` under a declared
+  // ⭐ engine 83 (WS-C M1, `vw-w4-max-bars-back-m1-spy-1d-2026-11-18`): `close[30]` under a declared
   // `max_bars_back = 20` is real on every bar from bar 30. It used to refuse `runtime:directive`.
   it('a constant offset past a DECLARED buffer is SERVED, like one within it (M1)', () => {
     const [y30] = run(v5(', max_bars_back = 20', 'plot(close[30])\n'))

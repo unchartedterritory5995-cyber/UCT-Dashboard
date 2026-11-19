@@ -53,7 +53,7 @@ describe('C38 — the translator writes ONE read, bounded by ONE buffer', () => 
     expect(JSON.stringify(t.objects)).toContain('"limit":777')
   })
 
-  // ⭐⭐ engine NUMBER PENDING (WS-C; coordinator ruling 2026-11-19, `vw-w4-max-bars-back-m2` and Q-MBB-1):
+  // ⭐⭐ engine 83 (WS-C; coordinator ruling 2026-11-19, `vw-w4-max-bars-back-m2` and Q-MBB-1):
   // TradingView reads past a smaller declaration. ⚰️ This case read `max_bars_back = 77` → `, 77)`.
   it('a declaration BELOW the automatic buffer does not shrink it, on either lane', () => {
     const head = '//@version=6\nindicator("t", max_bars_back = 77)\n'
@@ -133,7 +133,7 @@ describe('C38 — what stays refused, by name', () => {
     expect(formula('plot(close[close > open ? 1 : 0])')).toBe('barsAgo(close, close > open ? 1 : 0, 2)')
   })
 
-  // ⭐ engine NUMBER PENDING (WS-C M4, `vw-w4-max-bars-back-m4-spy-1d-2026-11-18`): the per-series form bounds
+  // ⭐ engine 83 (WS-C M4, `vw-w4-max-bars-back-m4-spy-1d-2026-11-18`): the per-series form bounds
   // nothing, so a script that calls it is read like any other (it refused `pine:offset-literal`)
   it('`max_bars_back(x, n)` bounds nothing: the per-bar read is served as in a script without it', () => {
     expect(formula('max_bars_back(close, 50)\nplot(close[bar_index % 3])'))

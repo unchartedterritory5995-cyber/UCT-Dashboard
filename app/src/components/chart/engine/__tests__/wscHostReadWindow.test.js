@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/__tests__/wscHostReadWindow.test.js
 //
-// ⭐⭐ engine NUMBER PENDING — WS-C: A DECLARED `max_bars_back` NEVER SHRINKS THE HOST'S PER-BAR READ WINDOW
+// ⭐⭐ engine 83 — WS-C: A DECLARED `max_bars_back` NEVER SHRINKS THE HOST'S PER-BAR READ WINDOW
 // (coordinator ruling 2026-11-19).
 //
 // The host lanes size a per-bar read `x[e]` from ONE helper, `pine.js::historyReadBufferOf`: the plot lane's

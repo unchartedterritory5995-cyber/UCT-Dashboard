@@ -1,4 +1,4 @@
-# WS-C, the constant half: TradingView never stops a constant offset (engine NUMBER PENDING)
+# WS-C, the constant half: TradingView never stops a constant offset (engine 83)
 
 Branch `feat/pine-wsc-history`. This builds the coordinator's design approval of 2026-11-19 (patrick-2b): rule (2)
 and rule (3) of WS-C `max_bars_back`. Rule (1), the dynamic half (READ_*_DYN, unproved rings, the four "ours

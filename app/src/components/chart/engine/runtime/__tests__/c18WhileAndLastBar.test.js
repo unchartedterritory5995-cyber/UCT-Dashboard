@@ -103,7 +103,7 @@ describe('⭐ what the two C18 scripts write around their loops', () => {
     expect(out0('count = 0\ncount += 2\nplot(count)\n')).toEqual(all(2))
   })
 
-  // ⭐ engine NUMBER PENDING (WS-C M4, `vw-w4-max-bars-back-m4-spy-1d-2026-11-18`): any whole bound is served as
+  // ⭐ engine 83 (WS-C M4, `vw-w4-max-bars-back-m4-spy-1d-2026-11-18`): any whole bound is served as
   // declared and bounds nothing (it refused `runtime:directive` below 5,000); a computed bound still refuses
   it('`max_bars_back(x, n)` is a no-op here for any whole n; a computed bound still refuses', () => {
     expect(out0('x = close\nmax_bars_back(x, 5000)\nplot(x[1])\n').slice(1)).toEqual([100, 101, 102])

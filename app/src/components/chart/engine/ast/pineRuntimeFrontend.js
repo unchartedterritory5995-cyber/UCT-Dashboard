@@ -4261,7 +4261,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return i
   }
 
-  /** ⭐ engine NUMBER PENDING (WS-C M5) — `x[c]` with a constant `c` past the columnar lane's lookback cap
+  /** ⭐ engine 83 (WS-C M5) — `x[c]` with a constant `c` past the columnar lane's lookback cap
    *  (`budget.js::DEFAULT_BUDGET.maxLookback`, its warm-up budget and offset ceiling, kept by the compute-cap
    *  ruling): as a column the read refuses `budget:lookback`; lowered piecewise it is `READ_HIST` over the
    *  column (or a ring read for a variable), which needs no warm-up. Only the offset is routed: its child
@@ -4293,7 +4293,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  ready rather than acted on. */
   const needsRuntime = (node, scope) => {
     if (!node || typeof node !== 'object') return false
-    // ⭐ engine NUMBER PENDING (WS-C M5) — a constant offset past the columnar lane's lookback cap is read here
+    // ⭐ engine 83 (WS-C M5) — a constant offset past the columnar lane's lookback cap is read here
     if (node.type === 'offset' && constantOffsetPastLookbackCap(node, scope)) return true
     // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — A DAILY READ ABOVE AN INTRADAY CHART IS THE RUN'S REQUEST, NEVER A
     // COLUMN. The run's supply hands it per site (`requestSupply.js::aboveChartRead`); the columnar lane holds no
@@ -4906,7 +4906,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!valueNode || valueNode.type !== 'call') return null
     const m = /^([a-z]+)\.new$/.exec(String(valueNode.name || ''))
     if (!m || !OBJECT_NS.test(`${m[1]}.`)) return null
-    // ⭐ engine NUMBER PENDING — the create is the object program's, so its arguments are not run here:
+    // ⭐ engine 83 — the create is the object program's, so its arguments are not run here:
     // one that WRITES (`array.push(xs, line.new(…, array.pop(ys), …))`) has nowhere to run inside this
     // expression, and is refused by name rather than dropped (`skippedDrawingWrites`)
     if (scope) skippedDrawingWrites(valueNode, scope, locate(valueNode.tok), false)
@@ -6611,7 +6611,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return ok
   }
 
-  // ── ⭐⭐ engine NUMBER PENDING — WHAT A DRAWING CALL THIS LANE SKIPS STILL DOES TO THE VALUES ──
+  // ── ⭐⭐ engine 83 — WHAT A DRAWING CALL THIS LANE SKIPS STILL DOES TO THE VALUES ──
   //
   // Under `objectPassOwnsDrawing` a drawing call is the object program's: skipped as a statement here.
   // Its ARGUMENTS are still Pine's to evaluate, left to right, and one that WRITES (a collection member
@@ -11414,7 +11414,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐ C18 — `max_bars_back(<name>, 5000)`: two positional arguments, a bare
    *  name and the literal 5000 (Pine's history ceiling). Anything else — a
    *  smaller bound, a computed one, a named argument — is not this shape. */
-  /** ⭐ engine NUMBER PENDING (WS-C M4) — `max_bars_back(<name>, <whole number of bars>)`, any bound: served as
+  /** ⭐ engine 83 (WS-C M4) — `max_bars_back(<name>, <whole number of bars>)`, any bound: served as
    *  a no-op statement (TradingView: it bounds nothing, M4). Anything else (a computed bound, a named argument, a
    *  target that is not a bare name) keeps `runtime:directive`. */
   const maxBarsBackShape = (toks) => {
@@ -11436,7 +11436,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // the buffer STOPS the script on TradingView ("the requested historical offset
   // is beyond the historical buffer's limit"); this lane used to answer it — a
   // value from its own longer chart, or `na`. Now:
-  //   · a CONSTANT offset past the buffer is SERVED (engine NUMBER PENDING, M1 / M5: TradingView never
+  //   · a CONSTANT offset past the buffer is SERVED (engine 83, M1 / M5: TradingView never
   //     stopped one; see the note above `mbbDynamicColumn`);
   //   · an offset only known while the bar runs carries the buffer into the read
   //     (`limit`, the opcode's second operand), and the VM stops the run there.
@@ -11444,7 +11444,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⚠️ Pine's AUTOMATIC sizing (no declaration, a dynamic offset that grows after
   // the first bars) can stop a script earlier than 5,000; not witnessed, so not
   // modelled (capture queue `capture-queue-2026-10-31-wsc-history.md`).
-  // ⭐ engine NUMBER PENDING (WS-C M4, `vw-w4-max-bars-back-m4`): `max_bars_back(x, n)` is served for any whole n
+  // ⭐ engine 83 (WS-C M4, `vw-w4-max-bars-back-m4`): `max_bars_back(x, n)` is served for any whole n
   // and bounds nothing: TradingView drew `x[60]` and `ta.sma(x, 60)` after `max_bars_back(x, 50)` on every bar.
   const MBB_DECLARED = (() => {
     let m = null
@@ -11484,7 +11484,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       && root.lookup(s.name) === varSlot) return MAX_BARS_BACK_CEILING
     return null
   }
-  // ⭐⭐ engine NUMBER PENDING (WS-C M1 / M5, `vw-w4-max-bars-back` / `-m5` on AMEX:SPY 1D from the listing,
+  // ⭐⭐ engine 83 (WS-C M1 / M5, `vw-w4-max-bars-back` / `-m5` on AMEX:SPY 1D from the listing,
   // packet 6f54e4c81044): a CONSTANT offset is never refused for the buffer. TradingView drew `close[30]` under a
   // declared `max_bars_back = 20` on every bar it reaches (M1), and `close[6000]` with no declaration on the 2,509
   // bars past bar 6,000 (M5), `na` only before the offset's bar. So neither a declared buffer nor the 5,000
@@ -14708,7 +14708,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐ DRAW-1 — `b := box(na)` (the variable lets go of its object) is the object
         // program's step (`reset:target`), skipped here exactly as `b := box.new(…)` is.
         if (objectPassOwnsDrawing && (holdsObjectCall(value) || drawingCastFamily(value, scope))) {
-          out.push(...skippedDrawingWrites(value, scope, locate(nameTok)))   // engine NUMBER PENDING
+          out.push(...skippedDrawingWrites(value, scope, locate(nameTok)))   // engine 83
           continue
         }
         const slot = scope.lookup(nameTok.value)
@@ -14763,7 +14763,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         noteHandle(nameTok.value, value, scope)
         noteWrittenHandle(nameTok.value, toks, eq)
         if (objectPassOwnsDrawing && holdsObjectCall(value)) {
-          skippedDrawingWrites(value, scope, locate(nameTok), false)   // engine NUMBER PENDING
+          skippedDrawingWrites(value, scope, locate(nameTok), false)   // engine 83
           continue
         }
         const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
@@ -15122,7 +15122,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         const f = callFamily(word)
         if (f === 'runtime:object-op' && objectPassOwnsDrawing) {
-          out.push(...skippedDrawingStmtWrites(toks, scope, locate(first)))   // engine NUMBER PENDING
+          out.push(...skippedDrawingStmtWrites(toks, scope, locate(first)))   // engine 83
           continue
         }
         // ⭐⭐ RT5 — the drawing statement, run by this lane.
@@ -15158,7 +15158,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const fam = drawingHandles.get(uf.recv)
           if (fam) {
             if (objectPassOwnsDrawing) {
-              out.push(...skippedDrawingStmtWrites(toks, scope, locate(first)))   // engine NUMBER PENDING
+              out.push(...skippedDrawingStmtWrites(toks, scope, locate(first)))   // engine 83
               continue
             }
             note('runtime:object-op')

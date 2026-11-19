@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.wscAcceptance.test.js
 //
-// ⭐⭐ engine NUMBER PENDING — WS-C, THE CONSTANT HALF, GRADED AS A MEMBER SEES IT, BOTH LANES.
+// ⭐⭐ engine 83 — WS-C, THE CONSTANT HALF, GRADED AS A MEMBER SEES IT, BOTH LANES.
 // M1 / M4 / M5 (run wsc-mbb-2026-11-18, AMEX:SPY 1D from the listing, packet 6f54e4c81044, committed):
 //   · M1 and M4 are drawn by the HOST lane on both lanes and MATCH (the host already served a constant offset
 //     past a declared buffer, and `max_bars_back(x, 50)` + `x[60]`);
