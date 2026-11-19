@@ -13,14 +13,14 @@ import { describe, it, expect, vi, beforeAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
-import { loadCapture, REPO } from './harness'
+import { loadCapture, gradeCapture, REPO } from './harness'
 import { fixturePath, itNeedsHeld } from '../../ast/__tests__/licenceHeld'
 import { __permitRuntimePaneForTests, runtimePaneEnabled } from '../../runtimePaneGate'
 import {
   __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList, __resetRuntimeAdmission,
   setRuntimeCapabilityAdmission, latchRuntimeAdmission, runtimeSourceHash,
 } from '../../runtimeKill'
-import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import { memberPaneDefinition, __forceRuntimeLaneForTests } from '../../../builder/memberPane/memberPaneDefinition'
 import { strategyBrokerFlag } from './strategyLane'
 
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
@@ -36,7 +36,14 @@ const verdicts = JSON.parse(fs.readFileSync(path.join(REPO, 'docs/pine/vendor-ha
 const fileOf = Object.fromEntries(verdicts.results.map((r) => [r.id, r.file]))
 const evidence = [...new Set(Object.values(registry)
   .filter((r) => r && r.admitted === true)
-  .flatMap((r) => r.evidence.map((e) => e.capture)))].sort()
+  .flatMap((r) => r.evidence.filter((e) => e.runtimeLane !== 'forced').map((e) => e.capture)))].sort()
+// ⭐⭐ admit:request-other (coordinator ruling 2026-11-19) — an evidence entry marked `runtimeLane: "forced"` names a capture
+// the member door draws on the HOST lane: its runtime-lane witness is the harness's forced lane
+// (`memberPaneDefinition.js::__forceRuntimeLaneForTests`, #1985's REQ-B1). Each is held below to exactly that: the door
+// draws it on the host lane (so the flag is true), forced it takes the runtime lane, and there it grades MATCH.
+const forcedEvidence = [...new Set(Object.values(registry)
+  .filter((r) => r && r.admitted === true)
+  .flatMap((r) => r.evidence.filter((e) => e.runtimeLane === 'forced').map((e) => e.capture)))].sort()
 
 // ⛔ A licence-held capture (docs/pine/vendor-harness/licence-held.json) is read from the local
 // capture store when it is on this machine, and its case is SKIPPED BY NAME when it is not.
@@ -71,6 +78,19 @@ describe('WS-I Part 2 — every admitted capability\'s evidence was drawn by the
   it('CONTROL: a capture the host draws reads host (the probe can say no)', () => {
     expect(laneOf('atr-bands-spy-1d-2026-10-03')).toBe('host')
   })
+
+  for (const id of forcedEvidence) {
+    itNeedsHeld(fileOf[id] ? [fileOf[id]] : [], `${id}: the door draws it on the host lane; FORCED, the runtime lane MATCHES`, () => {
+      expect(fileOf[id], id).toBeTruthy()
+      expect(laneOf(id)).toBe('host')
+      __forceRuntimeLaneForTests(true)
+      try {
+        expect(laneOf(id)).toBe('runtime')
+        const capture = loadCapture(fixturePath(fileOf[id]) || path.join(REPO, fileOf[id])).capture
+        expect(gradeCapture(capture).verdict.verdict).toBe('MATCH')
+      } finally { __forceRuntimeLaneForTests(false) }
+    }, 240000)
+  }
 })
 
 // ─── THE REACH RUN'S LANES ARE THE DOOR'S (coordinator ruling 2026-11-13) ─────────

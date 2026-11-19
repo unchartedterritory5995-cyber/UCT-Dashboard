@@ -93,7 +93,19 @@ def test_every_literal_run_half_refusal_code_is_accepted():
     assert "RUNTIME_FORMING_GUARD" in named
     assert _constant_value("RUNTIME_FORMING_GUARD", reg) == "pane:forming-ungraded"
     rail = (ENGINE / "runHalfObjectRail.js").read_text(encoding="utf-8")
-    codes |= set(re.findall(r"export const RUN_HALF_[A-Z_]+ = '([^']+)'", rail))
+    # The object rail's REFUSAL codes: every constant it refuses with (`refuse(NAME, why)`), which
+    # `withRunHalf` hands to `refused(verdict.code)` and so to the telemetry. NOT every `RUN_HALF_*`
+    # export: `RUN_HALF_ADMITTED_LOST` ('lost-drawings') is the `admittedBy` of a PASSING verdict, an
+    # answer `withRunHalf` notes as no code at all (`runHalfLostDrawings.test.js` proves no beacon and
+    # no count ever carries it).
+    refused_with = set(re.findall(r"\brefuse\(([A-Z_]+)\b", rail))
+    # controls: the narrowing still collects a real refusal, and leaves the admission out
+    assert "RUN_HALF_NO_COMPARABLE_OBJECTS" in refused_with
+    assert "RUN_HALF_ADMITTED_LOST" not in refused_with
+    for name in refused_with:
+        m = re.search(rf"export const {name} = '([^']+)'", rail)
+        assert m, f"runHalfObjectRail.js refuses with {name} but does not declare it where this rail reads it"
+        codes.add(m.group(1))
     assert {"run-half:program-unbound", "run-half:object-rail", "run-half:no-comparable-objects",
             "run-half:host-object-withheld", "run-half:rail-not-loaded"} <= codes
     for code in codes:

@@ -86,6 +86,10 @@ NOT_FOR_THE_ASSISTANT: Dict[str, str] = {
     "strategy-decl": "the assistant writes indicators; a strategy is a different document with its own gates",
     "obj:linefill": ("admitted for a member's own pasted script on the runtime lane (PARITY UNIT LF); the assistant's "
                      "drawing vocabulary does not teach line fills yet, so it never writes one"),
+    # admit:request-other (2026-11-19): admitted for CLOSED-BAR HISTORY only (G6), so a script that reads another
+    # timeframe or symbol is refused by name on every chart whose newest bar is forming, all session long
+    "request-other": ("admitted for closed-bar history only: a script that requests another timeframe or symbol is "
+                      "refused while the chart's newest bar is forming, so it is not offered until a forming bar is graded"),
 }
 
 #: ⭐ ONE SENTENCE PER PITFALL, keyed by the generator's pitfall id (`PITFALL_PROBES`). Printed only
