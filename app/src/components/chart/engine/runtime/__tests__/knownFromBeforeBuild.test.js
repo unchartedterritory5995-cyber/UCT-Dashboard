@@ -18,7 +18,7 @@ import process from 'node:process'
 import util from 'node:util'
 import {
   computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, RUNTIME_KNOWN_FROM_KEY, runtimeIrOptions,
-  knownFromBeforeBuild, __knownFromProbeOffForTests,
+  knownFromBeforeBuild, __knownFromProbeOffForTests, __knownFromProbeMemoOffForTests,
 } from '../runtimeColumns.js'
 import { RUNTIME_OBJECTS_KEY } from '../runtimeObjects.js'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
@@ -221,5 +221,28 @@ describe('on a deep chart the run never builds over every bar', () => {
     }
     expect(wholeBuilds(false)).toBe(0)
     expect(wholeBuilds(true)).toBeGreaterThan(0)
+  })
+  it('the probe builds once per document and context (a tick builds nothing); another timeframe, forming state, listing or symbol builds again (⛔ CONTROL memo off: every probe builds)', () => {
+    const def = runDef(pine(['x = request.security("SP:SPX", "D", close)', 'y = request.security("SP:SPX", timeframe.period, close)', 'plot(x + y)']), { x: 0 })
+    const probeBuilds = (ctx) => {
+      buildRuntimeIr.mockClear()
+      const k = knownFromBeforeBuild(def, CHART, ctx)
+      return { k, builds: buildRuntimeIr.mock.calls.filter(([, o]) => o && Array.isArray(o.bars) && o.bars.length === 0).length }
+    }
+    resetRuntimeSessions()
+    const first = probeBuilds(ctx5())
+    expect(first.builds).toBe(1)
+    expect(first.k).toBe(DEPTH * 192)
+    const again = probeBuilds(ctx5())     // a new context object with the same facts: a tick
+    expect(again).toEqual({ k: first.k, builds: 0 })
+    for (const [what, over] of [['timeframe', { tf: '15' }], ['forming', { newestBarIsForming: true }],
+      ['listing', { historyFromListing: true }], ['symbol', { symbol: { ticker: 'PINS', exchange: 'NYSE', industry: 'Internet Content & Information', sector: 'Communication Services', securityType: 'stock' } }]]) {
+      expect(probeBuilds(ctx5(over)).builds, what).toBe(1)
+    }
+    __knownFromProbeMemoOffForTests(true)
+    try {
+      expect(probeBuilds(ctx5()).builds).toBe(1)
+      expect(probeBuilds(ctx5())).toEqual({ k: first.k, builds: 1 })
+    } finally { __knownFromProbeMemoOffForTests(false) }
   })
 })

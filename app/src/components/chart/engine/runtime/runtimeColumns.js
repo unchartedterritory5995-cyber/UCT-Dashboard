@@ -595,6 +595,37 @@ function depthGapPossible(rows, ctx) {
   }
   return false
 }
+// ⭐ PERF (a resumed tick, 2026-11-19) — THE BAR-FREE BUILD, ONCE PER DOCUMENT AND CONTEXT. A resumed 5m tick of Fred RS's
+// run half took ~116 ms, ~60 of it this probe's two bar-free builds (one a pass): the build reads no bar (`bars: []`),
+// so its requests are a function of the source and the build options alone, and they are kept per both, spelled out
+// whole (`JSON.stringify`: the options are plain data; one holding a function is never kept). Only a build that STOOD
+// is kept: one that did not (a translator timeout under a slow clock) is built again next time, as before.
+const _probeSites = new Map()
+const PROBE_SITES_CAP = 32
+let _probeMemoOff = false
+/** Tests: build every probe afresh, as before (the identity rails compare both). */
+export function __knownFromProbeMemoOffForTests(off) { _probeMemoOff = !!off }
+function probeSitesOf(source, buildOpts, listing, now) {
+  let key = null
+  if (!_probeMemoOff) {
+    try {
+      key = JSON.stringify([source, listing, buildOpts], (k, v) => {
+        if (typeof v === 'function') throw new Error('a build option that is a function is not kept')
+        return v
+      })
+    } catch { key = null }
+    if (key !== null && _probeSites.has(key)) return _probeSites.get(key)
+  }
+  const built = withTranslateClock(now, () => buildRuntimeIr(source, { ...buildOpts }))
+  if (!built || !built.ok) return null
+  const program = lowerIrProgram(built.ir, { historyFromListing: listing })
+  const sites = program.requests || []
+  if (key !== null) {
+    if (_probeSites.size >= PROBE_SITES_CAP) _probeSites.delete(_probeSites.keys().next().value)
+    _probeSites.set(key, sites)
+  }
+  return sites
+}
 /** The first chart bar every requested read is known from, when the run would be refused for a DEPTH gap alone,
  *  asked of the supply with a bar-free build's requests; or 0. Never throws. */
 export function knownFromBeforeBuild(def, rows, ctx, opts = {}) {
@@ -606,11 +637,9 @@ export function knownFromBeforeBuild(def, rows, ctx, opts = {}) {
   try {
     const slides = false
     const sessionKey = opts.incremental === false || opts.limits ? null : 'probe'
-    const built = withTranslateClock(opts.now, () => buildRuntimeIr(source, { ...runtimeIrOptions(def, [], ctx, { sessionKey, slides }) }))
-    if (!built || !built.ok) return 0
-    const program = lowerIrProgram(built.ir, { historyFromListing: !!(ctx && ctx.historyFromListing === true) })
-    const sites = program.requests || []
-    if (!sites.length) return 0
+    const sites = probeSitesOf(source, runtimeIrOptions(def, [], ctx, { sessionKey, slides }),
+      !!(ctx && ctx.historyFromListing === true), opts.now)
+    if (!sites || !sites.length) return 0
     // the ctx the run's first supply is asked with: off the listing, the curtain's (`computeOffListing`)
     const offListing = !!(def && def.meta && def.meta.runtimeHistory === 'listing') && !(ctx && ctx.historyFromListing === true)
     const sup = runtimeRequestSupply(sites, rows, offListing ? { ...ctx, curtained: true } : ctx)
@@ -921,7 +950,7 @@ function buildBytes(build) {
   return bytes
 }
 /** Drop every session (tests; a host that wants a cold start). */
-export function resetRuntimeSessions() { _sessions.clear() }
+export function resetRuntimeSessions() { _sessions.clear(); _probeSites.clear() }
 /** ⭐ What the sessions hold (diagnostics, the resource measurement): how many, and an
  *  ESTIMATE of their bytes — 8 a number (bars, columns, outputs, numeric state), 16 an
  *  array element, plus 256 a live drawing. */
