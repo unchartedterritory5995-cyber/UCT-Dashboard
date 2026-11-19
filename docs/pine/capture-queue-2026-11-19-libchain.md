@@ -20,7 +20,7 @@ windows, `ta.change`, a read inside a block of the body, and v5.
 | id | probe | chart | live | what to record | unblocks |
 |---|---|---|---|---|---|
 | Q-FGS-1 | `tools/visual_conformance/probes/vw-udt-fn-global-history.pine` | AMEX:SPY 1D from the listing | no | every plot on every bar (A00, G01, G03, G04, G05, G06) | U-FGS: the second symbol for the implicit-parameter rule |
-| Q-FGS-2a | `tools/visual_conformance/probes/vw-fn-global-window.pine` | NYSE:RDDT 1D from the listing | no | every plot on every bar (A00, W01-W12b) | U-FGS: windows and `ta.change` over a global; W08, a read in a block of the body |
+| Q-FGS-2a | `tools/visual_conformance/probes/vw-fn-global-window.pine` | NYSE:RDDT 1D from the listing | no | every plot on every bar (A00, W01-W14) | U-FGS: windows and `ta.change` over a global; W08, a read in a block of the body; W13 / W14, a plain or pure global's history in a function called on some bars |
 | Q-FGS-2b | `tools/visual_conformance/probes/vw-fn-global-window.pine` | AMEX:SPY 1D from the listing | no | the same | the same, on a second symbol |
 | Q-FGS-3a | `tools/visual_conformance/probes/vw-fn-global-window-v5.pine` | NYSE:RDDT 1D from the listing | no | every plot on every bar (A00, V01-V04) | U-FGS under v5 rules: breaks-and-retests-hg__ddba061af8, bolingger-bands-inside-bar-boxes__3294017d4f |
 | Q-FGS-3b | `tools/visual_conformance/probes/vw-fn-global-window-v5.pine` | AMEX:SPY 1D from the listing | no | the same | the same, on a second symbol |
@@ -73,7 +73,7 @@ source is not in git.
 Each probe's sha256 is the queue's (`python tools/vendor_harness/evidence_engine.py queue`), read off the
 committed file; a capture records the source it ran, so a capture of an edited probe never closes its row.
 
-- `vw-fn-global-window.pine`: `4028bf09762ea0b2577c74891f78536c7222a17862e28dd296c06449b9426c33`
+- `vw-fn-global-window.pine`: `bd342ce9524268983f9f26fa7a1675a44f58ebdbf5e2d72732b8946bff11eb68`
 - `vw-fn-global-window-v5.pine`: `7e7ce17a7524f62ba15ffc58d14dbeeaec6540fb4030e6966e7fab2ab4ce7dcb`
 - `vw-zigzag7-in-v6.pine`: `4d1e4ee0a29c71fdd5ba0a2bab6c728fec31a083f163e63437a03a396ef28bba`
 
