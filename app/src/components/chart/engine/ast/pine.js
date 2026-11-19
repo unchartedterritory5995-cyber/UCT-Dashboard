@@ -3089,6 +3089,15 @@ const CHART_ONLY_CALLS = Object.freeze(new Set([
  *  the screener lane keeps ignoring them, as TradingView's screener does. */
 export const PAINT_CALLS = Object.freeze(new Set(['bgcolor', 'barcolor']))
 
+/** ⭐⭐ THE FAMILY LEDGER'S VOCABULARY (2026-11-19) — every call that DRAWS on a chart, from this file's own sets: the
+ *  outputs (`OUTPUT_CALLS`), the four-column candles (`MULTI_OUTPUT_CALLS`) and the chart-only calls
+ *  (`CHART_ONLY_CALLS`), less the two that draw nothing on TradingView either (`alertcondition`, `alert`). The runtime
+ *  door names every one of them a script declares and its document does not draw
+ *  (`memberPane/runtimeFamilyLedger.js`); derived, so a call these sets gain is ledgered at once. */
+export const CHART_DRAWING_CALLS = Object.freeze([...new Set([
+  ...Object.keys(OUTPUT_CALLS), ...Object.keys(MULTI_OUTPUT_CALLS), ...CHART_ONLY_CALLS,
+])].filter((c) => c !== 'alertcondition' && c !== 'alert'))
+
 // --------------------------------------------------------------------------- //
 // the derived function index
 // --------------------------------------------------------------------------- //

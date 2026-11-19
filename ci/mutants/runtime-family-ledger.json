@@ -1,0 +1,69 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "THE FAMILY LEDGER (coordinator ruling 2026-11-19, fix/runtime-family-ledger): a document drawn bar by bar draws, or names, every family its script declares (runtimeFamilyLedger.js, read by memberPaneDefinition.js's runtime door). Every condition, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "L1",
+   "mutant": "the scanner never reads a drawing object's `.new(`",
+   "file": "app/src/components/chart/builder/memberPane/runtimeFamilyLedger.js",
+   "from": "  for (const [f, rx] of NEW_RX) if (rx.test(s)) out.push(f)",
+   "to": "  for (const [f, rx] of NEW_RX) if (rx.test(s) && false) out.push(f)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/runtimeFamilyLedger.test.js",
+   "expectRed": "reads each call"
+  },
+  {
+   "id": "L2",
+   "mutant": "the scanner reads comments and strings",
+   "file": "app/src/components/chart/builder/memberPane/runtimeFamilyLedger.js",
+   "from": "  const s = strippedForScan(String(source || ''))",
+   "to": "  const s = String(source || '')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/runtimeFamilyLedger.test.js",
+   "expectRed": "never in a comment or a string"
+  },
+  {
+   "id": "L3",
+   "mutant": "the scanner reads an author's own function or a method as the call",
+   "file": "app/src/components/chart/builder/memberPane/runtimeFamilyLedger.js",
+   "from": "const CALL_RX = new Map(CHART_DRAWING_CALLS.map((c) => [c, new RegExp(`(?<![\\\\w.])${esc(c)}\\\\s*\\\\(`)]))",
+   "to": "const CALL_RX = new Map(CHART_DRAWING_CALLS.map((c) => [c, new RegExp(`${esc(c)}\\\\s*\\\\(`)]))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/runtimeFamilyLedger.test.js",
+   "expectRed": "a function of the author"
+  },
+  {
+   "id": "L4",
+   "mutant": "a family is hidden when ANY of its elements is",
+   "file": "app/src/components/chart/builder/memberPane/runtimeFamilyLedger.js",
+   "from": "  return new Set([...per].filter(([, e]) => e.all > 0 && e.hidden === e.all).map(([k]) => k))",
+   "to": "  return new Set([...per].filter(([, e]) => e.all > 0 && e.hidden > 0).map(([k]) => k))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/runtimeFamilyLedger.test.js",
+   "expectRed": "EVERY translated element"
+  },
+  {
+   "id": "L5",
+   "mutant": "a host hiding counts as the author's",
+   "file": "app/src/components/chart/builder/memberPane/runtimeFamilyLedger.js",
+   "from": "  for (const o of (t && t.outputs) || []) add(o && o.kind, !!o && (o._authorHidden === true || o.hiddenReason === 'author'))",
+   "to": "  for (const o of (t && t.outputs) || []) add(o && o.kind, !!o && (o._authorHidden === true || !!o.hiddenReason))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/runtimeFamilyLedger.test.js",
+   "expectRed": "EVERY translated element"
+  },
+  {
+   "id": "L6",
+   "mutant": "the door names nothing the ledger finds",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  const unnamedFamilies = familyLedger.unnamed.filter((f) => !undrawn.includes(f))",
+   "to": "  const unnamedFamilies = familyLedger.unnamed.filter((f) => !undrawn.includes(f) && false)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/runtimeFamilyLedger.test.js",
+   "expectRed": "THE CLASS RAIL"
+  },
+  {
+   "id": "L7",
+   "mutant": "the vocabulary keeps a call that draws nothing",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "])].filter((c) => c !== 'alertcondition' && c !== 'alert'))",
+   "to": "])].filter((c) => c !== 'alert'))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/runtimeFamilyLedger.test.js",
+   "expectRed": "the chart-drawing calls are derived"
+  }
+ ]
+}
