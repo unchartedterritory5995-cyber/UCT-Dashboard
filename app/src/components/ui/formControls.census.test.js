@@ -834,7 +834,7 @@ export const NAMED_SURFACES = [
   'app/src/pages/admin/DetectionReviewCard.jsx',
   'app/src/pages/admin/PatternReview.jsx',
   'app/src/pages/breadth/BreadthViewsCustomizePanel.jsx',
-  'app/src/pages/breadth/CustomizePanel.jsx',
+  'app/src/pages/breadth/ColumnsMenu.jsx',
   'app/src/pages/calendar/CalendarHeader.jsx',
   'app/src/pages/charts/ChartsWorkspace.jsx',
   'app/src/pages/charts/CompareSymbolsPanel.jsx',

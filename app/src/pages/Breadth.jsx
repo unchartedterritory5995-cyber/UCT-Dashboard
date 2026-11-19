@@ -27,7 +27,7 @@ import useMonitorGrid from './breadth/useMonitorGrid'
 import ScreenshotPopover from '../components/chart/ScreenshotPopover'
 import { downloadBreadthSnapshot, copyBreadthSnapshot, copyBreadthShareUrl } from './breadth/breadthShare'
 import DailyOverview from './breadth/DailyOverview'
-import CustomizePanel from './breadth/CustomizePanel'
+import ColumnsMenu from './breadth/ColumnsMenu'
 import customizeStyles from './breadth/CustomizePanel.module.css'
 import {
   pctColor, pairedUpColor, pairedDnColor, getMaStackTier,
@@ -896,13 +896,10 @@ export default function Breadth() {
     try { localStorage.removeItem('breadth_collapsed_cols') } catch { /* private mode */ }
   }, [])
 
-  // Default = the focused core set (breadth/defaultColumns.js), computed, never stored.
+  // UCT Core = the focused core set (breadth/defaultColumns.js), computed, never stored;
+  // an edit to it is an unsaved draft ("UCT Core · edited") until saved as a template.
   const customize = useBreadthCustomize({ defaults: MONITOR_DEFAULTS })
-  const [customizeOpen, setCustomizeOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
-  // A header-menu change asked for on the immutable Default preset: the Columns
-  // panel opens on its "save as a new preset" prompt carrying it.
-  const [pendingColChange, setPendingColChange] = useState(null)
   // The one floating as-of tooltip over a carried (older-than-its-cadence) cell.
   const [ageTip, setAgeTip] = useState(null)
 
@@ -1198,21 +1195,12 @@ export default function Breadth() {
   )
 
   // ── Column header menu (Move left / Move right / Hide column) ──
-  // Same state the Columns panel edits. On Default (immutable) the change is
-  // handed to the Columns panel's save prompt instead, as a checkbox click there is.
+  // Same state the Columns menu edits, applied at once: on the built-in UCT Core it becomes
+  // the unsaved "edited" state (Columns offers Save as new / Revert), never a prompt.
   const applyColChange = useCallback((change) => {
-    if (customize.isDefaultActive) {
-      // Default is the core set: the new preset starts from it plus this change.
-      setPendingColChange({
-        hidden: [...customize.hidden, ...(change.hidden ?? [])],
-        order: change.order ?? orderedKeys,
-      })
-      setCustomizeOpen(true)
-      return
-    }
     if (change.order) customize.setOrder(change.order)
     if (change.hidden) customize.setHiddenSet([...customize.hidden, ...change.hidden])
-  }, [customize, orderedKeys])
+  }, [customize])
   const moveCol = useCallback((key, dir) => {
     const i = visibleCols.findIndex(c => c.key === key)
     const other = visibleCols[i + dir]?.key
@@ -1468,37 +1456,13 @@ export default function Breadth() {
                   </button>
                 )}
                 <div className={customizeStyles.anchor}>
-                  <button
-                    className={`${styles.hdrBtn} ${styles.hdrBtnPrimary} ${customizeOpen ? styles.hdrBtnOpen : ''}`}
-                    onClick={() => setCustomizeOpen(o => !o)}
-                    data-guide="breadth.customize"
-                    aria-expanded={customizeOpen}
-                    title="Choose which metrics show as columns in the sheet"
-                  >
-                    Columns
-                    <span className={styles.hdrChevron} aria-hidden="true">
-                      <svg width="9" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    </span>
-                  </button>
-                  {customizeOpen && (
-                    <CustomizePanel
-                      title="Columns"
-                      cols={COLS}
-                      activePreset={customize.activePreset}
-                      hidden={customize.hidden}
-                      presetNames={customize.presetNames}
-                      isDefaultActive={customize.isDefaultActive}
-                      onToggleHidden={customize.toggleHidden}
-                      onSavePreset={customize.savePreset}
-                      onRenamePreset={customize.renamePreset}
-                      onDeletePreset={customize.deletePreset}
-                      onSwitchPreset={customize.switchPreset}
-                      onResetActive={customize.resetActive}
-                      order={customize.order}
-                      pendingChange={pendingColChange}
-                      onClose={() => { setCustomizeOpen(false); setPendingColChange(null) }}
-                    />
-                  )}
+                  <ColumnsMenu
+                    cols={COLS}
+                    customize={customize}
+                    buttonClassName={`${styles.hdrBtn} ${styles.hdrBtnPrimary}`}
+                    openClassName={styles.hdrBtnOpen}
+                    chevronClassName={styles.hdrChevron}
+                  />
                 </div>
                 {/* ⋯ — the chart's Signature menu (ContextPopover `signature`):
                     Share (branded snapshot) and Export CSV. */}
