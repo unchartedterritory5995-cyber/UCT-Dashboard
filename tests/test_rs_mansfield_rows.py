@@ -165,3 +165,22 @@ def test_the_cache_key_leads_with_the_row_rev_and_shape_and_carries_the_length(s
     assert key.startswith(f"sig:rsMansfield1p{rsp._RS_MANSFIELD_PAYLOAD_SHAPE}:NVDA:D:")
     assert '"mansfieldLength": 52' in key and key.endswith(":2026-11-18")
     assert 60 < ttl <= 3 * 24 * 3600, "D: to the next session close"
+
+
+def test_the_card_reads_the_rsline_rows_measured_evidence_and_a_new_pull_moves_the_key(split_rows, monkeypatch):
+    """(2026-11-18) The card's evidence: rsMansfield carries rsLine's own `payload.evidence` block, so its card
+    reads `scalar:evidence.sentence.mansfield` as rsLine's Mansfield card does (the same column, the same measured
+    `mansfield_cross_up`), and the evidence asof rides the cache key (a new 04:30 pull is never hidden)."""
+    monkeypatch.setattr(sig, "_fetch_bars_for_tf", _fetcher(_long_daily(n=300)))
+    monkeypatch.setattr(rsp, "_et_session_day", lambda: "2026-11-18")
+    block = {"asof": "2026-11-18", "horizon": 63, "signals": {"mansfield": None},
+             "sentence": {"mansfield": "MEASURED: the sentence the evidence job wrote"}, "baseline": None, "source": "artifact"}
+    monkeypatch.setattr(rsp, "_rs_evidence", lambda: block)
+    seen = []
+    monkeypatch.setattr(sig.cache, "set", lambda k, v, ttl: seen.append(k))
+    for asof in ("2026-11-17", "2026-11-18"):
+        monkeypatch.setattr(rsp, "_rs_evidence_asof", lambda a=asof: a)
+        env = _mansfield("NVDA", "D")
+        assert env["payload"]["evidence"]["sentence"]["mansfield"] == block["sentence"]["mansfield"]
+    assert len(seen) == 2 and seen[0] != seen[1], "the evidence asof moves the key"
+    assert all(k.endswith(":2026-11-18") for k in seen) and ":e2026-11-17:" in seen[0]

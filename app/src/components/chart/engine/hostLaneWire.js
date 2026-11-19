@@ -89,9 +89,11 @@ export function unpackRows(pack) {
  *  that holds one answers the same on both threads, and one that does not stays without it (only a
  *  defined field is imaged, and `otherSymbols` asks `hasOwnProperty`). `chartNewestDay` (L11 PR 2) is
  *  the chart's newest day, which `astColumnsFor` derives from the rows themselves (`withChartNewestDay`)
- *  on whichever thread runs it: carried for the same reason, never needed. */
+ *  on whichever thread runs it: carried for the same reason, never needed. ⭐ RS RATING L12 PR 2 — `chartBars`
+ *  (the seed's intraday landing, `otherSymbols.js::utcMidnightAtOrAfterOf`) is derived by the same
+ *  `withChartNewestDay` from the same rows: likewise carried, never needed (a chart's context never holds it). */
 export const HOST_CTX_FIELDS = Object.freeze(['tf', 'newestBarIsForming', 'historyFromListing', 'barIndexFromFirstBar', 'framed',
-  'requestCode', 'below', 'chartNewestDay'])
+  'requestCode', 'below', 'chartNewestDay', 'chartBars'])
 /** The context fields that cross by their own rule (not plain). `workSink` is the headless export's
  *  counter and never on a chart's context. */
 export const HOST_CTX_CARRIED = Object.freeze(['symbol', 'secondary', 'exchangeOf', 'lowerTf', 'workSink'])

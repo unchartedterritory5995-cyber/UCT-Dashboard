@@ -1,0 +1,38 @@
+//@version=6
+indicator("UCTPROBE_VW_METHOD_DEF_RUNTIME", overlay = false)
+
+// PROVENANCE: written 2026-11-19 for the Pine parity programme (libraries chain, admit:method-def), capture queue
+// rows Q-MD-2a / Q-MD-2b. NEVER COMPILED ON TRADINGVIEW. No licence-held text.
+//
+// --- A SECOND SCRIPT FOR THE `method-def` ROW, DRAWN BY THE RUNTIME LANE ---
+// Measured 2026-11-19 at engine 80: the six committed captures whose scripts declare a `method` and grade MATCH
+// (zero-lag-ma-trend-levels, ict-killzones-pivots-tfo, pro-trading-art, RDDT and SPY each) are all drawn by the
+// HOST lane, so none is evidence for a runtime capability; the one method-def script the runtime lane draws
+// (volatility-trend-score-backquant) is INCONCLUSIVE on an untitled plot the harness cannot pair. This probe
+// declares two methods on a user type whose state carries across bars (`var`), which only the runtime lane
+// draws. Rows:
+//   A00  bar_index                                 control
+//   M01  a.total after `a.add(close)` each bar     the running total of close
+//   M02  a.mean()                                  the running mean of close
+//   M03  a.n                                       the count, bar_index + 1
+// CAPTURE: NYSE:RDDT 1D and AMEX:SPY 1D, each from the listing, inputs at defaults (none), after the close. Read
+// every plot on every bar as full float64 text. If a row does not compile, record the error text and the line,
+// remove only that row, and capture the rest.
+type Acc
+    float total = 0.0
+    int n = 0
+
+method add(Acc this, float x) =>
+    this.total += x
+    this.n += 1
+    this
+
+method mean(Acc this) =>
+    this.n > 0 ? this.total / this.n : na
+
+var Acc a = Acc.new()
+a.add(close)
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(a.total, "M01_running_total_of_close")
+plot(a.mean(), "M02_running_mean_of_close")
+plot(a.n, "M03_count")

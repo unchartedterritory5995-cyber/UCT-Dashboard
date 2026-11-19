@@ -575,6 +575,35 @@ def test_a_backlog_of_two_nights_reconciles_EACH_nights_OWN_records(env, monkeyp
     assert round(rows["r_newer_sig_a"][0], 3) == round(2 / 3, 3), rows["r_newer_sig_a"]
 
 
+def test_a_complete_night_with_a_pass_that_persisted_nothing_is_refused_ONCE_and_never_pages(env):
+    """⛔⛔ BUG FOUND 2026-11-18 (the owner got a CRITICAL email every 30 minutes). A night is
+    complete when every request is terminal, and `failed` is terminal — so a pass whose requests
+    ALL failed completes its night without ever writing records.jsonl. `load_run` raised outside
+    `score_silently`'s refusal handler, the claim went 'failed', and every reap tick retried and
+    paged again. Live it was four nights (2026-09-23..10-22), still paging seven weeks later.
+
+    The REAL reconciler, no spy: passes 1 and 2 are on disk, pass 3 is not."""
+    stable = _row("seg-1", "PRINCIPLE", ident="size-down", record_id="r_prin")
+    _write_run(env.root, f"{NIGHT}-chain-p1", [stable])
+    _write_run(env.root, f"{NIGHT}-chain-p2", [stable])
+    (env.root / f"{NIGHT}-chain-p3").mkdir(parents=True)   # the directory, never the file
+    night_rows(NIGHT, ["done", "done", "failed"])
+
+    first = reap()["same_night"]["scored"]
+    assert [s["status"] for s in first] == ["ok"], first
+    assert env.pages == [], f"a night that can never be scored paged: {env.pages}"
+    with store.read() as conn:
+        result = json.loads(conn.execute(
+            "SELECT result_json FROM wisdom_job_runs WHERE job_id = ?", (same_night.JOB_ID,)
+        ).fetchone()[0])
+    skipped = result["reconcile"]["skipped"]
+    assert "refused" in skipped and f"{NIGHT}-chain-p3" in skipped, \
+        f"the reason it was skipped is not kept in the run row: {result}"
+
+    # ⭐ THE CONTROL FOR "ONCE": the next tick must not touch the night again.
+    assert reap()["same_night"]["scored"] == [] and env.pages == []
+
+
 def test_the_night_question_is_indexed_and_the_migration_is_additive(env):
     """⚠️ The scan runs at :16 and :46 forever over a ledger that only grows."""
     from api.services.wisdom.extract import schema
