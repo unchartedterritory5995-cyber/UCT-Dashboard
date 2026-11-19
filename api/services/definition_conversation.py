@@ -1695,7 +1695,7 @@ def described_in_own_words(plain: str, chart: Any) -> bool:
     ⭐ A SMALL, MEASURED TEST, NOT A JUDGEMENT OF MEANING (2026-11-18, fourteen wordings): the rest
     must name at least one thing a formula reads (a vocabulary term, or a ticker) and at least two
     of {terms, tickers, the member's numbers} in all. "Mansfield relative strength versus SPY over
-    52 weeks" is a description (a ticker and a number); "Add the Pocket Pivot", "pocket pivot
+    52 weeks" is a description (a ticker and a number); "Add the TTM Squeeze", "ttm squeeze
     marker in a lower pane" and "TTM Squeeze 20 2 1.5" (numbers and no rule) are not. Both ways of
     being wrong are soft: a description judged missing gets the way forward; one judged present is
     built from the member's words alone and labelled as their own formula."""

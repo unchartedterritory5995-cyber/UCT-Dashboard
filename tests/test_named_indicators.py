@@ -66,7 +66,10 @@ def test_the_library_is_not_empty_and_every_entry_passes_the_planner():
     assert len(ENTRIES) >= 13
     for e in ni.entries():
         assert ni.passes(e), e["id"]                       # nothing ships that the assistant may not build
-        assert ni.tiers(e)[:2] == (True, True), e["id"]
+        # value-checked, and EITHER a published definition read OR proved equal to UCT's own reader
+        checked, published, _captured = ni.tiers(e)
+        assert checked and (published or ni.follows_house(e) is not None), e["id"]
+    assert [e["id"] for e in ni.entries() if not ni.tiers(e)[1]] == ["pocket_pivot"]
 
 
 def test_ids_names_and_aliases_are_safe():
@@ -137,6 +140,16 @@ def test_the_evidence_says_what_was_read_and_where():
         ev = e["evidence"]
         assert ev["value_check"] == f"tests/test_named_indicators_values.py::{e['id']}"
         pub = ev["published"]
+        if pub is None:
+            # ⭐ no page states this rule whole: the entry follows UCT's own reader instead, and says
+            # which function that is and which test proves the two equal
+            house = ni.follows_house(e)
+            assert house is not None and ev["capture"] is None, e["id"]
+            reader, _, name = house["reader"].partition("::")
+            assert (ROOT / reader).is_file() and f"def {name}(" in (ROOT / reader).read_text(encoding="utf-8"), e["id"]
+            assert (ROOT / house["proof"]).is_file() and house["note"], e["id"]
+            continue
+        assert "house" not in ev, e["id"]
         assert pub["by"] and pub["says"] and pub["read"] and pub["sources"], e["id"]
         assert pub["url"] == pub["sources"][0]["url"]
         for s in pub["sources"]:
@@ -153,7 +166,8 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
     same formula is not bar-equal) and the Directional Movement Index (one floating-point tie on
     one bar of 8,509). Four are not TradingView built-ins and have no capture (the Laguerre pair
     among them: TradingView ran OUR equations for those, which is not a grade against its own).
-    One IS a built-in and waits for its capture: the Stochastic Oscillator, on two tiers until then."""
+    One IS a built-in and waits for its capture: the Stochastic Oscillator, on two tiers until then.
+    One follows UCT'S OWN reader and has nothing to do with TradingView: Pocket Pivot."""
     grade = {e["id"]: (e["evidence"]["capture"] or {}).get("grade") for e in ni.entries()}
     assert sorted(i for i, g in grade.items() if g == "EQUAL") == sorted([
         "awesome_oscillator", "chaikin_money_flow", "choppiness_index", "coppock_curve", "elder_ray",
@@ -184,7 +198,9 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
     assert grade["laguerre_filter"] is None and grade["laguerre_rsi"] is None
     assert grade["stochastic_oscillator"] is None and not ni.tiers(ENTRIES["stochastic_oscillator"])[2]
     assert "TradingView" not in ni.member_sentence(ENTRIES["stochastic_oscillator"], ni.defaults(ENTRIES["stochastic_oscillator"]))
-    assert sum(1 for g in grade.values() if g is None) == 5 and len(grade) == 36
+    assert grade["pocket_pivot"] is None and ni.follows_house(ENTRIES["pocket_pivot"]) is not None
+    assert "TradingView" not in ni.member_sentence(ENTRIES["pocket_pivot"], {})
+    assert sum(1 for g in grade.values() if g is None) == 6 and len(grade) == 37
     assert not ni.tiers(ENTRIES["mcginley_dynamic"])[2] and "TradingView" not in ni.member_sentence(ENTRIES["mcginley_dynamic"], {})
     assert ni.tiers(ENTRIES["connors_rsi"])[2] and ni.tiers(ENTRIES["vortex_indicator"])[2]
 
