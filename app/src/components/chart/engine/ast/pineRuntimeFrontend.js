@@ -1661,6 +1661,73 @@ function joinWrappedSwitchArms(list, indents, srcLines = null) {
   return changed ? out : list
 }
 
+/** ⭐⭐ P3 WS-B / ENGINE 56 / ENGINE 57 / RS RATING L11 — WHAT `columnOf` REFUSES FOR A COLUMN IT HAS JUST
+ *  EVALUATED OVER `nBars` BARS, from the codes the columnar lane wrote into that column's own clock sink, or null.
+ *  ⭐⭐ ONE AUTHORITY (2026-11-19, the B5 reuse fix), asked by the build (`columnOf`) and by a session's re-evaluation
+ *  of its kept build over new bars (`runtime/runtimeColumns.js::columnsOver`): a column that would refuse a fresh
+ *  build over those bars sends the run back to a fresh build, which refuses by name exactly as here. ⚰️ The reuse
+ *  path kept its own list (`time-*` only) and served what a cold build refused.
+ *    * a `time-*` code (P3 WS-B): a clock the columnar lane withholds is withheld here too (`runtime:chart-clock`).
+ *      Read as a column it would come back `na` on every bar and the run would DRAW that `na`, which reads as "no
+ *      value" rather than "not answered" (UCTPROBE_VW_TIME_TF on BTCUSD / EURUSD). A NAMED per-bar withholding
+ *      declines the run too (BITSTAMP:BTCUSD's `time("W")`): the host lane leaves those bars undrawn and grades them
+ *      "not compared", and this lane has no per-bar withholding. ⚠️ AN UNNAMED ONE STILL DRAWS `na` (an every-day
+ *      anchor's first partial period, the off-listing early bars, `bar-index:early-bars` write no `time-*` code).
+ *    * ENGINE HL — ⛔ not `window-extreme:left-edge`: those bars depend on where the chart starts, and the
+ *      off-listing curtain (`runtimeColumns.js::computeOffListing`) withholds them. (⚰️ `arg-extreme:holed-window`
+ *      declined here until S17 measured its rule.)
+ *    * ENGINE 57 — `stoch:flat-window`: a column the columnar lane withholds on some bars by a built-in's witness code
+ *      declines the run by that code (drawn here those bars would read `na`). ⛔ Not the off-listing LEFT EDGE codes
+ *      (`stoch:left-edge`, `rci:left-edge`): the curtain withholds those bars already.
+ *    * ENGINE 56 — the `bool`-`na` and tie witness codes decline the run by their code.
+ *    * RS RATING L11 — `request:other-timeframe`: a column holding a daily read of another symbol on a weekly chart
+ *      (its tree carries the DAILY base's gate, `pine.js::securityAsNode`, `below`) is withheld whole by the columnar
+ *      lane; the run reads such a request only through a slot (`requestSupply.js`), never a column. No other chart
+ *      reaches this: the run translates for the chart's own period, so every other gate it writes is this chart's.
+ *  ⛔ Only over bars: a compile-only build (no bars) cannot read a regime and must not refuse for it. */
+export function columnSinkRefusal(clockSink, nBars, at) {
+  if (!(nBars > 0)) return null
+  for (const [code, sentence] of clockSink) {
+    if (String(code).startsWith('time-')) return new RuntimeRefusal('runtime:chart-clock', `${code}: ${sentence}`, at)
+    if (code === STOCH_FLAT_WINDOW) return new RuntimeRefusal(code, sentence, at)
+    if (code === BOOL_NA_UNWITNESSED || code === TIE_UNWITNESSED) return new RuntimeRefusal(code, sentence, at)
+    if (code === 'request:other-timeframe') {
+      return new RuntimeRefusal('runtime:request', 'a value here reads another symbol at `"D"` below this '
+        + 'weekly chart inside an expression the per-bar run hands its columnar lane, which holds no daily '
+        + 'series; the run reads such a request only where it is written as its own variable, so nothing '
+        + 'is drawn rather than a blank line', at)
+    }
+  }
+  return null
+}
+
+/** ⛔⛔ ENGINE 57 (review N1) — NEVER A SILENT BLANK. A column the columnar lane withheld on EVERY bar by a built-in's
+ *  witness code would draw nothing under no name; the run declines by that code instead. Null when the column holds
+ *  a finite value or no such code was written. (Asked by `columnOf` and a session's reuse alike.) */
+export function columnBlankRefusal(clockSink, arr, nBars, at) {
+  if (!(nBars > 0) || arr.some(Number.isFinite)) return null
+  for (const [code, sentence] of clockSink) {
+    if (BUILTIN_WITNESS_REFUSALS.has(code)) return new RuntimeRefusal(code, sentence, at)
+  }
+  return null
+}
+
+/** Pine's history buffer: `max_bars_back`'s ceiling (C18), and the bar count past which a dynamic offset in a pure
+ *  subtree is lowered piecewise (`mbbDynamicColumn`). */
+const MAX_BARS_BACK_CEILING = 5000
+
+/** ⭐⭐ (2026-11-19, the B5 reuse fix) — EVERY FACT ABOUT THE BAR COUNT A BUILD READS, as one key. Outside the column seam the build
+ *  reads `bars.length` only to ask "are there bars at all" (a compile-only build: the C23 symbol fold, the C36 clock
+ *  zone, the column checks) and "are there more bars than Pine's history buffer" (`mbbDynamicColumn`). Two builds
+ *  of one script, with equal options, over bar counts in one class, take the same path wherever the columns they
+ *  evaluate do not refuse (`columnSinkRefusal`, `columnBlankRefusal`) and do not throw. ⛔ A new read of the count
+ *  joins this key, or a session (`runtime/runtimeColumns.js::columnsOver`) reuses a build over a count it never
+ *  saw: `runtime/__tests__/sessionReuseIdentity.test.js` holds every read of `bars` in this file to that list. */
+export function buildBarCountClass(n) {
+  if (!(n > 0)) return 'none'
+  return n > MAX_BARS_BACK_CEILING ? 'past-buffer' : 'within-buffer'
+}
+
 function buildRuntimeIrLinked(source, opts, holder) {
   const bars = opts.bars || []
   const inputs = opts.inputs || {}
@@ -4175,39 +4242,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // code here, so nothing declines for them. ⛔ Only the `time-*` codes, and only
     // over bars: a compile-only build (no bars) cannot
     // read a regime and must not refuse for it.
-    if (bars.length > 0) {
-      for (const [code, sentence] of clockSink) {
-        if (String(code).startsWith('time-')) {
-          throw new RuntimeRefusal('runtime:chart-clock', `${code}: ${sentence}`, at)
-        }
-        // ⭐ ENGINE HL — ⛔ not `window-extreme:left-edge`: those bars depend on where the chart
-        // starts, and this lane's own off-listing curtain (`runtimeColumns.js::computeOffListing`)
-        // withholds them. (⚰️ `arg-extreme:holed-window` declined here until S17 measured its rule.)
-        // ⭐⭐ ENGINE 57 — a column the columnar lane withholds on some bars by a built-in's
-        // witness code declines the run by that code: drawn here those bars would read `na`.
-        // ⛔ Not the off-listing LEFT EDGE codes (`stoch:left-edge`, `rci:left-edge`): those bars
-        // depend on where the chart starts, and this lane's own off-listing curtain
-        // (`runtimeColumns.js::computeOffListing`, measured per run) withholds such bars already
-        if (code === STOCH_FLAT_WINDOW) {
-          throw new RuntimeRefusal(code, sentence, at)
-        }
-        // ⭐⭐ ENGINE 56 — a column the columnar lane withholds on some bars by a witness code
-        // declines the run by that code: drawn here those bars would read `na`
-        if (code === BOOL_NA_UNWITNESSED || code === TIE_UNWITNESSED) throw new RuntimeRefusal(code, sentence, at)
-        // ⭐⭐ RS RATING L11 — a column holding a daily read of another symbol on a weekly chart: its tree
-        // carries the DAILY base's gate (`pine.js::securityAsNode`, `below`), so the columnar lane withholds it
-        // whole here and would draw that as `na` on every bar. Such a read is the run's request
-        // (`requestSupply.js`, held and sampled per week), reached through a slot, never a column: refused by
-        // name. ⛔ No other chart reaches this: the run translates for the chart's own period, so every other
-        // gate it writes is this chart's.
-        if (code === 'request:other-timeframe') {
-          throw new RuntimeRefusal('runtime:request', 'a value here reads another symbol at `"D"` below this '
-            + 'weekly chart inside an expression the per-bar run hands its columnar lane, which holds no daily '
-            + 'series; the run reads such a request only where it is written as its own variable, so nothing '
-            + 'is drawn rather than a blank line', at)
-        }
-      }
-    }
+    const sinkRefusal = columnSinkRefusal(clockSink, bars.length, at)
+    if (sinkRefusal) throw sinkRefusal
     let arr
     if (typeof value === 'number') arr = new Float64Array(bars.length).fill(value)
     else if (value instanceof Float64Array) arr = value
@@ -4216,14 +4252,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       throw new RuntimeRefusal('runtime:statement',
         `a column holds ${arr.length} values for ${bars.length} bars`, at)
     }
-    // ⛔⛔ ENGINE 57 (review N1) — NEVER A SILENT BLANK. A column the columnar lane withheld on
-    // EVERY bar by a built-in's witness code would draw nothing here under no name; the run
-    // declines by that code instead.
-    if (bars.length > 0 && !arr.some(Number.isFinite)) {
-      for (const [code, sentence] of clockSink) {
-        if (BUILTIN_WITNESS_REFUSALS.has(code)) throw new RuntimeRefusal(code, sentence, at)
-      }
-    }
+    const blankRefusal = columnBlankRefusal(clockSink, arr, bars.length, at)
+    if (blankRefusal) throw blankRefusal
     columns.push(arr)
     const i = columns.length - 1
     columnTrees[i] = canonical
@@ -11384,7 +11414,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐ C18 — `max_bars_back(<name>, 5000)`: two positional arguments, a bare
    *  name and the literal 5000 (Pine's history ceiling). Anything else — a
    *  smaller bound, a computed one, a named argument — is not this shape. */
-  const MAX_BARS_BACK_CEILING = 5000
   /** ⭐ engine NUMBER PENDING (WS-C M4) — `max_bars_back(<name>, <whole number of bars>)`, any bound: served as
    *  a no-op statement (TradingView: it bounds nothing, M4). Anything else (a computed bound, a named argument, a
    *  target that is not a bare name) keeps `runtime:directive`. */
