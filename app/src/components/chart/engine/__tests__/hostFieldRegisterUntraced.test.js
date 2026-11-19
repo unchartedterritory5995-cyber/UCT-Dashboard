@@ -55,3 +55,69 @@ describe('a drawing held in a field of a `var` object is withheld by name, never
     expect(got.live).toBe(1)
   })
 })
+
+// ─── ⭐⭐ STEP A (b) — A FIELD WRITTEN BEFORE IT IS READ, IN THE SAME BAR, KEEPS ITS REGISTER ─────────────────────────
+//
+// Coordinator ruling (b), 2026-11-19: the per-bar clear of a field register is only OBSERVED by a read that runs before
+// the bar writes the field. A field whose every read follows an unconditional write of it, earlier in the same
+// statement list or an enclosing one, keeps its register (`pineObjects.js::dominatedFields`), so a correct picture is
+// never taken away: `z.b := box.new(…)` then `box.set_bgcolor(z.b, color.red)` draws Pine's red box on every up bar
+// (`ast/methodForm.test.js` G pins the ops). Anything the tokens cannot prove stays untraced, withheld by name.
+const H = '//@version=6\nindicator("p", overlay = true)\n'
+const ZH = `${H}type Z\n    label lb\nvar z = Z.new(na)\n`
+function liveProps(source, id) {
+  vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+  const d = memberPaneDefinition({ source, id, name: 'field' })
+  if (!d.ok || !d.definition.objects) return { ok: false, reason: d.reason || '' }
+  const out = hostObjectRun(d.definition, BARS, hostObjectReaderOpts({ tf: 'D', historyFromListing: true }))
+  return { ok: true, live: out.run.live }
+}
+
+describe('Step A (b): a field read after a write of it in the same bar keeps its register', () => {
+  it('`z.b := box.new(…)` then `box.set_bgcolor(z.b, color.red)`: every up bar\'s box is drawn, red', () => {
+    const src = `${H}type Zone\n    box b\nvar Zone z = Zone.new(na)${UP}    z.b := box.new(bar_index - 2, high, bar_index, low)\n`
+      + '    box.set_bgcolor(z.b, color.red)\n'
+    const got = liveProps(src, 'u_fr_dom_box')
+    expect(got.ok, got.reason).toBe(true)
+    const ups = BARS.filter((b) => b.c > b.o).length
+    expect(got.live.length).toBe(ups)
+    // the colour `box.set_bgcolor(…, color.red)` paints, read off the same program on a plain `var` handle
+    const ctl = liveProps(`${H}var box b = na${UP}    b := box.new(bar_index - 2, high, bar_index, low)\n    box.set_bgcolor(b, color.red)\n`, 'u_fr_dom_ctl')
+    expect(ctl.ok, ctl.reason).toBe(true)
+    const red = ctl.live[0] && ctl.live[0].props.bgcolor
+    expect(red).toBeTruthy()
+    expect(got.live.every((o) => o.props.bgcolor === red), JSON.stringify(got.live.map((o) => o.props.bgcolor))).toBe(true)
+  })
+  it('the method form `z.lb.set_text("x")` after `z.lb := label.new(…)`: served with its text', () => {
+    const got = liveProps(`${ZH}if close > open\n    z.lb := label.new(bar_index, high, "u")\n    z.lb.set_text("x")\n`, 'u_fr_dom_m')
+    expect(got.ok, got.reason).toBe(true)
+    expect(got.live.length).toBeGreaterThan(0)
+    expect(got.live.every((o) => o.props.text === 'x')).toBe(true)
+  })
+})
+
+describe('Step A (b): a read the tokens cannot prove follows a write stays untraced, withheld by name', () => {
+  const UNPROVABLE = {
+    'the write inside an `if`, the read after it':
+      `${ZH}if close > open\n    z.lb := label.new(bar_index, high, "u")\nlabel.delete(z.lb)\n`,
+    'the read inside a loop':
+      `${ZH}if close > open\n    z.lb := label.new(bar_index, high, "u")\n    for i = 0 to 0\n        label.delete(z.lb)\n`,
+    'the write inside a loop, the read after it':
+      `${ZH}if close > open\n    for i = 0 to 0\n        z.lb := label.new(bar_index, high, "u")\n    label.delete(z.lb)\n`,
+    'a function of the script\'s own called between the write and the read':
+      `${H}type Z\n    label lb\nvar z = Z.new(na)\nf() => close > open\nif close > open\n    z.lb := label.new(bar_index, high, "u")\n    f()\n    label.delete(z.lb)\n`,
+    'a method of the script\'s own called between the write and the read':
+      `${H}type Z\n    label lb\nmethod touch(Z this) => this.lb\nvar z = Z.new(na)\nif close > open\n    z.lb := label.new(bar_index, high, "u")\n    z.touch()\n    label.delete(z.lb)\n`,
+    'the owner reassigned between the write and the read':
+      `${ZH}if close > open\n    z.lb := label.new(bar_index, high, "u")\n    z := Z.new(na)\n    label.delete(z.lb)\n`,
+    'the owner used as a value (an alias)':
+      `${ZH}a = z\nif close > open\n    z.lb := label.new(bar_index, high, "u")\n    label.delete(a.lb)\n    label.delete(z.lb)\n`,
+  }
+  for (const [what, src] of Object.entries(UNPROVABLE)) {
+    it(what, () => {
+      const got = served(src, 'u_fr_unprov')
+      expect(got.ok, `served ${got.live} labels`).toBe(false)
+      expect(got.reason).toMatch(REMOVES)
+    })
+  }
+})

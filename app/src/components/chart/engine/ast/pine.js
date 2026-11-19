@@ -24764,7 +24764,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // family off the listing).
       colls.push({ id, family: d.family, cap: MAX_OBJECT_COLLECTION_CAP, ...(d.slots ? { slots: d.slots } : {}),
         ...(d.persist ? { persist: true } : {}) })
-    } else if (d.kind === 'local' && String(name).includes('.')) {
+    } else if (d.kind === 'local' && String(name).includes('.')
+        && !(collected.dominatedFields && collected.dominatedFields.has(name))) {
+      // ⭐⭐ STEP A (b) — a field whose every read follows a write of it in the same bar keeps its register
+      // (`pineObjects.js::dominatedFields`): the per-bar clear below is never observed.
       // ⭐⭐ FIELD REGISTER, STEP A (2026-11-19, coordinator ruling) — A DRAWING HELD IN A FIELD (`z.lb`, `z.a.lb`) IS
       // UNTRACED. Registered as a plain local it was CLEARED EVERY BAR (`locals` below), whatever its owner's
       // `var`-ness: for `var z = Z.new(na)` the delete of yesterday's `z.lb` read `na`, and the host lane drew every
