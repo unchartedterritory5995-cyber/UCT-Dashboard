@@ -461,7 +461,9 @@ export function runtimeLimitSentence(err, bar, total) {
   const what = LIMIT_PLAIN[err && err.limit] || 'one of the limits a script drawn bar by bar runs under'
   const n = (v) => (Number.isFinite(v) ? Number(v).toLocaleString('en-US') : String(v))
   const unit = err && err.limit === 'WALL_TIME' ? ' ms' : ''
-  return `this script went past ${what} (at most ${n(err && err.ceiling)}${unit}, it reached `
+  // ⭐⭐ (coordinator ruling 2026-11-19) a ceiling that scaled with the chart says the bars it was set for
+  const forBars = err && Number.isInteger(err.coveredBars) ? ` for ${n(err.coveredBars)} bars` : ''
+  return `this script went past ${what} (at most ${n(err && err.ceiling)}${unit}${forBars}, it reached `
     + `${n(err && err.reached)}${unit}) on bar ${n(bar)} of ${n(total)}, so it is stopped and nothing is drawn `
     + 'rather than part of it.'
 }
