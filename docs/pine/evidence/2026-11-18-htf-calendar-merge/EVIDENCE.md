@@ -53,6 +53,11 @@ corpus diff may show only moves toward MATCH. Branch `feat/pine-htf-calendar-mer
 - `tests/test_pine_htf_calendar_switch_year.py` (on master): re-derives the switch year from the two captures, with
   controls (a doctored week; a start year of 1999 or 2001 read as a break).
 
+Two structural rails the remote lane did not run went red on the PR's first pine heavy run (44478733729) and are
+kept, not relaxed: `tests/test_ast_budget.py` (`ast_interpret.py` holds no `try`; the day is now checked by
+arithmetic) and `engine/ast/interpret.test.js`'s purity pin (the new edge to `tradingViewSession.js` is named; that
+module is already inside the scanned closure as `indicators.js`'s one edge).
+
 Mutants (`runs/mutants-manifest.json`, `uct.ci-mutants/v1`, run by pine heavy's mutant job):
 - B2-1 the merge pick ignores the calendar (master's rule)
 - B2-2 TradingView's closures read as starting in 2004
