@@ -167,7 +167,10 @@ from disk on every build:
 | `LICENCE_HOLD` | a guard, not a state anything reaches today: a target whose source is neither a probe nor a corpus file with a clear licence is held here, never QUEUED, never in a manifest. Every target source today is a probe or a corpus file, so no target has this status (the builtin / reference-only census scripts are listed apart, see 2.4) |
 
 **The capture stem** (`evidence_engine.capture_stem`, ONE authority) is the `<script>` of a capture id
-`<script>-<sym>-<tf>-<yyyy-mm-dd>`: the manifest hands it to the driver (`captureStem`), the STALE lookup
+`<script>-<sym>-<tf>-<yyyy-mm-dd>[-<phase>]` (the phase, from the closed vocabulary
+`evidence_ledger.CAPTURE_PHASES` = insession / postclose-open / postclose-fresh / preopen, set by a queue row's `phase`
+column and carried as `capturePhase`, so two session states of one probe on one day never share an id; #2015): the
+manifest hands it to the driver (`captureStem`), the STALE lookup
 finds older captures by it, and the gate holds every id to it (to the run manifest's own value when the
 run has one, so a same-slug file added between the capture and the promote changes nothing). House rule, as the census slug
 `batch_manifest.py` selects on: `__<hash>` dropped, lowercased, and `-<sha8>` appended when two files share
@@ -320,7 +323,7 @@ run's orphan study is removed only by the id it recorded.
 
 - **Validate** (`fixture_gate`): `verify_capture.mjs` (shape, receipt, source sha: the one
   authority, called, never re-implemented) + the file name equals `<id>.json` and the id has
-  the house form `<script>-<sym>-<tf>-<yyyy-mm-dd>`, where `<script>` must be the stem the
+  the house form `<script>-<sym>-<tf>-<yyyy-mm-dd>[-<phase>]` (a phase from `CAPTURE_PHASES` only), where `<script>` must be the stem the
   RUN MANIFEST asked the driver for (its entry's `captureStem`, when that entry carries this
   capture's source sha; a same-slug file added after the capture must not unpromote it), else,
   for a source the repository holds (a probe or corpus file, by sha), THAT source's capture
