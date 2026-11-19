@@ -35,7 +35,7 @@ import {
 } from './authoring'
 import { converseTurn, transcriptSnippets, distinctNotUnderstood } from './authoring/converseClient'
 import { classifyTurn, OUTCOMES } from './authoring/turnOutcome'
-import { settleScript, checkScript } from './authoring/scriptAnswer'
+import { settleScript, checkScript, scriptNeedsFixing } from './authoring/scriptAnswer'
 import { preflight } from './authoring/preflight'
 import { readSession, writeSession, clearSession, editKey } from './authoring/conversationSessions'
 import { storeConversation, attachConversation, armConversationAlerts } from './conversationSave'
@@ -513,7 +513,7 @@ export default function ConverseBox({
                     {typeof onOpenScript === 'function' && (
                       <button type="button" style={S.button} data-testid="converse-open-script" disabled={busy || saving}
                         onClick={() => onOpenScript({ pine: t.script.pine, name: t.script.name })}>
-                        {t.script.runs ? 'Open this script in the editor' : 'Open this script in the editor to fix it'}
+                        {scriptNeedsFixing(t.script) ? 'Open this script in the editor to fix it' : 'Open this script in the editor'}
                       </button>
                     )}
                     <details style={S.muted} data-testid="converse-script-text">

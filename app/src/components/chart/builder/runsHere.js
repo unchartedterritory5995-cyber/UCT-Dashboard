@@ -210,7 +210,9 @@ export function verdictOnChart(verdict, run, { maxErrors = 6, maxChars = 300 } =
       errors: [...new Set(sentences)].slice(0, maxErrors).map((e) => e.slice(0, maxChars)),
     }
   }
-  if (run.state === RUN.PENDING) return { ...base, runs: false, headline: CHECKING_HEADLINE, errors: [] }
+  // (`checking`: nothing is wrong with the script and nothing is known yet. The script answer asks again a
+  // bounded number of times, and the button beside it never says "to fix it": `authoring/scriptAnswer.js`)
+  if (run.state === RUN.PENDING) return { ...base, runs: false, checking: true, headline: CHECKING_HEADLINE, errors: [] }
   if (run.state === RUN.RAN) {
     const unchecked = run.unchecked.map((u) => `Not checked here (${u.guard}): it is checked when the script is on the chart.`)
     const waiting = run.waiting || []

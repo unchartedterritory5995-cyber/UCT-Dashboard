@@ -163,13 +163,48 @@ async function loadEngine() {
  */
 export function scriptEntry({ script, reply, verdict, rounds = 0 }) {
   const lines = [verdict.headline, ...verdict.withheld, ...verdict.notes]
-  if (!verdict.runs && rounds > 0) {
+  const checking = isChecking(verdict)
+  if (checking) lines.push(STILL_CHECKING_LINE)
+  else if (!verdict.runs && rounds > 0) {
     lines.push(`The assistant rewrote it ${rounds === 1 ? 'once' : `${rounds} times`} and the chart still does not run it fully.`)
   }
   return {
     role: 'uct', kind: 'script', lines, said: typeof reply === 'string' ? reply : '',
-    script: { name: script.name || '', pine: script.pine, runs: verdict.runs, attaches: verdict.attaches, state: verdict.state },
+    script: {
+      name: script.name || '', pine: script.pine, runs: verdict.runs, attaches: verdict.attaches, state: verdict.state,
+      // (only when true: an entry that is not being checked is the shape it always was)
+      ...(checking ? { checking: true } : {}),
+    },
   }
+}
+
+/**
+ * ⭐ A CHECK THAT HAS NOT FINISHED IS NOT A REFUSAL (found live 2026-11-19). The chart asks the server whether it
+ * may draw a script bar by bar; under load the server answers "still being checked" for a few seconds, and the
+ * run cannot start until it has an answer. The dock used to settle on that: "Still being checked on this chart"
+ * was its last word on a script that was fine, beside a button that said "to fix it".
+ * So a verdict that is only CHECKING is asked for again, a bounded number of times, before the answer settles;
+ * and if it is still checking then, the entry says so and the button offers the editor without "to fix it".
+ */
+export const PENDING_RECHECKS = 2
+export const PENDING_RECHECK_MS = 3000
+export const STILL_CHECKING_LINE = 'The chart had not finished checking this script. Open it in the editor to see its status; nothing needs fixing.'
+export const isChecking = (verdict) => !!verdict && verdict.runs !== true && verdict.checking === true
+const pause = (ms) => new Promise((resolve) => { setTimeout(resolve, ms) })
+
+/** A script's verdict, asked again while the chart is still checking it (never more than `PENDING_RECHECKS`). */
+async function settledVerdict(check, pine, wait) {
+  let verdict = await check(pine)
+  for (let i = 0; i < PENDING_RECHECKS && isChecking(verdict); i += 1) {
+    await wait(PENDING_RECHECK_MS)
+    verdict = await check(pine)
+  }
+  return verdict
+}
+
+/** Is the button beside a script entry an invitation to FIX it? Only when the engine refused it. */
+export function scriptNeedsFixing(script) {
+  return !!script && script.runs !== true && script.checking !== true
 }
 
 /**
@@ -178,12 +213,12 @@ export function scriptEntry({ script, reply, verdict, rounds = 0 }) {
  * up to `MAX_REPAIR_ROUNDS` and never past a repair that changes nothing.
  * @param {object} first              the door's answer: `{script: {name, pine}, reply}`
  * @param {(refusal) => Promise<object>} repair   asks the door again with `script_refusal`
- * @param {object} [deps]  `{ check }` for tests
+ * @param {object} [deps]  `{ check, wait }` for tests (`wait(ms)` is the pause before a re-check)
  * @returns {Promise<{entry: object, rounds: number, verdict: object}>}
  */
-export async function settleScript(first, repair, { check = checkScript } = {}) {
+export async function settleScript(first, repair, { check = checkScript, wait = pause } = {}) {
   let answer = first
-  let verdict = await check(answer.script.pine)
+  let verdict = await settledVerdict(check, answer.script.pine, wait)
   let rounds = 0
   while (!verdict.runs && rounds < MAX_REPAIR_ROUNDS) {
     const refusal = refusalOf(answer.script.pine, verdict, rounds + 1)
@@ -191,7 +226,7 @@ export async function settleScript(first, repair, { check = checkScript } = {}) 
     const next = await repair(refusal)
     if (!next || !next.ok || !next.script || typeof next.script.pine !== 'string') break
     rounds += 1
-    const again = await check(next.script.pine)
+    const again = await settledVerdict(check, next.script.pine, wait)
     const stuck = sameRefusals(again, verdict) || next.script.pine === answer.script.pine
     answer = next
     verdict = again
