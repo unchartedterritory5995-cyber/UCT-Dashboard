@@ -48,6 +48,7 @@ src/components/chart/engine/__tests__/storeIntradayAgreement.test.js
 src/components/chart/engine/__tests__/suiteCoverage.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.c45BarIndex.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.l8RecordedSupply.test.js
+src/components/chart/engine/__tests__/vendorHarness/vendorHarness.reqBareSecurityForced.test.js
 src/components/chart/engine/__tests__/volumeNumericPane.test.js
 src/components/chart/engine/__tests__/volumePaneResidency.test.js
 src/components/chart/engine/__tests__/vwapUtcBucketing.test.js

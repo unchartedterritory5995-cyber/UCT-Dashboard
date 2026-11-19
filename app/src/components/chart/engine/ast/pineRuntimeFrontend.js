@@ -9995,12 +9995,32 @@ function buildRuntimeIrLinked(source, opts, holder) {
           return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
-        // ⛔ REQ (coverage unit, 2026-11-16) — a v1–v4 bare `security(…)` whose value reads this run's
-        // state stays refused `runtime:request-with-state` (below), the identity included. Routing it
-        // through `admitRequest` (which serves the identity as the expression itself, as for
-        // `request.security`) was built and WITHDRAWN by the coordinator's ruling: no committed capture
-        // grades a v1–v4 bare identity over state MATCH, so the shape waits for Q-REQ4
-        // (`docs/pine/capture-queue-2026-11-16-request-security.md`).
+        // ⭐⭐ REQ-B1 (coordinator ruling 2026-11-18) — A v3 / v4 BARE `security(…)` IS THE REQUEST DOOR'S, AS
+        // `request.security` IS. `security(…)` became `request.security(…)` in v5 (a rename; `resolution` →
+        // `timeframe`, which `positionaliseRequest` reads), and v3 and v4 share its look-ahead default.
+        // TradingView's v3 migration guide, verbatim: "We added a parameter to the `security` function (the
+        // fifth one) called `lookahead`. It can take on the form of two different values:
+        // `barmerge.lookahead_off` (and this is the default for Pine Script version 3) or
+        // `barmerge.lookahead_on` (which is the default for Pine Script version 2)." ⭐ WITNESSED for v4 on
+        // `support-and-resistance-multi-time-frame-{rddt,spy}-1d-2026-10-02`: its `security(…, 'D' | 'W' | 'M',
+        // valuewhen(…))` drawn by the runtime lane equals TradingView's six plots on every bar
+        // (`vendorHarness.reqBareSecurityForced.test.js`). ⚰️ It fell to `runtime:request-with-state` below,
+        // about a value that reads none of this run's state (24 of that wall's 39 sample hits were this).
+        // ⛔ v1 / v2 (and a script with no version line) stay refused by name: their look-ahead default is
+        // the other one, and Q-REQ4 owes its capture. ⛔ A value that reads this run's own mutable state is
+        // refused first, whatever the timeframe: TradingView refuses to compile it from v3 (the same guide:
+        // "Cannot use mutable variable as an argument for security function!"). A user function of that
+        // name never reaches here (it is routed above).
+        if (node.name === 'security' && (pineVersion === 3 || pineVersion === 4)) {
+          const asked = positionaliseRequest(node)
+          const pos = (asked.args || []).filter((x) => !x || !x.name)
+          const valueNode = pos[2] && pos[2].value !== undefined ? pos[2].value : pos[2]
+          if (valueNode && readsOuterSlot(valueNode, scope)) {
+            note('runtime:request-with-state')
+            throw new RuntimeRefusal('runtime:request-with-state', '`security`', locate(node.tok))
+          }
+          return admitRequest(node, scope, opts)
+        }
         if (textInputHere(node)) return admitTextInput(node, scope)
         if (heldArray(node.name)) {
           return admitArrayCall(node, scope, false)
