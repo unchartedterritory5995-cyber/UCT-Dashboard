@@ -29,7 +29,7 @@ import { TABLE, BAR_READERS } from '../ast/parse.js'
 import { cloneValues } from './vmState.js'
 import { SLOT } from './ir.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
-import { execute } from './vm.js'
+import { execute, requestRegionCausal } from './vm.js'
 import { runtimeRequestSupply } from './requestSupply.js'
 import { symbolConstants, minContractOf } from '../ast/bind.js'
 // ⭐ RS RATING L3 — the symbol fields the fold reads, from the one list that names them.
@@ -327,7 +327,7 @@ export function runtimeContentKey(def) {
 
 /** The memo key for one run: the definition, its compute handle, its CONTENT, and
  *  everything in `ctx` that changes the answer (the clock, the symbol, the listing fact). */
-function runKey(def, ctx) {
+function runKey(def, ctx, withSupply = true) {
   const compute = (def && def.compute) || {}
   const tf = ctx && typeof ctx.tf === 'string' ? ctx.tf : undefined
   const forming = newestBarIsFormingFrom(ctx)
@@ -342,7 +342,7 @@ function runKey(def, ctx) {
   const framed = ctx && ctx.framed === true ? '|framed' : ''
   // ⭐⭐ W9-T11 — a broker run's window (`ctx.historyWindowBars`) decides which bars it trades
   const hw = ctx && Number.isInteger(ctx.historyWindowBars) ? `|hw${ctx.historyWindowBars}` : ''
-  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${requestSupplyKey(compute, ctx)}`
+  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${withSupply ? requestSupplyKey(compute, ctx) : ''}`
 }
 
 /** ⭐ RS RATING L5 — what a run that reads requested bars computed FROM: the chart's other-
@@ -819,6 +819,7 @@ function sessionBytes(s) {
     bytes += 16 * (lenOf(cp.persist) + lenOf(cp.hist) + lenOf(cp.held)) + 8 * (lenOf(cp.carState) + lenOf(cp.car2State))
     for (const it of cp.iters || []) bytes += 16 * lenOf(it)
     if (cp.store) bytes += 256 * lenOf(cp.store.live)
+    for (const d of cp.supply || []) bytes += 4 * lenOf(d.index) + 56 * (d.max + 1)
   }
   // ⭐ P3 WS-F (review L3) — the kept build (its IR and column trees) counts against the cap too
   if (s.build) bytes += buildBytes(s.build)
@@ -893,14 +894,85 @@ const sameColumnsTo = (a, b, last) => {
   }
   return true
 }
-/** The checkpoint a run over `rows` with `program` may resume from, or `{why}`. */
-export function resumableFrom(prev, rows, program) {
+// ─── ⭐⭐ (Fred RS filled chart, item 3) — A RUN THAT READS REQUESTS RESUMES WHEN ITS SUPPLY AGREES ──────────────
+//
+// A checkpoint's state was built from the requested values bars [0, cp] read. A run over a NEW supply rebuilds that
+// same state when every one of those values is the same, and that is decided from the supply alone when every
+// request region is CAUSAL (`vm.js::requestRegionCausal`: its value on requested bar j reads the requested bars
+// [0, j] and nothing else): per request the checkpointed run made (`checkpoint.requests`), the requested bar each
+// chart bar 0..cp reads (`index`) and every requested bar they reach (`runBars[0..max]`: `t` as the sub-run reads it,
+// the prices as the numbers it reads) are the same (`supplyAgreesTo`). The resumed run then makes those sub-runs
+// again over the new supply before bar cp + 1 (`vm.js`), so every later bar reads the NEW requested values, as a
+// full run's does. ⛔ A resumed run that throws is run again in full (`computeRuntimeColumnsOnce`), so every stop
+// is the full run's own. ⛔ A request with no prepared supply, a region that is not causal, a checkpoint with no
+// digest: not resumed, as before.
+let _resumeAcrossSupplyOff = false
+/** Tests / timing: a run that reads requests never resumes, as before (the identity rails compare both). */
+export function __resumeAcrossSupplyOffForTests(off) { _resumeAcrossSupplyOff = !!off }
+const RUN_BAR_FIELDS = ['o', 'h', 'l', 'c', 'v']
+/** What a checkpoint's state read of the supply: per site its requests reached by bar `cp.bar`, the `index` of chart
+ *  bars 0..cp and the requested bars that reaches, copied (a supply's arrays may be shared with a cache). */
+function supplyDigestOf(supply, checkpoint) {
+  if (!Array.isArray(supply) || !checkpoint) return null
+  const out = []
+  for (const a of new Set((checkpoint.requests || []).map((e) => e.a))) {
+    const s = supply[a]
+    if (!s || !s.runBars || !s.index) return null
+    const last = checkpoint.bar
+    if (s.index.length <= last) return null
+    const index = Int32Array.from({ length: last + 1 }, (_, i) => s.index[i])
+    let max = -1
+    for (let i = 0; i <= last; i += 1) if (index[i] > max) max = index[i]
+    if (max >= s.runBars.length) return null
+    const bars = { t: new Array(max + 1) }
+    for (const k of RUN_BAR_FIELDS) bars[k] = new Float64Array(max + 1)
+    for (let j = 0; j <= max; j += 1) {
+      const b = s.runBars[j]
+      bars.t[j] = b.t
+      for (const k of RUN_BAR_FIELDS) bars[k][j] = b[k]
+    }
+    out.push({ a, index, max, bars })
+  }
+  return out
+}
+/** Does `supply` hand every request the digest names the same requested values on chart bars 0..cp? */
+function supplyAgreesTo(digest, supply) {
+  if (!Array.isArray(digest) || !Array.isArray(supply)) return false
+  for (const d of digest) {
+    const s = supply[d.a]
+    if (!s || !s.runBars || !s.index || s.index.length < d.index.length || s.runBars.length <= d.max) return false
+    for (let i = 0; i < d.index.length; i += 1) if (s.index[i] !== d.index[i]) return false
+    for (let j = 0; j <= d.max; j += 1) {
+      const b = s.runBars[j]
+      if (!b || !Object.is(b.t, d.bars.t[j])) return false
+      // the numbers the sub-run reads (`runRequest`: `Float64Array.from`), compared as it reads them
+      for (const k of RUN_BAR_FIELDS) if (!Object.is(+b[k], d.bars[k][j])) return false
+    }
+  }
+  return true
+}
+/** Why a run over `supply` may not resume from `cp` across a supply, or null. */
+function acrossSupplyBlocked(cp, program, supply) {
+  if (!cp.supply) return 'the checkpoint holds no supply digest'
+  if (!(cp.requests || []).every((e) => !!e.charged)) return 'a request without a prepared supply'
+  if (!(program.requests || []).every((site) => requestRegionCausal(program, site.entry))) return 'a request region that is not causal'
+  if (!supplyAgreesTo(cp.supply, supply)) return 'a requested value before the checkpoint changed'
+  return null
+}
+
+/** The checkpoint a run over `rows` with `program` may resume from, or `{why}`. With `supply` (a run that reads
+ *  requests), only across a supply that agrees (`acrossSupplyBlocked`). */
+export function resumableFrom(prev, rows, program, supply = null) {
   if (!prev || !prev.checkpoint) return { why: 'no checkpoint' }
   const cp = prev.checkpoint
   if (cp.bar >= rows.length) return { why: 'fewer bars than the checkpoint' }
   if (!sameRowsTo(prev.rows, rows, cp.bar)) return { why: 'the bars before the checkpoint changed' }
   if (!sameProgram(prev.program, program)) return { why: 'the program changed' }
   if (!sameColumnsTo(prev.program.columns, program.columns, cp.bar)) return { why: 'a column before the checkpoint changed' }
+  if (supply) {
+    const blocked = acrossSupplyBlocked(cp, program, supply)
+    if (blocked) return { why: `request: ${blocked}` }
+  }
   return { checkpoint: cp }
 }
 /** ⭐ Where a run's incremental decision rides (non-enumerable, like the warm-up). */
@@ -1343,7 +1415,10 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const sessionKey = opts.incremental === false || opts.limits ? null
     // ⛔ a sliding run keeps its OWN session: a build made with a ledger (a `varip` built) must
     // never be reused by a run that refuses one
-    : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}`
+    // ⭐⭐ (item 3) …and a run that reads requests keeps ONE session across its supply's changes: what it built does
+    // not read the other-symbol cache (`buildRuntimeIr` is handed no other symbol's bars), and what its checkpoint
+    // read of the supply is checked bar for bar before it is resumed (`acrossSupplyBlocked`)
+    : `${runKey(def, ctx, _resumeAcrossSupplyOff)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}`
   const prevSession = sessionKey ? _sessions.get(sessionKey) : null
   // ⭐⭐ P3 WS-F (B5) — THE SESSION'S BUILD, REUSED: the front end is not run again, only
   // the columns are re-evaluated over THESE bars (`buildRecorder`, `columnsOver`).
@@ -1447,7 +1522,10 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const build = reused ? prevSession.build : (recorder ? recorder.done(built.ir, rows.length) : null)
   // ⛔ RS RATING L5 — a run that reads requested bars never resumes from a checkpoint: the
   // checkpoint's state was computed from the requested bars of an EARLIER supply.
-  const resumable = prevSession && !opts.probe && !reqSupply ? resumableFrom(prevSession, rows, program)
+  // ⭐⭐ (item 3) …unless its supply agrees with the checkpoint's (`acrossSupplyBlocked`)
+  const acrossSupply = !!reqSupply && !_resumeAcrossSupplyOff && opts.resumeAcrossSupply !== false
+  const resumable = prevSession && !opts.probe && (!reqSupply || acrossSupply)
+    ? resumableFrom(prevSession, rows, program, reqSupply ? reqSupply.supply : null)
     : { why: reqSupply ? 'request' : sessionKey ? 'cold' : 'off' }
   // ⚠️ Fresh constants for a run from bar 0 — conservative, NOT mutation-provable: running the
   // session's program instead drew the same columns and drawings on every rail and probe tried
@@ -1580,6 +1658,11 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       onBar,
     })
   } catch (err) {
+    // ⭐⭐ (item 3) a run resumed across a supply that throws is run again in full: its stop is the full run's own
+    // (a time stop is the box's, never the script's, and is said as it is)
+    if (resumeFrom && reqSupply && !(err instanceof RuntimeLimitError && err.limit === 'WALL_TIME')) {
+      return computeRuntimeColumnsOnce(def, rows, ctx, { ...opts, resumeAcrossSupply: false })
+    }
     const stood = disarmedAfter(err)
     if (stood) {
       res = stood
@@ -1630,6 +1713,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // a run that stood in for a refused broker held no realtime session, checkpoint or resume of its own
   if (realtime && !backtestRefused) realtime.commit()
   if (sessionKey && !backtestRefused) {
+    // ⭐⭐ (item 3) a new checkpoint of a run that reads requests keeps what it read of THIS supply
+    if (res.checkpoint && reqSupply) res.checkpoint.supply = supplyDigestOf(reqSupply.supply, res.checkpoint)
     const checkpoint = res.checkpoint || (resumeFrom && resumeFrom.bar <= lastConfirmed ? resumeFrom : null)
     _sessions.delete(sessionKey)
     const next = { rows: rowsSnapshot(rows), program: runProgram, checkpoint, ...(build ? { build } : {}) }
