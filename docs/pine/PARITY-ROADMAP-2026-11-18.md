@@ -930,6 +930,14 @@ beyond `budget:lookback` (RDDT's history starts at its 2024 listing).
 - **Evidence:** a capture per name grading MATCH (or a reference sentence that is an identity, as
   `hl2`). The token table is the queue.
 - **Risk:** low per name; engine number per batch.
+- **`ta.sar` (2026-11-18, coordinator ruling on the parity2 design).** BI1, which mapped `ta.sar(start, inc, max)`
+  onto the native `sar(step, maxStep)` when start equals inc, is WITHDRAWN. The native `sar` runs the chart's own
+  Parabolic SAR rules, not TradingView's `ta.sar` (`callExpansions.js::SAR_NOTE`). Its measurement, 0 of 1,039,563
+  bars (`docs/pine/evidence/2026-11-16-sar-window/EVIDENCE.md`), compares a bounded window with the chart's
+  full-history SAR and says nothing about TradingView. The committed parabolic-sar captures are a community script
+  that computes its SAR by hand. BI1' replaces it: a runtime-lane `ta.sar` written from the Pine reference's own
+  `pine_sar` code. It is served only once the built-in Parabolic SAR grades MATCH on every bar (Q-BLT-3a/b,
+  `docs/pine/capture-queue-2026-11-18-parity2.md`). The host lane keeps refusing it by name.
 
 ### U-COND `conditional-history`: history of a value computed only on some bars
 
@@ -1061,6 +1069,25 @@ Smaller families, each named by its wall in section 4:
   route-by-cost (#1711) is the path.
 - **known-lists:** `runtime:kill-list` / `[known-divergence]`: a script whose committed capture
   grades DIVERGE, refused by name until the engine fix re-grades it MATCH; each is its own fix.
+  Each listing's owner, measured 2026-11-18 on the parity2 design. Coordinator ruling: no known-lists fix (KL1 /
+  KL2) is built on its own, because every listing is held by another unit's wall; each comes off its list when
+  that unit's fix re-grades its capture MATCH.
+
+  | listing | what holds it on the host lane | where its run stops | owner |
+  |---|---|---|---|
+  | `heat-map-seasons` | the gauge cell's background and the `barcolor` are `color.from_gradient` over `ta.highest` / `ta.lowest` in a `?:` arm (`fn:conditional-history`), so the cell is dropped (TradingView 31 cells, ours 30) | `runtime:call-undeclared-builtin-state` (`ta.correlation` fed by a mutable value) | U-COND (and state-calls for the run) |
+  | `position-size-calc` | the dropped cell's text is a lot size computed from an FX `request.security` and `syminfo.basecurrency` | builds | U-REQ |
+  | `vold-market-breadth` | reads breadth symbols (USI) | `runtime:input-state` | data decision |
+  | `ema-ribbon-trend-filter-strixedge` | its cell texts read `request.*` and built-ins the host does not declare | `lower-tf:store-unmeasured` | request / builtins (lower-tf for the run) |
+  | `artemis-oscillator-pro` | 5 reassigned cell texts | `runtime:call-windowed-state` (`ta.percentile_linear_interpolation` fed by a mutable value) | statements / call-windowed-state |
+  | `htf-candle-footprint-cartel-console` | its labels and lines are created from user types (`pine:type`) | `pine:function` `color` (a `color(x)` call: BI2) | types |
+  | `htf-liquidity-dashboard-tfo` | its cells read collections and state | `pine:request` (`ES1!`, a continuous future) | request |
+  | `momentum-based-zigzag` | `runtime:kill-list` | listed | HIST-K2 |
+  | `average-day-range-adr-pivots` | a global reassigned inside a function (`pine:state`); its SPY DIVERGE (a line's x2) is not yet read | `runtime:request` (`lookahead`) | U-REQ (`lookahead`) |
+  | `contraction-box-doji-lines` | no longer listed on master | builds | freed |
+
+  KL3 (`text_font_family`, artemis's cell (0,0)) is DEFERRED as a later parity nicety: it lifts no listing on its
+  own.
 
 ### Evidence units `admit:<capability>`
 
@@ -1341,12 +1368,13 @@ Probe rows this page adds (no sample script stands for them):
   visual` on AMEX:SPY 5m and NYSE:RDDT 5m, at its default (`D`) and at its weekly option (`W`): its four
   `request.security` reads of the chart's own symbol at a higher timeframe the intraday chart does not hold. The
   binding capture; its 1D captures witness only the identity case.
-- **Q-FCMP3-1 / -2** (Pine's tolerant compare, engine 78 (#1858), `feat/pine-tolerant-compare-engine`; flagged
-  until read, coordinator ruling 2026-11-18): `tools/visual_conformance/probes/vw-fcmp-arrays.pine` on AMEX:SPY 1D
-  from the listing and NYSE:RDDT 1D. `array.lastindexof` and `array.binary_search` / `_leftmost` / `_rightmost` are
-  UNMEASURED near a tie and stay EXACT in the engine until these rows are read (no change from today). If they read
-  tolerant, they move onto `pineCompare.js` as `array.indexof` / `array.includes` did. Request:
-  `docs/pine/capture-queue-2026-11-18-float-tolerance-form.md`, section Q-FCMP3.
+- **Q-FCMP3-1 / -2: READ 2026-11-18, flag off.** Captured as run `fcmp3b-2026-11-18`, packet `b400024aa71d`
+  (committed):
+  `tools/visual_conformance/probes/vw-fcmp-arrays.pine` on AMEX:SPY 1D from the listing and NYSE:RDDT 1D.
+  - `array.lastindexof` reads TOLERANT, and moves onto `pineCompare.js` (engine 81,
+    `feat/pine-tolerant-lastindexof`).
+  - `array.binary_search` / `_leftmost` / `_rightmost` read EXACT, and stay exact (now pinned).
+  - Readings: `docs/pine/capture-queue-2026-11-18-float-tolerance-form.md`, section Q-FCMP3.
 
 ## 8. The machine twin and its rail
 
