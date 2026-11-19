@@ -3630,5 +3630,188 @@ export function collectObjectOps(stmts, h) {
     return out
   })()
 
-  return { decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies, onceLines, dominatedFields }
+  // ─── ⭐⭐ FIELD REGISTER, STEP B (coordinator ruling 2026-11-19) — A FIELD TAKES ITS OWNER'S `var`-NESS ─────────────
+  //
+  // Pine's `var z = Z.new(na)` makes ONE object on the first bar and keeps it, so `z.lb` keeps last bar's label; a plain
+  // `z = Z.new(na)` makes a new object every bar, so `z.lb` starts every bar `na`. Under the conditions below `z.lb` is
+  // read and written only through that one name, so it is EXACTLY a handle of the owner's kind: a `var` owner's field a
+  // persistent register (a `var label lb = na`), a plain owner's field a register cleared every bar (`pine.js`, `locals`).
+  // ALL must hold, or the field stays untraced (Step A / (b)):
+  //  (i)   the owner is declared ONCE, in the script's literal top scope, as `var o = T.new(…)` or `o = T.new(…)` (the
+  //        typed spelling `var T o = …` is the same declaration), `T` a `type` of the script's own, read whole;
+  //        the field's constructor argument is `na` or absent (a nested `o.a.lb`: `a`'s is an `A.new(…)` itself);
+  //  (a)   the field's DECLARED default in its `type` is `na` or absent;
+  //  (b)   not `varip` (a `varip` owner is not read here at all);
+  //  (ii)  the owner is never written again (`o := …`), and (iii) never used as a value: the bare name appears nowhere
+  //        but its declaration, and every dotted use of it names a drawing field this program registers (a read, a
+  //        method call on that handle, or a write it carries: `:= T.new(…)`, `:= na`). `a = o`, `f(o)`, `o.copy()`,
+  //        `o.m()`, `o[1]`, `o.a` alone, `o.x` for any other field: the owner is left untraced, every field of it;
+  //  (iv)  no function or method of the script's own is called anywhere (one may write any field through any name);
+  //  (c)   no history-indexed read of the field (`o.f[1]`, `o.f[n]`).
+  const fieldOwnerVarness = (() => {
+    const varFields = new Set()
+    const plainFields = new Set()
+    const fields = [...decls.entries()].filter(([n, dd]) => dd && dd.kind === 'local' && String(n).includes('.')).map(([n]) => String(n))
+    if (!fields.length) return { varFields, plainFields }
+    const ownerOf = (f) => f.slice(0, f.indexOf('.'))
+    // every statement, nested ones and definition bodies included; and the literal top scope alone
+    const allStmts = []
+    const every = (list) => { for (const st of list || []) { if (st && st.header && st.header.length) allStmts.push(st); every(st.sub) } }
+    every(stmts)
+    const headers = allStmts.map((st) => st.header)
+    const topScope = (stmts || []).filter((st) => st && st.header && st.header.length)
+    // (iv) — any call of a function or method the script defines, anywhere (a definition's own name is not a call)
+    let callsOwn = false
+    for (const t of headers) {
+      const def = definitionHeader(t, h)
+      for (let i = 0; i < t.length; i += 1) {
+        const x = t[i]
+        if (!x || x.kind !== 'ident' || !h.isPunct(t[i + 1], '(') || (def && i === def.open - 1)) continue
+        const v = String(x.value)
+        const dot = v.lastIndexOf('.')
+        if (x.member ? definedMethods.has(v) : dot > 0 ? definedMethods.has(v.slice(dot + 1)) : defined.has(v)) callsOwn = true
+      }
+    }
+    if (callsOwn) return { varFields, plainFields }
+    const closeAt = (t, open) => {
+      let depth = 0
+      for (let i = open; i < t.length; i += 1) {
+        if (h.isPunct(t[i], '(') || h.isPunct(t[i], '[')) depth += 1
+        else if (h.isPunct(t[i], ')') || h.isPunct(t[i], ']')) { depth -= 1; if (depth === 0) return i }
+      }
+      return -1
+    }
+    const isNa = (toks) => toks.length === 1 && toks[0].kind === 'ident' && !toks[0].member && toks[0].value === 'na'
+    // the script's own types, each read WHOLE: every field line `<type> <name>` or `<type> <name> = <default>`.
+    // ⚠️ The statement splitter folds a type's indented field lines onto its `type` line (one header, no `sub`), so the
+    // fields are read one SOURCE LINE at a time (`tok.line`); a token with no line leaves the type unread.
+    const types = new Map()
+    for (const st of stmts || []) {
+      const ht = st.header || []
+      const at = ht[0] && ht[0].value === 'export' ? 1 : 0
+      if (!(ht.length >= at + 2 && ht[at].kind === 'ident' && ht[at].value === 'type' && ht[at + 1].kind === 'ident')) continue
+      const byLine = new Map()
+      let whole = !(st.sub && st.sub.length) && ht.every((k) => k && Number.isFinite(k.line))
+      for (const k of ht) {
+        if (!byLine.has(k.line)) byLine.set(k.line, [])
+        byLine.get(k.line).push(k)
+      }
+      const lines = [...byLine.values()]
+      if (!lines.length || lines[0].length !== at + 2) whole = false
+      const fl = []
+      for (const ft of lines.slice(1)) {
+        if (ft.length >= 2 && ft[0].kind === 'ident' && ft[1].kind === 'ident' && !ft[0].member && !ft[1].member
+            && !['var', 'varip', 'const', 'series', 'simple'].includes(String(ft[0].value))
+            && (ft.length === 2 || (ft.length > 3 && h.isPunct(ft[2], '=')))) {
+          fl.push({ name: String(ft[1].value), type: String(ft[0].value), def: ft.length === 2 ? null : ft.slice(3) })
+        } else whole = false
+      }
+      types.set(String(ht[at + 1].value), whole ? fl : null)
+    }
+    // `T.new(…)` spanning exactly `t[from..]` → its arguments by field name, or null
+    const ctorArgs = (t, from, T) => {
+      const fl = types.get(T)
+      if (!fl || !t[from] || t[from].kind !== 'ident' || t[from].member || String(t[from].value) !== `${T}.new`
+          || !h.isPunct(t[from + 1], '(') || closeAt(t, from + 1) !== t.length - 1) return null
+      const args = splitArgs(t, from + 1, h.isPunct)
+      if (!args) return null
+      const byName = new Map()
+      let pos = 0
+      for (const a of args) {
+        if (!a.toks.length) return null
+        const key = a.name !== null ? a.name : (fl[pos] ? fl[pos].name : null)
+        if (a.name === null) pos += 1
+        if (key === null || byName.has(key) || !fl.some((x) => x.name === key)) return null
+        byName.set(key, a.toks)
+      }
+      return byName
+    }
+    // (i) — the owners declared in the literal top scope (`var o = T.new(…)`, `o = T.new(…)`, `var T o = …`)
+    const owners = new Map()
+    for (const st of topScope) {
+      const t = st.header || []
+      if (!t.length || t[0].kind !== 'ident') continue
+      const isVar = t[0].value === 'var' || t[0].value === 'varip'
+      if (t[0].value === 'varip') continue
+      const i = isVar ? 1 : 0
+      const typed = t[i] && t[i + 1] && t[i + 2] && t[i].kind === 'ident' && t[i + 1].kind === 'ident' && h.isPunct(t[i + 2], '=')
+      const nameAt = typed ? i + 1 : i
+      const eq = nameAt + 1
+      if (!t[nameAt] || t[nameAt].kind !== 'ident' || t[nameAt].member || String(t[nameAt].value).includes('.') || !h.isPunct(t[eq], '=')) continue
+      const rhs = t[eq + 1]
+      const T = rhs && rhs.kind === 'ident' && String(rhs.value).endsWith('.new') ? String(rhs.value).slice(0, -4) : null
+      if (!T || !types.has(T) || (typed && String(t[i].value) !== T)) continue
+      const args = ctorArgs(t, eq + 1, T)
+      if (!args) continue
+      owners.set(String(t[nameAt].value), { isVar, T, args, tok: t[nameAt] })
+    }
+    // (ii)/(iii) — every use of each owner, and (c) every history read of a field
+    const bad = new Set()
+    const badField = new Set()
+    for (const t of headers) {
+      for (let i = 0; i < t.length; i += 1) {
+        const x = t[i]
+        if (!x || x.kind !== 'ident' || x.member) continue
+        const v = String(x.value)
+        const head = v.includes('.') ? v.slice(0, v.indexOf('.')) : v
+        const o = owners.get(head)
+        if (!o) continue
+        if (v === head) {
+          if (x === o.tok) continue                       // its one declaration
+          if (h.isPunct(t[i + 1], ':=')) bad.add(head)      // (ii) — the owner written again
+          else bad.add(head)                                // (iii) — the owner used as a value (`a = o`, `f(o)`, `o[1]`)
+          continue
+        }
+        // (iii) — a dotted use names a registered drawing field of this owner, or calls a method on that handle; any
+        // other path (`o.copy()`, `o.m()`, `o.a` alone, `o.x`) uses the owner, or an object on the path, as a value
+        const f = fields.find((g) => v === g || (v.startsWith(`${g}.`) && !v.slice(g.length + 1).includes('.') && h.isPunct(t[i + 1], '(')))
+        if (!f || ownerOf(f) !== head) { bad.add(head); continue }
+        if (v !== f) continue
+        if (h.isPunct(t[i + 1], '[')) badField.add(f)       // (c) — a history-indexed read of the field
+        if (h.isPunct(t[i + 1], ':=') || h.isPunct(t[i + 1], '=')) {
+          // a write this program carries: `:= <family>.new(…)` spanning the rest, `:= na`, `:= <family>(na)`
+          const rhs = t.slice(i + 2)
+          const fam = decls.get(f) && decls.get(f).family
+          const create = rhs[0] && rhs[0].kind === 'ident' && String(rhs[0].value) === `${fam}.new`
+            && h.isPunct(rhs[1], '(') && closeAt(rhs, 1) === rhs.length - 1
+          const reset = isNa(rhs) || (rhs.length === 4 && rhs[0].kind === 'ident' && String(rhs[0].value) === fam
+            && h.isPunct(rhs[1], '(') && isNa([rhs[2]]) && h.isPunct(rhs[3], ')'))
+          if (i !== 0 || !(create || reset)) badField.add(f)
+        }
+      }
+    }
+    for (const f of fields) {
+      const head = ownerOf(f)
+      const o = owners.get(head)
+      if (!o || bad.has(head) || badField.has(f)) continue
+      // (i)/(a) — walk the path: every object on it made by its own constructor, the drawing field `na` throughout
+      const path = f.slice(head.length + 1).split('.')
+      let T = o.T
+      let args = o.args
+      let ok = true
+      for (let k = 0; k < path.length && ok; k += 1) {
+        const fl = types.get(T)
+        const fd = fl && fl.find((x) => x.name === path[k])
+        const arg = args.get(path[k])
+        if (!fd) { ok = false; break }
+        if (k === path.length - 1) {
+          const sameFamily = fd.type === (decls.get(f) || {}).family
+          const defaultNa = fd.def === null || isNa(fd.def)      // (a) — the field's declared default
+          const argNa = !arg || isNa(arg)                        // (i) — the field's constructor argument
+          ok = sameFamily && defaultNa && argNa
+        } else {
+          const inner = arg && types.has(fd.type) ? ctorArgs(arg, 0, fd.type) : null
+          if (!inner) ok = false
+          else { T = fd.type; args = inner }
+        }
+      }
+      if (ok) (o.isVar ? varFields : plainFields).add(f)
+    }
+    return { varFields, plainFields }
+  })()
+
+  return {
+    decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies, onceLines, dominatedFields,
+    varFields: fieldOwnerVarness.varFields, plainFields: fieldOwnerVarness.plainFields,
+  }
 }
