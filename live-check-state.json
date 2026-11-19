@@ -1,5 +1,5 @@
 {
-  "fingerprint": "pipeline:master -> production=2 master commits not promoted yet (oldest landed 28 min ago): the deploy checks FAILED on 5cdb6a84e8, so nothing new goes live until a fix lands on master|service:bars-api=running a9936b447a, which is NOT on master: a rollback or a hand deploy of other code|tests:nightly NEW failures=run 43726736793 found 120 NEW failures against the previous valid master run|tests:nightly full suite=no VALID master run for over 36 h (newest valid is run 43726736793)",
-  "posted_at": "2026-11-19T04:37:54.118140+00:00",
+  "fingerprint": "tests:nightly NEW failures=run 43726736793 found 120 NEW failures against the previous valid master run|tests:nightly full suite=no VALID master run for over 36 h (newest valid is run 43726736793)",
+  "posted_at": "2026-11-19T04:45:44.561279+00:00",
   "reason": "new stuck item"
 }
