@@ -64,7 +64,7 @@ def test_get_stamps_vendor_activity_and_licensing_class(monkeypatch):
     assert r.value == {"status": "OK", "results": {"ticker": "AAPL"}}
     assert r.provenance.vendor == "massive"
     assert r.provenance.source_activity == "test.details"
-    assert r.licensing_class == plc.licensing_class_for("massive", "reference") == "R"
+    assert r.licensing_class == plc.licensing_class_for("massive", "reference") == "LA"   # T-07 Bus column
     assert r.freshness is None, "freshness is never fabricated -- None means not established"
     assert t.paths == [f"/v3/reference/tickers/AAPL?apiKey={_KEY}"]
 
@@ -263,7 +263,7 @@ def test_end_to_end_through_the_real_client_and_token_bucket(monkeypatch, real_c
     before = massive.budget()["served_total"]
     r = ad.get_pages("/v3/reference/dividends", params={"ticker": "KO"},
                      data_class="reference", activity="t", max_pages=2)
-    assert r.value == [{"x": 1}] and r.licensing_class == "R"
+    assert r.value == [{"x": 1}] and r.licensing_class == "LA"
     assert seen == [f"{_BASE}/v3/reference/dividends?ticker=KO&apiKey={_KEY}"]
     assert massive.budget()["served_total"] == before + 1
 

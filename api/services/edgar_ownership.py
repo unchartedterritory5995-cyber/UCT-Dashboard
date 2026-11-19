@@ -3,9 +3,11 @@ transactions, and the Form 13F information table.
 
 Why this exists. EDGAR is public domain (licensing register T-83, class A) and
 was already wired here for filings, yet every ownership figure a member sees
-came from a vendor column or a scrape (T-39: FMP insider + 13F, class R;
-T-73: yfinance, class X). This module reads the filings themselves, so every
-insider row carries the accession number of the Form 4 it came from.
+came from a vendor column or a scrape (T-39: FMP insider + 13F, class R
+then, LA for member display since the table followed the register's
+2026-09-19 note on 2026-11-19; T-73: yfinance, class X). This module reads
+the filings themselves, so every insider row carries the accession number of
+the Form 4 it came from.
 
 ⛔ DARK behind `EDGAR_OWNERSHIP_ENABLED` (read per call, unset = OFF). Unset,
 nothing here is reached from a member request, no thread is started and SEC is

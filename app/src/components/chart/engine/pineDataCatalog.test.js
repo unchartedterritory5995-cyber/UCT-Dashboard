@@ -75,10 +75,12 @@ describe('pineDataCatalog (S4-0)', () => {
     expect(dataFamilyOf('')).toBeNull()
   })
 
-  it('today, by name: what S4-0 leaves served and refused (the generated blocks as committed)', () => {
+  // ⚰️ 2026-11-19: earnings (T-35/T-36) and dividends / splits (T-07) moved data:licence -> served when the licensing
+  // table followed the register's 2026-09-19 note (Bus / DDLA column in force). Nothing imports this module yet.
+  it('today, by name: what the catalogue serves and refuses (the generated blocks as committed)', () => {
     const got = Object.fromEntries(FAMILIES.map((f) => [f, (dataFamilyRefusal(f) || { guard: 'served' }).guard]))
     expect(got).toEqual({
-      earnings: 'data:licence', dividends: 'data:licence', splits: 'data:licence', financial: 'served',
+      earnings: 'served', dividends: 'served', splits: 'served', financial: 'served',
       uct_rs_rating: 'data:licence', uct_rs_line: 'data:licence', uct_breadth: 'data:licence',
       uct_cot: 'data:licence', uct_short_interest: 'data:owner-hold', uct_short_volume: 'data:owner-hold',
       uct_sentiment: 'data:licence',
