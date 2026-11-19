@@ -577,13 +577,18 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
     // (`knownFromBeforeBuild`): the move this pass would make on a depth refusal is made without the build over
     // bars the run never draws, under the same limits (a strategy never moves; at most `KNOWN_FROM_PASSES`; never
     // to the last bar). A probe that finds no depth gap leaves the pass exactly as before.
+    // ⭐ PERF (a resumed tick) — ONE rows array and ONE ctx a pass, so the run can take the probe's supply over them
+    const passRows = cut ? rows.slice(cut) : rows
+    const passCtx = cut ? { ...(ctx || {}), historyFromListing: false } : ctx
+    let passOpts = opts
     if (!strategy && pass + 1 < KNOWN_FROM_PASSES) {
-      const k = knownFromBeforeBuild(def, cut ? rows.slice(cut) : rows, cut ? { ...(ctx || {}), historyFromListing: false } : ctx, opts)
+      const seen = {}
+      const k = knownFromBeforeBuild(def, passRows, passCtx, opts, seen)
       if (k > 0 && cut + k < rows.length - 1) { cut += k; continue }
+      if (seen.supply) passOpts = { ...opts, probedSupply: seen.supply }
     }
     try {
-      const cols = computeRuntimeColumnsAll(def, cut ? rows.slice(cut) : rows,
-        cut ? { ...(ctx || {}), historyFromListing: false } : ctx, opts)
+      const cols = computeRuntimeColumnsAll(def, passRows, passCtx, passOpts)
       return cut ? fromKnownDepth(cols, cut, rows[cut]) : cols
     } catch (err) {
       const k = err && Number.isInteger(err.knownFrom) ? err.knownFrom : 0
@@ -629,9 +634,40 @@ function depthGapPossible(rows, ctx) {
   }
   return false
 }
+// ⭐ PERF (a resumed tick, 2026-11-19) — THE BAR-FREE BUILD, ONCE PER DOCUMENT AND CONTEXT. A resumed 5m tick of Fred RS's
+// run half took ~116 ms, ~60 of it this probe's two bar-free builds (one a pass): the build reads no bar (`bars: []`),
+// so its requests are a function of the source and the build options alone, and they are kept per both, spelled out
+// whole (`JSON.stringify`: the options are plain data; one holding a function is never kept). Only a build that STOOD
+// is kept: one that did not (a translator timeout under a slow clock) is built again next time, as before.
+const _probeSites = new Map()
+const PROBE_SITES_CAP = 32
+let _probeMemoOff = false
+/** Tests: build every probe afresh, as before (the identity rails compare both). */
+export function __knownFromProbeMemoOffForTests(off) { _probeMemoOff = !!off }
+function probeSitesOf(source, buildOpts, listing, now) {
+  let key = null
+  if (!_probeMemoOff) {
+    try {
+      key = JSON.stringify([source, listing, buildOpts], (k, v) => {
+        if (typeof v === 'function') throw new Error('a build option that is a function is not kept')
+        return v
+      })
+    } catch { key = null }
+    if (key !== null && _probeSites.has(key)) return _probeSites.get(key)
+  }
+  const built = withTranslateClock(now, () => buildRuntimeIr(source, { ...buildOpts }))
+  if (!built || !built.ok) return null
+  const program = lowerIrProgram(built.ir, { historyFromListing: listing })
+  const sites = program.requests || []
+  if (key !== null) {
+    if (_probeSites.size >= PROBE_SITES_CAP) _probeSites.delete(_probeSites.keys().next().value)
+    _probeSites.set(key, sites)
+  }
+  return sites
+}
 /** The first chart bar every requested read is known from, when the run would be refused for a DEPTH gap alone,
  *  asked of the supply with a bar-free build's requests; or 0. Never throws. */
-export function knownFromBeforeBuild(def, rows, ctx, opts = {}) {
+export function knownFromBeforeBuild(def, rows, ctx, opts = {}, seen = null) {
   if (_knownFromProbeOff || !Array.isArray(rows) || rows.length < 2) return 0
   const compute = (def && def.compute) || {}
   const source = String(compute.source || '')
@@ -640,19 +676,41 @@ export function knownFromBeforeBuild(def, rows, ctx, opts = {}) {
   try {
     const slides = false
     const sessionKey = opts.incremental === false || opts.limits ? null : 'probe'
-    const built = withTranslateClock(opts.now, () => buildRuntimeIr(source, { ...runtimeIrOptions(def, [], ctx, { sessionKey, slides }) }))
-    if (!built || !built.ok) return 0
-    const program = lowerIrProgram(built.ir, { historyFromListing: !!(ctx && ctx.historyFromListing === true) })
-    const sites = program.requests || []
-    if (!sites.length) return 0
+    const sites = probeSitesOf(source, runtimeIrOptions(def, [], ctx, { sessionKey, slides }),
+      !!(ctx && ctx.historyFromListing === true), opts.now)
+    if (!sites || !sites.length) return 0
     // the ctx the run's first supply is asked with: off the listing, the curtain's (`computeOffListing`)
     const offListing = !!(def && def.meta && def.meta.runtimeHistory === 'listing') && !(ctx && ctx.historyFromListing === true)
-    const sup = runtimeRequestSupply(sites, rows, offListing ? { ...ctx, curtained: true } : ctx)
+    const curtained = offListing
+    const sup = runtimeRequestSupply(sites, rows, curtained ? { ...ctx, curtained: true } : ctx)
+    // ⭐ PERF — what was asked, for the run of this pass to take instead of asking again (`supplyProbed`)
+    if (seen && sup && !sup.refusal && !sup.pending) seen.supply = { rows, ctx, curtained, sites, sup }
     const k = sup && sup.refusal && Number.isInteger(sup.refusal.knownFrom) ? sup.refusal.knownFrom : 0
     return k > 0 ? k : 0
   } catch {
     return 0
   }
+}
+
+/** ⭐ PERF (a resumed tick, coordinator ruling 2026-11-19) — THE PROBE'S SUPPLY, TAKEN WHERE IT IS THE RUN'S OWN. The
+ *  depth probe asks the supply over this pass's rows and ctx; when it found no depth to move, the run of the pass (the
+ *  curtain's A, or a run on the listing) asks again over the very same rows array and ctx, with requests the probe's
+ *  bar-free build lowered alike (railed: `knownFromBeforeBuild.test.js`, and compared here, field by field). The
+ *  supply is a function of those three alone, so the answer is taken. Anything else (B's rows, a window, another
+ *  ctx, a request that differs) asks afresh, as before. */
+let _probedSupplyOff = false
+/** Tests: every run asks the supply itself, as before. */
+export function __probedSupplyOffForTests(off) { _probedSupplyOff = !!off }
+const sameSites = (a, b) => {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+  try {
+    for (let i = 0; i < a.length; i += 1) if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) return false
+  } catch { return false }
+  return true
+}
+function supplyProbed(probed, sites, rows, ctx, curtained) {
+  if (_probedSupplyOff || !probed || probed.rows !== rows || probed.ctx !== ctx || probed.curtained !== curtained) return null
+  return sameSites(probed.sites, sites) ? probed.sup : null
 }
 
 /** The run over `rows.slice(cut)`, as the chart reads it: widened (`NaN` before `cut`), drawings shifted, the
@@ -959,7 +1017,7 @@ function buildBytes(build) {
   return bytes
 }
 /** Drop every session (tests; a host that wants a cold start). */
-export function resetRuntimeSessions() { _sessions.clear() }
+export function resetRuntimeSessions() { _sessions.clear(); _probeSites.clear() }
 /** ⭐ What the sessions hold (diagnostics, the resource measurement): how many, and an
  *  ESTIMATE of their bytes — 8 a number (bars, columns, outputs, numeric state), 16 an
  *  array element, plus 256 a live drawing. */
@@ -1635,8 +1693,10 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // during the session the newest requested bar moves on every tick, so that key misses on every tick. Only a supply
   // DERIVED from the previous one when the newest bar alone moved would pay, and after #1977 and #2003 the supply costs
   // ~9 ms a run on 11,520 5m bars (a resumed tick: ~116 ms in all). Re-open with a measured tick where it dominates.
+  const curtainedSupply = !!(opts && opts.warmupCurtain === false)
   const reqSupply = requestSites.length
-    ? runtimeRequestSupply(program.requests, rows, opts && opts.warmupCurtain === false ? { ...ctx, curtained: true } : ctx)
+    ? (supplyProbed(opts && opts.probedSupply, program.requests, rows, ctx, curtainedSupply)
+      || runtimeRequestSupply(program.requests, rows, curtainedSupply ? { ...ctx, curtained: true } : ctx))
     : null
   if (reqSupply && reqSupply.refusal) {
     const err = refusal(reqSupply.refusal.guard, reqSupply.refusal.message)

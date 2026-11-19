@@ -18,14 +18,20 @@ import process from 'node:process'
 import util from 'node:util'
 import {
   computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, RUNTIME_KNOWN_FROM_KEY, runtimeIrOptions,
-  knownFromBeforeBuild, __knownFromProbeOffForTests,
+  knownFromBeforeBuild, __knownFromProbeOffForTests, __knownFromProbeMemoOffForTests, __probedSupplyOffForTests,
 } from '../runtimeColumns.js'
 import { RUNTIME_OBJECTS_KEY } from '../runtimeObjects.js'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
+import { runtimeRequestSupply } from '../requestSupply.js'
 import { OWN_DAILY_KEY } from '../../otherSymbols.js'
 
 // every build the run makes is counted (the front end itself, wrapped): the whole-chart build must not happen
+// every supply the run asks is counted (the supplier itself, wrapped)
+vi.mock('../requestSupply.js', async (importOriginal) => {
+  const m = await importOriginal()
+  return { ...m, runtimeRequestSupply: vi.fn(m.runtimeRequestSupply) }
+})
 vi.mock('../../ast/pineRuntimeFrontend.js', async (importOriginal) => {
   const m = await importOriginal()
   return { ...m, buildRuntimeIr: vi.fn(m.buildRuntimeIr) }
@@ -208,6 +214,26 @@ describe('a refusal from the drawn span still fires; a refusal the supply names 
   })
 })
 
+describe("the run of a pass takes the probe's supply where it is its own", () => {
+  it('a request run on a deep chart asks the supply once fewer, and draws the same, bit for bit (⛔ CONTROL: hand-over off)', () => {
+    const def = runDef(pine(['x = request.security("SP:SPX", timeframe.period, ta.sma(close, 3))', 'plot(x)', 'plot(ta.sma(close, 5))']), { x: 0, s: 1 })
+    const run = (off) => {
+      __probedSupplyOffForTests(off)
+      resetRuntimeSessions(); resetRuntimeLedgers()
+      runtimeRequestSupply.mockClear()
+      try {
+        const cols = computeRuntimeColumns(def, CHART, ctx5(), { now: () => 0 })
+        return { cols, asks: runtimeRequestSupply.mock.calls.length }
+      } finally { __probedSupplyOffForTests(false) }
+    }
+    const off = run(true)
+    const on = run(false)
+    expect(on.asks).toBe(off.asks - 1)
+    sameDrawn(on.cols, off.cols, 'hand-over on vs off')
+    expect(on.cols[RUNTIME_KNOWN_FROM_KEY]).toEqual(off.cols[RUNTIME_KNOWN_FROM_KEY])
+  })
+})
+
 describe('on a deep chart the run never builds over every bar', () => {
   it('probe on: no build over the whole chart; ⛔ CONTROL probe off: the whole-chart build happens, as before', () => {
     const def = runDef(pine(['x = request.security("SP:SPX", timeframe.period, close)', 'plot(x)', 'plot(ta.sma(close, 5))']), { x: 0, s: 1 })
@@ -221,5 +247,28 @@ describe('on a deep chart the run never builds over every bar', () => {
     }
     expect(wholeBuilds(false)).toBe(0)
     expect(wholeBuilds(true)).toBeGreaterThan(0)
+  })
+  it('the probe builds once per document and context (a tick builds nothing); another timeframe, forming state, listing or symbol builds again (⛔ CONTROL memo off: every probe builds)', () => {
+    const def = runDef(pine(['x = request.security("SP:SPX", "D", close)', 'y = request.security("SP:SPX", timeframe.period, close)', 'plot(x + y)']), { x: 0 })
+    const probeBuilds = (ctx) => {
+      buildRuntimeIr.mockClear()
+      const k = knownFromBeforeBuild(def, CHART, ctx)
+      return { k, builds: buildRuntimeIr.mock.calls.filter(([, o]) => o && Array.isArray(o.bars) && o.bars.length === 0).length }
+    }
+    resetRuntimeSessions()
+    const first = probeBuilds(ctx5())
+    expect(first.builds).toBe(1)
+    expect(first.k).toBe(DEPTH * 192)
+    const again = probeBuilds(ctx5())     // a new context object with the same facts: a tick
+    expect(again).toEqual({ k: first.k, builds: 0 })
+    for (const [what, over] of [['timeframe', { tf: '15' }], ['forming', { newestBarIsForming: true }],
+      ['listing', { historyFromListing: true }], ['symbol', { symbol: { ticker: 'PINS', exchange: 'NYSE', industry: 'Internet Content & Information', sector: 'Communication Services', securityType: 'stock' } }]]) {
+      expect(probeBuilds(ctx5(over)).builds, what).toBe(1)
+    }
+    __knownFromProbeMemoOffForTests(true)
+    try {
+      expect(probeBuilds(ctx5()).builds).toBe(1)
+      expect(probeBuilds(ctx5())).toEqual({ k: first.k, builds: 1 })
+    } finally { __knownFromProbeMemoOffForTests(false) }
   })
 })
