@@ -31,10 +31,11 @@
   --br-ring: color-mix(in srgb, var(--text-bright) 45%, transparent);
   --br-up: var(--gain);
   --br-down: var(--loss);
-  /* Shade strength, the two steps of "unusually strong / weak". Readings near
-     normal (the old mild g1 / r1 and the caution step) get no fill at all. */
-  --br-tint-1: 18%;
-  --br-tint-2: 32%;
+  /* Shade strength by rarity (round 5): Notable (top/bottom 10% of all history),
+     Strong (3%), Extreme (0.5%) — breadth/shading.js decides the level. */
+  --br-tint-1: 14%;
+  --br-tint-2: 30%;
+  --br-tint-3: 55%;
   font-family: var(--font-sans);
 }
 /* Inside a UCT Terminal panel the shell insets the body (--panel-inset). */
@@ -285,16 +286,17 @@
   color: var(--br-text);
 }
 
-/* ── Signature shading ───────────────────────────────────────────────────────
-   Only where a reading is unusually strong (up) or weak (down), from the same
-   scoring as before (COLS colorFn / rowColorFn tiers): g3/r3 = the stronger
-   tint (32%), g2/r2 = the lighter one (18%), g1 · caution · r1 = no fill. A
-   tint of the THEME's own up / down colour, so it follows the member's app
-   theme; numbers on the strongest tint switch to the bright text token. */
+/* ── Signature shading by rarity (owner round 5, 2026-11-19) ────────────────
+   breadth/shading.js ranks the reading against ALL breadth history (frozen
+   cutoffs): Up = bullish, Dn = bearish (a huge Down 4%+ count is Dn). 1 Notable
+   (top/bottom 10%) faint · 2 Strong (3%) clear · 3 Extreme (0.5%) bright, bold.
+   The middle 80% is unshaded. Tints of the THEME's own up / down colour. */
 .shUp1 { background: color-mix(in srgb, var(--br-up) var(--br-tint-1), transparent); }
 .shUp2 { background: color-mix(in srgb, var(--br-up) var(--br-tint-2), transparent); color: var(--br-bright); }
+.shUp3 { background: color-mix(in srgb, var(--br-up) var(--br-tint-3), transparent); color: var(--br-bright); font-weight: 700; }
 .shDn1 { background: color-mix(in srgb, var(--br-down) var(--br-tint-1), transparent); }
 .shDn2 { background: color-mix(in srgb, var(--br-down) var(--br-tint-2), transparent); color: var(--br-bright); }
+.shDn3 { background: color-mix(in srgb, var(--br-down) var(--br-tint-3), transparent); color: var(--br-bright); font-weight: 700; }
 
 /* ── The shared heat ladder (source of truth for tokens.css --heat-*) ──────────
    No longer drawn by the Monitor sheet (it uses the Signature shading above); kept

@@ -16,6 +16,7 @@ import Menu, { SigMenuItem as MenuItem } from './breadth/SigMenu'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
+import { shadeFor } from './breadth/shading'
 import { fetchDrill, peekDrill, prefetchDrill, forgetDrill } from './breadth/drillFetch'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
@@ -346,14 +347,13 @@ function fmtCell(col, val) {
   return String(val)
 }
 
+// Round 5 (owner 2026-11-19): a cell is shaded by how RARE its reading is across
+// all breadth history (frozen cutoffs, breadth/shading.js) at three levels, colored
+// bullish / bearish. The tier ladders above (colorFn / rowColorFn) still drive the
+// Daily tab and the Views; the Monitor reads `shadeFor` only.
 function cellClass(col, val, row = null) {
-  let c = ''
-  if (col.rowColorFn && row) {
-    c = col.rowColorFn(row)
-  } else if (col.colorFn && val != null) {
-    c = col.colorFn(val)
-  }
-  return tierShadeClass(c)
+  const s = shadeFor(col.key, row)
+  return s ? styles[`sh${s.tone === 'bull' ? 'Up' : 'Dn'}${s.level}`] : ''
 }
 
 // SPY / QQQ MA columns: the header shows just the symbol; the title says what the
@@ -361,18 +361,6 @@ function cellClass(col, val, row = null) {
 const maStackSym = (col) => col.label.split(' ')[0]
 const maStackTitle = (col) => `${maStackSym(col)} above its ${col.maLabels.slice(0, -1).join(', ')} and ${col.maLabels[col.maLabels.length - 1]}-day averages`
 
-// UCT Signature "Quiet ledger" (owner 2026-11-17): the SAME tiers as always decide
-// what is strong or weak; only the picture changed. A cell is shaded only when its
-// reading is unusually strong (g2 / g3) or weak (r2 / r3) — a low-alpha tint of the
-// theme's own up / down colour, two steps by strength. Near-normal readings (g1, the
-// caution step, r1) get no fill at all.
-function tierShadeClass(tier) {
-  if (tier === 'g3') return styles.shUp2
-  if (tier === 'g2') return styles.shUp1
-  if (tier === 'r2') return styles.shDn1
-  if (tier === 'r3') return styles.shDn2
-  return ''
-}
 
 // ── The drill modal ───────────────────────────────────────────────────────
 // Clicking a breadth cell opens the REAL charts-workspace widgets — a watchlist
