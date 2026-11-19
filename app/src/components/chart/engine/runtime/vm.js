@@ -1627,8 +1627,16 @@ export function execute(program, ctx, limits, opts) {
           ? (plan.persist ? persist[plan.slot] : locals[plan.slot])
           : held[i]
       }
-      committed += 1
     }
+    // ⭐⭐ engine NUMBER PENDING — `committed` IS THE BAR'S ORDINAL, SO IT ADVANCES ON EVERY BAR, ring or no ring.
+    // ⚰️ It advanced only inside `if (nHist)`. A program with no history slot kept `committed = 0` for the whole
+    // run, and the one reader that needs the ordinal without a ring, the `finite` window policy (`ta.lowest` /
+    // `highest` / `lowestbars` / `highestbars`: `committed < span - 1` is its warm-up, and the `bars` members count
+    // back from it), answered `na` on every bar whose span was above 1. A window over an in-place source (HIST-S2)
+    // keeps its own ring and holds no history slot, so `if show` + `x := ta.lowest(low * 1, k)` read
+    // [95, na, na, na, 91, ...] where the root form (and Pine) read [95, 94, 93, 92, 91, ...], and a fixed length 3
+    // read `na` on every bar (`finiteWindowNoRing.test.js`). Every other reader of `committed` reads a ring.
+    committed += 1
 
     // ─── ⭐⭐⭐ THE BAR IS FINISHED — AND A DRAWING MAY STAND ON IT ────────
     //
