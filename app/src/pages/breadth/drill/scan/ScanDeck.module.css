@@ -114,17 +114,17 @@ span.metric:hover { background-color: transparent; }
 
 /* The readouts: label on top, value (with its picture) under it. */
 .tile {
-  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  display: flex; flex-direction: column; justify-content: center; gap: 8px;
   align-self: stretch; padding: 0 18px; min-width: 0; flex-shrink: 0;
   border-right: 1px solid var(--dr-line);
   white-space: nowrap;
 }
 .tileLbl { font-size: 11.5px; font-weight: 600; color: var(--dr-rest); }
-.tileVal { display: flex; align-items: flex-end; gap: 8px; min-width: 0; height: 24px; }
-.tileVal b { font-size: 20px; font-weight: 700; color: var(--dr-bright); font-variant-numeric: tabular-nums; line-height: 1; }
+.tileVal { display: flex; align-items: flex-end; gap: 10px; min-width: 0; height: 30px; }
+.tileVal b { font-size: 24px; font-weight: 700; color: var(--dr-bright); font-variant-numeric: tabular-nums; line-height: 1; }
 .tileVal small { font-size: 12px; font-weight: 500; padding-bottom: 1px; }
 .muted { color: var(--dr-faint); }
-.tileCount { flex: 0 1 520px; width: 520px; min-width: 420px; }
+.tileCount { flex: 0 1 440px; width: 440px; min-width: 300px; }
 .tileCount .tileLbl { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .tileCount .tileVal b { min-width: 3.2ch; }
 .tileHead { display: flex; align-items: center; justify-content: space-between; gap: 14px; height: 18px; }
@@ -139,13 +139,13 @@ span.metric:hover { background-color: transparent; }
 .rangeSeg button:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 .countDay { color: var(--dr-faint); min-width: 78px; }
 .countDay[data-past] { color: var(--dr-text); }
-.spark { flex: 1 1 auto; width: 0; min-width: 0; height: 24px; display: block; }
+.spark { flex: 1 1 auto; width: 0; min-width: 0; height: 30px; display: block; }
 .spark rect + rect { fill: var(--dr-bar); }
 .spark rect[data-now] { fill: var(--dr-rest); }
 .spark rect[data-hover] { fill: var(--dr-bright); }
 .spark rect[data-tick] { fill: var(--ut-gold); }
-.tileMix { flex: 1 1 auto; max-width: 820px; min-width: 300px; flex-shrink: 1; }
-.headNote { flex: 1 1 auto; min-width: 0; padding: 0 18px; font-size: 12px; line-height: 1.45; color: var(--dr-faint); white-space: normal; }
+.tileMix { flex: 1 1 420px; max-width: 640px; min-width: 220px; }
+.headNote { flex: 1 1 220px; max-width: 360px; min-width: 0; padding: 0 18px; align-self: center; font-size: 12px; line-height: 1.45; color: var(--dr-faint); white-space: normal; }
 .mixGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; row-gap: 8px; }
 .mixRow { display: grid; grid-template-columns: minmax(0, auto) minmax(14px, 1fr) 24px; align-items: center; gap: 7px; font-size: 12px; cursor: default; }
 .mixName { display: flex; align-items: center; gap: 6px; color: var(--dr-rest); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
@@ -338,7 +338,20 @@ span.metric:hover { background-color: transparent; }
 .gridEmpty { padding: 40px; text-align: center; color: var(--text-muted); }
 
 /* Narrower windows shed the least-needed pieces rather than wrap. */
-@media (max-width: 1100px) { .tileMix { display: none; } }
+/* ~1440px screens: the sector mix keeps its top 4, in two columns. Narrower: it goes. */
+@media (max-width: 1760px) {
+  .mixGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mixRow:nth-child(n + 5) { display: none; }
+  .tile { padding: 0 14px; }
+  .tileCount { min-width: 250px; }
+  .tileMix { min-width: 200px; }
+  /* the names keep their room; the little bars go (the counts still rank them) */
+  .mixRow { grid-template-columns: minmax(0, 1fr) 24px; }
+  .mixTrack { display: none; }
+  .identity { padding: 0 14px; }
+  .headEnd { padding-left: 12px; }
+}
+@media (max-width: 1240px) { .tileMix, .headNote { display: none; } }
 
 /* Phone: the list + date on one line, the reading under it. */
 @media (max-width: 640px) {

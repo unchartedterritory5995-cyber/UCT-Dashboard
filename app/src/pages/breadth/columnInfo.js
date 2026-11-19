@@ -9,12 +9,16 @@
 //   name   the column in plain words
 //   desc   what it measures and how to read it (one or two short sentences)
 //   weekly true for a weekly survey (the card says it updates weekly)
+//   title  the column's medium-length name for a window title or a menu ("Down 4%+ today",
+//          "Up 20% in 5 days"): written out, never the sheet's abbreviation, ≤ 24 characters.
+//          Every column has one (columnInfo.test.js); `columnTitle()` reads it.
 const MA = (n, kind = 'simple') => ({
+  title: `Above ${n}-day average`,
   name: `Stocks above their ${n}-day average`,
   desc: `Share of stocks closing above their ${n}-day ${kind} moving average. High readings mean broad strength; very low readings mean a washed-out market.`,
 })
 
-export const COLUMN_INFO = Object.freeze({
+const INFO = {
   // ── Score ──
   breadth_score: { name: 'Breadth health', desc: 'UCT’s composite breadth score, built from the breadth readings on this sheet. Higher means healthier participation.' },
   uct_exposure: { name: 'UCT Exposure', desc: 'UCT’s recommended market exposure rating for the session. Higher means more exposure is warranted.' },
@@ -93,7 +97,44 @@ export const COLUMN_INFO = Object.freeze({
   aaii_spread: { name: 'AAII bull-bear spread', desc: 'AAII bulls minus bears. Deeply negative readings mark pessimism, often near lows.', weekly: true },
   naaim: { name: 'NAAIM Exposure Index', desc: 'How much stock exposure active investment managers report, on average. High means managers are fully invested.', weekly: true },
   cboe_putcall: { name: 'CBOE put/call ratio', desc: 'Put volume divided by call volume on CBOE. High readings mean traders are buying protection.' },
-})
+}
+
+// The medium-length titles (window titles, the drill's metric switcher). Written out in full.
+const TITLES = {
+  breadth_score: 'Breadth health', uct_exposure: 'UCT Exposure',
+  up_4pct_today: 'Up 4%+ today', down_4pct_today: 'Down 4%+ today',
+  ratio_5day: '5-day up/down ratio', ratio_10day: '10-day up/down ratio',
+  up_20pct_5d: 'Up 20% in 5 days', down_20pct_5d: 'Down 20% in 5 days',
+  up_25pct_quarter: 'Up 25% in a quarter', down_25pct_quarter: 'Down 25% in a quarter',
+  up_25pct_month: 'Up 25% in a month', down_25pct_month: 'Down 25% in a month',
+  up_50pct_month: 'Up 50% in a month', down_50pct_month: 'Down 50% in a month',
+  magna_up: 'Up 13% in 34 days', magna_down: 'Down 13% in 34 days',
+  universe_count: 'Stocks in universe', is_ftd: 'Follow-Through Day',
+  spy_ma_stack: 'SPY vs its averages', qqq_ma_stack: 'QQQ vs its averages',
+  sp500_close: 'S&P 500 close', qqq_close: 'QQQ close', vix: 'VIX volatility index',
+  mcclellan_osc: 'McClellan Oscillator', stage2_count: 'Stocks in Stage 2', stage4_count: 'Stocks in Stage 4',
+  new_52w_highs: 'New 52-week highs', new_52w_lows: 'New 52-week lows',
+  new_20d_highs: 'New 20-day highs', new_20d_lows: 'New 20-day lows',
+  new_ath: 'New all-time highs', hvc_52w: 'Highest-volume closes', atr_ext_7: 'Extended 7+ ATRs',
+  net_new_high_low: 'Net new highs − lows', near_52w_high: 'Near 52-week highs',
+  hi_ratio: 'New highs, % of stocks', lo_ratio: 'New lows, % of stocks',
+  adv_decline: 'Advancers − decliners', advancing: 'Advancing stocks', declining: 'Declining stocks',
+  adv_decline_cum: 'Advance/decline line', up_vol_ratio: 'Up volume ratio',
+  spy_dist_days: 'S&P distribution days', qqq_dist_days: 'QQQ distribution days',
+  rsp_spy_ratio: 'Equal-weight vs S&P 500', iwm_qqq_ratio: 'Small caps vs Nasdaq 100',
+  vix_term_structure: 'VIX term structure', cnn_fear_greed: 'CNN Fear & Greed',
+  aaii_bulls: 'AAII bulls', aaii_neutral: 'AAII neutral', aaii_bears: 'AAII bears',
+  aaii_spread: 'AAII bull-bear spread', naaim: 'NAAIM Exposure Index', cboe_putcall: 'CBOE put/call ratio',
+}
+
+export const COLUMN_INFO = Object.freeze(Object.fromEntries(
+  Object.entries(INFO).map(([k, v]) => [k, Object.freeze({ title: TITLES[k], ...v })]),
+))
+
+/** The column's medium-length title ("Down 4%+ today"), else `fallback`. */
+export function columnTitle(key, fallback = null) {
+  return COLUMN_INFO[key]?.title ?? fallback
+}
 
 /** The column's info, or null for an unknown key. */
 export function columnInfo(key) {

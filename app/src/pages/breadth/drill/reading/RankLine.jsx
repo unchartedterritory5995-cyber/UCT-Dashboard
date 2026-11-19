@@ -7,30 +7,34 @@ const Chevron = () => (
   </svg>
 )
 
-// The two lines under the count: where the reading sits ("Top 6% since 2008 · Strong", a range
-// bar, History ›) and a faint line ("Last this high: … · seen N times in 18 years").
-// ⛔ ALWAYS TWO LINES, loaded or not: the top band has a fixed height, so the window never moves
+// THE READING, a section of its own in the top band (owner 2026-11-19: the rank squeezed under
+// the count was "extremely packed" while the band's right side sat empty). Three rows:
+//   Top 1% since 2008  ● Extreme
+//   [────────────●]                  History ›
+//   Last this high: Apr 10, 2025 · seen 68 times in 19 years
+// ⛔ ALWAYS THREE ROWS, loaded or not: the band has a fixed height, so the window never moves
 // when the answer lands (or when it never does).
 export default function RankLine({ reading, loading = false, onHistory = null, histOpen = false, showButton = true }) {
   const line = reading ? rankLine(reading) : null
   if (!line) {
     return (
-      <>
-        <span className={styles.rank} data-state="pending" aria-hidden={!loading || undefined}>
-          {loading ? <span className={styles.skel} /> : <span className={styles.placeholder}>—</span>}
-        </span>
-        <span className={styles.faint} aria-hidden="true">{' '}</span>
-      </>
+      <div className={styles.readingTile} data-state="pending" aria-hidden={!loading || undefined}>
+        <span className={styles.rankHead}>{loading ? <span className={styles.skel} /> : <span className={styles.placeholder}>—</span>}</span>
+        <span className={styles.rankRow}><span className={styles.track} /></span>
+        <span className={styles.faint}>{' '}</span>
+      </div>
     )
   }
   const tone = line.tone || undefined
   return (
-    <>
-      <span className={styles.rank} data-state={line.state} aria-label="The reading" role="group">
+    <div className={styles.readingTile} data-state={line.state} aria-label="The reading" role="group">
+      <span className={styles.rankHead}>
         <span className={styles.rankText}>{line.text}</span>
         {line.word && (
           <span className={styles.word} data-tone={tone}><i aria-hidden="true" />{line.word}</span>
         )}
+      </span>
+      <span className={styles.rankRow}>
         <span className={styles.track} data-tone={tone} role="img"
           aria-label={`${ordinal(line.marker)} percentile of every session since ${reading.window.start.slice(0, 4)}`}>
           <i className={styles.trackZone} style={{ left: `${line.zone.from}%`, width: `${line.zone.to - line.zone.from}%` }} />
@@ -46,6 +50,6 @@ export default function RankLine({ reading, loading = false, onHistory = null, h
         )}
       </span>
       <span className={styles.faint} title={line.faint}>{line.faint}</span>
-    </>
+    </div>
   )
 }

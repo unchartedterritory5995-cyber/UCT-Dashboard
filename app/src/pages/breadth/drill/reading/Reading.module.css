@@ -4,21 +4,25 @@
    bar, the chart's timeframe underline and today's sparkline tick. Values are the `--dr-*` names
    ScanDeck.module.css sets for dark and light. */
 
-/* ── Rank line ───────────────────────────────────────────────────────────── */
-.rank {
-  display: flex; align-items: center; gap: 9px; min-width: 0;
-  height: 18px; font-size: 12.5px; white-space: nowrap;
+/* ── The reading: its own section of the top band ─────────────────────────── */
+.readingTile {
+  display: flex; flex-direction: column; justify-content: center; gap: 6px;
+  align-self: stretch; flex: 1 1 380px; min-width: 300px; max-width: 520px;
+  padding: 0 20px; border-right: 1px solid var(--dr-line);
+  font-family: var(--font-sans); white-space: nowrap;
 }
-.rankText { font-weight: 600; color: var(--dr-text); overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
-.rank[data-state='typical'] .rankText,
-.rank[data-state='quiet'] .rankText { color: var(--dr-faint); font-weight: 500; }
-.word { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; flex-shrink: 0; color: var(--dr-faint); }
-.word i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; display: inline-block; }
+.rankHead { display: flex; align-items: center; gap: 10px; min-width: 0; height: 20px; }
+.rankText { font-size: 15px; font-weight: 700; color: var(--dr-bright); overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.readingTile[data-state='typical'] .rankText,
+.readingTile[data-state='quiet'] .rankText { color: var(--dr-rest); font-weight: 600; font-size: 14px; }
+.word { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; flex-shrink: 0; color: var(--dr-faint); }
+.word i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; display: inline-block; }
 .word[data-tone='bull'] { color: var(--dr-up); }
 .word[data-tone='bear'] { color: var(--dr-down); }
 .word:not([data-tone]) i { display: none; }
 
-.track { position: relative; flex: 1 1 60px; min-width: 40px; max-width: 220px; height: 4px; border-radius: 2px; background: var(--dr-track); margin: 0 2px; }
+.rankRow { display: flex; align-items: center; gap: 14px; min-width: 0; height: 22px; }
+.track { position: relative; flex: 1 1 auto; min-width: 80px; height: 4px; border-radius: 2px; background: var(--dr-track); margin: 0 6px; }
 .trackZone { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: color-mix(in srgb, var(--dr-faint) 22%, transparent); }
 .track[data-tone='bull'] .trackZone { background: color-mix(in srgb, var(--dr-up) 30%, transparent); }
 .track[data-tone='bear'] .trackZone { background: color-mix(in srgb, var(--dr-down) 30%, transparent); }
@@ -44,7 +48,7 @@
 .histBtn svg { color: var(--dr-dim); }
 .histBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 
-.faint { height: 14px; font-size: 11.5px; line-height: 14px; color: var(--dr-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.faint { height: 14px; font-size: 12px; line-height: 14px; color: var(--dr-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .faint b { color: var(--dr-rest); font-weight: 500; }
 .placeholder { color: transparent; }
 .skel { display: inline-block; height: 8px; width: 46%; border-radius: 4px; background: var(--dr-soft); vertical-align: middle; }
@@ -130,5 +134,6 @@
 .status { padding: 24px 16px; color: var(--dr-faint); font-size: 12.5px; }
 .typicalBanner { font-size: 13px; font-weight: 600; color: var(--dr-text); }
 
+@media (max-width: 1760px) { .readingTile { min-width: 260px; padding: 0 14px; } }
 @media (max-width: 900px) { .panel[data-layout='row'] { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .drawer { width: 100%; } .track { display: none; } }
+@media (max-width: 640px) { .drawer { width: 100%; } .readingTile { order: 4; flex-basis: 100%; max-width: none; padding: 0; border-right: 0; } }

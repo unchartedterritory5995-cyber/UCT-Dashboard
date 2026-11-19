@@ -142,3 +142,10 @@
 
 /* Applied filters inline in the Grid toolbar: no strip of their own. */
 .gridChips { border: 0; padding: 0; background: transparent; flex-wrap: nowrap; overflow: hidden; min-width: 0; }
+
+/* DEV ONLY: the sample-list note over the chart (never rendered in a build). */
+.sampleNote {
+  position: absolute; left: 50%; top: 50%; transform: translate(-10%, -50%); z-index: 5; pointer-events: none;
+  padding: 6px 12px; border-radius: 7px; background: var(--dr-soft); color: var(--dr-faint);
+  font-family: var(--font-sans); font-size: 12px;
+}

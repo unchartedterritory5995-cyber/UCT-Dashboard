@@ -19,7 +19,7 @@ import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
 import { shadeFor, SHADE_SPEC } from './breadth/shading'
 import { defaultsFor } from './breadth/defaultColumns'
-import { columnInfo } from './breadth/columnInfo'
+import { columnInfo, columnTitle } from './breadth/columnInfo'
 import { fetchDrill, peekDrill, prefetchDrill, forgetDrill } from './breadth/drillFetch'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
@@ -572,7 +572,8 @@ function orderedColKeys(order) {
   return [...saved, ...COLS.map(c => c.key).filter(k => !seen.has(k))]
 }
 // Every column a member can drill, in table order — the scan window's list picker.
-const DRILL_COLS = COLS.filter(c => c.drillKey).map(c => ({ key: c.key, label: c.label, drillKey: c.drillKey }))
+// The drill window names a metric in full ("Down 4%+ today", not "Dn 4%+"); the switcher lists the same.
+const DRILL_COLS = COLS.filter(c => c.drillKey).map(c => ({ key: c.key, label: columnTitle(c.key, c.label), drillKey: c.drillKey }))
 
 // TIER_SCORES / TIER_LABELS / TIER_TIP_COLORS moved to breadth/heatmapMetrics.js
 // (imported + re-exported above).
@@ -972,10 +973,22 @@ export default function Breadth() {
   // wrong answer. A pod restart mid-request (every deploy) or one dropped
   // connection told the member the market was quiet. `error` keeps the two
   // states apart and the list offers a retry instead of a lie.
-  const loadDrill = useCallback((url, live = false) => {
-    fetchDrill(url, { live })
+  const loadDrill = useCallback((url, live = false, devCount = null) => {
+    let req = fetchDrill(url, { live })
+    // ⛔ DEV ONLY: on localhost a list that fails or comes back empty (the local production copy
+    // holds no lists) is replaced by an INVENTED sample, labelled "dev sample list", so the window
+    // can be judged. `import.meta.env.DEV` is false in a build: Vite drops this branch and never
+    // emits devSampleList.js (devSampleList.test.js checks the built bundle).
+    if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
+      req = req.catch(() => null).then(data => (data?.items?.length ? data
+        : import('./breadth/drill/devSampleList').then(m => (m.isLocalDevHost()
+          ? m.devSampleList({ seed: url, count: devCount, down: /\/drill\/(down|dn|declin|magna_down|new_52w_lows|new_20d_lows)/.test(url) })
+          : data)).catch(() => data)))
+        .then(data => { if (!data) throw new Error('drill'); return data })
+    }
+    req
       .then(data => setDrill(prev => (prev && prev.url === url
-        ? { ...prev, items: data.items ?? [], error: null }
+        ? { ...prev, items: data.items ?? [], error: null, devSample: !!data.devSample }
         : prev)))
       .catch(() => setDrill(prev => (prev && prev.url === url
         ? { ...prev, items: [], error: 'load' }
@@ -993,7 +1006,7 @@ export default function Breadth() {
     // A list already fetched (the hover started it, or it was open before)
     // paints on the first frame; otherwise it lands when the request does.
     const cached = peekDrill(target.url)
-    setDrill({ date: target.date, label: col.label, live: target.live,
+    setDrill({ date: target.date, label: columnTitle(col.key, col.label), live: target.live,
                colKey: col.key, drillKey: col.drillKey,
                asOf: target.live ? live?.asOf ?? null : null,
                url: target.url, items: cached ? (cached.items ?? []) : null, error: null,
@@ -1002,14 +1015,15 @@ export default function Breadth() {
                universe: 'uct', value: isFiniteNum(row[col.key]) ? row[col.key] : null,
                per: isFiniteNum(row.universe_count) ? row.universe_count : null,
                valueText: fmtCell(col, row[col.key]), fmt: (v) => fmtCell(col, v), isCount: isCountCol(col.key) })
-    if (!cached) loadDrill(target.url, target.live)
+    const devRefill = import.meta.env.DEV && cached && !cached.items?.length
+    if (!cached || devRefill) loadDrill(target.url, target.live, row[col.key])
   }, [loadDrill])
 
   // A cell with no list (or any cell off UCT): the reading-only window. ⛔ No list fetch.
   const openReading = useCallback((row, col, uni = 'uct') => {
     const val = row?.[col.key]
     if (!row?.date || !isFiniteNum(val) && !row?._synthetic) return
-    setDrill({ readingOnly: true, date: row.date, label: col.label, live: !!row._live,
+    setDrill({ readingOnly: true, date: row.date, label: columnTitle(col.key, col.label), live: !!row._live,
                colKey: col.key, drillKey: col.drillKey || null, universe: uni,
                value: isFiniteNum(val) ? val : null,
                per: isFiniteNum(row.universe_count) ? row.universe_count : null,

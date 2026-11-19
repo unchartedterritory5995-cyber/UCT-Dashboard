@@ -36,10 +36,13 @@ export function ScanHeader({
         {dateNav && <div className={styles.dateWrap}>{dateNav}</div>}
       </div>
 
-      <CountHistory count={count} ctx={ctx} onWantDays={onWantDays}
-        reading={reading} readingLoading={readingLoading} onHistory={onHistory} histOpen={histOpen} {...(tile || {})} />
+      <CountHistory count={count} ctx={ctx} onWantDays={onWantDays} {...(tile || {})} />
 
+      {/* count | sectors | the reading | view toggles (owner 2026-11-19: the reading gets its
+          own section, using the band's empty width) */}
       {note ? <span className={styles.headNote}>{note}</span> : <SectorMix sectors={summary?.sectors} />}
+
+      <RankLine reading={reading} loading={readingLoading} onHistory={onHistory} histOpen={histOpen} />
 
       <div className={styles.headEnd}>
         {children}
@@ -86,7 +89,7 @@ const fmtDay = (d) => {
 }
 
 function CountHistory({
-  count, ctx, onWantDays, reading = null, readingLoading = false, onHistory = null, histOpen = false,
+  count, ctx, onWantDays,
   // A reading-only window (a ratio, a percent, another universe) names its own column and units.
   label = null, fmt = null, unitOne = 'stock', unitMany = 'stocks',
 }) {
@@ -149,7 +152,6 @@ function CountHistory({
           </svg>
         )}
       </span>
-      <RankLine reading={reading} loading={readingLoading} onHistory={onHistory} histOpen={histOpen} />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { COLUMN_INFO, columnInfo } from './columnInfo'
+import { COLUMN_INFO, columnInfo, columnTitle } from './columnInfo'
 import { COLS } from '../Breadth'
 
 // Every Monitor column explains itself (owner 2026-11-19): a new column cannot ship
@@ -10,6 +10,15 @@ describe('column info covers every metric', () => {
     expect(info, `add ${key} to breadth/columnInfo.js`).toBeTruthy()
     expect(info.name.trim().length).toBeGreaterThan(2)
     expect(info.desc.trim().length).toBeGreaterThan(20)
+  })
+
+  it.each(COLS.map(c => [c.key, c.label]))('%s (%s) has a written-out title for the drill window', (key, label) => {
+    const t = columnTitle(key)
+    expect(t, `add a title for ${key} in breadth/columnInfo.js`).toBeTruthy()
+    expect(t.length).toBeLessThanOrEqual(24)
+    // never the sheet's abbreviations
+    expect(t).not.toMatch(/\bDn\b|\d+%\/|\/\d+d\b|>\d|SMA\b/)
+    if (/^Dn /.test(label)) expect(t).toMatch(/^Down /)
   })
 
   it('copy rules: American spelling, no stale-feed notes, no "AI"', () => {

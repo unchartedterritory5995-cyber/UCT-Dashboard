@@ -102,9 +102,25 @@ describe('the model', () => {
 })
 
 describe('the rank line', () => {
-  it('reserves its two lines while loading (the band never moves)', () => {
+  it('is a section of its own with three rows, reserved while loading (the band never moves)', () => {
     const { container } = render(<RankLine reading={null} loading />)
-    expect(container.children).toHaveLength(2)
+    expect(container.children).toHaveLength(1)
+    expect(container.firstChild.children).toHaveLength(3)
+  })
+  it('the band runs count | sectors | reading | view toggles', () => {
+    readingState.current = { reading: makeReading(), loading: false, error: null }
+    render(<ScanHeader label="Up 20% in 5 days" count={3} modes={['focus']} mode="focus" onMode={() => {}} onClose={() => {}}
+      reading={makeReading()} onHistory={() => {}}
+      summary={{ sectors: [{ key: 'Technology', count: 2 }, { key: 'Energy', count: 1 }] }}
+      ctx={{ series: [1, 2, 3], seriesDates: ['a', 'b', 'c'] }} />)
+    const band = screen.getByRole('group', { name: 'The reading' }).parentElement
+    const order = [...band.children].map(c => c.getAttribute('aria-label') || c.textContent.slice(0, 12))
+    const iCount = order.findIndex(t => /Stocks each/.test(t))
+    const iMix = order.findIndex(t => /^Sector mix/.test(t))
+    const iReading = order.indexOf('The reading')
+    expect(iCount).toBeLessThan(iMix)
+    expect(iMix).toBeLessThan(iReading)
+    expect(screen.getByText('Last this high: Apr 22, 2025 · seen 287 times in 19 years')).toBeTruthy()
   })
   it('notable: toned word, History button at full strength', () => {
     const onHistory = vi.fn()

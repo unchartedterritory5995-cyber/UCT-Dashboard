@@ -412,6 +412,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
           readingLoading={readingLoading}
           onHistory={toggleHistory}
           histOpen={histOpen}
+          badge={import.meta.env.DEV && drill?.devSample ? 'dev sample list' : null}
         >
           <div className={styles.paneToggle} role="group" aria-label="Show list or chart">
             <button type="button" className={mobilePane === 'list' ? styles.paneOn : undefined}
@@ -423,6 +424,10 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
 
         <div className={styles.panel}>
         {popNotice && <div className={styles.notice}>{popNotice}</div>}
+        {/* DEV ONLY: the sample's tickers are invented, so their charts are empty on purpose. */}
+        {import.meta.env.DEV && drill?.devSample && mode !== 'grid' && (
+          <div className={styles.sampleNote} role="note">Dev sample list: invented tickers, so the chart is empty</div>
+        )}
         {histOpen && (
           <HistoryDrawer
             label={source.label}
