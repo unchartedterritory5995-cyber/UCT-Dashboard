@@ -486,3 +486,42 @@ def test_a_last_bar_recipe_is_handed_over_with_the_reason_it_waits(conv, clean_e
     assert fib["id"] in json.dumps(client.calls[0]["messages"]) or fib["title"] in json.dumps(client.calls[0]["messages"])
     assert json.dumps(pine_authoring.LAST_BAR_RECIPE_LINE)[1:-1] not in json.dumps(client.calls[0]["messages"])
     assert r["script"]["reference"] == "fibonacci-swings" and r["script"]["waits_for_the_bar"] is False
+
+
+# ═══ a refused script goes back to its recipe ════════════════════════════════════════
+#
+# ⚰️ Found live 2026-11-19: two requests that each have a proven recipe were answered, after a refusal, with
+# something else (a rolling average for the session's; a formula too long for a plot where the recipe loops).
+
+def _repair_sent(conv, model, words, refused_pine):
+    client = model([writes(GOOD, reply="Fixed.")])
+    sc.script_turn(words, user_id="u1", chart=CHART, cap_usd=5.0, calls=[], revision=0, contract=conv.PATCH_CONTRACT,
+                   refused={"pine": refused_pine, "errors": ["its plot is a formula of 716 steps"], "round": 1})
+    return client.calls[0]["messages"][-1]["content"][0]["content"]
+
+
+def test_a_repair_is_sent_back_to_the_recipe_the_request_was_handed(conv, clean_env, model, lane):
+    channel = _recipe("regression-channel")
+    words = "Add a " + channel["asks"][0]
+    assert channel["id"] in [h["id"] for h in pine_authoring.recipes_for(words)]
+    # the refused script is the assistant's own: it is told the recipe is the way back
+    sent = _repair_sent(conv, model, words, GOOD)
+    assert sent.startswith("[engine:refused]") and sent.endswith(sc.RECIPE_BACK_LINE)
+    assert sc.RECIPE_KEPT_LINE not in sent
+    # the refused script IS the recipe (with the member's settings): it is told not to trade it for another indicator
+    sent = _repair_sent(conv, model, words, _with_settings(channel["source"]))
+    assert sent.endswith(sc.RECIPE_KEPT_LINE) and sc.RECIPE_BACK_LINE not in sent
+    # CONTROL: a request no recipe answers is told neither
+    sent = _repair_sent(conv, model, TABLE_REQUEST, GOOD)
+    assert pine_authoring.recipes_for(TABLE_REQUEST) == []
+    assert sc.RECIPE_BACK_LINE not in sent and sc.RECIPE_KEPT_LINE not in sent
+    assert sent.endswith("say so (disposition unsupported).")
+
+
+def test_the_recipe_still_rides_the_repair_turn(conv, clean_env, model, lane):
+    channel = _recipe("regression-channel")
+    client = model([writes(GOOD, reply="Fixed.")])
+    sc.script_turn("Add a " + channel["asks"][0], user_id="u1", chart=CHART, cap_usd=5.0, calls=[], revision=0,
+                   contract=conv.PATCH_CONTRACT, refused={"pine": GOOD, "errors": ["x"], "round": 1})
+    first = client.calls[0]["messages"][0]["content"]
+    assert "RECIPES (whole scripts this engine runs as written" in first and channel["title"] in first

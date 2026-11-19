@@ -142,6 +142,28 @@ def _request_text(message: str, chart: Any) -> str:
             "Write the script with the emit_script tool." + (f"\n\n{found}" if found else ""))
 
 
+#: ⭐ A REFUSED SCRIPT GOES BACK TO ITS RECIPE (found live 2026-11-19). Two requests that each have a proven
+#: recipe were answered, after a refusal, with something else: a ROLLING average where the session's was asked
+#: for, and a formula too long for a plot where the recipe's loop runs. The recipe rides every turn of the
+#: request (`_request_text`); what was missing is saying, at the moment of the refusal, that it is the way
+#: back. Which line is said is decided by counting (`pine_authoring.backed_by`), never by the assistant.
+RECIPE_BACK_LINE = (" A RECIPE for this request is above: it runs on this engine as written and its numbers were "
+                    "checked. Go back to it: keep its structure and change only the numbers and words the member "
+                    "asked for. Do not answer with a different indicator than the one asked for.")
+RECIPE_KEPT_LINE = (" This script IS the recipe above, which is proven on this engine, so the refusal is about the "
+                    "member's chart or a number you changed, not about the recipe. Do not rewrite it into a different "
+                    "indicator to make the refusal go away. If what the engine names can be fixed without changing what "
+                    "the script computes, fix only that; otherwise return the recipe as it was and say in `reply` what "
+                    "the engine named.")
+
+
+def _recipe_line(message: str, refused: Mapping[str, Any]) -> str:
+    """What a repair is told about the recipe handed with this request: nothing when none was."""
+    if not pine_authoring.recipes_for(message):
+        return ""
+    return RECIPE_KEPT_LINE if pine_authoring.backed_by(message, refused.get("pine")) is not None else RECIPE_BACK_LINE
+
+
 def _messages(message: str, chart: Any, refused: Optional[Mapping[str, Any]]) -> List[dict]:
     out: List[dict] = [{"role": "user", "content": _request_text(message, chart)}]
     if refused:
@@ -154,7 +176,8 @@ def _messages(message: str, chart: Any, refused: Optional[Mapping[str, Any]]) ->
                 {"type": "tool_result", "tool_use_id": REFUSED_TOOL_USE_ID, "is_error": True,
                  "content": (f"[engine:refused] UCT's engine checked this script and does not run it as written: {words} "
                              "Fix exactly what the engine names and return the WHOLE corrected script. If the engine "
-                             "cannot do what was asked, say so (disposition unsupported).")}]},
+                             "cannot do what was asked, say so (disposition unsupported)."
+                             + _recipe_line(message, refused))}]},
         ]
     return out
 
