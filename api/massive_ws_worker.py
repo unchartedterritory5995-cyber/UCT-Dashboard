@@ -3894,13 +3894,13 @@ def backfill_stranded_spots(target_date_mdyyyy: str = None) -> dict:
     Silent on failure: logs + returns {"error": "..."} rather than raising.
     """
     import sqlite3
-    from datetime import datetime, timezone, timedelta
 
     started = time.time()
 
-    # Default target_date to today in ET (matches CreatedDate format).
+    # Default target_date to today in ET (matches CreatedDate format). The zone
+    # carries the UTC offset, so this holds in winter (UTC-5) and summer (UTC-4).
     if not target_date_mdyyyy:
-        _et_now = datetime.now(timezone.utc) + timedelta(hours=-4)  # July DST
+        _et_now = datetime.fromtimestamp(started, ET)
         target_date_mdyyyy = f"{_et_now.month}/{_et_now.day}/{_et_now.year}"
 
     try:
@@ -3966,11 +3966,10 @@ def backfill_stranded_spots(target_date_mdyyyy: str = None) -> dict:
     # (rare on options but possible) don't get clipped.
     try:
         m_s, d_s, y_s = target_date_mdyyyy.split("/")
-        et_offset = timedelta(hours=-4)  # July DST
-        day_open_et = datetime(int(y_s), int(m_s), int(d_s), 8, 0, 0)
-        day_close_et = datetime(int(y_s), int(m_s), int(d_s), 17, 0, 0)
-        period1 = int((day_open_et - et_offset).replace(tzinfo=timezone.utc).timestamp())
-        period2 = int((day_close_et - et_offset).replace(tzinfo=timezone.utc).timestamp())
+        day_open_et = datetime(int(y_s), int(m_s), int(d_s), 8, 0, 0, tzinfo=ET)
+        day_close_et = datetime(int(y_s), int(m_s), int(d_s), 17, 0, 0, tzinfo=ET)
+        period1 = int(day_open_et.timestamp())
+        period2 = int(day_close_et.timestamp())
     except Exception as e:
         logger.warning("[spot-backfill] bad target_date parse: %s", e)
         return {"error": f"target_date parse: {e}", "rows_updated": 0}
@@ -4012,9 +4011,7 @@ def backfill_stranded_spots(target_date_mdyyyy: str = None) -> dict:
                 if close is None:
                     continue
                 # Convert bar's Unix timestamp to ET minute-of-day.
-                bar_dt_et = (
-                    datetime.fromtimestamp(ts_unix, tz=timezone.utc) + et_offset
-                )
+                bar_dt_et = datetime.fromtimestamp(ts_unix, tz=ET)
                 mod = bar_dt_et.hour * 60 + bar_dt_et.minute
                 bars_by_minute[mod] = float(close)
             # Also grab daily close as a fallback for buckets with no
