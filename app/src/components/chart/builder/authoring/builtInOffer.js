@@ -127,6 +127,9 @@ function whereItDraws(name, inst, registry, tf) {
  * settings panel makes). Never throws; writes nothing itself.
  * @returns {{ok: true, next: object, line: string} | {ok: false, line: string}}
  */
+/** " It is hidden ..." for an instance that is on the chart and hidden, else ''. */
+const hiddenNoteOf = (inst) => (inst && inst.hidden === true ? ' It is hidden on this chart: show it from the Indicators list.' : '')
+
 export function applyOffer(offer, { settings, registry, isOffered, tf } = {}) {
   const live = liveOffer(offer)
   if (!live) return { ok: false, line: 'That could not be added from here.' }
@@ -138,7 +141,9 @@ export function applyOffer(offer, { settings, registry, isOffered, tf } = {}) {
   const there = onChart(settings, live.indicator)[0] || null
 
   if (!live.inputs) {
-    if (there) return { ok: false, line: `${live.name} is already on this chart.` }
+    // (said with what a member would otherwise wonder about: it is there and hidden, or it does not draw on this
+    // timeframe. Review 2026-11-19: only the setting branch below said either.)
+    if (there) return { ok: false, line: `${live.name} is already on this chart.${hiddenNoteOf(there)}${whereItDraws(live.name, there, registry, tf)}` }
     const next = addInstance(settings, live.indicator, registry)
     if (next === settings) return { ok: false, line: `${live.name} could not be added to this chart.` }
     // (a built-in that draws only on some timeframes, Historical Volatility on daily and up, say: the line says so
@@ -156,14 +161,15 @@ export function applyOffer(offer, { settings, registry, isOffered, tf } = {}) {
     return inst && inst.inputs && inst.inputs[key] === value ? inst : null
   }
   if (there) {
-    if (has(settings, there.instanceId)) return { ok: false, line: `${live.name} is already on this chart with ${says}.` }
+    if (has(settings, there.instanceId)) {
+      return { ok: false, line: `${live.name} is already on this chart with ${says}.${hiddenNoteOf(there)}${whereItDraws(live.name, there, registry, tf)}` }
+    }
     const next = setInstanceInput(settings, there.instanceId, key, value, registry)
     const now = has(next, there.instanceId)
     if (!now) return { ok: false, line: `${live.name} is on this chart, and its ${words.input} setting could not be changed from here.` }
-    const hiddenNote = now.hidden === true ? ' It is hidden on this chart: show it from the Indicators list.' : ''
     return {
       ok: true, next: { ...next, preset: 'custom' },
-      line: `${live.name} was already on this chart. Its ${words.input} setting is now ${words.value}.${hiddenNote}${whereItDraws(live.name, now, registry, tf)}`,
+      line: `${live.name} was already on this chart. Its ${words.input} setting is now ${words.value}.${hiddenNoteOf(now)}${whereItDraws(live.name, now, registry, tf)}`,
     }
   }
   const added = addInstance(settings, live.indicator, registry)
