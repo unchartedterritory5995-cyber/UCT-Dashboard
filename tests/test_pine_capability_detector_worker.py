@@ -464,7 +464,7 @@ def test_the_verdict_door_charges_the_members_own_budget(worker, monkeypatch):
     monkeypatch.setattr(rt, "VERDICT_MEMBER_SECONDS", 0.0001)
     first = rt.runtime_admission(adversarial("verdict"), member="m-hammer")
     assert first["missing"] != [rt.PENDING] and worker.stats["ok"] == 1     # ran, in the worker
-    monkeypatch.setattr(rt, "_VERDICT_IDLE_UNTIL", [0.0])
+    monkeypatch.setattr(rt, "_VERDICT_BUCKET", [rt.VERDICT_BUCKET_SECONDS, None])
     monkeypatch.setattr(rt, "_DETECTOR_IDLE_UNTIL", [0.0])
     # the member's rolling spend was charged with the worker run's time: the next is held back
     assert rt.runtime_admission(adversarial("verdict 2"), member="m-hammer")["missing"] == [rt.PENDING]

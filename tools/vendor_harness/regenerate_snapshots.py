@@ -41,6 +41,7 @@ import store_held as SH  # noqa: E402
 LOCK = os.environ.get("UCT_HEAVY_LOCK", os.path.join(os.path.expanduser("~"), "uct-clips", "tools", "heavy_lock.py"))
 CORPUS_TEST = "src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js"
 LANES = {"production": "0", "runtime-on": "1"}
+SUPPLY_HELD = None   # --supply-held <dir>, set by main()
 
 
 def lane_command(lane, store, out=None, dirs=None, label=None):
@@ -48,6 +49,10 @@ def lane_command(lane, store, out=None, dirs=None, label=None):
     env = dict(os.environ, PINE_LIBRARY_STORE=os.path.abspath(store), VENDOR_HARNESS_RUNTIME_ON=LANES[lane],
                VENDOR_HARNESS_OUT=out or "../docs/pine/vendor-harness/%s" % lane, VITEST_MAX_WORKERS="1")
     env.pop("VENDOR_HARNESS_DIR", None)  # the default: every committed capture
+    # ⭐⭐ (2026-11-19) the HELD supply records the rows were graded with (store_held.py: supplyHeld), stated, never
+    # an accident of the machine: unset, the harness reads its own default directory (ourSide.supplyHeldDir)
+    if SUPPLY_HELD:
+        env["UCT_HARNESS_SUPPLY_HELD"] = os.path.abspath(SUPPLY_HELD)
     if dirs:
         env["VENDOR_HARNESS_DIR"] = ";".join(dirs)
     argv = [sys.executable, LOCK, "--timeout", "14400", "--priority", "normal",
@@ -87,7 +92,11 @@ def main(argv=None):
     ap.add_argument("--store", required=True, help="a scratch store holding exactly the allowlist's promote rows")
     ap.add_argument("--lane", default="both", choices=("production", "runtime-on", "both"))
     ap.add_argument("--splice-only", action="store_true", help="only regrade and splice the licence-held captures")
+    ap.add_argument("--supply-held", default=None,
+                    help="the held supply records (local, never committed) rows are graded with (store_held.py)")
     a = ap.parse_args(argv)
+    global SUPPLY_HELD
+    SUPPLY_HELD = a.supply_held
     allow = json.load(open(SH.ALLOWLIST, encoding="utf-8"))
     problems, lines = PC.check(a.store, allow, exact=True)
     for line in lines:

@@ -274,16 +274,30 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
             # ⭐ AND WHETHER IT WAITS FOR THE BAR (found live 2026-11-19): a script that reads where the chart
             # ends is drawn only on a finished bar. The server's own detector decides, on THIS script, and
             # UCT says it in its own words: a member is never left to find it out from an empty chart.
-            waits = pine_authoring.waits_for_the_bar(pine)
+            # ⭐ ONE detector run per script answer (2026-11-19): its set answers both questions below.
+            caps = pine_authoring.script_capabilities(pine)
+            waits = pine_authoring.waits_for_the_bar(pine, caps=caps)
             said = pine_authoring.said_with_the_bar(said, waits)
             trace["script"]["chars"] = len(pine)
             trace["script"]["reference"] = reference
             trace["script"]["waits_for_the_bar"] = waits
             logger.info("[converse:script] a script of %d characters (round %d, %d call(s), reference %s)",
                         len(pine), rnd, attempts, reference or "none")
+            script_out = {"name": name, "pine": pine, "round": rnd, "reference": reference,
+                          "waits_for_the_bar": waits}
+            # ⭐ AND ITS ADMISSION VERDICT, from that same set (`runtime_definitions.admission_verdict`, the
+            # rule the verdict door reads): the window latches it when its sha256 matches the script, so it
+            # never waits on the verdict door's shared budgets for a script this request already checked.
+            # The set goes into this process's LRU only; nothing is stored. ABSENT while capability
+            # admission is off, so that answer is byte for byte what it was.
+            from api.services import runtime_definitions
+            admission = runtime_definitions.script_answer_admission(pine, caps)
+            if admission is not None:
+                script_out["admission"] = admission
+                trace["script"]["admission"] = {"admitted": admission["admitted"],
+                                                "missing": list(admission["missing"])}
             return {"ok": True, "disposition": "answer", "turn": "script", "reply": said,
-                    "script": {"name": name, "pine": pine, "round": rnd, "reference": reference,
-                               "waits_for_the_bar": waits},
+                    "script": script_out,
                     "envelope": {"contract": contract, "baseRevision": revision, "ops": [], "disposition": "answer",
                                  "reply": said},
                     "answered_by": "assistant", "not_understood": [], "unavailable": [], **extra()}
