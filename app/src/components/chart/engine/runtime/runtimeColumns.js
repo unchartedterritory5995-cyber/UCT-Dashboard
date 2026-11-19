@@ -279,17 +279,18 @@ export const RUNTIME_PANE_TIME_BUDGET_MS = 1000
 /** ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, engine 84) — THE BUDGET OF A RUN IN THE WORKER
  *  SCALES WITH THE BARS IT COVERS. 1,000 ms is a whole-run number that an honest script crosses through chart LENGTH
  *  alone, and the budget's own record (RT1, above) says its job is to bound a RUNAWAY, not to cap honest long work.
- *    budget(n) = min(12,000, 1,000 + 1.2 x max(0, n - 5,000)) ms, `n` the bars the run COVERS (the rows after the
- *  depth cut, a `calc_bars_count` or strategy window's own): 1,000 up to 5,000 bars (today's behaviour), 4,600 at
- *  8,000, 8,824 at 11,520, 12,000 from 14,167 bars.
- *    ⭐⭐ (engine 86, coordinator ruling: option A2) THE SLOPE IS 1.2 MS A BAR AND THE CEILING 12,000 ms (engine 84 shipped
+ *    budget(n) = min(12,000, 1,000 + 1.0 x max(0, n - 5,000)) ms, `n` the bars the run COVERS (the rows after the
+ *  depth cut, a `calc_bars_count` or strategy window's own): 1,000 up to 5,000 bars (today's behaviour), 4,000 at
+ *  8,000, 7,520 at 11,520, 12,000 from 16,000 bars.
+ *    ⭐⭐ (engine 86, coordinator ruling: option A2) THE SLOPE IS 1.0 MS A BAR AND THE CEILING 12,000 ms (engine 84 shipped
  *  0.35 and 4,000), AND IN THE WORKER THE VM'S `WALL_TIME` FOLLOWS THIS BUDGET (`runLimitsOf`). Measured: Fred RS's run
  *  half on 5m (11,520 bars covered) costs about 2 s on the desktop (0.17 ms a bar), 7.5-8.2 s in-process on a CI runner
  *  (0.67-0.73) and an estimated 5.3-5.7 s on a member's device (0.47-0.49, 2.9x desktop, the e81 ratio). At 0.35 the
  *  budget sat below that cost at EVERY bar count (3,282 ms at 11,520), so it was refused live, and the refusal was run
- *  cold again on every update. 1.2 covers the CI cost too (8,824 ms at 11,520, 1.05x); the final slope is to be set
- *  from the live run-half timing on 5m (ms a bar x 1.5, rounded up to 0.1, never below 1.0).
- *    WHY THE CEILING ALONE WAS NOT ENOUGH (found building it): the ceiling binds only past 14,167 bars, and the VM's
+ *  cold again on every update. A2 proposed 1.2 (8,824 ms at 11,520, 1.05x the CI cost); the FINAL slope (coordinator
+ *  ruling, the engine 86 train) is the formula's floor, 1.0 (7,520 ms at 11,520): the live engine-85 run-half
+ *  timing on 5m was about 0.05-0.07 ms a bar, and x 1.5, rounded up to 0.1, is below the floor of 1.0.
+ *    WHY THE CEILING ALONE WAS NOT ENOUGH (found building it): the ceiling binds only past 16,000 bars, and the VM's
  *  `WALL_TIME` (5,000 ms, `limits.js`) stops any one execute past 5 s first, so a budget above 5 s was not real.
  *  The worker's run now hands the VM `WALL_TIME` = its budget when the budget is larger (`runLimitsOf`); every other
  *  caller keeps 5,000 (the main-thread doors, the service, the limits census, a test harness).
@@ -310,7 +311,7 @@ export const RUNTIME_PANE_TIME_BUDGET_MS = 1000
  *  synchronous door, `runtimeAsync.js::runHere` where a browser has no Worker, the server entry) keeps 1,000 ms, since
  *  there a longer run is a frozen page. */
 export const RUNTIME_PANE_BUDGET_FLOOR_BARS = 5000
-export const RUNTIME_PANE_BUDGET_PER_BAR_MS = 1.2
+export const RUNTIME_PANE_BUDGET_PER_BAR_MS = 1.0
 export const RUNTIME_PANE_BUDGET_CEILING_MS = 12000
 /** The worker's budget for a run covering `bars` bars, `floorMs` the per-run number (1,000). */
 export function runtimePaneBudgetFor(bars, floorMs = RUNTIME_PANE_TIME_BUDGET_MS) {

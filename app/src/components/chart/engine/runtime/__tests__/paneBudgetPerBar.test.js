@@ -1,6 +1,6 @@
 // ─── ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, engine 84; option A2, engine 86) — THE WORKER'S BUDGET ──
 //
-// `runtimeColumns.js::runtimePaneBudgetFor`: a run in the worker is held to min(12,000, 1,000 + 1.2 ms × the bars it
+// `runtimeColumns.js::runtimePaneBudgetFor`: a run in the worker is held to min(12,000, 1,000 + 1.0 ms × the bars it
 // covers past 5,000) (engine 84 shipped 0.35 and 4,000), and in the worker the VM's `WALL_TIME` follows that budget
 // (`runLimitsOf`); every main-thread door keeps 1,000 ms, and every caller but the worker keeps `WALL_TIME` 5,000.
 // These rails hold, on a STEPPING clock (each read of the host clock advances a fixed step, as
@@ -8,7 +8,7 @@
 //   1. up to 5,000 bars the budget is exactly 1,000 ms, and the stop names the pane's budget;
 //   2. Fred RS's run half over 11,520 5m extended-hours bars, on a device where it costs 70% of its scaled budget, is
 //      drawn by the worker, and the same device under the fixed 1,000 ms is refused;
-//   2b. Fred RS over 13,440 bars on a device where it costs 95% of its budget, its first run alone past 5,000 ms, is
+//   2b. Fred RS over 15,360 bars on a device where it costs 95% of its budget, its first run alone past 5,000 ms, is
 //      drawn: the worker's `WALL_TIME` follows the budget (with 5,000 it would stop there);
 //   3. a runaway past the ceiling is refused `runtime:time-budget`, naming 12,000 ms;
 //   4. the synchronous door (the main thread) keeps 1,000 ms where the worker scales, and the worker draws a run of
@@ -84,13 +84,14 @@ function fredRs(count) {
 describe('the budget of a run in the worker scales with the bars it covers', () => {
   it('1. the numbers, and up to 5,000 bars a stop at exactly 1,000 ms', () => {
     for (const n of [0, 100, 4000, 5000]) expect(runtimePaneBudgetFor(n)).toBe(1000)
-    // ⭐ (engine 86, A2) 1.2 ms a bar past 5,000 (was 0.35: 2,050 at 8,000, 3,282 at 11,520)
-    expect(runtimePaneBudgetFor(8000)).toBeCloseTo(4600, 6)
-    expect(runtimePaneBudgetFor(11520)).toBeCloseTo(8824, 6)
-    expect(runtimePaneBudgetFor(13440)).toBeCloseTo(11128, 6)
-    // the ceiling: 12,000 from 14,167 bars (was 4,000 from 13,571)
-    expect(runtimePaneBudgetFor(14166)).toBeLessThan(12000)
-    expect(runtimePaneBudgetFor(14167)).toBe(12000)
+    // ⭐ (engine 86, A2; the coordinator's final slope ruling: 1.0, the formula's floor) 1.0 ms a bar past 5,000
+    // (was 0.35: 2,050 at 8,000, 3,282 at 11,520; A2 proposed 1.2: 4,600, 8,824)
+    expect(runtimePaneBudgetFor(8000)).toBeCloseTo(4000, 6)
+    expect(runtimePaneBudgetFor(11520)).toBeCloseTo(7520, 6)
+    expect(runtimePaneBudgetFor(13440)).toBeCloseTo(9440, 6)
+    // the ceiling: 12,000 from 16,000 bars (was 4,000 from 13,571)
+    expect(runtimePaneBudgetFor(15999)).toBeLessThan(12000)
+    expect(runtimePaneBudgetFor(16000)).toBe(12000)
     expect(runtimePaneBudgetFor(32768)).toBe(12000)
     steppingClock(1)    // a run of 4,000 bars reads the clock thousands of times: well past 1,000 ms
     const err = refusedWith(() => computeRuntimeColumns(tiny(), daily(4000), DCTX, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true }))
@@ -121,9 +122,11 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
     expect(fixed && fixed.guard, 'the fixed 1,000 ms refuses it').toBe(RUNTIME_TIME_BUDGET_GUARD)
   })
 
-  it("2b. Fred RS over 13,440 bars, its first run alone past 5,000 ms, where the whole costs 95% of its budget: drawn (the worker's WALL_TIME follows the budget)", () => {
-    const { half, chart, ctx } = fredRs(70)
-    expect(chart.length).toBe(13440)
+  it("2b. Fred RS over 15,360 bars, its first run alone past 5,000 ms, where the whole costs 95% of its budget: drawn (the worker's WALL_TIME follows the budget)", () => {
+    // (engine 86 train, the final slope 1.0) 80 sessions: at 1.0 the 70 sessions this case used (13,440 bars, 9,440 ms)
+    // put the first run alone at ~4,530 ms, short of the VM's 5,000, and the precondition below said so
+    const { half, chart, ctx } = fredRs(80)
+    expect(chart.length).toBe(15360)
     const limits = { ARRAY_OPERATIONS: 1e9 }
     const run = (step, c = ctx) => {
       vi.restoreAllMocks()
@@ -137,7 +140,7 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
     expect(whole.err).toBe(null)
     const first = run(1e-7, { ...ctx, historyFromListing: true })
     expect(first.err).toBe(null)
-    const budget = runtimePaneBudgetFor(13440)
+    const budget = runtimePaneBudgetFor(15360)
     const step = (0.95 * budget) / whole.reads
     // the preconditions, so the case cannot pass by not reaching what it is about
     expect(step * whole.reads, 'the whole run is inside its budget').toBeLessThan(budget)
@@ -222,7 +225,7 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
 
   it('6. only the worker hands the VM its budget as WALL_TIME: every other caller keeps 5,000, each by name', () => {
     expect(DEFAULT_LIMITS.WALL_TIME).toBe(5000)
-    const BIG = runtimePaneBudgetFor(13440)    // 11,128 ms
+    const BIG = runtimePaneBudgetFor(13440)    // 9,440 ms
     // the worker (`runtimeWorker.js`), and the curtain's two runs of its job (`wallFollowsBudget`)
     expect(runLimitsOf({ budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true }, BIG)).toEqual({ WALL_TIME: BIG })
     expect(runLimitsOf({ budgetMs: BIG, budgetScales: false, wallFollowsBudget: true }, BIG)).toEqual({ WALL_TIME: BIG })
