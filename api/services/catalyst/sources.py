@@ -126,8 +126,9 @@ def _pull_movers() -> dict[str, dict]:
 def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
     """Get price, vol_x, sector, market_cap for the union of candidate tickers.
 
-    Combines Massive rich snapshot (price, today's volume) with yfinance-backed
-    ticker_metadata (sector, market_cap, avg_volume_30d) to compute vol_x.
+    Combines Massive rich snapshot (price, today's volume) with ticker_metadata
+    (market_cap from the FMP profile first; sector and avg_volume_30d from the
+    yfinance read) to compute vol_x.
     """
     if not tickers:
         return {}
@@ -141,7 +142,7 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
         logger.warning("[catalyst-sources] batch snapshot failed: %s", e)
         snaps = {}
 
-    # yfinance-backed metadata — sector, market_cap, avg_volume_30d (cached 24h)
+    # Cached 24h: market_cap (FMP profile first), sector and avg_volume_30d (yfinance)
     from api.services.catalyst.ticker_metadata import get_metadata_batch
     try:
         meta = get_metadata_batch(tickers)
