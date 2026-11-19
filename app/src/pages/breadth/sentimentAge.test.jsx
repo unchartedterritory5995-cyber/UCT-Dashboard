@@ -7,7 +7,7 @@
  * row collected itself, render BARE).
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 import { aaiiAge, dailyCarryAge, makeSeriesAge, AAII_KEYS, DAILY_CARRY_KEYS, asofKey } from './sentimentAge'
@@ -119,28 +119,42 @@ const cellFor = (container, value) => {
   return hits[0]
 }
 
-describe('the as-of renders at the value', () => {
-  it('a 9-day-old AAII survey says so beside the number', () => {
+// Owner 2026-11-19: a carried value is still MARKED as carried — muted, with its
+// as-of in the tooltip and the accessible name — but no longer as inline text.
+describe('a carried value is marked carried, in the tooltip and aria', () => {
+  it('a 9-day-old AAII survey: the number alone, its as-of in title + aria-label', () => {
     const td = cellFor(mount().container, '33.3')
-    expect(td.textContent).toBe(`33.3weekly · as of ${shift(ROWS[1].date, -9)}`)
+    const asOf = shift(ROWS[1].date, -9)
+    expect(td.textContent).toBe('33.3')
+    fireEvent.pointerOver(td)
+    expect(screen.getByTestId('breadth-age-tip').textContent).toContain(`Weekly survey · as of ${asOf}`)
+    expect(td.getAttribute('title')).toBeNull()
+    expect(td.getAttribute('aria-label')).toBe(`AAII Bulls 33.3, weekly survey · as of ${asOf}`)
+    expect(td.className).toMatch(/carriedValue/)
   })
 
   it('a carried CBOE print says which session it came from', () => {
     const td = cellFor(mount().container, '1.17')
-    expect(td.textContent).toBe(`1.17daily · as of ${shift(ROWS[1].date, -3)}`)
-    expect(td.getAttribute('title')).toBe(`CBOE P/C: daily print dated ${shift(ROWS[1].date, -3)}`)
+    const asOf = shift(ROWS[1].date, -3)
+    expect(td.textContent).toBe('1.17')
+    fireEvent.pointerOver(td)
+    expect(screen.getByTestId('breadth-age-tip').textContent).toContain(`Daily print · as of ${asOf}`)
+    expect(td.getAttribute('title')).toBeNull()
+    expect(td.getAttribute('aria-label')).toBe(`CBOE P/C 1.17, daily print · as of ${asOf}`)
   })
 
-  it('CONTROL: same-session AAII and the row\'s own daily prints render BARE', () => {
+  it("CONTROL: same-session AAII and the row's own daily prints render BARE", () => {
     const { container } = mount()
     expect(cellFor(container, '41.2').textContent).toBe('41.2')
     expect(cellFor(container, '0.83').textContent).toBe('0.83')
     expect(cellFor(container, '47').textContent).toBe('47')
   })
 
-  it('exactly the two stale values are labelled', () => {
+  it('exactly the two stale values are marked carried (and nothing else is muted)', () => {
     const { container } = mount()
     const tags = Array.from(container.querySelectorAll('[data-value-age]')).map(e => e.getAttribute('data-value-age'))
     expect(tags.sort()).toEqual(['aaii_bulls', 'cboe_putcall'])
+    expect(container.querySelectorAll('[class*="carriedValue"]')).toHaveLength(2)
+    expect(container.querySelector('[data-testid="freshness-age"]')).toBeNull()
   })
 })

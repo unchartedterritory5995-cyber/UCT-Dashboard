@@ -11,7 +11,6 @@ import MarketBreadth from '../components/tiles/MarketBreadth'
 import { SkeletonTileContent } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
 import { formatETFull } from '../utils/timeAgo'
-import { explainMustShowAge } from '../components/provenance/freshnessAge'
 import Menu, { SigMenuItem as MenuItem } from './breadth/SigMenu'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
@@ -35,9 +34,9 @@ import BreadthViews from './breadth/BreadthViews'
 import UnmountReporter from './breadth/UnmountReporter'
 import useBreadthUrlState from './breadth/useBreadthUrlState'
 import useBreadthHubSection, { resolveBreadthTabs } from '../hub/sections/breadthSection'
-import FreshnessBadge from '../components/provenance/FreshnessBadge'
 import { naaimAge } from './breadth/naaimAge'
-import { aaiiAge, dailyCarryAge } from './breadth/sentimentAge'
+import FreshnessBadge from '../components/provenance/FreshnessBadge'
+import { aaiiAge, dailyCarryAge, storedSessionFresh } from './breadth/sentimentAge'
 
 // The metric registry moved to breadth/heatmapMetrics.js (2026-07-22) so the
 // /charts Breadth widget can use it without bundling this whole page. Re-export
@@ -351,6 +350,36 @@ function fmtCell(col, val) {
 // all breadth history (frozen cutoffs, breadth/shading.js) at three levels, colored
 // bullish / bearish. The tier ladders above (colorFn / rowColorFn) still drive the
 // Daily tab and the Views; the Monitor reads `shadeFor` only.
+// A carried (older-than-its-cadence) value's note, for the tooltip and the
+// accessible name: "Weekly survey · as of 2026-03-04" / "Daily print · undated".
+function carriedNote(age) {
+  const kind = `${age.cadence ? age.cadence[0].toUpperCase() + age.cadence.slice(1) : 'Earlier'} ${age.dataClass === 'weekly' ? 'survey' : 'print'}`
+  return age.asOfDate ? `${kind} · as of ${age.asOfDate}` : `${kind} · undated`
+}
+
+// ── Stable column widths (owner 2026-11-19) ──────────────────────────────────
+// The Monitor's rows are virtualized, so an auto-layout table re-measured as rows
+// mounted and a column jumped wide when an unusually long value scrolled in. Each
+// header (always mounted) now carries a min-width from the widest value its FORMAT
+// can print, in `ch` (tabular digits are ≤ 1ch; commas/dots narrower), plus the
+// cell padding — so no row can ever be wider than its header, and the widths do not
+// depend on which rows are on screen.
+const VALUE_CH = {
+  sp500_close: 8, qqq_close: 7,           // 0,000.00 · 000.00
+  breadth_score: 3, uct_exposure: 3, cnn_fear_greed: 3,
+  ratio_5day: 6, ratio_10day: 6, vix: 6, naaim: 7, cboe_putcall: 5,
+  mcclellan_osc: 7,                        // -000.0
+  aaii_bulls: 5, aaii_neutral: 5, aaii_bears: 5, aaii_spread: 6,
+  is_ftd: 3,
+}
+function valueCh(col) {
+  if (VALUE_CH[col.key] != null) return VALUE_CH[col.key]
+  if (col.fmt === fmtPct) return 5          // 100.0
+  return 6                                  // counts: 00,000
+}
+// +1ch for the live row's "≈" mark; 32px = the cell padding (incl. a family start).
+const colMinWidth = (col) => `calc(${valueCh(col) + 1}ch + 32px)`
+
 function cellClass(col, val, row = null) {
   const s = shadeFor(col.key, row)
   return s ? styles[`sh${s.tone === 'bull' ? 'Up' : 'Dn'}${s.level}`] : ''
@@ -749,6 +778,8 @@ export default function Breadth() {
   // A header-menu change asked for on the immutable Default preset: the Columns
   // panel opens on its "save as a new preset" prompt carrying it.
   const [pendingColChange, setPendingColChange] = useState(null)
+  // The one floating as-of tooltip over a carried (older-than-its-cadence) cell.
+  const [ageTip, setAgeTip] = useState(null)
 
   const [drill, setDrill] = useState(null)
   // drill = { date, label, items: [{t,pct}] | null }
@@ -976,7 +1007,7 @@ export default function Breadth() {
   // FreshnessBadge reads), or a live intraday reading is on screen.
   const lastStamp = storedRows[0]?._created_at ? storedRows[0]._created_at + 'Z' : null
   const statusFresh = !!liveBreadth?.data
-    || (lastStamp != null && explainMustShowAge({ asOf: lastStamp, dataClass: 'end_of_day' }).reason === 'within_threshold')
+    || storedSessionFresh(lastStamp)
   // The clock part of `lastUpdated` ("Aug 24, 2026, 7:24 PM EDT" → "7:24 PM").
   // ⛔ Not formatETTime: no main-bundle code uses it, so importing it here would
   // keep it (and its export) in the entry chunk — +280 B on the notebook budget.
@@ -1320,14 +1351,15 @@ export default function Breadth() {
       )}
 
       {grid.count > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
-        <div className={styles.tableWrap} ref={tableWrapRef} data-guide="breadth.table">
+        <div className={styles.tableWrap} ref={tableWrapRef} data-guide="breadth.table"
+             onScroll={ageTip ? () => setAgeTip(null) : undefined}>
           <table className={styles.table} aria-label="Breadth monitor">
             <thead>
               {/* Single column-label row — the colored group-header strip was
                   retired 2026-08-26; families are separated by a hairline rule
                   on each group's first column instead. */}
               <tr>
-                <th scope="col" className={`${styles.th} ${styles.dateCol}`}>Date</th>
+                <th scope="col" className={`${styles.th} ${styles.dateCol}`} style={{ minWidth: 'calc(10ch + 32px)' }}>Date</th>
                 {visibleCols.map((col, ci) => {
                   const isMa = col.type === 'ma_stack'
                   const label = isMa
@@ -1343,6 +1375,7 @@ export default function Breadth() {
                       key={col.key}
                       title={isMa ? maStackTitle(col) : `${col.label} — column options`}
                       className={`${styles.th} ${styles.colLabel} ${groupStartKeys.has(col.key) ? styles.groupStart : ''} ${isMa ? styles.thMa : ''}`}
+                      style={isMa ? undefined : { minWidth: colMinWidth(col) }}
                     >
                       {/* The header opens a small Signature menu (breadth/SigMenu:
                           Enter/Space opens it, Esc closes it and
@@ -1464,18 +1497,19 @@ export default function Breadth() {
                       ? (liveBreadth.carried?.has(col.key) ? 'carried'
                         : liveBreadth.accuracy?.[col.key] ?? null)
                       : null
-                    // TERM-059: a slower-than-daily value states its as-of at
-                    // the value when the age authority says it must.
+                    // TERM-059: the age authority (col.age → sentimentAge.js /
+                    // naaimAge.js) still decides when a value is CARRIED from an
+                    // earlier survey / print. Owner 2026-11-19: it is no longer
+                    // printed inline (that widened the column and repeated on every
+                    // row); a carried value reads muted, and its as-of goes in the
+                    // cell's tooltip and accessible name.
                     const age = col.age ? col.age(row) : null
-                    const ageTitle = age?.mustLabel
-                      ? (age.asOfDate
-                        ? `${col.label}: ${age.cadence} ${age.dataClass === 'weekly' ? 'survey' : 'print'} dated ${age.asOfDate}`
-                        : `${col.label}: ${age.cadence} reading with no survey date`)
-                      : null
+                    const carried = !!age?.mustLabel
+                    const ageTitle = carried ? carriedNote(age) : null
                     return (
                       <td
                         key={col.key}
-                        className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''} ${isDrillable ? styles.drillable : ''} ${liveGrade === 'carried' ? styles.liveCarried : ''} ${liveGrade === 'approximate' ? styles.liveApprox : ''}`}
+                        className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii && !carried ? styles.aaiiStale : ''} ${carried ? styles.carriedValue : ''} ${isDrillable ? styles.drillable : ''} ${liveGrade === 'carried' ? styles.liveCarried : ''} ${liveGrade === 'approximate' ? styles.liveApprox : ''}`}
                         title={
                           liveGrade === 'carried'
                             ? `Last night's reading (${liveBreadth.carriedFrom}) — not live`
@@ -1483,13 +1517,24 @@ export default function Breadth() {
                               ? 'Provisional, reconciles to roughly 10%'
                               : liveBreadth.partial?.has(col.key) && row._live
                                 ? 'Builds through the session — only complete at the close'
-                                : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
-                                  : ageTitle ? ageTitle
+                                : carried ? undefined   // its as-of shows in the age tooltip below
+                                  : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
                                     : isDrillable ? 'Click to see stocks' : undefined
                         }
+                        {...(carried ? {
+                          'data-value-age': col.key,
+                          'aria-label': `${col.label} ${fmtCell(col, val)}, ${ageTitle.toLowerCase()}`,
+                          // Hover shows the value's own as-of as the provenance badge
+                          // (FreshnessBadge), in one floating tooltip for the sheet.
+                          onPointerEnter: (e) => {
+                            const r = e.currentTarget.getBoundingClientRect()
+                            setAgeTip({ left: r.left, top: r.bottom + 4, key: `${row.date}:${col.key}`, note: ageTitle, age })
+                          },
+                          onPointerLeave: () => setAgeTip(null),
+                        } : {})}
                         onClick={isDrillable ? () => openDrill(row, col, liveBreadth) : undefined}
-                        onPointerEnter={isDrillable ? () => prefetchCell(row, col) : undefined}
                         {...(isDrillable ? {
+                          onPointerEnter: () => prefetchCell(row, col),
                           'data-drill': '',
                           role: 'button',
                           tabIndex: col.key === firstDrillKey ? 0 : -1,
@@ -1503,11 +1548,6 @@ export default function Breadth() {
                         } : {})}
                       >
                         {fmtCell(col, val)}
-                        {age?.mustLabel && (
-                          <span className={styles.valueAge} data-value-age={col.key}>
-                            <FreshnessBadge age={{ dataClass: age.dataClass, asOfDate: age.asOfDate }} />
-                          </span>
-                        )}
                       </td>
                     )
                   })}
@@ -1521,6 +1561,13 @@ export default function Breadth() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+      {ageTip && activeTab === 'breadth' && (
+        <div className={styles.ageTip} role="tooltip" data-testid="breadth-age-tip"
+             style={{ left: ageTip.left, top: ageTip.top }}>
+          <span className={styles.ageTipNote}>{ageTip.note}</span>
+          <FreshnessBadge age={{ dataClass: ageTip.age.dataClass, asOfDate: ageTip.age.asOfDate }} />
         </div>
       )}
       {drill && (

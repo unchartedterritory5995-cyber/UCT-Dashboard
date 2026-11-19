@@ -466,16 +466,29 @@
   font-style: italic;
 }
 
-/* TERM-059 — the value's own as-of, inline beside the number. Inline, never a
-   second line: every Monitor row is a fixed 32px (MONITOR_ROW_H) and the table
-   is white-space:nowrap, so the clause must not add height. Not interactive, so
-   it carries no tap target of its own. */
-.valueAge {
-  display: inline-flex;
-  vertical-align: middle;
-  margin-left: 6px;
-  line-height: 1;
+/* TERM-059 — a value CARRIED from an earlier survey / print (the age authority's
+   verdict). Owner 2026-11-19: muted text, no inline label; the as-of is in the
+   cell's tooltip and accessible name. Display only. */
+.carriedValue { color: var(--br-faint); }
+
+/* The carried cell's hover tooltip: its as-of as a sentence + the provenance badge. */
+.ageTip {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  box-shadow: var(--shadow-popover, 0 14px 36px rgba(0, 0, 0, 0.55));
+  color: var(--br-text, var(--text));
+  font: 500 12px var(--font-sans);
+  pointer-events: none;
+  white-space: nowrap;
 }
+.ageTipNote { color: var(--br-bright, var(--text-bright)); font-weight: 600; }
 
 /* Row phase — a 2px inset on the Date cell in the theme's up / down colour (the
    old 3px row border; quieter, and no gold for the in-between phases). */
