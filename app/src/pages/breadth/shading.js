@@ -10,14 +10,30 @@
 // ⛔ This module mirrors `shade()` in the calibration script line for line: the
 // script's value-free report counts days per level with the SAME rule the page
 // draws. Change one, change the other.
+//
+// ⭐ PER UNIVERSE (the Monitor's universe switcher). The cutoffs file is
+// `{ uct: {...}, us: {...}, nasdaq: {...}, nyse: {...} }`, each universe calibrated over its
+// own full history (`calibrate_breadth_shading.py --universe`). A market-wide column (VIX,
+// sentiment, the index readings, UCT Exp...) is the same reading on every universe, so it
+// is always shaded by UCT's cutoffs.
 import spec from './shadeSpec.json'
-import cutoffs from './shadeCutoffs.generated.json'
+import cutoffsByUniverse from './shadeCutoffs.generated.json'
+import { MARKET_WIDE_COLS } from './monitorUniverses'
 
 /** How rare a reading must be (% of all history, per side). Edit in shadeSpec.json;
  *  each value must be on the cutoffs file's grid (no re-run needed within it). */
 export const SHADE_PCTS = spec.pcts
 export const SHADE_SPEC = spec
-export const SHADE_CUTOFFS = cutoffs
+/** UCT's cutoffs (the historical single-universe shape). */
+export const SHADE_CUTOFFS = cutoffsByUniverse.uct
+export const SHADE_CUTOFFS_BY_UNIVERSE = cutoffsByUniverse
+
+/** The cutoffs a column is shaded by on a universe: UCT's for UCT and for every market-wide
+ *  column; otherwise that universe's own (none calibrated → the column is left unshaded). */
+export function cutoffsFor(universe, key) {
+  if (!universe || universe === 'uct' || MARKET_WIDE_COLS.has(key)) return cutoffsByUniverse.uct
+  return cutoffsByUniverse[universe] ?? null
+}
 
 const LEVELS = ['notable', 'strong', 'extreme']
 
@@ -41,9 +57,10 @@ function paired(u, d, side) {
  * The cell's shade, or null when it is in the unshaded middle.
  * @returns {{ tone: 'bull'|'bear', level: 1|2|3 } | null}
  */
-export function shadeFor(key, row, { specIn = spec, cut = cutoffs } = {}) {
+export function shadeFor(key, row, { specIn = spec, cut, universe = 'uct' } = {}) {
   const c = specIn.cols[key]
   if (!c || !row) return null
+  cut = cut ?? cutoffsFor(universe, key)
   if (c.kind === 'flag') return row[key] ? { tone: 'bull', level: 2 } : null
   if (c.kind === 'pair') {
     const mine = num(row[key]), other = num(row[c.with])
@@ -51,7 +68,7 @@ export function shadeFor(key, row, { specIn = spec, cut = cutoffs } = {}) {
   }
   const field = c.basis || key
   const v = num(row[field])
-  const t = cut.cols?.[field]
+  const t = cut?.cols?.[field]
   if (v == null || !t) return null
   const idx = Object.fromEntries(LEVELS.map(lv => [lv, cut.grid.indexOf(specIn.pcts[lv])]))
   const sides = c.sides || 'both'

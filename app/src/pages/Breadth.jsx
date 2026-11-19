@@ -24,6 +24,11 @@ import { fetchDrill, peekDrill, prefetchDrill, forgetDrill } from './breadth/dri
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
 import useMonitorGrid from './breadth/useMonitorGrid'
+import {
+  MONITOR_UNIVERSES, DEFAULT_UNIVERSE, parseUniverse, universeLabel,
+  universeColumnNote, universeCellOverride, NOT_AVAILABLE_NOTE, columnTagFor,
+} from './breadth/monitorUniverses'
+import { mergeParams } from './calendar/useEarningsModalRoute'
 import ScreenshotPopover from '../components/chart/ScreenshotPopover'
 import { downloadBreadthSnapshot, copyBreadthSnapshot, copyBreadthShareUrl } from './breadth/breadthShare'
 import DailyOverview from './breadth/DailyOverview'
@@ -73,9 +78,11 @@ export function breadthErrorText(error, what = 'Breadth data') {
   return `${what} could not be read right now. That is a gap in what we could read, not a market reading.`
 }
 
-function exportCsv(rows, cols) {
+function exportCsv(rows, cols, universe = DEFAULT_UNIVERSE) {
   const headers = ['date', ...cols.map(c => c.key)]
   const lines = [
+    // The universe the sheet was on, so a saved file says what population it measured.
+    `# Universe: ${universeLabel(universe)}`,
     headers.join(','),
     ...rows.map(row =>
       headers.map(h => {
@@ -90,7 +97,7 @@ function exportCsv(rows, cols) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `breadth-monitor-${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = `breadth-monitor-${universe}-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -486,16 +493,18 @@ function colWidthStyle(col, isMa, { need, solo, extra }) {
 // padding follows --br-cell-px, so the widths scale with the wide-screen size too.
 const colMinWidth = (col) => `calc(${valueCh(col)}ch * var(--br-fs-ratio, 1.087) + 2 * var(--br-cell-px, 12px) + 8px)`
 
-function cellClass(col, val, row = null) {
-  const s = shadeFor(col.key, row)
+function cellClass(col, val, row = null, universe = DEFAULT_UNIVERSE) {
+  const s = shadeFor(col.key, row, { universe })
   return s ? styles[`sh${s.tone === 'bull' ? 'Up' : 'Dn'}${s.level}`] : ''
 }
 
 // A column's name in plain words + what it measures (breadth/columnInfo.js): the
 // top of the header's click menu, and its screen-reader description.
-function ColumnInfoBlock({ colKey }) {
+function ColumnInfoBlock({ colKey, universe = DEFAULT_UNIVERSE }) {
   const info = columnInfo(colKey)
   if (!info) return null
+  // Off UCT: what this column is on THIS universe (market-wide, ratio-adjusted, not available).
+  const note = universeColumnNote(colKey, universe)
   // In the chart menu's panel (ContextPopover `signature`), the description header is a
   // real title + readable body (owner round 10): its own classes, so the chart menu's
   // grey section labels (`groupLabel`) are untouched.
@@ -504,6 +513,7 @@ function ColumnInfoBlock({ colKey }) {
       <div className={styles.colInfoName}>{info.name}</div>
       <div className={styles.colInfoDesc}>{info.desc}</div>
       {info.weekly && <div className={styles.colInfoDesc}>A weekly survey: it updates once a week.</div>}
+      {note && <div className={`${styles.colInfoDesc} ${styles.colInfoNote}`} data-testid="col-universe-note">{note}</div>}
     </div>
   )
 }
@@ -757,7 +767,16 @@ export default function Breadth() {
   // its value on the FIRST render is ever used — the `useState` initializer
   // below runs once, so a later `?tab=` write from elsewhere cannot loop back
   // in as a forced tab change.
-  const [tabSearchParams] = useSearchParams()
+  const [tabSearchParams, setSearchParams] = useSearchParams()
+
+  // ── the Monitor's universe (UCT / U.S. stocks / Nasdaq / NYSE) ─────────────
+  // `?universe=` is the link's half (absent = UCT, so every existing link is unchanged); read
+  // once on mount like `?tab=`, written on every switch through the same merge-and-replace the
+  // Views params use (one history entry, no other key touched).
+  const [universe, setUniverseState] = useState(() => parseUniverse(tabSearchParams.get('universe')))
+  const [universeMenu, setUniverseMenu] = useState(null)
+  const universeBtn = useRef(null)
+  const isUct = universe === DEFAULT_UNIVERSE
 
   // Phones land on the readable Overview; desktop/tablet keep the Monitor.
   // ⭐ A LINK CARRYING VIEWS STATE OPENS THE VIEWS TAB — otherwise the Discord
@@ -1063,7 +1082,9 @@ export default function Breadth() {
   // ── Monitor grid: virtualized over the FULL timeline index, rows loaded on
   //    demand in blocks (see useMonitorGrid). A teleport to any year is an instant
   //    scroll-to-index; only the visible rows fetch, so scrolling stays light. ──
-  const grid = useMonitorGrid({ enabled: activeTab === 'breadth', liveRow: liveBreadth.row })
+  const grid = useMonitorGrid({ enabled: activeTab === 'breadth', liveRow: liveBreadth.row, universe })
+  // ⛔ Drill lists are UCT's (the collector's ticker lists): off UCT no cell is drillable yet.
+  const gridDrill = useCallback((row, col, live) => (isUct ? drillTarget(row, col, live) : null), [isUct])
   const tableWrapRef = useRef(null)
   const rowH = useMonitorRowH()
   const rowVirtualizer = useVirtualizer({
@@ -1122,6 +1143,38 @@ export default function Breadth() {
 
   // Jump straight back to the present day (index 0 = the latest/top row).
   const onJumpToday = useCallback(() => monitorScrollTo(0), [monitorScrollTo])
+
+  // ── Universe switch. Instant: the new universe's index + recent rows are in localStorage
+  // (or in memory, once viewed), its rows are pre-built server-side, and the sheet keeps the
+  // session it was framing (on the latest one it simply stays at the top). ──
+  const pendingTopRef = useRef(null)
+  const setUniverse = useCallback((u) => {
+    setUniverseMenu(null)
+    if (u === universe) return
+    pendingTopRef.current = monitorTopIndex > 0 ? monitorTopDate : null
+    setUniverseState(u)
+    try {
+      setSearchParams(prev => mergeParams(prev, { universe: u === DEFAULT_UNIVERSE ? null : u }), { replace: true })
+    } catch { /* the sheet still switches; only the link misses it */ }
+  }, [universe, monitorTopIndex, monitorTopDate, setSearchParams])
+  useEffect(() => {
+    const d = pendingTopRef.current
+    if (!d || !grid.count || grid.universe !== universe) return
+    pendingTopRef.current = null
+    const id = requestAnimationFrame(() => monitorScrollTo(grid.indexOfDate(d)))
+    return () => cancelAnimationFrame(id)
+  }, [universe, grid.count, grid, monitorScrollTo])
+  // The Columns menu's per-row tag on this universe: "Market-wide" / "n/a for Nasdaq" (UCT: none).
+  const columnTag = useCallback((key) => columnTagFor(key, universe), [universe])
+  // Off UCT the CSV is the sheet's own rows (the newest MONITOR_WINDOW sessions loaded).
+  const gridCsvRows = () => {
+    const out = []
+    for (let i = 0; i < Math.min(grid.count, MONITOR_WINDOW + 1); i++) {
+      const r = grid.getRow(i)
+      if (r) out.push(r)
+    }
+    return out
+  }
 
   // A shared snapshot link (`/breadth?d=YYYY-MM-DD`) teleports to that day once
   // the timeline index is ready. Fires exactly once; a bad/missing param no-ops.
@@ -1321,7 +1374,7 @@ export default function Breadth() {
   // ⭐ W2-C1: what UCT Agent may read of this page (read only: tab, window, newest session, rows, columns).
   // Called BEFORE the tab branches below — a hook after an early return changes the hook count when the
   // member switches tab (React: "Rendered fewer hooks than expected"; breadth/breadthTabHookOrder.test.jsx).
-  useBreadthAgentHost({ tab: activeTab, days: effectiveDays, topDate: monitorTopDate, rowCount: rows.length, columns: visibleCols.map(c => c.label || c.key || String(c)), live: !!liveBreadth?.data, loading: isLoading })
+  useBreadthAgentHost({ tab: activeTab, days: effectiveDays, topDate: monitorTopDate, rowCount: rows.length, columns: visibleCols.map(c => c.label || c.key || String(c)), live: !!liveBreadth?.data, loading: isLoading, universe: universeLabel(universe) })
 
   if (activeTab === 'overview') {
     // 2026-10-07 completeness audit: this branch returned before the error banner, so a failed
@@ -1455,6 +1508,45 @@ export default function Breadth() {
                     Back to latest
                   </button>
                 )}
+                {/* The universe the per-universe columns measure (UCT Signature menu: the
+                    chosen one wears the gold ✓). Before Columns, owner 2026-11-19. */}
+                <div className={customizeStyles.anchor}>
+                  <button
+                    type="button"
+                    ref={universeBtn}
+                    className={`${styles.hdrBtn} ${universeMenu ? styles.hdrBtnOpen : ''}`}
+                    data-testid="breadth-universe"
+                    aria-haspopup="menu"
+                    aria-expanded={!!universeMenu}
+                    aria-label={`Universe: ${universeLabel(universe)}`}
+                    title="Which stocks the breadth columns measure"
+                    onClick={(e) => {
+                      if (universeMenu) { setUniverseMenu(null); return }
+                      const r = e.currentTarget.getBoundingClientRect()
+                      setUniverseMenu({ x: r.left, y: r.bottom + 6 })
+                    }}
+                  >
+                    {universeLabel(universe)}
+                    <span className={styles.hdrChevron} aria-hidden="true">
+                      <svg width="9" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </span>
+                  </button>
+                  <ContextPopover
+                    open={!!universeMenu}
+                    anchor={universeMenu}
+                    onClose={() => setUniverseMenu(null)}
+                    returnFocusTo={universeBtn}
+                    width={220}
+                    signature
+                    items={[
+                      { groupLabel: 'Universe' },
+                      ...MONITOR_UNIVERSES.map(u => ({
+                        key: u.id, label: u.label, hint: u.hint,
+                        checked: u.id === universe, onClick: () => setUniverse(u.id),
+                      })),
+                    ]}
+                  />
+                </div>
                 <div className={customizeStyles.anchor}>
                   <ColumnsMenu
                     cols={COLS}
@@ -1462,6 +1554,7 @@ export default function Breadth() {
                     buttonClassName={`${styles.hdrBtn} ${styles.hdrBtnPrimary}`}
                     openClassName={styles.hdrBtnOpen}
                     chevronClassName={styles.hdrChevron}
+                    columnTag={columnTag}
                   />
                 </div>
                 {/* ⋯ — the chart's Signature menu (ContextPopover `signature`):
@@ -1492,7 +1585,7 @@ export default function Breadth() {
                     signature
                     items={[
                       { key: 'share', label: 'Share', onClick: () => setShareOpen(true) },
-                      { key: 'csv', label: 'Export CSV', onClick: () => exportCsv(rows, visibleCols) },
+                      { key: 'csv', label: 'Export CSV', onClick: () => exportCsv(isUct ? rows : gridCsvRows(), visibleCols, universe) },
                     ]}
                   />
                   {shareOpen && (
@@ -1544,7 +1637,7 @@ export default function Breadth() {
           and it disappears the moment the 4:15 collector makes it one. It only
           belongs above the LATEST window; teleported back in time, "today" has
           no business sitting over a historical sheet. */}
-      {activeTab === 'breadth' && <LiveSessionStrip live={liveBreadth} />}
+      {activeTab === 'breadth' && isUct && <LiveSessionStrip live={liveBreadth} />}
 
       {/* Completeness audit 2026-10-07: the Monitor grid swallowed a failed timeline read and
           failed row blocks -- "Loading…" forever, rows that never filled. Said, with a Retry;
@@ -1655,14 +1748,18 @@ export default function Breadth() {
                 // that IS the render order below — a second ordering here would
                 // put the stop on a cell that is not the first one on screen.
                 const firstDrillKey = visibleCols.find(
-                  c => drillTarget(row, c, liveBreadth),
+                  c => gridDrill(row, c, liveBreadth),
                 )?.key ?? null
                 return (
                 <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${row._live ? styles.liveRow : ''}`}>
-                  <td className={`${styles.td} ${styles.dateCell}`}>
+                  <td className={`${styles.td} ${styles.dateCell} ${row._provisional && !row._live ? styles.provisionalDate : ''}`}
+                      title={row._provisional && !row._live
+                        ? `Provisional — the canonical ${universeLabel(universe)} session replaces it when it lands`
+                        : undefined}>
                     {row._live
                       ? (
-                        <span className={styles.liveStamp} title={liveTitle}>
+                        <span className={styles.liveStamp} title={isUct ? liveTitle
+                          : `Provisional — ${universeLabel(universe)} today, from the live snapshot. The canonical session replaces it after it lands.`}>
                           <span className={styles.livePulse} aria-hidden="true" />
                           {liveClock}
                         </span>
@@ -1719,8 +1816,20 @@ export default function Breadth() {
                     // A live cell drills what was MEASURED live; a carried one
                     // drills the session its number came from. `drillTarget`
                     // owns that choice so the tiles below make it identically.
-                    const drillTo = drillTarget(row, col, liveBreadth)
+                    const drillTo = gridDrill(row, col, liveBreadth)
                     const isDrillable = !!drillTo
+                    // Off UCT: Health is hidden ("—") and the Phase 3 columns read "n/a".
+                    const override = universeCellOverride(col.key, universe)
+                    if (override) {
+                      return (
+                        <td key={col.key}
+                            className={`${styles.td} ${styles.naCell} ${groupStart}`}
+                            data-universe-na={col.key}
+                            title={override === 'n/a' ? NOT_AVAILABLE_NOTE : universeColumnNote(col.key, universe)}>
+                          {override}
+                        </td>
+                      )
+                    }
                     // A number carried from last night is not a live reading,
                     // and one that reconciles to ~8% should not look like one
                     // that reconciles to a point.
@@ -1740,7 +1849,7 @@ export default function Breadth() {
                     return (
                       <td
                         key={col.key}
-                        className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii && !carried ? styles.aaiiStale : ''} ${carried ? styles.carriedValue : ''} ${isDrillable ? styles.drillable : ''} ${liveGrade === 'carried' ? styles.liveCarried : ''} ${liveGrade === 'approximate' ? styles.liveApprox : ''}`}
+                        className={`${styles.td} ${cellClass(col, val, row, universe)} ${isStaleAaii && !carried ? styles.aaiiStale : ''} ${carried ? styles.carriedValue : ''} ${isDrillable ? styles.drillable : ''} ${liveGrade === 'carried' ? styles.liveCarried : ''} ${liveGrade === 'approximate' ? styles.liveApprox : ''}`}
                         title={
                           liveGrade === 'carried'
                             ? `Last night's reading (${liveBreadth.carriedFrom}) — not live`
@@ -1803,7 +1912,7 @@ export default function Breadth() {
           returnFocusTo={colMenuBtn}
           width={264}
           signature
-          header={colMenu ? <ColumnInfoBlock colKey={colMenu.key} /> : null}
+          header={colMenu ? <ColumnInfoBlock colKey={colMenu.key} universe={universe} /> : null}
           items={colMenu ? [
             { key: 'move-left', label: 'Move left', disabled: colMenu.index === 0, onClick: () => moveCol(colMenu.key, -1) },
             { key: 'move-right', label: 'Move right', disabled: colMenu.index === visibleCols.length - 1, onClick: () => moveCol(colMenu.key, 1) },

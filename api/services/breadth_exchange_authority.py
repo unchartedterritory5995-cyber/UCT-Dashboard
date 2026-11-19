@@ -566,6 +566,13 @@ def sync_once(store=None) -> dict:
         else:
             b = store.get(key(POINTER_KEY))
             res = {"ok": True, **install(b, store)}
+            if res.get("result") == "installed":
+                # ⭐ A new pointer: refresh the pre-built NYSE / Nasdaq Monitor rows (background).
+                try:
+                    from api.services import breadth_universe_monitor as _bum
+                    _bum.kick_refresh(("nasdaq", "nyse"))
+                except Exception:
+                    pass
     except Refused as e:
         res = {"ok": False, "reason": e.reason, "detail": e.detail}
     except Exception as e:  # noqa: BLE001
