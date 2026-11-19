@@ -11,8 +11,16 @@ import {
   verdictFrom, refusalOf, sameRefusals, checkScript, settleScript, scriptEntry,
   MAX_REPAIR_ROUNDS, SCRIPT_REFUSAL_LIMITS, RUNS_STATES, drawingLossOf, DRAWINGS_NOTE, LOST_DRAWINGS_HEADLINE,
 } from './scriptAnswer'
+import { RUN, STOPPED_HEADLINE, runHereWhenLanded, verdictOnChart } from '../runsHere'
+import { recipeBars, recipeContext, RUN_STOP_PROBES } from '../../supportLoop/assistantRecipes'
+import { inspectSource } from '../PineBox'
+import { memberPaneDefinition } from '../memberPane/memberPaneDefinition'
+import { editorStatus } from '../editorStatus'
+
+/** The engine modules `checkScript` loads, with nothing to fetch (the lists are allowed in `beforeAll`). */
+const realEngine = async () => ({ inspectSource, memberPaneDefinition, editorStatus, prepare: async () => {}, runHereWhenLanded, verdictOnChart })
 import { DRAWING_NOTE_NAME } from '../../engine/ast/objectLoss'
-import { converseBody, converseTurn, scriptOf, scriptRefusalBlock, ACCEPTS, SCRIPT_LIMITS } from './converseClient'
+import { converseBody, converseTurn, scriptOf, scriptRefusalBlock, ACCEPTS, ACCEPTS_SCRIPT, SCRIPT_LIMITS } from './converseClient'
 import { modelTurn } from './authoringSession'
 import { newAuthoringState } from './index'
 import { __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
@@ -22,6 +30,8 @@ const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8
   .match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
 vi.stubEnv(flagOf('src/components/chart/engine/objectsOnlyPaneGate.js'), '1')
 vi.stubEnv(flagOf('src/components/chart/engine/runtimePaneGate.js'), '1')
+// (a script is run on a chart only where member scripts are drawn at all: `runsHere.js` asks the gate first)
+vi.stubEnv('VITE_PINE_MEMBER_PANE_ENABLED', '1')
 
 const EXAMPLES = path.resolve(process.cwd(), 'src/components/chart/supportLoop/assistantExamples')
 const TABLE = fs.readFileSync(path.join(EXAMPLES, 'table-summary.pine'), 'utf8')
@@ -178,8 +188,20 @@ describe('checked, repaired a bounded number of times, and the last verdict show
 describe('the wire', () => {
   const state = newAuthoringState()
 
-  it('this build tells the door it accepts a script, and sends a refusal back bounded', () => {
-    expect(ACCEPTS).toContain('script')
+  it('ONLY a window that shows a script tells the door it accepts one', () => {
+    // ⚰️ 2026-11-19: the word was sent by every sender; the builder's own box got a script it cannot show
+    expect(ACCEPTS).not.toContain('script')
+    expect(ACCEPTS_SCRIPT).toBe('script')
+    expect(converseBody({ message: 'x', state }).accepts).toEqual(['note.by', 'offer'])
+    expect(converseBody({ message: 'x', state, gateCtx: { symbol: 'AAPL', tf: 'D' } }).accepts).toEqual(['note.by', 'offer'])
+    expect(converseBody({ message: 'x', state, gateCtx: { showsScripts: true } }).accepts).toEqual(['note.by', 'offer', 'script'])
+    // exactly true: a truthy word is not a yes
+    for (const other of ['true', 1, {}, [], null, undefined, false]) {
+      expect(converseBody({ message: 'x', state, gateCtx: { showsScripts: other } }).accepts, String(other)).toEqual(['note.by', 'offer'])
+    }
+  })
+
+  it('a refusal is sent back bounded', () => {
     expect('script_refusal' in converseBody({ message: 'x', state })).toBe(false)
     const body = converseBody({ message: 'x', state, scriptRefusal: { pine: BROKEN, errors: ['  line 3:\n  not here  ', '', 7], round: 2 } })
     expect(body.script_refusal).toEqual({ pine: BROKEN, errors: ['line 3: not here'], round: 2 })
@@ -301,3 +323,73 @@ describe('a script whose drawings the lane lost has not run, whatever the status
   })
 })
 
+// ═══ "runs" means it RAN: the paste verdict joined with a real run on the chart ═════════════
+
+describe('a script is run on the chart\'s own bars before the dock says it runs', () => {
+  beforeAll(() => { __permitRuntimePaneForTests(); __allowEveryRuntimeScriptForTests() })
+  const TOTAL = RUN_STOP_PROBES['running-total'].source
+  const chartOn = (history) => ({ bars: recipeBars('daily'), ctx: recipeContext('daily', history) })
+
+  it('⛔ the paste check alone calls a running total "runs"; on a chart that does not reach the listing the run says no', async () => {
+    const pasted = await checkScript(TOTAL)
+    expect(pasted.runs).toBe(true)                                   // no chart to run on: the paste check, as before
+    expect('ranHere' in pasted).toBe(false)
+    const off = await checkScript(TOTAL, { chart: chartOn('offListing') })
+    expect(off.runs).toBe(false)
+    expect(off.ranHere).toBe(RUN.STOPPED)
+    expect(off.headline).toBe(STOPPED_HEADLINE)
+    expect(off.errors).toHaveLength(1)
+    expect(off.errors[0]).toMatch(/its values never came to agree/)
+    expect(off.errors[0].length).toBeLessThanOrEqual(SCRIPT_REFUSAL_LIMITS.maxChars)
+    expect(refusalOf(TOTAL, off, 1)).toEqual({ pine: TOTAL, errors: off.errors, round: 1 })
+    // the SAME script on a chart whose history reaches the listing runs
+    const from = await checkScript(TOTAL, { chart: chartOn('fromListing') })
+    expect(from.runs).toBe(true)
+    expect(from.ranHere).toBe(RUN.RAN)
+    expect(from.headline).toBe(pasted.headline)
+  }, 120_000)
+
+  it('a proven recipe runs on both, and a script the paste check refuses is never run', async () => {
+    for (const history of ['fromListing', 'offListing']) {
+      const v = await checkScript(OWNED_SCRIPT, { chart: chartOn(history) })
+      expect(v.runs, history).toBe(true)
+      expect(v.ranHere).toBe(RUN.RAN)
+    }
+    let ran = 0
+    const refusedByPaste = await checkScript(BROKEN, { chart: chartOn('fromListing'),
+      load: async () => { const real = await realEngine(); return { ...real, runHereWhenLanded: async (...a) => { ran += 1; return real.runHereWhenLanded(...a) } } } })
+    expect(refusedByPaste.runs).toBe(false)
+    expect(ran).toBe(0)
+  }, 120_000)
+
+  it('an older engine bundle with no run, or a chart with nothing to run on, is the paste verdict and says it was not run', async () => {
+    const noRun = await checkScript(TOTAL, { chart: chartOn('offListing'),
+      load: async () => { const { runHereWhenLanded: _a, verdictOnChart: _b, ...rest } = await realEngine(); return rest } })
+    expect(noRun.runs).toBe(true)
+    expect('ranHere' in noRun).toBe(false)
+    const loading = await checkScript(TOTAL, { chart: { bars: [], ctx: recipeContext('daily', 'offListing') } })
+    expect(loading.runs).toBe(true)
+    expect(loading.ranHere).toBe(RUN.NOT_RUN)
+  }, 120_000)
+
+  it('the turn hands each check the chart AS IT IS THEN, and a run that stops goes back for repair', async () => {
+    const charts = [chartOn('offListing'), chartOn('fromListing')]
+    const asked = []
+    const sent = []
+    const converse = async (args) => {
+      sent.push(args)
+      return { ok: true, disposition: 'answer', reply: 'A running total.', turn: 'script',
+        envelope: { contract: 'uct.authoring.patch/1', baseRevision: 0, ops: [], disposition: 'answer', reply: 'A running total.' },
+        script: { name: 'Total', pine: `${TOTAL}// ${sent.length}${String.fromCharCode(10)}`, round: sent.length - 1 }, notUnderstood: [], unavailable: [] }
+    }
+    const state = newAuthoringState()
+    const out = await modelTurn(state, () => state, 'a running total of volume', {
+      converse, chartOf: () => { const c = charts[Math.min(asked.length, 1)]; asked.push(c.ctx.historyFromListing); return c },
+    })
+    expect(asked).toEqual([false, true])                             // asked once per check, not once per turn
+    expect(sent).toHaveLength(2)
+    expect(sent[1].scriptRefusal.errors[0]).toMatch(/its values never came to agree/)
+    expect(out.ok).toBe(true)                                        // the repair was checked on the second chart, and ran
+    expect(out.rounds).toBe(1)
+  }, 120_000)
+})

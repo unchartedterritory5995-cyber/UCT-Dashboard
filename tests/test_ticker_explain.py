@@ -828,6 +828,33 @@ class TestNewEvidenceFormatters:
         assert len(out) == 1
         assert "calendar-quarter label" in out[0]["date"]
         assert "94,500,000,000" in out[0]["text"]
+        # a payload that names no source is cited as the fallback, caveat and all
+        assert out[0]["source"] == "UCT Financials (yfinance)"
+
+    def test_financials_evidence_cites_the_source_the_payload_names(self):
+        row = {"period": "Q3 2026", "revenue": 100_000_000_000, "eps": 1.79,
+               "net_margin": 27.0, "revenue_yoy": 8.7}
+        from_fmp = te._financials_evidence({
+            "quarterly": [row], "balance": {"cash": "$61.00B"}, "metrics": {},
+            "sources": {"statements": "FMP", "summary": "Yahoo Finance"}})
+        quarter = [e for e in from_fmp if e["type"] == "financials_quarter"]
+        assert len(quarter) == 1
+        assert quarter[0]["source"] == "FMP, via UCT Financials"
+        assert "yfinance" not in quarter[0]["source"]
+        # the FMP statements label the company's own fiscal quarters: no calendar caveat
+        assert quarter[0]["date"] == ("Q3 2026 (fiscal-quarter label -- this company's own "
+                                      "fiscal-quarter numbering)")
+        assert quarter[0]["text"].startswith("Quarter Q3 2026: revenue $100,000,000,000, EPS $1.79")
+        # the snapshot is the fundamentals service's whichever source supplied the quarters
+        snap = [e for e in from_fmp if e["type"] == "financials_snapshot"]
+        assert snap[0]["source"] == "UCT Financials (yfinance)"
+
+        fallback = te._financials_evidence({
+            "quarterly": [row], "balance": {}, "metrics": {},
+            "sources": {"statements": "Yahoo Finance", "summary": "Yahoo Finance"}})
+        assert fallback[0]["source"] == "UCT Financials (yfinance)"
+        assert "calendar-quarter label -- may not match" in fallback[0]["date"]
+        assert "FMP" not in fallback[0]["source"]
 
     def test_financials_snapshot_from_balance_and_metrics(self):
         # Live-validation regression: fundamentals.py's `cash`/`total_debt`/

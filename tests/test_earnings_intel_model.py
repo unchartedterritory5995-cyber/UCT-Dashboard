@@ -477,6 +477,19 @@ class TestDegradation:
         assert out["meta"]["actuals_source"] == "yfinance-statement"
         assert out["quarters"][0]["eps_actual"] == 2.0
 
+    def test_actuals_only_mode_names_the_statements_source_that_answered(self, stub):
+        # The statements come from FMP first and Yahoo Finance only as a fallback;
+        # the label a member reads under the table is the one that answered.
+        stub.statements = _statements(values={
+            "2026-05-28": _q("2026-05-28", revenue=1e10, eps=2.0),
+        })
+        stub.statements["meta"]["source"] = "FMP"
+        stub.year_earnings = {}
+        out = ei._build("MU")
+        assert out["meta"]["actuals_source"] == "fmp-statement"
+        stub.statements["meta"]["source"] = "Yahoo Finance"
+        assert ei._build("MU")["meta"]["actuals_source"] == "yfinance-statement"
+
     def test_provider_failure_does_not_break_the_payload(self, stub, monkeypatch):
         import api.services.earnings_estimates as ee
         monkeypatch.setattr(ee, "get_year_earnings",

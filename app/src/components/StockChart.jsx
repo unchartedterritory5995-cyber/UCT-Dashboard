@@ -272,7 +272,7 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl, registerSymbolWarmer } from '../utils/prefetchBars'
 import { resolveShowExtended } from '../utils/viewSession'
 import * as realtimeCandle from '../lib/realtimeCandle'
-import { newestSeriesBar } from './chart/newestSeriesBar'
+import { newestSeriesBar, newestRealLogicalIndex } from './chart/newestSeriesBar'
 import { barsHistorySplitEnabled } from '../utils/barsHistorySplit'
 import { LIVE_PERIOD_SECONDS } from '../lib/liveBarMerge'
 import { publishChartReadout } from '../lib/chartReadoutStore'
@@ -1443,6 +1443,13 @@ function zoomLimitsOf(chart) {
 // Falls back to the candle count when the time scale cannot answer (mid-load / stand-ins).
 function newestLogicalIndex(chart, candleSeries, fallbackCount) {
   try {
+    // ⭐ BY INDEX LOOKUPS FIRST, NEVER A COPY (2026-11-19). `data()` rebuilds every row of the series
+    // as a new object (a 50,000-row copy on an hourly chart; ~14 ms of each flip on the production
+    // CPU profile). The newest real candle is found from the end with the library's own search,
+    // stepping left over the whitespace slots (the D/W/M load reserve) by their logical index.
+    const n = newestRealLogicalIndex(chart, candleSeries)
+    if (n != null) return n
+    // the time scale could not answer (mid-load / stand-ins): the series' rows, as before
     const d = candleSeries?.data?.() || []
     let i = d.length - 1
     while (i >= 0 && isWhitespacePoint(d[i])) i--
@@ -8735,8 +8742,10 @@ export default function StockChart({
     const loaded = barCountRef.current
     if (heldSpanFor(loaded, 0) !== heldSpanFor(_heldLoaded, 0)) _setHeldLoaded(loaded)
   })
+  // ⭐⭐ (2026-11-19, e83 live) — and the symbol BINDING the run is handed (`symbolMeta`), so the own-daily question
+  // is asked of the script as the run builds it (Fred RS branches on `syminfo.industry`)
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym)
+    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)
@@ -9626,6 +9635,21 @@ export default function StockChart({
   const historyFromListing = useMemo(() => historyFromListingOf({
     bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
   }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
+  // ⭐ 2026-11-19 -- THE CHART AS THE ENGINE SEES IT, for a check made BESIDE the chart
+  // (`chart/builder/runsHere.js`): the bars the binder computes on and the five facts of the compute
+  // context it is handed below (`sym`, `symbol`, `tf`, `newestBarIsForming`, `historyFromListing`).
+  // A script judged on anything else would be judged on a chart the member is not looking at.
+  // `engineChart.test.js` holds these five to the binder's own, expression for expression.
+  const engineChart = useMemo(() => ({
+    bars: filteredBars,
+    ctx: {
+      sym,
+      symbol: symbolMeta,
+      tf: resolvedTf,
+      newestBarIsForming: data?.newest_bar_is_forming ?? null,
+      historyFromListing,
+    },
+  }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing])
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
@@ -21985,6 +22009,7 @@ export default function StockChart({
             /* ⭐ THE WINDOW THE USER SEES (Phase D Task 13) — the concierge's
                compute stage runs on these. Same array the chart is drawing. */
             bars={bars}
+            engineChart={engineChart}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             color={drawColor}
@@ -22160,6 +22185,7 @@ export default function StockChart({
               chartInstances={engineInstancesRef.current}
               chartId={chartId}
               bars={bars}
+              engineChart={engineChart}
               activeTool={activeTool}
               setActiveTool={setActiveTool}
               color={drawColor}
@@ -22259,6 +22285,7 @@ export default function StockChart({
               chartInstances={engineInstancesRef.current}
               chartId={chartId}
               bars={bars}
+              engineChart={engineChart}
               activeTool={indexActiveTool}
               setActiveTool={setIndexActiveTool}
               color={drawColor}

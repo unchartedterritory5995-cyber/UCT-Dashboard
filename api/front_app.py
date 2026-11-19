@@ -156,6 +156,8 @@ PROXY_PATHS = (
 
 PUBLIC_NOTE_PATH_PREFIXES = ("/share/n", "/p")
 PUBLIC_NOTE_HEADERS = {"X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
+#: The shell permits the JS Self-Profiling API (live-site stall attribution); mirrors api/main.py.
+SHELL_DOCUMENT_POLICY = "js-profiling"
 
 ALL_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 #: Folders this app serves through a mount. A mount answers any method itself, so OPTIONS
@@ -466,7 +468,7 @@ def create_app(dist: str | None = None, upstream: str | None = None,
     # ── everything else ───────────────────────────────────────────────────────
     def shell(full_path: str):
         """The app shell, exactly as `spa_index_response` in api/main.py builds it."""
-        headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+        headers = {"Cache-Control": "no-cache, no-store, must-revalidate", "Document-Policy": SHELL_DOCUMENT_POLICY}
         hints = link_header()
         if hints:
             headers["Link"] = hints

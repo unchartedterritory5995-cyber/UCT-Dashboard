@@ -213,6 +213,20 @@
    "shows": "the last two confirmed pivots of each kind are kept in `var`; each side's line is kept in an ARRAY, deleted and made again when a new pivot arrives, and extended to the right; where each line stands on the current bar is plotted, so a break of it can be alerted on",
    "chart": "daily",
    "file": "auto-trendlines.pine"
+  },
+  {
+   "id": "heikin-ashi-candles",
+   "title": "Heikin Ashi candles, in their own pane",
+   "asks": [
+    "heikin ashi",
+    "heiken ashi",
+    "heikinashi",
+    "ha candles",
+    "smoothed candles"
+   ],
+   "shows": "each candle is made from the bar and the candle before it: its close is the average of the bar's four prices, its open is halfway between the open and close of the candle before (the first one uses the bar's own open and close), and its high and low reach the bar's high and low. The candles are drawn in their OWN pane under the chart (a script cannot replace the chart's candles). All three colours of a candle are written (body, wick and border): a candle given only one is drawn half in the chart's default colours",
+   "chart": "daily",
+   "file": "heikin-ashi-candles.pine"
   }
  ]
 }

@@ -66,9 +66,9 @@ describe('a note the door wrote', () => {
 
   it('the browser tells the door it accepts the mark, on every turn', () => {
     const body = converseBody({ message: 'add an ema', state: newAuthoringState({ lineage: 'auth_000000000000' }) })
-    expect(body.accepts).toEqual(['note.by', 'offer', 'script'])
-    expect(ACCEPTS).toEqual(['note.by', 'offer', 'script'])
+    expect(body.accepts).toEqual(['note.by', 'offer'])
+    expect(ACCEPTS).toEqual(['note.by', 'offer'])
     body.accepts.push('x')
-    expect(ACCEPTS).toEqual(['note.by', 'offer', 'script'])                         // each body gets its own copy
+    expect(ACCEPTS).toEqual(['note.by', 'offer'])                                   // each body gets its own copy
   })
 })

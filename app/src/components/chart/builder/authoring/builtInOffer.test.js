@@ -7,8 +7,9 @@ import { describe, it, expect, vi } from 'vitest'
 import * as registry from '../../engine/nativeRegistry'
 import { mergeChartSettings } from '../../chartDefaults'
 import { BUILT_IN_NAMES } from './checkedLibrary'
-import { offerableBuiltIns, liveOffer, withoutOffer, applyOffer, OFFER_ADD_BUILT_IN } from './builtInOffer'
-import { converseBody, converseTurn, offerOf, builtInIds, ACCEPTS, BUILT_INS_LIMITS } from './converseClient'
+import { addInstance } from '../../engine/instanceControls'
+import { offerableBuiltIns, liveOffer, withoutOffer, applyOffer, settingWords, OFFER_ADD_BUILT_IN } from './builtInOffer'
+import { converseBody, converseTurn, offerOf, builtInIds, ACCEPTS, BUILT_INS_LIMITS, OFFER_INPUTS_LIMITS } from './converseClient'
 import { modelTurn, initialTranscript } from './authoringSession'
 import { newAuthoringState } from './index'
 
@@ -19,7 +20,7 @@ const instancesOf = (cs, defId) => (cs.indicatorInstances || []).filter((i) => i
 
 describe('the library names that are UCT\'s own built-in indicators', () => {
   it('each names a definition of this registry, by the registry\'s own name', () => {
-    expect(BUILT_IN_NAMES.map((b) => b.id)).toEqual(['mansfield_relative_strength', 'rs_rating', 'rs_phases'])
+    expect(BUILT_IN_NAMES.map((b) => b.id)).toEqual(['mansfield_relative_strength', 'rs_rating', 'rs_phases', 'session_vwap_bands'])
     for (const b of BUILT_IN_NAMES) {
       const def = registry.getDefinition(b.indicator)
       expect(def, b.indicator).toBeTruthy()
@@ -33,8 +34,8 @@ describe('rule 1: only what this build can add is ever offered', () => {
     const asked = []
     const got = offerableBuiltIns({ registry, isOffered: (def) => { asked.push(def.id); return def.id === 'rsRating' } })
     expect(got).toEqual(['rsRating'])
-    expect(asked.sort()).toEqual(['rsMansfield', 'rsPhases', 'rsRating'])
-    expect(offerableBuiltIns({ registry, isOffered: yes })).toEqual(['rsMansfield', 'rsRating', 'rsPhases'])
+    expect(asked.sort()).toEqual(['rsMansfield', 'rsPhases', 'rsRating', 'vwap'])
+    expect(offerableBuiltIns({ registry, isOffered: yes })).toEqual(['rsMansfield', 'rsRating', 'rsPhases', 'vwap'])
   })
 
   it('lists nothing when none is offered, when the chart cannot be written, or with no registry', () => {
@@ -153,6 +154,154 @@ describe('the wire', () => {
     expect('offer' in none.entries[0]).toBe(false)
     const foreign = await modelTurn(state, () => state, 'x', { converse: answer({ kind: 'add_built_in', indicator: 'rsi' }) })
     expect('offer' in foreign.entries[0]).toBe(false)
+  })
+})
+
+// ─── ONE SETTING OF A BUILT-IN: VWAP's standard-deviation bands (2026-11-19) ───────────
+// The door half is `tests/test_vwap_bands_offer.py`.
+describe('rule 4: a setting\'s offer is the built-in with that setting, or it is nothing', () => {
+  const BANDS2 = { kind: OFFER_ADD_BUILT_IN, indicator: 'vwap', inputs: { bands: '2' } }
+  const bandsOf = (cs) => instancesOf(cs, 'vwap').map((i) => i.inputs.bands)
+  const withVwap = () => addInstance(mergeChartSettings({}), 'vwap', registry)
+
+  it('every library row with a setting names an input this registry declares, and values it offers', () => {
+    const rows = BUILT_IN_NAMES.filter((b) => b.setting)
+    expect(rows.map((b) => b.indicator)).toEqual(['vwap'])
+    for (const row of rows) {
+      const declared = registry.getDefinition(row.indicator).inputs.find((i) => i.key === row.setting.input)
+      expect(declared, row.setting.input).toBeTruthy()
+      const options = declared.options.map((o) => o[0])
+      expect(row.setting.values.length).toBeGreaterThan(0)
+      for (const v of row.setting.values) expect(options, v).toContain(v)
+      // ⛔ never the value the definition has by default: an offer for it would be the plain add
+      expect(row.setting.values).not.toContain(declared.default)
+      // no plain row shares the indicator (the first row found would decide which offer it is)
+      expect(BUILT_IN_NAMES.filter((b) => b.indicator === row.indicator)).toHaveLength(1)
+    }
+  })
+
+  it('reads the indicator id and the one input; the words are this registry\'s own', () => {
+    expect(liveOffer({ ...BANDS2, name: 'Something Else', label: 'Click me' })).toEqual({
+      kind: 'add_built_in', indicator: 'vwap', name: 'Session VWAP', inputs: { bands: '2' },
+      label: 'Add Session VWAP with Std dev bands: ±1σ, ±2σ to this chart',
+    })
+    expect(liveOffer({ ...BANDS2, inputs: { bands: '3' } }).label).toBe('Add Session VWAP with Std dev bands: ±1σ, ±2σ, ±3σ to this chart')
+    expect(settingWords('vwap', 'bands', '1')).toEqual({ input: 'Std dev bands', value: '±1σ' })
+    expect(settingWords('vwap', 'bands', '9')).toBeNull()
+    expect(settingWords('vwap', 'nope', '1')).toBeNull()
+    expect(settingWords('nope', 'bands', '1')).toBeNull()
+  })
+
+  it.each([
+    ['no inputs at all (the plain add would draw no bands)', { kind: 'add_built_in', indicator: 'vwap' }],
+    ['the setting turned off', { ...BANDS2, inputs: { bands: 'off' } }],
+    ['a value the library does not hold', { ...BANDS2, inputs: { bands: '4' } }],
+    ['a number, not the registry\'s value', { ...BANDS2, inputs: { bands: 2 } }],
+    ['another setting beside it', { ...BANDS2, inputs: { bands: '2', lineWidth: '4' } }],
+    ['another setting instead', { ...BANDS2, inputs: { color: '#ffffff' } }],
+    ['inputs that are a list', { ...BANDS2, inputs: ['bands', '2'] }],
+    ['inputs that are nothing', { ...BANDS2, inputs: null }],
+    ['a plain built-in that carries inputs', { kind: 'add_built_in', indicator: 'rsRating', inputs: { bands: '2' } }],
+  ])('%s is no offer, and a tap on it writes nothing', (_name, raw) => {
+    expect(liveOffer(raw)).toBeNull()
+    expect(applyOffer(raw, { settings: mergeChartSettings({}), registry, isOffered: yes }))
+      .toEqual({ ok: false, line: 'That could not be added from here.' })
+  })
+
+  it('the tap adds ONE Session VWAP with the bands on, and every other setting at its default', () => {
+    const cs = mergeChartSettings({})
+    expect(instancesOf(cs, 'vwap')).toHaveLength(0)
+    const out = applyOffer(BANDS2, { settings: cs, registry, isOffered: yes, tf: '5' })
+    expect(out.ok).toBe(true)
+    expect(out.line).toBe('Added Session VWAP to this chart with Std dev bands: ±1σ, ±2σ.')
+    expect(bandsOf(out.next)).toEqual(['2'])
+    expect(out.next.indicators.vwap.enabled).toBe(true)
+    expect(out.next.preset).toBe('custom')
+    // exactly the Indicators list's own add, with the one setting moved
+    const plain = instancesOf(withVwap(), 'vwap')[0]
+    expect(plain.inputs.bands).toBe('off')
+    expect({ ...instancesOf(out.next, 'vwap')[0].inputs, bands: 'off' }).toEqual(plain.inputs)
+    expect(instancesOf(cs, 'vwap')).toHaveLength(0)                        // the settings handed in are not touched
+  })
+
+  it('on a chart that already has Session VWAP it turns the bands on there: never a second copy', () => {
+    const cs = withVwap()
+    expect(bandsOf(cs)).toEqual(['off'])
+    const out = applyOffer({ ...BANDS2, inputs: { bands: '3' } }, { settings: cs, registry, isOffered: yes, tf: '15' })
+    expect(out.ok).toBe(true)
+    expect(out.line).toBe('Session VWAP was already on this chart. Its Std dev bands setting is now ±1σ, ±2σ, ±3σ.')
+    expect(bandsOf(out.next)).toEqual(['3'])
+    expect(bandsOf(cs)).toEqual(['off'])
+    // and a second tap for the same bands changes nothing
+    expect(applyOffer({ ...BANDS2, inputs: { bands: '3' } }, { settings: out.next, registry, isOffered: yes }))
+      .toEqual({ ok: false, line: 'Session VWAP is already on this chart with Std dev bands: ±1σ, ±2σ, ±3σ.' })
+  })
+
+  it('says so when the chart is on a timeframe Session VWAP does not draw on (the chart\'s own rule)', () => {
+    const daily = applyOffer(BANDS2, { settings: mergeChartSettings({}), registry, isOffered: yes, tf: 'D' })
+    expect(daily.ok).toBe(true)
+    expect(daily.line).toBe('Added Session VWAP to this chart with Std dev bands: ±1σ, ±2σ. Session VWAP does not draw on this timeframe: it will show when the chart is on one it does.')
+    const onIt = applyOffer({ ...BANDS2, inputs: { bands: '1' } }, { settings: withVwap(), registry, isOffered: yes, tf: 'W' })
+    expect(onIt.line).toBe('Session VWAP was already on this chart. Its Std dev bands setting is now ±1σ. Session VWAP does not draw on this timeframe: it will show when the chart is on one it does.')
+    // with no timeframe handed in, nothing is said about one
+    expect(applyOffer(BANDS2, { settings: mergeChartSettings({}), registry, isOffered: yes }).line)
+      .toBe('Added Session VWAP to this chart with Std dev bands: ±1σ, ±2σ.')
+    // a plain built-in's line is what it was, whatever the timeframe
+    expect(applyOffer(RATING, { settings: mergeChartSettings({}), registry, isOffered: yes, tf: '5' }).line).toBe('Added UCT RS Rating to this chart.')
+  })
+
+  it('a registry that does not take the asked value: nothing is written, and the line says so', () => {
+    const real = registry.getDefinition('vwap')
+    const narrowed = {
+      getDefinition: (id) => (id === 'vwap'
+        ? { ...real, inputs: real.inputs.map((i) => (i.key === 'bands' ? { ...i, options: i.options.filter((o) => o[0] !== '2') } : i)) }
+        : registry.getDefinition(id)),
+    }
+    expect(applyOffer(BANDS2, { settings: mergeChartSettings({}), registry: narrowed, isOffered: yes }))
+      .toEqual({ ok: false, line: 'Session VWAP could not be added with Std dev bands: ±1σ, ±2σ, so nothing was added.' })
+    expect(applyOffer(BANDS2, { settings: withVwap(), registry: narrowed, isOffered: yes }))
+      .toEqual({ ok: false, line: 'Session VWAP is on this chart, and its Std dev bands setting could not be changed from here.' })
+    // CONTROL: the same two taps with the real registry write
+    expect(applyOffer(BANDS2, { settings: mergeChartSettings({}), registry, isOffered: yes }).ok).toBe(true)
+    expect(applyOffer(BANDS2, { settings: withVwap(), registry, isOffered: yes }).ok).toBe(true)
+  })
+
+  it('a value this window\'s own registry does not declare for the input is no offer (the words are read there)', () => {
+    const real = registry.getDefinition('vwap')
+    const spy = vi.spyOn(registry, 'getDefinition').mockImplementation((id) => (id === 'vwap'
+      ? { ...real, inputs: real.inputs.map((i) => (i.key === 'bands' ? { ...i, options: i.options.filter((o) => o[0] !== '2') } : i)) }
+      : null))
+    try {
+      expect(liveOffer(BANDS2)).toBeNull()
+      expect(liveOffer({ ...BANDS2, inputs: { bands: '1' } }).label).toBe('Add Session VWAP with Std dev bands: ±1σ to this chart')
+    } finally { spy.mockRestore() }
+    expect(liveOffer(BANDS2)).not.toBeNull()
+  })
+
+  it('asks again whether this build offers it, and writes nothing when it does not', () => {
+    expect(applyOffer(BANDS2, { settings: mergeChartSettings({}), registry, isOffered: no }))
+      .toEqual({ ok: false, line: 'Session VWAP is not offered on this chart right now, so nothing was added.' })
+  })
+
+  it('the wire keeps the one input, and an offer whose inputs do not read is no offer at all', async () => {
+    const state = newAuthoringState()
+    expect(offerOf({ offer: { ...BANDS2, name: 'x', label: 'y', extra: 1 } })).toEqual({ offer: BANDS2 })
+    for (const bad of [null, 'bands', ['bands'], {}, { bands: 2 }, { bands: '' }, { bands: 'x'.repeat(OFFER_INPUTS_LIMITS.maxChars + 1) },
+      Object.fromEntries(Array.from({ length: OFFER_INPUTS_LIMITS.max + 1 }, (_v, i) => [`k${i}`, '1']))]) {
+      expect(offerOf({ offer: { ...BANDS2, inputs: bad } }), JSON.stringify(bad)).toEqual({})
+    }
+    const answer = async () => ({
+      ok: true, disposition: 'answer', reply: 'Session VWAP draws them itself.', turn: 'offer',
+      envelope: { contract: 'uct.authoring.patch/1', baseRevision: 0, ops: [], disposition: 'answer', reply: 'Session VWAP draws them itself.' },
+      notUnderstood: [], unavailable: [], offer: BANDS2,
+    })
+    const turn = await modelTurn(state, () => state, 'VWAP with 2 standard deviation bands', { converse: answer })
+    expect(turn.entries[0].offer).toEqual({
+      kind: 'add_built_in', indicator: 'vwap', name: 'Session VWAP', inputs: { bands: '2' },
+      label: 'Add Session VWAP with Std dev bands: ±1σ, ±2σ to this chart',
+    })
+    // this build tells the door it can add Session VWAP
+    expect(converseBody({ message: 'x', state, gateCtx: { builtIns: offerableBuiltIns({ registry, isOffered: yes }) } }).addable).toContain('vwap')
   })
 })
 

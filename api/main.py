@@ -14392,6 +14392,10 @@ register_static_mime_types()
 # sees its noindex.
 PUBLIC_NOTE_PATH_PREFIXES = ("/share/n", "/p")
 PUBLIC_NOTE_HEADERS = {"X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
+# The app shell allows the browser's JS Self-Profiling API (`new Profiler(...)`), so a chart
+# stall measured on the live site can be attributed to functions, not guessed at (2026-11-19).
+# Nothing in the app starts a profiler; the policy only permits one. Mirrored in front_app.py.
+SHELL_DOCUMENT_POLICY = "js-profiling"
 
 
 def is_public_note_path(full_path: str) -> bool:
@@ -14405,7 +14409,7 @@ def spa_index_response(full_path: str):
     headers on a public-note path. Defined OUTSIDE the DIST guard so the rail can serve
     it from a temp DIST; `spa_fallback` below is exactly `return spa_index_response(...)`
     (tests/test_public_note_headers.py pins that by AST)."""
-    headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    headers = {"Cache-Control": "no-cache, no-store, must-revalidate", "Document-Policy": SHELL_DOCUMENT_POLICY}
     hints = early_hint_link_header()
     if hints:
         headers["Link"] = hints

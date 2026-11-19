@@ -8,6 +8,26 @@
 // the whole series and is computed only when read.
 const NEAREST_LEFT = -1 // lightweight-charts MismatchDirection.NearestLeft
 
+const isWhitespaceRow = (p) => !!p && p.value === undefined && p.open === undefined
+
+/**
+ * The LOGICAL index (time-scale axis) of the newest REAL (non-whitespace) row of `series`, found
+ * with ONE by-index lookup (`dataByIndex` NearestLeft from the end) instead of `series.data()`, a
+ * whole-series copy (2026-11-19: ~14 ms of each 50,000-bar hourly flip on the production CPU
+ * profile). On lightweight-charts 5.2.0 that lookup never lands on a whitespace slot (the D/W/M load
+ * reserve is not a row it searches; proven against the real library in
+ * __tests__/chartLibraryPatch.behaviour.test.js). null when the series is empty, the time scale
+ * cannot answer, or the row IS whitespace: the caller then reads the series' rows as before.
+ */
+export function newestRealLogicalIndex(chart, series) {
+  const ts = chart?.timeScale?.()
+  if (!ts?.timeToIndex || !series?.dataByIndex) return null
+  const row = series.dataByIndex(Number.MAX_SAFE_INTEGER, NEAREST_LEFT)
+  if (!row || isWhitespaceRow(row)) return null
+  const li = ts.timeToIndex(row.time, false)
+  return typeof li === 'number' && Number.isFinite(li) ? li : null
+}
+
 export function newestSeriesBar(series) {
   const last = series?.dataByIndex?.(Number.MAX_SAFE_INTEGER, NEAREST_LEFT)
   if (!last) return null

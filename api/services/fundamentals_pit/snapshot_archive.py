@@ -21,6 +21,13 @@ None is cleared for permanent historical retention, so RETENTION_ALLOWED is
 EMPTY: the framework runs, reports every candidate as BLOCKED with its reason,
 and persists nothing. Enabling a source is a one-line owner/legal decision
 recorded here, not an implementation change.
+
+⚰️ 2026-11-19: the three fmp rows above now read LA, because the table follows
+the register's 2026-09-19 note (DDLA confirmed). That LA is MEMBER DISPLAY only
+and clears no retention: storage is register T-42 (the §6.3 deletion duty and
+the §2.8 notice), and this gate decides by RETENTION_ALLOWED, never by the class
+(tests/test_provider_licensing_restate.py forces every candidate to A and
+proves nothing is kept).
 """
 from __future__ import annotations
 

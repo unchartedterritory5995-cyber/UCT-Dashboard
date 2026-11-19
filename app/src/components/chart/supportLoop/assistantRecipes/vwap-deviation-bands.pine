@@ -16,7 +16,7 @@ sumPV += src * volume
 sumP2V += src * src * volume
 vwap = sumV > 0 ? sumPV / sumV : na
 dev = sumV > 0 ? math.sqrt(math.max(sumP2V / sumV - vwap * vwap, 0)) : na
-plot(vwap, "VWAP", color=color.orange, width=2)
+plot(vwap, "VWAP", color=color.orange, linewidth=2)
 plot(vwap + m1 * dev, "Upper 1", color=color.gray)
 plot(vwap - m1 * dev, "Lower 1", color=color.gray)
 plot(vwap + m2 * dev, "Upper 2", color=color.silver)
