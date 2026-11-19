@@ -248,12 +248,19 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
             # (`pine_authoring.backed_by`), on THIS script: a repair is judged again.
             reference = pine_authoring.backed_by(message, pine)
             said = pine_authoring.said_with_disclosure(said, reference)
+            # ⭐ AND WHETHER IT WAITS FOR THE BAR (found live 2026-11-19): a script that reads where the chart
+            # ends is drawn only on a finished bar. The server's own detector decides, on THIS script, and
+            # UCT says it in its own words: a member is never left to find it out from an empty chart.
+            waits = pine_authoring.waits_for_the_bar(pine)
+            said = pine_authoring.said_with_the_bar(said, waits)
             trace["script"]["chars"] = len(pine)
             trace["script"]["reference"] = reference
+            trace["script"]["waits_for_the_bar"] = waits
             logger.info("[converse:script] a script of %d characters (round %d, %d call(s), reference %s)",
                         len(pine), rnd, attempts, reference or "none")
             return {"ok": True, "disposition": "answer", "turn": "script", "reply": said,
-                    "script": {"name": name, "pine": pine, "round": rnd, "reference": reference},
+                    "script": {"name": name, "pine": pine, "round": rnd, "reference": reference,
+                               "waits_for_the_bar": waits},
                     "envelope": {"contract": contract, "baseRevision": revision, "ops": [], "disposition": "answer",
                                  "reply": said},
                     "answered_by": "assistant", "not_understood": [], "unavailable": [], **extra()}

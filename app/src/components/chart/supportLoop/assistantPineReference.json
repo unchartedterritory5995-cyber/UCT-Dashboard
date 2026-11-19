@@ -36,6 +36,10 @@
   "var",
   "while"
  ],
+ "historyOnly": [
+  "realtime-state",
+  "request-other"
+ ],
  "families": [
   "line",
   "label",
@@ -1724,8 +1728,8 @@
   {
    "id": "table-summary",
    "title": "A summary table in a corner of the chart",
-   "shows": "table.new once with var, cells written on the last bar, numbers formatted with str.tostring",
-   "source": "//@version=5\nindicator(\"ATR summary table\", overlay=true)\nlen = input.int(14, \"ATR length\", minval=1)\na = ta.atr(len)\nvar table t = table.new(position.top_right, 2, 3, border_width=1)\nif barstate.islast\n    table.cell(t, 0, 0, \"ATR\", text_color=color.white, bgcolor=color.gray)\n    table.cell(t, 1, 0, str.tostring(a, \"#.##\"), text_color=color.white)\n    table.cell(t, 0, 1, \"ATR %\", text_color=color.white, bgcolor=color.gray)\n    table.cell(t, 1, 1, str.tostring(a / close * 100, \"#.##\") + \"%\", text_color=color.white)\n    table.cell(t, 0, 2, \"From 50 SMA\", text_color=color.white, bgcolor=color.gray)\n    table.cell(t, 1, 2, str.tostring((close - ta.sma(close, 50)) / a, \"#.#\") + \" ATR\", text_color=color.white)\n",
+   "shows": "table.new once with var, its cells written on EVERY bar (nothing waits for the last bar), numbers formatted with str.tostring",
+   "source": "//@version=5\nindicator(\"ATR summary table\", overlay=true)\nlen = input.int(14, \"ATR length\", minval=1)\na = ta.atr(len)\nvar table t = table.new(position.top_right, 2, 3, border_width=1)\ntable.cell(t, 0, 0, \"ATR\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 0, str.tostring(a, \"#.##\"), text_color=color.white)\ntable.cell(t, 0, 1, \"ATR %\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 1, str.tostring(a / close * 100, \"#.##\") + \"%\", text_color=color.white)\ntable.cell(t, 0, 2, \"From 50 SMA\", text_color=color.white, bgcolor=color.gray)\ntable.cell(t, 1, 2, str.tostring((close - ta.sma(close, 50)) / a, \"#.#\") + \" ATR\", text_color=color.white)\n",
    "ok": true,
    "lane": "host",
    "state": "runs",
@@ -1754,8 +1758,8 @@
   {
    "id": "box-over-a-range",
    "title": "A shaded box over a range of bars",
-   "shows": "one box kept in a var, deleted and redrawn on the last bar",
-   "source": "//@version=5\nindicator(\"Range box\", overlay=true)\nn = input.int(20, \"Bars\")\nvar box b = na\nif barstate.islast\n    box.delete(b)\n    b := box.new(bar_index - n, ta.highest(high, n), bar_index, ta.lowest(low, n), bgcolor=color.new(color.blue, 85), border_color=color.blue)\n",
+   "shows": "one box made once with var and MOVED on every bar with box.set_lefttop and box.set_rightbottom (never deleted and remade, never waiting for the last bar)",
+   "source": "//@version=5\nindicator(\"Range box\", overlay=true)\nn = input.int(20, \"Bars\")\nhi = ta.highest(high, n)\nlo = ta.lowest(low, n)\nvar box b = box.new(bar_index, high, bar_index, low, bgcolor=color.new(color.blue, 85), border_color=color.blue)\nif not na(hi)\n    box.set_lefttop(b, bar_index - n, hi)\n    box.set_rightbottom(b, bar_index, lo)\n",
    "ok": true,
    "lane": "host",
    "state": "runs",
@@ -1814,12 +1818,12 @@
   {
    "id": "levels-from-a-list",
    "title": "Several levels drawn from a list, with a label on each",
-   "shows": "array.from, for ... in, each level's price kept in an array, lines and labels rebuilt from it on the last bar (kept in arrays, deleted before they are made again), and one value from that array PLOTTED so the run owns the drawings",
-   "source": "//@version=5\nindicator(\"Fib levels\", overlay=true)\nn = input.int(100, \"Lookback\")\nhh = ta.highest(high, n)\nll = ta.lowest(low, n)\nlevels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)\nprices = array.new_float(0)\nfor lv in levels\n    array.push(prices, hh - (hh - ll) * lv)\nvar line[] ls = array.new_line(0)\nvar label[] lbs = array.new_label(0)\nif barstate.islast\n    while array.size(ls) > 0\n        oldLine = array.pop(ls)\n        line.delete(oldLine)\n    while array.size(lbs) > 0\n        oldLabel = array.pop(lbs)\n        label.delete(oldLabel)\n    for i = 0 to array.size(prices) - 1\n        y = array.get(prices, i)\n        array.push(ls, line.new(bar_index - n, y, bar_index, y, extend=extend.right, color=color.gray))\n        array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, \"#.#\") + \"%\", style=label.style_label_left, color=color.gray, textcolor=color.white))\nplot(array.get(prices, 3), \"50% level\", color=color.gray)\n",
+   "shows": "array.from, for ... in, each level's price kept in an array, the lines and labels made once (kept in arrays) and MOVED on every bar with line.set_xy1, line.set_xy2 and label.set_xy, and one value from that array PLOTTED so the run owns the drawings",
+   "source": "//@version=5\nindicator(\"Fib levels\", overlay=true)\nn = input.int(100, \"Lookback\")\nhh = ta.highest(high, n)\nll = ta.lowest(low, n)\nlevels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)\nprices = array.new_float(0)\nfor lv in levels\n    array.push(prices, hh - (hh - ll) * lv)\nvar line[] ls = array.new_line(0)\nvar label[] lbs = array.new_label(0)\nif not na(hh)\n    for i = 0 to array.size(prices) - 1\n        y = array.get(prices, i)\n        if array.size(ls) <= i\n            array.push(ls, line.new(bar_index - n, y, bar_index, y, extend=extend.right, color=color.gray))\n            array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, \"#.#\") + \"%\", style=label.style_label_left, color=color.gray, textcolor=color.white))\n        level = array.get(ls, i)\n        line.set_xy1(level, bar_index - n, y)\n        line.set_xy2(level, bar_index, y)\n        label.set_xy(array.get(lbs, i), bar_index, y)\nplot(array.get(prices, 3), \"50% level\", color=color.gray)\n",
    "ok": true,
    "lane": "runtime",
    "state": "runs-with-notes",
-   "headline": "Runs on the chart, with 3 notes"
+   "headline": "Runs on the chart, with 2 notes"
   },
   {
    "id": "heikin-ashi-candles",
