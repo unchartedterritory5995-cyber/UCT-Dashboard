@@ -59,7 +59,7 @@ const hours = (day, h0) => Array.from({ length: 20 - h0 }, (_, k) => ET(day, h0 
 const CHART_T = [ET(LISTING, 12, 30), ...hours(LISTING, 13), ...SESS.slice(1).flatMap((d) => hours(d, 4))]
 const CHART = CHART_T.map((t, i) => bar(t, 40 + i * 0.05 + Math.sin(i / 5)))
 // SP:SPX deeper than the chart: its 60m bars (regular hours) and its daily rows from five sessions before the listing
-const SPX_60 = [...BEFORE, ...SESS].flatMap((d, k) => Array.from({ length: 7 }, (_, j) => bar(ET(d, 9, 30) + j * 3600, 5100 + k * 3 + Math.cos(j)))
+const SPX_60 = [...BEFORE, ...SESS].flatMap((d, k) => Array.from({ length: 7 }, (_, j) => bar(ET(d, 9, 30) + j * 3600, 5100 + k * 3 + Math.cos(j))))
 const SPX_D = [...BEFORE, ...SESS].map((d, k) => ({ t: Date.parse(`${d}T00:00:00Z`) / 1000, o: 1, h: 1, l: 1, c: 5100 + k * 3, v: 1 }))
 // this chart symbol's own daily rows (ISO days): from the listing, as `/api/bars?tf=D` serves RDDT (first row 2024-03-21)
 const OWN_D = SESS.map((d, k) => ({ t: d, o: 1, h: 1, l: 1, c: 40 + k * 0.8, v: 1 }))
