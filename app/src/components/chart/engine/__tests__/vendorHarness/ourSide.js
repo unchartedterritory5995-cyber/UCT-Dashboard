@@ -40,7 +40,7 @@ import { toRenderState } from '../../objectRenderState'
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRunObjectsOn, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
-import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
+import { setRuntimeDoorClock, RUNTIME_REQUEST_WITHHELD_KEY } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
@@ -1782,6 +1782,15 @@ function runOurSideOnTheParityClock(capture) {
     // not compared (`compare.mjs`, `withheldNewest`), every other bar is.
     const newestHeld = new Set(((registry.chartClockReport(cols) || {}).withheld || [])
       .filter((r) => r.code === TF_MERGE_NEWEST_CODE).flatMap((r) => r.plots))
+    // ⭐ REQ-B1 (2026-11-18) — AND THE RUNTIME LANE'S OWN. A run whose request cannot know its newest bar
+    // yet withholds that bar on EVERY column, by the same name (`runtimeColumns.js`,
+    // `RUNTIME_REQUEST_WITHHELD_KEY`, RS RATING L5): the member reads it blank and named on every plot, so
+    // it is not compared on any of them. ⚰️ Unread here, a daily plot of a runtime document that also
+    // reads a monthly merge graded DIVERGE on that one named bar (SR-MTF, graded on the runtime lane forced).
+    const runNewest = cols && cols[RUNTIME_REQUEST_WITHHELD_KEY]
+    if (runNewest && Array.isArray(runNewest.codes) && runNewest.codes.includes(TF_MERGE_NEWEST_CODE)) {
+      for (const p of (def.plots || [])) if (p && typeof p.key === 'string') newestHeld.add(p.key)
+    }
     // ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code
     const withheldBarsReport = registry.withheldBarsReport(calcCols)
     let colours

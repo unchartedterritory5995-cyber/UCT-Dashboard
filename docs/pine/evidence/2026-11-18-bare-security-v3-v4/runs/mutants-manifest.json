@@ -1,0 +1,45 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "B1-1",
+   "mutant": "a v3 / v4 bare security is not routed to the request door (master's refusal)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (node.name === 'security' && (pineVersion === 3 || pineVersion === 4)) {",
+   "to": "        if (false) {",
+   "rail": "cd app && npx vitest run src/components/chart/engine/__tests__/vendorHarness/vendorHarness.reqBareSecurityForced.test.js"
+  },
+  {
+   "id": "B1-2",
+   "mutant": "v1 / v2 (and no version line) are routed too",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (node.name === 'security' && (pineVersion === 3 || pineVersion === 4)) {",
+   "to": "        if (node.name === 'security' && !(pineVersion >= 5)) {",
+   "rail": "cd app && npx vitest run src/components/chart/engine/__tests__/vendorHarness/vendorHarness.reqBareSecurityForced.test.js"
+  },
+  {
+   "id": "B1-3",
+   "mutant": "a value that reads this run's own mutable state is not refused first",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (valueNode && readsOuterSlot(valueNode, scope)) {",
+   "to": "          if (false) {",
+   "rail": "cd app && npx vitest run src/components/chart/engine/__tests__/vendorHarness/vendorHarness.reqBareSecurityForced.test.js"
+  },
+  {
+   "id": "B1-4",
+   "mutant": "the forced-runtime seam is never read (the door keeps its own lane)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  if (runtimeLaneForced && runtimePaneEnabled()) {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run src/components/chart/engine/__tests__/vendorHarness/vendorHarness.reqBareSecurityForced.test.js"
+  },
+  {
+   "id": "B1-5",
+   "mutant": "the harness does not read the run's named newest-bar withhold",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/ourSide.js",
+   "from": "    if (runNewest && Array.isArray(runNewest.codes) && runNewest.codes.includes(TF_MERGE_NEWEST_CODE)) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run src/components/chart/engine/__tests__/vendorHarness/vendorHarness.reqBareSecurityForced.test.js"
+  }
+ ]
+}
