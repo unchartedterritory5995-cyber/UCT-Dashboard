@@ -64,8 +64,9 @@ WHEN FINRA PUBLISHED A REPORT is not in the vendor's answer, so `published` is a
 business day after the settlement date) and says so.
 
 Reused by the Terminal panels (app/src/pages/terminal/panels/shortInterestModel.js and
-shortListModel.js); `held_stock` and `held_market` are read-only for a caller that must not cause
-work.
+shortListModel.js); `held_stock`, `held_market`, `held_market_row` and `held_market_rows` are
+read-only for a caller that must not cause work (the Screener's nightly snapshot reads the whole
+held list through `held_market_rows`: `api/services/screener/short_columns.py`).
 """
 from __future__ import annotations
 
@@ -933,6 +934,36 @@ def held_market_row(ticker: Any) -> tuple[Optional[dict], str]:
                     "read_at": held.get("read_at"), "source": SOURCE,
                     "float_source": (held.get("float") or {}).get("source")}, "held"
     return None, "not_in_list"
+
+
+def held_market_rows() -> tuple[Optional[dict], str]:
+    """READ ONLY: EVERY row of the market list this module already holds, keyed by symbol, as
+    `(answer, how)`. It never starts a build, a check or a vendor read. For a reader that walks the
+    whole market in one pass (the Screener's nightly snapshot): asking `held_market_row` once per
+    stock would scan the list once per stock.
+
+    how: 'held'      {"rows": {SYM: row}, "count", "settlement_date", "previous_settlement_date",
+                     "publication_estimate", "read_at", "source", "float_source"}. Each row is a
+                     copy of the held one (`sym`, `short_interest`, `avg_daily_volume`,
+                     `days_to_cover`, `prev_short_interest`, `change_shares`, `change_pct`,
+                     `float_shares`, `pct_float`); a missing figure is None, never 0.
+         'not_held'  no list is held; the answer is None, or what the last build said while that
+                     still stands (`unavailable` / `failed` with its reason), as `held_market` gives
+    """
+    held = _held_market()
+    if held is None:
+        return _market_block(), "not_held"
+    rows: dict[str, dict] = {}
+    for r in held.get("rows") or []:
+        sym = r.get("sym") if isinstance(r, dict) else None
+        if isinstance(sym, str) and sym and sym not in rows:
+            rows[sym] = dict(r)
+    day = held.get("settlement_date")
+    return {"rows": rows, "count": len(rows), "settlement_date": day,
+            "previous_settlement_date": held.get("previous_settlement_date"),
+            "publication_estimate": publication_estimate(day),
+            "read_at": held.get("read_at"), "source": SOURCE,
+            "float_source": (held.get("float") or {}).get("source")}, "held"
 
 
 # ── the daily warm: the market list is kept built, on the web service only ───────────────────

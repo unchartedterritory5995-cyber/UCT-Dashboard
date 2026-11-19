@@ -28,6 +28,11 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 /** Every library indicator the window knows: `{id, name, version, params, outputs}`. */
 export const CHECKED_LIBRARY = Object.freeze(LIBRARY.indicators)
 
+/** ⭐ The library names that are UCT's own BUILT-IN indicators, not formulas:
+ *  `{id, name, indicator, builtInName}` (`indicator` is the native registry's id). Read by
+ *  `builtInOffer.js`: what the window may offer to add when the door answers such a name. */
+export const BUILT_IN_NAMES = Object.freeze(Array.isArray(LIBRARY.builtIns) ? LIBRARY.builtIns : [])
+
 const sameBound = (a, b) => a[0] === b[0] && a[1] === b[1]
 
 /** Is `node` an acceptable number for `param` where the library holds `lib`? → ['num', v] | ['input', name] | null */

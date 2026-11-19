@@ -9,13 +9,16 @@ sys.path.insert(0, ".")
 from api.services.screener import snapshot_builder as sb          # noqa: E402
 from api.services.screener import (finviz_universe, earnings_dates,   # noqa: E402
                                    earnings_context, analyst_pass,
-                                   insider_capture)
+                                   insider_capture, short_columns)
 
 universe = [t for t in json.load(open("api/data/cap_universe.json"))
             if isinstance(t, str)][:20]
 sources = {}
 readers = {
     "finviz": finviz_universe.read_finviz_fields,
+    # the two short-interest columns have their own reader since 2026-11-18;
+    # read-only, and with no list held locally it reports the export's figures
+    "short": short_columns.read_short_columns,
     "edates": earnings_dates.read_earnings_dates,
     "lastmove": earnings_context.read_last_report_move,
     "implied": earnings_context.read_implied_context,
