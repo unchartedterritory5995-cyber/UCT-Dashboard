@@ -541,8 +541,8 @@
   {
    "id": "delete-in-one-call",
    "history": "fromListing",
-   "standing": true,
-   "guard": "wrong-value"
+   "standing": false,
+   "guard": null
   },
   {
    "id": "higher-timeframe-newest-bar",

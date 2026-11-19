@@ -24,6 +24,7 @@ import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition
 import { __permitRuntimePaneForTests } from '../engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../engine/runtimeKill'
 import RECIPE_INDEX from './assistantRecipes/index.json'
+import GENERATED from './assistantRecipes.json'
 import { recipeBars, recipeContext } from './assistantRecipes'
 
 const HERE = path.resolve(process.cwd(), 'src/components/chart/supportLoop')
@@ -456,9 +457,12 @@ describe('what each recipe plots equals an independent calculation', () => {
   // chart's NEWEST bar while that week is forming, and neither has anything computed from it: reading
   // it one bar back, `nz()`, and `na(x) ? x[1] : x` were each tried and each is blank on that bar. A
   // table written on the last bar from such a read cannot be right on most days, so the recipe was
-  // removed rather than shipped; the limit is said to the assistant (`RUN_STOP_WORDS`). The day one
-  // of these has a value there, this test fails and the recipe can come back.
-  it('a weekly read is blank on a mid-week newest bar, and no rewrite of the script rescues it', () => {
+  // removed rather than shipped; the limit is said to the assistant (`RUN_STOP_WORDS`).
+  // ⭐ It follows the generated answer (`stops`, regenerated after an engine change), so an engine fix
+  // is never a red here: while the stop stands, every rewrite is blank on that bar; once it does not,
+  // the plain read has a value there AND THE RECIPE CAN COME BACK (`write_recipes.py`, studio track).
+  it('a weekly read on a mid-week newest bar: blank under every rewrite while that stop stands, a value once it does not', () => {
+    const stands = GENERATED.stops.find((s) => s.id === 'higher-timeframe-newest-bar').standing
     const midWeek = BARS.daily.slice(0, -3)
     const last = midWeek.length - 1
     expect(new Date(`${midWeek[last].t}T00:00:00Z`).getUTCDay()).toBe(2)                     // a Tuesday
@@ -474,23 +478,24 @@ describe('what each recipe plots equals an independent calculation', () => {
     }
     for (const line of ['shown = wk', 'shown = wk[1]', 'shown = nz(wk)', 'shown = na(wk) ? wk[1] : wk']) {
       const [shown, read] = run(line)
-      expect(ok(read[last]), line).toBe(false)
-      expect(ok(read[last - 1]), line).toBe(true)                    // the bar before has it
-      expect(ok(shown[last]), `${line}: has a value on the newest bar now`).toBe(false)
+      expect(ok(read[last - 1]), line).toBe(true)                    // the bar before has it, on any engine
       expect(ok(shown[last - 1]), line).toBe(true)
+      if (stands) {
+        expect(ok(read[last]), line).toBe(false)
+        expect(ok(shown[last]), `${line}: has a value on the newest bar`).toBe(false)
+      } else if (line === 'shown = wk') {
+        expect(ok(read[last]) && ok(shown[last]), line).toBe(true)
+      }
     }
   }, 300_000)
 
-  // ⭐ THE ONE-CALL TRIM ENDS, AND DRAWS WHAT THE TWO-STEP TRIM DRAWS. This run draws its own drawings (engine 82,
-  // #1941: a runtime document whose host object program is clean draws its run's drawings), so
-  // `label.delete(array.shift(marks))` runs IN the run, `marks` shrinks, and the `while` ends. ⚰️ This control was
-  // written against an engine that skipped the call whole (`marks` never shrank, the `while` ran to the 10,000-pass
-  // limit) and asserted that `runtime:limit`: it pinned a wrong value, and it reached master red, because engine 82
-  // already answered it (found by the engine 83 train, 2026-11-19). It now asserts the answer: exactly the recipe's
-  // own two-step columns on every bar, "Labels on the chart" (`array.size(marks)`, the value the skip got wrong)
-  // included. (Engine 83's #1980 fixes the same shape where the object program owns the drawing, the build this run
-  // carries as its fallback: `engine/runtime/__tests__/skippedDrawingArgWrites.test.js`.)
-  it('CONTROL: a trim written as ONE call inside a `while` ends on this engine and draws what the two-step recipe draws', () => {
+  // ⭐ WHY EVERY RECIPE DELETES IN TWO STEPS. While the engine's one-call delete stood
+  // (`RUN_STOP_PROBES['delete-in-one-call']`), a trim written as ONE call inside a `while` never ended
+  // and the run said so. ⚰️ 2026-11-19: this test asserted that as today's fact; an engine train fixed
+  // the delete and master went red on the fix. It follows the generated answer now: while the stop
+  // stands the run is refused by its loop limit; once it does not, the one-call script runs and ends
+  // with the recipe's own numbers. The two-step form is right either way, so the recipes keep it.
+  it('a trim written as ONE call inside a `while`: refused by the loop limit while that stop stands, the recipe\'s own numbers once it does not', () => {
     const LF = String.fromCharCode(10)
     const twice = `if array.size(marks) > keep${LF}    oldLabel = array.shift(marks)${LF}    label.delete(oldLabel)${LF}`
     const src = sourceOf('market-structure')
@@ -498,14 +503,23 @@ describe('what each recipe plots equals an independent calculation', () => {
     const oneCall = src.split(twice).join('').replace('trend = higherHigh',
       `while array.size(marks) > keep${LF}    label.delete(array.shift(marks))${LF}trend = higherHigh`)
     expect(oneCall).toContain('label.delete(array.shift(marks))')
-    expect(chartOf('market-structure')).toBe('daily')
-    // ⛔ the paste check passes it, and the run ends with no column error (engine 82: `runtime:limit`)
-    const oneCallCols = engineColumns('market-structure', oneCall)
-    const recipeCols = engineColumns('market-structure')
-    expect(oneCallCols.length).toBe(recipeCols.length)
-    oneCallCols.forEach((col, k) => same(col, recipeCols[k], `market-structure, the one-call trim, plot ${k}`))
-    const labels = oneCallCols[1].filter(ok)                         // "Labels on the chart"
-    expect(Math.max(...labels)).toBe(40)                             // `keep`: the trim holds the list there
+    const pane = memberPaneDefinition({ source: oneCall, id: `u_value_${made += 1}`, name: 'recipe' })
+    expect(pane.ok).toBe(true)                                       // ⛔ the paste check passes it on any engine
+    const cols = registry.computeFor(pane.definition, BARS.daily, undefined, recipeContext('daily', 'fromListing'))
+    const errors = Object.values(registry.columnErrors(cols) || {}).map((e) => e.guard)
+    const stands = GENERATED.stops.find((s) => s.id === 'delete-in-one-call').standing
+    if (stands) {
+      expect(errors).toContain('runtime:limit')
+    } else {
+      expect(errors).toEqual([])
+      const got = Object.keys(cols).map((k) => Array.from(cols[k]))
+      const want = engineColumns('market-structure')
+      expect(got).toHaveLength(want.length)
+      for (let k = 0; k < want.length; k += 1) same(got[k], want[k], `one-call trim, output ${k + 1}`)
+      // "Labels on the chart" (the second plot) never passes the recipe's own `keep`, and reaches it
+      expect(src).toContain('keep = input.int(40, "Labels kept"')
+      expect(Math.max(...got[1].filter(ok))).toBe(40)
+    }
   }, 300_000)
 
   it('CONTROL: the comparison can fail (a recipe with one number changed is a different column)', () => {
