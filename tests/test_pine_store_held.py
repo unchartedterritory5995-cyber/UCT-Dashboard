@@ -64,6 +64,21 @@ def test_the_snapshot_is_graded_with_productions_store(lane):
     assert SH.snapshot_store_problems(doc, PROMOTED) == []
 
 
+def test_the_store_check_can_fail():
+    """CONTROL: another store, a store missing a version, and a row needing a version the store does not hold."""
+    good = {"libraryStore": PROMOTED, "results": [{"id": "a", SH.FIELD: [SH.pin_of(PROMOTED[0]["path"], PROMOTED[0]["sha256"])]}]}
+    assert SH.snapshot_store_problems(good, PROMOTED) == []
+    # the store itself, with no row needing anything (only the store check can say so)
+    bare = dict(good, results=[{"id": "b"}])
+    assert SH.snapshot_store_problems(bare, PROMOTED) == []
+    assert SH.snapshot_store_problems(dict(bare, libraryStore=PROMOTED[1:]), PROMOTED) != []
+    assert SH.snapshot_store_problems({k: v for k, v in bare.items() if k != "libraryStore"}, PROMOTED) != []
+    other = [dict(PROMOTED[0], sha256="0" * 64)] + PROMOTED[1:]
+    assert SH.snapshot_store_problems(dict(bare, libraryStore=other), PROMOTED) != []
+    stray = dict(good, results=[{"id": "a", SH.FIELD: [SH.pin_of("tester/none/1", "0" * 64)]}])
+    assert SH.snapshot_store_problems(stray, PROMOTED) != []
+
+
 @pytest.mark.parametrize("lane", ["production", "runtime-on"])
 def test_every_row_reaching_a_promoted_version_names_it_and_no_other_row_does(lane):
     doc = _snapshot(lane)

@@ -1335,7 +1335,7 @@ def test_A10_C7_the_snapshot_writer_stamps_the_engine_from_its_one_authority():
         encoding="utf-8")
     assert re.search(r"^import \{ SCRIPT_ENGINE_VERSION \} from '\.\./\.\./scriptEngineVersion\.js'", src, re.M)
     block = src[src.index("fs.writeFileSync(path.join(OUT, 'verdicts.json')"):]
-    block = block[:block.index("results: run.results")]
+    block = block[:block.index("results: ")]   # the rows follow (each marked store-held where it needed the store)
     assert "scriptEngineVersion: SCRIPT_ENGINE_VERSION," in block, "the writer no longer stamps the engine"
 
 
