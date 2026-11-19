@@ -822,8 +822,8 @@ def _serve_gxw(s: str) -> dict:
 # whose every route declares `Depends(require_paid)` individually.
 
 # ⚡ ONE READ PER (symbol, timeframe, depth) PER FEW SECONDS (2026-11-12).
-# A chart's RS pane asks for five server definitions at once (rsLine, rsRating,
-# rsPhases, rsVsEma, rsExit) and each reads the stock AND its benchmarks (SPY,
+# A chart's RS pane asks for up to six server definitions at once (rsLine, rsRating,
+# rsPhases, rsVsEma, rsExit, rsMansfield) and each reads the stock AND its benchmarks (SPY,
 # RSP, the sector ETF) from bars.db on its own: a 12-chart board is ~60 reads of
 # SPY in one burst. Measured on prod 13:59-14:05 UTC, one desk after a deploy:
 # 129 /api/signature/columns calls in 6 minutes, 17.5 s median, 112 s worst;
@@ -1031,12 +1031,19 @@ def _rs_exit_provider(sym: str, tf: str, inputs: dict) -> dict:
                                         warm=lambda ticker: _rs_warm_bars(ticker, tf))
 
 
-#: The RS split's four tenants by row id (unit U4, and `rsExit` 2026-11-12). Tests
-#: install a row and plug the matching wrapper in by hand; production registers
-#: them below only when `RS_SPLIT_ENABLED` put the rows in `SERVER_DEFS`
+def _rs_mansfield_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """UCT Mansfield RS (2026-11-18): `rsMansfield`, the rsLine row's Mansfield Reading on its own pane."""
+    return rs_provider.rs_mansfield_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck,
+                                             warm=lambda ticker: _rs_warm_bars(ticker, tf))
+
+
+#: The RS split's five tenants by row id (unit U4, `rsExit` 2026-11-12, `rsMansfield`
+#: 2026-11-18). Tests install a row and plug the matching wrapper in by hand; production
+#: registers them below only when `RS_SPLIT_ENABLED` put the rows in `SERVER_DEFS`
 #: (`register_provider` refuses an id with no row, so the two cannot be armed apart).
 RS_SPLIT_PROVIDERS: dict = {"rsRating": _rs_rating_provider, "rsPhases": _rs_phases_provider,
-                            "rsVsEma": _rs_vs_ema_provider, "rsExit": _rs_exit_provider}
+                            "rsVsEma": _rs_vs_ema_provider, "rsExit": _rs_exit_provider,
+                            "rsMansfield": _rs_mansfield_provider}
 
 
 registry_defs.register_provider("uct-darkpool-levels", _dpl_provider)

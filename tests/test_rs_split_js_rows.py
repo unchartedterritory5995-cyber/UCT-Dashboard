@@ -33,7 +33,7 @@ JS = ROOT / "app" / "src" / "components" / "chart" / "engine" / "nativeRegistry.
 JS_CONTRACT = ROOT / "app" / "src" / "components" / "chart" / "engine" / "__tests__" / "rsSplitContract.json"
 
 RAW_NAMES = {"rsRating": "RS_RATING_RAW", "rsPhases": "RS_PHASES_RAW", "rsVsEma": "RS_VS_EMA_RAW",
-             "rsExit": "RS_EXIT_RAW"}
+             "rsExit": "RS_EXIT_RAW", "rsMansfield": "RS_MANSFIELD_RAW"}
 
 #: 2026-11-12 (RS Exit Warnings): the one definition with presentation SWITCHES. Each toggles a dot
 #: through `plots[].activeWhen` (the slim RS line's `showAverage` rule): the server never hears of them,

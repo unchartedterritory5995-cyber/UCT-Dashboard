@@ -40,7 +40,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 FIXTURE = REPO / "tests" / "fixtures" / "rs_line_rows_pre_phase3.json"
 LEDGER = REPO / "docs" / "feature_flags.json"
 
-SPLIT_IDS = ("rsRating", "rsPhases", "rsVsEma", "rsExit")
+SPLIT_IDS = ("rsRating", "rsPhases", "rsVsEma", "rsExit", "rsMansfield")
 
 #: ⭐ THE CONTRACT FOR U6: per id, the wire columns and the payload paths.
 RS_SPLIT_CONTRACT = {
@@ -88,6 +88,20 @@ RS_SPLIT_CONTRACT = {
                   "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
                   "inputs.themeBenchmark",
                   "inputs.fastLength", "inputs.slowLength", "inputs.maType", "intraday", "state"],
+    },
+    # 2026-11-18: UCT Mansfield RS, the rsLine row's Mansfield Reading on a pane of its own.
+    # `mansfield.*` is the rsLine payload's own block (`rs_provider._rs_mansfield_scalars`).
+    "rsMansfield": {
+        "columns": ["mansfield", "dotMansfieldCross"],
+        "inputs": ["benchmark", "customBenchmark", "sectorBenchmark", "themeBenchmark", "mansfieldLength"],
+        "paths": ["benchmark.label", "benchmark.resolved", "benchmark.requested", "benchmark.fallback",
+                  "benchmark.note", "benchmark.bars", "benchmark.name",
+                  "mansfield.value", "mansfield.aboveZero", "mansfield.state", "mansfield.stateLabel",
+                  "mansfield.crossBarsAgo", "mansfield.length", "mansfield.lengthText", "mansfield.slope",
+                  "mansfield.crossDirection", "mansfield.lastCross", "mansfield.summary",
+                  "legend.summary", "legend.blankReason",
+                  "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
+                  "inputs.themeBenchmark", "inputs.mansfieldLength", "intraday", "state"],
     },
 }
 
@@ -169,7 +183,7 @@ def test_the_router_registers_the_four_providers_only_with_the_flag():
             "from api.services.signature import registry_defs as rd\n"
             "sys.stdout.write(json.dumps(sorted(k for k in rd._PROVIDERS if k.startswith('rs'))))\n")
     assert json.loads(_serve_fresh(code, None)[0]) == ["rsLine"]
-    assert json.loads(_serve_fresh(code, "1")[0]) == ["rsExit", "rsLine", "rsPhases", "rsRating", "rsVsEma"]
+    assert json.loads(_serve_fresh(code, "1")[0]) == ["rsExit", "rsLine", "rsMansfield", "rsPhases", "rsRating", "rsVsEma"]
 
 
 def test_the_rows_are_built_whether_or_not_the_flag_is_on():
@@ -202,7 +216,7 @@ def test_the_rating_row_has_no_benchmark_and_reuses_the_rev_5_rating_columns():
 
 def test_the_two_ratio_rows_declare_the_rsline_v4_benchmark_pair_exactly():
     v4 = {i["key"]: i for i in rd._rs_line_row(True, True)["inputs"]}
-    for def_id in ("rsPhases", "rsVsEma", "rsExit"):
+    for def_id in ("rsPhases", "rsVsEma", "rsExit", "rsMansfield"):
         by_key = {i["key"]: i for i in next(d for d in rd.RS_SPLIT_DEFS if d["id"] == def_id)["inputs"]}
         assert by_key["benchmark"] == v4["benchmark"], def_id
         assert by_key["benchmark"]["options"] == list(rd.RS_LINE_BENCHMARKS_V4) and "CUSTOM" in by_key["benchmark"]["options"]
@@ -400,7 +414,7 @@ def test_the_rating_envelope_draws_the_stored_rating_and_its_blocks(split_rows, 
 
 # ── blank states, the RS line's own words ─────────────────────────────────────
 
-@pytest.mark.parametrize("def_id", ["rsPhases", "rsVsEma", "rsExit"])
+@pytest.mark.parametrize("def_id", ["rsPhases", "rsVsEma", "rsExit", "rsMansfield"])
 def test_same_symbol_blanks_everything_with_the_rs_line_reason(def_id, split_rows, monkeypatch):
     _store(monkeypatch, n=300)
     env = sig.RS_SPLIT_PROVIDERS[def_id]("SPY", "D", rd.resolve_inputs(def_id, {"benchmark": "SPY"}))
@@ -410,7 +424,7 @@ def test_same_symbol_blanks_everything_with_the_rs_line_reason(def_id, split_row
     assert env["payload"]["benchmark"]["resolved"] == "SPY"
 
 
-@pytest.mark.parametrize("def_id", ["rsPhases", "rsVsEma", "rsExit"])
+@pytest.mark.parametrize("def_id", ["rsPhases", "rsVsEma", "rsExit", "rsMansfield"])
 def test_no_benchmark_bars_blanks_everything_and_caches_for_a_minute(def_id, split_rows, monkeypatch):
     store = _long_daily(n=300)
     del store["SPY"]
@@ -491,16 +505,27 @@ def test_a_cache_hit_is_served_without_a_read(split_rows, monkeypatch):
 
 
 def test_none_of_the_three_reads_regime_sensitivity_or_evidence(split_rows, monkeypatch):
+    """...and none but `rsMansfield` computes the Mansfield columns (2026-11-18): that row
+    IS the rsLine row's Mansfield Reading, so it must read them, and only it may."""
     _store(monkeypatch, n=300)
     for name in ("_rs_regime", "_rs_regime_bench_bars", "_rs_sensitivity", "_rs_evidence", "_rs_checks",
-                 "_rs_phase3", "compute_mansfield_columns"):
-        target = rsm if name == "compute_mansfield_columns" else rsp
-        monkeypatch.setattr(target, name, lambda *a, _n=name, **k: pytest.fail(f"{_n} was read"))
+                 "_rs_phase3"):
+        monkeypatch.setattr(rsp, name, lambda *a, _n=name, **k: pytest.fail(f"{_n} was read"))
+    real_mansfield, asking, read_by = rsm.compute_mansfield_columns, [None], []
+
+    def mansfield(*a, **k):
+        read_by.append(asking[0])
+        if asking[0] != "rsMansfield":
+            pytest.fail(f"compute_mansfield_columns was read by {asking[0]}")
+        return real_mansfield(*a, **k)
+    monkeypatch.setattr(rsm, "compute_mansfield_columns", mansfield)
     for def_id in SPLIT_IDS:
+        asking[0] = def_id
         env = sig.RS_SPLIT_PROVIDERS[def_id]("NVDA", "D", rd.resolve_inputs(def_id, {}))
         assert not {"regime", "sensitivity", "evidence", "checks"} & set(env["payload"])
         rec = rsp.last_timing()
         assert rec["tier"] == "cold" and "evidence" not in rec["stages"]
+    assert read_by == ["rsMansfield"], read_by
 
 
 def test_a_custom_benchmark_resolves_and_warms_when_missing(split_rows, monkeypatch):
