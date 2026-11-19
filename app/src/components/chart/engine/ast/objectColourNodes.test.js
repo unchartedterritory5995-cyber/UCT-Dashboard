@@ -49,7 +49,7 @@ describe('C37 — the object colour string and the packed integer are one conver
     for (const c of ['chart.fg_color', 'transparent', 'rgba(1, 2, 3, 0.5)', 'red', '', null, undefined, '#12345']) {
       expect(objectHexToPacked(c), String(c)).toBeNull()
     }
-    // ⭐ CO-2 (NUMBER PENDING): 2 ** 32 itself is now the runtime lane's carrier of `chart.fg_color`
+    // ⭐ CO-2 (engine 84): 2 ** 32 itself is now the runtime lane's carrier of `chart.fg_color`
     // (`objectTheme.THEME_PACKED_BASE`), turned back into that reference, never into a hex; the first number
     // past the carrier's range stays out of range
     for (const n of [-1, 1.5, 2 ** 32 + 512, NaN, null, 'x']) expect(packedToObjectHex(n), String(n)).toBeNull()

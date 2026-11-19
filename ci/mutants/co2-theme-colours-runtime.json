@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "CO-2 (feat/pine-theme-colours-runtime, NUMBER PENDING): `chart.fg_color` / `chart.bg_color` on the runtime lane are the host reader's theme reference (`objectTheme.js`), carried as a number above every packed colour and resolved where drawn: object slots, per-bar colour columns (through the binder), `color.new` at whole t; a comparison, a gradient endpoint or a fractional t stops by name. Every rule, broken once, must turn its rail red.",
+ "about": "CO-2 (feat/pine-theme-colours-runtime, engine 84): `chart.fg_color` / `chart.bg_color` on the runtime lane are the host reader's theme reference (`objectTheme.js`), carried as a number above every packed colour and resolved where drawn: object slots, per-bar colour columns (through the binder), `color.new` at whole t; a comparison, a gradient endpoint or a fractional t stops by name. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "N1",

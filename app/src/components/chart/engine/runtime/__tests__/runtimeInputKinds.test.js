@@ -171,7 +171,7 @@ ${RT}plot(acc * (time >= startDate ? 1 : 0))
 
   // ⚰️ RULING-0927 r1 (2026-11-07): this served a literal default at the edge of the range. A
   // literal millisecond default is not a form any capture holds, so it is refused by name now.
-  // ⚰️ C1 (NUMBER PENDING, coordinator ruling 2026-11-19): a literal millisecond default was refused here under
+  // ⚰️ C1 (engine 84, coordinator ruling 2026-11-19): a literal millisecond default was refused here under
   // RULING-0927 r1; it IS the UNIX time the input returns (`defval (const int)`), so it serves, at the range's edge too
   it('C1 — a literal millisecond default inside the range is served as itself', () => {
     const { specs } = runtimeInputSpecsOf(SRC.replace('timestamp("01 Jan 2021 00:00 +0000")', '8640000000000000'))
@@ -186,7 +186,7 @@ ${RT}plot(acc * (time >= startDate ? 1 : 0))
 
   // ⚰️ RULING-0927 r1 (2026-11-07): `timestamp(timezone, y, m, d, …)` was SERVED here. It is
   // read exactly by our arithmetic, but no capture holds the form, so it is refused by name.
-  // ⚰️ C1 (NUMBER PENDING, coordinator ruling 2026-11-19): `"UTC", 2021, 1, 1, 0, 0` stood first here; a zone that
+  // ⚰️ C1 (engine 84, coordinator ruling 2026-11-19): `"UTC", 2021, 1, 1, 0, 0` stood first here; a zone that
   // names UTC itself is settled by the reference alone and serves (`inputTimeReferenceDefaults.test.js`). An offset
   // keeps waiting for its sign (CR-S1), the named-argument spelling for Q-D2.
   it.each(['"GMT+10", 2021, 1, 1, 9, 30', '"UTC-5", 2021, 6, 1, 0, 0, 15',

@@ -1,4 +1,4 @@
-# REQ-B1: a v3 / v4 bare `security(...)` is the request door's, graded on the runtime lane forced (2026-11-18, NUMBER PENDING)
+# REQ-B1: a v3 / v4 bare `security(...)` is the request door's, graded on the runtime lane forced (2026-11-18, engine 84)
 
 Coordinator ruling (2026-11-18, request unit, part B1): route a v3 / v4 bare `security` through the request door,
 citing TradingView's v3 migration sentence; v1 / v2 and a script with no version line stay refused by name. Branch
@@ -43,7 +43,7 @@ its own PR.
   not compared on every plot, as it already reads the host lane's per-plot newest withhold. Unread, a daily plot of a
   runtime document that also reads a monthly merge graded DIVERGE on that one named bar.
 - `tools/whole_app_engine_rails.txt`: the new rail reads `app/src` outside the engine.
-- The engine ledger's NUMBER PENDING line.
+- The engine ledger's engine 84 line.
 
 ## 3. Rails and mutation proofs
 

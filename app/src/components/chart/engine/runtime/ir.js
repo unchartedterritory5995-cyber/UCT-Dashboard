@@ -251,7 +251,7 @@ export function validateIr(p) {
    *  program), so a frame-relative history index is checked against that
    *  function's own per-site entries rather than the main program's. */
   let walkingFn = null
-  // ⭐⭐ ENGINE NUMBER PENDING (S14 fix 1) — A FUNCTION BODY'S STATE SITES ARE NUMBERED IN ITS OWN FRAME.
+  // ⭐⭐ ENGINE 84 (S14 fix 1) — A FUNCTION BODY'S STATE SITES ARE NUMBERED IN ITS OWN FRAME.
   // A carried built-in, a two-input carried built-in and a variable's history ring each live, per call site,
   // at that site's base plus the body's own index (`carriedBase`, `carried2Base`, `historyBase`). So in a body
   // the index is checked against the FUNCTION's count (`carriedCount`, `carried2Count`, `historyCount`), and

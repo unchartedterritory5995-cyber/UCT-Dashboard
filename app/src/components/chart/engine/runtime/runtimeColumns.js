@@ -275,7 +275,7 @@ const _memo = new WeakMap()
  *  a run costs the member no frame either way, and this is what stops it. */
 export const RUNTIME_PANE_TIME_BUDGET_MS = 1000
 
-/** ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, NUMBER PENDING) — THE BUDGET OF A RUN IN THE WORKER
+/** ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, engine 84) — THE BUDGET OF A RUN IN THE WORKER
  *  SCALES WITH THE BARS IT COVERS. 1,000 ms is a whole-run number that an honest script crosses through chart LENGTH
  *  alone, and the budget's own record (RT1, above) says its job is to bound a RUNAWAY, not to cap honest long work.
  *    budget(n) = min(4,000, 1,000 + 0.35 x max(0, n - 5,000)) ms, `n` the bars the run COVERS (the rows after the depth
@@ -611,7 +611,7 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
 // ⭐ (coordinator ruling 2026-11-19) A refusal raised ONLY by bars before `knownFrom` (a column the front end refuses
 // over them, the bar count's class of the whole chart) is about bars the run never draws and never reads: dropping
 // it is honest, not a loosening. A refusal from bars INSIDE the drawn span still fires (the run's own build over
-// them). NUMBER PENDING.
+// them). engine 84.
 let _knownFromProbeOff = false
 /** Tests / timing: build over the whole chart first, as before (the identity rails compare both ways). */
 export function __knownFromProbeOffForTests(off) { _knownFromProbeOff = !!off }

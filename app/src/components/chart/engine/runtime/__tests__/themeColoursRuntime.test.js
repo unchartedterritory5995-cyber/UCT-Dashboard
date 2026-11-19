@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/themeColoursRuntime.test.js
 //
-// ─── ⭐⭐ ENGINE NUMBER PENDING (CO-2) — `chart.fg_color` / `chart.bg_color` ON THE RUNTIME LANE ──────────────
+// ─── ⭐⭐ ENGINE 84 (CO-2) — `chart.fg_color` / `chart.bg_color` ON THE RUNTIME LANE ──────────────
 //
 // TradingView: the two are the chart's own background and its high-contrast foreground (the light-theme capture
 // `vw-theme-colours-spy-1d-2026-10-01` reads #0f0f0f on #ffffff). The host reader carries each as a THEME REFERENCE

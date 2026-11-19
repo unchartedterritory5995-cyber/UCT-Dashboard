@@ -1,4 +1,4 @@
-# S14: an exception is never a statement shape (robustness, engine NUMBER PENDING)
+# S14: an exception is never a statement shape (robustness, engine 84)
 
 Coordinator's approval: S14 ROBUSTNESS, 2026-11-18. An exception must never be labelled `runtime:statement`. Relabel
 it `runtime:lower` with a true sentence, then fix each case by its root cause, one at a time. This PR is the relabel.

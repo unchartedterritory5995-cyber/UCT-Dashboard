@@ -334,7 +334,7 @@ const OP_HALT = OP.HALT
 
 export function execute(program, ctx, limits, opts) {
   const budget = (opts && opts.budget) || new Budget(limits)
-  // ⭐⭐ (coordinator ruling 2026-11-19, NUMBER PENDING) — a ceiling that scales with the chart is set from the bars
+  // ⭐⭐ (coordinator ruling 2026-11-19, engine 84) — a ceiling that scales with the chart is set from the bars
   // THIS top-level run covers, once (`Budget.coverBars`): a request's sub-run shares its caller's
   if (!(opts && Number.isInteger(opts.entry) && opts.entry > 0)) budget.coverBars(ctx.bars)
   // ⭐ A REQUEST RUNS THE SAME PROGRAM FROM A DIFFERENT ENTRY, over another

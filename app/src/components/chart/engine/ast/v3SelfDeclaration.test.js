@@ -267,7 +267,7 @@ const DOORS_AGREE_V12 = {
   unreadTop: ['OK', 'OK', 'OK', 'OK'],
   unreadFn: ['OK', 'OK', 'OK', 'OK'],
   unreadIfStmt: ['OK', 'OK', 'OK', 'OK'],
-  // ⭐ S14 fix 1 (NUMBER PENDING): the runtime door answered the uncalled-helper IR defect here (`runtime:statement`,
+  // ⭐ S14 fix 1 (engine 84): the runtime door answered the uncalled-helper IR defect here (`runtime:statement`,
   // then S14's `runtime:lower`); a function nothing calls is checked in its own frame now, and the door builds
   uncalledFn: ['OK', 'OK', 'OK', 'OK'],
   fnName: ['pine:state', 'OK', 'OK', 'OK'],
@@ -368,7 +368,7 @@ describe('⭐⭐ engine 50 (review PR #1141 finding 1) — a variable stays decl
   const NAMESPACE = {
     varThenFnShadow: [['x = close', 'x(a) => a * 2', 'f(s) =>', '    x = nz(x[1]) + s', '    x', 'plot(f(close) + x(1))'], ['pine:state', 'pine:state', 'OK', 'pine:state']],
     varThenFnShadowBlock: [['x = close', 'x(a) => a * 2', 'f(s) =>', '    x = if s > 100', '        nz(x[1]) + 1', '    else', '        0.0', '    x', 'plot(f(close) + x(1))'], ['OK', 'OK', 'OK', 'OK']],
-    // ⭐ S14 fix 1 (NUMBER PENDING): the two uncalled rows' runtime door hit the uncalled-helper IR defect (S14 read it
+    // ⭐ S14 fix 1 (engine 84): the two uncalled rows' runtime door hit the uncalled-helper IR defect (S14 read it
     // `runtime:lower`); a function nothing calls is checked in its own frame now, and the door builds
     varThenFnUncalled: [['x = close', 'x(a) => a * 2', 'f(s) =>', '    x = nz(x[1]) + s', '    x', 'plot(close)'], ['OK', 'OK', 'OK', 'OK']],
     varThenNoArgFnShadowBlockUncalled: [['x = close', 'x() => 2.0', 'f(s) =>', '    x = if s > 100', '        nz(x[1]) + 1', '    else', '        0.0', '    x', 'plot(close + x())'], ['OK', 'OK', 'OK', 'OK']],

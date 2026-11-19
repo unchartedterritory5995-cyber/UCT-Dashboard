@@ -122,7 +122,7 @@ export function resolveThemeColour(c, theme) {
   return base + alpha.toString(16).padStart(2, '0').toUpperCase()
 }
 
-// ─── ⭐⭐ ENGINE NUMBER PENDING (CO-2) — THE SAME REFERENCE, CARRIED AS A NUMBER ON THE RUNTIME LANE ─────
+// ─── ⭐⭐ ENGINE 84 (CO-2) — THE SAME REFERENCE, CARRIED AS A NUMBER ON THE RUNTIME LANE ─────
 //
 // The runtime lane holds a colour as a NUMBER, the packed `0xTTBBGGRR` integer (`runtime/colours.js`), so a
 // reference string cannot ride its stack. It rides as a number OUTSIDE every packed colour instead: a 32-bit

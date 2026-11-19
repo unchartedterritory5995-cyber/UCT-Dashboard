@@ -1036,7 +1036,7 @@ function packedOf(plot) {
   return { transparency, theme, sig: `packed|${transparency}|${theme.fg || ''}/${theme.bg || ''}` }
 }
 
-/** ⭐⭐ ENGINE NUMBER PENDING (CO-2) — a colour plan (a plot, a paint, a band's fill spec) whose per-bar colours
+/** ⭐⭐ ENGINE 84 (CO-2) — a colour plan (a plot, a paint, a band's fill spec) whose per-bar colours
  *  come from the run (`colorPacked`), with the chart's own two colours (`objectTheme.chartThemeOf`) on it, so a
  *  bar whose colour is the chart's theme colour (the runtime lane's reference number) is drawn in this chart's
  *  colour by `packedPointColour`. Anything else is returned as it is. */

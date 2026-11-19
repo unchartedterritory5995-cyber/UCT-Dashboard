@@ -161,7 +161,7 @@ export const DEFAULT_LIMITS = Object.freeze({
   // delta-rsi at a constant 459 a bar (meets this at bar ~4,357; the pane budget stops it
   // at ~610 first); next wyckoff-accumulation-distribution at 25 a bar, kalman at 25,
   // atr-stepped at 21. Admits <=62 a bar at 32,000 bars. Not raised, for the same reason.
-  // ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, NUMBER PENDING) — NOW THE FLOOR OF A CEILING THAT
+  // ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, engine 84) — NOW THE FLOOR OF A CEILING THAT
   // SCALES WITH THE BARS A RUN COVERS (`ARRAY_OPERATIONS_PER_BAR`, `Budget.coverBars`). A whole-chart count is crossed
   // by an honest script through chart LENGTH alone: Fred RS's run half makes 245 array operations a bar, CONSTANT,
   // and stopped here at bar 8,164 of the 11,520 a filled 5m extended-hours chart runs over.
@@ -233,7 +233,7 @@ export const DEFAULT_LIMITS = Object.freeze({
   WALL_TIME: 5000,
 })
 
-/** ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, NUMBER PENDING) — THE ARRAY OPERATIONS A RUN MAY MAKE
+/** ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, engine 84) — THE ARRAY OPERATIONS A RUN MAY MAKE
  *  PER BAR IT COVERS. The ceiling of a run is `max(ARRAY_OPERATIONS, ARRAY_OPERATIONS_PER_BAR × bars)`
  *  (`arrayOperationsCeiling`): below 4,000 bars it is the 2,000,000 it always was; above, it grows with the chart.
  *    WHY 500: the heaviest honest scripts measured make a CONSTANT count a bar — delta-rsi-oscillator-strategy 459

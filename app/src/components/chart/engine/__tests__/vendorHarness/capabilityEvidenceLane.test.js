@@ -109,13 +109,13 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // (`pine:drawing` / `pine:collection`): rs-arm-label-last-bar RDDT and SPY 2026-11-15, and vw-object-gc-d SPY 1D and 1W
 // (the 1W capture's id repeats the 1D one). Graded runtime-on in #1941's pine heavy run (44450876200): MATCH, MATCH,
 // MATCH and INCONCLUSIVE (was INCONCLUSIVE, refused); none DIVERGES, so none is a REACH stop.
-// ⭐ CO-2 (NUMBER PENDING, feat/pine-theme-colours-runtime, #1984) removed 3 rows, lane `null`:
+// ⭐ CO-2 (engine 84, feat/pine-theme-colours-runtime, #1984) removed 3 rows, lane `null`:
 // volatility-coil-edge-bullbyte's RDDT (2026-11-14, 2026-11-17) and SPY captures. Theme colours on the runtime lane
 // build it, so this rail found the door answering `runtime` for all three; on that PR's run (44482355116) all three
 // grade DIVERGE (its "Signal Bar BG" background is not drawn). By the REACH stop rule the script is on the committed
 // kill list, no longer admitted, and so no longer in the report
 // (docs/pine/evidence/2026-11-18-co2-theme-colours-runtime/EVIDENCE.md).
-// ⭐ A2 (NUMBER PENDING, feat/pine-named-args-minmax, #1986) re-pinned 2 rows, lane `host` -> `runtime`:
+// ⭐ A2 (engine 84, feat/pine-named-args-minmax, #1986) re-pinned 2 rows, lane `host` -> `runtime`:
 // optimized-keltner-channels-sltp-strategy-for-btc's RDDT and SPY captures. A named argument on a served built-in
 // (`color.new`, `array.new`) now builds it on the runtime lane, so this rail found the door answering `runtime`. On
 // that PR's run (44482185005) every compared item agrees, but the runtime lane runs the strategy's broker and the

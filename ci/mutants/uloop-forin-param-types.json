@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "U-LOOP (feat/pine-forin-param-types-v2, NUMBER PENDING): a `for … in` over an untyped parameter is typed by the call site's argument (a collection only; a record is the object lane's), and a destructured function result keeps its collection slots' types. Every rule, broken once, must turn its rail red.",
+ "about": "U-LOOP (feat/pine-forin-param-types-v2, engine 84): a `for … in` over an untyped parameter is typed by the call site's argument (a collection only; a record is the object lane's), and a destructured function result keeps its collection slots' types. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "L1",

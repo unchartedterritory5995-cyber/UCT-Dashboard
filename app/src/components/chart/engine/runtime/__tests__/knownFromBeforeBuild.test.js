@@ -7,7 +7,7 @@
 //   * what is drawn is the same, bit for bit (columns, drawings, the depth record), probe on and off, on a chart
 //     deeper than its SP:SPX, Fred RS's run half included;
 //   * a refusal raised ONLY by bars before `knownFrom` (a column the front end refuses over them) is dropped: the run
-//     is drawn from where our data begins (coordinator ruling 2026-11-19, NUMBER PENDING), and a refusal from bars
+//     is drawn from where our data begins (coordinator ruling 2026-11-19, engine 84), and a refusal from bars
 //     INSIDE the drawn span still fires;
 //   * a hole AFTER the series began still refuses with the run's own sentence; a chart whose series all begin before
 //     it is not probed at all.

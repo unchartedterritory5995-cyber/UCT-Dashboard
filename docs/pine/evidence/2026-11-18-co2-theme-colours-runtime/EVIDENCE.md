@@ -1,4 +1,4 @@
-# CO-2: `chart.fg_color` / `chart.bg_color` on the runtime lane (engine NUMBER PENDING)
+# CO-2: `chart.fg_color` / `chart.bg_color` on the runtime lane (engine 84)
 
 This is coordinator's order item 6, as revised. The two theme colours resolve on the runtime lane through the SAME
 theme reference the host reader uses (`objectTheme.js`, since engine 65). That covers them:

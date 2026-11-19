@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "S14 fix 2 (feat/pine-s14-canonical-passthrough, NUMBER PENDING): `fromCanonical` keeps a caller's parse `call` and parse `offset` embedded in a built tree as they are, told apart from the canonical spellings by shape. Every rule, broken once, must turn its rail red. (No mutant on the canonical-offset branch: on this lane no input reaches it today, since the pivots are lowered before the built tree; a mutant there could not be killed by any rail.)",
+ "about": "S14 fix 2 (feat/pine-s14-canonical-passthrough, engine 84): `fromCanonical` keeps a caller's parse `call` and parse `offset` embedded in a built tree as they are, told apart from the canonical spellings by shape. Every rule, broken once, must turn its rail red. (No mutant on the canonical-offset branch: on this lane no input reaches it today, since the pivots are lowered before the built tree; a mutant there could not be killed by any rail.)",
  "mutants": [
   {
    "id": "H1",

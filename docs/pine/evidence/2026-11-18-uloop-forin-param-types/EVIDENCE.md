@@ -1,4 +1,4 @@
-# U-LOOP: a `for … in` over an untyped parameter is typed by its call site (engine NUMBER PENDING)
+# U-LOOP: a `for … in` over an untyped parameter is typed by its call site (engine 84)
 
 Coordinator's order item 3: type the `?:` of two arrays from the call site's argument types (the User Manual's
 "inherits the same type as its specified argument"), plus engine 69's live-list rule for `array.remove` inside a

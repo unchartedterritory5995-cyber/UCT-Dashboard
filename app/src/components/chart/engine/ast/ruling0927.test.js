@@ -203,7 +203,7 @@ plot(s / 86400000.0)
     ['timestamp("2022-05-18T00:00:00")', /not written in the captured form/],
     ['timestamp("18 May 2022 00:00 GMT+10")', /not written in the captured form/],
     ['timestamp("18 May 2022 00:00:00 +0000")', /not written in the captured form/],
-    // ⚰️ C1 (NUMBER PENDING, coordinator ruling 2026-11-19): `timestamp("UTC", …)` and a literal count of milliseconds
+    // ⚰️ C1 (engine 84, coordinator ruling 2026-11-19): `timestamp("UTC", …)` and a literal count of milliseconds
     // stood here; the reference alone settles both, so they serve (below)
     ['timestamp("18 May 2022 00:00 +0000"), "S", confirm = true', /confirm = true/],
     ['defval = 0, title = "S", confirm = true', /confirm = true/],
@@ -224,7 +224,7 @@ plot(s / 86400000.0)
     ['timestamp("18 May 2022 00:00 +0000")', 19130],
     ['timestamp("18 May 2022 00:00 +0000"), "S", confirm = false', 19130],
     ['defval = timestamp("01 Jan 2023 00:00 +0000"), title = "S"', Date.UTC(2023, 0, 1) / 86400000],
-    // ⭐ C1 (NUMBER PENDING) — the forms the reference alone settles, the same instant as the captured form
+    // ⭐ C1 (engine 84) — the forms the reference alone settles, the same instant as the captured form
     ['timestamp("UTC", 2022, 5, 18, 0, 0)', 19130],
     ['1652832000000', 19130],
   ])('the captured form, input.time(%s), serves on pane and runtime alike', (args, want) => {

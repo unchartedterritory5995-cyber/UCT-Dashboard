@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/__tests__/themeColoursRuntimeBinder.test.js
 //
-// ⭐⭐ ENGINE NUMBER PENDING (CO-2) — THROUGH THE CHART BINDING: a RUNTIME-lane row whose per-bar colour is the
+// ⭐⭐ ENGINE 84 (CO-2) — THROUGH THE CHART BINDING: a RUNTIME-lane row whose per-bar colour is the
 // chart's theme colour is drawn in the member's own chart colours, for a light and a dark chart, and repaints when
 // they change. The unit rail (`runtime/__tests__/themeColoursRuntime.test.js`) proves the carrier and the resolver;
 // this one proves the binder hands the chart's theme to every colour plan it draws a run's column with

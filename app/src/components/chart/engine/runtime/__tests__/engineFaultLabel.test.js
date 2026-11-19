@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/engineFaultLabel.test.js
 //
-// ─── ⭐⭐ ENGINE NUMBER PENDING (S14, robustness) — AN EXCEPTION IS NEVER A STATEMENT SHAPE ─────────────
+// ─── ⭐⭐ ENGINE 84 (S14, robustness) — AN EXCEPTION IS NEVER A STATEMENT SHAPE ─────────────
 //
 // `buildRuntimeIr` answers every refusal through `fail`. Anything thrown that was not one of the three
 // refusal classes (`RuntimeRefusal`, `PineRefusal`, `TableRefusal`) used to come out as `runtime:statement`,

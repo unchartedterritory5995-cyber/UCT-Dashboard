@@ -196,7 +196,7 @@ function fromCanonical(node, tok) {
     // catch a NAMED argument. A bare node in that position answers with its own
     // `name` — so a nested `max(...)` handed to `max` was read as
     // `a named argument \`max\` on \`max\``. Measured, second run.
-    // ⭐⭐ ENGINE NUMBER PENDING (S14 fix 2) — TWO DIALECTS SPELL `call` AND `offset` WITH ONE `type`, so the
+    // ⭐⭐ ENGINE 84 (S14 fix 2) — TWO DIALECTS SPELL `call` AND `offset` WITH ONE `type`, so the
     // promise above ("A PARSE NODE PASSES THROUGH UNTOUCHED") is kept by SHAPE for those two: a parse call's
     // arguments are `{name?, value}` records (a canonical one's are nodes), and a parse offset carries `arg` / `n`
     // (a canonical one `args` / `value`). ⚰️ Both were read as canonical: a caller's `high[2]` handed to
@@ -5430,7 +5430,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  the same ruling for the receiver of a method call, and for the same reason:
    *  `a.b.c` addresses `c` OF `a.b`, and reading `a.b` as the head of `c` would
    *  address the wrong object with no error anywhere. */
-  // ⭐⭐ ENGINE NUMBER PENDING (S14 fix 3) — THE DEPTH `udtTypeOf` BOUNDS ITS WALK WITH TRAVELS THROUGH HERE.
+  // ⭐⭐ ENGINE 84 (S14 fix 3) — THE DEPTH `udtTypeOf` BOUNDS ITS WALK WITH TRAVELS THROUGH HERE.
   // ⚰️ This called `udtTypeOf(bound.node, scope)` with the depth reset to 0, so a binding whose own value reads
   // a path with its name as the head (`string timeframe = timeframe.period`, then `timeframe.period` again:
   // the head is the binding, its value is the same path) went round `udtTypeOf` -> `fieldPathOf` -> the binding
@@ -6258,7 +6258,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  Two copies of the arity and named-argument checks would drift, and the one
    *  that drifted would be the statement path, which is the one a member's
    *  watchlist parser is made of. */
-  /** ⭐⭐ ENGINE NUMBER PENDING (A2) — A NAMED ARGUMENT ON A SERVED BUILT-IN TAKES ITS DECLARED POSITION, by
+  /** ⭐⭐ ENGINE 84 (A2) — A NAMED ARGUMENT ON A SERVED BUILT-IN TAKES ITS DECLARED POSITION, by
    *  Pine's own parameter name (the Pine v6 reference's syntax lines: `color.new(color, transp)`,
    *  `color.rgb(red, green, blue, transp)`, `color.from_gradient(value, bottom_value, top_value, bottom_color,
    *  top_color)`, `array.new_<type>(size, initial_value)` and `array.new<type>(size, initial_value)`). The
@@ -9274,7 +9274,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             && scope.lookup(node.name) === null && !env.has(node.name)) {
           return str(ORDER_ENUM[node.name])
         }
-        // ⭐⭐ ENGINE NUMBER PENDING (CO-2) — `chart.fg_color` / `chart.bg_color` ARE COLOUR VALUES HERE, carried as
+        // ⭐⭐ ENGINE 84 (CO-2) — `chart.fg_color` / `chart.bg_color` ARE COLOUR VALUES HERE, carried as
         // the SAME theme reference the host reader carries (`objectTheme.js`, one authority), in the number form
         // this lane's colours take (`packedThemeColour`), and resolved where they are drawn: an object's colour
         // slot, a per-bar colour column. TradingView: they are the chart's own background and its high-contrast
@@ -11956,7 +11956,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
       return n
     }
-    // ⭐⭐ ENGINE NUMBER PENDING (CO-3) — A SIDE WRITTEN AS THE PLOT ITSELF: `fill(plot(a), plot(b))`.
+    // ⭐⭐ ENGINE 84 (CO-3) — A SIDE WRITTEN AS THE PLOT ITSELF: `fill(plot(a), plot(b))`.
     // The Pine v6 reference: `plot` "Returns: A plot object, that can be used in fill()", `hline` "Returns: An
     // hline object, that can be used in fill()"; and the User Manual, *Fills* (pine-script-docs/visuals/fills):
     // one `fill` call takes two plot IDs or two hline IDs, never one of each. An argument is its value, so
@@ -13738,7 +13738,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const srcNode = { type: 'name', name: src, tok: srcToks[0] }
     const srcTy = family ? makeTy('array', { elem: makeTy('drawing', { name: family }) }) : exprType(srcNode, scope)
     if (!srcTy) {
-      // ⭐⭐ ENGINE NUMBER PENDING (U-LOOP) — AN UNTYPED PARAMETER TAKES ITS ARGUMENT'S TYPE, PER CALL.
+      // ⭐⭐ ENGINE 84 (U-LOOP) — AN UNTYPED PARAMETER TAKES ITS ARGUMENT'S TYPE, PER CALL.
       // The Pine v6 User Manual, *User-defined functions* > *Declaring parameter types*: "If a function
       // parameter does not have a type keyword in its declaration, its type is initially undefined. In
       // each separate call to the function, the parameter automatically inherits the same type as its
@@ -16114,7 +16114,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     diagnostics.specialisedCalls = (diagnostics.specialisedCalls || 0) + 1
     return rec.index
   }
-  /** ⭐⭐ ENGINE NUMBER PENDING (U-LOOP) — A DEFINITION HELD AT `runtime:loop` BECAUSE A WALK'S TYPE COULD
+  /** ⭐⭐ ENGINE 84 (U-LOOP) — A DEFINITION HELD AT `runtime:loop` BECAUSE A WALK'S TYPE COULD
    *  NOT BE TOLD IN THE SHARED FRAME, COMPILED FOR THE CALL SITE WHOSE ARGUMENTS SAY IT.
    *
    *  The User Manual sentence `colourSpecialisation` stands on, applied to a COLLECTION: each untyped
@@ -16945,7 +16945,7 @@ const position = (e) => {
   }
 }
 
-/** ⭐⭐ ENGINE NUMBER PENDING (S14, robustness) — WHAT AN EXCEPTION THAT IS NOT A REFUSAL IS CALLED.
+/** ⭐⭐ ENGINE 84 (S14, robustness) — WHAT AN EXCEPTION THAT IS NOT A REFUSAL IS CALLED.
  *
  *  Anything thrown during a build that is not one of the three refusal classes (`RuntimeRefusal`,
  *  `PineRefusal`, `TableRefusal`) used to arrive at `fail` as `runtime:statement`, "a statement shape

@@ -382,13 +382,13 @@ function terminalTimeNode(v, lookup) {
   return v
 }
 
-/** ⭐⭐ ENGINE NUMBER PENDING (C1) — THE ZONES `timestamp(timezone, …)` NAMES THAT ARE UTC ITSELF: no offset, so
+/** ⭐⭐ ENGINE 84 (C1) — THE ZONES `timestamp(timezone, …)` NAMES THAT ARE UTC ITSELF: no offset, so
  *  no sign to read (the sign of `GMT+N` is CR-S1's, queued). */
 const UTC_ZONE_NAMES = /^(?:UTC|GMT)$/
 
 /** Why a READABLE default is still not served (null when it is the captured form, or a form the reference
  *  alone settles).
- *  ⭐⭐ ENGINE NUMBER PENDING (C1, coordinator ruling 2026-11-19) — three forms need no capture, because nothing is
+ *  ⭐⭐ ENGINE 84 (C1, coordinator ruling 2026-11-19) — three forms need no capture, because nothing is
  *  read in them that the Pine reference does not state exactly (v6 `input.time`: "defval (const int)";
  *  `timestamp`: "Returns: UNIX time", its numeric form reading `timezone`, "The default is syminfo.timezone"):
  *    · a literal count of milliseconds IS the UNIX time the input returns;

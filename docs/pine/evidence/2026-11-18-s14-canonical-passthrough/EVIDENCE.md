@@ -1,4 +1,4 @@
-# S14 fix 2: a caller's own argument inside a built tree stays itself (engine NUMBER PENDING)
+# S14 fix 2: a caller's own argument inside a built tree stays itself (engine 84)
 
 This is the second root cause on S14's queue (`docs/pine/evidence/2026-11-18-s14-engine-fault-label/EVIDENCE.md`).
 It covers 2 of the 13 walls the relabel moved. It is stacked on S14 fix 1, which is stacked on #1956.

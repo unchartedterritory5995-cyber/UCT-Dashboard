@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/inputTimeReferenceDefaults.test.js
 //
-// ─── ⭐⭐ ENGINE NUMBER PENDING (C1, coordinator ruling 2026-11-19) — THE `input.time` DEFAULTS THE REFERENCE ──
+// ─── ⭐⭐ ENGINE 84 (C1, coordinator ruling 2026-11-19) — THE `input.time` DEFAULTS THE REFERENCE ──
 //     ALONE SETTLES
 //
 // RULING-0927 r1 served one default spelling, the captured `timestamp("D MMM YYYY hh:mm +0000")`, and held every

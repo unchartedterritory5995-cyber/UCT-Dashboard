@@ -1,4 +1,4 @@
-# S14 fix 3: a binding named like a namespace no longer loops the user-type reader (engine NUMBER PENDING)
+# S14 fix 3: a binding named like a namespace no longer loops the user-type reader (engine 84)
 
 This is the third and last root cause on S14's queue (`docs/pine/evidence/2026-11-18-s14-engine-fault-label/EVIDENCE.md`).
 It covers 5 of the 13 walls the relabel moved. It is stacked on S14 fix 2, fix 1 and #1956.

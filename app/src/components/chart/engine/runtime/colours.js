@@ -227,7 +227,7 @@ export function objectHexToPacked(hex) {
 }
 
 export function packedToObjectHex(packed) {
-  // ⭐⭐ ENGINE NUMBER PENDING (CO-2) — the chart's theme colour leaves the run as the REFERENCE it is
+  // ⭐⭐ ENGINE 84 (CO-2) — the chart's theme colour leaves the run as the REFERENCE it is
   // (`chart.fg_color@40`, `objectTheme.themeColourOfPacked`), resolved where it is drawn like every other one
   const ref = themeColourOfPacked(packed)
   if (ref !== null) return ref

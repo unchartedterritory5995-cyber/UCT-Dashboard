@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "C1 (feat/pine-input-time-defaults, NUMBER PENDING, coordinator ruling 2026-11-19): input.time defaults the reference alone settles are served (a literal ms; timestamp(\"UTC\" | \"GMT\", y, m, d, h, mm); timestamp(y, m, d, h, mm) on a New York symbol the run is told, never in New York's clock-change hours); every other spelling stays refused. Every rule, broken once, must turn its rail red.",
+ "about": "C1 (feat/pine-input-time-defaults, engine 84, coordinator ruling 2026-11-19): input.time defaults the reference alone settles are served (a literal ms; timestamp(\"UTC\" | \"GMT\", y, m, d, h, mm); timestamp(y, m, d, h, mm) on a New York symbol the run is told, never in New York's clock-change hours); every other spelling stays refused. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "Q1",

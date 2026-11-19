@@ -1,4 +1,4 @@
-# S14 fix 1: a helper nothing calls no longer fails the program (engine NUMBER PENDING)
+# S14 fix 1: a helper nothing calls no longer fails the program (engine 84)
 
 This is the first root cause on S14's queue (`docs/pine/evidence/2026-11-18-s14-engine-fault-label/EVIDENCE.md`). It
 covers 6 of the 13 walls the relabel moved. The branch is stacked on #1956 (the relabel) and merges after it.

@@ -1,4 +1,4 @@
-# A2: a named argument on a served built-in takes its declared position (engine NUMBER PENDING)
+# A2: a named argument on a served built-in takes its declared position (engine 84)
 
 This is coordinator's order item 7, A2: named arguments on served built-ins, mapped by Pine's own parameter names
 (`color.new(color, transp)`, `array.new_<t>(size, initial_value)`), following the review-L3 precedent

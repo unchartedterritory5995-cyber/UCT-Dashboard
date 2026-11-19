@@ -1,4 +1,4 @@
-# C1: the `input.time` defaults the reference alone settles (engine NUMBER PENDING)
+# C1: the `input.time` defaults the reference alone settles (engine 84)
 
 This change implements the coordinator's ruling of 2026-11-19 on the time-related queue (C1 (2)). Build the
 reference-only `input.time` defaults now, in one PR:

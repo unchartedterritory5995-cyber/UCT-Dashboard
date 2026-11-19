@@ -1,4 +1,4 @@
-// ─── ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, NUMBER PENDING) — THE WORKER'S BUDGET SCALES ──────
+// ─── ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, engine 84) — THE WORKER'S BUDGET SCALES ──────
 //
 // `runtimeColumns.js::runtimePaneBudgetFor`: a run in the worker is held to min(4,000, 1,000 + 0.35 ms × the bars it
 // covers past 5,000); every main-thread door keeps 1,000 ms. These rails hold, on a STEPPING clock (each read of the

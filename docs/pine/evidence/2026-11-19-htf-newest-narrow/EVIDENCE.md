@@ -1,4 +1,4 @@
-# HTF-NEWEST-NARROW: on a newest bar a weekly or monthly read cannot know, withhold only what reads it there (2026-11-19, NUMBER PENDING)
+# HTF-NEWEST-NARROW: on a newest bar a weekly or monthly read cannot know, withhold only what reads it there (2026-11-19, engine 84)
 
 Coordinator ruling (2026-11-19): build the narrow-the-withhold half of the HTF-forming design now. It fixes WRONG
 refusals: the host lane blanked `x[1]` where it reads a settled value, and the runtime lane blanked every plot,

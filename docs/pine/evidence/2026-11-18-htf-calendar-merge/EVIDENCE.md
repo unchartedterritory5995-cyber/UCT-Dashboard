@@ -1,4 +1,4 @@
-# U-HTF-CALENDAR: a short week or month before TradingView's calendar (2000) closes on the next bar, both lanes (2026-11-18, NUMBER PENDING)
+# U-HTF-CALENDAR: a short week or month before TradingView's calendar (2000) closes on the next bar, both lanes (2026-11-18, engine 84)
 
 Coordinator ruling (2026-11-18, request unit, part B2): state the period-close rule once, in the host alignment the
 run's supply already shares, and in the Python twin. Because it moves the SUPPLY AUTHORITY of both lanes, the full
@@ -41,7 +41,7 @@ corpus diff may show only moves toward MATCH. Branch `feat/pine-htf-calendar-mer
   it too), never restated. A weekday our bars merely lack after 2000 moves nothing.
 - `api/services/ast_interpret.py::htf_closes_on_next_bar` and its `tf_merge` arm: the same rule, read off the twin
   `api/services/tradingview_session.py` (`tests/test_nyse_calendar_parity.py` holds the twins equal).
-- The engine ledger's NUMBER PENDING line (the coordinator numbers the train).
+- The engine ledger's engine 84 line (the coordinator numbers the train).
 
 ## 3. Rails and mutation proofs
 

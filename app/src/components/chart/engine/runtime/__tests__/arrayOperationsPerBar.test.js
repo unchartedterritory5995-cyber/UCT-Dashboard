@@ -1,4 +1,4 @@
-// ─── ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, NUMBER PENDING) — ARRAY OPERATIONS PER BAR COVERED ──
+// ─── ⭐⭐ (Fred RS filled chart, coordinator ruling 2026-11-19, engine 84) — ARRAY OPERATIONS PER BAR COVERED ──
 //
 // `limits.js::ARRAY_OPERATIONS` was a whole-chart count (2,000,000) that an honest script crossed through chart LENGTH
 // alone: Fred RS's run half makes 245 array operations a bar and stopped at bar 8,164 of the 11,520 a filled 5m

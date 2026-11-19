@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "CO-3 (feat/pine-fill-inline-sides, NUMBER PENDING): `fill(plot(a), plot(b))` / `fill(hline(a), hline(b))` emit each side's plot where it stands and fill between them, exactly as the bound form; only `plot` and `hline` return a fill's ID; a pair with an inline side never mixes the two kinds. Every rule, broken once, must turn its rail red.",
+ "about": "CO-3 (feat/pine-fill-inline-sides, engine 84): `fill(plot(a), plot(b))` / `fill(hline(a), hline(b))` emit each side's plot where it stands and fill between them, exactly as the bound form; only `plot` and `hline` return a fill's ID; a pair with an inline side never mixes the two kinds. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "M1",
