@@ -167,9 +167,15 @@ def test_no_secret_build_arg_or_env_reaches_the_bundle_stage():
     names = set(_env_pairs(body)) | {m.group(1) for ln in body if (m := re.match(r"ARG\s+(\S+)", ln))}
     assert names, "the parser read no name"
     assert not [n for n in names if SECRET_SHAPED.search(n)], "a secret-shaped build arg: %s" % sorted(names)
-    for web_secret in ("VITE_CHART_RENDER_TOKEN", "VITE_CHART_RENDER_TOKEN_PREVIOUS", "VITE_PICOVOICE_ACCESS_KEY"):
-        assert web_secret in _args(_stage(WEB, "frontend")), "control: web still declares %s" % web_secret
+    web_args = _args(_stage(WEB, "frontend"))
+    for web_secret in ("VITE_PICOVOICE_ACCESS_KEY",):
+        assert web_secret in web_args, "control: web still declares %s" % web_secret
         assert web_secret not in names
+    # 2026-11-19: web's build stopped reading the render token (the server checks it), so
+    # neither image declares these two.
+    for retired in ("VITE_CHART_RENDER_TOKEN", "VITE_CHART_RENDER_TOKEN_PREVIOUS"):
+        assert retired not in names, "%s is declared by the pine-runtime image" % retired
+        assert retired not in web_args, "%s is declared by Dockerfile.web again" % retired
 
 
 def test_env_allowlist_admits_exactly_the_bundles_build_args():

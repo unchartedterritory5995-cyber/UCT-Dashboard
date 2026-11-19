@@ -323,6 +323,27 @@ def _no_live_tbd_session_resolver(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _own_daily_bars_cannot_answer(monkeypatch):
+    """The earnings run-up and past-moves helpers read our own daily bars first
+    and Yahoo only when those cannot answer. Off for every test (the read
+    answers "no bars"), so a test that stubs Yahoo keeps testing the Yahoo path
+    and no test reaches the bar store or a vendor through it.
+    `tests/test_earnings_moves_own_bars.py` overrides this fixture and drives
+    the read itself.
+
+    Stood in at the two names that read goes through in
+    `earnings_reaction`: `last_stored_daily_session` (asked first: "the store
+    holds nothing for this symbol", so no read is started and the bar store is
+    never opened) and `daily_bars_since` (the read itself). That module
+    imports only the standard library: this runs before every test, and
+    importing `earnings_enrichment` here instead would load yfinance and
+    pandas into every test process (about 2 s and 850 modules, measured)."""
+    import api.services.earnings_reaction as _er
+    monkeypatch.setattr(_er, "last_stored_daily_session", lambda sym: None)
+    monkeypatch.setattr(_er, "daily_bars_since", lambda sym, since_iso: [])
+
+
+@pytest.fixture(autouse=True)
 def _reset_snapshot_movers_serve_stale():
     """Clear `/api/snapshot`'s and `/api/movers`' serve-stale slots (TERM-082).
 

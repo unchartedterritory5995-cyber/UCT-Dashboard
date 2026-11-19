@@ -1,8 +1,10 @@
 """Dual render-token acceptance on `web` — the rotation gate (step 1.1, OI-19).
 
-The render token is checked in exactly two places, both on `web`:
-  * `api/routers/render_panels.py::_check_token` — the `/api/r/*` payload gate (this file);
-  * `app/src/lib/renderToken.js` — the 14 `/r/*` pages (railed in `app/src/lib/renderToken.test.js`).
+The render token is checked in exactly one place, on `web`:
+  * `api/routers/render_panels.py::_check_token` — the `/api/r/*` payload gate (this file).
+Until 2026-11-19 there was a second copy of the check in `app/src/lib/renderToken.js`, compiled
+into the `/r/*` pages. The pages now forward `?token=` and take this gate's answer
+(railed in `app/src/lib/renderTokenSource.rail.test.js`).
 
 chart-renderer is NOT in the path: it navigates to whatever URL it is handed and validates nothing.
 A `CHART_RENDER_TOKEN_PREVIOUS` set on that service would be read by no code at all.
@@ -114,5 +116,5 @@ def test_chart_renderer_is_not_in_the_token_path():
     src = app.read_text(encoding="utf-8")
     assert "CHART_RENDER_TOKEN" not in src, (
         "services/chart_renderer/app.py now reads CHART_RENDER_TOKEN. The renderer navigates to "
-        "whatever URL it is handed; the token is validated on web (render_panels.py + "
-        "app/src/lib/renderToken.js). A token variable on that service would be read by nothing.")
+        "whatever URL it is handed; the token is validated on web (render_panels.py). "
+        "A token variable on that service would be read by nothing.")

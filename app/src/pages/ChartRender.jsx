@@ -16,7 +16,8 @@
 // "later is always safe", not "something else depends on it".
 //
 // Public route (no AuthGuard). /api/bars is public, so no session is needed.
-// A ?token= (checked against VITE_CHART_RENDER_TOKEN) blocks casual abuse.
+// The page forwards ?token= to /api/r/chart-settings, where the server checks it;
+// when that read is refused (401/403) the page shows "unauthorized" and no chart.
 //
 // ─── ALSO: this route is the CHART PARITY GATE surface (Phase B1, Task 7) ────
 //
@@ -81,7 +82,7 @@ import { installUserDefinitions } from '../components/chart/engine/nativeRegistr
 import uctLogo from '../components/intro/assets/compass-mark.webp'
 
 
-import { renderTokenOk } from '../lib/renderToken'
+import { renderRefused } from '../lib/renderToken'
 const TF_LABEL = { '1': '1 min', '5': '5 min', '15': '15 min', '30': '30 min', '60': '1 hr', D: 'Daily', W: 'Weekly', M: 'Monthly' }
 
 // How much breadth history the page asks `/api/r/breadth-bars/` for: the same full
@@ -466,6 +467,9 @@ export default function ChartRender() {
   // reaches the newsletter with no pipeline change.
   const [ownerSettings, setOwnerSettings] = useState(null)
   const [settingsSettled, setSettingsSettled] = useState(false)
+  // The server's answer to the settings read is this page's token check. A parity
+  // capture (?fixedbars=) makes no such read, so it has none.
+  const [refused, setRefused] = useState(false)
   useEffect(() => {
     let alive = true
     const done = (v) => { if (alive) { setOwnerSettings(v); setSettingsSettled(true) } }
@@ -474,10 +478,13 @@ export default function ChartRender() {
     // a colour in Settings.
     if (fixedBars) { done(null); return () => { alive = false } }
     fetch(`/api/r/chart-settings?token=${encodeURIComponent(token)}`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (alive) setRefused(renderRefused(r.status))
+        return r.ok ? r.json() : null
+      })
       .then((j) => done(j?.chart_settings || null))
       // Fails OPEN to today's defaults: a settings lookup must never cost him
-      // the chart itself.
+      // the chart itself. A refused read (above) is the one exception.
       .catch(() => done(null))
     return () => { alive = false }
   }, [token, fixedBars])
@@ -931,7 +938,7 @@ export default function ChartRender() {
     }
   }, [fixedBars, userDefsInstall])
 
-  if (!renderTokenOk(token)) return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
+  if (refused) return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
   if (!sym) return <div style={{ color: '#888', padding: 20 }}>no symbol</div>
 
   // 40px header + 20px footer (+ the optional stats strip, whose height the

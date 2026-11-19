@@ -1786,7 +1786,7 @@ def main() -> int:
                     help="also run cases marked status=placeholder (B3 fills those in)")
     ap.add_argument("--out", default=str(OUT_DIR))
     ap.add_argument("--token", default=os.environ.get("CHART_RENDER_TOKEN", ""),
-                    help="VITE_CHART_RENDER_TOKEN, when the build sets one")
+                    help="the render token (CHART_RENDER_TOKEN), when the server sets one")
     ap.add_argument("--tolerance", type=int, default=0,
                     help="changed-pixel budget applied to every case (default 0)")
     ap.add_argument("--tolerance-reason", default="",

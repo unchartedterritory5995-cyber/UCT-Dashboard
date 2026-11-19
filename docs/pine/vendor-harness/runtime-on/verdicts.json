@@ -1,6 +1,6 @@
 {
  "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
- "scriptEngineVersion": 84,
+ "scriptEngineVersion": 85,
  "dirs": [
   "tests/fixtures/vendor"
  ],
@@ -9,19 +9,19 @@
   "requested": "runtime-on",
   "objectsOnlyPane": true,
   "gateOpen": true,
-  "declined": 303,
+  "declined": 299,
   "gated": 0,
-  "runtimeDrawn": 215,
-  "hostRefused": 550,
-  "reachedRuntime": 518,
+  "runtimeDrawn": 217,
+  "hostRefused": 548,
+  "reachedRuntime": 516,
   "declines": {
-   "runtime:library": 37,
    "pine:builtin": 35,
+   "runtime:library": 32,
    "pine:function": 31,
    "pine:request": 29,
    "runtime:request-with-state": 18,
    "lower-tf:store-unmeasured": 17,
-   "runtime:conditional-history": 15,
+   "runtime:conditional-history": 16,
    "runtime:history-dynamic-offset": 13,
    "runtime:request": 11,
    "pine:library-denied": 9,
@@ -64,6 +64,40 @@
    }
   }
  },
+ "libraryStore": [
+  {
+   "path": "TradingView/RelativeValue/2",
+   "sha256": "ae9639a064ce36ed9ad40f54d3758ded64b6d5f429947908cf044c814d183fe2"
+  },
+  {
+   "path": "TradingView/RelativeValue/3",
+   "sha256": "44d71612a7596a11258e244e500c0ce56b563eceac2f07973b16b5dec4c7480d"
+  },
+  {
+   "path": "TradingView/ta/11",
+   "sha256": "da37dca4bc18ce3b825d1d9c8b682f97859508cc5bb8bd3e51e1a28713edee80"
+  },
+  {
+   "path": "TradingView/ta/7",
+   "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"
+  },
+  {
+   "path": "theEccentricTrader/PubLibCandleTrend/2",
+   "sha256": "1d42daae07346debbf5b9b5a151a4862c0b173b3ea342e95a4db33271a2d5b52"
+  },
+  {
+   "path": "theEccentricTrader/PubLibPattern/4",
+   "sha256": "9a75c2736c3911de262ef1dacc78fa82b5010177a3d31bbf2744f391ec177327"
+  },
+  {
+   "path": "theEccentricTrader/PubLibSwing/3",
+   "sha256": "3cbd09d934016a46d43c8097857bc3fae7af23111e22a414f671db740fc8551f"
+  },
+  {
+   "path": "theEccentricTrader/PubLibTrend/3",
+   "sha256": "7f31c58b74ea16895550afcaa830a3ce96190b5fea34bab62275389c10688d1e"
+  }
+ ],
  "results": [
   {
    "file": "tests/fixtures/vendor/harness/3-level-zigzag-semafor-rddt-1d-2026-11-14.json",
@@ -1082,10 +1116,417 @@
    "timeframe": "1D",
    "plots": [],
    "notCompared": [],
-   "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `theEccentricTrader/PubLibSwing/3` is not in this engine's library registry, so its code cannot be compiled",
-   "ourNotes": []
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "verdictWithoutColour": "MATCH",
+    "reason": "object counts and texts agree; colours agree on 157 paired slots; 43 slots on objects neither side draws not graded; coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 100,
+      "ours": 100,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 56,
+      "ours": 56,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ],
+    "colours": [
+     {
+      "family": "lines colour",
+      "agree": true,
+      "slots": 100,
+      "agreeing": 79,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 21,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "labels colour",
+      "agree": true,
+      "slots": 100,
+      "agreeing": 78,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 22,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     }
+    ],
+    "colourUnpaired": {
+     "ours": 0,
+     "vendor": 0
+    }
+   },
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "verdictWithoutColour": "MATCH",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
+    "21 of 100 held lines cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them",
+    "17 of 56 held labels cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
+   ],
+   "objectsV2": {
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": false,
+    "differsOnlyByCreationOrder": false,
+    "reason": "every paired record agrees on 884 graded fields; x: 0 graded (0 differ), 256 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 157 paired slots; 43 slots on objects neither side draws not graded; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
+    "x": {
+     "graded": 0,
+     "agreeing": 0,
+     "differing": 0,
+     "missing": 256,
+     "missingWhy": {
+      "the capture records no x table (taken before U13)": 256
+     },
+     "incompleteFamilies": [
+      "lines",
+      "labels"
+     ]
+    },
+    "families": [
+     {
+      "family": "lines",
+      "paired": 100,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 516,
+      "agreeing": 516,
+      "differing": 0,
+      "notGraded": 84,
+      "undecoded": {},
+      "byField": {
+       "x1": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 100
+       },
+       "y1": {
+        "agree": 100,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "x2": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 100
+       },
+       "y2": {
+        "agree": 100,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "extend": {
+        "agree": 79,
+        "differ": 0,
+        "notGraded": 21
+       },
+       "style": {
+        "agree": 79,
+        "differ": 0,
+        "notGraded": 21
+       },
+       "width": {
+        "agree": 79,
+        "differ": 0,
+        "notGraded": 21
+       },
+       "color": {
+        "agree": 79,
+        "differ": 0,
+        "notGraded": 21
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 200,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 200
+       },
+       "first": null
+      },
+      "xIncomplete": true,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "labels",
+      "paired": 56,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 368,
+      "agreeing": 368,
+      "differing": 0,
+      "notGraded": 136,
+      "undecoded": {},
+      "byField": {
+       "x": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 56
+       },
+       "y": {
+        "agree": 56,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "yloc": {
+        "agree": 39,
+        "differ": 0,
+        "notGraded": 17
+       },
+       "text": {
+        "agree": 39,
+        "differ": 0,
+        "notGraded": 17
+       },
+       "style": {
+        "agree": 39,
+        "differ": 0,
+        "notGraded": 17
+       },
+       "size": {
+        "agree": 39,
+        "differ": 0,
+        "notGraded": 17
+       },
+       "textalign": {
+        "agree": 39,
+        "differ": 0,
+        "notGraded": 17
+       },
+       "tooltip": {
+        "agree": 39,
+        "differ": 0,
+        "notGraded": 17
+       },
+       "color": {
+        "agree": 39,
+        "differ": 0,
+        "notGraded": 17
+       },
+       "textcolor": {
+        "agree": 39,
+        "differ": 0,
+        "notGraded": 17
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 56,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 56
+       },
+       "first": null
+      },
+      "xIncomplete": true,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "boxes",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tables",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tableCells",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "linefills",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     }
+    ],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   },
+   "storeHeld": [
+    "theEccentricTrader/PubLibCandleTrend/2@1d42daae07346debbf5b9b5a151a4862c0b173b3ea342e95a4db33271a2d5b52",
+    "theEccentricTrader/PubLibPattern/4@9a75c2736c3911de262ef1dacc78fa82b5010177a3d31bbf2744f391ec177327",
+    "theEccentricTrader/PubLibSwing/3@3cbd09d934016a46d43c8097857bc3fae7af23111e22a414f671db740fc8551f",
+    "theEccentricTrader/PubLibTrend/3@7f31c58b74ea16895550afcaa830a3ce96190b5fea34bab62275389c10688d1e"
+   ]
   },
   {
    "file": "tests/fixtures/vendor/harness/all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03.json",
@@ -1096,10 +1537,417 @@
    "timeframe": "1D",
    "plots": [],
    "notCompared": [],
-   "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `theEccentricTrader/PubLibSwing/3` is not in this engine's library registry, so its code cannot be compiled",
-   "ourNotes": []
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "verdictWithoutColour": "MATCH",
+    "reason": "object counts and texts agree; colours agree on 170 paired slots; 34 slots on objects neither side draws not graded; coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 100,
+      "ours": 100,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 56,
+      "ours": 56,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ],
+    "colours": [
+     {
+      "family": "lines colour",
+      "agree": true,
+      "slots": 100,
+      "agreeing": 82,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 18,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     },
+     {
+      "family": "labels colour",
+      "agree": true,
+      "slots": 104,
+      "agreeing": 88,
+      "themeRelative": 0,
+      "differing": 0,
+      "undecodable": 0,
+      "undrawn": 16,
+      "undrawnDiffering": 0,
+      "first": null,
+      "firstUndrawn": null
+     }
+    ],
+    "colourUnpaired": {
+     "ours": 0,
+     "vendor": 0
+    }
+   },
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "verdictWithoutColour": "MATCH",
+   "ourNotes": [
+    "plots/objects: replayed: 6677 bars of prehistory from vw-object-gc-b-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
+    "18 of 100 held lines cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them",
+    "12 of 56 held labels cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
+   ],
+   "objectsV2": {
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": false,
+    "differsOnlyByCreationOrder": false,
+    "reason": "every paired record agrees on 936 graded fields; x: 0 graded (0 differ), 256 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 170 paired slots; 34 slots on objects neither side draws not graded; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
+    "x": {
+     "graded": 0,
+     "agreeing": 0,
+     "differing": 0,
+     "missing": 256,
+     "missingWhy": {
+      "the capture records no x table (taken before U13)": 256
+     },
+     "incompleteFamilies": [
+      "lines",
+      "labels"
+     ]
+    },
+    "families": [
+     {
+      "family": "lines",
+      "paired": 100,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 528,
+      "agreeing": 528,
+      "differing": 0,
+      "notGraded": 72,
+      "undecoded": {},
+      "byField": {
+       "x1": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 100
+       },
+       "y1": {
+        "agree": 100,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "x2": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 100
+       },
+       "y2": {
+        "agree": 100,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "extend": {
+        "agree": 82,
+        "differ": 0,
+        "notGraded": 18
+       },
+       "style": {
+        "agree": 82,
+        "differ": 0,
+        "notGraded": 18
+       },
+       "width": {
+        "agree": 82,
+        "differ": 0,
+        "notGraded": 18
+       },
+       "color": {
+        "agree": 82,
+        "differ": 0,
+        "notGraded": 18
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 200,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 200
+       },
+       "first": null
+      },
+      "xIncomplete": true,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "labels",
+      "paired": 56,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 408,
+      "agreeing": 408,
+      "differing": 0,
+      "notGraded": 96,
+      "undecoded": {},
+      "byField": {
+       "x": {
+        "agree": 0,
+        "differ": 0,
+        "notGraded": 56
+       },
+       "y": {
+        "agree": 56,
+        "differ": 0,
+        "notGraded": 0
+       },
+       "yloc": {
+        "agree": 44,
+        "differ": 0,
+        "notGraded": 12
+       },
+       "text": {
+        "agree": 44,
+        "differ": 0,
+        "notGraded": 12
+       },
+       "style": {
+        "agree": 44,
+        "differ": 0,
+        "notGraded": 12
+       },
+       "size": {
+        "agree": 44,
+        "differ": 0,
+        "notGraded": 12
+       },
+       "textalign": {
+        "agree": 44,
+        "differ": 0,
+        "notGraded": 12
+       },
+       "tooltip": {
+        "agree": 44,
+        "differ": 0,
+        "notGraded": 12
+       },
+       "color": {
+        "agree": 44,
+        "differ": 0,
+        "notGraded": 12
+       },
+       "textcolor": {
+        "agree": 44,
+        "differ": 0,
+        "notGraded": 12
+       }
+      },
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 56,
+       "missingWhy": {
+        "the capture records no x table (taken before U13)": 56
+       },
+       "first": null
+      },
+      "xIncomplete": true,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "boxes",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tables",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tableCells",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "linefills",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     }
+    ],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   },
+   "storeHeld": [
+    "theEccentricTrader/PubLibCandleTrend/2@1d42daae07346debbf5b9b5a151a4862c0b173b3ea342e95a4db33271a2d5b52",
+    "theEccentricTrader/PubLibPattern/4@9a75c2736c3911de262ef1dacc78fa82b5010177a3d31bbf2744f391ec177327",
+    "theEccentricTrader/PubLibSwing/3@3cbd09d934016a46d43c8097857bc3fae7af23111e22a414f671db740fc8551f",
+    "theEccentricTrader/PubLibTrend/3@7f31c58b74ea16895550afcaa830a3ce96190b5fea34bab62275389c10688d1e"
+   ]
   },
   {
    "file": "tests/fixtures/vendor/harness/anchored-vwap-pinch-handoff-intervals-and-signals-rddt-1d-2026-11-14.json",
@@ -56811,12 +57659,152 @@
    "script": "KPSaR [BackQuant]",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "Kalman PSaR",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 656,
+      "colorWithheld": 0,
+      "colorComparable": 656,
+      "valued": 656,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_3",
+     "title": "Kalman PSaR Long",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_4",
+     "title": "Kalman PSaR Short",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_2",
+     "title": "Bar Color",
+     "type": "bar_colorer",
+     "why": "plot type bar_colorer is not compared by v1"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `TradingView/ta/7` is not in this engine's library registry, so its code cannot be compiled",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "paints": {
+    "verdict": "MATCH",
+    "reason": "1 paint agree bar for bar",
+    "agreeing": 1,
+    "differing": 0,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_2",
+      "kind": "barcolor",
+      "state": "agree"
+     }
+    ]
+   },
+   "verdict": "MATCH",
+   "reason": "all 3 items agree",
+   "verdictWithoutPaints": "MATCH",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
+    "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   },
+   "storeHeld": [
+    "TradingView/RelativeValue/2@ae9639a064ce36ed9ad40f54d3758ded64b6d5f429947908cf044c814d183fe2",
+    "TradingView/ta/7@c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"
+   ]
   },
   {
    "file": "tests/fixtures/vendor/harness/keltner-center-of-gravity-channel-rddt-1d-2026-09-30.json",
@@ -69636,8 +70624,12 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `TradingView/ta/7` is not in this engine's library registry, so its code cannot be compiled",
-   "ourNotes": []
+   "reason": "refused on our side: member door refused (pine:tuple) [runtime declined: runtime:conditional-history]: this Pine call answers with several values at once and a column carries one — `knnRsi` — `knnEnhancedRsi` is a function this script defines and this engine could not read, so none of its values can be handed out — a Pine block spans several statements and this engine stores a single expression — `for` (reached through `knnEnhancedRsi`)",
+   "ourNotes": [],
+   "storeHeld": [
+    "TradingView/RelativeValue/2@ae9639a064ce36ed9ad40f54d3758ded64b6d5f429947908cf044c814d183fe2",
+    "TradingView/ta/7@c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"
+   ]
   },
   {
    "file": "tests/fixtures/vendor/harness/madrid-moving-average-ribbon-rddt-1d-2026-09-28.json",
@@ -81633,8 +82625,8 @@
       "colorWithheld": 0,
       "colorComparable": 610,
       "valued": 610,
-      "maxAbs": 2.842170943040401e-14,
-      "maxRel": 1.593896350062884e-16,
+      "maxAbs": 0,
+      "maxRel": 0,
       "firstDivergence": null,
       "warmup": {
        "bars": 0,
@@ -81766,8 +82758,8 @@
       "colorWithheld": 0,
       "colorComparable": 642,
       "valued": 642,
-      "maxAbs": 2.842170943040401e-14,
-      "maxRel": 2.391366309889449e-16,
+      "maxAbs": 0,
+      "maxRel": 0,
       "firstDivergence": null,
       "warmup": {
        "bars": 0,
@@ -81899,8 +82891,8 @@
       "colorWithheld": 0,
       "colorComparable": 8483,
       "valued": 8483,
-      "maxAbs": 2.2737367544323206e-13,
-      "maxRel": 2.947342331760858e-16,
+      "maxAbs": 0,
+      "maxRel": 0,
       "firstDivergence": {
        "bar": 26,
        "time": 731687400,
@@ -128969,7 +129961,11 @@
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
    "reason": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `TFlab/OrderBlockRefiner_TradingFinder/2` is not in this engine's library registry, so its code cannot be compiled",
-   "ourNotes": []
+   "ourNotes": [],
+   "storeHeld": [
+    "TradingView/RelativeValue/2@ae9639a064ce36ed9ad40f54d3758ded64b6d5f429947908cf044c814d183fe2",
+    "TradingView/ta/7@c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"
+   ]
   },
   {
    "file": "tests/fixtures/vendor/harness/smart-money-interest-index-algoalpha-rddt-1d-2026-11-14.json",
@@ -234922,12 +235918,402 @@
    "script": "UCTPROBE L1 library import",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "L01 ao",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 34,
+     "color": "compared",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 603,
+      "colorWithheld": 0,
+      "colorComparable": 603,
+      "valued": 603,
+      "maxAbs": 2.5579538487363607e-13,
+      "maxRel": 8.885972831771592e-13,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "L01c ao minus inline",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 34,
+     "color": "compared",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 603,
+      "colorWithheld": 0,
+      "colorComparable": 603,
+      "valued": 603,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "L02 dema",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 18,
+     "color": "compared",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 620,
+      "colorWithheld": 0,
+      "colorComparable": 620,
+      "valued": 620,
+      "maxAbs": 1.1368683772161603e-13,
+      "maxRel": 6.312207769296376e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_3",
+     "title": "L02c dema minus inline",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 18,
+     "color": "compared",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 620,
+      "colorWithheld": 0,
+      "colorComparable": 620,
+      "valued": 620,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "L03 highestSince month",
+     "ours": "out5",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 636,
+      "colorWithheld": 0,
+      "colorComparable": 636,
+      "valued": 636,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_5",
+     "title": "L04 highestSince week",
+     "ours": "out6",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 636,
+      "colorWithheld": 0,
+      "colorComparable": 636,
+      "valued": 636,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_6",
+     "title": "L05 highestSince default source",
+     "ours": "out7",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "636 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 636,
+      "compared": 636,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 636,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 636,
+      "colorWithheld": 0,
+      "colorComparable": 636,
+      "valued": 636,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 636,
+       "compared": 636,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
    "notCompared": [],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `TradingView/ta/7` is not in this engine's library registry, so its code cannot be compiled",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "MATCH",
+   "reason": "all 8 items agree",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "objectsV2": {
+    "verdict": "MATCH",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: neither side draws an object",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   },
+   "storeHeld": [
+    "TradingView/RelativeValue/2@ae9639a064ce36ed9ad40f54d3758ded64b6d5f429947908cf044c814d183fe2",
+    "TradingView/ta/7@c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"
+   ]
   },
   {
    "file": "tests/fixtures/vendor/harness/vw-loop-in-block-spy-1d-2026-10-02.json",

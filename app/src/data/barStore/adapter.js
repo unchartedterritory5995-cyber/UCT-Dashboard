@@ -24,7 +24,7 @@
 // The store bumps baseRev on every change to sealed bars, so a stale entry can never be
 // served; the LRU bound (BASE_MEMO_MAX) only limits memory. Tested in adapter.test.js.
 
-import { toChartTime, isRthBar } from '../../components/chart/barTime'
+import { toChartTime, isRthBar, etDateLabel } from '../../components/chart/barTime'
 import { foldOffGridBars } from '../../components/chart/offGridBars'
 import { applySessionCandle } from '../../components/chart/sessionPreview'
 import { unixToDateLabel } from './types'
@@ -214,7 +214,7 @@ function rthKeep(b) {
 }
 function cutoffKeep(cutoff) {
   return (b) => (typeof b.t === 'number'
-    ? new Date(b.t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) <= cutoff
+    ? etDateLabel(b.t) <= cutoff
     : String(b.t).slice(0, 10) <= cutoff)
 }
 
