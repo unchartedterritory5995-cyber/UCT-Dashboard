@@ -48,8 +48,10 @@ describe('⭐⭐ SR-MTF on the runtime lane, FORCED: every plot MATCHES TradingV
         expect(door.built.ok, door.refusal || '').toBe(true)
         expect(door.built.lane).toBe('runtime')
         const { verdict } = gradeCapture(capture)
-        expect(verdict.verdict, verdict.reason).toBe('MATCH')
         const plots = verdict.plots || []
+        const why = plots.filter((p) => p.verdict !== 'MATCH')
+          .map((p) => `${p.title}: ${p.verdict} ${String(p.reason || '').slice(0, 160)}`).join(' | ')
+        expect(verdict.verdict, `${verdict.reason} :: ${why}`).toBe('MATCH')
         expect(plots.length).toBe(6)
         for (const p of plots) {
           expect(p.verdict, `${p.title}: ${p.reason}`).toBe('MATCH')
