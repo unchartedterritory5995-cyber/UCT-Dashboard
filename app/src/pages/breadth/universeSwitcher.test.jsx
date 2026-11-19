@@ -27,11 +27,14 @@ vi.mock('swr', () => ({
   useSWRConfig: () => ({ mutate: () => {} }),
 }))
 // Every column visible, so Health and the "n/a" columns are on the sheet.
-vi.mock('./useBreadthCustomize', () => ({
+vi.mock('./useBreadthCustomize', async (importOriginal) => ({
+  ...(await importOriginal()),
   default: () => ({
-    activePreset: 'Mine', hidden: new Set(), presetNames: ['Mine'], presets: {}, isDefaultActive: false,
-    toggleHidden: () => {}, setHiddenSet: () => {}, order: null, setOrder: () => {},
-    savePreset: () => {}, renamePreset: () => {}, deletePreset: () => {}, switchPreset: () => {}, resetActive: () => {},
+    activePreset: 'Mine', activeLabel: 'Mine', hidden: new Set(), presetNames: ['Mine'], presets: {},
+    isDefaultActive: false, isEdited: false, differsFromDefault: true,
+    toggleHidden: () => {}, setHiddenSet: () => {}, order: null, setOrder: () => {}, revertDraft: () => {},
+    savePreset: () => {}, renamePreset: () => {}, duplicatePreset: () => {}, deletePreset: () => {},
+    switchPreset: () => {}, resetActive: () => {},
   }),
 }))
 // The virtualizer draws every row in jsdom (no layout).

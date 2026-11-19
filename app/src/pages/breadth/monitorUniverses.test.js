@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   MONITOR_UNIVERSES, MONITOR_LS_KEYS, parseUniverse, universeParam, universeLabel,
-  universeColumnNote, universeCellOverride, withMarketWide, MARKET_WIDE_COLS, UNAVAILABLE_COLS,
+  universeColumnNote, universeCellOverride, withMarketWide, MARKET_WIDE_COLS, UNAVAILABLE_COLS, columnTagFor,
 } from './monitorUniverses'
 import { cutoffsFor, shadeFor, SHADE_CUTOFFS, SHADE_CUTOFFS_BY_UNIVERSE } from './shading'
 
@@ -68,6 +68,17 @@ describe('the Monitor universes', () => {
     expect(out.naaim).toBe(70)
     expect(out.cnn_fear_greed_asof).toBe('2026-11-18')
     expect(withMarketWide(null, uct)).toBeNull()
+  })
+})
+
+describe('the Columns menu tags (ColumnsMenu columnTag)', () => {
+  it('none on UCT; Market-wide / n/a for <universe> elsewhere', () => {
+    expect(columnTagFor('vix', 'uct')).toBeNull()
+    expect(columnTagFor('breadth_score', 'uct')).toBeNull()
+    expect(columnTagFor('vix', 'nasdaq')).toMatchObject({ label: 'Market-wide' })
+    expect(columnTagFor('up_vol_ratio', 'nasdaq')).toMatchObject({ label: 'n/a for Nasdaq', na: true })
+    expect(columnTagFor('breadth_score', 'nyse')).toMatchObject({ label: 'n/a for NYSE', na: true })
+    expect(columnTagFor('pct_above_50sma', 'us')).toBeNull()
   })
 })
 

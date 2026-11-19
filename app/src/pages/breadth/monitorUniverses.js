@@ -104,3 +104,20 @@ export function universeCellOverride(key, universe) {
   if (UNAVAILABLE_COLS.has(key)) return 'n/a'
   return null
 }
+
+/**
+ * The Columns menu's tag for a column on this universe (ColumnsMenu `columnTag`): null on UCT;
+ * "Market-wide" for a column that is the same everywhere; "n/a for <universe>" (dimmed) for
+ * Health and the not-yet-available columns.
+ */
+export function columnTagFor(key, universe) {
+  if (!universe || universe === DEFAULT_UNIVERSE) return null
+  const label = universeLabel(universe)
+  if (key === HEALTH_COL || UNAVAILABLE_COLS.has(key)) {
+    return { label: `n/a for ${label}`, title: universeColumnNote(key, universe), na: true }
+  }
+  if (MARKET_WIDE_COLS.has(key)) {
+    return { label: 'Market-wide', title: 'The same reading on every universe.' }
+  }
+  return null
+}

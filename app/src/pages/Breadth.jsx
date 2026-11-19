@@ -26,7 +26,7 @@ import BreadthDateNav from './breadth/BreadthDateNav'
 import useMonitorGrid from './breadth/useMonitorGrid'
 import {
   MONITOR_UNIVERSES, DEFAULT_UNIVERSE, parseUniverse, universeLabel,
-  universeColumnNote, universeCellOverride, NOT_AVAILABLE_NOTE,
+  universeColumnNote, universeCellOverride, NOT_AVAILABLE_NOTE, columnTagFor,
 } from './breadth/monitorUniverses'
 import { mergeParams } from './calendar/useEarningsModalRoute'
 import ScreenshotPopover from '../components/chart/ScreenshotPopover'
@@ -1164,6 +1164,8 @@ export default function Breadth() {
     const id = requestAnimationFrame(() => monitorScrollTo(grid.indexOfDate(d)))
     return () => cancelAnimationFrame(id)
   }, [universe, grid.count, grid, monitorScrollTo])
+  // The Columns menu's per-row tag on this universe: "Market-wide" / "n/a for Nasdaq" (UCT: none).
+  const columnTag = useCallback((key) => columnTagFor(key, universe), [universe])
   // Off UCT the CSV is the sheet's own rows (the newest MONITOR_WINDOW sessions loaded).
   const gridCsvRows = () => {
     const out = []
@@ -1552,6 +1554,7 @@ export default function Breadth() {
                     buttonClassName={`${styles.hdrBtn} ${styles.hdrBtnPrimary}`}
                     openClassName={styles.hdrBtnOpen}
                     chevronClassName={styles.hdrChevron}
+                    columnTag={columnTag}
                   />
                 </div>
                 {/* ⋯ — the chart's Signature menu (ContextPopover `signature`):
