@@ -23,6 +23,7 @@ import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './ch
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/barsWarm'
+import { cutoffDay } from '../../../components/chart/replayCutoff'
 import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
@@ -169,7 +170,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // symbol at that date in the background, so switching to 5m/1m is instant (the backend
   // fetches + persists the pre-cutoff window once). Bounded/priority-queued in prefetchBars.
   useEffect(() => {
-    if (replayCutoff && sym) prefetchReplayTimeframes(sym, replayCutoff)
+    if (replayCutoff && sym) prefetchReplayTimeframes(sym, cutoffDay(replayCutoff))
   }, [sym, replayCutoff])
 
   // ── Crosshair sync across EVERY chart widget ──
@@ -366,6 +367,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         drawSym: () => symRef.current,
         goToDate: (ms) => paneRef.current?.goToDate?.(ms),
         viewDo: (op, arg) => !!paneRef.current?.viewDo?.(op, arg),
+        // chart.replayStep (D20): the bar TIMES this chart holds (read-only; ChartPane → StockChart replayBarTimes)
+        replayBarTimes: (arg) => paneRef.current?.replayBarTimes?.(arg) ?? null,
         // ⭐ C1-127: the chart's OWN Chart Settings dialog — the very openSettings the gear, the right-click
         // "Chart settings" item and Alt+, call (ChartPane). Opening it writes nothing; `settingsOpen` is the read-back.
         canOpenSettings: () => !!paneRef.current?.canOpenSettings?.(),

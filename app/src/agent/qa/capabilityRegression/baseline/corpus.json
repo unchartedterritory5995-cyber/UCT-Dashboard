@@ -6543,6 +6543,64 @@
       ]
     },
     {
+      "id": "chart.replayStep",
+      "source": "D20 (2026-11-14, owner): step Tools → Replay Mode forward / back by real bars of the chart's own timeframe",
+      "capabilities": [
+        "chart.replayStep"
+      ],
+      "board": "TIMED",
+      "before": [
+        {
+          "say": "show me this chart as of march 2 2026",
+          "model": {
+            "ops": [
+              {
+                "action": "chart.replay",
+                "target": "$charts[0]",
+                "args": {
+                  "date": "2026-03-02"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "replay": "2026-03-02"
+          }
+        }
+      ],
+      "needs": [
+        "chart.replayStep"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chart.replayStep",
+            "target": "$charts[0]",
+            "args": {
+              "direction": "forward",
+              "bars": 1
+            }
+          }
+        ]
+      },
+      "expect": {
+        "replay": "2026-03-03",
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "replay": "2026-03-02"
+        }
+      },
+      "phrasings": [
+        "step replay mode forward 1 bar",
+        "move replay mode forward one bar",
+        "advance replay mode one bar"
+      ]
+    },
+    {
       "id": "chart.goToDate",
       "source": "Batch F2 (11-04): promoted chart settings, Replay Mode, go-to-date, custom timeframe (live B-10a LT-3, B-13a/b LT-7)",
       "capabilities": [

@@ -201,6 +201,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   })
   const wordsOnly = GROUPS.filter(g => g.wordsOnly && !SERVER_ARMED.has(g.id))
   const OWN_WORDS = {
+    // D20 chart.replayStep: Replay Mode named with a step (a bare step routes here only from state: Replay Mode on)
+    replayMode: ['step replay mode forward 1 bar', 'move replay mode back two bars', 'advance replay mode one bar'],
     // calc-TF (indicatorStyle.setCalcTimeframe): which bars compute an indicator — calculate / compute on, use the weekly bars, a weekly RSI
     indicatorCalc: ['calculate the rsi on weekly bars', 'make the 50 sma use the weekly', 'show a weekly rsi on this daily chart', 'put rsi back to the chart\'s timeframe'],
     // compare.openView: the rotation / RRG map, graph, tab or view; the Compare (Symbols) panel; its Overlay tab

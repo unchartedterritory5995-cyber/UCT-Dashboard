@@ -1086,6 +1086,8 @@ function ChartPane({
     stepBar: (dir) => dateNavApiRef.current?.stepBar?.(dir),
     ensureFullHistory: () => dateNavApiRef.current?.ensureFullHistory?.(),
     getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
+    // ⭐ UCT Agent (chart.replayStep, D20): the bar TIMES the chart holds — read-only (StockChart replayBarTimes); null = none
+    replayBarTimes: (arg) => (dateNavApiRef.current?.replayBarTimes ? dateNavApiRef.current.replayBarTimes(arg) : null),
     // ⭐ UCT Agent: the range bar (and its Undo), Reset view, hide-all-indicators, the ◀ / ▶ step, Auto-scale and the + / - zoom, read back through getDateMeta. A VIEW; nothing saved here.
     viewDo: (op, arg) => {
       const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden', 'stepBar', 'autoScale', 'zoom', 'positionCalc'].includes(op) ? dateNavApiRef.current?.[op]

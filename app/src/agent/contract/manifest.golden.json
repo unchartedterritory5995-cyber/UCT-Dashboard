@@ -6820,6 +6820,42 @@
    "shape": null
   },
   {
+   "name": "chart.replayStep",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Step Tools → Replay Mode forward or back by N bars (1–100) of ONE chart’s own timeframe: daily = sessions, intraday = real bars; every chart hides what came after. Undo puts the cutoff back exactly.",
+   "hints": "Only while Replay Mode (the as-of-a-date cutoff) is on. target = the chart whose bars to count. Replay Mode has no play/pause/speed (that is the bar replay, chartReplay.playback).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "direction": {
+      "type": "string",
+      "enum": [
+       "forward",
+       "back"
+      ]
+     },
+     "bars": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "direction",
+     "bars"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "drawing.positionCalculator",
    "domain": "drawing",
    "target": "chart",

@@ -3082,6 +3082,26 @@
     }
    }
   },
+  "chart.replayStep": {
+   "digest": "47ec3960c9ab7990",
+   "phrasings": {
+    "step replay mode forward 1 bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move replay mode forward one bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "advance replay mode one bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chart.goToDate": {
    "digest": "473e755ceba65dd6",
    "phrasings": {

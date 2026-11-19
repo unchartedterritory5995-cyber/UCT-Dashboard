@@ -20,6 +20,7 @@
 
 import { registerCapability } from '../capabilities'
 import { resolveDateWord, dayWord, isoDayMs } from '../dateWords'
+import { cutoffWords } from '../../components/chart/replayCutoff'
 
 export const REPLAY_ACTION = 'chartReplay.playback'
 const OPS = ['enter', 'exit', 'play', 'pause', 'forward', 'back', 'first', 'last', 'date', 'speed']
@@ -43,11 +44,11 @@ const NAMES_CUTOFF = /\breplay mode\b|\bas of\b|\bcutoff\b|\bevery chart\b|\ball
 const NAMES_BAR = /\btime machine\b|\bbar replay\b|\breplay bar\b|\bplayback\b|\bbar[- ]by[- ]bar\b/
 export const BARE_EXIT = /^(?:please )?(?:exit|stop|leave|end|quit|close|cancel|kill|turn off|switch off|get out of)(?: out of)? (?:the |my |this |that )?replay(?: now)?$|^(?:turn|switch) (?:the |my )?replay off$|^(?:the )?replay off$|^(?:i'?m |we'?re )?done with (?:the )?replay$/
 export const NONE_RUNNING = 'No replay is running: no chart’s bar replay (Replay / Time Machine) is on, and Replay Mode is off. Nothing was changed.'
-export const bothAsk = (cut) => `Two replays are on: a chart’s bar replay (its Replay / Time Machine button) and Replay Mode as of ${dayWord(cut)} on every chart. Which should I exit — the bar replay, or Replay Mode? Say “exit the bar replay” or “exit Replay Mode”. Nothing was changed.`
-const noBarOn = (cut) => `No chart’s bar replay is on${cut ? ` — Replay Mode (as of ${dayWord(cut)}, on every chart) is: say “exit Replay Mode” for that` : ''}. Nothing was changed.`
+export const bothAsk = (cut) => `Two replays are on: a chart’s bar replay (its Replay / Time Machine button) and Replay Mode as of ${cutoffWords(cut)} on every chart. Which should I exit — the bar replay, or Replay Mode? Say “exit the bar replay” or “exit Replay Mode”. Nothing was changed.`
+const noBarOn = (cut) => `No chart’s bar replay is on${cut ? ` — Replay Mode (as of ${cutoffWords(cut)}, on every chart) is: say “exit Replay Mode” for that` : ''}. Nothing was changed.`
 const NO_CUTOFF_ON = 'Replay Mode is off — a chart’s bar replay (Replay / Time Machine) is on: say “exit the bar replay” for that. Nothing was changed.'
 const NOT_THE_CUTOFF = 'That is a chart’s bar replay (Replay / Time Machine), not Replay Mode: say “exit the bar replay” for it. Nothing was changed.'
-const notTheBar = (cut) => `That is Replay Mode (as of ${dayWord(cut)}, on every chart), not a chart’s bar replay: say “exit Replay Mode” for it. Nothing was changed.`
+const notTheBar = (cut) => `That is Replay Mode (as of ${cutoffWords(cut)}, on every chart), not a chart’s bar replay: say “exit Replay Mode” for it. Nothing was changed.`
 /** Which replays are on now: the charts in bar replay, and the workspace cutoff ('YYYY-MM-DD' | null). */
 export function replaysOn(host) {
   let list = []
@@ -97,6 +98,16 @@ export function bareExitFast(mine) {
 }
 export const isBarExit = (a) => a.op === 'exit'
 export const isCutoffExit = (a) => a.date == null
+
+// D20 (owner req 4/7): while ONLY Tools → Replay Mode is on, no plan reaches the bar replay — it is never started or played
+// by a request about Replay Mode. A step points at Replay Mode's own step; play / pause / speed say Replay Mode has none.
+function modeGuard(args, host) {
+  if (!args || isBarExit(args)) return null
+  const { bar, cutoff } = replaysOn(host)
+  if (!cutoff || bar.length) return null
+  if (args.op === 'forward' || args.op === 'back') return { refuse: `Replay Mode (as of ${cutoffWords(cutoff)}) is on, not the bar replay: say “step Replay Mode ${args.op} ${args.bars ?? 1} bar${(args.bars ?? 1) === 1 ? '' : 's'}” to move it. Nothing was changed.` }
+  return { refuse: `Replay Mode (as of ${cutoffWords(cutoff)}) shows the charts as they were at that point; it has no play, pause or speed. I can step it forward or back by bars (“step forward 1 bar”), change its date, or exit it. Nothing was changed.` }
+}
 
 const barWord = (n) => `${n} bar${n === 1 ? '' : 's'}`
 const at = (i, n) => `bar ${i + 1} of ${n}`
@@ -226,7 +237,7 @@ function describe(b, a, { op, bars, speed } = {}) {
 function noop(st, _a, { op, speed } = {}) {
   const r = st.view?.replay
   if (op === 'enter') return 'This chart is already in bar replay'
-  if (op === 'exit') return st.replay ? `The bar replay is already off on this chart (Replay Mode is on, as of ${dayWord(st.replay)} — say “exit Replay Mode” for that)` : 'The bar replay is already off on this chart'
+  if (op === 'exit') return st.replay ? `The bar replay is already off on this chart (Replay Mode is on, as of ${cutoffWords(st.replay)} — say “exit Replay Mode” for that)` : 'The bar replay is already off on this chart'
   if (op === 'pause') return 'The bar replay is already paused'
   if (op === 'play') return 'The bar replay is already playing'
   if (op === 'speed') return `The bar replay is already at ${speed}×`
@@ -248,7 +259,7 @@ export function registerChartReplayCapabilities() {
     // "exit / stop the replay": which replay is decided from state (exitVerdict), on the fast path and for every plan
     fastWhole: true,
     fast: bareExitFast('bar'),
-    resolveArgs: exitGuard(isBarExit, 'bar'),
+    resolveArgs: (args, host, words) => exitGuard(isBarExit, 'bar')(args, host, words) || modeGuard(args, host),
     check(st, args = {}) {
       const { op } = args
       if (!OPS.includes(op)) return 'Start, play, pause, step, jump, change the speed of, or exit the bar replay?'

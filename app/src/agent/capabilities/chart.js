@@ -55,6 +55,8 @@ const ASK_AI_DELAY_MS = 900
 import { readFavoriteTools, writeFavoriteTools } from '../../components/chart/drawToolFavorites'
 import { normalizeDock } from '../../pages/charts/widgets/chartDock'
 import { replayDone, replaySig, replayContext, bareExitFast, exitGuard, isCutoffExit, replayStopped } from './chartReplay'
+import { stepReplay } from './replayMode'
+import { cutoffWords } from '../../components/chart/replayCutoff'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -381,7 +383,10 @@ export const chartKind = {
   list: (host) => (host?.charts?.list() || []).map(s => withMemberState(host, s)),
   read: (host, ref) => withMemberState(host, host?.charts?.read(ref) || null),
   // `replay`: the workspace's Replay Mode cutoff (W1-B B-06) — undefined when the host has none (then chart.replay refuses)
+  // `replayStep` / `canStepReplay`: Replay Mode's bar step (chart.replayStep, D20) — the step asked, and whether this chart has
+  // the read-only bar-times door it counts bars with (absent = none: a Multi Chart cell)
   stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, drawSym: snap.drawSym || snap.symbol, goto: null, replay: snap.replay,
+    replayStep: null, canStepReplay: snap.canStepReplay === true,
     watermarkPos: snap.watermarkPos ?? null, volPanePref: snap.volPanePref ?? null, volPanePct: snap.volPanePct, prefsWritable: !!snap.prefsWritable,
     canvasTheme: snap.canvasTheme ?? null, view: snap.view ?? null, viewDo: null, favoriteTools: snap.favoriteTools || [],
     // C1-127: the chart's own Chart Settings door — may it open here (absent = no door: false), and is it open now
@@ -406,13 +411,15 @@ export const chartKind = {
     if (after.askAi === true) p.askAi = true
     // chartFeatures.*: a dock the product's transforms changed (they hand back the SAME object when nothing changes)
     if (after.dock !== before.dock) p.dock = after.dock
+    // chart.replayStep: the step asked (its cutoff is worked out at commit, from the chart's own bars)
+    if (after.replayStep) p.replayStep = { ...after.replayStep }
     return Object.keys(p).length ? p : null
   },
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
   async commit(host, ref, patch) {
-    const { goto, replay, volPanePref, viewDo, openSettings, askAi, favoriteTools, ...rest } = patch
+    const { goto, replay, volPanePref, viewDo, openSettings, askAi, favoriteTools, replayStep, ...rest } = patch
     let ok = true
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
@@ -425,6 +432,14 @@ export const chartKind = {
     if ('favoriteTools' in patch && ok && !writeFavoriteTools(favoriteTools)) throw new Error('this browser did not keep the change (its storage is blocked), so nothing is saved')
     // Replay Mode: ChartsWorkspace's own startReplay / exitReplayMode (a VIEW on every linked chart; nothing is saved)
     if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
+    // chart.replayStep (D20): N real bars of this chart, read from the chart itself; a boundary throws (nothing written).
+    // The cutoff it wrote rides on the patch for the read-back (`landed`); the receipt is the step's own exact line.
+    let stepLine = null
+    if (replayStep && ok) {
+      const r = await stepReplay(host, ref, replayStep)
+      patch.replayStep.to = r.to
+      stepLine = r.line
+    }
     // The chart's own view control; a long range may load history first (its "Loading chart history…", capped at 6s)
     if (viewDo && ok) {
       // chartReplay.playback: several replay ops of ONE plan ride as ordered `steps` — each pressed only once the one before it
@@ -463,10 +478,13 @@ export const chartKind = {
       if (typeof host.charts.askAi !== 'function' || !host.charts.read(ref)?.canAskAi) return false
       setTimeout(() => whenVisible(() => host.charts.askAi(ref)), ASK_AI_DELAY_MS)
     }
+    // a step alone is receipted from what it actually did (the exact new cutoff), not from the plan's line
+    if (ok && stepLine && Object.keys(patch).length === 1) return { lines: [stepLine] }
     return ok
   },
   landed(snap, patch) {
     if (!snap) return false
+    if ('replayStep' in patch && (snap.replay ?? null) !== (patch.replayStep.to ?? Symbol('unset'))) return false
     if ('settings' in patch && !sameJson(snap.stored, patch.settings)) return false
     if ('tf' in patch && snap.tf !== patch.tf) return false
     if ('symbol' in patch && snap.symbol !== patch.symbol) return false
@@ -497,6 +515,8 @@ export const chartKind = {
     if ('goto' in item.patch) { if (item.before.view?.rightMs == null) return null; p.goto = item.before.view.rightMs }
     // Undo a replay = the cutoff as it was (off → clear it: every bar is back)
     if ('replay' in item.patch) p.replay = item.before.replay ?? null
+    // chart.replayStep: Replay Mode's cutoff back EXACTLY as it was (day-only, precise or null)
+    if ('replayStep' in item.patch) p.replay = item.before.replay ?? null
     if ('watermarkPos' in item.patch) p.watermarkPos = item.before.watermarkPos ?? null
     if ('volPanePref' in item.patch) p.volPanePref = item.before.volPanePref ?? null
     if ('favoriteTools' in item.patch) p.favoriteTools = item.before.favoriteTools || []
@@ -539,6 +559,8 @@ export const chartKind = {
     ...('goto' in (item?.patch || {}) ? [snap.view?.rightMs ?? null] : []),
     // a replay's Undo is stale once the member changed the cutoff themselves (the Replay dialog)
     ...('replay' in (item?.patch || {}) ? [snap.replay ?? null] : []),
+    // a step's Undo is stale once the cutoff moved since (another step, the dialog, Exit)
+    ...('replayStep' in (item?.patch || {}) ? [snap.replay ?? null] : []),
     // x/y, never the anchor the chart derives from them a moment later (derivedOpts.js)
     ...('watermarkPos' in (item?.patch || {}) ? [watermarkSpot(snap.watermarkPos)] : []),
     ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : []),
@@ -609,6 +631,8 @@ export function describeChart(snap, shortRef) {
     linkedWidgets: snap.linkedCount || 0,
     // chartReplay.playback: only while this chart's bar replay (the Replay / Time Machine button) is on
     ...replayContext(snap.view?.replay),
+    // D20: Tools → Replay Mode (the workspace cutoff) — only while it is on, so an inactive context is byte-identical
+    ...(snap.replay ? { replayMode: `on, as of ${cutoffWords(snap.replay)}` } : {}),
     // the chart the member last clicked ("this chart" / "this stock"); omitted on every other chart
     ...(snap.selected ? { selected: true } : {}),
   }
@@ -1072,7 +1096,7 @@ const CAPABILITIES = [
     describe(b, a) {
       if ((b.replay ?? null) === (a.replay ?? null)) return null
       if (a.replay == null) return 'Exited Replay Mode — every bar is back on every chart'
-      return `Replay Mode: every chart in this workspace shows bars up to ${dayWord(a.replay)} and hides what came after (a view only — nothing is saved; exit replay to see every bar again)`
+      return `Replay Mode: every chart in this workspace shows bars up to ${cutoffWords(a.replay)} and hides what came after (a view only — nothing is saved; exit replay to see every bar again)`
     },
     noop: (b, a, { date } = {}) => (date == null ? 'Replay Mode is already off' : 'Replay is already at that date'),
   },

@@ -30,6 +30,7 @@ import { classifyIntradayTail, isCacheCurrentForView, expectedFormingBar, isDail
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, intradayDedupMs } from '../../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, spliceDeepLeftOfFresh } from '../../utils/barsBackfill'
+import { cutoffFetchDay } from './replayCutoff'
 import { barsHistoryUrl } from '../../data/barStore/network'
 
 // Cold-start first-paint safety valve: the longest the FIRST chart paint may wait on
@@ -567,7 +568,8 @@ export function useLegacyChartBars({
   // window fast from SQLite) instead of the full 'ending today' set — which for an old
   // cutoff is a big, slow fetch that paints nothing until it lands (the "chart stuck on
   // the previous ticker" bug). `to` implies a full window (no `since`).
-  const _toParam = replayCutoff && !_isCustomTf ? replayCutoff : null
+  // (the server's window is a DAY: a precise cutoff — Replay Mode's bar step — sends its ET day; the chart hides the rest)
+  const _toParam = replayCutoff && !_isCustomTf ? cutoffFetchDay(replayCutoff, resolvedTf) : null
   // Phase 5 split-fetch: for a STANDARD native D/W/M chart, cap the /api/bars fetch to the
   // live tail (~first-paint depth) and pull the DEEP sealed history from the edge-cacheable
   // /api/bars-history endpoint instead. First paint is unchanged (the tail); only the older

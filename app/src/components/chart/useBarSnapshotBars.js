@@ -36,6 +36,7 @@ import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBa
 import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { timingMark } from '../../utils/intradayTiming'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
+import { cutoffFetchDay } from './replayCutoff'
 
 /** How long a member rests on a symbol (after the background warm starts) before its other intraday
  *  timeframes' lake depth loads: a scan past a row never pays for it. */
@@ -56,7 +57,8 @@ export function chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOv
   if (!sym || !resolvedTf || hasOverride) return null
   const custom = !isNativeTf(resolvedTf)
   // Replay: the window ENDING at the cutoff (`to=` its ET date; noon UTC is that ET date).
-  const to = (replayCutoff && !custom) ? dateLabelToUnix(String(replayCutoff).slice(0, 10)) + 43200 : null
+  // (D20: the cutoff's ET day — on W/M the end of its period, so that period's bar is held; barVisible decides if it shows)
+  const to = (replayCutoff && !custom) ? dateLabelToUnix(cutoffFetchDay(replayCutoff, resolvedTf)) + 43200 : null
   return viewKeyFor(sym, resolvedTf, { showExtended: !!showExtended, window: Number.isFinite(to) ? { to } : null })
 }
 

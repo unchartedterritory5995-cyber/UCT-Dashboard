@@ -2,6 +2,7 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar } from './chart/barTime'
+import { barVisible, cutoffFetchDay } from './chart/replayCutoff'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
@@ -2812,6 +2813,9 @@ function _etPeriodStartISO(tf) {
     return `${y}-${m}-${d}`
   } catch { return '' }
 }
+
+// Replay Mode's bar step (chart.replayStep): how many bars the forward look-ahead request asks for (≥ 100 steps of any tf)
+const REPLAY_STEP_BARS = 2000
 
 // ─── Bar period computation (for real-time new candle creation) ──────────────
 
@@ -9196,6 +9200,8 @@ export default function StockChart({
   const [replaySpeed, setReplaySpeed] = useState(1)
   // the Replay bar's handlers + state for the UCT Agent's door (written each render below; never read during render)
   const replayCtlRef = useRef(null)
+  // chart.replayStep's read-only bar-times door (D20): this render's bars + request parts (written each render; read on call)
+  const replayBarsRef = useRef(null)
 
   // ── Extended-hours session preview (Charts workspace; D/W/M only) ──────────
   // `sessionView` is non-null only on the workspace. `marketSession` is the live
@@ -9316,21 +9322,17 @@ export default function StockChart({
         }
       }
       let out = (replayMode && replayIndex != null) ? src?.slice(0, replayIndex + 1) : src
-      // Replay-cutoff (Custom-Period Sort replay mode): drop every bar AFTER the cutoff
-      // calendar day, so the chart ends exactly on the selected end date. Compared by
-      // calendar day — daily/weekly/monthly `t` is already 'YYYY-MM-DD'; intraday `t` is
-      // unix seconds, converted to its ET day (so all of the cutoff day's bars are kept).
+      // Replay-cutoff (Tools → Replay Mode / Custom-Period Sort replay): drop every bar that holds a session AFTER the
+      // cutoff — chart/replayCutoff.js barVisible is the ONE rule (a day-only cutoff keeps the pre-D20 day rule for
+      // intraday and daily bars; a precise one keeps only bars that ENDED by its instant; a weekly / monthly bar shows
+      // only once its last session is complete).
       if (replayCutoff && out?.length) {
-        out = out.filter(b => (
-          typeof b.t === 'number'
-            ? new Date(b.t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) <= replayCutoff
-            : String(b.t).slice(0, 10) <= replayCutoff
-        ))
+        out = out.filter(b => barVisible(b, resolvedTf, replayCutoff, { extended: !!showExtended }))
       }
       return out
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- _sliceHold/_exKey/exitDate are render-derived (mutated in the block above); exactSliceEnd already tracks the hold
-    [sessionBars, replayMode, replayIndex, replayCutoff, exactDateRange, exactSliceEnd, keepBarsAfterExit, entryDate, frameRightPadFrac]
+    [sessionBars, replayMode, replayIndex, replayCutoff, exactDateRange, exactSliceEnd, keepBarsAfterExit, entryDate, frameRightPadFrac, resolvedTf, showExtended]
   )
   // Live mirror for the imperative date-nav API (below) so its methods read the
   // current bars without re-publishing the API on every data poll.
@@ -19315,6 +19317,27 @@ export default function StockChart({
       if (idx >= 0) c.seek(idx)
     } else if (a.op === 'speed' && [1, 5, 20].includes(a.speed)) c.setSpeed(a.speed)
   }
+  // ⭐ UCT Agent (chart.replayStep, D20): the bar TIMES this chart holds — READ-ONLY, timestamps only, never drawn. With no
+  // `throughDay` (or one inside the window the chart already holds): exactly the bars the chart holds for its own store
+  // key (`sessionBars`: the fetched window, session-filtered — the cutoff hides some of them; this never adds one). With a
+  // LATER `throughDay`: the SAME request the chart makes for a Replay window (`/api/bars?…&to=<day>`, this chart's session
+  // query, its fetcher), put in the bars cache under that key, and filtered exactly as `sessionBars` is.
+  replayBarsRef.current = { sessionBars, sym, resolvedTf, showExtended, isIntraday, intradayLike: _intradayLike, custom: !!_isCustomTf,
+    override: !!_hasOverride, sessQ: _sessQ, fetcher: instFetcher, cutoff: replayCutoff }
+  const replayBarTimes = async ({ throughDay = null } = {}) => {
+    const c = replayBarsRef.current
+    if (!c?.sym || c.custom || c.override) return null
+    const out = (bars) => ({ tf: String(c.resolvedTf), extended: !!c.showExtended, times: (bars || []).map(b => b.t) })
+    const heldTo = c.cutoff ? cutoffFetchDay(c.cutoff, String(c.resolvedTf)) : null
+    if (!throughDay || (heldTo && String(throughDay) <= heldTo)) return out(c.sessionBars)
+    const url = `/api/bars/${encodeURIComponent(c.sym)}?tf=${c.resolvedTf}&bars=${REPLAY_STEP_BARS}${c.sessQ}&to=${encodeURIComponent(String(throughDay))}`
+    let data
+    try { data = await globalMutate(url, c.fetcher(url), { revalidate: false }) } catch { return null }
+    const raw = Array.isArray(data) ? data : (data?.bars || [])
+    if (!c.intradayLike) return out(raw)
+    const grid = c.isIntraday ? foldOffGridBars(raw, c.resolvedTf, { showExtended: c.showExtended }) : raw
+    return out(c.showExtended ? grid : grid.filter(b => typeof b.t !== 'number' || isRthBar(b.t)))
+  }
   const replayMeta = () => {
     const c = replayCtlRef.current, b = c?.bars, n = b?.length || 0, i = c?.index
     return { can: !!c?.can && n > 0, mode: !!c?.mode, playing: !!c?.playing, speed: c?.speed ?? 1, index: c?.mode && i != null ? i : null, total: n,
@@ -19446,7 +19469,7 @@ export default function StockChart({
   }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), zoom: (z) => zoomTimeAxis(chartRef.current, !!z?.out, z?.steps), positionCalc, replay: replayDo })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), zoom: (z) => zoomTimeAxis(chartRef.current, !!z?.out, z?.steps), positionCalc, replay: replayDo, replayBarTimes })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])

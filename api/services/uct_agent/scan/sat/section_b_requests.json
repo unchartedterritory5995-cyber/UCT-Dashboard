@@ -11366,6 +11366,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -11746,6 +11750,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -12124,6 +12132,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -12508,6 +12520,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -12885,6 +12901,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -13263,6 +13283,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -13641,6 +13665,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -14286,6 +14314,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -14665,6 +14697,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -15042,6 +15078,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -15680,6 +15720,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -16058,6 +16102,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -16703,6 +16751,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -17342,6 +17394,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -17981,6 +18037,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -18359,6 +18419,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -19004,6 +19068,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -19382,6 +19450,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -19766,6 +19838,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -20150,6 +20226,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -20534,6 +20614,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -20912,6 +20996,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -21290,6 +21378,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -21667,6 +21759,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -22045,6 +22141,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -22683,6 +22783,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -23323,6 +23427,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -23962,6 +24070,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -24601,6 +24713,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [
@@ -24978,6 +25094,10 @@
      {
       "id": "chartReplay",
       "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
+     },
+     {
+      "id": "replayMode",
+      "title": "Tools → Replay Mode stepped forward or back by a chart’s own bars"
      }
     ],
     "selected": [

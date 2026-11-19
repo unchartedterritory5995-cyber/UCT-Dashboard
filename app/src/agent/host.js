@@ -147,6 +147,8 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
           cell: { x: e.w.x, y: e.w.y, w: e.w.w, h: e.w.h },
           ...(sel != null && e.r.chartId === sel ? { selected: true } : {}),
           view: e.api.agent.view?.() || null,
+          // chart.replayStep (D20): the chart's read-only bar-times door (absent on a Multi Chart cell: the step refuses)
+          ...(typeof e.api.agent.replayBarTimes === 'function' ? { canStepReplay: true } : {}),
           // uctIntelligence.set: the UCT Intelligence row / panel gates ({ available, known, availability }; null = not
           // published yet). Absent when the adapter has none (a Multi Chart cell has no pattern layer): refused there.
           ...(typeof e.api.agent.uctIntelligence === 'function' ? { uctIntel: e.api.agent.uctIntelligence() ?? null } : {}),
@@ -245,6 +247,12 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     },
     // The chart's own view controls (range bar, Reset view, hide all indicators); chart.js waits for the read-back.
     viewDo: (ref, op, arg) => !!entries().find(x => x.ref === ref)?.api.agent.viewDo?.(op, arg),
+    // chart.replayStep (D20): THIS chart's bar times, read-only (a Multi Chart cell has no door: null)
+    replayBarTimes: async (ref, arg) => {
+      const fn = entries().find(x => x.ref === ref)?.api.agent.replayBarTimes
+      if (typeof fn !== 'function') return null
+      try { return await fn(arg) } catch { return null }
+    },
   }
 }
 

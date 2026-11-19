@@ -642,7 +642,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     st.settingsOpen = {}
     // family C (C1-178): the chart's right-click "Ask AI about {sym}" door (ChartWidget openAskAi), recorded as the route it opens
     st.askAi = []
-    const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay, canOpenSettings: true, settingsOpen: !!st.settingsOpen[x.ref], canAskAi: true } : x)
+    const withTime = (x) => (x ? { ...x, view: { ...viewOf(x.ref) }, replay: st.replay, canOpenSettings: true, settingsOpen: !!st.settingsOpen[x.ref], canAskAi: true, canStepReplay: true } : x)
     mounted.h.charts = { ...charts, list: () => charts.list().map(withTime), read: (r) => withTime(charts.read(r)),
       goTo: (ref, ms) => { viewOf(ref).rightMs = ms >= BAR_DAYS.at(-1) ? BAR_DAYS.at(-1) : lastOnOrBefore(ms); return true },
       // the chart's own view controls (StockChart.applyRange / restoreView / resetView / setIndicatorsHidden), as getDateMeta reads them back
@@ -677,6 +677,11 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
         return true
       },
       setReplay: (iso) => { st.replay = iso ?? null; return true },
+      // chart.replayStep (D20): the chart's bar times for its Replay window (the synthetic daily history, days ≤ the window)
+      replayBarTimes: async (ref, { throughDay } = {}) => {
+        const to = throughDay || (st.replay ? String(st.replay).slice(0, 10) : null)
+        return { tf: 'D', extended: false, times: SYNTH_BARS.filter(b => !to || b.t <= to).map(b => b.t) }
+      },
       openSettings: (ref) => { st.settingsOpen[ref] = true; return true },
       askAi: (ref) => { st.askAi.push(`/research/${charts.read(ref)?.symbol}?section=ai`); return true } }
     st.views = views
