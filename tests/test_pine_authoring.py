@@ -457,3 +457,41 @@ def test_the_way_through_a_limit_is_said_exactly_while_the_limit_stands_and_the_
     assert (way in now) == (limit in standing and closes not in standing)
     for unknown in pa.RUN_STOP_RELIEFS:
         assert unknown in {s["id"] for s in pa._recipes_doc()["stops"]}, "a way through whose probe the generator does not record"
+
+
+# ═══ rule 10: Pine's own function, where this engine serves one ═════════════════════
+#
+# Coordinator's condition (2026-11-19): a member's own version of a well-known indicator is grounded on
+# Pine's own function where one exists, never improvised. The rule names examples, and it may only name
+# functions the document itself lists as served: naming one the engine refuses would teach a refused script.
+
+def test_rule_ten_names_only_functions_the_document_lists_as_served():
+    doc = pa.document()
+    rule = next(line for line in doc.split(chr(10)) if line.startswith("10. "))
+    assert "{" not in doc.split("## ")[0], "a placeholder of the contract reached the assistant"
+    assert "CALL that function" in rule and "say in `reply` which definition you used" in rule
+    named = re.findall(r"`(ta[.][a-z_0-9]+)`", rule)
+    assert named and len(named) == len(set(named))
+    served = pa.served_names()
+    assert set(named) <= served, sorted(set(named) - served)
+    assert set(named) == {n for n in pa.OWN_FUNCTION_CANDIDATES if n in served}
+    # each one named is a row of the document's own "VALUE FUNCTIONS AND VARIABLES" list
+    values = doc[doc.index("## VALUE FUNCTIONS AND VARIABLES"):]
+    for name in named:
+        assert f"- `{name}`" in values, name
+
+
+def test_rule_ten_follows_the_reference_not_a_list_typed_here():
+    ref = copy.deepcopy(pa.reference())
+    keep = "ta.rsi"
+    assert keep in pa.served_names(ref)
+    ref["values"] = [v for v in ref["values"] if not v["name"].startswith("ta.") or v["name"] == keep]
+    rule = next(line for line in pa.contract(ref).split(chr(10)) if line.startswith("10. "))
+    assert re.findall(r"`(ta[.][a-z_0-9]+)`", rule) == [keep]
+    # an engine that serves none of them is told to write the published calculation, and is given no example
+    ref["values"] = [v for v in ref["values"] if not v["name"].startswith("ta.")]
+    bare = next(line for line in pa.contract(ref).split(chr(10)) if line.startswith("10. "))
+    assert "`ta." not in bare and "The ones listed here" not in bare and "write the published calculation yourself" in bare
+    # a candidate that is not a served name is never said, whatever the list above holds
+    assert "ta.supertrend" in pa.OWN_FUNCTION_CANDIDATES
+    assert ("`ta.supertrend`" in pa.contract()) == ("ta.supertrend" in pa.served_names())

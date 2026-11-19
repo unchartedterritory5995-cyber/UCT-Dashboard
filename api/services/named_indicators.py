@@ -130,15 +130,57 @@ def built_ins() -> List[Dict[str, Any]]:
     return [e for e in held_names() if built_in(e) is not None]
 
 
+OPEN_DEFECTS_PATH = Path(__file__).resolve().parents[1] / "data" / "builtin_open_defects.json"
+OPEN_DEFECTS_CONTRACT = "uct.builtin-open-defects/1"
+#: Said beside a built-in a member could also have their own version of (coordinator's ruling 2026-11-19).
+OWN_VERSION_LINE = "Add it with one tap, or describe what you'd change and I'll build your own."
+
+
+@lru_cache(maxsize=1)
+def open_defects() -> Dict[str, Dict[str, Any]]:
+    """⭐ THE OPEN PARITY DEFECTS OF UCT'S OWN BUILT-INS, by registry id (`builtin_open_defects.json`).
+    A recorded fact per built-in, so an answer's wording FOLLOWS it: a built-in listed here is never
+    offered without saying what differs. Unreadable or malformed: {} (and a test holds the file)."""
+    try:
+        doc = json.loads(OPEN_DEFECTS_PATH.read_text(encoding="utf-8"))
+    except Exception:                              # noqa: BLE001
+        return {}
+    rows = doc.get("defects") if isinstance(doc, dict) and doc.get("contract") == OPEN_DEFECTS_CONTRACT else None
+    return {k: v for k, v in (rows or {}).items()
+            if isinstance(k, str) and isinstance(v, Mapping) and isinstance(v.get("what"), str) and v["what"].strip()}
+
+
+def open_defect(indicator: Any) -> Optional[str]:
+    """What differs today in this built-in (plain words), or None when nothing is recorded open."""
+    row = open_defects().get(indicator) if isinstance(indicator, str) else None
+    return row["what"].strip() if row else None
+
+
+def own_version(e: Any) -> bool:
+    """May a member have their own version of this built-in built (a formula could hold it)? False for
+    one the server computes (the RS family): nothing a formula here could be."""
+    b = built_in(e)
+    return bool(b and b.get("own_version") is True)
+
+
 def built_in_answer(e: Mapping[str, Any]) -> str:
     """What a member is told when the browser CAN add the built-in from where they are: what it
-    is. The offer to add it rides beside this sentence, never inside it."""
+    is. The offer to add it rides beside this sentence, never inside it.
+    ⛔ It never calls a built-in checked; and a built-in with an OPEN DEFECT says what differs."""
     b = built_in(e) or {}
+    defect = open_defect(b.get("indicator"))
+    differs = f" UCT's built-in differs from the published indicator today: {defect}; a fix is pending." if defect else ""
+    if own_version(e):
+        named = e["name"] if e["name"] == b["name"] else f"{e['name']} ({b['name']})"
+        return f"{named} is one of UCT's own indicators: {b['what']}.{differs} {OWN_VERSION_LINE}"
     s = built_in_setting(e)
     if s is not None:
         return (f"{b['name']}, one of UCT's own indicators, draws {e['name']} itself when its {s['label']} setting "
                 f"is on: {b['what']}. It is not a formula to build here.")
-    return f"{e['name']} is one of UCT's own indicators, {b['name']}: {b['what']}. It is not a formula to build here."
+    named = e["name"] if e["name"] == b["name"] else f"{e['name']} is one of UCT's own indicators, {b['name']}"
+    if e["name"] == b["name"]:
+        return f"{named} is one of UCT's own indicators: {b['what']}.{differs} It is not a formula to build here."
+    return f"{named}: {b['what']}.{differs} It is not a formula to build here."
 
 
 def needs_script(e: Any) -> Optional[str]:
