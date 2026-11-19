@@ -14,8 +14,9 @@ The Pine v6 User Manual, *Fills* (https://www.tradingview.com/pine-script-docs/v
 The Manual's examples always bind the ID first (`p1 = plot(…)`). An argument is its value, so the inline form passes
 the same ID.
 
-The reference pages' exact "Returns" sentences for `plot` and `hline` could not be read: the reference is a JavaScript
-app, and the fetch returned only its empty shell. The Manual's text was read in full and is what this change stands on.
+The Pine v6 reference states it directly (read from the local extraction of TradingView's reference data,
+`docs/pine/pine-reference-extraction.md`): `plot` "Returns: A plot object, that can be used in fill()"; `hline`
+"Returns: An hline object, that can be used in fill()"; `fill`'s `plot1` is "The first plot object".
 
 ## The wall
 
