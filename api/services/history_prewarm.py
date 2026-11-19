@@ -76,9 +76,13 @@ def _universe() -> list[str]:
 def _market_last_sealed(cli, tf: str) -> str:
     """The market's current sealed boundary for `tf`, read from a reference active symbol so
     every symbol's pre-warm URL carries the SAME `d` the browser sends (an immutable match)."""
+    # ⛔ WITH THE SERVICE TOKEN, like every sweep request. `/api/bars-history` is paid: this read
+    # without it was refused (401) on every pass, so the boundary was "" for D, W and M and the
+    # sweep warmed NOTHING (2026-11-18 worker log: 3,639 symbols, 0 requests, "complete in 3s"),
+    # while every member's first open of a ticker's daily history paid the 1-2 s origin build.
     for ref in ("SPY", "AAPL", "QQQ"):
         try:
-            r = cli.get(f"{_BASE}/api/bars-history/{ref}?tf={tf}&bars={_FULL[tf]}")
+            r = cli.get(f"{_BASE}/api/bars-history/{ref}?tf={tf}&bars={_FULL[tf]}", headers=_svc_headers())
             if r.status_code == 200:
                 d = (r.json() or {}).get("last_sealed") or ""
                 if d:
@@ -117,7 +121,11 @@ def prewarm_pass() -> dict:
                 time.sleep(_PACE)
             _log.info("[history_prewarm] tf=%s done (d=%s): %s", tf, d, stats)
     stats["secs"] = round(time.time() - t0)
-    _log.info("[history_prewarm] sweep complete in %ss: %s", stats["secs"], stats)
+    if syms and not stats["requests"]:
+        # A pass that warmed nothing is a failure, never a quiet "complete" (it read as one for weeks).
+        _log.error("[history_prewarm] sweep warmed NOTHING (no sealed boundary for any timeframe): %s", stats)
+    else:
+        _log.info("[history_prewarm] sweep complete in %ss: %s", stats["secs"], stats)
     return stats
 
 

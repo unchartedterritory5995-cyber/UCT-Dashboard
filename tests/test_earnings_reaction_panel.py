@@ -124,18 +124,20 @@ class TestPanel:
 class TestImplied:
     def test_the_vendor_read_never_runs_in_the_request(self, monkeypatch):
         from api.services import earnings_enrichment as ee
+        from api.services import implied_move as im
         monkeypatch.setenv("EARNINGS_REACTION_PANEL_ENABLED", "1")
         p._implied.clear()
         p._queued.clear()
         gate, ran_on = threading.Event(), []
 
-        def slow(sym, d, timing=None):
+        def slow(sym, d, timing=None, **_kw):
             ran_on.append(threading.current_thread().name)
             gate.wait(5)
             return {"pct": 6.2, "dollar": 8.1, "expiry": "2026-05-01", "strike": 130.0,
                     "spot": 131.0, "call_mark": 4.2, "put_mark": 3.9}
-        monkeypatch.setattr(ee, "get_implied_move", slow)
-        from api.services import implied_move as im
+        monkeypatch.setattr(im, "report_move", slow)
+        monkeypatch.setattr(ee, "get_implied_move",
+                            lambda *a, **k: pytest.fail("the panel read the delayed straddle"))
         monkeypatch.setattr(im, "report_timing", lambda s, d: None)   # no vendor call
         first = p.implied_snapshot("ZZTEST", "2026-04-30")
         assert first["state"] == "pending"

@@ -57,6 +57,20 @@ HEAD = ('<?xml version="1.0" encoding="utf-8" standalone="yes" ?>\n'
         '<title type="text">DailyTreasuryYieldCurveRateData</title>\n<id></id>\n<updated>2026-11-18T01:02:21Z</updated>\n')
 
 
+
+@pytest.fixture(autouse=True)
+def _log_only_inside_the_blocks():
+    """Records are captured only inside a `caplog.at_level` block, whatever ran before this file.
+    A test that imports the whole app first configures logging at INFO, and a build's log line
+    written BEFORE a block would then sit in `caplog.records` ahead of the line the test reads
+    (found 2026-11-18: two tests passed alone and failed after the member API list test). The
+    logger's own level is pinned here, so the order the files run in cannot matter."""
+    lg = logging.getLogger("api.services.treasury_yields")
+    old = lg.level
+    lg.setLevel(logging.WARNING)
+    yield
+    lg.setLevel(old)
+
 def day_row(day: date, **over) -> dict:
     """One day's yields by key. `key=None` leaves that maturity's element out, as the Treasury does."""
     ys = dict(BASE)

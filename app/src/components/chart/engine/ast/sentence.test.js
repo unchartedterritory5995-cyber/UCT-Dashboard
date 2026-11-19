@@ -707,6 +707,23 @@ function readLtfSentence(s) {
   return { via: 'ltf', ast: { type: 'ltf', value: m[2], args: [readOperand(m[1])] } }
 }
 
+/** ⭐ engine 81 (2026-11-18) — A BAR-FIELD ARGUMENT NAMED BY ITS ROLE. Hand-typed, like every
+ *  form in this file, and NOT read from the manifest's `argRoles`: which functions take the bar's
+ *  fields by position, and the word the walker says for each place. When a call's leading
+ *  arguments are not the bar's own fields in this order, the walker writes `highs from <operand>`
+ *  for each; when they are, it writes the operands bare. The reader holds it to exactly that:
+ *  role words on every leading operand or on none, and present IF AND ONLY IF the arguments are
+ *  not the bar's own fields in order (a sentence the walker never writes is not a parse). */
+const HLC = ['highs', 'lows', 'closes']
+const HL = ['highs', 'lows']
+const BAR_ROLE_LEAD = {
+  adx: HLC, atr: HLC, atrPine: HLC, cci: HLC, minusDI: HLC, plusDI: HLC, stoch: HLC, stochPine: HLC, williamsR: HLC,
+  ichimokuChikou: HLC, mfi: [...HLC, 'volumes'], mfiPine: [...HLC, 'volumes'],
+  donchianLower: HL, donchianMiddle: HL, donchianUpper: HL,
+  ichimokuKijun: HL, ichimokuSpanA: HL, ichimokuSpanB: HL, ichimokuTenkan: HL,
+}
+const ROLE_FIELD = { highs: 'high', lows: 'low', closes: 'close', volumes: 'volume' }
+
 function readSentenceCandidates(s) {
   const found = []
   try { found.push({ via: 'leaf', ast: readLeaf(s) }) } catch { /* not a leaf */ }
@@ -743,10 +760,19 @@ function readSentenceCandidates(s) {
     if (!slots) continue
     try {
       const arity = Math.max(...form.parts.filter((p) => typeof p === 'number')) + 1
+      const lead = form.kind === 'call' && own(BAR_ROLE_LEAD, form.name) ? BAR_ROLE_LEAD[form.name] : null
+      const bare = lead ? lead.map((word, i) => (own(slots, i) && slots[i].startsWith(`${word} from `)
+        ? slots[i].slice(`${word} from `.length) : null)) : []
+      const byRole = bare.some((text) => text !== null)
+      if (byRole && !bare.every((text) => text !== null)) throw new Error('some arguments named by role and some not')
       const args = []
       for (let i = 0; i < arity; i++) {
         if (!own(slots, i)) throw new Error(`form ${form.name} never captured argument ${i}`)
-        args.push(readOperand(slots[i]))
+        args.push(readOperand(byRole && i < lead.length ? bare[i] : slots[i]))
+      }
+      if (lead) {
+        const inOrder = lead.every((word, i) => args[i].type === 'series' && args[i].name === ROLE_FIELD[word])
+        if (byRole === inOrder) throw new Error('role words are written exactly when the fields are not the bar\'s own in order')
       }
       found.push({
         via: form.via || `${form.kind}:${form.name}`,

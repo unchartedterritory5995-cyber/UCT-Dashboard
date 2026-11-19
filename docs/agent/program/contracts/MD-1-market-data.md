@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.10)
+# MD-1 — UCT market-data contract (v1.11)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.10 (v1.1–v1.10 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7, v1.8, v1.9 and v1.10 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark, v1.8, v1.9 and v1.10 with their kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended; the §8.1 notices for v1.9 and v1.10 are owed by a person and are not acknowledged, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
+- **Status:** v1.11 (v1.1–v1.11 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7, v1.8, v1.9, v1.10 and v1.11 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark, v1.8, v1.9, v1.10 and v1.11 with their kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended; the §8.1 notices for v1.9, v1.10 and v1.11 are owed by a person and are not acknowledged, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -1394,6 +1394,163 @@ never sees what came back. Each capability registers only while the server lists
   notes on a ticker, on the Journal page); neither covers one stock's trades and positions, and this wave adds nothing
   there.
 
+### 4.14 Terminal data wave 5: `short.interest`, `short.list` (v1.11, terminal-data)
+
+Two more thin kinds, the Agent half of the SHINT and SHRTS terminal panels: FINRA short interest (reported twice a
+month) and FINRA daily short sale volume, both read through UCT's market-data vendor. Each is an adapter over the
+service its member route already reads (`api/services/uct_agent/marketdata/short_interest.py`, `short_list.py`, both
+over `api/services/short_data.py`; registered in `kinds.py` with `owner="terminal-data"`). No new connection, job,
+database or write (§6).
+
+**Status: dark, not armed.** Like every kind, each is served only when it is listed in `UCT_AGENT_DATA_KINDS` (with
+`UCT_AGENT_DATA=1`). Both are model-isolated, so each also needs the master switch `UCT_AGENT_ISOLATED=1` and its own
+entry in `UCT_AGENT_ISOLATED_KINDS` (§4.4, ADR-005); until then it is refused for every purpose, and once armed it is
+served for purpose `answer` only. This section describes what the code does when a kind is switched on. It does not
+switch anything on. As written (2026-11-18), neither kind is in production's list.
+
+| Kind | Canonical service (member route) | Params | Declared freshness | `as_of` | `provider_calls` | Model-isolated |
+|---|---|---|---|---|---|---|
+| `short.interest` | the stock's answer `api/services/short_data.py` already holds, read through `short_data.held_stock` (`GET /api/research/short-data/{ticker}`) | `{symbol, reports, days}` | periodic · every read historical | the settlement date of the newest report (never today) | 0 | **yes** |
+| `short.list` | the ranked list `api/services/short_data.py` already holds (in memory, or its disk copy read once per process), read through `short_data.held_market` (`GET /api/research/short-interest-list`) | `{rank, limit}` | periodic · every read historical | the report's settlement date (never today) | 0 | **yes** |
+
+**No read of this section starts a build, a check or a vendor request.** (§5: a turn has 20 provider requests and a
+member waiting.) Both member routes answer at once from what the service holds and, when it holds nothing, START the
+service's background build. A turn must not start one, so each adapter reads through a read-only accessor of the
+service and answers `unavailable`, with the reason, when nothing is held:
+
+| Kind | What the member route can start | What the adapter reads instead |
+|---|---|---|
+| `short.interest` | `get_stock` starts the service's one background build for the stock (two vendor requests: the short interest history and the daily short volume) and waits up to 3 seconds on it; with a last good answer held it serves that and starts the rebuild | `short_data.held_stock`: the held answer inside its freshness (`data.held` `fresh`), else the last good answer (`last_good`, and the read is `stale`); otherwise `unavailable`. It starts no build and waits on none |
+| `short.list` | `get_market` starts the service's one background build (four to six vendor requests) when nothing is held and waits up to 3 seconds on it; with a list held it starts the cheap look for a newer report once that look is due | `short_data.held_market`: one ranking of the held list by the service's own `rank_market`; with no list held, what the service's last build said while that answer still stands (`unavailable` or `failed`, with its reason); otherwise `unavailable`. It starts no build and no look |
+
+Both accessors are in the service itself, so the service keeps one authority over what it holds. `held_stock` mirrors
+the first lines of `get_stock`; `held_market` ranks with `get_market`'s own `rank_market` and, with this version,
+hands back the service's standing `unavailable` / `failed` answer when no list is held (before, it said only "not
+held"), which is the answer `get_market` gives in that state without starting another build. Rails hold each accessor to
+its route's reader (the same answer whenever the route would not build) and count builds, threads, provider clients
+and vendor requests through the real service state: with nothing held, and with a rebuild or a look due, the adapter
+starts none, and the route's own reader is shown to start one in the same state. A further rail replaces `get_stock`,
+`get_market`, `build_stock`, `build_market`, `_start_market_job`, both thread bodies and the vendor readers with
+functions that fail, and runs every read of this section held and not held.
+
+**The service's own states, and what each read says.** Each state is kept apart, and none is ever said as "no short
+interest" or "no stock being short":
+
+| The service says | `short.interest` | `short.list` |
+|---|---|---|
+| nothing held (the member route's `computing`: a build may be running; this read never starts or waits on one) | `unavailable`, not held | `unavailable`, not held |
+| `unavailable`, reason `refused` (the vendor refused this site's key: the data plan) | `unavailable`, refused (both datasets) | `unavailable`, refused |
+| `unavailable`, reason `not_configured` (no vendor key on the server) | `unavailable`, no key | `unavailable`, no key |
+| `unavailable`, reason `shape` (the vendor answered with rows that cannot be read) | (per dataset: that dataset is `failed`) | `unavailable`, shape |
+| `unavailable`, reason `thin` (too few of the stocks UCT follows in the report) | (not a stock state) | `unavailable`, thin |
+| `failed` (the last build failed) | `unavailable`, read failed | `unavailable`, read failed |
+| `bad_symbol` / `bad_rank` | refused by `validate` before any read (the service's own symbol rule) | refused by `validate` before any read |
+| one dataset `unavailable` or `failed` beside a healthy one | `partial`, with that dataset's note | (not a list state) |
+| `none` (the vendor answered and holds no rows for the stock) | `ok`, a healthy empty dataset, said | (not a list state) |
+
+**Rules both share**
+- **A bad request is refused before any read.** Each kind's `validate` runs before admission (a `symbol` that is not
+  one US stock or fund ticker by the service's own rule, an unknown `rank`, an out-of-range `reports`, `days` or
+  `limit`): the read is `refused` and spends no budget.
+- **A value that does not exist is null, never 0.** No days to cover, no average daily volume, no change (no report
+  before, or a report before of zero shares), no previous report, no float, no percent of float (a percent the service
+  withheld is null, with `withheld` true), no total volume and no short volume ratio are each null.
+- **The as-of is the settlement date, never today** (§3). `as_of` is the settlement date of the report, as the start
+  of that Eastern day (a date, not a time of day); FINRA collects short interest twice a month and publishes it about
+  two weeks later. When UCT read the vendor is a read time, not a data time: it rides beside it as `data.read_at`. The
+  day FINRA published the report is not in the vendor's answer: `data.publication_estimate` is FINRA's schedule (the
+  7th business day after the settlement date), always said to be an estimate. Every read is `historical` (a settled
+  report and completed sessions); each kind is DECLARED `periodic`, a read being allowed to be less fresh than its kind.
+- **Unknown is never claimed fresh.** An answer with no read time is `stale`, with a note.
+- **The server says when it cut a list, and from which end.** Each kind returns at most the rows asked for, the whole
+  count beside them, and a note naming both and the end left out (the older reports and days; the lowest ranked).
+- **Every number is the service's own.** Nothing is re-derived, ranked or counted in the adapters.
+- **The member's answer is built from the read's `data` and `status`.** The browser capabilities template their text
+  from those; an envelope note is never echoed to the member as if it were data.
+
+**Why both are model-isolated.** The data is FINRA's, licensed to UCT through its market-data vendor
+for display to members (`docs/terminal-research/09-security-licensing-cost/licensing-register.md`, rows T-93 and T-94:
+short interest, read by both kinds; daily short sale volume, read by `short.interest` only),
+and no row of that register clears it for a model provider.
+- `short.interest`: FINRA short interest (T-93) and FINRA daily short sale volume (T-94).
+- `short.list`: FINRA short interest (T-93).
+
+Whether an isolated value may ever reach the model is an owner decision (§4.4). On the browser the two kinds are read
+only by local-only capabilities (`stock.shortInterest`, `stock.shortList` in
+`app/src/agent/capabilities/terminalDataWave5.js`, both in `turn.LOCAL_ONLY_ACTIONS`): the model plans the lookup and
+never sees what came back. Each capability registers only while the server lists its own kind.
+
+**`short.interest`** (source `uct-short-data`)
+- What it returns: one stock's newest report in `data.latest` (`settlement_date, short_interest` (shares),
+  `avg_daily_volume, days_to_cover, change_shares, change_pct`), the newest reports of its history and the newest days
+  of its daily short volume, and short interest as a percent of float. Every `ok` or `partial` read carries the note
+  `FINRA short interest for {sym}: the shares sold short and not yet covered as of each settlement date, newest report first, each with the change from the report before it; days to cover is the data vendor's own figure (shares short against the average daily volume); FINRA's data, read through UCT's market-data vendor`.
+- Params: `symbol` (one US stock or fund ticker, in the house form `BRK-B`); `reports` 1–24 (default 12: the SHINT
+  panel's own first draw, and 24 its "Show more" step); `days` 1–60 days of short volume (default 10, the panel's own;
+  60 is the service's own window).
+- **Time.** With a report: `FINRA collects short interest twice a month and publishes it about two weeks later, so a report is already about two weeks old when it is published; the newest one here is for {date}, never today`, `the day FINRA published the report is not in the vendor's answer; by FINRA's schedule (after the close on the 7th business day after the settlement date) it was {estimate}, an estimate` (when the estimate exists) and
+  `as_of is the settlement date of the newest report (a date, not a time of day); UCT read it from the data vendor at {at}`. With no report in the answer, `as_of` is null with `no short interest report is in this answer, so as_of is not given; UCT read the data vendor at {at}`. An answer with no
+  read time is `stale`: `the held answer carries no read time, so its age is unknown`.
+- What is held (`data.held`): `fresh`, the held answer; or `last_good`, when the read is `stale` with the note
+  `this is the last good answer for {sym}, older than the {hours} hours it is normally kept, so a report or a day of short volume published since is missing`.
+- **Daily short volume** (`data.volume`). Whenever a day is returned:
+  `daily short volume is NOT short interest: it counts the shares sold short in one day's off-exchange trades only (not exchange trades), most of them bought back the same day, and says nothing about how many shares are still held short`. Day fields: `date, short_volume, total_volume, short_volume_ratio` (a percent, 0 to 100, or
+  null).
+- **Percent of float** (`data.float`: `shares, pct_float, withheld, state` (ok · stale · missing), `source`). The
+  float is today's, from the nightly screener export: `percent of float divides the settlement date's short interest by TODAY's float from the nightly screener export, so the two figures are from different days`, and when the export is old,
+  `the screener export the float comes from is older than usual, so the float may be behind`. No float on file: `no float is on file for {sym}, so no percent of float is given; that is not 0%`. A percent the service withheld:
+  `short interest is more than {max}% of the float on file for {sym}, so the two figures do not describe the same share count (a split or an offering since the settlement date) and the percent of float is withheld`.
+- **The cuts, from the old end.** At most `reports` reports and `days` days, the newest of each, with `count` (what the
+  server holds) and `shown` beside them: `showing the newest {n} of the {total} reports the server holds; the older ones are left out`; `showing the newest {n} of the {total} days of short volume the server holds; the older ones are left out`. When the service itself
+  read only the newest part of the history (`data.interest.cut`): `the server read the newest {n} reports and the data vendor holds older ones, so the history stops at {first}; the older reports are the ones not read`.
+- **Each dataset has its own state** (`data.interest.state`, `data.volume.state`: ok · none · unavailable · failed; an
+  `ok` dataset with no row that can be read is `failed`). Healthy and empty: `the data vendor answered and holds no short interest report for {sym}; that is a healthy answer, not a failed read, and it is not zero shares short`;
+  `the data vendor answered and holds no daily short volume for {sym}; that is a healthy answer, not a failed read`. One dataset not given beside a healthy one makes the read `partial`, each said with
+  `{what}` = short interest or daily short volume: refused, `{what} is not given: the data vendor refused it for this site's key when the server last asked (the data plan); that is not the same as none`; no key,
+  `{what} is not given: this server has no key for the data vendor; that is not the same as none`; failed, `{what} is not given: the server's last read of it failed, or its rows could not be read; that is not the same as none`.
+- `unavailable`: nothing held (`no short interest answer for {sym} is held on the server (one is kept {hours} hours after the Short interest panel reads that stock, and a last good copy {extra} hours more), and this read never starts a vendor read; that is not the same as no short interest`); both datasets refused (`the data vendor refused both short interest and daily short volume for this site's key when the server last asked for {sym} (the data plan), and this read never asks again; that is not the same as no short interest`); no vendor key
+  (`this server has no key for the data vendor, so short interest for {sym} could not be read; that is not the same as no short interest`); the service's last read failed (`the server's last read of short interest for {sym} from the data vendor failed, and this read never starts another; that is not the same as no short interest`); the service's own `bad_symbol`
+  (`{sym} is not a US stock or fund symbol, so there is no short interest to read`); a malformed answer or a failing service (`the short interest answer could not be read for {sym}`).
+- Data fields: `sym`, `settlement_date`, `latest`, `publication_estimate`, `read_at`, `held` (fresh · last_good),
+  `interest` (`state, reason, http_status, reports, count, shown, cut, first_date`), `volume` (`state, reason,
+  http_status, days, count, shown, window_days`), `float`, `source`. Report fields, by the service's own names:
+  `settlement_date, short_interest, avg_daily_volume, days_to_cover, change_shares, change_pct`. `coverage` counts the
+  reports and days held against those returned.
+
+**`short.list`** (source `uct-short-data`)
+- What it returns: the newest short interest report the server holds across the stocks UCT follows
+  (`cap_universe.json`), each stock beside its previous report, ranked one of four ways: `rank` ∈ dtc (most days to
+  cover first) · up (biggest percent increase in short interest first) · down (biggest percent decrease in short
+  interest first) · float (highest percent of float first), default dtc. The ranks and their words are the SHRTS
+  panel's own (`shortListModel.js` `SHORT_RANKS`, the service's `RANKS`): `{order}` below is `most days to cover first`,
+  `biggest percent increase in short interest first`, `biggest percent decrease in short interest first` or
+  `highest percent of float first`. `limit` 1–50 rows (default 25). Every `ok` read carries the notes
+  `the newest FINRA short interest report the server holds, for settlement date {date}: the shares sold short and not yet covered as of that date for {count} of the {universe} stocks UCT follows, each beside its previous report, ranked {order}; FINRA's data, read through UCT's market-data vendor`, `FINRA collects short interest twice a month and publishes it about two weeks later, so a report is already about two weeks old when it is published; this one is for {date}, never today`, `the day FINRA published the report is not in the vendor's answer; by FINRA's schedule (after the close on the 7th business day after the settlement date) it was {estimate}, an estimate` (when the estimate exists) and `as_of is the report's settlement date (a date, not a time of day); UCT read the report from the data vendor at {at}, and this read never looks for a newer one`.
+- **The previous report.** `a change is measured against the previous report, for settlement date {date}`, or with none held `the server holds no previous report to compare with, so no change is given; that is not a change of 0`.
+- **Each rank's own rule** (the service's `rank_market`; a stock without the number a rank needs is not ranked by it).
+  dtc: `days to cover is the data vendor's own figure (shares short against the average daily volume); a stock with none is not ranked, never ranked as 0`. up and down (the floor rides as `data.floor_shares`): `a percent change is ranked only for stocks whose PREVIOUS report was at least {floor:,} shares, so a tiny base cannot top the list; a stock with no previous report is not ranked`. float:
+  `percent of float divides the settlement date's short interest by TODAY's float from the nightly screener export, so the two figures are from different days; a stock with no float on file is not ranked, and a percent above {max}% of float is withheld as a mismatch ({withheld} withheld)`, and when the export is old `the screener export the float comes from is older than usual, so the float may be behind`; with no export read,
+  `the screener export the float comes from could not be read when the list was built, so no percent of float is given; that is not the same as no stock being short`.
+- **The cut, from the low end.** At most `limit` rows, the first of the ranking; `data.ranked` is how many stocks the
+  rank covers: `showing the first {n} of the {total} stocks this rank covers, {order}; the lowest ranked are the ones left out`. No stock qualifies, a healthy answer: `no stock in the report has the number this rank needs ({order}); that is a statement about the report the server holds, not a failed read`.
+- **Is it the newest report?** A newer report still arriving at the vendor (`data.newer_report_landing`):
+  `a newer report, for settlement date {date}, is still arriving at the data vendor (it held too few stocks when the server looked), so the list is the report before it`. The read is `stale` when the server's last look for a newer report did not go well
+  (`data.check`): `the server's last look for a newer report did not go well ({what}), so this is the last report it read and a newer one may exist`, where `{what}` is `the data vendor refused this site's key`, `no key for the data
+  vendor`, `the vendor's answer could not be read as a report`, `the newest report held too few stocks`, or otherwise
+  `the read failed`; when FINRA's own schedule says a newer report is out and the server has not read it (a calendar
+  reckoning, `data.newer_report_due`; this read never looks): `by FINRA's schedule the report for settlement date {date} has been published, and the server has not read it: this read never looks for a newer report, so the list may be one report behind`; and when the list carries no
+  read time: `the held list carries no read time, so its age is unknown`.
+- `unavailable`: nothing held (`no short interest list is held on this server yet (it is read from the data vendor when the Short interest list panel is first opened, then kept in memory and on disk), and this read never starts that read; that is not the same as no stock being short`); refused by the data plan (`the data vendor refused the short interest report for this site's key when the server last asked (the data plan), and this read never asks again; that is not the same as no stock being short`); no vendor key
+  (`this server has no key for the data vendor, so the short interest report could not be read; that is not the same as no stock being short`); an answer that could not be read as a report (`the data vendor answered, but not with rows the server could read as a short interest report; that is not the same as no stock being short`); a report too thin to be a
+  market list (`the data vendor's newest report held too few of the stocks UCT follows to be a market list, so nothing is held; that is not the same as no stock being short`); the service's last build failed (`the server's last read of the short interest report from the data vendor failed, and this read never starts another; that is not the same as no stock being short`); the service's own
+  `bad_rank` (`that is not a rank of the short interest list; the ranks are {ranks}`); a malformed answer or a failing service (`the short interest list could not be read`).
+- Data fields: `rank`, `settlement_date`, `previous_settlement_date`, `newer_report_landing`, `newer_report_due`,
+  `publication_estimate`, `read_at`, `held` (held), `count` (stocks UCT follows in the report), `universe`, `ranked`,
+  `limit`, `shown`, `cut`, `rows`, `floor_shares` (up and down only, else null), `float` (`state, with_float, withheld,
+  source`), `check` (`state, reason, http_status, at`, or null), `source`. Row fields, by the service's own names:
+  `sym, short_interest, avg_daily_volume, days_to_cover, prev_short_interest, change_shares, change_pct, float_shares,
+  pct_float`. `coverage` counts the stocks the rank covers against the rows returned.
+
 ## 8. Changing this contract
 
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
@@ -1403,6 +1560,7 @@ never sees what came back. Each capability registers only while the server lists
 
 ## 9. Changelog
 
+- **v1.11 addition (2026-11-18, terminal-data, data wave 5):** §4.14 documents two kinds added dark with this version: `short.interest`, `short.list` (FINRA short interest and daily short volume, the Agent half of the SHINT and SHRTS panels). Both are model-isolated (ADR-005: FINRA's data, licensed to UCT through its market-data vendor for display to members, licensing register rows T-93 and T-94, and no row of that register clears it for a model provider), and neither starts a build, a check or a vendor request: each reads only what `api/services/short_data.py` already holds, through the service's read-only accessors `short_data.held_stock` and `short_data.held_market`, and is `unavailable` or `partial`, with the reason, otherwise (§5). One accessor changes with this version: `held_market` with no list held now hands back the service's standing `unavailable` / `failed` answer instead of only "not held". `as_of` is the report's settlement date, never the day of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** both kinds of §4.14 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.14 records an owner decision.
 - **v1.10 addition (2026-11-18, terminal-data, data wave 4):** §4.13 documents three kinds added dark with this version: `earnings.season`, `earnings.callThemes`, `group.drill`. All three are model-isolated (ADR-005: UCT's calendar with third-party results and estimates and UCT's own priced and past moves; phrases taken from third-party transcript text whose AI-processing right is unresolved; UCT's RS rank, confluence board and themes over derived changes), and none starts a build or spends a provider call: each reads only the answer its service already holds, through a read-only accessor added to that service with this version (`earnings_season.held_day`, `call_themes.held_themes`, `scan_period.period_groups_of`), and is `unavailable` or `partial`, with the reason, otherwise (§5). Two datasets of the same wave get no kind, and §4.13 says why: the UNVOL panel's unusual volume is already a `screen.run` scan (SC-1), and the MYH panel is the member's own Journal. `flow.summary` stays deferred (§4.4). Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.13 is default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.13 records an owner decision.
 - **v1.9 amendment (2026-11-17, terminal-data, Schwab retired):** §4.12's text is brought in line with the removal of Schwab from the product, by the owner's instruction (verbatim): "Move it, fix the status and remove schwab from everything." Two things were retired with it: the Schwab option chain behind `levels.gamma` (and the `GEX_CHAIN_SOURCE` switch, with its `schwab` and `shadow` values, that could select it), and the Schwab backup behind the daily contract prices of `flow.topPicks` and `flow.record`. What changed in §4.12: `data.chain_source` is always `massive` (the field stays, so the payload's shape is unchanged) and its note now reads `the option chain behind these levels is Massive's, the one chain UCT reads for them`; the two flow kinds' source notes now say the daily prices are recorded `from Massive (prices recorded before November 2026 came from Schwab and stay as recorded)`. A `flow.topPicks` row's `src` can still say `schwab`: that labels prices recorded before November 2026, which are never rewritten. No kind, param, envelope field or `data` key is added or removed, so this is an amendment of v1.9, not a new version, and the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.12 stays default OFF. The instruction quoted here is about Schwab only: it is not an acknowledgement of v1.9, and the §8.1 status recorded in the v1.9 entry below is unchanged.
 - **v1.9 addition (2026-11-17, terminal-data, data wave 3):** §4.12 documents four kinds added dark with this version: `levels.gamma`, `flow.topPicks`, `flow.record`, `earnings.reactions`. All four are model-isolated (ADR-005: UCT-derived levels, selections and measurements over options data, and UCT's calendar with third-party results and estimates), and none starts a build or spends a provider call: `levels.gamma` and `earnings.reactions` read only what their routes already hold and are `unavailable` or `partial`, with the reason, otherwise; the two flow kinds read the pick tracker's in-memory lists (§5). One earlier statement is amended: §4.10's "Not kinds" line said gamma walls are not exposed to the Agent; they are now read only by the isolated `levels.gamma`. `flow.summary` stays deferred (§4.4), and the flow-worker's lists are not kinds. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.12 is default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.12 records an owner decision.

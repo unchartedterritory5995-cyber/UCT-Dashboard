@@ -5,10 +5,11 @@
 // on the request: an answer it has not put together yet says "computing" and this panel asks
 // again. The pure half is shortInterestModel.js, re-exported below.
 //
-// What it adds to the panels already in the terminal: OWN shows one undated short interest figure
-// from the nightly screener export. This is the dated record: every FINRA report for the stock,
-// the change from each report to the next, the days to cover, and (a separate thing) the share of
-// each day's off-exchange volume that was short sales.
+// What it adds to the panels already in the terminal: OWN shows the newest report only, and only
+// when this panel's service already holds one for the stock (OWN never asks the data vendor
+// itself). This is the dated record: every FINRA report for the stock, the change from each
+// report to the next, the days to cover, and (a separate thing) the share of each day's
+// off-exchange volume that was short sales.
 //
 // ⛔ A REFUSED DATA PLAN IS AN ANSWER, NOT AN ERROR. When the data vendor refuses the site's key
 // the panel says so in plain words, with no Retry loop; the server remembers it for a few hours.
@@ -32,7 +33,7 @@ import { todayIso } from '../../calendar/earningsModalRow'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import {
   REPORTS_MORE, REPORTS_SHOWN, SHORT_INTEREST_CODE, SOURCE, VOLUME_DAYS_SHOWN, barShare, changeWay, dayText, daysBetween, etDayOf,
-  maxShortOf, ratioSummary, shortDataRead, shortDataUrl, unavailableWords,
+  floatWords, maxShortOf, ratioSummary, shortDataRead, shortDataUrl, unavailableWords,
 } from './shortInterestModel'
 import ShortDataNotes from './ShortDataNotes'
 import styles from './marketPanels.module.css'
@@ -40,7 +41,7 @@ import own from './shortPanels.module.css'
 
 export {
   REPORTS_MORE, REPORTS_SHOWN, SHORT_INTEREST_CODE, SOURCE, VOLUME_DAYS_SHOWN, barShare, changeWay, dayText, daysBetween, etDayOf,
-  maxShortOf, ratioSummary, shortDataRead, shortDataUrl, unavailableWords,
+  floatWords, maxShortOf, ratioSummary, shortDataRead, shortDataUrl, unavailableWords,
 } from './shortInterestModel'
 
 const WHAT = 'Short interest'
@@ -87,13 +88,6 @@ export function readAtWords(readAt, today) {
   if (!time) return ''
   const day = etDayOf(readAt)
   return `${time}${day && day !== today ? ` on ${dayText(day)}` : ''}`
-}
-
-/** Pure: why percent of float is missing, in words (null when it is there). */
-export function floatWords(flt) {
-  if (flt.pct != null) return null
-  if (flt.withheld) return 'Not shown: the short interest is more than 150% of the float on file, so the two do not describe the same share count'
-  return 'No float on file for this stock'
 }
 
 function SectionMissing({ what, section, testId, onRetry }) {
@@ -254,8 +248,9 @@ function ShortInterestBody({ sym: s, code }) {
         The site reads FINRA short interest and short volume through its stock-data vendor, Massive,{' '}
         {view.reason === 'not_configured' ? 'and this server has no key for it' : 'and the vendor did not allow it'}. That is
         not the same as no short interest. The server asks again by itself in a few hours; nothing here needs a retry.
-        The one undated figure from the screener is still on{' '}
-        <PanelCommand cmd={`${s} OWN`} label={`Ownership (OWN) for ${s}`}>Ownership (OWN)</PanelCommand>.
+        Holders, float and insider activity for {s} are on{' '}
+        <PanelCommand cmd={`${s} OWN`} label={`Ownership (OWN) for ${s}`}>Ownership (OWN)</PanelCommand>; its short
+        interest card reads this same record, so it is not available there either.
       </PanelState>
     ))
   }

@@ -85,12 +85,12 @@ describe('OwnershipTab — SEC EDGAR Form 4 insider section', () => {
     expect(screen.queryByText('sell')).toBeNull()
   })
 
-  // tq-panels: one leg failing (Yahoo / insider) is named, not left as dashes.
+  // tq-panels: one leg failing (the 13F read / the share counts / insider) is named, not left as dashes.
   it('a partial failure names the leg that could not be read', () => {
-    current = { ...bare, insider: [], legs_failed: ['institutional holders and short interest (Yahoo Finance)'] }
+    current = { ...bare, insider: [], legs_failed: ['institutional holders (Form 13F)', 'float and shares outstanding'] }
     render(<OwnershipTab sym="AAPL" />)
     expect(screen.getByTestId('ownership-partial').textContent).toMatch(
-      /^Part of AAPL's ownership could not be read right now: institutional holders and short interest \(Yahoo Finance\)\. The rest is what answered\./)
+      /^Part of AAPL's ownership could not be read right now: institutional holders \(Form 13F\); float and shares outstanding\. The rest is what answered\./)
   })
 
   it('names an unmatched filer and an unreachable SEC as unknowns', () => {

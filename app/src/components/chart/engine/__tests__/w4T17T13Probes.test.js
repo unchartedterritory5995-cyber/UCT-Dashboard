@@ -123,9 +123,11 @@ describe('W4-M1..M5 baseline: ours today', () => {
     expect(guardOf(read(MBB_FILES.M2), mkBars(400))).toBe('ok')
     expect(guardOf(read(MBB_FILES.M3), mkBars(400))).toBe('ok')
   })
-  it('M2: the VM stops on the read that passes the declared buffer, saying so', () => {
-    expect(() => runPlots(read(MBB_FILES.M2), 400))
-      .toThrow(/history offset of 25 reaches past Pine's history buffer of 20/)
+  it('M2 (CAPTURED 2026-11-18, `wsc-mbb-2026-11-18`): TradingView reads the REAL close past the declared 20 (8,508 SPY bars), and so do we', () => {
+    const [, closeAtN] = runPlots(read(MBB_FILES.M2), 400)
+    const bars = mkBars(400)
+    expect(closeAtN[150]).toBe(bars[125].c)   // n = 25 after bar 100, past the declared buffer of 20
+    expect(closeAtN[50]).toBe(bars[49].c)     // n = 1
   })
   it('M3: no declaration, the 250-bar offset after bar 300 is served from the 5,000-bar default', () => {
     const [, closeAtN] = runPlots(read(MBB_FILES.M3), 400)

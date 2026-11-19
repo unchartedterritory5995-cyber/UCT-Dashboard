@@ -4,11 +4,17 @@ import { render, screen } from '@testing-library/react'
 const data = {
   sym: 'AAPL',
   entity: { status: 'resolved', entityId: 'em_aapl' },
-  institutional: {
-    pct_held: 61.0,
-    holders: [{ holder: 'Vanguard Group', shares: 1.3e9, pct_out: 8.5, value: 3.3e11, date: '2026-03-31' }],
+  institutional: { state: 'ok', pct_held: 61.0, quarter: '2026Q3', source: 'Form 13F filings, through FMP' },
+  thirteen_f: {
+    quarter: '2026Q3',
+    summary: { ownership_pct: 61.0, investors_holding: 5400 },
+    holders: [{ name: 'Vanguard Group', shares: 1.3e9, change_shares: 2e7, ownership: 8.5, market_value: 3.3e11 }],
+    _meta: null,
   },
-  short: { shares_short: 5e7, short_pct_float: 0.73, days_to_cover: 1.8, prior_month_short: 4.9e7 },
+  short: {
+    state: 'ok', shares_short: 5e7, short_pct_float: 0.73, days_to_cover: 1.8, settlement_date: '2026-10-30',
+    prior_short: 4.9e7, float_shares: 6.85e9, pct_float_withheld: false, source: 'FINRA, through Massive',
+  },
   share_counts: { float_shares: 6.8e9, shares_outstanding: 1.5e10, _meta: null },
   insider: [{ name: 'Tim Cook', title: 'CEO', type: 'sell', shares: 50000, amount: 1.3e7, date: '2026-05-01' }],
 }

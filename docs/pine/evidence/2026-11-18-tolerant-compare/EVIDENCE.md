@@ -52,7 +52,8 @@ PINE DOCUMENTS ONLY (D1):
 | built-ins | `FN_PINE` / `CARRIED_PINE` (rising, falling, percentrank, adx / plusDI / minusDI), `computeADX(bars, n, {gt})`, runtime `array.indexof` / `includes`. Python twins `FN_PINE`, `compute_adx_raw(gt=)` |
 
 UNCHANGED, AS MEASURED: crossover, crossunder and cross; highest / lowest(bars); the pivots; math.max / min / sign;
-array.max / min / sort; ta.mode. `array.lastindexof` has no capture, so it is left unchanged (exact).
+array.max / min / sort; ta.mode. `array.lastindexof` had no capture in engine 78, so it was left exact. Q-FCMP3
+has since read it TOLERANT, and the binary searches EXACT (section 6).
 
 ## 3. Rails, each mutation-proved
 
@@ -175,7 +176,57 @@ ACCEPTANCE, on the committed captures (Q-FCMP `56330c15e071`, Q-FCMP2 `d0641f765
   - The difference shows only where two values sit within 1e-10 of each other. A Pine document's stored scan results
     are therefore recomputed under the SAME key on the sweep's next pass, at its own pacing; one stale pass is the
     cost.
-- **`array.lastindexof` and the three binary searches stay EXACT** (no change from today). They have no capture yet.
-  `tools/visual_conformance/probes/vw-fcmp-arrays.pine` measures them, filed as Q-FCMP3-1 / -2 in
-  `docs/pine/capture-queue-2026-11-18-float-tolerance-form.md` and flagged on the parity roadmap until it is read.
+- **`array.lastindexof` and the three binary searches** stayed EXACT in engine 78, pending Q-FCMP3. Now read: see
+  section 6.
 - Phase 2 (native formulas tolerant too) is a separate PR, decided on a measurement (ruling D1).
+
+
+## 6. Q-FCMP3: the array searches (engine 81, `feat/pine-tolerant-lastindexof`)
+
+The capture: `vw-fcmp-arrays` on AMEX:SPY 1D (8,510 bars) and NYSE:RDDT 1D (669 bars), from the listing.
+
+- Run `fcmp3b-2026-11-18`, packet sha256 `b400024aa71d2d2c895f04bf449f4cb310dd28e49d25f988cd002d2a9f0ad0ef`, both
+  PROMOTE / probe and committed.
+- A re-capture of master's probe text. It supersedes `fcmp3-2026-11-18` (packet `c82872f0c9fe`): that packet was
+  licence-held because it was written on a checkout without the probe. It read the same values, and its ledger rows
+  were backed out before they were committed.
+
+Every row reads the same on every bar of both symbols. The table is in
+`docs/pine/capture-queue-2026-11-18-float-tolerance-form.md`, section Q-FCMP3.
+
+| site | reads | engine |
+|---|---|---|
+| `array.lastindexof` | TOLERANT at 3e-14 and 9e-11 (A02-A04) | `runtime/collections.js::lastIndexOfValue`, `pineEq`, searching from the end |
+| `array.binary_search` | EXACT (A07-A09) | unchanged, pinned |
+| `array.binary_search_leftmost` | EXACT (A11-A12) | unchanged, pinned |
+| `array.binary_search_rightmost` | EXACT (A13-A14) | unchanged, pinned |
+
+- Arrays run on the runtime lane only: the host lane refuses them by name (`pine:collection`), and native formulas
+  have no arrays. So the change is Pine documents only, as ruling D1 requires.
+- Unchanged:
+  - an `na` element matches nothing;
+  - an `na` target still stops the run by name (unpinned);
+  - text, colours and handles compare strictly.
+
+RAILS:
+
+All three rails read the committed captures:
+
+- `pineCompareBuiltins.test.js`: the kernels' answer to each of A01-A16 is every bar's reading in both captures. It
+  also covers the `na` and text cases.
+- `runtime/__tests__/pineCompareRuntime.test.js`: the runtime lane runs each capture's own source over its own bars.
+  Every row on every bar is TradingView's (SPY 8,510 bars, RDDT 669).
+- `__tests__/vendorHarness/vendorHarness.fcmpAcceptance.test.js`, both lanes:
+  - production refuses the script by name (`pine:collection`);
+  - runtime-on: the door draws it on the runtime lane, and all 17 rows MATCH on both symbols.
+  - With the change reverted (M39), runtime-on no longer MATCHes.
+
+| mutant | rail that went red |
+|---|---|
+| M39 `array.lastindexof` strict again | both rails above |
+| M40 `array.binary_search` tolerant | both |
+| M41 `array.binary_search_leftmost` tolerant | both |
+| M42 `array.binary_search_rightmost` tolerant | both |
+
+Each mutant was restored byte-equal from a saved copy. Each rail's test filter was shown to select its tests
+(control runs, unmutated: 4, 3 and 1 tests).

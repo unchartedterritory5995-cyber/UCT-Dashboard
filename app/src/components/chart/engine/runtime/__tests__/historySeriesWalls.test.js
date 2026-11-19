@@ -72,9 +72,9 @@ describe('1 — max_bars_back: a read past the buffer is an error, never an answ
     expect(() => run(v5('', 'var int n = 0\nn := bar_index >= 30 ? 6000 : 1\nplot(close[n])\n')))
       .toThrow(/past Pine's history buffer of 5000 bars/)
   })
-  it('… past a DECLARED buffer stops it too; within it the run is untouched', () => {
-    expect(() => run(v5(', max_bars_back = 20', 'var int n = 0\nn := bar_index >= 30 ? 25 : 1\nplot(close[n])\n')))
-      .toThrow(/history buffer of 20 bars/)
+  it('… past a DECLARED buffer it is the REAL history (WS-C Q1 M2 / Q-MBB-2, captured 2026-11-18: TradingView never stops there); within it the run is untouched', () => {
+    const [p] = run(v5(', max_bars_back = 20', 'var int n = 0\nn := bar_index >= 30 ? 25 : 1\nplot(close[n])\n'))
+    expect(p[35]).toBe(BARS[10].c)                        // 25 back, past the declared 20
     const [y] = run(v5(', max_bars_back = 20', 'var int n = 0\nn := bar_index >= 30 ? 15 : 1\nplot(close[n])\n'))
     expect(y[35]).toBe(BARS[20].c)
     expect(y[5]).toBe(BARS[4].c)

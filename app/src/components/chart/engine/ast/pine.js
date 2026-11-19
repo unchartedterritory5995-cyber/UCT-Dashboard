@@ -8421,6 +8421,10 @@ export class Resolver {
      *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
      *  below is PROVABLE rather than merely present. */
     this.basePeriod = basePeriodOf(opts)
+    /** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — the RUNTIME lane's request reader (`pineRuntimeFrontend.js`, its
+     *  `targetReader`) reads a daily read above an intraday chart as an `above` target its supply serves. Every
+     *  other resolver (the host's translation, the screen) keeps the refusal it always had (ruling 3.5, C49). */
+    this.aboveDailyReads = opts.aboveDailyReads === true
     /** ⭐⭐ C10 (2026-09-29) — THE TIMEFRAME A `request.security` CHILD IS BEING
      *  RESOLVED FOR, while `securityAsNode` resolves one at another timeframe;
      *  `null` everywhere else. Pine evaluates the requested expression IN that
@@ -14662,7 +14666,8 @@ export class Resolver {
     // no merge: its `sym` keeps the DAILY base's gate below, so on this chart the host lane withholds it
     // whole by name (`request:other-timeframe`) and only the run, handed the held series per request
     // (`requestSupply.js`), reads it.
-    if (code && target.below !== true) out = { type: live ? 'tf_live' : 'tf_merge', value: code, args: [out] }
+    // ⭐ RS RATING L12 PR 2 — and a daily read ABOVE an intraday chart (`above`), the same way
+    if (code && target.below !== true && target.above !== true) out = { type: live ? 'tf_live' : 'tf_merge', value: code, args: [out] }
     // ⭐⭐ C49 — A REQUEST FOR ANOTHER TIMEFRAME CARRIES THE GATE OF THE BASE IT
     // WAS TRANSLATED FOR, ON A CHART PANE. The pane translates once (for a daily
     // base) and its tree is bound on every chart; on any chart but the base's the
@@ -14675,7 +14680,7 @@ export class Resolver {
     // ⭐ ANOTHER SYMBOL TOO, and the gate goes OUTSIDE its `sym`: the merge is a
     // property of the request, not of the instrument, and `sym` hands the other
     // listing's bars at the CHART's timeframe — its 5-minute bars on a 5-minute chart.
-    const gateBase = target.below === true ? 'D'
+    const gateBase = (target.below === true || target.above === true) ? 'D'
       : this.strict ? (target.folded || (code ? this.basePeriod : null)) : null
     if (gateBase && !other) out = requestBaseNode(gateBase, out)
     if (other) {
@@ -14911,6 +14916,18 @@ export class Resolver {
         // week by the supply (R2 / R4); anything else declines as it always did.
         // ⭐ L13 (Q-RS-M) — and on a MONTHLY chart, per month (R3 witnessed 32 of 32 RDDT months).
         return this.dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue)
+      } else if (code === 'D' && isIntradayTf(this.basePeriod) && this.aboveDailyReads) {
+        // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — A DAILY READ ABOVE AN INTRADAY CHART, look-ahead off: this chart's
+        // own symbol or another one, served by the run from the symbol's HELD daily rows, each chart bar reading
+        // the daily row its session had completed (`requestSupply.js::aboveChartRead`). The host lane never draws
+        // it (the daily gate below); a look-ahead read declines as it always did.
+        // ⛔ A BARE open / high / low / close only: the probes witnessed those four (rs-own-daily D01..D04, rs-spx
+        // X01..X04 on 1 / 5 / 15 / 30 / 60m); any other expression at "D" declines, refused by name as before.
+        if (this.requestLookaheadOf(args, placed) !== false) return null
+        const v = positional[2]
+        const bare = !!v && v.type === 'name' && ['open', 'high', 'low', 'close'].includes(v.name) && !(this.env && this.env.has(v.name))
+        if (!bare) return null
+        return { own, other, venue, code: 'D', live: false, positional, folded: null, above: true }
       } else if (isLowerTfRequest(code, this.basePeriod)) {
         // ⭐⭐ C41 — A TIMEFRAME BELOW THE CHART'S OWN. Whether it is served is
         // `lowerTf.js`'s answer alone (`lowerTfDeclineOf` — the ONE reader, also
