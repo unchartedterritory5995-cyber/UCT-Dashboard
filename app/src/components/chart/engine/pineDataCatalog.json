@@ -204,7 +204,7 @@
         "registerRow": "T-93"
       },
       "hold": {
-        "code": "data:owner-hold",
+        "code": "pine-data:owner-hold",
         "item": "O7",
         "reason": "The short interest feed has not yet been observed answering in production, and the origin's own terms have not been read (owner item O7)."
       },
@@ -226,7 +226,7 @@
         "registerRow": "T-94"
       },
       "hold": {
-        "code": "data:owner-hold",
+        "code": "pine-data:owner-hold",
         "item": "O7",
         "reason": "The daily short volume feed has not yet been observed answering in production, and the origin's own terms have not been read (owner item O7)."
       },
@@ -253,7 +253,7 @@
         "registerRow": "n/a"
       },
       "hold": {
-        "code": "data:owner-hold",
+        "code": "pine-data:owner-hold",
         "item": "O4",
         "reason": "The sentiment and volatility-index series have no licensing register row, so they stay excluded until the owner registers them (owner item O4)."
       },

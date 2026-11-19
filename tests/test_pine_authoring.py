@@ -142,19 +142,35 @@ def test_a_pitfall_is_warned_about_only_while_it_stands():
 
 def test_every_admitted_capability_is_worded_and_no_other_is_printed():
     # every admitted capability is either worded for the assistant or NAMED as deliberately not offered
-    spoken_for = set(pa.CAPABILITY_WORDS) | set(pa.NOT_FOR_THE_ASSISTANT)
-    assert set(REF["admitted"]) <= spoken_for, sorted(set(REF["admitted"]) - spoken_for)
+    # (a library version, `library:Author/Library/N`, is an OPEN family: named once, `pa.not_offered`)
+    unspoken = sorted(c for c in REF["admitted"] if c not in pa.CAPABILITY_WORDS and not pa.not_offered(c))
+    assert not unspoken, unspoken
     assert not (set(pa.CAPABILITY_WORDS) & set(pa.NOT_FOR_THE_ASSISTANT))
+    assert not any(pa.not_offered(c) for c in pa.CAPABILITY_WORDS)
     assert set(pa.CAPABILITY_WORDS) | set(pa.NOT_FOR_THE_ASSISTANT) <= set(pine_capabilities.CAPABILITY_IDS),         "words for an id the detector cannot return"
-    assert all(reason for reason in pa.NOT_FOR_THE_ASSISTANT.values())
+    assert all(reason for reason in pa.NOT_FOR_THE_ASSISTANT.values()) and pa.NOT_FOR_THE_ASSISTANT_LIBRARIES
     assert "strategy" not in section(pa.document(), "LANGUAGE YOU MAY USE")
     language = section(pa.document(), "LANGUAGE YOU MAY USE")
     for cap in REF["admitted"]:
-        if cap not in pa.NOT_FOR_THE_ASSISTANT:
+        if not pa.not_offered(cap):
             assert pa.CAPABILITY_WORDS[cap] in language
+        else:
+            assert cap not in pa.document(), cap                           # never printed, by id or by family
     ref = copy.deepcopy(REF)
     ref["admitted"] = [c for c in ref["admitted"] if c != "while"]
     assert pa.CAPABILITY_WORDS["while"] not in pa.document(ref)
+
+
+def test_CONTROL_only_the_library_family_and_the_named_ids_are_not_offered():
+    """`not_offered` answers the open library family by the detector's own reader, never a closed id it does not name,
+    so the rule above still reds on an admitted capability nobody worded."""
+    assert pa.not_offered("library:TradingView/ta/7") and pa.not_offered("library:Someone/Lib/12")
+    assert pa.not_offered("strategy-decl")
+    for cap in ("varip", "while", "library", "library:", "library:TradingView/ta", "import"):
+        assert not pa.not_offered(cap), cap
+    ref = copy.deepcopy(REF)
+    ref["admitted"] = list(ref["admitted"]) + ["varip"]
+    assert [c for c in ref["admitted"] if c not in pa.CAPABILITY_WORDS and not pa.not_offered(c)] == ["varip"]
 
 
 def test_names_the_engine_refuses_are_only_ever_under_never():

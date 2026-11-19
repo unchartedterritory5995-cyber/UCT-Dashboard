@@ -13,6 +13,7 @@
   "generics",
   "history-expr",
   "if-block",
+  "library:TradingView/ta/7",
   "max_bars_back",
   "method-call",
   "obj:box",
