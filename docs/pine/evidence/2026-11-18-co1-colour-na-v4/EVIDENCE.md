@@ -1,6 +1,6 @@
 # CO-1: a Pine v4 colour compared with `na` (2026-11-18)
 
-Engine number PENDING (the coordinator numbers the train). Branch `feat/pine-colour-na-v4`. Roadmap unit U-COLOUR
+Engine 82 (#1933, the engine 82 train). Branch `feat/pine-colour-na-v4`. Roadmap unit U-COLOUR
 (`docs/pine/PARITY-ROADMAP-2026-11-18.md` section 5), first change.
 
 ## The witness

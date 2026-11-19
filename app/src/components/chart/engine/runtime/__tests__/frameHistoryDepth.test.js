@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/frameHistoryDepth.test.js
 //
-// ⭐⭐ engine NUMBER PENDING — THE PROGRAM CHECK READS A FUNCTION BODY'S HISTORY AGAINST ITS OWN RING.
+// ⭐⭐ engine 82 — THE PROGRAM CHECK READS A FUNCTION BODY'S HISTORY AGAINST ITS OWN RING.
 //
 // `validateProgram` proves every `READ_HIST_SLOT` stays inside its planned ring (a deeper read would answer `na`
 // on every bar). Inside a function body the slot index is FRAME-relative (an invocation reads at its call site's

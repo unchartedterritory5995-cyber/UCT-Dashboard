@@ -1,4 +1,4 @@
-# U-REQ-HOIST-COLUMN, the lowering: a request region reads a pure expression's past from the requested bars (2026-11-18, NUMBER PENDING)
+# U-REQ-HOIST-COLUMN, the lowering: a request region reads a pure expression's past from the requested bars (2026-11-18, engine 82)
 
 Coordinator ruling (2026-11-18, request unit, part A): build the lowering the roadmap entry names, static offsets only,
 with engine 78's guard kept as the backstop, plus the last-line hoist bug found while designing it. Branch

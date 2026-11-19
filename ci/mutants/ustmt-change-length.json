@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "U-STMT PR 1 (feat/pine-statements, NUMBER PENDING): ta.change(source, length) on the runtime lane and the call site's history for a slot source. Every rule it adds, broken once, must turn its rail in taChangeLength.test.js red.",
+ "about": "U-STMT PR 1 (feat/pine-statements, engine 82): ta.change(source, length) on the runtime lane and the call site's history for a slot source. Every rule it adds, broken once, must turn its rail in taChangeLength.test.js red.",
  "mutants": [
   {
    "id": "S1",

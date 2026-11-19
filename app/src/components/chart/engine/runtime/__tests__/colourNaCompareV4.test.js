@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/colourNaCompareV4.test.js
 //
-// ─── ⭐⭐ ENGINE NUMBER PENDING (CO-1) — A PINE v4 COLOUR COMPARED WITH `na` ───────────────────────
+// ─── ⭐⭐ ENGINE 82 (CO-1) — A PINE v4 COLOUR COMPARED WITH `na` ───────────────────────
 //
 // Engine 65 (TC) served `==` / `!=` between two colours and refused a colour against the literal `na`
 // by name, until probe `vw-tc1-colour-na-compare` was captured. It is: vw-tc1-colour-na-compare-rddt-

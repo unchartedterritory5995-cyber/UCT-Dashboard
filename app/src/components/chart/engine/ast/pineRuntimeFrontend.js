@@ -3960,7 +3960,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     return split
   }
-  // ⭐⭐ ENGINE NUMBER PENDING (U-STMT PR 1) — `ta.change`'s two arguments, read by Pine's own
+  // ⭐⭐ ENGINE 82 (U-STMT PR 1) — `ta.change`'s two arguments, read by Pine's own
   // parameter names (`ta.change(source, length)`): positional first, then named; an unknown name,
   // a name given twice or a positional argument after a named one refuses by name (the mapping
   // `servedCondCall` already makes for `ta.sma(source = …, length = …)`, review L3). `length` is
@@ -7293,7 +7293,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // than TradingView's (our column reproduced by that model on 140 / 140 weeks, 33 / 33 months).
     // The same walk, over the statements, refuses it by name. A slot's own history (`d[1]`, committed
     // per requested bar) and a `var` are the region's, not columns, and keep serving.
-    // ⭐ SERVED SINCE THE LOWERING (NUMBER PENDING): a STATIC offset over a pure expression in the region is
+    // ⭐ SERVED SINCE THE LOWERING (engine 82): a STATIC offset over a pure expression in the region is
     // now the region's own committed series (`case 'offset'`, `history src r<n>`), so this walk finds no
     // column there. It stays the backstop for every shape still lowered as one (a dynamic offset).
     if (hoisted.some((s) => carriesColumn(s))) {
@@ -9259,7 +9259,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
               `\`${node.op}\` over a colour — Pine compares colours with \`==\` and \`!=\` only`, at)
           }
           if (isBuiltinNa(node.left, scope) || isBuiltinNa(node.right, scope)) {
-            // ⭐⭐ ENGINE NUMBER PENDING (CO-1) — PINE v4 IS CAPTURED. vw-tc1-colour-na-compare-rddt-1d-2026-11-16
+            // ⭐⭐ ENGINE 82 (CO-1) — PINE v4 IS CAPTURED. vw-tc1-colour-na-compare-rddt-1d-2026-11-16
             // (v4, NYSE:RDDT 1D, 667 bars): `c != na` (C1) and `c == na` (C2) answer 0 on EVERY bar, where `c`
             // is a colour (316 bars) and where it is `na` (351), exactly as a NUMBER beside the literal `na`
             // does (N1 / N2), which this lane already answers 0 (a comparison with an `na` operand reads false,
@@ -10602,7 +10602,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // stay refused until the family gets its own authoritative step.
         if (changeTarget(node.name)) {
           const at = locate(node.tok)
-          // ⭐⭐ ENGINE NUMBER PENDING (U-STMT PR 1) — `ta.change(source, length)`, THE HOST'S OWN RULE.
+          // ⭐⭐ ENGINE 82 (U-STMT PR 1) — `ta.change(source, length)`, THE HOST'S OWN RULE.
           // The closed table declares the one-argument `change`, and since 2026-10-29 the host
           // translates the two-argument form to Pine's published definition, `source - source[length]`
           // (`pine.js`, the `mom` expansion; a bool source and a length that is not a whole number

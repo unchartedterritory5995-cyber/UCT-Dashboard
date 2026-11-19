@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "CO-1 (feat/pine-colour-na-v4, NUMBER PENDING): a Pine v4 colour compared with `na` is lowered as the number comparison and reads false on every bar (vw-tc1-colour-na-compare). Every rule it adds, broken once, must turn its rail red.",
+ "about": "CO-1 (feat/pine-colour-na-v4, engine 82): a Pine v4 colour compared with `na` is lowered as the number comparison and reads false on every bar (vw-tc1-colour-na-compare). Every rule it adds, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "K1",

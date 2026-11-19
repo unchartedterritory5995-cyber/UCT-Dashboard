@@ -1628,7 +1628,7 @@ export function execute(program, ctx, limits, opts) {
           : held[i]
       }
     }
-    // ⭐⭐ engine NUMBER PENDING — `committed` IS THE BAR'S ORDINAL, SO IT ADVANCES ON EVERY BAR, ring or no ring.
+    // ⭐⭐ engine 82 — `committed` IS THE BAR'S ORDINAL, SO IT ADVANCES ON EVERY BAR, ring or no ring.
     // ⚰️ It advanced only inside `if (nHist)`. A program with no history slot kept `committed = 0` for the whole
     // run, and the one reader that needs the ordinal without a ring, the `finite` window policy (`ta.lowest` /
     // `highest` / `lowestbars` / `highestbars`: `committed < span - 1` is its warm-up, and the `bars` members count

@@ -127,7 +127,7 @@ describe('⭐ colours compared, and a colour\'s past', () => {
   })
   // ⚰️ THIS ASSERTED THE v4 FORM REFUSED until probe vw-tc1-colour-na-compare was captured. It is
   // (RDDT 1D, 2026-11-16: `c != na` and `c == na` read 0 on every bar, as a number's do), and since
-  // engine NUMBER PENDING (CO-1, `colourNaCompareV4.test.js`) v4 is served. Every other version keeps
+  // engine 82 (CO-1, `colourNaCompareV4.test.js`) v4 is served. Every other version keeps
   // the refusal by name.
   it('a v4 colour against the literal `na` reads false on every bar; any other version is refused by name', () => {
     const out = run('//@version=4\nstudy("t")\nc = close > open ? color.yellow : na\nplot(c != na ? 1 : 0)\nplot(c == na ? 1 : 0)\n')

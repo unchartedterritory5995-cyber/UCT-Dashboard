@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/finiteWindowNoRing.test.js
 //
-// ⭐⭐ engine NUMBER PENDING — A `finite` WINDOW IN A PROGRAM WITH NO HISTORY RING ANSWERS ITS EXTREME.
+// ⭐⭐ engine 82 — A `finite` WINDOW IN A PROGRAM WITH NO HISTORY RING ANSWERS ITS EXTREME.
 //
 // `ta.lowest` / `ta.highest` / `ta.lowestbars` / `ta.highestbars` (the `finite` policy) read the bar's ordinal,
 // `committed`, for their warm-up (`committed < span - 1` is `na`) and the `bars` members count back from it. The

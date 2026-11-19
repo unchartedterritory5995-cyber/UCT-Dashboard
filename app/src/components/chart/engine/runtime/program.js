@@ -544,7 +544,7 @@ export function makeProgram({
 /** ⛔ VALIDATED BEFORE IT CAN RUN, per §44 — a malformed program is a compiler
  *  bug and must say so at the boundary rather than reaching the dispatch loop
  *  and being reported as a runtime failure. */
-/** ⭐⭐ engine NUMBER PENDING — WHICH FUNCTION A PC BELONGS TO, or `null` for the main program and a request
+/** ⭐⭐ engine 82 — WHICH FUNCTION A PC BELONGS TO, or `null` for the main program and a request
  *  region (both read history at base 0). The lowering lays the code out as ONE array: the main program, its HALT,
  *  then each function body from its `entry`, then each request region from its `entry` (`lowerIr.js`). So the
  *  owner of a pc is the region whose start is the last one at or below it. */
@@ -751,7 +751,7 @@ export function validateProgram(p) {
       }
       // ⛔ THE DEPTH CHECK IS EXACT, AND FRAME-AWARE. A read deeper than its planned ring would answer `na` on
       // every bar — a wrong number wearing a warm-up's clothes — so the bound is proved for every read.
-      // ⭐⭐ engine NUMBER PENDING — ⚰️ it compared EVERY read with `p.history[a]`, the main frame's entry, even
+      // ⭐⭐ engine 82 — ⚰️ it compared EVERY read with `p.history[a]`, the main frame's entry, even
       // inside a function body where `a` is FRAME-relative. A body's `s[4]` whose frame index collided with a main
       // ring of depth 1 (`m[1]`) was refused at lowering, naming `m`, a variable the function never reads: a wrong
       // refusal of a valid program (`frameHistoryDepth.test.js`). Now the owner of the pc decides: the main

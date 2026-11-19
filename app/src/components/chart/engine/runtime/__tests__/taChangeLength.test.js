@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/taChangeLength.test.js
 //
-// ─── ⭐⭐ ENGINE NUMBER PENDING (U-STMT PR 1) — `ta.change(source, length)` ON THE RUNTIME LANE ──────
+// ─── ⭐⭐ ENGINE 82 (U-STMT PR 1) — `ta.change(source, length)` ON THE RUNTIME LANE ──────
 //
 // The host has translated `ta.change(source, length)` to Pine's published definition since 2026-10-29
 // (`pine.js`, the `mom` expansion: `source - source[length]`, a bool source and a length that is not a
