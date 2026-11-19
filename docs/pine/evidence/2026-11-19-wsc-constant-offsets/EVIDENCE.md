@@ -50,8 +50,21 @@ The host lane already served a constant offset past a declared buffer (M1 MATCH 
 - Host lane: the two refusals the CALL triggered on a per-bar read are gone. These were `pine.js::historyReadOf`'s
   `pine:offset-literal` ("a per-series buffer this read does not model") and the object lane's
   `max-bars-back-call`.
-- The buffer VALUES the per-bar reads use (a declared limit, AUTO 400) belong to the dynamic half and are
-  unchanged here.
+- The buffer VALUES the per-bar reads use are the next rule's (below).
+
+**Rule (4), coordinator ruling 2026-11-19 (after #1917 landed the runtime lane's dynamic reads): a declared
+`max_bars_back` never SHRINKS the host lanes' per-bar read window.**
+
+- Evidence: M2 (`close[n]`, n = 25 past bar 100, under a declared 20: real on every bar) and Q-MBB-1 / -2
+  (`close[k]` and `ta.ema(close, 5)[k]`, k = `bar_index % 120`, under a declared 50: real, early or late).
+- Both host lanes took `declared.limit || AUTO_MAX_BARS_BACK` as the window: the plot lane (`barsAgo`, in
+  `pine.js::historyReadOf`) and the object lane (`{v:'at'}`, in `historyReadRef`). So M2 was withheld from bar 101
+  where TradingView draws it; on the object lane the read was a runtime error.
+- Now ONE helper, `pine.js::historyReadBufferOf`, sizes both: max(declared, `AUTO_MAX_BARS_BACK` 400). A declaration
+  of at least 400 is the buffer, as before; below it the automatic buffer applies, and a read past 400 is withheld,
+  unwitnessed, never an error. A script that declares nothing is unchanged.
+- Only a script that declares `max_bars_back` below 400 can move. In the samples: 32 committed captures (29 of them
+  Fred RS at 253, plus M1, M2 and one at 50) and 9 sources (the door census below).
 
 ## 3. Rails
 
@@ -84,6 +97,23 @@ The host lane already served a constant offset past a declared buffer (M1 MATCH 
 | M48 object lane: `max-bars-back-call` refused again | `objectHistoryRead.test.js` |
 | M49 a variable's constant ring capped at 5,000 | `wscConstantOffsets` (ring that deep) |
 
+Rule (4)'s rails:
+- `__tests__/wscHostReadWindow.test.js`:
+  - the plot lane's window for no declaration, a declared 20 and a declared 500;
+  - Q-MBB-1's shape on SPY's own 8,510 committed bars: every `close[k]` is the bar k back, by hand, and `ema[k]` is
+    the undeclared twin's bar for bar (over 4,000 reads past the declared 50 served);
+  - a read past 400 stays withheld, identical to the undeclared script; a declared 500 reads every bar;
+  - the object lane carries the same buffer; under a declared 20 a label at `close[25]` is drawn and one at `[450]`
+    is withheld, never a stop.
+- `vendorHarness.wscAcceptance.test.js`: M2 is drawn by the host lane and MATCHes on both lanes.
+- `ast/pine.historyRead.test.js`: the "declared 77 is the buffer" case flipped (77 reads 400; 777 stays 777).
+
+| mutant | rail that went red |
+|---|---|
+| M53 the helper restores `declared.limit \|\|` | `wscHostReadWindow` (5 of 5) + `wscAcceptance` (m2) + `pine.historyRead` |
+| M54 the plot lane alone restores it | `wscHostReadWindow` (plot lane) + `wscAcceptance` (m2) |
+| M55 the object lane alone restores it | `wscHostReadWindow` (object lane) + `pine.historyRead` |
+
 - Every mutant was restored byte-equal from a saved copy.
 - Each mutant's test filter was shown to select real tests (control runs, unmutated: 4, 1, 1 and 1 passing).
 - M43 first STAYED GREEN when placed at the lowered-offset site: a pure `close[30]` is a column, so the refusal it
@@ -99,7 +129,15 @@ Local grade of the five M captures:
 | M4 | MATCH (host) | MATCH (host) |
 | M5 | refused `budget:lookback`, by name | MATCH (runtime lane) |
 
-- M2 stays DIVERGE until the dynamic half lands. M3 MATCHes.
+- M2 MATCHes on both lanes with rule (4), drawn by the host lane (with #1917's runtime lane alone it stayed
+  DIVERGE: the member door draws M2 on the host lane). M3 MATCHes.
+- Rule (4), graded locally on the merged tree (e81 + this branch), both lanes:
+  - M2 and the four Q-MBB captures (`uctprobe-mbb-dyn` / `-late`, SPY and RDDT 1D, licence-held, local): MATCH,
+    every row;
+  - the 32 committed captures that declare below 400, against the e81 train's verdicts (run 44452719465): the 30
+    e81 graded do not move (Fred RS's 29 among them), and M1 / M2 (new in this branch) MATCH.
+- Rule (4), the door on the 9 sources that declare below 400 (committed, probes, rs-rating and the reference
+  sample), before and after: no door move on either lane; Fred RS stays on the host lane (no new `budget:lookback`).
 - The census (680 sample scripts, 2026-11-19, a prototype of all three rules):
   - no door move on either lane;
   - one runtime build newly builds: reference `ytc-swing-highs-lows`, a `max_bars_back(x, n)` directive.
