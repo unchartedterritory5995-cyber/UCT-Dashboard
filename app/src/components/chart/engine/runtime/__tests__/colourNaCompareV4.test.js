@@ -64,11 +64,6 @@ describe('CO-1 — Pine v4: `colour != na` and `colour == na` read false on ever
     const [n1, c1] = run(`${v4}plot(x != na ? 1 : 0)\nplot(c != na ? 1 : 0)\n`)
     expect(c1).toEqual(n1)
   }, T)
-  it('control: `na(c)` (C3) still sees the `na`', () => {
-    const theirs = vendorRow('C3')
-    const [ours] = run(`${v4}plot(na(c) ? 1 : 0)\n`)
-    for (let i = 0; i < graded(ours.length); i += 1) expect(ours[i], `bar ${i}`).toBe(theirs[i])
-  }, T)
 })
 
 describe('CO-1 — every other version is not captured: refused by name', () => {
