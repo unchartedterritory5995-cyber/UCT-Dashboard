@@ -70,3 +70,19 @@ def test_a_pass_that_warms_nothing_is_an_error_not_complete(edge, monkeypatch, c
     assert stats["requests"] == 0
     assert any(r.levelno == logging.ERROR and "warmed NOTHING" in r.getMessage() for r in caplog.records)
     assert not any("sweep complete" in r.getMessage() for r in caplog.records)
+
+
+# ── when a pass runs: on the daily rollover, not 24 h after boot (2026-11-19) ──────────────────────
+
+def test_a_pass_is_due_when_the_daily_boundary_moves():
+    t = 1_000_000.0
+    assert HP.pass_due("2026-11-17", "", 0.0, t)                       # the first pass after a boot
+    assert not HP.pass_due("2026-11-17", "2026-11-17", t, t + 600)     # warmed, nothing moved
+    assert HP.pass_due("2026-11-18", "2026-11-17", t, t + 600)         # midnight ET: every daily URL is new
+    assert not HP.pass_due("", "2026-11-17", t, t + 600)               # an unreadable boundary decides nothing
+
+
+def test_the_interval_is_only_a_backstop():
+    t = 1_000_000.0
+    assert HP.pass_due("2026-11-17", "2026-11-17", t, t + 24 * 3600, interval=24 * 3600)
+    assert not HP.pass_due("", "", 0.0, t, interval=24 * 3600)         # never warmed and blind: wait
