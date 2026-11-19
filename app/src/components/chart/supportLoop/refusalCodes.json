@@ -302,6 +302,7 @@
   "runtime:object-tree-outputs",
   "runtime:objects",
   "runtime:objects-stopped",
+  "runtime:objects-withheld",
   "runtime:objects-without-run",
   "runtime:operator",
   "runtime:output-map",
