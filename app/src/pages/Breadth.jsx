@@ -29,8 +29,9 @@ import {
   universeColumnNote, universeCellOverride, NOT_AVAILABLE_NOTE, columnTagFor,
 } from './breadth/monitorUniverses'
 import { mergeParams } from './calendar/useEarningsModalRoute'
-import ScreenshotPopover from '../components/chart/ScreenshotPopover'
-import { downloadBreadthSnapshot, copyBreadthSnapshot, copyBreadthShareUrl } from './breadth/breadthShare'
+// ⋯ → Snapshot… (the /charts camera's Signature popover; its capture code is lazy) and Copy share link.
+import BreadthSnapshotPopover, { ShareLinkNote } from './breadth/BreadthSnapshotPopover'
+import { copyBreadthShareUrl } from './breadth/breadthShareLink'
 import DailyOverview from './breadth/DailyOverview'
 import ColumnsMenu from './breadth/ColumnsMenu'
 import customizeStyles from './breadth/CustomizePanel.module.css'
@@ -928,7 +929,9 @@ export default function Breadth() {
   // UCT Core = the focused core set (breadth/defaultColumns.js), computed, never stored;
   // an edit to it is an unsaved draft ("UCT Core · edited") until saved as a template.
   const customize = useBreadthCustomize({ defaults: MONITOR_DEFAULTS })
-  const [shareOpen, setShareOpen] = useState(false)
+  const [snapshotOpen, setSnapshotOpen] = useState(false)
+  const [linkNote, setLinkNote] = useState(null)   // 'ok' | 'fail' — "Copy share link" feedback
+  const moreBtn = useRef(null)
   // The one floating as-of tooltip over a carried (older-than-its-cadence) cell.
   const [ageTip, setAgeTip] = useState(null)
 
@@ -1237,12 +1240,12 @@ export default function Breadth() {
     : statusTime ? `Updated ${statusTime}`
       : (isViewsTab ? (isLoading ? 'Loading…' : 'No data') : (grid.ready ? 'No data' : grid.datesFailed ? 'Could not load' : 'Loading…'))
 
-  // ── Share: a branded UCT snapshot of the on-screen sheet. The capture target
-  //    is the scroll container (tableWrapRef), so it's exactly what's visible. ──
-  const shareSubtitle = lastUpdated ? `updated ${lastUpdated}` : ''
-  const onShareDownload = () => downloadBreadthSnapshot(tableWrapRef.current, shareSubtitle)
-  const onShareCopy = () => copyBreadthSnapshot(tableWrapRef.current, shareSubtitle)
-  const onShareUrl = () => copyBreadthShareUrl(monitorTopDate)
+  // ── ⋯ menu: Snapshot… captures the sheet (tableWrapRef: headers + the rows in view, full
+  //    width); Copy share link copies this URL + the top row's session. ──
+  const getSheet = useCallback(() => tableWrapRef.current, [])
+  const onCopyShareLink = () => {
+    copyBreadthShareUrl(monitorTopDate).then((ok) => setLinkNote(ok ? 'ok' : 'fail'))
+  }
 
   const liveClock = liveBreadth.clock ?? 'LIVE'
   const liveTitle = liveBreadth.row
@@ -1568,11 +1571,12 @@ export default function Breadth() {
                   />
                 </div>
                 {/* ⋯ — the chart's Signature menu (ContextPopover `signature`):
-                    Share (branded snapshot) and Export CSV. */}
+                    Snapshot…, Copy share link and Export CSV. */}
                 <div className={customizeStyles.anchor}>
                   <button
                     type="button"
                     className={`${styles.hdrBtn} ${styles.moreBtn}`}
+                    ref={moreBtn}
                     aria-label="More"
                     aria-haspopup="menu"
                     aria-expanded={!!moreMenu}
@@ -1591,22 +1595,29 @@ export default function Breadth() {
                     open={!!moreMenu}
                     anchor={moreMenu}
                     onClose={() => setMoreMenu(null)}
+                    returnFocusTo={moreBtn}
                     width={180}
                     signature
                     items={[
-                      { key: 'share', label: 'Share', onClick: () => setShareOpen(true) },
+                      // The snapshot is of the Monitor sheet: only offered where the sheet is drawn.
+                      ...(activeTab === 'breadth' && grid.count > 0 && visibleCols.length > 0
+                        ? [{ key: 'snapshot', label: 'Snapshot…', onClick: () => { setLinkNote(null); setSnapshotOpen(true) } }]
+                        : []),
+                      { key: 'link', label: 'Copy share link', onClick: () => { setSnapshotOpen(false); onCopyShareLink() } },
                       { key: 'csv', label: 'Export CSV', onClick: () => exportCsv(isUct ? rows : gridCsvRows(), visibleCols, universe) },
                     ]}
                   />
-                  {shareOpen && (
-                    <ScreenshotPopover
-                      title="Share Breadth"
-                      onDownload={onShareDownload}
-                      onCopy={onShareCopy}
-                      onShare={onShareUrl}
-                      onClose={() => setShareOpen(false)}
+                  {snapshotOpen && (
+                    <BreadthSnapshotPopover
+                      getSheet={getSheet}
+                      universe={universe}
+                      universeLabel={universeLabel(universe)}
+                      topDate={monitorTopDate}
+                      returnFocusTo={moreBtn}
+                      onClose={() => setSnapshotOpen(false)}
                     />
                   )}
+                  {linkNote && <ShareLinkNote ok={linkNote === 'ok'} onDone={() => setLinkNote(null)} />}
                 </div>
               </>
             )}
