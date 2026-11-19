@@ -11,6 +11,11 @@
  *   Insiders      what management and directors did with their own money
  *   Positioning   supply: float, shares out, short
  *
+ * ONE MODEL, TWO SCREENS. The Charts ownership dock and the research Ownership tab
+ * (OwnershipTab.jsx: also the Terminal's OWN panel and the Calendar earnings modal)
+ * read the same answer, `/api/research/ownership/{sym}`, and take the holders from
+ * `topHolders` here, so the two can never list different filers.
+ *
  * THE HARDEST THING HERE IS NOT LYING ABOUT TIME. 13F is filed up to 45 days
  * after a quarter closes, Form 4 within two business days, and FINRA short
  * interest twice a month. Presenting any of it as "now" is the standard way
@@ -20,6 +25,7 @@
  */
 
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { unavailableWords } from '../../terminal/panels/shortInterestModel'
 
 const num = (v) => {
   if (v == null || v === '') return null
@@ -98,9 +104,12 @@ export function quarterEnd(q) {
 /**
  * The compact strip: how much of the company is spoken for.
  *
- * Institutional and insider percentages come from the SAME yfinance quote
- * summary, so they are comparable with each other. Short float is FINRA via the
- * same payload. Only entries that genuinely exist appear.
+ * Institutional is the Form 13F summary's percent (`institutional.pct_held`, the
+ * server's one reading of it; the Institutional activity section shows the same
+ * figure with its change over the quarter). Insider is the company profile's
+ * figure, from the fundamentals answer. Short float is the newest FINRA report the
+ * short interest service holds, and is absent when it holds none. Only entries
+ * that genuinely exist appear.
  */
 export function snapshotFacts(own, full) {
   const out = []
@@ -227,10 +236,11 @@ export function normalizeRole(title) {
 /**
  * WHO holds it, newest filing first.
  *
- * Prefers the 13F holder list, which carries the position CHANGE. Falls back to
- * the yfinance top-holders table, which does not — and when it does, the change
- * column is absent rather than zero, because "we don't know" and "unchanged"
- * are different statements.
+ * The Form 13F holder list, which carries the position CHANGE against the same
+ * filer's prior filing. It is the only holders source: with no 13F holders on
+ * file the answer is null and the screen says so, never an empty table. A change
+ * the filing does not carry is null, not zero, because "we don't know" and
+ * "unchanged" are different statements.
  */
 export function topHolders(own) {
   const tf = own?.thirteen_f
@@ -256,25 +266,42 @@ export function topHolders(own) {
       })),
     }
   }
-  const yf = own?.institutional?.holders
-  if (Array.isArray(yf) && yf.length) {
-    return {
-      source: 'yfinance',
-      quarter: null,
-      quarterLabel: null,
-      hasChange: false,
-      rows: yf.map((h, i) => ({
-        key: `${h.holder || i}`,
-        name: h.holder || '—',
-        shares: num(h.shares),
-        value: num(h.value),
-        ownership: num(h.pct_out),
-        changeShares: null, changePct: null, state: null,
-        date: h.date,
-      })),
-    }
-  }
   return null
+}
+
+/** The holders drawn as a ranking: those with a percent of the company, largest first. */
+export function holdersByOwnership(own, limit = 10) {
+  const rows = topHolders(own)?.rows || []
+  return rows.filter(r => r.ownership != null).sort((a, b) => b.ownership - a.ownership).slice(0, limit)
+}
+
+/**
+ * Why there is no institutional percent or holders to show, in words (null when there is
+ * nothing to add). `inst` is the answer's `institutional` block, `tf` its `thirteen_f` block.
+ * "None on file" and "the read failed" are different statements and never share a sentence.
+ */
+export function institutionalNote(inst, tf, sym) {
+  if (tf) {
+    if (num(inst?.pct_held) == null && num(tf.summary?.ownership_pct) > 100) {
+      return 'The percent is not shown: 13F filers report more than 100% of the shares outstanding, so the positions and the share count do not describe the same thing.'
+    }
+    return null
+  }
+  if (inst?.state === 'failed') {
+    return `Institutional holders could not be read right now. That is a gap in what we could read, not a finding about ${sym}.`
+  }
+  return `Institutional holders are not available for ${sym}: no Form 13F summary is on file for it in the last four completed quarters.`
+}
+
+/**
+ * Why there are no short interest figures to show, in words. `sh` is the answer's `short`
+ * block: the newest FINRA report the short interest service HOLDS, or the reason it holds none.
+ * Never a zero: no report on hand is unknown, not "no short interest".
+ */
+export function shortMissingWords(sh, sym) {
+  if (sh?.state === 'none') return `FINRA short interest has no reports on file for ${sym} at the data vendor. That is not the same as zero.`
+  if (sh?.state === 'unavailable') return `${unavailableWords('Short interest', sh.reason, sh.http_status)} That is not the same as none.`
+  return `Short interest is not available here for ${sym} right now: the site has not read its FINRA reports lately. That is not the same as no short interest.`
 }
 
 /** The words a filing supports. NEVER "bought" or "sold" — a 13F says what a
@@ -350,19 +377,27 @@ export function positioningFacts(own) {
   add('float', 'Float', fmtShares(sc.float_shares),
     'Shares available to trade — outstanding less closely-held stock.')
   add('out', 'Shares outstanding', fmtShares(sc.shares_outstanding))
+  // The short rows are the newest FINRA report the short interest service holds. With none on
+  // hand the section says so in one row: "not available" is not "no short interest".
+  if (own?.short && num(sh.shares_short) == null) {
+    out.push({
+      key: 'shortna', label: 'Short interest', value: 'not available', tone: 'none',
+      hint: 'No FINRA short interest report is on hand for this stock right now. That is not the same as no short interest. The dated record is on Short interest history (SHINT) in the UCT Terminal.',
+    })
+  }
   add('short', 'Shares short', fmtShares(sh.shares_short))
   add('shortpct', 'Short % of float', fmtPct(sh.short_pct_float))
   add('dtc', 'Days to cover', num(sh.days_to_cover) == null ? '—' : Number(sh.days_to_cover).toFixed(1),
     'Shares short divided by average daily volume.')
 
-  // Direction of the short position, month over month. FINRA reports twice a
-  // month, so this is a change between two settlement dates, not a trend.
+  // Direction of the short position, against the FINRA report before it. FINRA
+  // reports twice a month, so this is a change between two settlement dates, not a trend.
   const cur = num(sh.shares_short)
-  const prior = num(sh.prior_month_short)
+  const prior = num(sh.prior_short)
   if (cur != null && prior != null && prior !== 0) {
     const chg = ((cur - prior) / prior) * 100
     out.push({
-      key: 'shortchg', label: 'Short vs prior month', value: fmtSigned(chg, 1),
+      key: 'shortchg', label: 'Short vs previous report', value: fmtSigned(chg, 1),
       // ⚠️ NOT the sign of the number. Short interest FALLING is the
       // constructive reading, so a negative change is GREEN and a positive one
       // RED — the inverse of every other change in this panel, which is exactly

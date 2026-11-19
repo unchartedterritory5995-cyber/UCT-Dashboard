@@ -182,6 +182,12 @@ COMMITTED = {
     # 2026-11-17 (coordinator ruling on #1541): the SPX history our server serves (FMP ^GSPC) against TradingView's
     # SP:SPX, found by the supply-attributed grade of RS Rating NVDA; a data-source decision
     "capture-queue-2026-11-17-fmp-gspc-history": {"fmp-gspc-history": "ruling"},
+    # 2026-11-17 (41da42cecd / d276b0482e, label and box text geometry): each question was read on TradingView and
+    # applied (runs lb1rddt2, lb2b / lb2c, lb3), so the doc's own `not a capture` table closes all three
+    "capture-queue-2026-11-17-label-multiline": {"Q-LB1": "closed", "Q-LB2": "closed", "Q-LB3": "closed"},
+    # 2026-11-17 (d49d6ab6c9 / 5f19bf9415, strategy-decl): the daily chart's ISO bar dates in the broker is a build
+    # (engine-gap); TradingView's built-in strategies are a second, uncommittable script (builtin), as the doc states
+    "capture-queue-2026-11-17-strategy-decl": {"strategy run bar dates": "engine-gap", "built-in strategies": "builtin"},
 }
 
 

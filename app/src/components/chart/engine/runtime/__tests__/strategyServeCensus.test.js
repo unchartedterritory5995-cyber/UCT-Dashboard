@@ -53,6 +53,8 @@ import { loadCapture } from '../../__tests__/vendorHarness/harness.js'
 import { barsOfCapture } from '../../__tests__/vendorHarness/strategyHarness.js'
 import { toProductBars } from '../../__tests__/vendorHarness/ourSide.js'
 import { historyWindowBarsOf, STRATEGY_DECLARATION } from './strategyArmed.js'
+// the ONE pin reader production's broker run reads (`vm.js` `ledgerPinned`, `brokerPins.resolved.json`)
+import { pinned } from '../brokerPins.js'
 import { strategyServeOutcome } from './strategyServe.js'
 import StrategyReportPanel from '../../../pane/StrategyReportPanel'
 
@@ -119,9 +121,9 @@ const scripts = fs.readdirSync(CORPUS).filter((f) => f.endsWith('.pine')).sort()
 let bars
 let dailyBars
 let ctx
-const results = { granted: [], production: [], grantedDaily: [] }
+const results = { granted: [], production: [], grantedDaily: [], grantedInSession: [] }
 
-function runAll(mode, onBars = bars) {
+function runAll(mode, onBars = bars, onCtx = null) {
   const out = []
   for (const s of scripts) {
     for (const f of FLAGS) vi.stubEnv(f, '1')
@@ -135,7 +137,7 @@ function runAll(mode, onBars = bars) {
       // the server's own verdict for this source (railed in Python against `capability_admitted`)
       latchRuntimeAdmission(runtimeSourceHash(s.source), { admitted: SERVER_ADMITS.includes(s.key) })
     }
-    out.push({ key: s.key, ...strategyServeOutcome({ source: s.source, bars: onBars, ctx, Panel: StrategyReportPanel }) })
+    out.push({ key: s.key, ...strategyServeOutcome({ source: s.source, bars: onBars, ctx: onCtx || ctx, Panel: StrategyReportPanel }) })
     vi.unstubAllEnvs()
   }
   __allowEveryRuntimeScriptForTests()
@@ -152,6 +154,8 @@ beforeAll(() => {
   results.granted = runAll('granted')
   results.production = runAll('production')
   results.grantedDaily = runAll('granted', dailyBars)
+  // ⭐ (2026-11-18 live check) the member's chart IN SESSION: the same daily bars, the newest one still forming
+  results.grantedInSession = runAll('granted', dailyBars, { ...ctx, newestBarIsForming: true })
 }, 600000)
 afterAll(() => { vi.unstubAllGlobals() })
 
@@ -218,6 +222,39 @@ describe('the serve census over corpus/committed, broker gate on', () => {
   // `/api/bars`'s ISO date keys, not the capture's epoch seconds above; until a broker run was handed each bar's
   // opening instant (`runtimeColumns.js::brokerBarTimes`) every strategy that traded lost its report there (2 of these
   // 25 served, both with no trade). The same census on that shape now answers exactly as on epoch seconds.
+  // ⭐⭐ (2026-11-18, the production live check) — THE MEMBER'S CHART IN SESSION. The census above measures charts whose
+  // newest bar is CLOSED; for most of the trading day a member's newest daily bar is FORMING, and a default strategy
+  // executes once per closed bar ([B-EXEC], `vm.js`: the broker run then leaves the forming bar out). That rule is a
+  // pin like any other (capture row Q-S1p, `brokerRules.js`): unpinned, every backtest on an in-session chart is
+  // refused by name at its report (the plots stay, `disarmedAfter`). ⚰️ The census measured only closed charts and
+  // counted supertrend-strategy SERVED while production refused it at 19:59Z. The expectation is DERIVED from the
+  // ledger production reads (`brokerPins.js::pinned`), so the day a capture pins B-EXEC this rail expects the armed
+  // strategies served in session too, without an edit.
+  it('the member\'s IN-SESSION chart (newest daily bar forming): served exactly when [B-EXEC] is pinned, else refused by name', () => {
+    const rows = results.grantedInSession
+    expect(thirds(rows)).toEqual([])
+    const execPinned = pinned('B-EXEC')
+    const served = rows.filter((r) => r.state === 'served').map((r) => r.key).sort()
+    expect(served).toEqual(execPinned ? [...ARMED_COMMITTED] : [])
+    if (!execPinned) {
+      // by name, the rule named: at the report when its plots stand in (supertrend-strategy's seven), at its run when
+      // it draws nothing a stand-in could keep (buy-monday-exit-tuesday places orders only)
+      for (const k of ARMED_COMMITTED) {
+        const r = rows.find((x) => x.key === k)
+        expect(r, k).toMatchObject({ state: 'refused', guard: 'runtime:strategy-unpinned', rule: 'B-EXEC' })
+        expect(['report', 'run'], k).toContain(r.at)
+      }
+      expect(rows.find((x) => x.key === 'supertrend-strategy__rcRbtoBiKG')).toMatchObject({ at: 'report' })
+    }
+    // ⭐ NOTHING TAKEN AWAY (owner rule): in session every strategy draws exactly the plots it draws on the closed chart,
+    // whether its backtest is served there or refused by name with its plots kept
+    for (const r of rows) {
+      expect(r.plotsDrawn, r.key).toBe(results.grantedDaily.find((x) => x.key === r.key).plotsDrawn)
+    }
+    // CONTROL: the same bars CLOSED serve them, so the forming bar alone moves them
+    expect(results.grantedDaily.filter((r) => r.state === 'served').map((r) => r.key).sort()).toEqual([...ARMED_COMMITTED])
+  })
+
   it('granted admission on a member\'s DAILY bars (ISO date keys): the same strategies served, with the same trades', () => {
     expect(dailyBars.every((b) => typeof b.t === 'string')).toBe(true)
     const rows = results.grantedDaily

@@ -27,7 +27,9 @@ import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../.
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../../nativeRegistry'
 import { computeRuntimeColumns } from '../runtimeColumns'
-import { runtimeStrategyOf, strategyRecordShapeErrors } from '../strategyRecord'
+import { runtimeStrategyOf, strategyRecordShapeErrors, backtestRefusedSentence, BACKTEST_FORMING_SENTENCE } from '../strategyRecord'
+import { BrokerUnpinned } from '../broker.js'
+import { pinned } from '../brokerPins.js'
 import { strategyReportOf } from '../brokerReport.js'
 import { isStrategyWindowDefinition } from '../../strategyWindow'
 import { loadCapture } from '../../__tests__/vendorHarness/harness.js'
@@ -119,6 +121,31 @@ describe('a broker run refused by name keeps the plots; the backtest alone is re
     expect(served.state).toBe('served')
     expect(o.plotsDrawn).toBeGreaterThanOrEqual(4)
     expect(o.plotsDrawn).toBe(served.plotsDrawn)
+  })
+
+  // ⭐ (2026-11-18, engine 80, #1902) [B-EXEC] — the newest bar still forming: the member reads the wait for the close,
+  // never "a strategy rule that no comparison with TradingView has confirmed yet"
+  it('⭐ [B-EXEC]: a backtest refused because the newest bar is still forming says so, in the coordinator\'s words', () => {
+    expect(BACKTEST_FORMING_SENTENCE).toBe("The backtest isn't run while the newest bar is still forming. It runs on the closed bars once that bar has closed.")
+    expect(backtestRefusedSentence(new BrokerUnpinned('B-EXEC'), 669, 0))
+      .toBe(`${BACKTEST_FORMING_SENTENCE} The script's plots are drawn.`)
+    expect(backtestRefusedSentence(new BrokerUnpinned('B-EXEC'), 669, 2))
+      .toBe(`${BACKTEST_FORMING_SENTENCE} The script's plots are drawn, except those that show the backtest's own values.`)
+    // CONTROL: any other unpinned rule keeps its sentence
+    expect(backtestRefusedSentence(new BrokerUnpinned('B-EXIT-NA'), 669, 0))
+      .toBe("The backtest is not run on this chart: it rests on a strategy rule that no comparison with TradingView has confirmed yet. The script's plots are drawn.")
+    // the member's in-session chart, through the census's own outcome: the sentence while [B-EXEC] is unpinned, the
+    // backtest served once a capture pins it (derived from the ledger production reads, never restated)
+    const o = strategyServeOutcome({ source: SUPERTREND, bars: toProductBars(RDDT), Panel: StrategyReportPanel,
+      ctx: { tf: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: true, historyFromListing: true,
+        historyWindowBars: historyWindowBarsOf(ROOT) } })
+    if (pinned('B-EXEC')) {
+      expect(o.state).toBe('served')
+    } else {
+      expect(o).toMatchObject({ state: 'refused', at: 'report', guard: 'runtime:strategy-unpinned', rule: 'B-EXEC' })
+      expect(o.sentence).toBe(`${BACKTEST_FORMING_SENTENCE} The script's plots are drawn.`)
+      expect(new RegExp(GUARD_ID_SOURCE).test(o.sentence)).toBe(false)
+    }
   })
 
   it('CONTROL: on RDDT daily from the listing the broker runs: plots drawn AND the backtest served (no refusal)', () => {

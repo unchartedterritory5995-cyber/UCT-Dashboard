@@ -4274,6 +4274,196 @@
    ]
   },
   {
+   "id": "stochastic_oscillator",
+   "name": "Stochastic Oscillator",
+   "aliases": [
+    "stochastic oscillator",
+    "slow stochastic",
+    "fast stochastic",
+    "full stochastic",
+    "slow stochastic oscillator",
+    "fast stochastic oscillator",
+    "full stochastic oscillator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "k_length",
+     "label": "K length",
+     "default": 14,
+     "min": 1,
+     "max": 5000,
+     "integer": true
+    },
+    {
+     "key": "k_smooth",
+     "label": "K smoothing",
+     "default": 3,
+     "min": 1,
+     "max": 5000,
+     "integer": true
+    },
+    {
+     "key": "d_smooth",
+     "label": "D smoothing",
+     "default": 3,
+     "min": 1,
+     "max": 5000,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "k",
+     "label": "K",
+     "type": "value",
+     "formula": "sma(stoch(high, low, close, {k_length}), {k_smooth})",
+     "says": "where the close sits between the lowest low and the highest high of the look-back (0 to 100), smoothed",
+     "tree": {
+      "type": "call",
+      "name": "sma",
+      "args": [
+       {
+        "type": "call",
+        "name": "stoch",
+        "args": [
+         {
+          "type": "series",
+          "name": "high"
+         },
+         {
+          "type": "series",
+          "name": "low"
+         },
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 14
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 3
+       }
+      ]
+     },
+     "sites": {
+      "k_length": [
+       [
+        0,
+        3
+       ]
+      ],
+      "k_smooth": [
+       [
+        1
+       ]
+      ]
+     }
+    },
+    {
+     "key": "d",
+     "label": "D",
+     "type": "value",
+     "formula": "sma(sma(stoch(high, low, close, {k_length}), {k_smooth}), {d_smooth})",
+     "says": "a simple average of the Stochastic's %K line",
+     "tree": {
+      "type": "call",
+      "name": "sma",
+      "args": [
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "call",
+          "name": "stoch",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "series",
+            "name": "low"
+           },
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 14
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 3
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 3
+       }
+      ]
+     },
+     "sites": {
+      "k_length": [
+       [
+        0,
+        0,
+        3
+       ]
+      ],
+      "k_smooth": [
+       [
+        0,
+        1
+       ]
+      ],
+      "d_smooth": [
+       [
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::stochastic_oscillator",
+    "published": {
+     "by": "George C. Lane",
+     "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/stochastic-oscillator-fast-slow-and-full",
+     "sources": [
+      {
+       "title": "StockCharts ChartSchool: Stochastic Oscillator (Fast, Slow, and Full)",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/stochastic-oscillator-fast-slow-and-full",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "%K = (current close - lowest low) / (highest high - lowest low) x 100 over the look-back, 14 periods by default; %D = a 3-period simple average of %K. Fast: %K as calculated, and its 3-period average. Slow: the fast %K smoothed with a 3-period simple average, and a 3-period average of that. Full: the fast %K smoothed with an X-period simple average, and an X-period average of that (14, 3, 3 by default). The page credits George C. Lane, late 1950s.",
+     "note": "ONE ENTRY IS ALL THREE: K smoothing 1 is the fast Stochastic, 3 the slow one, any other number the full one. The default here is the slow Stochastic, 14, 3, 3, which is what members write; TradingView's built-in defaults to the fast one (14, 1, 3). Because the two differ, Create Indicator asks which when a request says neither, and says the one it used. The bar's fields are the engine's order: stoch(high, low, close, length)."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:12ff335c48dd5a248a5f3639f13c0af19a61f353513abe200f7f7c796f814ac3",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ],
+   "names_function": "stoch"
+  },
+  {
    "id": "stochastic_rsi",
    "name": "Stochastic RSI",
    "aliases": [
@@ -8109,9 +8299,7 @@
    "acronyms": [
     "dpo"
    ]
-  }
- ],
- "held": [
+  },
   {
    "id": "pocket_pivot",
    "name": "Pocket Pivot",
@@ -8121,10 +8309,359 @@
     "pocket pivot point",
     "pocket pivot buy point"
    ],
-   "why": "The authors' own rules page states the volume rule only. Whether the day must itself be an up day, and how a down-volume day is defined, were not confirmed on a page read. UCT's own readers (the Screener's Bar Character, Chart IQ) use 'an up day on more volume than any down day of the prior 10'; a chart formula should be proved equal to that before it is offered under the name.",
-   "describe": "an up day on more volume than any down day of the last 10 days",
-   "since": "2026-11-18"
-  },
+   "placement": "overlay",
+   "params": [],
+   "outputs": [
+    {
+     "key": "pocket_pivot",
+     "label": "Pocket Pivot",
+     "type": "condition",
+     "formula": "close > close[1] && (close - low) / (high - low) >= 0.5 && highest(close < close[1] ? 1 : 0, 10)[1] > 0 && volume > highest(close < close[1] ? volume : 0, 10)[1] && close >= sma(close, 50) && close >= sma(close, 200) && low <= sma(close, 10) && close > close[105]",
+     "says": "true on an up day closing in its top half on more volume than any down day of the prior 10, in an uptrend, not stretched",
+     "tree": {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "&&",
+          "args": [
+           {
+            "type": "op",
+            "name": "&&",
+            "args": [
+             {
+              "type": "op",
+              "name": "&&",
+              "args": [
+               {
+                "type": "op",
+                "name": "&&",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "&&",
+                  "args": [
+                   {
+                    "type": "op",
+                    "name": ">",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     },
+                     {
+                      "type": "offset",
+                      "value": 1,
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "close"
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "op",
+                    "name": ">=",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "/",
+                      "args": [
+                       {
+                        "type": "op",
+                        "name": "-",
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         },
+                         {
+                          "type": "series",
+                          "name": "low"
+                         }
+                        ]
+                       },
+                       {
+                        "type": "op",
+                        "name": "-",
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "high"
+                         },
+                         {
+                          "type": "series",
+                          "name": "low"
+                         }
+                        ]
+                       }
+                      ]
+                     },
+                     {
+                      "type": "num",
+                      "value": 0.5
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                   {
+                    "type": "offset",
+                    "value": 1,
+                    "args": [
+                     {
+                      "type": "call",
+                      "name": "highest",
+                      "args": [
+                       {
+                        "type": "op",
+                        "name": "?:",
+                        "args": [
+                         {
+                          "type": "op",
+                          "name": "<",
+                          "args": [
+                           {
+                            "type": "series",
+                            "name": "close"
+                           },
+                           {
+                            "type": "offset",
+                            "value": 1,
+                            "args": [
+                             {
+                              "type": "series",
+                              "name": "close"
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "type": "num",
+                          "value": 1
+                         },
+                         {
+                          "type": "num",
+                          "value": 0
+                         }
+                        ]
+                       },
+                       {
+                        "type": "num",
+                        "value": 10
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "num",
+                    "value": 0
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "op",
+                "name": ">",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "volume"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "call",
+                    "name": "highest",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "?:",
+                      "args": [
+                       {
+                        "type": "op",
+                        "name": "<",
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         },
+                         {
+                          "type": "offset",
+                          "value": 1,
+                          "args": [
+                           {
+                            "type": "series",
+                            "name": "close"
+                           }
+                          ]
+                         }
+                        ]
+                       },
+                       {
+                        "type": "series",
+                        "name": "volume"
+                       },
+                       {
+                        "type": "num",
+                        "value": 0
+                       }
+                      ]
+                     },
+                     {
+                      "type": "num",
+                      "value": 10
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "op",
+              "name": ">=",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "num",
+                  "value": 50
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": ">=",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "num",
+                "value": 200
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "<=",
+          "args": [
+           {
+            "type": "series",
+            "name": "low"
+           },
+           {
+            "type": "call",
+            "name": "sma",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 10
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "offset",
+          "value": 105,
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {}
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::pocket_pivot",
+    "published": null,
+    "capture": null,
+    "house": {
+     "reader": "api/services/screener/base_catalog.py::_detect_pocket_pivot",
+     "proof": "tests/test_library_pocket_pivot.py",
+     "whose": "UCT's own Pocket Pivot, the one the Screener's base structures use",
+     "what": "Morales and Kacher's volume rule with their stated conditions",
+     "note": "Six tests, every one a fact of the bar: an up day; the close in the top half of the bar's range; at least one down day in the 10 sessions before, and volume above the largest volume of those down days; the close at or above its 50- and 200-day simple averages; the low not above the 10-day average; the close above where it was 105 bars ago. The numbers are the detector's own and are not settings. What the authors leave to judgement (the fundamentals, a constructive base) is not in the detector and is not in this formula."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:2e45632a4bf1b0e3660dabf6b61af09a146ccdb18c3c2a9f2e536bab23aec045",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  }
+ ],
+ "held": [
   {
    "id": "ttm_squeeze",
    "name": "TTM Squeeze",

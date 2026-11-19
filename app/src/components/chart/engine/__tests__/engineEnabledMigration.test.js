@@ -7,7 +7,8 @@ import { TIER1_IDS } from './tier1Library.fixture'
 // registry, so a fourth server definition cannot join this list unnoticed.
 // 2026-11-12 (RS Exit Warnings): `rsExit`, the fifth RS definition, joins them: server lane,
 // never a settings section.
-const RS_SPLIT_IDS = ['rsRating', 'rsPhases', 'rsVsEma', 'rsExit']
+// 2026-11-18 (UCT Mansfield RS): `rsMansfield`, the sixth, the same way.
+const RS_SPLIT_IDS = ['rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield']
 import fs from 'node:fs'
 import path from 'node:path'
 import { stripComments } from './sourceScan'

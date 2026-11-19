@@ -40,8 +40,7 @@ import {
 // ⭐⭐ RT5 — the run's own drawings (`objectStore.js`).
 import { makeObjectStore } from './objectStore.js'
 // ⭐⭐ S1 — the strategy broker (`broker.js`).
-import { makeBroker, BrokerRefusal, BrokerStart, BrokerUnpinned, BROKER_ORDER_OPS } from './broker.js'
-import { pinned as ledgerPinned } from './brokerPins.js'
+import { makeBroker, BrokerRefusal, BrokerStart, BROKER_ORDER_OPS } from './broker.js'
 import { isDrawingHandle } from './handles.js'
 import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
 
@@ -395,15 +394,16 @@ export function execute(program, ctx, limits, opts) {
       // W9-T8 — `ctx.tradingDays`: each bar's trading day, when the CALLER knows the session and exchange time zone.
       // No product caller sets it yet, so max_intraday_filled_orders refuses by name (W9-R1i).
       tradingDays: ctx.tradingDays,
+      // [B-EXEC] the forming newest bar this run does not execute (below), or none: the broker asks the rule
+      formingBar: ctx.confirmed === false && ctx.bars > 0 ? ctx.bars - 1 : null,
     })
   }
   // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar
   // it has not run yet, so nothing it computes exists there.
-  // [B-EXEC] is a rule like any other: unpinned, a forming bar stops the run instead of reading `na`.
-  if (broker && ctx.confirmed === false) {
-    const pinOk = opts && typeof opts.brokerPinned === 'function' ? opts.brokerPinned : (id) => ledgerPinned(id)
-    if (!pinOk('B-EXEC')) throw new BrokerUnpinned('B-EXEC')
-  }
+  // [B-EXEC] is a rule like any other: unpinned, a forming bar stops the run instead of reading `na`. The
+  // BROKER asks it (`makeBroker`, `formingBar` above), so a run that served on a forming bar records it in
+  // `rulesUsed` and a capture can pin it. ⚰️ (2026-11-18) the vm asked it here, outside the broker's ledger: no run
+  // could ever report B-EXEC exercised, so no capture could pin it, and every in-session backtest was refused.
   const runBars = broker && ctx.confirmed === false ? Math.max(0, ctx.bars - 1) : ctx.bars
 
   // ⭐⭐⭐ 2F-2B — ONE SCRATCH WINDOW PER SITE, ALLOCATED ONCE.

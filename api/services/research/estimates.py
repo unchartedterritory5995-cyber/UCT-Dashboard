@@ -106,8 +106,10 @@ _fetch_timing = threading.local()
 
 
 def _fetch(sym):
-    """Returns {} ONLY on a genuine pool-call exception -- see
-    research/ownership.py's `_fetch_yf` docstring for the same contract."""
+    """Returns {} ONLY on a genuine pool-call exception -- callers use that as
+    the "did this leg actually fail" signal (`bool(raw)` is False only on a real
+    provider exception; a successful call always returns a dict, even one whose
+    values are individually None/empty)."""
     stages: dict = {}
     _fetch_timing.stages = stages
     t_submit = time.monotonic()

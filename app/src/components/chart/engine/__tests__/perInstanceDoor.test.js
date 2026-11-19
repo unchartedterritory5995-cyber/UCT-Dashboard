@@ -518,7 +518,14 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // pre-existing definition's blobs are untouched. The new definition adds 15 elements
       // (5 bases x 3: it declares `int` inputs, so on / input / off). No door moved.
       // (Prior value: 49d9202ed0712dc3e31489061a997cad71a3a5d5a6bc94fda9206182900ae2c3)
-      .toBe('991ca84cc84c67ab14dca0ad77a18baba47d78b79d031ef9aae3e3337cf43e4d')
+      // 2026-11-18: re-pinned for UCT Mansfield RS (`rsMansfield`), a REGISTRY ADDITION, not a door
+      // change. ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED: this whole file copied with
+      // `rsMansfield` filtered out of both `listDefinitions()` walks reproduces the prior literal below
+      // (991ca84c…) and the toggle corpus's (51d51f70…) byte for byte, 18 of 18 cases green, so every
+      // pre-existing definition's blobs are untouched. The new definition declares an `int` input
+      // (`mansfieldLength`), so it adds on / input / off per base. No door moved.
+      // (Prior value: 991ca84cc84c67ab14dca0ad77a18baba47d78b79d031ef9aae3e3337cf43e4d)
+      .toBe('ac52f112d4fd97e87c0c7643ddf28d904e2897fad570b181ea78999fee2d904f')
   })
 
   // ⭐ A1 (D3, owner-approved 2026-10-13): the definition door hides; the old literal now
@@ -590,6 +597,9 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // 2026-11-12: re-pinned for UCT RS Exit Warnings; see the literal above: the toggle corpus with
       // `rsExit` skipped reproduces the prior value (5e2845d4…) byte for byte.
       // (Prior value: 5e2845d4ae574e4f822a053e2945b0c24a6fc11b8e4af345aa88803722ebe894)
-      .toBe('51d51f70fbe2fe4cb2ac0ca7a5440c38d1e1345a81a7c518fd9bc57dc9c4623f')
+      // 2026-11-18: re-pinned for UCT Mansfield RS; see the literal above: the toggle corpus with
+      // `rsMansfield` skipped reproduces the prior value (51d51f70…) byte for byte.
+      // (Prior value: 51d51f70fbe2fe4cb2ac0ca7a5440c38d1e1345a81a7c518fd9bc57dc9c4623f)
+      .toBe('bdc361e9e38b0dd22189ad153af035bbfc2dbeff07192bfa1775c02fd11e19b5')
   })
 })

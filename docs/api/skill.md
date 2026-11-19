@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (773)
+## Member session reads (775)
 
 ### Limits
 
@@ -665,9 +665,10 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/compare/{sym}/{comparator}` | paid | research | {sym}, {comparator} |
 | GET | `/api/research/congress-latest` | paid | research |  |
 | GET | `/api/research/congress-trades/{sym}` | paid | research | {sym} |
+| GET | `/api/research/dilution-watch/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/earnings-reaction/{sym}` | paid | research | {sym} |
 | GET | `/api/research/estimate-history/{sym}` | paid | research | {sym} |
-| GET | `/api/research/estimates/{sym}` | paid | research | {sym}, consensus=0 |
+| GET | `/api/research/estimates/{sym}` | paid | research | {sym}, consensus=0, revisions=0 |
 | GET | `/api/research/events/{sym}` | paid | research | {sym} |
 | GET | `/api/research/expected-move/{sym}` | paid | research | {sym}, report_date, grade=True |
 | GET | `/api/research/filing-search` | paid | research | q (required), sym, form, section, limit=40 |
@@ -710,6 +711,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/seasonality/{sym}` | paid | research | {sym} |
 | GET | `/api/research/short-data/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/short-interest-list` | paid | research | rank, limit |
+| GET | `/api/research/treasury-yields` | paid | research |  |
 | GET | `/api/risk-summary` | paid | member-workspace |  |
 | GET | `/api/rs-rankings` | paid | market-analytics |  |
 | GET | `/api/rs-rankings/{ticker}` | paid | market-analytics | {ticker} |

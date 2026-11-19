@@ -62,6 +62,13 @@ CASES = {
         ["Show relative strength versus SPY", "relative strength vs QQQ", "price relative to XLK",
          "relative strength vs its sector",                      # a comparison the choices cannot answer: the assistant's
          "Add the Relative Strength Index", "add a 14 day RSI", "relative volume"]),
+    # the slow Stochastic (what members write) and the fast one (TradingView's default) are different lines
+    "stochastic_kind": (
+        ["Add the Stochastic", "Add the Stochastic Oscillator", "add stochastics", "show a stochastic in a lower pane"],
+        ["Add a slow stochastic", "add the fast stochastic", "Add the full stochastic", "Add the Stochastic Oscillator 14 3 3",
+         "stochastic 14, 3, 3",                                      # numbers settle it
+         "Add the Stochastic RSI", "Add the Stochastic Momentum Index", "show the stochastic of the RSI",   # other things
+         "Add RSI 14"]),
     "breakout_window": (
         ["Mark breakouts", "mark new highs", "Mark breakouts on high volume", "flag new lows", "show when it breaks out"],
         ["Mark 20 day breakouts", "mark new 52-week highs", "new all-time highs", "flag when it breaks out of its base",
@@ -80,7 +87,7 @@ def test_the_registry_is_data_and_every_question_fits_the_contract(conv):
     registry = conv.clarify_registry()
     assert list(registry) == ["average_kind", "average_length", "cross_meaning",
                               "acronym_dmi", "acronym_adl", "acronym_ad",
-                              "benchmark", "breakout_window"]                        # the order asked
+                              "benchmark", "breakout_window", "stochastic_kind"]     # the order asked
     assert set(registry) == set(CASES), "a question with no cases here, or cases with no question"
     limits = json.loads(conv._raw_schema_text())["x-uct-limits"]
     for qid, q in registry.items():
@@ -140,6 +147,9 @@ def test_a_typed_answer_settles_it_too(conv):
                               ("benchmark", "Show relative strength", "spy"),
                               ("benchmark", "Show relative strength", "the nasdaq"),
                               ("benchmark", "Show relative strength", "against XLK please"),     # any listed symbol
+                              ("stochastic_kind", "Add the Stochastic", "slow"),
+                              ("stochastic_kind", "Add the Stochastic Oscillator", "the fast one"),
+                              ("stochastic_kind", "Add the Stochastic", "14 3 3"),
                               ("breakout_window", "Mark breakouts", "30"),
                               ("breakout_window", "Mark breakouts", "over 100 bars")):
         said = [{"role": "member", "text": words}, {"role": "assistant", "text": conv.clarify_question(qid)["text"]}]

@@ -78,6 +78,9 @@
   "percentage_price_oscillator": {
    "1": "sha256:7b618c26461616ed8f5bfb976bfcb2254b8f2d57fa2e5029aabd0f6fe67ce31f"
   },
+  "pocket_pivot": {
+   "1": "sha256:2e45632a4bf1b0e3660dabf6b61af09a146ccdb18c3c2a9f2e536bab23aec045"
+  },
   "positive_volume_index": {
    "1": "sha256:09b2ad3a469bfdd14274db24d3f0bf4761c7f8f809aa600e8c2a7ad33f3895f9"
   },
@@ -86,6 +89,9 @@
   },
   "squeeze_momentum": {
    "1": "sha256:bcbe0ed27cb47a7a75aac0ce6b172e1e158dc8bdc1a6619db3780edde9e7f911"
+  },
+  "stochastic_oscillator": {
+   "1": "sha256:12ff335c48dd5a248a5f3639f13c0af19a61f353513abe200f7f7c796f814ac3"
   },
   "stochastic_rsi": {
    "1": "sha256:1f81be2d9aa61bd1d5d98f7b80e95d8ffd7275e7472d4e4b62daa4f0d20d47ab"

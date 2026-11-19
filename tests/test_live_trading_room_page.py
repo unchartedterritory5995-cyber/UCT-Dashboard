@@ -700,21 +700,22 @@ def test_v4_page_has_no_em_dash_and_no_dollar_sign():
 
 # -- 2026-10-05 owner-approved fixes: deadline, tappable images, pixel, contact --
 
+# The October deadline line was removed 2026-11-18 (it expired Oct 31 and announced a price rise:
+# owner rule 2026-10-26, no price-raise messaging). This rail keeps it, and any dated offer, off the page.
 OCT_DEADLINE = "The October offer ends Oct 31, and the price goes up for new members on Nov 1."
 WHOP_BIZ = "biz_VFkuhplWXekHZf"
 CONTACT_EMAIL = "contact@uctintelligence.com"
 
 
-def test_both_offer_blocks_carry_the_october_deadline_inside_a_nov1_remove_block():
+def test_the_expired_october_deadline_and_any_price_rise_line_are_gone():
     html = PAGE.read_text(encoding="utf-8")
     offers = re.findall(r'<div class="offer">(.*?)</div>', html, flags=re.S)
     assert len(offers) == 2, len(offers)
-    for block in offers:
-        m = re.search(r"<!-- NOV1-REMOVE:.*?-->(.*?)<!-- /NOV1-REMOVE -->", block, flags=re.S)
-        assert m, "the deadline is not inside a NOV1-REMOVE marker block"
-        assert OCT_DEADLINE in _norm(m.group(1))
-    assert html.count(OCT_DEADLINE) == 2
-    assert html.count("<!-- NOV1-REMOVE:") == 2 and html.count("<!-- /NOV1-REMOVE -->") == 2
+    assert OCT_DEADLINE not in html
+    assert "NOV1-REMOVE" not in html and "offer-deadline" not in html
+    low = _norm(html).lower()
+    for phrase in ("october offer", "oct 31", "price goes up", "goes up for new members", "pay more from"):
+        assert phrase not in low, phrase
 
 
 def test_every_room_image_with_a_drawn_button_is_the_whop_link():

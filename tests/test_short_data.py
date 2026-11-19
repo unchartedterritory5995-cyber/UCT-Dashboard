@@ -41,6 +41,20 @@ D3, D2, D1 = "2026-10-30", "2026-10-15", "2026-09-30"       # newest first
 UNI = frozenset({"AAA", "BBB", "CCC", "DDD", "EEE", "BRK-B"})
 
 
+
+@pytest.fixture(autouse=True)
+def _log_only_inside_the_blocks():
+    """Records are captured only inside a `caplog.at_level` block, whatever ran before this file.
+    A test that imports the whole app first configures logging at INFO, and a build's log line
+    written BEFORE a block would then sit in `caplog.records` ahead of the line the test reads
+    (found 2026-11-18: two tests passed alone and failed after the member API list test). The
+    logger's own level is pinned here, so the order the files run in cannot matter."""
+    lg = logging.getLogger("api.services.short_data")
+    old = lg.level
+    lg.setLevel(logging.WARNING)
+    yield
+    lg.setLevel(old)
+
 def si(ticker, day, short, adv=1_000_000, dtc=2.5, **over):
     row = {"ticker": ticker, "settlement_date": day, "short_interest": short, "avg_daily_volume": adv, "days_to_cover": dtc}
     row.update(over)
@@ -609,6 +623,115 @@ def test_a_refused_market_read_is_unavailable_remembered_and_one_line(vendor, ca
     # and one stock's short interest is not asked for either: the refusal is the dataset's
     stock = sd.get_stock("AAA", wait_s=10)
     assert stock["interest"]["state"] == "unavailable" and len(vendor.asked(sd.INTEREST)) == 1
+
+
+def test_the_read_only_accessor_says_what_the_last_build_said_and_starts_nothing(vendor):
+    """`held_market` with no list held: the standing answer of the last build (what `get_market` gives without
+    starting another), then nothing once that answer has lapsed. It never asks the vendor and never starts a job."""
+    assert sd.held_market() == (None, "not_held") and vendor.calls == []
+    vendor.fail[sd.INTEREST] = massive._ERR.auth_error("Massive rejected (403)", status=403)
+    refused = sd.get_market(wait_s=10)
+    drain()
+    calls = len(vendor.calls)
+    assert refused["reason"] == "refused" and sd.held_market("up") == (refused, "not_held") == (sd.get_market("up"), "not_held")
+    assert sd.held_market("banana") == ({"status": "bad_rank", "ranks": ["dtc", "up", "down", "float"]}, "refused")
+    with sd._lock:
+        assert sd._market["inflight"] is None
+        sd._market["block"] = (time.time() - 1, refused)             # the answer has lapsed
+    assert sd.held_market() == (None, "not_held")
+    assert len(vendor.calls) == calls == 1                           # only the one build above asked the vendor
+
+
+def test_one_stocks_row_is_read_from_the_held_list_and_the_read_starts_nothing(vendor):
+    """`held_market_row`: one stock's row of the list already held, with the report's dates beside it.
+    It never asks the vendor and never starts a job, whatever it finds."""
+    assert sd.held_market_row("AAA") == (None, "not_held")
+    time.sleep(0.05)
+    drain()                                                          # a build it had started would have asked by now
+    assert vendor.calls == [] and sd.held_market() == (None, "not_held")
+    vendor.rows[sd.INTEREST] = market_rows()
+    assert sd.get_market(wait_s=10)["status"] == "ok"
+    drain()
+    calls = len(vendor.calls)
+    row, how = sd.held_market_row("aaa")
+    assert how == "held"
+    assert row["sym"] == "AAA" and row["short_interest"] == 3_000_000 and row["days_to_cover"] == 6.0
+    assert row["prev_short_interest"] == 2_000_000 and row["change_shares"] == 1_000_000 and row["change_pct"] == 50.0
+    assert row["settlement_date"] == D3 and row["previous_settlement_date"] == D2
+    assert row["pct_float"] == 30.0 and row["float_shares"] == 10_000_000 and row["float_source"] == sd.FLOAT_SOURCE
+    assert row["source"] == sd.SOURCE and row["read_at"] and row["publication_estimate"]
+    # a missing number stays missing: EEE has no days to cover and no float
+    eee, _ = sd.held_market_row("EEE")
+    assert eee["days_to_cover"] is None and eee["pct_float"] is None and eee["float_shares"] is None
+    # in the universe but not in the report, outside the universe, and not a symbol
+    assert sd.held_market_row("FFF") == (None, "not_in_list")
+    assert sd.held_market_row("ZZZ") == (None, "not_in_list")
+    assert sd.held_market_row("not a symbol!") == (None, "refused")
+    # the row handed out is a copy: a reader cannot change the held list
+    row["short_interest"] = 0
+    assert sd.held_market_row("AAA")[0]["short_interest"] == 3_000_000
+    with sd._lock:
+        assert sd._market["inflight"] is None
+    assert len(vendor.calls) == calls
+
+
+def test_one_stocks_row_says_what_the_last_build_said_when_no_list_is_held(vendor):
+    vendor.fail[sd.INTEREST] = massive._ERR.auth_error("Massive rejected (403)", status=403)
+    refused = sd.get_market(wait_s=10)
+    drain()
+    assert sd.held_market_row("AAA") == (refused, "not_held") and refused["reason"] == "refused"
+    assert len(vendor.calls) == 1
+
+
+def test_the_warm_builds_the_list_once_then_only_looks_when_a_look_is_due(vendor):
+    """`warm_market` is `get_market` with nobody waiting: build when nothing is held, the cheap look
+    for a newer report when one is due, nothing otherwise, and nothing while a refusal stands."""
+    vendor.rows[sd.INTEREST] = market_rows()
+    assert sd.warm_market() == "building"
+    drain()
+    assert sd.held_market()[1] == "held" and len(vendor.calls) == 4
+    assert sd.warm_market() == "held" and len(vendor.calls) == 4     # just looked: the vendor is not asked
+    with sd._lock:
+        sd._market["checked"] = time.time() - sd.CHECK_EVERY_S - 1
+    assert sd.warm_market() == "checking"
+    drain()
+    assert len(vendor.calls) == 5                                    # one row: is there a newer report
+
+
+def test_the_warm_does_not_ask_again_while_a_refusal_stands(vendor):
+    vendor.fail[sd.INTEREST] = massive._ERR.auth_error("Massive rejected (403)", status=403)
+    assert sd.warm_market() == "building"
+    drain()
+    assert sd.warm_market() == "blocked" and sd.warm_market() == "blocked"
+    assert len(vendor.calls) == 1
+
+
+def test_the_warm_loop_starts_once_and_on_the_web_service_only(vendor, monkeypatch):
+    started = []
+
+    class _Thread:
+        def __init__(self, *a, **k):
+            self.name = k.get("name")
+
+        def start(self):
+            started.append(self.name)
+
+    monkeypatch.setattr(sd.threading, "Thread", _Thread)
+    monkeypatch.setattr(sd, "_warm_started", threading.Event())
+    monkeypatch.delenv("RAILWAY_SERVICE_NAME", raising=False)
+    assert sd.start_market_warmer() is False and started == []       # a developer PC, a test run
+    for other in ("worker", "flow-worker", "bars-api", "stream-edge"):
+        monkeypatch.setenv("RAILWAY_SERVICE_NAME", other)
+        assert sd.start_market_warmer() is False and started == []
+    monkeypatch.setenv("RAILWAY_SERVICE_NAME", "web")
+    assert sd.start_market_warmer() is True and started == ["short-data-warm"]
+    assert sd.start_market_warmer() is False and started == ["short-data-warm"]   # once
+
+
+def test_the_warm_never_raises_and_the_loop_waits_before_its_first_look(monkeypatch, vendor):
+    monkeypatch.setattr(sd, "_held_market", lambda: (_ for _ in ()).throw(RuntimeError("disk")))
+    assert sd.warm_market() == "failed"
+    assert sd.WARM_DELAY_S >= 120 and sd.WARM_EVERY_S >= 600
 
 
 def test_a_refusal_after_a_list_is_held_keeps_the_list_and_says_the_check_was_refused(vendor):

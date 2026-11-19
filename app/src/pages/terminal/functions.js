@@ -272,6 +272,12 @@ export const FUNCTIONS = [
   // economic series /api/econ publishes (dark until ECON_ENABLED; the panel says so).
   { code: 'SENT', label: 'Sentiment and macro (AAII, NAAIM, put/call, Fear & Greed, economy)', group: 'Market',
     market: { panel: 'Sentiment' } },
+  // RATES (2026-11-18): Treasury yields at every maturity with their changes in basis points, the
+  // 10-year minus 2-year and 10-year minus 3-month spreads, and two small pictures
+  // (GET /api/research/treasury-yields, read from the US Treasury's own published daily par yield curve; end of day).
+  // RATE and YLD are real funds (an interest rate hedge ETF and a high yield ETF), so the code is neither.
+  { code: 'RATES', label: 'Treasury yields and the yield curve (2-year, 10-year, 30-year, the spreads)', group: 'Market',
+    market: { panel: 'Rates' } },
   // SCAT: a universe on two metrics (RS rank vs % off the 52-week high by default), over the /charts
   // Market Map's own /api/scatter reads. A dot opens DES beside the panel.
   // SCAT NDX CHG_1M RS_RANK: universe, then Y and X (scatterArgs.js); the panel writes picks back.
@@ -482,8 +488,8 @@ export const FUNCTIONS = [
   // ── short interest (2026-11-18) ──
   // SHINT: one stock's FINRA short interest, report by report (shares short, the change from each
   // report to the next, days to cover, percent of float), and its daily off-exchange short volume
-  // (GET /api/research/short-data/{sym}, read through the site's stock-data vendor). OWN shows one
-  // undated figure from the screener export; this is the dated record. `NVDA SHINT`.
+  // (GET /api/research/short-data/{sym}, read through the site's stock-data vendor). OWN shows the
+  // newest report only, when this service already holds one; this is the dated record. `NVDA SHINT`.
   // SHRT is a real fund (Gotham Short Strategies ETF) and SHORT is CONFL's own word for bearish
   // (`CONFL SHORT`; a code in second place would make CONFL a ticker), so the code is neither.
   { code: 'SHINT', label: 'Short interest history (every report, days to cover, daily short volume)', group: 'Security',
@@ -494,6 +500,17 @@ export const FUNCTIONS = [
   // SHORTS is six letters and a code is two to five, so the code drops the O.
   { code: 'SHRTS', label: 'Short interest list (most days to cover, biggest changes, percent of float)', group: 'Market',
     market: { panel: 'ShortList', args: [{ kind: 'shortRank', prop: 'rank' }] } },
+  // ── dilution watch (2026-11-18) ──
+  // DILU: what one company has filed with the SEC that bears on selling new shares, for the last
+  // three years: shelf registrations and when they took effect, prospectus supplements, new
+  // registrations and unregistered sales, each with its link to sec.gov
+  // (GET /api/research/dilution-watch/{sym}, read from the company's public EDGAR filing index;
+  // no filing document is read, so there are no share counts and no dollar amounts). CF lists a
+  // company's filings; this answers "can it sell stock, and has it been?". `NVDA DILU`.
+  // DILU is not in the site's stock universe, and a web search on 2026-11-18 found no stock or fund
+  // trading under it. SHELF and OFFR would each name one kind of filing; the panel reads several.
+  { code: 'DILU', label: 'Dilution watch (shelf registrations, offering documents, unregistered sales)', group: 'Security',
+    ticker: { panel: 'Dilution' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -727,6 +744,8 @@ const FUNCTION_WORDS = {
   THMS: { example: 'THMS 1W', keywords: ['theme', 'themes', 'groups', 'industries', 'leading themes'] },
   SENT: { keywords: ['sentiment', 'aaii', 'naaim', 'fear and greed', 'put call', 'macro', 'economy'],
     note: 'The economy rows say so if that feed is switched off.' },
+  RATES: { keywords: ['treasury yields', 'yield curve', 'interest rates', 'bond yields', '10 year yield', '2 year yield',
+    'inverted curve', '2s10s'], note: 'End-of-day figures, one a day.' },
   SCAT: { keywords: ['scatter', 'scatter plot', 'market map'] },
   HELP: { example: 'HELP CHK', keywords: ['help', 'functions', 'commands'] },
   RRG: { keywords: ['rotation', 'sector rotation', 'sectors'] },
@@ -774,6 +793,9 @@ const FUNCTION_WORDS = {
     'short interest change'] },
   SHRTS: { example: 'SHRTS UP', keywords: ['short interest list', 'most shorted', 'short squeeze', 'days to cover list',
     'shorts rising', 'short covering'] },
+  DILU: { example: 'NVDA DILU', keywords: ['dilution', 'dilution watch', 'shelf registration', 'share offering', 'stock offering',
+    'secondary offering', 'atm offering', 'prospectus supplement', 'share issuance'],
+    note: 'From the SEC filing index only: what was filed and when, never amounts.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
