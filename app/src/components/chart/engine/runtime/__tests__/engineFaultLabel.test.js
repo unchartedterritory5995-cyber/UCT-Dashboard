@@ -1,0 +1,106 @@
+// app/src/components/chart/engine/runtime/__tests__/engineFaultLabel.test.js
+//
+// ─── ⭐⭐ ENGINE NUMBER PENDING (S14, robustness) — AN EXCEPTION IS NEVER A STATEMENT SHAPE ─────────────
+//
+// `buildRuntimeIr` answers every refusal through `fail`. Anything thrown that was not one of the three
+// refusal classes (`RuntimeRefusal`, `PineRefusal`, `TableRefusal`) used to come out as `runtime:statement`,
+// "a statement shape this front end does not recognise". That sentence is about the SCRIPT, and it was said
+// about engine defects (an IR invariant an uncalled helper broke, `undefined` read as a node), so those
+// scripts were counted under the statements unit. It is `runtime:lower` now:
+// - a DEFECT (a JavaScript error, a plain `Error`, a thrown non-error, an `IrError`) says the engine failed,
+//   and keeps what was thrown;
+// - an engine module's own NAMED error (`ColourError`, ...) keeps its own sentence, which is about the script.
+// A real refusal keeps its guard and its sentence. Nothing that was drawn changes: every case here was
+// refused before and is refused now.
+import { describe, it, expect, vi } from 'vitest'
+
+import { ColourError } from '../colours.js'
+
+// ⭐ THE ONE INJECTED FAULT: `lexPine` is the build's first step, and its throw goes to `fail` as any other
+// throw does. A marker in the source picks the kind; every other source lexes as it always has.
+const FAULTS = {
+  S14_TYPE_ERROR: () => new TypeError("Cannot read properties of undefined (reading 'type')"),
+  S14_RANGE_ERROR: () => new RangeError('Maximum call stack size exceeded'),
+  S14_PLAIN_ERROR: () => new Error('an invariant nobody named'),
+  S14_THROWN_TEXT: () => 'a thrown string',
+  S14_COLOUR_ERROR: () => new ColourError('not a colour this engine can read: `#0`'),
+}
+vi.mock('../../ast/pine.js', async (importOriginal) => {
+  const real = await importOriginal()
+  return {
+    ...real,
+    lexPine: (source, ...rest) => {
+      for (const [marker, make] of Object.entries(FAULTS)) {
+        if (String(source).includes(marker)) throw make()
+      }
+      return real.lexPine(source, ...rest)
+    },
+  }
+})
+
+const { buildRuntimeIr, ENGINE_DEFECT_SENTENCE } = await import('../../ast/pineRuntimeFrontend.js')
+
+const N = 20
+const BARS = Array.from({ length: N }, (_, i) => ({
+  t: 1700000000 + i * 86400, o: 100 + i, h: 102 + i, l: 98 + i, c: 101 + i, v: 1000 + i,
+}))
+const build = (src) => buildRuntimeIr(src, { bars: BARS, inputs: {} })
+const HEAD = '//@version=6\nindicator("t")\n'
+
+describe('S14 — an exception that is not a refusal is `runtime:lower`, never `runtime:statement`', () => {
+  for (const marker of ['S14_TYPE_ERROR', 'S14_RANGE_ERROR', 'S14_PLAIN_ERROR', 'S14_THROWN_TEXT']) {
+    it(`${marker}: a defect, said to be one, with what was thrown`, () => {
+      const r = build(`${HEAD}// ${marker}\nplot(close)\n`)
+      expect(r.ok).toBe(false)
+      expect(r.refusal.guard).toBe('runtime:lower')
+      expect(r.refusal.message.startsWith(ENGINE_DEFECT_SENTENCE)).toBe(true)
+      const thrown = FAULTS[marker]()
+      expect(r.refusal.message).toContain(String(thrown.message || thrown))
+    })
+  }
+
+  it('an engine module\'s named error keeps its own sentence (it is about the script), as `runtime:lower`', () => {
+    const r = build(`${HEAD}// S14_COLOUR_ERROR\nplot(close)\n`)
+    expect(r.refusal.guard).toBe('runtime:lower')
+    expect(r.refusal.message).toBe('not a colour this engine can read: `#0`')
+    expect(r.refusal.message).not.toContain('engine defect')
+  })
+
+  it('END TO END, a real defect: an uncalled helper whose built-in carries state breaks the IR\'s own check', () => {
+    // ⭐ The first root-cause fix in S14's queue: a carried built-in in a function nothing calls is planned
+    // with no call site, and `ir.js` refuses the program it was handed ("carried site 0 outside 0"). When
+    // that fix lands this script builds, and this case moves to the next defect on the list.
+    const r = build(`${HEAD}f(bool c) =>\n    b = ta.barssince(c)\n    b <= 5\nplot(close)\n`)
+    expect(r.ok).toBe(false)
+    expect(r.refusal.guard).toBe('runtime:lower')
+    expect(r.refusal.message.startsWith(ENGINE_DEFECT_SENTENCE)).toBe(true)
+    expect(r.refusal.message).toMatch(/carried site 0 outside 0/)
+  })
+
+  it('END TO END, a named error: an unreadable colour literal keeps "not a colour this engine can read"', () => {
+    const r = build(`${HEAD}myCol = #00e6761\nbgcolor(myCol)\nplot(close)\n`)
+    expect(r.ok).toBe(false)
+    expect(r.refusal.guard).toBe('runtime:lower')
+    expect(r.refusal.message).toMatch(/^not a colour this engine can read/)
+    expect(r.refusal.line).toBe(4)
+    expect(r.refusal.token).toBe('bgcolor')
+  })
+})
+
+describe('S14 CONTROLS — a refusal keeps its own guard and sentence', () => {
+  it('a `RuntimeRefusal` of a statement shape stays `runtime:statement`', () => {
+    const r = build(`${HEAD}x = 1\nelse\n    x := 2\nplot(close)\n`)
+    expect(r.ok).toBe(false)
+    expect(r.refusal.guard).toBe('runtime:statement')
+    expect(r.refusal.message).not.toContain('engine defect')
+  })
+  it('a `PineRefusal` keeps its `pine:` guard', () => {
+    const r = build(`${HEAD}plot(close ¤ 2)\n`)
+    expect(r.ok).toBe(false)
+    expect(r.refusal.guard.startsWith('pine:')).toBe(true)
+    expect(r.refusal.message).not.toContain('engine defect')
+  })
+  it('a source with no marker builds as it always has (the injected fault touches nothing else)', () => {
+    expect(build(`${HEAD}plot(close)\n`).ok).toBe(true)
+  })
+})
