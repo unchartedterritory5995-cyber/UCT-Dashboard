@@ -1,4 +1,4 @@
-//@version=6
+//@version=5
 indicator("hp request fn history", overlay=false)
 u(x) => ta.rsi(x, 5)
 v(x) => u(x) + ta.change(x)
