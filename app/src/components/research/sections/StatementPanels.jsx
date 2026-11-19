@@ -4,9 +4,9 @@
 // small multiples you can scan in one pass, rather than a grid of numbers.
 //
 // Fed by /api/research/financial-history, which reads FMP (24q / 12y). The
-// older /api/research/financials reads yfinance and returns about five
-// quarters; five points cannot show a cycle, so a business compounding for six
-// years and one that just bounced look identical.
+// compact /api/research/financials grids carry five years / eight quarters of
+// these same statements; that few points cannot show a cycle, so a business
+// compounding for six years and one that just bounced look identical.
 //
 // Pairs share a panel where the RELATIONSHIP is the point — revenue against
 // operating income, gross profit against opex, assets against liabilities.

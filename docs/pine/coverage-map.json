@@ -1,39 +1,65 @@
 {
  "schema": "uct.pine-coverage-map/v1",
  "generatedBy": "tools/pine_coverage/coverage_map.py",
- "measuredOn": "2026-11-18",
- "masterSha": "99de72e7c0",
+ "measuredOn": "2026-11-19",
+ "masterSha": "3685713d65",
+ "libraryStore": [
+  {
+   "path": "TradingView/RelativeValue/3",
+   "sha256": "44d71612a7596a11258e244e500c0ce56b563eceac2f07973b16b5dec4c7480d"
+  },
+  {
+   "path": "TradingView/ta/11",
+   "sha256": "da37dca4bc18ce3b825d1d9c8b682f97859508cc5bb8bd3e51e1a28713edee80"
+  },
+  {
+   "path": "theEccentricTrader/PubLibCandleTrend/2",
+   "sha256": "1d42daae07346debbf5b9b5a151a4862c0b173b3ea342e95a4db33271a2d5b52"
+  },
+  {
+   "path": "theEccentricTrader/PubLibPattern/4",
+   "sha256": "9a75c2736c3911de262ef1dacc78fa82b5010177a3d31bbf2744f391ec177327"
+  },
+  {
+   "path": "theEccentricTrader/PubLibSwing/3",
+   "sha256": "3cbd09d934016a46d43c8097857bc3fae7af23111e22a414f671db740fc8551f"
+  },
+  {
+   "path": "theEccentricTrader/PubLibTrend/3",
+   "sha256": "7f31c58b74ea16895550afcaa830a3ce96190b5fea34bab62275389c10688d1e"
+  }
+ ],
  "headline": {
   "definition": "A script TRANSFERS FULLY when the production member door (memberPaneDefinition -> installUserDefinitions; objects-only pane armed, runtime pane dark) attaches it with zero refusals, with nothing dropped or withheld from its object program and no per-bar paint withheld. Door acceptance, not numeric parity.",
   "sample": 679,
-  "transfer": 220,
-  "transferPct": 32.4,
-  "transferBound": 209,
-  "attachedAnyForm": 292,
-  "attachedPct": 43.0,
-  "runtimeCounterfactualTransfer": 287,
-  "runtimeCounterfactualPct": 42.3,
+  "transfer": 226,
+  "transferPct": 33.3,
+  "transferBound": 214,
+  "attachedAnyForm": 297,
+  "attachedPct": 43.7,
+  "runtimeCounterfactualTransfer": 297,
+  "runtimeCounterfactualPct": 43.7,
   "byPopulation": {
    "committed": {
     "scripts": 266,
-    "transfer": 59,
-    "attached": 90,
-    "runtimeCounterfactual": 93,
-    "transferPct": 22.2
+    "transfer": 61,
+    "attached": 91,
+    "runtimeCounterfactual": 96,
+    "transferPct": 22.9
    },
    "reference": {
     "scripts": 271,
     "transfer": 89,
     "attached": 129,
-    "runtimeCounterfactual": 114,
+    "runtimeCounterfactual": 117,
     "transferPct": 32.8
    },
    "builtin": {
     "scripts": 142,
-    "transfer": 72,
-    "attached": 73,
-    "runtimeCounterfactual": 80,
-    "transferPct": 50.7
+    "transfer": 76,
+    "attached": 77,
+    "runtimeCounterfactual": 84,
+    "transferPct": 53.5
    }
   },
   "byVersion": {
@@ -49,20 +75,20 @@
    },
    "v5": {
     "scripts": 191,
-    "transfer": 42,
-    "pct": 22.0
+    "transfer": 43,
+    "pct": 22.5
    },
    "v6": {
     "scripts": 271,
-    "transfer": 87,
-    "pct": 32.1
+    "transfer": 92,
+    "pct": 33.9
    }
   },
   "byDeclaration": {
    "indicator": {
     "scripts": 609,
-    "transfer": 220,
-    "pct": 36.1
+    "transfer": 226,
+    "pct": 37.1
    },
    "strategy": {
     "scripts": 70,
@@ -72,32 +98,32 @@
   }
  },
  "parity": {
-  "captures": 837,
+  "captures": 915,
   "verdicts": {
-   "DIVERGE": 74,
-   "INCONCLUSIVE": 575,
-   "MATCH": 188
+   "DIVERGE": 79,
+   "INCONCLUSIVE": 638,
+   "MATCH": 198
   },
-  "sampleScriptsWithACapture": 227,
+  "sampleScriptsWithACapture": 228,
   "sampleByTransferAndVerdict": {
    "does-not-transfer:DIVERGE": 13,
    "does-not-transfer:INCONCLUSIVE": 144,
-   "does-not-transfer:MATCH": 11,
-   "does-not-transfer:unproven (stale)": 184,
+   "does-not-transfer:MATCH": 10,
+   "does-not-transfer:unproven (stale)": 185,
    "transfers:INCONCLUSIVE": 7,
-   "transfers:MATCH": 52,
-   "transfers:unproven (stale)": 160
+   "transfers:MATCH": 54,
+   "transfers:unproven (stale)": 164
   },
-  "verifiedTransfer": 52,
-  "verifiedTransferPct": 7.7,
+  "verifiedTransfer": 54,
+  "verifiedTransferPct": 8.0,
   "note": "vendor-harness verdicts over tests/fixtures/vendor/harness (RDDT/SPY daily captures of corpus scripts and probes)",
   "ledger": {
    "fresh": 0,
-   "stale": 448,
+   "stale": 514,
    "shaMismatch": [],
-   "unjoined": 2,
-   "skipped": 440,
-   "staleScripts": 344
+   "unjoined": 17,
+   "skipped": 524,
+   "staleScripts": 349
   }
  },
  "examples": {
@@ -120,22 +146,22 @@
   "statusCounts": {
    "call-unmapped": 2,
    "data-limited": 14,
-   "door-unreachable": 18,
-   "missing": 2,
+   "door-unreachable": 19,
+   "missing": 1,
    "no-evidence": 64,
-   "supported-and-verified": 88,
+   "supported-and-verified": 89,
    "supported-unverified": 38,
-   "unproven": 60
+   "unproven": 59
   },
   "statusWeightedByUse": {
    "call-unmapped": 13,
    "data-limited": 31,
-   "door-unreachable": 216,
-   "missing": 103,
+   "door-unreachable": 223,
+   "missing": 38,
    "no-evidence": 0,
-   "supported-and-verified": 10805,
+   "supported-and-verified": 10870,
    "supported-unverified": 647,
-   "unproven": 183
+   "unproven": 176
   },
   "byNamespace": {
    "(global)": {
@@ -146,19 +172,18 @@
    },
    "(language)": {
     "door-unreachable": 2,
-    "missing": 1,
     "no-evidence": 6,
-    "supported-and-verified": 14,
+    "supported-and-verified": 15,
     "supported-unverified": 1,
     "unproven": 1
    },
    "array": {
     "call-unmapped": 1,
-    "door-unreachable": 8,
+    "door-unreachable": 9,
     "no-evidence": 3,
     "supported-and-verified": 16,
     "supported-unverified": 7,
-    "unproven": 11
+    "unproven": 10
    },
    "box": {
     "no-evidence": 1,
@@ -357,7 +382,7 @@
     "status": "supported-unverified+partial",
     "dataSource": null,
     "scriptsUsing": 74,
-    "scriptsUsingThatTransfer": 8,
+    "scriptsUsingThatTransfer": 9,
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 0,
@@ -395,7 +420,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 7,
-    "vendorOtherCaptures": 133,
+    "vendorOtherCaptures": 146,
     "refusedAs": {}
    },
    {
@@ -411,7 +436,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 2,
-    "vendorOtherCaptures": 12,
+    "vendorOtherCaptures": 14,
     "refusedAs": {
      "pine:collection": 30
     }
@@ -429,7 +454,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 2,
+    "vendorOtherCaptures": 4,
     "refusedAs": {}
    },
    {
@@ -445,7 +470,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 2,
-    "vendorOtherCaptures": 27,
+    "vendorOtherCaptures": 29,
     "refusedAs": {
      "pine:collection": 31
     }
@@ -479,7 +504,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 15,
+    "vendorOtherCaptures": 17,
     "refusedAs": {}
    },
    {
@@ -543,7 +568,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 1,
-    "vendorOtherCaptures": 46,
+    "vendorOtherCaptures": 58,
     "refusedAs": {}
    },
    {
@@ -559,7 +584,7 @@
     "examplesClean": 4,
     "examplesBlocked": 4,
     "vendorMatchCaptures": 15,
-    "vendorOtherCaptures": 161,
+    "vendorOtherCaptures": 182,
     "refusedAs": {
      "pine:collection": 62
     }
@@ -577,7 +602,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 26,
+    "vendorOtherCaptures": 37,
     "refusedAs": {
      "pine:collection": 5
     }
@@ -595,7 +620,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 2,
-    "vendorOtherCaptures": 13,
+    "vendorOtherCaptures": 17,
     "refusedAs": {}
    },
    {
@@ -659,7 +684,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 0,
+    "vendorOtherCaptures": 2,
     "refusedAs": {}
    },
    {
@@ -675,7 +700,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 3,
-    "vendorOtherCaptures": 20,
+    "vendorOtherCaptures": 24,
     "refusedAs": {}
    },
    {
@@ -707,7 +732,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 3,
-    "vendorOtherCaptures": 14,
+    "vendorOtherCaptures": 18,
     "refusedAs": {}
    },
    {
@@ -755,7 +780,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 12,
-    "vendorOtherCaptures": 38,
+    "vendorOtherCaptures": 40,
     "refusedAs": {
      "pine:drawing": 4
     }
@@ -789,7 +814,7 @@
     "examplesClean": 6,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 9,
-    "vendorOtherCaptures": 109,
+    "vendorOtherCaptures": 122,
     "refusedAs": {
      "pine:collection": 1
     }
@@ -807,7 +832,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 7,
-    "vendorOtherCaptures": 27,
+    "vendorOtherCaptures": 29,
     "refusedAs": {}
    },
    {
@@ -839,7 +864,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 5,
-    "vendorOtherCaptures": 37,
+    "vendorOtherCaptures": 39,
     "refusedAs": {}
    },
    {
@@ -921,7 +946,7 @@
     "examplesClean": 4,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 17,
-    "vendorOtherCaptures": 94,
+    "vendorOtherCaptures": 100,
     "refusedAs": {
      "pine:collection": 59
     }
@@ -955,7 +980,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 12,
-    "vendorOtherCaptures": 30,
+    "vendorOtherCaptures": 32,
     "refusedAs": {
      "pine:collection": 28
     }
@@ -989,7 +1014,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 90,
+    "vendorOtherCaptures": 101,
     "refusedAs": {
      "pine:collection": 5
     }
@@ -1007,7 +1032,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 4,
-    "vendorOtherCaptures": 45,
+    "vendorOtherCaptures": 49,
     "refusedAs": {
      "pine:collection": 44
     }
@@ -1025,7 +1050,7 @@
     "examplesClean": 0,
     "examplesBlocked": 2,
     "vendorMatchCaptures": 17,
-    "vendorOtherCaptures": 120,
+    "vendorOtherCaptures": 130,
     "refusedAs": {
      "pine:collection": 6
     }
@@ -1052,14 +1077,14 @@
     "kinds": [
      "function"
     ],
-    "status": "unproven",
+    "status": "door-unreachable",
     "dataSource": null,
     "scriptsUsing": 7,
     "scriptsUsingThatTransfer": 0,
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 5,
+    "vendorOtherCaptures": 11,
     "refusedAs": {}
    },
    {
@@ -1173,11 +1198,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 273,
-    "scriptsUsingThatTransfer": 39,
+    "scriptsUsingThatTransfer": 41,
     "examplesClean": 13,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 111,
-    "vendorOtherCaptures": 496,
+    "vendorMatchCaptures": 121,
+    "vendorOtherCaptures": 541,
     "refusedAs": {}
    },
    {
@@ -1193,7 +1218,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 8,
-    "vendorOtherCaptures": 80,
+    "vendorOtherCaptures": 97,
     "refusedAs": {}
    },
    {
@@ -1205,11 +1230,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 217,
-    "scriptsUsingThatTransfer": 28,
+    "scriptsUsingThatTransfer": 29,
     "examplesClean": 13,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 38,
-    "vendorOtherCaptures": 172,
+    "vendorMatchCaptures": 40,
+    "vendorOtherCaptures": 188,
     "refusedAs": {}
    },
    {
@@ -1225,7 +1250,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 30,
-    "vendorOtherCaptures": 177,
+    "vendorOtherCaptures": 195,
     "refusedAs": {}
    },
    {
@@ -1241,7 +1266,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 16,
-    "vendorOtherCaptures": 70,
+    "vendorOtherCaptures": 78,
     "refusedAs": {}
    },
    {
@@ -1285,11 +1310,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 101,
-    "scriptsUsingThatTransfer": 7,
+    "scriptsUsingThatTransfer": 8,
     "examplesClean": 2,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 27,
-    "vendorOtherCaptures": 99,
+    "vendorMatchCaptures": 29,
+    "vendorOtherCaptures": 109,
     "refusedAs": {}
    },
    {
@@ -1317,11 +1342,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 594,
-    "scriptsUsingThatTransfer": 197,
+    "scriptsUsingThatTransfer": 199,
     "examplesClean": 25,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 110,
-    "vendorOtherCaptures": 326,
+    "vendorMatchCaptures": 114,
+    "vendorOtherCaptures": 369,
     "refusedAs": {}
    },
    {
@@ -1385,7 +1410,7 @@
     "examplesClean": 9,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 60,
-    "vendorOtherCaptures": 224,
+    "vendorOtherCaptures": 248,
     "refusedAs": {
      "pine:colour-value": 3
     }
@@ -1415,11 +1440,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 95,
-    "scriptsUsingThatTransfer": 27,
+    "scriptsUsingThatTransfer": 29,
     "examplesClean": 3,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 17,
-    "vendorOtherCaptures": 84,
+    "vendorMatchCaptures": 21,
+    "vendorOtherCaptures": 91,
     "refusedAs": {}
    },
    {
@@ -1435,7 +1460,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 12,
+    "vendorOtherCaptures": 14,
     "refusedAs": {}
    },
    {
@@ -1451,7 +1476,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 2,
-    "vendorOtherCaptures": 17,
+    "vendorOtherCaptures": 23,
     "refusedAs": {}
    },
    {
@@ -1479,11 +1504,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 309,
-    "scriptsUsingThatTransfer": 31,
+    "scriptsUsingThatTransfer": 36,
     "examplesClean": 7,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 51,
-    "vendorOtherCaptures": 300,
+    "vendorMatchCaptures": 55,
+    "vendorOtherCaptures": 332,
     "refusedAs": {}
    },
    {
@@ -1495,11 +1520,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 84,
-    "scriptsUsingThatTransfer": 39,
+    "scriptsUsingThatTransfer": 42,
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 8,
-    "vendorOtherCaptures": 36,
+    "vendorOtherCaptures": 44,
     "refusedAs": {}
    },
    {
@@ -1508,17 +1533,17 @@
     "kinds": [
      "keyword"
     ],
-    "status": "missing",
+    "status": "supported-and-verified+partial",
     "dataSource": null,
     "scriptsUsing": 65,
-    "scriptsUsingThatTransfer": 0,
+    "scriptsUsingThatTransfer": 5,
     "examplesClean": 0,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 48,
+    "vendorMatchCaptures": 2,
+    "vendorOtherCaptures": 46,
     "refusedAs": {
      "pine:library-denied": 5,
-     "pine:module": 98
+     "pine:module": 90
     }
    },
    {
@@ -1530,11 +1555,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 609,
-    "scriptsUsingThatTransfer": 220,
+    "scriptsUsingThatTransfer": 226,
     "examplesClean": 83,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 180,
-    "vendorOtherCaptures": 575,
+    "vendorMatchCaptures": 190,
+    "vendorOtherCaptures": 635,
     "refusedAs": {}
    },
    {
@@ -1546,11 +1571,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 323,
-    "scriptsUsingThatTransfer": 121,
+    "scriptsUsingThatTransfer": 122,
     "examplesClean": 4,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 59,
-    "vendorOtherCaptures": 127,
+    "vendorMatchCaptures": 61,
+    "vendorOtherCaptures": 155,
     "refusedAs": {}
    },
    {
@@ -1566,7 +1591,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 63,
-    "vendorOtherCaptures": 234,
+    "vendorOtherCaptures": 260,
     "refusedAs": {}
    },
    {
@@ -1578,11 +1603,11 @@
     "status": "supported-and-verified+partial",
     "dataSource": null,
     "scriptsUsing": 217,
-    "scriptsUsingThatTransfer": 29,
+    "scriptsUsingThatTransfer": 30,
     "examplesClean": 1,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 57,
-    "vendorOtherCaptures": 168,
+    "vendorMatchCaptures": 59,
+    "vendorOtherCaptures": 187,
     "refusedAs": {
      "pine:input-kind": 45
     }
@@ -1614,11 +1639,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 246,
-    "scriptsUsingThatTransfer": 44,
+    "scriptsUsingThatTransfer": 45,
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 34,
-    "vendorOtherCaptures": 153,
+    "vendorOtherCaptures": 173,
     "refusedAs": {}
    },
    {
@@ -1630,11 +1655,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 369,
-    "scriptsUsingThatTransfer": 104,
+    "scriptsUsingThatTransfer": 109,
     "examplesClean": 2,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 65,
-    "vendorOtherCaptures": 253,
+    "vendorMatchCaptures": 67,
+    "vendorOtherCaptures": 283,
     "refusedAs": {}
    },
    {
@@ -1678,11 +1703,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 84,
-    "scriptsUsingThatTransfer": 18,
+    "scriptsUsingThatTransfer": 20,
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 20,
-    "vendorOtherCaptures": 52,
+    "vendorOtherCaptures": 57,
     "refusedAs": {}
    },
    {
@@ -1698,7 +1723,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 45,
-    "vendorOtherCaptures": 217,
+    "vendorOtherCaptures": 243,
     "refusedAs": {}
    },
    {
@@ -1764,7 +1789,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 16,
-    "vendorOtherCaptures": 75,
+    "vendorOtherCaptures": 79,
     "refusedAs": {}
    },
    {
@@ -1776,11 +1801,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 251,
-    "scriptsUsingThatTransfer": 25,
+    "scriptsUsingThatTransfer": 30,
     "examplesClean": 1,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 47,
-    "vendorOtherCaptures": 304,
+    "vendorMatchCaptures": 51,
+    "vendorOtherCaptures": 332,
     "refusedAs": {}
    },
    {
@@ -1796,7 +1821,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 31,
-    "vendorOtherCaptures": 143,
+    "vendorOtherCaptures": 160,
     "refusedAs": {}
    },
    {
@@ -1872,11 +1897,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 227,
-    "scriptsUsingThatTransfer": 28,
+    "scriptsUsingThatTransfer": 29,
     "examplesClean": 8,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 58,
-    "vendorOtherCaptures": 284,
+    "vendorMatchCaptures": 60,
+    "vendorOtherCaptures": 303,
     "refusedAs": {}
    },
    {
@@ -1904,11 +1929,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 24,
-    "scriptsUsingThatTransfer": 1,
+    "scriptsUsingThatTransfer": 2,
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 4,
-    "vendorOtherCaptures": 18,
+    "vendorOtherCaptures": 20,
     "refusedAs": {}
    },
    {
@@ -1940,7 +1965,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 38,
-    "vendorOtherCaptures": 131,
+    "vendorOtherCaptures": 143,
     "refusedAs": {}
    },
    {
@@ -2006,7 +2031,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 11,
+    "vendorOtherCaptures": 13,
     "refusedAs": {}
    },
    {
@@ -2018,11 +2043,11 @@
     "status": "supported-and-verified+partial",
     "dataSource": null,
     "scriptsUsing": 197,
-    "scriptsUsingThatTransfer": 29,
+    "scriptsUsingThatTransfer": 31,
     "examplesClean": 2,
     "examplesBlocked": 1,
-    "vendorMatchCaptures": 52,
-    "vendorOtherCaptures": 175,
+    "vendorMatchCaptures": 56,
+    "vendorOtherCaptures": 187,
     "refusedAs": {
      "pine:drawing": 2
     }
@@ -2264,7 +2289,7 @@
     "examplesClean": 4,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 17,
-    "vendorOtherCaptures": 153,
+    "vendorOtherCaptures": 172,
     "refusedAs": {}
    },
    {
@@ -2280,7 +2305,7 @@
     "examplesClean": 2,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 21,
-    "vendorOtherCaptures": 153,
+    "vendorOtherCaptures": 179,
     "refusedAs": {}
    },
    {
@@ -2296,7 +2321,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 6,
-    "vendorOtherCaptures": 57,
+    "vendorOtherCaptures": 61,
     "refusedAs": {}
    },
    {
@@ -2472,7 +2497,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 4,
+    "vendorOtherCaptures": 6,
     "refusedAs": {
      "pine:collection": 4
     }
@@ -2714,7 +2739,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 2,
+    "vendorOtherCaptures": 4,
     "refusedAs": {}
    },
    {
@@ -2730,7 +2755,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 5,
+    "vendorOtherCaptures": 7,
     "refusedAs": {}
    },
    {
@@ -2841,8 +2866,8 @@
     "scriptsUsingThatTransfer": 10,
     "examplesClean": 0,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 22,
-    "vendorOtherCaptures": 123,
+    "vendorMatchCaptures": 25,
+    "vendorOtherCaptures": 136,
     "refusedAs": {}
    },
    {
@@ -2873,11 +2898,11 @@
     "status": "supported-and-verified",
     "dataSource": null,
     "scriptsUsing": 489,
-    "scriptsUsingThatTransfer": 119,
+    "scriptsUsingThatTransfer": 122,
     "examplesClean": 13,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 127,
-    "vendorOtherCaptures": 474,
+    "vendorMatchCaptures": 134,
+    "vendorOtherCaptures": 519,
     "refusedAs": {}
    },
    {
@@ -2893,7 +2918,7 @@
     "examplesClean": 3,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 20,
-    "vendorOtherCaptures": 167,
+    "vendorOtherCaptures": 191,
     "refusedAs": {}
    },
    {
@@ -2905,11 +2930,11 @@
     "status": "supported-and-verified+partial",
     "dataSource": null,
     "scriptsUsing": 448,
-    "scriptsUsingThatTransfer": 177,
+    "scriptsUsingThatTransfer": 181,
     "examplesClean": 58,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 139,
-    "vendorOtherCaptures": 498,
+    "vendorMatchCaptures": 145,
+    "vendorOtherCaptures": 560,
     "refusedAs": {
      "pine:strategy-call": 12
     }
@@ -2961,7 +2986,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 2,
-    "vendorOtherCaptures": 33,
+    "vendorOtherCaptures": 35,
     "refusedAs": {}
    },
    {
@@ -2977,7 +3002,7 @@
     "examplesClean": 2,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 7,
-    "vendorOtherCaptures": 20,
+    "vendorOtherCaptures": 22,
     "refusedAs": {
      "pine:strategy-call": 4
     }
@@ -2995,7 +3020,7 @@
     "examplesClean": 2,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 35,
-    "vendorOtherCaptures": 100,
+    "vendorOtherCaptures": 119,
     "refusedAs": {}
    },
    {
@@ -3139,7 +3164,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 1,
-    "vendorOtherCaptures": 24,
+    "vendorOtherCaptures": 31,
     "refusedAs": {}
    },
    {
@@ -3171,7 +3196,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 9,
-    "vendorOtherCaptures": 33,
+    "vendorOtherCaptures": 35,
     "refusedAs": {}
    },
    {
@@ -3267,7 +3292,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 18,
+    "vendorOtherCaptures": 20,
     "refusedAs": {}
    },
    {
@@ -3843,7 +3868,7 @@
     "examplesClean": 2,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 15,
-    "vendorOtherCaptures": 149,
+    "vendorOtherCaptures": 157,
     "refusedAs": {}
    },
    {
@@ -3942,7 +3967,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 2,
-    "vendorOtherCaptures": 65,
+    "vendorOtherCaptures": 67,
     "refusedAs": {}
    },
    {
@@ -3974,7 +3999,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 28,
-    "vendorOtherCaptures": 104,
+    "vendorOtherCaptures": 117,
     "refusedAs": {}
    },
    {
@@ -3990,7 +4015,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 12,
-    "vendorOtherCaptures": 53,
+    "vendorOtherCaptures": 67,
     "refusedAs": {
      "pine:function": 20
     }
@@ -4040,7 +4065,7 @@
     "examplesClean": 6,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 15,
-    "vendorOtherCaptures": 133,
+    "vendorOtherCaptures": 141,
     "refusedAs": {}
    },
    {
@@ -4104,7 +4129,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 4,
+    "vendorOtherCaptures": 6,
     "refusedAs": {}
    },
    {
@@ -4120,7 +4145,7 @@
     "examplesClean": 2,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 39,
-    "vendorOtherCaptures": 111,
+    "vendorOtherCaptures": 129,
     "refusedAs": {}
    },
    {
@@ -4136,7 +4161,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 6,
-    "vendorOtherCaptures": 21,
+    "vendorOtherCaptures": 23,
     "refusedAs": {}
    },
    {
@@ -4264,7 +4289,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 29,
-    "vendorOtherCaptures": 56,
+    "vendorOtherCaptures": 68,
     "refusedAs": {
      "pine:arity": 3
     }
@@ -4282,7 +4307,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 29,
-    "vendorOtherCaptures": 56,
+    "vendorOtherCaptures": 68,
     "refusedAs": {
      "pine:arity": 2
     }
@@ -4332,7 +4357,7 @@
     "examplesClean": 2,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 5,
-    "vendorOtherCaptures": 31,
+    "vendorOtherCaptures": 35,
     "refusedAs": {}
    },
    {
@@ -4348,7 +4373,7 @@
     "examplesClean": 2,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 15,
-    "vendorOtherCaptures": 40,
+    "vendorOtherCaptures": 46,
     "refusedAs": {}
    },
    {
@@ -4381,8 +4406,8 @@
     "scriptsUsingThatTransfer": 60,
     "examplesClean": 9,
     "examplesBlocked": 0,
-    "vendorMatchCaptures": 37,
-    "vendorOtherCaptures": 198,
+    "vendorMatchCaptures": 38,
+    "vendorOtherCaptures": 225,
     "refusedAs": {}
    },
    {
@@ -4398,7 +4423,7 @@
     "examplesClean": 2,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 8,
-    "vendorOtherCaptures": 33,
+    "vendorOtherCaptures": 37,
     "refusedAs": {}
    },
    {
@@ -4446,7 +4471,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 24,
-    "vendorOtherCaptures": 50,
+    "vendorOtherCaptures": 54,
     "refusedAs": {
      "pine:role-order": 232
     }
@@ -4464,7 +4489,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 0,
-    "vendorOtherCaptures": 18,
+    "vendorOtherCaptures": 22,
     "refusedAs": {}
    },
    {
@@ -4496,7 +4521,7 @@
     "examplesClean": 0,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 5,
-    "vendorOtherCaptures": 26,
+    "vendorOtherCaptures": 32,
     "refusedAs": {}
    },
    {
@@ -4544,7 +4569,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 18,
-    "vendorOtherCaptures": 74,
+    "vendorOtherCaptures": 82,
     "refusedAs": {}
    },
    {
@@ -4656,7 +4681,7 @@
     "examplesClean": 1,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 5,
-    "vendorOtherCaptures": 13,
+    "vendorOtherCaptures": 15,
     "refusedAs": {}
    },
    {
@@ -4672,7 +4697,7 @@
     "examplesClean": 7,
     "examplesBlocked": 0,
     "vendorMatchCaptures": 26,
-    "vendorOtherCaptures": 105,
+    "vendorOtherCaptures": 113,
     "refusedAs": {}
    },
    {
@@ -4882,7 +4907,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 2,
-    "vendorOtherCaptures": 68,
+    "vendorOtherCaptures": 72,
     "refusedAs": {
      "pine:builtin": 12
     }
@@ -4900,7 +4925,7 @@
     "examplesClean": 0,
     "examplesBlocked": 1,
     "vendorMatchCaptures": 1,
-    "vendorOtherCaptures": 50,
+    "vendorOtherCaptures": 53,
     "refusedAs": {
      "pine:function": 3
     }
@@ -4912,8 +4937,8 @@
    "id": "var",
    "label": "var declarations (state that persists across bars)",
    "scriptsUsing": 371,
-   "scriptsUsingThatTransfer": 59,
-   "transferRate": 0.159
+   "scriptsUsingThatTransfer": 61,
+   "transferRate": 0.164
   },
   {
    "id": "varip",
@@ -4926,8 +4951,8 @@
    "id": "if-block",
    "label": "if statements / blocks",
    "scriptsUsing": 451,
-   "scriptsUsingThatTransfer": 72,
-   "transferRate": 0.16
+   "scriptsUsingThatTransfer": 75,
+   "transferRate": 0.166
   },
   {
    "id": "for",
@@ -4961,8 +4986,8 @@
    "id": "reassign",
    "label": ":= reassignment",
    "scriptsUsing": 419,
-   "scriptsUsingThatTransfer": 68,
-   "transferRate": 0.162
+   "scriptsUsingThatTransfer": 69,
+   "transferRate": 0.165
   },
   {
    "id": "compound-assign",
@@ -4975,22 +5000,22 @@
    "id": "tuple-destructure",
    "label": "[a, b] = tuple destructuring",
    "scriptsUsing": 203,
-   "scriptsUsingThatTransfer": 12,
-   "transferRate": 0.059
+   "scriptsUsingThatTransfer": 15,
+   "transferRate": 0.074
   },
   {
    "id": "fn-single",
    "label": "user function, single-line body",
    "scriptsUsing": 406,
-   "scriptsUsingThatTransfer": 72,
-   "transferRate": 0.177
+   "scriptsUsingThatTransfer": 73,
+   "transferRate": 0.18
   },
   {
    "id": "fn-multi",
    "label": "user function, multi-line body",
    "scriptsUsing": 380,
-   "scriptsUsingThatTransfer": 60,
-   "transferRate": 0.158
+   "scriptsUsingThatTransfer": 61,
+   "transferRate": 0.161
   },
   {
    "id": "udt",
@@ -5017,8 +5042,8 @@
    "id": "import",
    "label": "import of a library",
    "scriptsUsing": 65,
-   "scriptsUsingThatTransfer": 0,
-   "transferRate": 0.0
+   "scriptsUsingThatTransfer": 5,
+   "transferRate": 0.077
   },
   {
    "id": "library-decl",
@@ -5052,15 +5077,15 @@
    "id": "history-expr",
    "label": "history reference on an expression  (expr)[n]",
    "scriptsUsing": 193,
-   "scriptsUsingThatTransfer": 16,
-   "transferRate": 0.083
+   "scriptsUsingThatTransfer": 19,
+   "transferRate": 0.098
   },
   {
    "id": "method-call",
    "label": "method-call syntax  x.f(...) on a value",
    "scriptsUsing": 174,
-   "scriptsUsingThatTransfer": 17,
-   "transferRate": 0.098
+   "scriptsUsingThatTransfer": 22,
+   "transferRate": 0.126
   },
   {
    "id": "max_bars_back",
@@ -5073,8 +5098,8 @@
    "id": "ternary",
    "label": "?: ternary",
    "scriptsUsing": 554,
-   "scriptsUsingThatTransfer": 150,
-   "transferRate": 0.271
+   "scriptsUsingThatTransfer": 152,
+   "transferRate": 0.274
   },
   {
    "id": "conditional-ta",
@@ -5089,7 +5114,7 @@
    "blocker": "[imperative]",
    "capability": "imperative",
    "soleBlockerOf": 40,
-   "scriptsBlocked": 174
+   "scriptsBlocked": 172
   },
   {
    "blocker": "[strategy]",
@@ -5107,12 +5132,12 @@
    "blocker": "[imports-libraries]",
    "capability": "imports-libraries",
    "soleBlockerOf": 11,
-   "scriptsBlocked": 61
+   "scriptsBlocked": 54
   },
   {
    "blocker": "[user-functions]",
    "capability": "user-functions",
-   "soleBlockerOf": 9,
+   "soleBlockerOf": 10,
    "scriptsBlocked": 63
   },
   {
@@ -5198,12 +5223,6 @@
    "capability": "drawing-objects",
    "soleBlockerOf": 1,
    "scriptsBlocked": 10
-  },
-  {
-   "blocker": "[known-divergence]",
-   "capability": "known-divergence",
-   "soleBlockerOf": 1,
-   "scriptsBlocked": 9
   },
   {
    "blocker": "object op dropped: guard:create <- pine:function",
@@ -5293,7 +5312,7 @@
    "blocker": "[tuples]",
    "capability": "tuples",
    "soleBlockerOf": 0,
-   "scriptsBlocked": 48
+   "scriptsBlocked": 45
   },
   {
    "blocker": "object op dropped: coll:diverged",
@@ -5320,12 +5339,6 @@
    "scriptsBlocked": 13
   },
   {
-   "blocker": "object op dropped: content:lost",
-   "capability": "drawing-objects",
-   "soleBlockerOf": 0,
-   "scriptsBlocked": 12
-  },
-  {
    "blocker": "object op dropped: cell:text <- pine:builtin",
    "capability": "builtin-missing",
    "soleBlockerOf": 0,
@@ -5334,6 +5347,12 @@
   {
    "blocker": "object op dropped: cell:text <- pine:request",
    "capability": "request-security",
+   "soleBlockerOf": 0,
+   "scriptsBlocked": 11
+  },
+  {
+   "blocker": "object op dropped: content:lost",
+   "capability": "drawing-objects",
    "soleBlockerOf": 0,
    "scriptsBlocked": 11
   },
@@ -5366,6 +5385,12 @@
    "capability": "collections",
    "soleBlockerOf": 0,
    "scriptsBlocked": 9
+  },
+  {
+   "blocker": "[known-divergence]",
+   "capability": "known-divergence",
+   "soleBlockerOf": 0,
+   "scriptsBlocked": 8
   },
   {
    "blocker": "box.new",
@@ -5602,12 +5627,6 @@
    "scriptsBlocked": 4
   },
   {
-   "blocker": "[call-mapping]",
-   "capability": "call-mapping",
-   "soleBlockerOf": 0,
-   "scriptsBlocked": 3
-  },
-  {
    "blocker": "array.pop",
    "capability": "collections",
    "soleBlockerOf": 0,
@@ -5746,12 +5765,6 @@
    "scriptsBlocked": 3
   },
   {
-   "blocker": "object op dropped: guard:update <- pine:builtin",
-   "capability": "builtin-missing",
-   "soleBlockerOf": 0,
-   "scriptsBlocked": 3
-  },
-  {
    "blocker": "object op dropped: guard:update <- pine:function",
    "capability": "builtin-missing",
    "soleBlockerOf": 0,
@@ -5780,6 +5793,12 @@
    "capability": "builtin-missing",
    "soleBlockerOf": 0,
    "scriptsBlocked": 3
+  },
+  {
+   "blocker": "[call-mapping]",
+   "capability": "call-mapping",
+   "soleBlockerOf": 0,
+   "scriptsBlocked": 2
   },
   {
    "blocker": "alert",
@@ -5970,6 +5989,12 @@
   {
    "blocker": "object op dropped: guard:reset <- pine:reassign",
    "capability": "imperative",
+   "soleBlockerOf": 0,
+   "scriptsBlocked": 2
+  },
+  {
+   "blocker": "object op dropped: guard:update <- pine:builtin",
+   "capability": "builtin-missing",
    "soleBlockerOf": 0,
    "scriptsBlocked": 2
   },
@@ -6600,23 +6625,23 @@
  ],
  "capabilities": {
   "touched": {
-   "builtin-missing": 62,
-   "call-mapping": 10,
+   "builtin-missing": 61,
+   "call-mapping": 9,
    "collections": 53,
    "compute-budget": 11,
    "drawing-never-attempted": 1,
-   "drawing-objects": 111,
+   "drawing-objects": 110,
    "history-offsets": 26,
-   "imperative": 228,
-   "imports-libraries": 61,
-   "known-divergence": 9,
+   "imperative": 226,
+   "imports-libraries": 54,
+   "known-divergence": 8,
    "output-contract": 7,
    "paint-withheld": 18,
    "request-security": 67,
    "strategy": 70,
    "text-colour-values": 22,
    "translator-robustness": 24,
-   "tuples": 59,
+   "tuples": 56,
    "udt-methods": 36,
    "user-functions": 64
   },
@@ -6629,7 +6654,6 @@
    "history-offsets": 4,
    "imperative": 48,
    "imports-libraries": 11,
-   "known-divergence": 1,
    "output-contract": 5,
    "paint-withheld": 2,
    "request-security": 22,
@@ -6638,7 +6662,7 @@
    "translator-robustness": 5,
    "tuples": 1,
    "udt-methods": 3,
-   "user-functions": 9
+   "user-functions": 10
   },
   "labels": {
    "known-divergence": "A committed TradingView capture of the script grades DIVERGE on the host lane: refused by name until the engine fix re-grades it",
@@ -6670,9 +6694,9 @@
     "label": "Imperative execution: if/for/while blocks, := reassignment, var state carried across bars",
     "unblocks": 49,
     "unblocksFullyEnumerated": 18,
-    "touches": 228,
-    "cumulativeTransfer": 269,
-    "cumulativePct": 39.6
+    "touches": 226,
+    "cumulativeTransfer": 275,
+    "cumulativePct": 40.5
    },
    {
     "capability": "strategy",
@@ -6680,17 +6704,17 @@
     "unblocks": 41,
     "unblocksFullyEnumerated": 17,
     "touches": 70,
-    "cumulativeTransfer": 310,
-    "cumulativePct": 45.7
+    "cumulativeTransfer": 316,
+    "cumulativePct": 46.5
    },
    {
     "capability": "drawing-objects",
     "label": "Drawing objects (line/label/box/table/polyline/linefill): an op the object program could not carry that no host guard explains, or a loss with nothing named",
     "unblocks": 38,
     "unblocksFullyEnumerated": 23,
-    "touches": 111,
-    "cumulativeTransfer": 348,
-    "cumulativePct": 51.3
+    "touches": 110,
+    "cumulativeTransfer": 354,
+    "cumulativePct": 52.1
    },
    {
     "capability": "request-security",
@@ -6698,8 +6722,8 @@
     "unblocks": 31,
     "unblocksFullyEnumerated": 18,
     "touches": 67,
-    "cumulativeTransfer": 379,
-    "cumulativePct": 55.8
+    "cumulativeTransfer": 385,
+    "cumulativePct": 56.7
    },
    {
     "capability": "collections",
@@ -6707,44 +6731,44 @@
     "unblocks": 30,
     "unblocksFullyEnumerated": 15,
     "touches": 53,
-    "cumulativeTransfer": 409,
-    "cumulativePct": 60.2
+    "cumulativeTransfer": 415,
+    "cumulativePct": 61.1
    },
    {
     "capability": "user-functions",
     "label": "User-defined functions with multi-line bodies",
-    "unblocks": 29,
+    "unblocks": 30,
     "unblocksFullyEnumerated": 13,
     "touches": 64,
-    "cumulativeTransfer": 438,
-    "cumulativePct": 64.5
+    "cumulativeTransfer": 445,
+    "cumulativePct": 65.5
    },
    {
     "capability": "builtin-missing",
     "label": "A built-in name the door does not know",
     "unblocks": 30,
     "unblocksFullyEnumerated": 11,
-    "touches": 62,
-    "cumulativeTransfer": 468,
-    "cumulativePct": 68.9
+    "touches": 61,
+    "cumulativeTransfer": 475,
+    "cumulativePct": 70.0
    },
    {
     "capability": "tuples",
     "label": "Tuple returns and [a, b] = destructuring",
-    "unblocks": 29,
+    "unblocks": 30,
     "unblocksFullyEnumerated": 16,
-    "touches": 59,
-    "cumulativeTransfer": 497,
-    "cumulativePct": 73.2
+    "touches": 56,
+    "cumulativeTransfer": 505,
+    "cumulativePct": 74.4
    },
    {
     "capability": "imports-libraries",
     "label": "import of published libraries / library() scripts",
-    "unblocks": 41,
-    "unblocksFullyEnumerated": 10,
-    "touches": 61,
-    "cumulativeTransfer": 538,
-    "cumulativePct": 79.2
+    "unblocks": 35,
+    "unblocksFullyEnumerated": 9,
+    "touches": 54,
+    "cumulativeTransfer": 540,
+    "cumulativePct": 79.5
    },
    {
     "capability": "udt-methods",
@@ -6752,8 +6776,8 @@
     "unblocks": 28,
     "unblocksFullyEnumerated": 16,
     "touches": 36,
-    "cumulativeTransfer": 566,
-    "cumulativePct": 83.4
+    "cumulativeTransfer": 568,
+    "cumulativePct": 83.7
    },
    {
     "capability": "history-offsets",
@@ -6761,8 +6785,8 @@
     "unblocks": 21,
     "unblocksFullyEnumerated": 10,
     "touches": 26,
-    "cumulativeTransfer": 587,
-    "cumulativePct": 86.5
+    "cumulativeTransfer": 589,
+    "cumulativePct": 86.7
    },
    {
     "capability": "translator-robustness",
@@ -6770,8 +6794,8 @@
     "unblocks": 20,
     "unblocksFullyEnumerated": 6,
     "touches": 24,
-    "cumulativeTransfer": 607,
-    "cumulativePct": 89.4
+    "cumulativeTransfer": 609,
+    "cumulativePct": 89.7
    },
    {
     "capability": "text-colour-values",
@@ -6779,8 +6803,8 @@
     "unblocks": 18,
     "unblocksFullyEnumerated": 12,
     "touches": 22,
-    "cumulativeTransfer": 625,
-    "cumulativePct": 92.0
+    "cumulativeTransfer": 627,
+    "cumulativePct": 92.3
    },
    {
     "capability": "paint-withheld",
@@ -6788,8 +6812,8 @@
     "unblocks": 17,
     "unblocksFullyEnumerated": 17,
     "touches": 18,
-    "cumulativeTransfer": 642,
-    "cumulativePct": 94.6
+    "cumulativeTransfer": 644,
+    "cumulativePct": 94.8
    },
    {
     "capability": "compute-budget",
@@ -6797,24 +6821,24 @@
     "unblocks": 11,
     "unblocksFullyEnumerated": 0,
     "touches": 11,
-    "cumulativeTransfer": 653,
-    "cumulativePct": 96.2
+    "cumulativeTransfer": 655,
+    "cumulativePct": 96.5
    },
    {
     "capability": "call-mapping",
     "label": "A known name whose call shape / argument order is not mapped",
-    "unblocks": 9,
+    "unblocks": 8,
     "unblocksFullyEnumerated": 6,
-    "touches": 10,
-    "cumulativeTransfer": 662,
-    "cumulativePct": 97.5
+    "touches": 9,
+    "cumulativeTransfer": 663,
+    "cumulativePct": 97.6
    },
    {
     "capability": "known-divergence",
     "label": "A committed TradingView capture of the script grades DIVERGE on the host lane: refused by name until the engine fix re-grades it",
-    "unblocks": 9,
-    "unblocksFullyEnumerated": 9,
-    "touches": 9,
+    "unblocks": 8,
+    "unblocksFullyEnumerated": 8,
+    "touches": 8,
     "cumulativeTransfer": 671,
     "cumulativePct": 98.8
    },
@@ -6840,8 +6864,8 @@
   "notCleanWithNoNamedWall": [
    "reference:camarilla-levels-intraday__bfb5a2b8db"
   ],
-  "notClean": 459,
-  "wallsFullyEnumerated": 219
+  "notClean": 453,
+  "wallsFullyEnumerated": 217
  },
  "crossSymbolPrefixes": {
   "(bare)": 58,
@@ -6907,11 +6931,11 @@
    "door:pine:block": 1,
    "door:pine:tuple": 1,
    "run:runtime:failed": 1,
+   "run:runtime:strategy-unsettled:Q-S1k": 1,
    "door:pine:function-def": 1,
    "door-dirty:object-or-paint-loss": 1,
    "door:budget:lookback": 1,
    "run:runtime:strategy-unsettled:Q-S1e": 1,
-   "run:runtime:strategy-unpinned:B-FILLS": 1,
    "door:pine:window": 1,
    "door:pine:function": 1
   },
@@ -6921,9 +6945,9 @@
   "lane": "runtime-on",
   "definition": "The member door with the runtime pane ON at every peel step, as a permitted member with every script graded (the server's starter allowlist is NOT applied: an upper bound). A script transfers when it transfers fully on the host lane or attaches on the runtime lane, and is not a strategy that places orders. Door acceptance, not numeric parity.",
   "sample": 679,
-  "transfer": 285,
-  "transferPct": 42.0,
-  "productionTransfer": 220,
+  "transfer": 298,
+  "transferPct": 43.9,
+  "productionTransfer": 226,
   "added": [
    "builtin:fisher-transform__Fisher_Trans",
    "builtin:linear-regression-channel__Linear_Regre",
@@ -6935,6 +6959,7 @@
    "builtin:williams-fractal__Whilliams_Fr",
    "committed:adx-and-di-for-v4__932",
    "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb",
+   "committed:atr-support-and-resistance__3e9ddb38c4",
    "committed:bollinger-band-width-percentile__03JuGF728K",
    "committed:cc-yata__bd898a1af0",
    "committed:deadband-hysteresis-filter-backquant__3fb3d09595",
@@ -6967,24 +6992,30 @@
    "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp",
    "reference:aetheredge-smart-money-flow__c22c6f1f81",
    "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
+   "reference:auto-length-moving-average-trend-signals-zeiierman__30185ad35b",
+   "reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79",
    "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84",
    "reference:check-head-and-shouldersmask-man__INWKFwOBpV",
    "reference:cm-gann-swing-highlow-v2__592",
    "reference:color-gradient-framework-pinecoders__9ICIDOiMbF",
    "reference:edufx-amd__0ca9b3c747",
+   "reference:engulfing-sinyal__pAgeLQw9kl",
    "reference:heatmap-volume-xdecow__2lteb6l2tk",
+   "reference:intraday-power-3-visual__f9b34d80bb",
    "reference:kaufman-adaptive-bands__sXCNphOxWh",
    "reference:laguerre-rsi-v4-lk__114",
    "reference:market-structure-with-inducements-sweeps-luxalgo__7948c21279",
    "reference:multi-timeframe-vwap-v5__Au03ORcOFj",
    "reference:nadaraya-watson-combine__dbe3a7309e",
    "reference:non-repainting-swing-highlow-signals__ccf063295a",
+   "reference:order-block-detector-luxalgo__7c893384eb",
    "reference:parabolic-sar-alerts-on-close-quantnomad__hdvUgc9je5",
    "reference:range-filter-buy-and-sell-5min__65cb674338",
    "reference:sessions-nephew-sam__nTgXSYRNbD",
    "reference:stoch-money-flow-admf-absolute-strength-index-asi-ci8dh__XqxUTKWKYq",
    "reference:study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA",
    "reference:supertrend-cluster-zeiierman__9c3900bb94",
+   "reference:support-resistance-fibonacci-retracement__06a1a2c80d",
    "reference:tradingviews-technical-analysis__oZFVfrvzZI",
    "reference:twiggs-money-flow-lazybear__1562",
    "reference:uptrick-volatility-adjusted-trail__ff9f0f608f",
@@ -6995,18 +7026,18 @@
   "byPopulation": {
    "committed": {
     "scripts": 266,
-    "transfer": 91
+    "transfer": 94
    },
    "reference": {
     "scripts": 271,
-    "transfer": 114
+    "transfer": 120
    },
    "builtin": {
     "scripts": 142,
-    "transfer": 80
+    "transfer": 84
    }
   },
-  "runtimeAttached": 88,
+  "runtimeAttached": 93,
   "runtimeAttachedOrderStrategies": [
    "builtin:parabolic-sar-strategy__Parabolic1SA",
    "committed:flawless-victory-strategy__1BVZuaaWOU",
@@ -7015,47 +7046,46 @@
    "reference:ut-bot-strategy__VynMPwQs9U"
   ],
   "walls": {
-   "notTransferring": 394,
+   "notTransferring": 381,
    "fullyEnumerated": 191,
    "touches": {
-    "pine:builtin": 89,
-    "runtime:library": 60,
-    "runtime:call-undeclared-builtin-state": 54,
+    "pine:builtin": 81,
+    "runtime:call-undeclared-builtin-state": 55,
     "pine:function": 53,
-    "runtime:request-with-state": 39,
-    "runtime:statement": 37,
-    "pine:request": 35,
-    "runtime:no-output": 35,
-    "runtime:conditional-history": 31,
-    "runtime:history-dynamic-offset": 24,
-    "runtime:expression-statement": 19,
-    "runtime:request": 17,
+    "runtime:library": 53,
+    "pine:request": 36,
+    "runtime:no-output": 34,
+    "runtime:statement": 31,
+    "runtime:conditional-history": 30,
+    "runtime:history-dynamic-offset": 30,
+    "runtime:request": 29,
+    "runtime:request-with-state": 27,
+    "runtime:expression-statement": 18,
     "pine:strategy-call": 16,
-    "host:pine:constant-only": 14,
-    "runtime:function-global-state": 14,
-    "runtime:colour": 13,
+    "host:pine:constant-only": 13,
     "runtime:function": 13,
     "runtime:block-value": 12,
-    "runtime:loop": 11,
     "lower-tf:store-unmeasured": 10,
+    "runtime:loop": 9,
+    "runtime:unbound": 9,
     "pine:type": 8,
-    "runtime:unbound": 8,
-    "runtime:nothing-drawn": 7,
-    "pine:arity": 6,
-    "pine:drawing": 6,
-    "runtime:call-text-state": 6,
+    "runtime:call-text-state": 8,
+    "runtime:function-global-state": 8,
+    "pine:drawing": 7,
+    "runtime:colour": 7,
+    "pine:offset-literal": 6,
     "runtime:history-expression": 6,
-    "runtime:lower": 6,
     "budget:lookback": 5,
+    "pine:arity": 5,
     "pine:collection": 5,
     "pine:library-denied": 5,
-    "pine:offset-literal": 5,
     "pine:state": 5,
-    "runtime:fill-target": 5,
+    "runtime:call-windowed-state": 5,
+    "runtime:nothing-drawn": 5,
+    "runtime:object-op": 5,
     "lower-tf:lookahead": 4,
-    "runtime:call-windowed-state": 4,
-    "runtime:directive": 4,
-    "runtime:object-op": 4,
+    "runtime:fill-target": 4,
+    "runtime:output-map": 4,
     "pine:window": 3,
     "runtime:array": 3,
     "runtime:udt-method": 3,
@@ -7063,55 +7093,53 @@
     "runtime:withheld-all": 3,
     "lower-tf:unwitnessed": 2,
     "pine:colour-value": 2,
-    "pine:statement": 2,
+    "pine:input-kind": 2,
     "runtime:call-conversion-state": 2,
     "runtime:enum": 2,
+    "runtime:input-state": 2,
     "budget:series": 1,
     "host:pine:object-removal-lost": 1,
     "host:pine:objects-only": 1,
     "host:pine:presentation-only": 1,
     "host:unnamed": 1,
     "pine:block": 1,
-    "pine:input-kind": 1,
     "pine:member": 1,
+    "pine:statement": 1,
     "pine:text-value": 1,
     "pine:window-dependent": 1,
     "runtime:builtin-args": 1,
-    "runtime:clock-zone": 1,
-    "runtime:input-state": 1,
-    "runtime:output-map": 1
+    "runtime:clock-zone": 1
    },
    "first": {
-    "attached-dirty": 77,
-    "runtime:library": 58,
-    "runtime:request-with-state": 28,
+    "attached-dirty": 74,
+    "runtime:library": 51,
     "pine:request": 27,
-    "pine:builtin": 21,
+    "pine:builtin": 20,
     "pine:function": 20,
     "runtime:no-output": 20,
-    "runtime:conditional-history": 13,
-    "runtime:history-dynamic-offset": 13,
-    "runtime:statement": 12,
+    "runtime:request-with-state": 19,
+    "runtime:history-dynamic-offset": 18,
+    "runtime:conditional-history": 15,
+    "runtime:request": 13,
+    "runtime:statement": 11,
+    "runtime:call-undeclared-builtin-state": 10,
     "pine:strategy-call": 9,
-    "runtime:call-undeclared-builtin-state": 8,
-    "runtime:colour": 6,
-    "runtime:function-global-state": 6,
-    "runtime:loop": 6,
-    "lower-tf:store-unmeasured": 5,
+    "lower-tf:store-unmeasured": 6,
     "pine:library-denied": 5,
-    "runtime:request": 5,
+    "runtime:loop": 5,
     "budget:lookback": 4,
     "runtime:block-value": 4,
     "host:pine:constant-only": 3,
     "lower-tf:lookahead": 3,
     "pine:offset-literal": 3,
     "pine:window": 3,
-    "runtime:directive": 3,
+    "runtime:call-text-state": 3,
     "runtime:function": 3,
     "runtime:history-expression": 3,
+    "runtime:output-map": 3,
     "pine:arity": 2,
     "pine:colour-value": 2,
-    "pine:statement": 2,
+    "runtime:colour": 2,
     "runtime:expression-statement": 2,
     "runtime:varip": 2,
     "budget:series": 1,
@@ -7119,38 +7147,36 @@
     "host:pine:presentation-only": 1,
     "pine:collection": 1,
     "pine:drawing": 1,
+    "pine:statement": 1,
     "pine:text-value": 1,
     "pine:window-dependent": 1,
     "runtime:builtin-args": 1,
     "runtime:call-conversion-state": 1,
-    "runtime:call-text-state": 1,
     "runtime:call-windowed-state": 1,
+    "runtime:function-global-state": 1,
     "runtime:input-state": 1,
-    "runtime:lower": 1,
-    "runtime:output-map": 1,
+    "runtime:object-op": 1,
     "runtime:udt-method": 1,
     "runtime:withheld-all": 1
    },
    "stuck": {
     "reached": 191,
-    "cap": 119,
-    "runtime:no-output": 35,
-    "pine:constant-only": 14,
-    "runtime:nothing-drawn": 7,
-    "runtime:lower": 6,
+    "cap": 113,
+    "runtime:no-output": 34,
+    "pine:constant-only": 13,
     "no-progress": 5,
+    "runtime:nothing-drawn": 5,
+    "runtime:output-map": 4,
+    "runtime:request": 4,
     "runtime:withheld-all": 3,
     "runtime:conditional-history": 2,
-    "runtime:request": 2,
-    "runtime:statement": 2,
     "no-line": 1,
-    "pine:builtin": 1,
     "pine:object-removal-lost": 1,
     "pine:objects-only": 1,
     "pine:presentation-only": 1,
     "pine:request": 1,
-    "runtime:colour": 1,
-    "runtime:output-map": 1
+    "runtime:call-text-state": 1,
+    "runtime:object-op": 1
    },
    "byScript": {
     "builtin:24-hour-volume__24hVolume": [
@@ -7167,11 +7193,6 @@
      "runtime:request-with-state",
      "pine:function",
      "runtime:no-output"
-    ],
-    "builtin:aroon-oscillator__Aroon_Oscill": [
-     "runtime:library",
-     "pine:builtin",
-     "pine:arity"
     ],
     "builtin:auto-fib-extension__Auto1Fib1Ext": [
      "runtime:library",
@@ -7214,11 +7235,6 @@
     "builtin:bollinger-bars__Bollinger1Ba": [
      "host:pine:presentation-only"
     ],
-    "builtin:chandelier-exit__Chandelier_E": [
-     "runtime:library",
-     "pine:builtin",
-     "runtime:no-output"
-    ],
     "builtin:channel-breakout-strategy__Channel1Brea": [
      "runtime:no-output"
     ],
@@ -7246,8 +7262,7 @@
      "runtime:loop",
      "runtime:unbound",
      "runtime:function",
-     "runtime:statement",
-     "pine:builtin"
+     "runtime:statement"
     ],
     "builtin:greedy-strategy__Greedy1Strat": [
      "pine:strategy-call",
@@ -7264,7 +7279,7 @@
      "runtime:no-output"
     ],
     "builtin:kaufman039s-adaptive-moving-average__Kaufmans_Ada": [
-     "runtime:library",
+     "runtime:history-dynamic-offset",
      "pine:builtin",
      "runtime:no-output"
     ],
@@ -7322,7 +7337,7 @@
      "runtime:no-output"
     ],
     "builtin:price-momentum-oscillator__Price_Moment": [
-     "runtime:library",
+     "runtime:call-undeclared-builtin-state",
      "pine:builtin",
      "runtime:nothing-drawn"
     ],
@@ -7333,11 +7348,6 @@
      "pine:builtin",
      "pine:builtin",
      "pine:builtin"
-    ],
-    "builtin:pring039s-special-k__Prings_Speci": [
-     "runtime:library",
-     "pine:builtin",
-     "runtime:nothing-drawn"
     ],
     "builtin:relative-strength-index__RSI": [
      "runtime:conditional-history",
@@ -7362,11 +7372,11 @@
     ],
     "builtin:seasonality__Seasonality": [
      "runtime:input-state",
+     "runtime:unbound",
      "runtime:request",
      "runtime:block-value",
      "runtime:call-undeclared-builtin-state",
-     "runtime:loop",
-     "pine:builtin"
+     "runtime:loop"
     ],
     "builtin:stochastic-slow-strategy__Stochastic1S": [
      "runtime:no-output"
@@ -7396,10 +7406,6 @@
     ],
     "builtin:two-moving-averages-crossover__MovingAvg1Cr": [
      "runtime:no-output"
-    ],
-    "builtin:ulcer-index__Ulcer_Index": [
-     "runtime:library",
-     "pine:builtin"
     ],
     "builtin:updown-volume__UP_DOWN_Volu": [
      "runtime:library",
@@ -7472,8 +7478,7 @@
     ],
     "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027": [
      "runtime:library",
-     "runtime:conditional-history",
-     "runtime:lower"
+     "runtime:conditional-history"
     ],
     "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4": [
      "runtime:request-with-state",
@@ -7485,11 +7490,7 @@
      "pine:request",
      "pine:request",
      "pine:request",
-     "runtime:loop"
-    ],
-    "committed:all-chart-patterns-theeccentrictrader__03e4633d31": [
-     "runtime:library",
-     "runtime:library"
+     "runtime:call-windowed-state"
     ],
     "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80": [
      "runtime:call-windowed-state",
@@ -7520,7 +7521,6 @@
      "runtime:call-undeclared-builtin-state",
      "pine:builtin"
     ],
-    "committed:atr-support-and-resistance__3e9ddb38c4": [],
     "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd": [],
     "committed:atr-trailing-stoploss-strategy__oayb1wVXkZ": [
      "runtime:expression-statement"
@@ -7546,19 +7546,14 @@
      "runtime:call-windowed-state",
      "runtime:call-windowed-state",
      "runtime:history-expression",
-     "runtime:call-undeclared-builtin-state",
      "runtime:object-op",
      "runtime:conditional-history",
-     "runtime:conditional-history"
+     "runtime:conditional-history",
+     "runtime:object-op"
     ],
     "committed:average-day-range-adr-pivots__38b8c996e9": [],
     "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs": [
-     "runtime:request-with-state",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "pine:function",
-     "pine:function",
-     "host:pine:constant-only"
+     "runtime:request"
     ],
     "committed:bigbeluga-smart-money-concepts__e41b7abd03": [
      "host:pine:constant-only"
@@ -7570,16 +7565,19 @@
      "pine:arity"
     ],
     "committed:bolingger-bands-inside-bar-boxes__3294017d4f": [
-     "runtime:function-global-state",
-     "runtime:function-global-state"
+     "runtime:history-dynamic-offset"
     ],
     "committed:boom-hunter-entry-point-screener-alerts__0fc5982548": [
      "runtime:request-with-state",
      "runtime:request-with-state"
     ],
     "committed:breaks-and-retests-hg__ddba061af8": [
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
      "runtime:function-global-state",
-     "runtime:function-global-state"
+     "runtime:function-global-state",
+     "runtime:statement",
+     "runtime:statement"
     ],
     "committed:bull-vs-bear-market-intraday-sessions-kioseff-trading__0999ba6cd8": [
      "runtime:library",
@@ -7604,8 +7602,6 @@
      "runtime:request-with-state",
      "runtime:request-with-state",
      "runtime:request-with-state",
-     "runtime:statement",
-     "runtime:statement",
      "runtime:history-dynamic-offset"
     ],
     "committed:candelacharts-equal-highslows-eqheql__4485a6c447": [
@@ -7646,7 +7642,6 @@
      "pine:builtin",
      "pine:builtin"
     ],
-    "committed:contraction-box-doji-lines__1486658151": [],
     "committed:correlation-matrix__dzN3DMCFJL": [
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
@@ -7711,8 +7706,8 @@
      "pine:builtin"
     ],
     "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0": [
-     "runtime:request-with-state",
-     "runtime:request-with-state"
+     "runtime:request",
+     "runtime:request"
     ],
     "committed:deviation-scaled-moving-average-w-dsl-loxx__878af32b43": [
      "pine:library-denied",
@@ -7725,8 +7720,8 @@
      "pine:builtin"
     ],
     "committed:double-topbottom-ultimate-os__bd013ff4f5": [
-     "runtime:directive",
-     "runtime:directive",
+     "runtime:conditional-history",
+     "runtime:conditional-history",
      "runtime:conditional-history",
      "runtime:conditional-history",
      "runtime:conditional-history",
@@ -7751,8 +7746,8 @@
     ],
     "committed:ema-ribbon-trend-filter-strixedge__737f5c58ad": [],
     "committed:fibonacci-retracement-mtflog__54a8dbfa8e": [
-     "runtime:colour",
-     "runtime:colour"
+     "runtime:object-op",
+     "runtime:object-op"
     ],
     "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce": [
      "pine:request",
@@ -7864,14 +7859,12 @@
      "runtime:library"
     ],
     "committed:linear-regression-channel-200__243d67c804": [
-     "runtime:directive",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "runtime:call-undeclared-builtin-state",
-     "runtime:nothing-drawn"
+     "runtime:call-undeclared-builtin-state"
     ],
     "committed:linear-regression-channel-breakout-strategy__3a1cf28800": [
      "pine:strategy-call",
@@ -7923,9 +7916,7 @@
      "runtime:call-undeclared-builtin-state",
      "pine:function"
     ],
-    "committed:machine-learning-moving-average-backquant__4d7ff59e68": [
-     "runtime:statement"
-    ],
+    "committed:machine-learning-moving-average-backquant__4d7ff59e68": [],
     "committed:machine-learning-rsi-bullvision__50b4566edd": [
      "runtime:library",
      "runtime:conditional-history",
@@ -7944,20 +7935,18 @@
      "pine:function",
      "pine:function",
      "pine:builtin",
-     "runtime:function-global-state"
+     "runtime:call-undeclared-builtin-state"
     ],
     "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a": [
      "pine:request",
-     "runtime:statement",
+     "pine:function",
      "pine:builtin",
      "runtime:conditional-history",
-     "runtime:conditional-history",
-     "pine:builtin",
-     "pine:builtin"
+     "runtime:conditional-history"
     ],
     "committed:market-structure-break-order-block__3a1fb6197f": [
-     "runtime:function-global-state",
-     "runtime:function-global-state",
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
      "runtime:loop",
      "runtime:loop",
      "runtime:loop",
@@ -7976,8 +7965,8 @@
     "committed:market-structure-trend-targets-chartprime__d3c06abad6": [
      "runtime:conditional-history",
      "runtime:conditional-history",
-     "pine:builtin",
-     "pine:builtin",
+     "pine:function",
+     "pine:function",
      "runtime:statement",
      "runtime:conditional-history",
      "runtime:conditional-history",
@@ -8008,10 +7997,9 @@
      "pine:request"
     ],
     "committed:mtf-watchlist-charts-anan__3453680ea1": [
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state"
+     "runtime:request",
+     "runtime:request",
+     "runtime:call-undeclared-builtin-state"
     ],
     "committed:multi-timeframe-fvg-tfo__adbed9f590": [
      "lower-tf:lookahead",
@@ -8043,8 +8031,7 @@
     ],
     "committed:neural-network-buy-and-sell-signals__fbbb11d0c7": [
      "runtime:block-value",
-     "runtime:block-value",
-     "runtime:lower"
+     "runtime:block-value"
     ],
     "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888": [
      "runtime:output-map"
@@ -8081,11 +8068,11 @@
      "runtime:call-undeclared-builtin-state",
      "runtime:function-global-state",
      "runtime:function-global-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state"
+     "runtime:input-state",
+     "runtime:input-state",
+     "runtime:statement",
+     "runtime:call-undeclared-builtin-state",
+     "runtime:call-undeclared-builtin-state"
     ],
     "committed:pivot-trendlines-with-breaks-hg__f1464ad5b7": [
      "runtime:library",
@@ -8129,7 +8116,7 @@
      "pine:function",
      "runtime:call-undeclared-builtin-state",
      "runtime:function-global-state",
-     "runtime:request-with-state",
+     "runtime:request",
      "runtime:call-undeclared-builtin-state",
      "runtime:function-global-state",
      "runtime:function-global-state"
@@ -8166,13 +8153,11 @@
      "runtime:conditional-history"
     ],
     "committed:screener-mean-reversion-channel__nTK2sHWDlB": [
-     "pine:function",
-     "runtime:lower"
+     "pine:function"
     ],
     "committed:sector-rotation__0fca060bf4": [],
     "committed:session-tpo-profile__41088ef96d": [
-     "pine:builtin",
-     "runtime:statement"
+     "pine:builtin"
     ],
     "committed:smart-money-breakout-channels-algoalpha__8c2d234156": [
      "runtime:library",
@@ -8183,8 +8168,7 @@
      "pine:builtin",
      "pine:builtin",
      "pine:builtin",
-     "pine:builtin",
-     "runtime:lower"
+     "pine:builtin"
     ],
     "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669": [
      "runtime:library",
@@ -8211,12 +8195,10 @@
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
-     "pine:builtin",
-     "pine:builtin"
+     "runtime:call-text-state",
+     "runtime:call-text-state"
     ],
     "committed:smarter-snr__ac98ab25d5": [
-     "runtime:statement",
-     "runtime:statement",
      "runtime:conditional-history",
      "runtime:conditional-history",
      "pine:drawing",
@@ -8235,8 +8217,6 @@
      "runtime:expression-statement"
     ],
     "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0": [
-     "pine:statement",
-     "pine:statement",
      "lower-tf:store-unmeasured",
      "lower-tf:store-unmeasured",
      "lower-tf:store-unmeasured",
@@ -8381,7 +8361,7 @@
      "pine:strategy-call"
     ],
     "committed:trend-levels-chartprime__90a5bf4ab1": [
-     "pine:builtin"
+     "runtime:call-text-state"
     ],
     "committed:trend-line-harrybot__vMv5yOQxcA": [
      "runtime:conditional-history",
@@ -8400,10 +8380,7 @@
      "runtime:conditional-history"
     ],
     "committed:vdubus-pattern-gen-v2-restored-refined__66dc68412e": [],
-    "committed:volatility-coil-edge-bullbyte__604f0fd1c6": [
-     "runtime:colour",
-     "runtime:colour"
-    ],
+    "committed:volatility-coil-edge-bullbyte__604f0fd1c6": [],
     "committed:volatility-stop-mtf__K5XG42uHV9": [
      "runtime:library",
      "runtime:library",
@@ -8418,7 +8395,7 @@
      "runtime:call-undeclared-builtin-state",
      "runtime:call-undeclared-builtin-state",
      "pine:builtin",
-     "runtime:expression-statement"
+     "pine:builtin"
     ],
     "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37": [
      "pine:request",
@@ -8426,25 +8403,21 @@
      "runtime:block-value",
      "runtime:request-with-state",
      "pine:collection",
-     "runtime:statement",
-     "runtime:statement",
-     "pine:collection"
+     "pine:collection",
+     "pine:drawing"
     ],
     "committed:volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d": [
      "runtime:library",
      "pine:builtin",
-     "runtime:colour",
-     "runtime:colour",
-     "runtime:colour",
-     "runtime:colour",
-     "runtime:colour",
-     "runtime:colour"
+     "pine:input-kind",
+     "pine:request",
+     "pine:builtin"
     ],
     "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4": [
      "pine:builtin",
      "pine:builtin",
-     "runtime:statement",
-     "runtime:statement",
+     "pine:builtin",
+     "runtime:request",
      "runtime:array",
      "runtime:array",
      "runtime:array",
@@ -8468,9 +8441,6 @@
     "committed:volume-profile-v054beta__PNSKf75832": [
      "runtime:statement",
      "runtime:statement",
-     "runtime:directive",
-     "runtime:directive",
-     "runtime:directive",
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset"
@@ -8528,7 +8498,7 @@
     "reference:angled-volume-profile-feeblev3__Z9Gy9K2ptd": [
      "pine:builtin",
      "runtime:call-undeclared-builtin-state",
-     "runtime:request-with-state"
+     "runtime:history-dynamic-offset"
     ],
     "reference:anti-volume-stop-loss__QyDEhGL8DB": [
      "runtime:history-dynamic-offset",
@@ -8544,10 +8514,6 @@
      "runtime:call-undeclared-builtin-state",
      "runtime:statement"
     ],
-    "reference:auto-length-moving-average-trend-signals-zeiierman__30185ad35b": [
-     "runtime:function-global-state"
-    ],
-    "reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79": [],
     "reference:auto-trendlines-trendoscope__c1dc011801": [
      "runtime:library",
      "runtime:library",
@@ -8558,19 +8524,19 @@
      "pine:builtin"
     ],
     "reference:best-abcd-pattern-screener__ROdc6mWjx4": [
-     "runtime:request-with-state",
-     "runtime:request-with-state"
+     "runtime:request",
+     "runtime:request"
     ],
     "reference:best-engulfing-ma__Vh6SGyOD3H": [],
     "reference:best-rsi-divergences-screener-regular-and-hidden__F9uUIwmi9f": [
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state"
+     "runtime:request",
+     "runtime:request",
+     "runtime:request"
     ],
     "reference:best-rsi-divergences-screener__TmlpugZKr6": [
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state"
+     "runtime:request",
+     "runtime:request",
+     "runtime:request"
     ],
     "reference:bitcoin-futures-funding-rates-v5__zGOXiHPIn3": [
      "pine:request",
@@ -8580,8 +8546,12 @@
     "reference:bollinger-bands-filter__M8AKuon90n": [],
     "reference:bollinger-rsi-double-strategy-by-chartart-v11__2187": [],
     "reference:breaks-and-retests-with-volatility-stop-hg__ebbd1d4440": [
+     "runtime:history-dynamic-offset",
+     "runtime:history-dynamic-offset",
      "runtime:function-global-state",
-     "runtime:function-global-state"
+     "runtime:function-global-state",
+     "runtime:statement",
+     "runtime:statement"
     ],
     "reference:camarilla-levels-intraday__bfb5a2b8db": [
      "host:pine:object-removal-lost"
@@ -8615,8 +8585,7 @@
      "pine:drawing",
      "pine:drawing",
      "pine:drawing",
-     "lower-tf:store-unmeasured",
-     "runtime:colour"
+     "lower-tf:store-unmeasured"
     ],
     "reference:cumulative-volume-delta-divergence__fbc538f076": [
      "runtime:request-with-state",
@@ -8625,7 +8594,7 @@
     ],
     "reference:custom-screener-with-alerts__dd1bf69eb8": [],
     "reference:delta-volume-columns-lucf__HmUxm6bIQC": [
-     "runtime:request-with-state",
+     "runtime:request",
      "runtime:call-undeclared-builtin-state",
      "runtime:varip",
      "runtime:varip",
@@ -8672,10 +8641,6 @@
     "reference:earnings-sr-levels-lazybear__453": [
      "pine:request"
     ],
-    "reference:engulfing-sinyal__pAgeLQw9kl": [
-     "runtime:colour",
-     "runtime:colour"
-    ],
     "reference:enhanced-mcclellan-summation-index__f2989eaa65": [
      "runtime:udt-method",
      "runtime:udt-method",
@@ -8721,24 +8686,22 @@
      "pine:function"
     ],
     "reference:fvg-order-blocks-bigbeluga__64decdabc4": [
-     "runtime:colour",
      "runtime:call-text-state",
-     "runtime:colour",
      "runtime:call-text-state",
-     "runtime:colour",
+     "runtime:call-text-state",
+     "runtime:call-text-state",
      "pine:function",
-     "runtime:colour",
      "pine:function"
     ],
     "reference:fxn-asian-session-range__jNLZBfpYDO": [
-     "runtime:request-with-state",
      "runtime:statement",
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
      "runtime:statement",
-     "runtime:fill-target"
+     "runtime:fill-target",
+     "runtime:statement"
     ],
     "reference:gex-levels-breakout-structure-session-avwap-esspxspy__4e5d712bec": [
      "lower-tf:lookahead",
@@ -8770,10 +8733,10 @@
      "runtime:history-dynamic-offset",
      "runtime:history-dynamic-offset",
      "pine:function",
-     "runtime:fill-target",
      "runtime:conditional-history",
      "runtime:conditional-history",
-     "runtime:conditional-history"
+     "runtime:conditional-history",
+     "runtime:output-map"
     ],
     "reference:hull-moving-average-crossover-strategy__ASuWFtACGl": [],
     "reference:hurst-cycle-channel-clone-lazybear__1192": [
@@ -8805,11 +8768,9 @@
     ],
     "reference:interactive-atr-stop-loss__6d419f128f": [
      "runtime:statement",
-     "runtime:function-global-state",
      "pine:builtin",
      "pine:builtin"
     ],
-    "reference:intraday-power-3-visual__f9b34d80bb": [],
     "reference:kalman-trend-levels-bigbeluga__3fb104b310": [
      "runtime:conditional-history",
      "pine:function",
@@ -8851,9 +8812,9 @@
      "pine:builtin",
      "pine:builtin",
      "pine:function",
+     "pine:offset-literal",
      "runtime:history-dynamic-offset",
      "runtime:call-text-state",
-     "runtime:conditional-history",
      "runtime:conditional-history",
      "runtime:conditional-history"
     ],
@@ -8910,7 +8871,7 @@
      "pine:request"
     ],
     "reference:mtf-order-block-finder__ce13bf1b46": [
-     "runtime:request-with-state",
+     "runtime:request",
      "runtime:request-with-state",
      "runtime:statement",
      "runtime:call-undeclared-builtin-state"
@@ -8943,8 +8904,7 @@
      "runtime:colour"
     ],
     "reference:obv-macd-indicator__5JF4Np02Ma": [
-     "runtime:history-dynamic-offset",
-     "runtime:lower"
+     "runtime:history-dynamic-offset"
     ],
     "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c": [],
     "reference:open-interest-stochastic-money-flow-index__kGyXZBhXgx": [
@@ -8952,9 +8912,6 @@
      "pine:builtin",
      "runtime:call-undeclared-builtin-state",
      "pine:request"
-    ],
-    "reference:order-block-detector-luxalgo__7c893384eb": [
-     "runtime:loop"
     ],
     "reference:ot-mtf-trend-dashboard-10__d43fa61404": [
      "pine:function",
@@ -8972,7 +8929,7 @@
      "pine:request"
     ],
     "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd": [
-     "runtime:lower"
+     "runtime:output-map"
     ],
     "reference:qqe-mod-ssl-hybrid-waddah-attar-explosion__6092fcc4e7": [
      "runtime:history-dynamic-offset",
@@ -9110,19 +9067,15 @@
     "reference:support-and-resistance-zones-feels__87b9b078c8": [
      "runtime:loop",
      "runtime:loop",
-     "runtime:loop",
-     "runtime:conditional-history",
-     "runtime:conditional-history"
+     "runtime:loop"
     ],
     "reference:support-and-resistance__c13363a5d2": [],
-    "reference:support-resistance-fibonacci-retracement__06a1a2c80d": [],
     "reference:swing-parabolic-sar-strategy__i5Ni9xpTee": [
      "pine:strategy-call"
     ],
     "reference:thelark-lma-v2-laguerre__1029": [
      "runtime:request-with-state",
-     "pine:state",
-     "runtime:statement"
+     "pine:state"
     ],
     "reference:tradepro039s-trading-idea-cipher-b-divergence-ema-pullback-strategy__98d2ed3472": [
      "runtime:request-with-state",
@@ -9159,8 +9112,7 @@
      "budget:lookback"
     ],
     "reference:trend-speed-analyzer-zeiierman__bd2f816c88": [
-     "runtime:statement",
-     "runtime:function-global-state"
+     "runtime:statement"
     ],
     "reference:trendline-breaks-with-multi-fibonacci-supertrend-strategy__89cd796179": [
      "pine:strategy-call",
@@ -9173,17 +9125,11 @@
     "reference:trendlines-2x__rzuOQrVQWt": [
      "pine:arity",
      "pine:arity",
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state"
+     "runtime:request"
     ],
     "reference:trendlines-jd__BYXZzZURrT": [
      "runtime:conditional-history",
-     "runtime:conditional-history",
-     "runtime:statement"
+     "runtime:conditional-history"
     ],
     "reference:triangular-hull-moving-average-volatility-bigbeluga__f20311448f": [
      "runtime:history-dynamic-offset",
@@ -9241,9 +9187,9 @@
      "runtime:request-with-state",
      "runtime:request-with-state",
      "pine:function",
-     "runtime:request-with-state",
-     "runtime:request-with-state",
-     "runtime:request-with-state"
+     "runtime:request",
+     "runtime:request",
+     "runtime:request"
     ],
     "reference:vwap-mtf__2809": [
      "pine:builtin",
@@ -9289,14 +9235,7 @@
      "runtime:conditional-history"
     ],
     "reference:ytc-swing-highs-lows__H94Z0NbN5P": [
-     "runtime:directive",
-     "runtime:directive",
-     "runtime:directive",
-     "runtime:directive",
-     "runtime:directive",
-     "runtime:directive",
-     "runtime:directive",
-     "runtime:directive"
+     "runtime:output-map"
     ],
     "reference:zig-zag-channels-luxalgo__c253c72883": []
    },
@@ -9307,11 +9246,6 @@
      ]
     },
     "builtin:seasonality__Seasonality": {
-     "runtime:loop": [
-      "for-in"
-     ]
-    },
-    "committed:ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48": {
      "runtime:loop": [
       "for-in"
      ]
@@ -9371,11 +9305,6 @@
       "for-in"
      ]
     },
-    "reference:order-block-detector-luxalgo__7c893384eb": {
-     "runtime:loop": [
-      "for-in"
-     ]
-    },
     "reference:strong-knn-classifier__852c26b11d": {
      "pine:collection": [
       "ltf-array"
@@ -9395,12 +9324,6 @@
     "committed:artemis-oscillator-pro__ea1097ca9e": [
      "object op dropped: cell:text <- pine:reassign"
     ],
-    "committed:atr-support-and-resistance__3e9ddb38c4": [
-     "object op dropped: coll:diverged",
-     "object op dropped: geometry:lost",
-     "object op dropped: geometry:withheld",
-     "object op dropped: guard:loop <- pine:block"
-    ],
     "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd": [
      "object op dropped: create:label <- pine:function"
     ],
@@ -9412,7 +9335,6 @@
      "object op dropped: guard:create <- pine:state",
      "object op dropped: guard:delete <- pine:state"
     ],
-    "committed:contraction-box-doji-lines__1486658151": [],
     "committed:dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b": [
      "object op dropped: coll:diverged",
      "object op dropped: geometry:lost",
@@ -9479,6 +9401,13 @@
      "object op dropped: guard:create <- pine:request"
     ],
     "committed:macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99": [],
+    "committed:machine-learning-moving-average-backquant__4d7ff59e68": [
+     "[imperative]",
+     "object op dropped: cell:text <- pine:reassign",
+     "object op dropped: create:box <- pine:collection",
+     "object op dropped: create:label <- pine:reassign",
+     "object op dropped: create:line <- pine:reassign"
+    ],
     "committed:momentum-based-zigzag__38d39d2d6c": [
      "[translator-robustness]",
      "object op dropped: guard:create <- pine:timeout"
@@ -9529,6 +9458,22 @@
     "committed:vdubus-pattern-gen-v2-restored-refined__66dc68412e": [
      "object op dropped: cell:text <- pine:reassign"
     ],
+    "committed:volatility-coil-edge-bullbyte__604f0fd1c6": [
+     "[imperative]",
+     "object op dropped: cell:text",
+     "object op dropped: create:box",
+     "object op dropped: create:label",
+     "object op dropped: guard:coll_clear <- pine:reassign",
+     "object op dropped: guard:coll_push <- pine:reassign",
+     "object op dropped: guard:copy <- pine:reassign",
+     "object op dropped: guard:create <- pine:reassign",
+     "object op dropped: guard:delete <- pine:reassign",
+     "object op dropped: guard:loop <- pine:reassign",
+     "object op dropped: guard:partial",
+     "object op dropped: guard:reset <- pine:reassign",
+     "object op dropped: guard:update <- pine:reassign",
+     "object op dropped: prop:unreadable"
+    ],
     "committed:vold-market-breadth__9c5cde9557": [
      "object op dropped: cell:text <- pine:text-value"
     ],
@@ -9541,12 +9486,6 @@
      "object op dropped: update:target"
     ],
     "committed:vwap-fibo-dev-extensions-strategy__mR2vfyGjUv": [],
-    "reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79": [
-     "object op dropped: guard:coll_push <- pine:object-condition",
-     "object op dropped: guard:create <- pine:object-condition",
-     "object op dropped: guard:delete <- pine:object-condition",
-     "object op dropped: loop:empty"
-    ],
     "reference:best-engulfing-ma__Vh6SGyOD3H": [],
     "reference:bollinger-bands-filter__M8AKuon90n": [],
     "reference:bollinger-rsi-double-strategy-by-chartart-v11__2187": [],
@@ -9610,10 +9549,6 @@
     ],
     "reference:golden-cross-sma-200-long-only-moving-average-strategy-by-chartart__2811": [],
     "reference:hull-moving-average-crossover-strategy__ASuWFtACGl": [],
-    "reference:intraday-power-3-visual__f9b34d80bb": [
-     "object op dropped: create:label <- pine:text-value",
-     "object op dropped: create:line <- pine:text-value"
-    ],
     "reference:linear-regression-channel-curve-slope-by-dgt__WvWdhArzmm": [
      "object op dropped: create:label <- pine:tuple",
      "object op dropped: create:line <- pine:tuple",
@@ -9709,10 +9644,6 @@
      "object op dropped: loop:empty",
      "object op dropped: update:props"
     ],
-    "reference:support-resistance-fibonacci-retracement__06a1a2c80d": [
-     "object op dropped: coll:diverged",
-     "object op dropped: loop:bounds"
-    ],
     "reference:trailing-sl-strategy-quantnomad__kvEZ1RweKL": [
      "[translator-robustness]"
     ],
@@ -9734,25 +9665,26 @@
    }
   },
   "parity": {
-   "captures": 837,
+   "captures": 915,
    "verdicts": {
-    "DIVERGE": 67,
-    "INCONCLUSIVE": 465,
-    "MATCH": 285,
-    "MATCH_SUBSTITUTED": 20
+    "DIVERGE": 71,
+    "INCONCLUSIVE": 507,
+    "MATCH": 314,
+    "MATCH_SUBSTITUTED": 23
    },
    "productionVerdicts": {
-    "DIVERGE": 74,
-    "INCONCLUSIVE": 575,
-    "MATCH": 188
+    "DIVERGE": 79,
+    "INCONCLUSIVE": 638,
+    "MATCH": 198
    },
    "changed": {
+    "DIVERGE->INCONCLUSIVE": 1,
     "DIVERGE->MATCH": 2,
-    "DIVERGE->MATCH_SUBSTITUTED": 12,
-    "INCONCLUSIVE->DIVERGE": 7,
-    "INCONCLUSIVE->MATCH": 99,
+    "DIVERGE->MATCH_SUBSTITUTED": 15,
+    "INCONCLUSIVE->DIVERGE": 10,
+    "INCONCLUSIVE->MATCH": 120,
     "INCONCLUSIVE->MATCH_SUBSTITUTED": 8,
-    "MATCH->INCONCLUSIVE": 4
+    "MATCH->INCONCLUSIVE": 6
    },
    "changes": [
     {
@@ -9761,7 +9693,17 @@
      "to": "MATCH"
     },
     {
+     "file": "tests/fixtures/vendor/harness/adx-and-di-for-v4-rddt-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
      "file": "tests/fixtures/vendor/harness/adx-and-di-for-v4-spy-1d-2026-10-03.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/adx-and-di-for-v4-spy-1d-2026-11-17.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
     },
@@ -9846,6 +9788,16 @@
      "to": "MATCH"
     },
     {
+     "file": "tests/fixtures/vendor/harness/fvg-trend-rddt-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/fvg-trend-spy-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
      "file": "tests/fixtures/vendor/harness/h3-alma-v4-rddt-1d-2026-10-02.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
@@ -9876,12 +9828,22 @@
      "to": "MATCH"
     },
     {
+     "file": "tests/fixtures/vendor/harness/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
      "file": "tests/fixtures/vendor/harness/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
     },
     {
      "file": "tests/fixtures/vendor/harness/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-17.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
     },
@@ -9916,6 +9878,21 @@
      "to": "INCONCLUSIVE"
     },
     {
+     "file": "tests/fixtures/vendor/harness/machine-learning-moving-average-backquant-rddt-1d-2026-11-14.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/machine-learning-moving-average-backquant-rddt-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/machine-learning-moving-average-backquant-spy-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "DIVERGE"
+    },
+    {
      "file": "tests/fixtures/vendor/harness/mid_engagement__20-mann-kendall-trend-significance-rddt-1d-2026-11-15.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
@@ -9934,6 +9911,26 @@
      "file": "tests/fixtures/vendor/harness/one-sided-gaussian-support-resistance-rate-loxx-rddt-1d-2026-11-14.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/one-sided-gaussian-support-resistance-rate-loxx-rddt-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "DIVERGE"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02.json",
+     "from": "MATCH",
+     "to": "INCONCLUSIVE"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02.json",
+     "from": "MATCH",
+     "to": "INCONCLUSIVE"
     },
     {
      "file": "tests/fixtures/vendor/harness/parabolic-sar-rddt-1d-2026-10-03.json",
@@ -9956,17 +9953,22 @@
      "to": "MATCH"
     },
     {
-     "file": "tests/fixtures/vendor/harness/r1-strategy-draws-rddt-1d-2026-10-02.json",
-     "from": "INCONCLUSIVE",
-     "to": "DIVERGE"
-    },
-    {
      "file": "tests/fixtures/vendor/harness/renko-candles-overlay-rddt-1d-2026-10-03.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
     },
     {
      "file": "tests/fixtures/vendor/harness/renko-candles-overlay-spy-1d-2026-10-03.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/rs-arm-label-last-bar-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/rs-arm-label-last-bar-spy-1d-2026-11-15.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
     },
@@ -9989,6 +9991,16 @@
      "file": "tests/fixtures/vendor/harness/rs-rating-fred6724-crwv-1d-2026-11-16.json",
      "from": "DIVERGE",
      "to": "MATCH_SUBSTITUTED"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/rs-rating-fred6724-m-nvda-1m-2026-11-18.json",
+     "from": "DIVERGE",
+     "to": "MATCH_SUBSTITUTED"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/rs-rating-fred6724-m-rddt-1m-2026-11-18.json",
+     "from": "DIVERGE",
+     "to": "INCONCLUSIVE"
     },
     {
      "file": "tests/fixtures/vendor/harness/rs-rating-fred6724-nvda-1d-2026-11-15.json",
@@ -10071,9 +10083,29 @@
      "to": "MATCH_SUBSTITUTED"
     },
     {
-     "file": "tests/fixtures/vendor/harness/supertrend-strategy-spy-1d-2026-10-02.json",
+     "file": "tests/fixtures/vendor/harness/rs-rating-fred6724-w-nvda-1w-2026-11-17.json",
+     "from": "DIVERGE",
+     "to": "MATCH_SUBSTITUTED"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/rs-rating-fred6724-w-rddt-1w-2026-11-17.json",
+     "from": "DIVERGE",
+     "to": "MATCH_SUBSTITUTED"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/supertrend-strategy-alab-1d-2026-11-17.json",
      "from": "INCONCLUSIVE",
-     "to": "DIVERGE"
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/supertrend-strategy-is-rddt-1d-2026-11-18.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/supertrend-strategy-rddt-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
     },
     {
      "file": "tests/fixtures/vendor/harness/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-rddt-1d-2026-10-02.json",
@@ -10096,6 +10128,11 @@
      "to": "MATCH"
     },
     {
+     "file": "tests/fixtures/vendor/harness/trend-targets-algoalpha-rddt-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
      "file": "tests/fixtures/vendor/harness/trend-targets-algoalpha-spy-1d-2026-10-02.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
@@ -10107,6 +10144,31 @@
     },
     {
      "file": "tests/fixtures/vendor/harness/trendline-pivots-quantvue-rddt-1d-2026-11-14.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/volatility-coil-edge-bullbyte-rddt-1d-2026-11-14.json",
+     "from": "INCONCLUSIVE",
+     "to": "DIVERGE"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/volatility-coil-edge-bullbyte-rddt-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "DIVERGE"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/volatility-coil-edge-bullbyte-spy-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "DIVERGE"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/volume-divergence-by-mm-rddt-1d-2026-11-17.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/volume-divergence-by-mm-spy-1d-2026-11-17.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
     },
@@ -10142,6 +10204,16 @@
     },
     {
      "file": "tests/fixtures/vendor/harness/vw-deadband-ticks-spy-1d-2026-09-28.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/vw-fcmp-arrays-rddt-1d-2026-11-18.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/vw-fcmp-arrays-spy-1d-2026-11-18.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
     },
@@ -10191,6 +10263,11 @@
      "to": "MATCH"
     },
     {
+     "file": "tests/fixtures/vendor/harness/vw-object-gc-d-spy-1d-2026-09-28.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
      "file": "tests/fixtures/vendor/harness/vw-udt-legacy-array-param-rddt-1d-2026-11-16.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
@@ -10227,6 +10304,11 @@
     },
     {
      "file": "tests/fixtures/vendor/harness/vw-w19r2b-empty-rightmost-rddt-1d-2026-11-16.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/vw-w4-max-bars-back-m5-spy-1d-2026-11-18.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
     },
@@ -10417,62 +10499,61 @@
     }
    ],
    "runtimeDeclines": {
-    "runtime:library": 37,
+    "runtime:library": 35,
+    "pine:function": 31,
     "pine:request": 29,
-    "pine:builtin": 27,
-    "pine:function": 27,
-    "runtime:request-with-state": 21,
-    "lower-tf:store-unmeasured": 13,
-    "runtime:statement": 12,
+    "pine:builtin": 25,
+    "runtime:request-with-state": 18,
+    "lower-tf:store-unmeasured": 17,
+    "runtime:conditional-history": 15,
+    "runtime:history-dynamic-offset": 13,
+    "runtime:request": 11,
     "pine:library-denied": 9,
-    "runtime:conditional-history": 9,
+    "runtime:block-value": 9,
+    "runtime:call-undeclared-builtin-state": 9,
     "runtime:loop": 9,
-    "runtime:call-undeclared-builtin-state": 8,
-    "runtime:block-value": 7,
-    "runtime:request": 6,
+    "runtime:statement": 9,
+    "runtime:function": 6,
     "pine:arity": 5,
-    "runtime:function-global-state": 5,
-    "runtime:history-dynamic-offset": 5,
-    "pine:drawing": 4,
-    "runtime:function": 4,
     "runtime:strategy-repaint": 4,
-    "pine:statement": 3,
-    "runtime:colour": 3,
+    "runtime:call-text-state": 3,
+    "runtime:function-global-state": 3,
+    "runtime:object-op": 3,
     "runtime:output-map": 3,
     "budget:series": 2,
     "lower-tf:lookahead": 2,
     "lower-tf:unwitnessed": 2,
-    "pine:collection": 2,
     "pine:colour-value": 2,
+    "pine:drawing": 2,
     "runtime:builtin-args": 2,
     "runtime:call-windowed-state": 2,
-    "runtime:directive": 2,
     "runtime:history-expression": 2,
-    "runtime:object-op": 2,
     "runtime:strategy-value": 2,
     "pine:state": 1,
+    "pine:statement": 1,
     "pine:text-value": 1,
-    "runtime:call-text-state": 1,
-    "runtime:enum": 1
+    "runtime:colour": 1,
+    "runtime:enum": 1,
+    "runtime:lower": 1
    },
    "laneEvidence": {
     "requested": "runtime-on",
     "objectsOnlyPane": true,
     "gateOpen": true,
-    "declined": 276,
+    "declined": 290,
     "gated": 0,
-    "runtimeDrawn": 172,
-    "hostRefused": 480,
-    "reachedRuntime": 448,
+    "runtimeDrawn": 211,
+    "hostRefused": 533,
+    "reachedRuntime": 501,
     "strategy": {
      "brokerGate": true,
-     "graded": 76,
-     "brokerRuns": 61,
+     "graded": 86,
+     "brokerRuns": 71,
      "verdicts": {
-      "INCONCLUSIVE": 28,
-      "EXPECTED-REFUSAL": 11,
-      "UNGRADABLE": 10,
-      "MATCH": 27
+      "INCONCLUSIVE": 30,
+      "EXPECTED-REFUSAL": 15,
+      "MATCH": 30,
+      "UNGRADABLE": 11
      }
     }
    }
@@ -11343,28 +11424,20 @@
    "version": 6,
    "declaration": "indicator",
    "sha256": "8b67d3151ec3d168",
-   "attached": false,
-   "clean": false,
-   "doorClean": false,
-   "cleanBound": false,
-   "runtimeAttached": false,
+   "attached": true,
+   "clean": true,
+   "doorClean": true,
+   "cleanBound": true,
+   "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
    "armedWall": null,
-   "runtimeClean": false,
-   "peelSteps": 2,
-   "reachedAfterPeel": false,
-   "stuck": "pine:constant-only",
-   "firstGuards": [
-    "pine:hidden-only",
-    "pine:module",
-    "pine:tuple"
-   ],
-   "walls": [
-    "[call-mapping]",
-    "[imports-libraries]",
-    "[tuples]"
-   ],
+   "runtimeClean": true,
+   "peelSteps": 0,
+   "reachedAfterPeel": true,
+   "stuck": null,
+   "firstGuards": [],
+   "walls": [],
    "objectProgram": {
     "attemptedOps": 0,
     "droppedOps": 0,
@@ -12069,27 +12142,20 @@
    "version": 6,
    "declaration": "indicator",
    "sha256": "b66ee578b5a5645a",
-   "attached": false,
-   "clean": false,
-   "doorClean": false,
-   "cleanBound": false,
-   "runtimeAttached": false,
+   "attached": true,
+   "clean": true,
+   "doorClean": true,
+   "cleanBound": true,
+   "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
    "armedWall": null,
-   "runtimeClean": false,
-   "peelSteps": 2,
-   "reachedAfterPeel": false,
-   "stuck": "pine:no-output",
-   "firstGuards": [
-    "pine:module",
-    "pine:tuple"
-   ],
-   "walls": [
-    "[imperative]",
-    "[imports-libraries]",
-    "[tuples]"
-   ],
+   "runtimeClean": true,
+   "peelSteps": 0,
+   "reachedAfterPeel": true,
+   "stuck": null,
+   "firstGuards": [],
+   "walls": [],
    "objectProgram": {
     "attemptedOps": 0,
     "droppedOps": 0,
@@ -12913,15 +12979,13 @@
    "wouldTransferIfArmed": null,
    "armedWall": null,
    "runtimeClean": false,
-   "peelSteps": 1,
+   "peelSteps": 2,
    "reachedAfterPeel": false,
    "stuck": "pine:no-output",
    "firstGuards": [
-    "pine:builtin",
-    "pine:module"
+    "pine:function-def"
    ],
    "walls": [
-    "[imports-libraries]",
     "[user-functions]"
    ],
    "objectProgram": {
@@ -14070,17 +14134,16 @@
    "wouldTransferIfArmed": null,
    "armedWall": null,
    "runtimeClean": false,
-   "peelSteps": 2,
+   "peelSteps": 3,
    "reachedAfterPeel": false,
    "stuck": "pine:no-output",
    "firstGuards": [
-    "pine:module",
-    "pine:tuple"
+    "pine:function-def"
    ],
    "walls": [
     "[imperative]",
-    "[imports-libraries]",
-    "[tuples]"
+    "[tuples]",
+    "[user-functions]"
    ],
    "objectProgram": {
     "attemptedOps": 0,
@@ -14121,7 +14184,7 @@
     "droppedOps": 0,
     "split": "never-attempted"
    },
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "builtin:price-target__Price1Target",
@@ -14197,27 +14260,20 @@
    "version": 6,
    "declaration": "indicator",
    "sha256": "2b7ef68cd14ba1f5",
-   "attached": false,
-   "clean": false,
-   "doorClean": false,
+   "attached": true,
+   "clean": true,
+   "doorClean": true,
    "cleanBound": false,
-   "runtimeAttached": false,
+   "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
    "armedWall": null,
-   "runtimeClean": false,
-   "peelSteps": 2,
-   "reachedAfterPeel": false,
-   "stuck": "pine:no-output",
-   "firstGuards": [
-    "pine:module",
-    "pine:tuple"
-   ],
-   "walls": [
-    "[imperative]",
-    "[imports-libraries]",
-    "[tuples]"
-   ],
+   "runtimeClean": true,
+   "peelSteps": 0,
+   "reachedAfterPeel": true,
+   "stuck": null,
+   "firstGuards": [],
+   "walls": [],
    "objectProgram": {
     "attemptedOps": 0,
     "droppedOps": 0,
@@ -15226,27 +15282,20 @@
    "version": 6,
    "declaration": "indicator",
    "sha256": "e9977cd18609b009",
-   "attached": false,
-   "clean": false,
-   "doorClean": false,
-   "cleanBound": false,
-   "runtimeAttached": false,
+   "attached": true,
+   "clean": true,
+   "doorClean": true,
+   "cleanBound": true,
+   "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
    "armedWall": null,
-   "runtimeClean": false,
-   "peelSteps": 1,
-   "reachedAfterPeel": false,
-   "stuck": "pine:constant-only",
-   "firstGuards": [
-    "pine:builtin",
-    "pine:hidden-only",
-    "pine:module"
-   ],
-   "walls": [
-    "[imports-libraries]",
-    "[user-functions]"
-   ],
+   "runtimeClean": true,
+   "peelSteps": 0,
+   "reachedAfterPeel": true,
+   "stuck": null,
+   "firstGuards": [],
+   "walls": [],
    "objectProgram": {
     "attemptedOps": 0,
     "droppedOps": 0,
@@ -16042,32 +16091,26 @@
    "version": 6,
    "declaration": "indicator",
    "sha256": "a5adaae8f6c2a80c",
-   "attached": false,
-   "clean": false,
-   "doorClean": false,
-   "cleanBound": false,
-   "runtimeAttached": false,
+   "attached": true,
+   "clean": true,
+   "doorClean": true,
+   "cleanBound": true,
+   "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
    "armedWall": null,
-   "runtimeClean": false,
-   "peelSteps": 1,
+   "runtimeClean": true,
+   "peelSteps": 0,
    "reachedAfterPeel": true,
    "stuck": null,
-   "firstGuards": [
-    "pine:module"
-   ],
-   "walls": [
-    "[imports-libraries]",
-    "object op dropped: content:lost",
-    "object op dropped: guard:update <- pine:builtin"
-   ],
+   "firstGuards": [],
+   "walls": [],
    "objectProgram": {
     "attemptedOps": 488,
-    "droppedOps": 366,
-    "split": "dropped"
+    "droppedOps": 0,
+    "split": "no-output-other"
    },
-   "vendorVerdict": "INCONCLUSIVE"
+   "vendorVerdict": "MATCH"
   },
   {
    "key": "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80",
@@ -17333,9 +17376,9 @@
    "declaration": "indicator",
    "sha256": "e1800075f68502a1",
    "attached": true,
-   "clean": false,
+   "clean": true,
    "doorClean": true,
-   "cleanBound": false,
+   "cleanBound": true,
    "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
@@ -17345,9 +17388,7 @@
    "reachedAfterPeel": true,
    "stuck": null,
    "firstGuards": [],
-   "walls": [
-    "[known-divergence]"
-   ],
+   "walls": [],
    "objectProgram": {
     "attemptedOps": 2,
     "droppedOps": 0,
@@ -20026,11 +20067,11 @@
    "clean": false,
    "doorClean": false,
    "cleanBound": false,
-   "runtimeAttached": false,
+   "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
    "armedWall": null,
-   "runtimeClean": false,
+   "runtimeClean": true,
    "peelSteps": 2,
    "reachedAfterPeel": false,
    "stuck": "pine:roundtrip",
@@ -21210,7 +21251,7 @@
    "runtimeAttached": true,
    "placesOrders": true,
    "wouldTransferIfArmed": false,
-   "armedWall": "strategy:no-broker-run",
+   "armedWall": "run:runtime:strategy-unsettled:Q-S1k",
    "runtimeClean": false,
    "peelSteps": 0,
    "reachedAfterPeel": true,
@@ -24295,11 +24336,11 @@
    "clean": false,
    "doorClean": false,
    "cleanBound": false,
-   "runtimeAttached": false,
+   "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
    "armedWall": null,
-   "runtimeClean": false,
+   "runtimeClean": true,
    "peelSteps": 7,
    "reachedAfterPeel": false,
    "stuck": null,
@@ -24537,7 +24578,7 @@
     "droppedOps": 0,
     "split": "never-attempted"
    },
-   "vendorVerdict": null
+   "vendorVerdict": "INCONCLUSIVE"
   },
   {
    "key": "committed:volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d",
@@ -25679,11 +25720,11 @@
    "clean": false,
    "doorClean": false,
    "cleanBound": false,
-   "runtimeAttached": false,
+   "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
    "armedWall": null,
-   "runtimeClean": false,
+   "runtimeClean": true,
    "peelSteps": 6,
    "reachedAfterPeel": true,
    "stuck": null,
@@ -27707,11 +27748,11 @@
    "clean": false,
    "doorClean": false,
    "cleanBound": false,
-   "runtimeAttached": false,
+   "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
    "armedWall": null,
-   "runtimeClean": false,
+   "runtimeClean": true,
    "peelSteps": 1,
    "reachedAfterPeel": false,
    "stuck": "pine:constant-only",
@@ -28598,7 +28639,7 @@
    "runtimeAttached": true,
    "placesOrders": true,
    "wouldTransferIfArmed": false,
-   "armedWall": "run:runtime:strategy-unpinned:B-FILLS",
+   "armedWall": "strategy:no-broker-run",
    "runtimeClean": false,
    "peelSteps": 0,
    "reachedAfterPeel": true,
@@ -30562,11 +30603,11 @@
    "clean": false,
    "doorClean": false,
    "cleanBound": false,
-   "runtimeAttached": false,
+   "runtimeAttached": true,
    "placesOrders": false,
    "wouldTransferIfArmed": null,
    "armedWall": null,
-   "runtimeClean": false,
+   "runtimeClean": true,
    "peelSteps": 1,
    "reachedAfterPeel": true,
    "stuck": null,
@@ -30975,7 +31016,7 @@
     "droppedOps": 0,
     "split": "never-attempted"
    },
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:range-filter-v1__T5nXpEBeCh",
@@ -32831,7 +32872,7 @@
     "droppedOps": 0,
     "split": "never-attempted"
    },
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:trailing-sl-strategy-quantnomad__kvEZ1RweKL",
@@ -33354,7 +33395,7 @@
     "droppedOps": 2,
     "split": "dropped"
    },
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:uptrick-volatility-weighted-cloud__05e131626e",
@@ -34108,7 +34149,7 @@
     "droppedOps": 0,
     "split": "never-attempted"
    },
-   "vendorVerdict": null
+   "vendorVerdict": "unproven (stale)"
   },
   {
    "key": "reference:wavetrend-with-crosses-lazybear__2295",

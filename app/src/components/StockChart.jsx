@@ -272,7 +272,7 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl, registerSymbolWarmer } from '../utils/prefetchBars'
 import { resolveShowExtended } from '../utils/viewSession'
 import * as realtimeCandle from '../lib/realtimeCandle'
-import { newestSeriesBar } from './chart/newestSeriesBar'
+import { newestSeriesBar, newestRealLogicalIndex } from './chart/newestSeriesBar'
 import { barsHistorySplitEnabled } from '../utils/barsHistorySplit'
 import { LIVE_PERIOD_SECONDS } from '../lib/liveBarMerge'
 import { publishChartReadout } from '../lib/chartReadoutStore'
@@ -1443,6 +1443,13 @@ function zoomLimitsOf(chart) {
 // Falls back to the candle count when the time scale cannot answer (mid-load / stand-ins).
 function newestLogicalIndex(chart, candleSeries, fallbackCount) {
   try {
+    // ⭐ BY INDEX LOOKUPS FIRST, NEVER A COPY (2026-11-19). `data()` rebuilds every row of the series
+    // as a new object (a 50,000-row copy on an hourly chart; ~14 ms of each flip on the production
+    // CPU profile). The newest real candle is found from the end with the library's own search,
+    // stepping left over the whitespace slots (the D/W/M load reserve) by their logical index.
+    const n = newestRealLogicalIndex(chart, candleSeries)
+    if (n != null) return n
+    // the time scale could not answer (mid-load / stand-ins): the series' rows, as before
     const d = candleSeries?.data?.() || []
     let i = d.length - 1
     while (i >= 0 && isWhitespacePoint(d[i])) i--
@@ -8735,8 +8742,10 @@ export default function StockChart({
     const loaded = barCountRef.current
     if (heldSpanFor(loaded, 0) !== heldSpanFor(_heldLoaded, 0)) _setHeldLoaded(loaded)
   })
+  // ⭐⭐ (2026-11-19, e83 live) — and the symbol BINDING the run is handed (`symbolMeta`), so the own-daily question
+  // is asked of the script as the run builds it (Fred RS branches on `syminfo.industry`)
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym)
+    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)

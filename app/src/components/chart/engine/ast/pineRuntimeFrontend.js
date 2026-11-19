@@ -1677,7 +1677,8 @@ function joinWrappedSwitchArms(list, indents, srcLines = null) {
 /** ⭐⭐ P3 WS-B / ENGINE 56 / ENGINE 57 / RS RATING L11 — WHAT `columnOf` REFUSES FOR A COLUMN IT HAS JUST
  *  EVALUATED OVER `nBars` BARS, from the codes the columnar lane wrote into that column's own clock sink, or null.
  *  ⭐⭐ ONE AUTHORITY (2026-11-19, the B5 reuse fix), asked by the build (`columnOf`) and by a session's re-evaluation
- *  of its kept build over new bars (`runtime/runtimeColumns.js::columnsOver`): a column that would refuse a fresh
+ *  of its kept build over new bars, and the build memo's of a kept build over other bars (both
+ *  `runtime/runtimeColumns.js::columnsOver`): a column that would refuse a fresh
  *  build over those bars sends the run back to a fresh build, which refuses by name exactly as here. ⚰️ The reuse
  *  path kept its own list (`time-*` only) and served what a cold build refused.
  *    * a `time-*` code (P3 WS-B): a clock the columnar lane withholds is withheld here too (`runtime:chart-clock`).
@@ -1716,7 +1717,7 @@ export function columnSinkRefusal(clockSink, nBars, at) {
 
 /** ⛔⛔ ENGINE 57 (review N1) — NEVER A SILENT BLANK. A column the columnar lane withheld on EVERY bar by a built-in's
  *  witness code would draw nothing under no name; the run declines by that code instead. Null when the column holds
- *  a finite value or no such code was written. (Asked by `columnOf` and a session's reuse alike.) */
+ *  a finite value or no such code was written. (Asked by `columnOf`, a session's reuse and the build memo alike.) */
 export function columnBlankRefusal(clockSink, arr, nBars, at) {
   if (!(nBars > 0) || arr.some(Number.isFinite)) return null
   for (const [code, sentence] of clockSink) {
@@ -1734,11 +1735,25 @@ const MAX_BARS_BACK_CEILING = 5000
  *  zone, the C1 exchange zone of an `input.time` default, the column checks) and "are there more bars than Pine's history buffer" (`mbbDynamicColumn`). Two builds
  *  of one script, with equal options, over bar counts in one class, take the same path wherever the columns they
  *  evaluate do not refuse (`columnSinkRefusal`, `columnBlankRefusal`) and do not throw. ⛔ A new read of the count
- *  joins this key, or a session (`runtime/runtimeColumns.js::columnsOver`) reuses a build over a count it never
- *  saw: `runtime/__tests__/sessionReuseIdentity.test.js` holds every read of `bars` in this file to that list. */
+ *  joins this key, or a session or the build memo (`runtime/runtimeColumns.js::columnsOver`) reuses a build over a
+ *  count it never saw: `runtime/__tests__/sessionReuseIdentity.test.js` and `buildMemo.test.js` hold every read of
+ *  `bars` in this file to that list. */
 export function buildBarCountClass(n) {
   if (!(n > 0)) return 'none'
   return n > MAX_BARS_BACK_CEILING ? 'past-buffer' : 'within-buffer'
+}
+
+/** ⭐⭐ PERF (item d) — the binding's constants, every READ reported to `onRead(name)` (a walk of the whole object is
+ *  reported as `*`): the build memo keys a kept build on the symbol facts the build READ, and on no other fact of the
+ *  symbol. Without a hook, the constants themselves, untouched. */
+function bindConstsReporting(consts, onRead) {
+  if (typeof onRead !== 'function' || !consts || typeof consts !== 'object') return consts
+  return new Proxy(consts, {
+    get(t, k, r) { if (typeof k === 'string') onRead(k); return Reflect.get(t, k, r) },
+    has(t, k) { if (typeof k === 'string') onRead(k); return Reflect.has(t, k) },
+    getOwnPropertyDescriptor(t, k) { if (typeof k === 'string') onRead(k); return Reflect.getOwnPropertyDescriptor(t, k) },
+    ownKeys(t) { onRead('*'); return Reflect.ownKeys(t) },
+  })
 }
 
 function buildRuntimeIrLinked(source, opts, holder) {
@@ -2894,11 +2909,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⚠️ AND IT IS NOT GUESSED. With no `symbol` the assembly returns `{}` for the
   // symbol half and every `syminfo.*` stays NotFoldable, refusing BY NAME — R-K's
   // deliberate choice of a loud refusal over a half-resolved string.
-  const bindConsts = bindConstsFor({
+  // ⭐ PERF (item d) — `opts.onBindRead` (the build memo's recorder) hears every constant the build reads
+  const bindConsts = bindConstsReporting(bindConstsFor({
     tf: opts.tf,
     inputs,
     symbol: opts.symbol,
-  })
+  }), opts.onBindRead)
 
   /** ⭐⭐ THE BARS THIS BUILD IS FOR — read ONCE, here, from the BUILD's options.
    *
@@ -7496,6 +7512,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // its region is a statement sequence with its own entry point.
     const prevSink = hoistSink
     hoistSink = []
+    // ⭐⭐⭐ (engine 85) — AND SO IS EVERY COMMITTED SERIES THE VALUE NEEDS: the statement hoist sink is the
+    // REGION's for the value's whole lowering (`hoistCommittedSeries`), never the statement the request sits on.
+    // ⚰️ It was that statement's: `ta.change(close * 2)` here, `ta.change(pl)` of a root binding, and a helper's
+    // `ta.change(x)` lowered inline (`lowerInlineCall`) declared their series into the MAIN program, which a
+    // request's sub-run never runs, so the region read a local and a ring nothing in it stores, and drew `na` on
+    // every requested bar with nothing red. Engine 82's U-FGS F1 (#1952) made the commonest shape of it reachable:
+    // `v(x) => u(x) + ta.change(x)` inside a request had refused inline and fallen back to the shared frame
+    // (exact), and from e82 it inlined into that hole. One region, one sink: a statement-form helper's own last
+    // line still takes its body's sink (U-REQ-HOIST-COLUMN), and a nested statement list still has none.
+    // ⛔ The class guard is `program.js::requestRegionUnstoredRead`: a region that reads what it never stores is
+    // refused at build, by name, whatever lowered it.
+    const prevStmtSink = stmtHoistSink
+    stmtHoistSink = hoistSink
     let valueIr
     try {
       // ⭐⭐ THE DESTRUCTURING FLAG REACHES THE VALUE, and without it a request
@@ -7509,7 +7538,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // about a line that IS one. The tuple machinery was already here; only the
       // permission to use it was missing.
       valueIr = requestValueIr(valueNode, inner)
-    } finally { inRequestValue = wasInRequest }
+    } finally { inRequestValue = wasInRequest; stmtHoistSink = prevStmtSink }
     const hoisted = hoistSink
     hoistSink = prevSink
 
@@ -9192,6 +9221,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if ((!(condHistory && r4Level() > 0) || everyBarColumn) && !splitForArms && !mbbDynamicColumn(node, scope)) try {
         return column(columnOf(node, locate(node.tok)))
       } catch (e) {
+        // ⭐ (cold-load series, C3, 2026-11-19) — THIS IS AN EXCEPTION PATH ON PURPOSE, AND A HOT ONE. `columnOf` asks
+        // the columnar resolver (`makeResolver().resolve`) whether this subtree is a column, and the resolver says "no"
+        // only by THROWING a `PineRefusal` (text, a clock, a colour, a name it does not hold); this catch is how the
+        // runtime lane hears that answer and lowers the node itself. Measured on Fred RS (5m): the Error construction
+        // (stack capture) here is ~17 ms a curtain, ~8.5 ms a cold build once the build memo holds. ⛔ Not made cheap,
+        // by ruling: `Error.stackTraceLimit = 0` around the probe would take the stack from a GENUINE bug thrown inside
+        // it, and a non-throwing "is this a column?" predicate would be a second authority beside the resolver.
+        //
         // ⛔ ONLY over a subtree that really does carry text, and only for the
         // two verdicts that mean "this lane has no text for you":
         //

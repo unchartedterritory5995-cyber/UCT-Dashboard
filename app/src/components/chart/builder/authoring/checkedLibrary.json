@@ -40,5 +40,6 @@
 ],"builtIns":[
 {"id":"mansfield_relative_strength","name":"Mansfield Relative Strength","indicator":"rsMansfield","builtInName":"UCT Mansfield RS"},
 {"id":"rs_rating","name":"RS Rating","indicator":"rsRating","builtInName":"UCT RS Rating"},
-{"id":"rs_phases","name":"RS Phases","indicator":"rsPhases","builtInName":"UCT RS Phases"}
+{"id":"rs_phases","name":"RS Phases","indicator":"rsPhases","builtInName":"UCT RS Phases"},
+{"id":"session_vwap_bands","name":"VWAP standard deviation bands","indicator":"vwap","builtInName":"Session VWAP","setting":{"input":"bands","values":["1","2","3"]}}
 ]}

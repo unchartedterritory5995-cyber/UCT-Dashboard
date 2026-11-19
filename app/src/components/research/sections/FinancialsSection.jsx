@@ -21,10 +21,12 @@ export default function FinancialsSection({ sym }) {
           link, which would re-open the divert this modal exists to remove. */}
       <FundamentalSnapshot sym={sym} showResearchLink={false} />
       <StatementPanels sym={sym} />
-      {/* showGrids={false}: the grids label CALENDAR quarters while the
-          panels above label FISCAL ones, so the same quarter appeared twice
-          under two names. The balance-sheet and profitability cards below are
-          unique to this tab and are what it is here for. */}
+      {/* showGrids={false}: the panels above already chart these statements
+          over 24 quarters, and the compact grids would repeat the last eight.
+          (They now read the same statements under the same FISCAL labels; only
+          a ticker that feed has nothing for falls back to CALENDAR-labelled
+          frames.) The balance-sheet and profitability cards below are unique
+          to this tab and are what it is here for. */}
       <FinancialsTab sym={sym} showGrids={false} />
     </div>
   )

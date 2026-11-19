@@ -240,6 +240,7 @@ POLL_LATE_S = 90
 RUN_CHECK_EVERY = 10                   # also read the run itself every Nth poll (a run cancelled before any job)
 FIND_RUN_POLL_S = 5
 FRESH_RUN_GRACE_S = 90                 # a just-dispatched run may answer 404 for this long before it is readable
+DISPATCH_5XX_GRACE_S = 120             # a dispatch answered 5xx may still have started a run: look this long for it
 SECONDARY_LIMIT_WAIT_S = 60            # a secondary (abuse) limit with no Retry-After: GitHub's documented minimum
 MAX_RATE_LIMIT_WAIT_S = 3700           # the primary window is one hour
 RATE_LIMIT_RETRIES = 4
@@ -421,6 +422,22 @@ def dispatch(api: GitHubApi, inputs: dict[str, str], find_timeout_s: int = 120,
     state = state or RunState()
     status, data = api.request("POST", f"{_REPO}/actions/workflows/{WORKFLOW}/dispatches",
                                body={"ref": "master", "inputs": inputs, "return_run_details": True})
+    if status >= 500:
+        # ⚰️ 2026-11-19 (run 44552655327): GitHub answered HTTP 500 to the dispatch, this tool exited 2 and abandoned
+        # the ref, and the run HAD started: it ran on that ref with nobody watching. A 5xx says the ANSWER failed, not
+        # that the dispatch did (the same class as the fresh-run 404 above). So look for a run on OUR ref (the run name
+        # carries it) for DISPATCH_5XX_GRACE_S; one that appears is followed as normal. None appearing is a failure,
+        # and the ref is KEPT (state.dispatched): a run that shows up later must still find it.
+        state.dispatched = True
+        api._log(f"remote tests: dispatch answered HTTP {status}; looking for a run on {inputs['ref']} for "
+                 f"{DISPATCH_5XX_GRACE_S} s before concluding")
+        found = _find_run(api, inputs["ref"], DISPATCH_5XX_GRACE_S)
+        if found:
+            state.run_id = found[0]
+            api._log(f"remote tests: the dispatch DID start run {found[0]}; following it")
+            return found
+        raise RuntimeError(f"dispatch failed (HTTP {status}) and no run on {inputs['ref']} appeared within "
+                           f"{DISPATCH_5XX_GRACE_S} s: {(data or {}).get('message', '')}"[:400])
     if status not in (200, 204):
         raise RuntimeError(f"dispatch failed (HTTP {status}): {(data or {}).get('message', '')}"[:400])
     state.dispatched = True                             # from here a run may be live and reading the ref

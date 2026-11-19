@@ -1,5 +1,7 @@
-// Three exact edits to lightweight-charts' production build, applied at BUILD time by
-// `patchChartLibrary()` in vite.config.js. Nothing in node_modules is changed.
+// Five exact edits to lightweight-charts' production build, applied at BUILD time by
+// `patchChartLibrary()` in vite.config.js. Nothing in node_modules is changed. Edits 1-3 are the
+// data layer (below); edits 4-5 stop the series markers plugin copying the whole series on every
+// redraw and every data change (see their entries in PATCHES).
 //
 // WHY. Flipping a chart to another symbol calls `series.setData` on every series. The library's
 // data layer does work proportional to (time points x series) on EACH of those calls, so a chart
@@ -47,6 +49,28 @@ export const PATCHES = [
     find: 'function ln(t){let i=t;if(m(t)&&(i=_n(t)),!Ki(i))throw new Error("time must be of type BusinessDay");const n=new Date(Date.UTC(i.year,i.month-1,i.day,0,0,0,0));return{Sf:Math.round(n.getTime()/1e3),xf:i}}',
     replace: 'const uctDayMemo=new Map;function ln(t){const s="string"==typeof t;if(s){const c=uctDayMemo.get(t);if(void 0!==c)return{Sf:c.Sf,xf:{day:c.day,month:c.month,year:c.year}}}let i=t;if(m(t)&&(i=_n(t)),!Ki(i))throw new Error("time must be of type BusinessDay");const n=new Date(Date.UTC(i.year,i.month-1,i.day,0,0,0,0)),r=Math.round(n.getTime()/1e3);return s&&uctDayMemo.size<5e4&&uctDayMemo.set(t,{Sf:r,day:i.day,month:i.month,year:i.year}),{Sf:r,xf:i}}',
     introduces: ['uctDayMemo'],
+  },
+  // ⭐ THE SERIES MARKERS PLUGIN COPIED THE WHOLE SERIES (2026-11-19). `createSeriesMarkers` (the
+  // chart's BUY/SELL, earnings and event markers) called `series.data()`, which rebuilds every row
+  // of the series as a new object, in two places: its pane view on EVERY redraw (each pan, zoom and
+  // crosshair frame), and its marker re-index after EVERY data change (each live tick's update()).
+  // On a 50,000-bar hourly chart that is a 50,000-object copy per frame and per tick. Measured on
+  // production data (real Chrome, 60m list flips): the product's whole-series copies were 99-140 ms
+  // of each flip's first 700 ms of main-thread work.
+  {
+    name: 'series markers: the redraw no longer copies the series for a check that never fires',
+    // `data()[0]` is a row object or undefined, never null: the early return is unreachable. The
+    // copy it made is the only thing the line did.
+    find: 'if(null===this.Te.data()[0])return;',
+    replace: '/*uct:markers-redraw-no-copy*/',
+  },
+  {
+    name: 'series markers: the re-index reads the first bar, not a copy of every bar',
+    // The copy was read for its length and its first row's time only. `dataByIndex` with the most
+    // negative index and NearestRight (1) is that first row, or null for an empty series: the same
+    // row the copy's [0] was (the library's own binary search over the same rows).
+    find: 'i=this.Te?.data();if(null==t.getVisibleLogicalRange()||!this.Te||0===i.length)return void(this.US=[]);const n=t.timeToIndex(u(i[0].time),!0);',
+    replace: 'i=this.Te?.dataByIndex(-9007199254740991,1);if(null==t.getVisibleLogicalRange()||!this.Te||null==i)return void(this.US=[]);const n=t.timeToIndex(u(i.time),!0);',
   },
 ]
 

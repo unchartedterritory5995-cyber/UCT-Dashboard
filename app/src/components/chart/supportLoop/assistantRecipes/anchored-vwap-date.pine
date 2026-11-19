@@ -11,4 +11,4 @@ if started
     sumV += volume
     sumPV += src * volume
 avwap = started and sumV > 0 ? sumPV / sumV : na
-plot(avwap, "Anchored VWAP", color=color.orange, width=2)
+plot(avwap, "Anchored VWAP", color=color.orange, linewidth=2)

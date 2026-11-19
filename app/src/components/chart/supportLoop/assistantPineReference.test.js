@@ -7,7 +7,8 @@
 //
 //   (cd app && WRITE_ASSISTANT_PINE_REFERENCE=1 node node_modules/vitest/vitest.mjs run \
 //      src/components/chart/supportLoop/assistantPineReference.test.js)
-import { describe, it, expect, beforeAll, vi } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
+import { steadyRunClock } from './testing/steadyRunClock'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -41,6 +42,11 @@ const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8
   .match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
 vi.stubEnv(flagOf('src/components/chart/engine/objectsOnlyPaneGate.js'), '1')
 vi.stubEnv(flagOf('src/components/chart/engine/runtimePaneGate.js'), '1')
+// WHAT IS GENERATED MUST NOT DEPEND ON BOX LOAD EITHER: a recipe stopped by the wall clock on a busy runner
+// would be written (or compared) as one that does not run. Every run in this file reads a stepping clock.
+let runClock = null
+beforeEach(() => { runClock = steadyRunClock() })
+afterEach(() => { if (runClock) runClock.restore(); runClock = null })
 
 const HERE = path.resolve(process.cwd(), 'src/components/chart/supportLoop')
 const FILE = path.join(HERE, 'assistantPineReference.json')
@@ -285,6 +291,7 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
     const GUARD = {
       'running-total': 'runtime:warmup-never-converges', 'timestamp-clock': 'runtime:clock-zone',
       'delete-in-one-call': WRONG_VALUE_GUARD, 'higher-timeframe-newest-bar': NEWEST_BAR_BLANK_GUARD,
+      'higher-timeframe-one-bar-back': NEWEST_BAR_BLANK_GUARD,
     }
     expect(Object.keys(by).sort()).toEqual(Object.keys(GUARD).sort())
     for (const [id, s] of Object.entries(by)) {

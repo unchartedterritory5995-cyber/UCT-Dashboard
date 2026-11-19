@@ -125,6 +125,14 @@ export const RUN_STOP_PROBES = Object.freeze({
     history: 'fromListing', chart: 'daily', dropLast: 3, newestBarHasValue: true,
     source: '//@version=5\nindicator("probe", overlay=true)\nplot(request.security(syminfo.tickerid, "W", close), "Weekly close")\n',
   },
+  // ⭐ ONE BAR BACK (2026-11-19, engine 84 #1996). `x[1]` of a higher-timeframe read is the bar before's
+  // merge, a settled value, and the engine draws it on the newest bar. Whether it does is this probe's to
+  // say, never a sentence's: the assistant is told "one bar back does not help" while this stands, and
+  // "read it one bar back" while the read itself is blank and this is not (`RUN_STOP_RELIEFS`, server).
+  'higher-timeframe-one-bar-back': {
+    history: 'fromListing', chart: 'daily', dropLast: 3, newestBarHasValue: true,
+    source: '//@version=5\nindicator("probe", overlay=true)\nwk = request.security(syminfo.tickerid, "W", close)\nplot(wk[1], "Weekly close, one bar back")\n',
+  },
   // a value kept since the first bar never forgets where the chart started
   'running-total': {
     history: 'offListing', chart: 'daily',
