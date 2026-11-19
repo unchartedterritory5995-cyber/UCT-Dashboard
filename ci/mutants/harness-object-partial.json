@@ -1,0 +1,87 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "DISCLOSED PARTIAL (fix/harness-object-pairing, coordinator ruling 2026-11-19): where the counts differ, object records pair by value, never by position (`objectRecords.js::alignByValue`); a family our side drew fewer of BY NAME (`ourSide.js` partialFamilies) is graded on what it draws (`compare.mjs::compareObjects`): every drawn record agreeing is WITHHELD (objects:partial), one that differs is a DIVERGE. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "H1",
+   "mutant": "records pair by position again (newest-end) where the counts differ",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/objectRecords.js",
+   "from": "    const { pairs, unpairedVendor, unpairedOurs, byValue } = alignByValue(vendor, ours, score)",
+   "to": "    const { pairs, unpairedVendor, unpairedOurs, byValue } = { ...alignNewest(vendor, ours), byValue: vendor.length !== ours.length }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsPartial.test.js",
+   "expectRed": "our level lines pair with TradingView"
+  },
+  {
+   "id": "H2",
+   "mutant": "the partial rule is off: a family drawn in part by name is a count DIVERGE again",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    if (!agree && o < v && PARTIAL_GRADED.has(f) && partialOf(f)) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsPartial.test.js",
+   "expectRed": "every drawn record agrees"
+  },
+  {
+   "id": "H3",
+   "mutant": "a drawn record that differs is read as agreeing (a wrong drawing passes as a partial)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "      if (V2_DIFFERS.has(r.state)) return { agree: false,",
+   "to": "      if (false) return { agree: false,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsPartial.test.js",
+   "expectRed": "a drawn line at the wrong price"
+  },
+  {
+   "id": "H4",
+   "mutant": "no pairing at all reads as agreement",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  if (!p) return { agree: false, first: 'no record of it was paired field by field' }",
+   "to": "  if (!p) return { agree: true, first: null }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsPartial.test.js",
+   "expectRed": "no pairing at all"
+  },
+  {
+   "id": "H5",
+   "mutant": "a family we hold MORE of is graded as a partial too",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    if (!agree && o < v && PARTIAL_GRADED",
+   "to": "    if (!agree && PARTIAL_GRADED",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsPartial.test.js",
+   "expectRed": "MORE of than TradingView"
+  },
+  {
+   "id": "H6",
+   "mutant": "a partial's drawn label texts are not checked against TradingView's",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    const agree = partial.has(f) ? subMultiset(b, a) :",
+   "to": "    const agree = partial.has(f) ? true :",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsPartial.test.js",
+   "expectRed": "a drawn label text TradingView does not hold"
+  },
+  {
+   "id": "H7",
+   "mutant": "objects v2 counts a partial's withheld records as a difference",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    if (partialFams.has(f) && p.unpairedVendor && !p.unpairedOurs) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsPartial.test.js",
+   "expectRed": "the paired records are graded"
+  },
+  {
+   "id": "H8",
+   "mutant": "our side never names the families it drew fewer of",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/ourSide.js",
+   "from": "      ...partialFamiliesOf(reader.program, run),",
+   "to": "      ...{},",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsPartial.test.js",
+   "expectRed": "a create the program lost"
+  },
+  {
+   "id": "H9",
+   "mutant": "a family nobody named is graded as a partial",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  const partialOf = (f) => partialNamed.has('*') || partialNamed.has(RUNTIME_FAMILY[f])",
+   "to": "  const partialOf = (f) => true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsPartial.test.js",
+   "expectRed": "nobody named the missing lines"
+  }
+ ]
+}

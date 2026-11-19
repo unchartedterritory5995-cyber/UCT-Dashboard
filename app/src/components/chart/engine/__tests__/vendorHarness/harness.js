@@ -124,12 +124,19 @@ export function gradeCapture(original, opts = {}) {
   const otherSymbolUnsettled = integrity.ok && ours && ours.ok ? otherSymbolUnsettledOf(capture) : null
   // SUPPLY BEHIND THE CAPTURE (coordinator ruling, 2026-11-18): a forming newest bar the recorded supply cannot answer
   const supplyBehind = integrity.ok && ours && ours.ok ? supplyBehindOf(capture) : null
-  const indicator = compareCapture(capture, ours, { integrity, objectColours, paints, supplyAttribution, otherSymbolUnsettled, supplyBehind })
+  // ⭐⭐ DISCLOSED PARTIAL (coordinator ruling 2026-11-19) — the records paired field by field (by value where the
+  // counts differ, `objectRecords.js::alignByValue`), handed to v1 too: a family our side drew fewer of BY NAME is
+  // graded on what it draws (`compare.mjs::compareObjects`). The same pairing feeds the v2 report below.
+  const objectRecords = capture.objects && capture.objects.records
+    && ours && ours.ok && ours.objects && ours.objects.ok && Array.isArray(ours.objects.held)
+    ? pairRecords(capture, ours.objects)
+    : null
+  const indicator = compareCapture(capture, ours, { integrity, objectColours, paints, supplyAttribution, otherSymbolUnsettled, supplyBehind, objectRecords })
   // ⭐⭐ THE STRATEGY GRADE, FOLDED IN where the capture holds a Strategy Tester report or our door ran a
   // broker document (`strategyLane.js`, THE FOLD); null, and the verdict unchanged, everywhere else
   const strategy = integrity.ok ? strategyLaneGradeOf(capture, ours, { unrun }) : null
   const verdict = foldStrategyGrade(indicator, strategy)
-  const objectsV2 = objectsV2Of(capture, ours, verdict)
+  const objectsV2 = objectsV2Of(capture, ours, verdict, objectRecords)
   // ⭐ L7 — a run with substituted inputs never reads MATCH, the v2 objects report included
   // (capability admission reads `objectsV2: MATCH` for an `obj:*` family).
   if (objectsV2 && verdict.substituted && objectsV2.verdict === 'MATCH') objectsV2.verdict = MATCH_SUBSTITUTED
@@ -140,9 +147,9 @@ export function gradeCapture(original, opts = {}) {
  *  (`compare.mjs::compareObjectsV2`). A SEPARATE report beside the verdict: the
  *  verdict, and every ratchet that reads it, stays v1. `null` where v1 graded no
  *  objects. */
-export function objectsV2Of(capture, ours, verdict) {
+export function objectsV2Of(capture, ours, verdict, paired = undefined) {
   if (!verdict || !verdict.objects) return null
-  const pairing = capture.objects && capture.objects.records
+  const pairing = paired !== undefined ? paired : capture.objects && capture.objects.records
     && ours && ours.ok && ours.objects && ours.objects.ok && Array.isArray(ours.objects.held)
     ? pairRecords(capture, ours.objects)
     : null

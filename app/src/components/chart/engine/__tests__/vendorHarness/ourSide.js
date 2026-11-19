@@ -1347,6 +1347,13 @@ function objectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
 /** Rails only (PARITY UNIT LF): the object report the grader builds for one instance's columns. */
 export const __objectsReportForTests = (...args) => hostObjectsOf(...args)
 
+/** `{partialFamilies}` — the families a disclosed partial drew fewer of (see `hostObjectsOf`), or nothing. */
+function partialFamiliesOf(program, run) {
+  const fams = new Set(Array.isArray(program && program.lostCreates) ? program.lostCreates : [])
+  for (const [f, n] of Object.entries((run && run.withheld) || {})) if (n > 0) fams.add(f)
+  return fams.size ? { partialFamilies: [...fams].sort() } : {}
+}
+
 /** The object lane's LIVE set at the last bar, as counts and texts. */
 function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
   // ⭐⭐ PARITY UNIT LF — the binder's own answer (`drawsRunObjectsOn`): a run-owned document carrying its
@@ -1443,6 +1450,11 @@ function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
       // ⭐ OZ — and a family the run drew NONE of for a cause of the engine's own
       // (`objectRuntime.js`, `notShown`), by the same name the member reads.
       ...notShownReport(run.withheldBy, run.withheldWhy),
+      // ⭐⭐ DISCLOSED PARTIAL (coordinator ruling 2026-11-19) — the families of which this program drew FEWER objects
+      // than the script makes, and SAID SO at the door: a create the program lost (`program.lostCreates`, `'*'` = every
+      // family) or an object the run withheld by name (`run.withheld`). A count gap in such a family is graded on what
+      // is drawn (`compare.mjs::compareObjects`), never as a count DIVERGE.
+      ...partialFamiliesOf(reader.program, run),
     }
   } catch (err) {
     return { drawsObjects: true, ok: false, reason: `the object lane threw: ${String((err && err.message) || err)}` }
