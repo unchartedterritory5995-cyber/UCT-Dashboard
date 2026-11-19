@@ -59,6 +59,16 @@ describe('a bare constant is its column', () => {
       }
     }
   })
+  it('⛔ an input that shadows a table name is still refused by name, with a constant tree (the pipeline checks inputs first)', () => {
+    for (const name of ['close', 'self', 'sma']) {
+      const { off, on } = bothWays(() => interpret({ type: 'num', value: 1 }, bars(5), { [name]: 3 }))
+      expect(off.e, name).toMatch(/shadows a table name/)
+      expect(on.e, name).toBe(off.e)
+    }
+    // and an input that shadows nothing: the same column both ways
+    const { off, on } = bothWays(() => interpret({ type: 'num', value: 4 }, bars(5), { myLen: 3 }))
+    expect(sameColumn(on.v, off.v)).toBe(true)
+  })
   it('⛔ a num that is not finite still takes the full path and is refused there, by name', () => {
     for (const value of [NaN, Infinity, -Infinity]) {
       const { off, on } = bothWays(() => interpret({ type: 'num', value }, bars(5), {}))
