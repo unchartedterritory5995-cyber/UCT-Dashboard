@@ -1,6 +1,6 @@
 {
   "_doc": "Breadth Monitor shading rules (owner round 5, 2026-11-19). Read by breadth/shading.js (the UI) AND tools/breadth/calibrate_breadth_shading.py (the frozen cutoffs + the value-free report), so the two can never disagree. pcts: how rare a reading must be, as a % of ALL history on one side (top or bottom). Each must be on the grid the cutoffs file was built with (shadeCutoffs.generated.json `grid`), so loosening/tightening within the grid needs no re-run. bull: which end of the column is bullish. sides: which end(s) get shaded. floors: widely used trader thrust levels; a reading at or past one is at least Strong even when it is not rare. basis: shade by another field's rarity (the S&P / QQQ closes are colored by their day %). kind 'pair' / 'flag' keep the pre-existing rule, mapped onto the levels (breadth/shading.js).",
-  "pcts": { "notable": 20, "strong": 7.5, "extreme": 2 },
+  "pcts": { "notable": 25, "strong": 10, "extreme": 3 },
   "cols": {
     "breadth_score":     { "bull": "high", "sides": "both" },
     "uct_exposure":      { "bull": "high", "sides": "both" },

@@ -39,7 +39,7 @@ SPEC = os.path.join(ROOT, "app", "src", "pages", "breadth", "shadeSpec.json")
 OUT = os.path.join(ROOT, "app", "src", "pages", "breadth", "shadeCutoffs.generated.json")
 
 # Tail percentiles stored for every column (each end). shadeSpec `pcts` must be on it.
-GRID = [0.5, 1, 2, 3, 5, 7.5, 10, 15, 20]
+GRID = [0.5, 1, 2, 3, 4, 5, 7.5, 10, 12.5, 15, 20, 25, 30]
 LEVELS = ("notable", "strong", "extreme")
 
 
