@@ -20,7 +20,7 @@ vi.mock('../../research-kit', () => ({
 }))
 
 import FinancialsDeep from './FinancialsDeep'
-import ConsensusEstimates from './ConsensusEstimates'
+import ConsensusEstimates, { EstimateRevisions, estimatesKey } from './ConsensusEstimates'
 import { buildTable, fmtMoney, fmtTimes, rowLabel, STATEMENTS } from './depthFormat'
 
 const QUARTERS = Array.from({ length: 24 }, (_, i) => `Q${(i % 4) + 1} ${2021 + Math.floor(i / 4)}`)
@@ -55,12 +55,20 @@ const CONSENSUS = {
   quarterly: [{ period_end: '2026-10-31', label: 'Q3 2027', eps: { avg: 1.1, low: 1, high: 1.2, n: 30 },
     revenue: { avg: 5.4e10, low: 5e10, high: 5.8e10, n: 30 }, eps_growth: 50, revenue_growth: 45 }],
 }
+// The consensus answer as the route sends it: the Yahoo forward table rides along ONLY when FMP
+// holds no forward periods, and revisions are never part of it (their own read, REVISIONS below).
+const answered = (c) => c?.state === 'ok' && ((c.annual || []).length || (c.quarterly || []).length)
 const ESTIMATES = (consensus) => ({
   sym: 'NVDA', entity: null,
-  forward: [{ period: 'Current Qtr', eps_avg: 1.0, eps_low: 0.9, eps_high: 1.1, num_analysts: 30, eps_growth: 40, rev_avg: 5e10 }],
-  revisions: [{ period: 'Current Qtr', current: 1.0, ago30: 0.95, ago90: 0.9, up30: 12, down30: 1 }],
-  consensus, sources: { forward: 'Yahoo Finance', revisions: 'Yahoo Finance', consensus: 'FMP' },
+  forward: answered(consensus) ? []
+    : [{ period: 'Current Qtr', eps_avg: 1.0, eps_low: 0.9, eps_high: 1.1, num_analysts: 30, eps_growth: 40, rev_avg: 5e10 }],
+  consensus, sources: answered(consensus) ? { consensus: 'FMP' } : { consensus: 'FMP', forward: 'Yahoo Finance' },
 })
+const REVISIONS_URL = '/api/research/estimates/NVDA?revisions=1'
+const REVISIONS = {
+  sym: 'NVDA', sources: { revisions: 'Yahoo Finance' },
+  revisions: [{ period: 'Current Qtr', current: 1.0, ago30: 0.95, ago90: 0.9, up30: 12, down30: 1 }],
+}
 
 let routes
 let calls
@@ -247,10 +255,69 @@ describe('EE — ConsensusEstimates', () => {
 
   it('revisions stay, labelled as Yahoo Finance', async () => {
     routes['/api/research/estimates/NVDA?consensus=1'] = ESTIMATES(CONSENSUS)
+    routes['/api/research/estimates/NVDA?revisions=1'] = REVISIONS
     mount(<ConsensusEstimates sym="NVDA" />)
     const rev = await screen.findByTestId('ee-revisions')
     expect(within(rev).getByTestId('depth-source')).toHaveAttribute('data-vendor', 'Yahoo Finance')
     expect(within(rev).getByTestId('depth-source')).toHaveAttribute('data-fallback', 'false')
+    expect(within(rev).getByTestId('depth-source')).toHaveTextContent('FMP does not publish estimate revisions')
+    expect(within(rev).getByText('Current Qtr')).toBeInTheDocument()
+    expect(within(rev).getByText('12')).toBeInTheDocument()
+  })
+
+  it('the revisions card is its OWN request: two reads, one source each', async () => {
+    routes['/api/research/estimates/NVDA?consensus=1'] = ESTIMATES(CONSENSUS)
+    routes['/api/research/estimates/NVDA?revisions=1'] = REVISIONS
+    mount(<ConsensusEstimates sym="NVDA" />)
+    await screen.findByTestId('ee-revisions')
+    expect(estimatesKey('NVDA')).toBe('/api/research/estimates/NVDA?consensus=1')
+    expect(calls.filter((u) => u === estimatesKey('NVDA'))).toHaveLength(1)
+    expect(calls.filter((u) => u === REVISIONS_URL)).toHaveLength(1)
+    // the consensus card is FMP's and is drawn whatever the revisions read does
+    expect(screen.getByTestId('ee-deep')).toHaveAttribute('data-source', 'fmp')
+  })
+
+  it('revisions riding on the consensus answer are NOT drawn: the card reads only its own request', async () => {
+    routes['/api/research/estimates/NVDA?consensus=1'] = { ...ESTIMATES(CONSENSUS), revisions: REVISIONS.revisions }
+    routes['/api/research/estimates/NVDA?revisions=1'] = { sym: 'NVDA', revisions: [], sources: { revisions: 'Yahoo Finance' } }
+    mount(<ConsensusEstimates sym="NVDA" />)
+    await screen.findByTestId('ee-consensus')
+    await waitFor(() => expect(calls).toContain(REVISIONS_URL))
+    expect(screen.queryByTestId('ee-revisions')).toBeNull()
+  })
+
+  it.each([
+    ['fails', new TypeError('Failed to fetch')],
+    ['is marked unread', { sym: 'NVDA', revisions: [], yf_unavailable: true, sources: { revisions: 'Yahoo Finance' } }],
+    ['is refused (paywalled)', { paywalled: true }],
+  ])('a revisions read that %s leaves the consensus standing and draws no revisions card', async (_n, answer) => {
+    routes['/api/research/estimates/NVDA?consensus=1'] = ESTIMATES(CONSENSUS)
+    routes['/api/research/estimates/NVDA?revisions=1'] = answer
+    mount(<ConsensusEstimates sym="NVDA" />)
+    expect(await screen.findByTestId('ee-consensus')).toBeInTheDocument()
+    await waitFor(() => expect(calls).toContain(REVISIONS_URL))
+    expect(screen.queryByTestId('ee-revisions')).toBeNull()
+    expect(screen.queryByText('Could not load this section')).toBeNull()
+  })
+
+  it('EstimateRevisions on its own asks only for revisions', async () => {
+    routes['/api/research/estimates/NVDA?revisions=1'] = REVISIONS
+    mount(<EstimateRevisions sym="nvda" rc="USD" />)
+    expect(await screen.findByTestId('ee-revisions')).toHaveAttribute('data-source', 'yfinance')
+    expect(calls).toEqual(['/api/research/estimates/NVDA?revisions=1'])
+  })
+
+  it('showTradeCard={false} (the Calendar earnings modal) makes no earnings-trade reads', async () => {
+    routes['/api/research/estimates/NVDA?consensus=1'] = ESTIMATES(CONSENSUS)
+    const { unmount } = mount(<ConsensusEstimates sym="NVDA" showTradeCard={false} />)
+    await screen.findByTestId('ee-consensus')
+    await waitFor(() => expect(calls).toContain(REVISIONS_URL))
+    expect(calls.some((u) => u.includes('/expected-move/') || u.includes('/earnings-reaction/'))).toBe(false)
+    unmount()
+    calls.length = 0
+    mount(<ConsensusEstimates sym="NVDA" />)                    // the default keeps the card's reads
+    await screen.findByTestId('ee-consensus')
+    await waitFor(() => expect(calls.some((u) => u.includes('/expected-move/'))).toBe(true))
   })
 
   it.each([['empty', /no forward consensus/], ['error', /did not answer/]])(
@@ -308,12 +375,23 @@ describe('a fund on FA / EE', () => {
   })
 
   it('EE: a fund with nothing from either vendor says not applicable, not "Neither ... holds"', async () => {
-    routes['/api/research/estimates/SPY?consensus=1'] = { sym: 'SPY', entity: null, forward: [], revisions: [],
+    routes['/api/research/estimates/SPY?consensus=1'] = { sym: 'SPY', entity: null, forward: [],
       consensus: { state: 'empty', annual: [], quarterly: [] },
+      not_applicable: 'fund', reason: 'SPY is a fund; analysts publish no earnings or revenue estimates for a fund' }
+    routes['/api/research/estimates/SPY?revisions=1'] = { sym: 'SPY', revisions: [], sources: { revisions: 'Yahoo Finance' },
       not_applicable: 'fund', reason: 'SPY is a fund; analysts publish no earnings or revenue estimates for a fund' }
     mount(<ConsensusEstimates sym="SPY" />)
     expect((await screen.findByTestId('ee-na')).textContent)
       .toBe('Not applicable to funds: SPY is a fund; analysts publish no earnings or revenue estimates for a fund.')
     expect(screen.queryByText(/Neither FMP nor Yahoo/)).toBeNull()
+    expect(screen.queryByTestId('ee-revisions')).toBeNull()
+  })
+
+  it('EE: a company the index mis-types as a fund still shows the revisions that exist', async () => {
+    routes['/api/research/estimates/ZZC?consensus=1'] = { sym: 'ZZC', entity: null, forward: [],
+      consensus: { state: 'empty', annual: [], quarterly: [] }, not_applicable: 'fund', reason: 'ZZC is a fund' }
+    routes['/api/research/estimates/ZZC?revisions=1'] = { ...REVISIONS, sym: 'ZZC' }
+    mount(<ConsensusEstimates sym="ZZC" />)
+    expect(await screen.findByTestId('ee-revisions')).toBeInTheDocument()
   })
 })

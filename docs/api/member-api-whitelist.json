@@ -4307,7 +4307,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "{sym}, consensus=0",
+      "params": "{sym}, consensus=0, revisions=0",
       "path": "/api/research/estimates/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"

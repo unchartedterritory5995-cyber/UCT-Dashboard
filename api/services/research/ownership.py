@@ -1,37 +1,48 @@
-"""Ownership for the research page: institutional holders, short interest /
-float, and insider activity.
+"""Ownership for the research page: institutional holders (Form 13F), short
+interest, float and insider activity.
 
-2026-09-03 modernization (A6/A7 vertical slice): canonical identity now
-resolves through Entity Master (`resolve_entity`) before any provider call.
-Float/shares-outstanding and Form 13F now route through D1
+2026-09-03 modernization (A6/A7 vertical slice): canonical identity resolves
+through Entity Master (`resolve_entity`) before any provider call.
+Float/shares-outstanding and Form 13F route through D1
 (`fmp_client.get_shares_float` / `get_institutional_ownership_summary` /
 `...holders`), each carrying a real provenance/freshness envelope. Insider
 activity reuses the existing `get_insider_activity` service, called with the
-entity-resolved FMP symbol. The institutional-holders TABLE and the short-
-interest FIELDS (shares_short/short_pct_float/days_to_cover/
-prior_month_short) stay on yfinance — no D1 adapter exists for either today,
-and this pass does not invent a speculative one (see the D1 completion
-report for the deferred-work note).
+entity-resolved FMP symbol.
 
-Cached 12h -- but only when the two HARD provider legs (the yfinance pull,
-the insider feed) resolved without raising. A 13F filing genuinely not
-existing for a ticker (most small/mid caps) or an insider feed that
-legitimately has nothing recent are NOT failures -- only an exception from
-the underlying fetch is treated as one, so a quiet ticker doesn't get
-needlessly refetched every few minutes.
+INSTITUTIONAL HOLDERS AND THE INSTITUTIONAL PERCENT are the Form 13F block
+(`thirteen_f`): the holders table reads its `holders`, and `institutional.pct_held`
+is its summary's ownership percent (the one "institutional percent" every caller
+reads). `institutional.state` says which of three things a missing percent is:
+'ok' | 'none' (the vendor answered, no 13F summary in the last four completed
+quarters) | 'failed' (the read failed).
+
+SHORT INTEREST is the newest FINRA report the short interest service already
+HOLDS for the stock (`short_data.held_stock`, read only). This module never
+starts a vendor read for it: with nothing held the block says so
+(`short.state == 'not_held'`) and the panel points at SHINT, where a member's
+open builds it. The block is attached on every read and is never stored in the
+12h cache, so it appears as soon as the service holds an answer.
+
+Cached 12h -- but only when every provider leg (13F, share counts, the insider
+feed) answered. A 13F filing genuinely not existing for a ticker, a ticker FMP
+keeps no share count for, or an insider feed that legitimately has nothing
+recent are NOT failures -- only a read that failed is, so a quiet ticker is not
+refetched every few minutes and a failed read is never pinned as "nothing on
+file" for half a day.
 """
 from __future__ import annotations
 
 import datetime
 import logging
 import math
+import threading
 
 from api.services import fmp_client
+from api.services import provider_errors as pe
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services.insider import get_insider_activity
 from api.services.research.entity_resolution import resolve_entity
-from api.services.yfinance_pool import run_in_pool
 
 _logger = logging.getLogger(__name__)
 
@@ -48,10 +59,18 @@ def _num(v):
         return None
 
 
-def _pct(frac):
-    """fraction (0.0073) -> percent (0.73), rounded."""
-    f = _num(frac)
-    return round(f * 100, 2) if f is not None else None
+#: Failed provider reads on this thread (a count). `_build_ownership` compares it before and
+#: after a leg, so "the vendor answered: nothing on file" and "the read failed" stay apart
+#: without changing what the leg functions return.
+_reads = threading.local()
+
+
+def _failed_reads() -> int:
+    return getattr(_reads, "failed", 0)
+
+
+def _note_failed_read() -> None:
+    _reads.failed = _failed_reads() + 1
 
 
 def _fmp_row_meta(fn, *args, **kwargs):
@@ -63,9 +82,13 @@ def _fmp_row_meta(fn, *args, **kwargs):
     etc.) -- `None` on any miss, never fabricated."""
     try:
         result = fn(*args, **kwargs)
+    except pe.ProviderNotFound:
+        return None, None            # the vendor answered: nothing on file
     except Exception:
+        _note_failed_read()
         return None, None
     if result.degraded is not None and not result.value:
+        _note_failed_read()
         return None, None
     row = result.value[0] if isinstance(result.value, list) and result.value else None
     if not isinstance(row, dict):
@@ -83,67 +106,42 @@ def _fmp_row_meta(fn, *args, **kwargs):
     return row, meta
 
 
-def _institutional(holders_df, info):
-    info = info or {}
-    # Same class-mixing defect as the float/outstanding pair: yfinance divides
-    # a whole-company institutional holding by a single-class share count and
-    # reports >100% (ATRO read 101.84% on 2026-08-06). Institutions cannot hold
-    # more than all of the shares outstanding, so a figure over 100 is not a
-    # number to present — it is a signal the inputs came from two different
-    # share classes. Suppress rather than cap: capping to 100.0 would state a
-    # precise fact no provider actually reported.
-    pct_held = _pct(info.get("heldPercentInstitutions"))
+INSTITUTIONAL_SOURCE = "Form 13F filings, through FMP"
+
+
+def _institutional(thirteen_f, failed=False):
+    """The institutional percent, from the Form 13F summary (`ownership_pct`: what 13F filers
+    hold, as a percent of shares outstanding).
+
+    A figure over 100 is not presented as the institutional stake: institutions cannot hold
+    more than all of the shares outstanding, so it says the positions and the share count do
+    not describe the same thing (a share-class mix, or lent shares reported twice). Suppressed
+    rather than capped: capping to 100.0 would state a precise fact no provider reported. The
+    13F card still shows the summary's own figure under its own label.
+    """
+    tf = thirteen_f if isinstance(thirteen_f, dict) else None
+    pct_held = _num(((tf or {}).get("summary") or {}).get("ownership_pct"))
     if pct_held is not None and pct_held > 100:
-        _logger.warning("heldPercentInstitutions %.2f%% exceeds 100 — suppressing", pct_held)
+        _logger.warning("13F ownership percent %.2f%% exceeds 100 — suppressing", pct_held)
         pct_held = None
-    out = {"pct_held": pct_held, "holders": []}
-    if holders_df is None or getattr(holders_df, "empty", True):
-        return out
-
-    def col(row, *names):
-        for n in names:
-            if n in row.index:
-                return row[n]
-        return None
-
-    try:
-        rows = list(holders_df.head(8).iterrows())
-    except Exception:
-        rows = []
-    for _, r in rows:
-        date = col(r, "Date Reported", "dateReported")
-        try:
-            date = date.strftime("%Y-%m-%d")
-        except Exception:
-            date = str(date)[:10] if date is not None else None
-        out["holders"].append({
-            "holder": col(r, "Holder", "holder"),
-            "shares": _num(col(r, "Shares", "shares")),
-            "pct_out": _pct(col(r, "pctHeld", "% Out")),
-            "value": _num(col(r, "Value", "value")),
-            "date": date,
-        })
-    return out
+    return {
+        "state": "ok" if tf else ("failed" if failed else "none"),
+        "pct_held": pct_held,
+        "quarter": (tf or {}).get("quarter"),
+        "source": INSTITUTIONAL_SOURCE,
+    }
 
 
 def _fmp_share_counts(symbol):
     """Float + shares outstanding via D1 (`fmp_client.get_shares_float`).
 
-    PRIMARY over yfinance because yfinance mixes SHARE CLASSES on dual-class
-    tickers: it reports a whole-company float against a single-class share
-    count, producing a float LARGER than shares outstanding — an impossible
-    pair that was rendering on the Ownership tab. Measured 2026-08-06:
-
-        ticker  yfinance float / outstanding     FMP float / outstanding
-        ATROB     40,337,603 / 10,900,000  X       19,093,178 /    35,851,963
-        ATRO      40,337,603 / 38,448,408  X       31,324,615 /    38,448,408
-        BRK-B      1,166,258 /  1.398e9    X    1,393,387,948 / 2,156,853,595
-        LEN-B    204,214,039 / 30,389,139  X       78,914,196 /   248,295,271
-
-    On single-class megacaps the two agree (NVDA/MSFT float matched to the
-    share), so this is a correctness fix for the broken tail, not a change in
-    what the common case shows. Returns ({}, None) on any failure so the
-    caller falls back to yfinance rather than blanking the card.
+    The ONE source of the two share counts. FMP's figures are class-correct on
+    dual-class tickers (measured 2026-08-06 on ATROB, ATRO, BRK-B and LEN-B:
+    its float is never larger than its shares outstanding, which a
+    whole-company float set against a single-class share count is). Returns
+    ({}, None) when FMP holds nothing for the ticker or the read failed; the
+    two are told apart by the failed-read count (`_failed_reads`), and the tab
+    shows "not available" for the missing figure either way.
     """
     row, meta = _fmp_row_meta(fmp_client.get_shares_float, symbol)
     if not row:
@@ -154,31 +152,25 @@ def _fmp_share_counts(symbol):
     }, meta
 
 
-def _reconcile_share_counts(info, fmp_counts):
-    """FMP first (see `_fmp_share_counts` docstring for the dual-class-mixing
-    bug this fixes), yfinance only where FMP had nothing.
+def _reconcile_share_counts(fmp_counts):
+    """The two share counts as they may be shown, from FMP's answer.
 
     A float larger than shares outstanding is arithmetically impossible —
-    float is a SUBSET of shares outstanding. If a pair still contradicts
-    itself after the FMP swap, we cannot tell WHICH side is wrong, so we
-    publish neither: an em dash is honest, two confident numbers that can't
-    both be true are not. Never "repair" by clamping one to the other —
-    that invents a figure no provider reported."""
-    info = info or {}
+    float is a SUBSET of shares outstanding. If the pair contradicts itself we
+    cannot tell WHICH side is wrong, so we publish neither: a "not available"
+    is honest, two confident numbers that can't both be true are not. Never
+    "repair" by clamping one to the other — that invents a figure no provider
+    reported."""
     counts = fmp_counts or {}
 
     # A ZERO (or negative) share count is a vendor's "nothing held", never a measurement:
-    # no listed security has 0 shares outstanding. FMP and Yahoo write 0 for funds, and the
-    # Ownership tab rendered "Shares outstanding 0" as data. Not reported -> the next source.
+    # no listed security has 0 shares outstanding. FMP writes 0 for funds, and the
+    # Ownership tab rendered "Shares outstanding 0" as data. Not reported -> None.
     def _held(v):
         return v if v is not None and v > 0 else None
 
     float_shares = _held(counts.get("float_shares"))
-    if float_shares is None:
-        float_shares = _held(_num(info.get("floatShares")))
     shares_out = _held(counts.get("shares_outstanding"))
-    if shares_out is None:
-        shares_out = _held(_num(info.get("sharesOutstanding")))
 
     if float_shares is not None and shares_out is not None and float_shares > shares_out:
         _logger.warning("share counts inconsistent (float %s > outstanding %s) — suppressing both",
@@ -187,14 +179,73 @@ def _reconcile_share_counts(info, fmp_counts):
     return float_shares, shares_out
 
 
-def _short(info):
-    info = info or {}
-    return {
-        "shares_short": _num(info.get("sharesShort")),
-        "short_pct_float": _pct(info.get("shortPercentOfFloat")),
-        "days_to_cover": _num(info.get("shortRatio")),
-        "prior_month_short": _num(info.get("sharesShortPriorMonth")),
+SHORT_STATES = ("ok", "none", "unavailable", "not_held")
+
+
+def _held_short(sym):
+    """The short interest block: the newest FINRA report the short interest service already
+    holds for `sym`, with its settlement date. READ ONLY (`short_data.held_stock`): it never
+    starts a build and never asks a vendor, and it never raises.
+
+    state   'ok'          a report is held: the figures below are that report's
+            'none'        the service asked and the vendor has no short interest rows for the symbol
+            'unavailable' the service asked and the vendor refused (`reason`, `http_status`)
+            'not_held'    the service holds nothing for this stock (nobody has opened its short
+                          interest history lately): unknown, never zero
+
+    `short_pct_float` is the service's own figure (short interest over today's float from the
+    nightly screener export, withheld above its mismatch limit), the same one SHINT prints, so
+    the two screens can never disagree. `prior_short` is the report before the newest one.
+    """
+    out = {
+        "state": "not_held", "shares_short": None, "short_pct_float": None, "days_to_cover": None,
+        "avg_daily_volume": None, "settlement_date": None,
+        "prior_short": None, "prior_settlement_date": None, "change_shares": None, "change_pct": None,
+        "float_shares": None, "pct_float_withheld": False, "float_source": None,
+        "publication_estimate": None, "read_at": None, "reason": None, "http_status": None,
+        "source": None,
     }
+    try:
+        from api.services import short_data
+        out["source"] = short_data.SOURCE
+        answer, _how = short_data.held_stock(sym)
+    except Exception as exc:  # noqa: BLE001 -- a held answer that cannot be read is "not held"
+        _logger.warning("held short interest could not be read for %s: %s", sym, type(exc).__name__)
+        return out
+    if not isinstance(answer, dict):
+        return out
+    interest = answer.get("interest") if isinstance(answer.get("interest"), dict) else {}
+    reports = interest.get("reports") if isinstance(interest.get("reports"), list) else []
+    if answer.get("status") == "ok" and interest.get("state") == "ok" and reports:
+        newest = reports[0] if isinstance(reports[0], dict) else {}
+        before = reports[1] if len(reports) > 1 and isinstance(reports[1], dict) else {}
+        flt = answer.get("float") if isinstance(answer.get("float"), dict) else {}
+        if newest.get("short_interest") is None or not newest.get("settlement_date"):
+            return out
+        out.update({
+            "state": "ok",
+            "shares_short": newest.get("short_interest"),
+            "short_pct_float": flt.get("pct_float"),
+            "days_to_cover": newest.get("days_to_cover"),
+            "avg_daily_volume": newest.get("avg_daily_volume"),
+            "settlement_date": newest.get("settlement_date"),
+            "prior_short": before.get("short_interest"),
+            "prior_settlement_date": before.get("settlement_date"),
+            "change_shares": newest.get("change_shares"),
+            "change_pct": newest.get("change_pct"),
+            "float_shares": flt.get("shares"),
+            "pct_float_withheld": flt.get("withheld") is True,
+            "float_source": flt.get("source"),
+            "publication_estimate": answer.get("publication_estimate"),
+            "read_at": answer.get("read_at"),
+        })
+        return out
+    if answer.get("status") == "ok" and interest.get("state") == "none":
+        out["state"] = "none"
+    elif answer.get("status") == "unavailable" or interest.get("state") == "unavailable":
+        out.update({"state": "unavailable", "reason": interest.get("reason"),
+                    "http_status": interest.get("http_status")})
+    return out
 
 
 # Market-wide "which 13F quarter is filed" hint. Not per symbol: the answer
@@ -272,7 +323,12 @@ def _thirteen_f(symbol):
     try:
         hresult = fmp_client.get_institutional_ownership_holders(symbol, year=year, quarter=q, limit=_TF_MAX_HOLDERS)
         hraw = hresult.value if hresult.degraded is None else None
+        if hresult.degraded is not None:
+            _note_failed_read()
+    except pe.ProviderNotFound:
+        hraw = None                  # a summary with no holder rows: the vendor answered
     except Exception:
+        _note_failed_read()
         hraw = None
     holders = []
     if isinstance(hraw, list):
@@ -310,37 +366,33 @@ def _thirteen_f(symbol):
     }
 
 
-def _fetch_yf(sym):
-    """Returns {} ONLY when the pool call itself raised -- callers use that
-    as the "did this leg actually fail" signal (`bool(raw)` is False only on
-    a genuine provider exception; a successful call always returns a dict,
-    even one whose values are individually None/empty)."""
-    def _do():
-        import yfinance as yf
-        t = yf.Ticker(sym)
-        return {"info": t.get_info(), "inst": getattr(t, "institutional_holders", None)}
-    try:
-        return run_in_pool(_do, timeout=15)
-    except Exception as exc:
-        _logger.warning("yf ownership fetch failed for %s: %s", sym, exc)
-        return {}
-
-
 def get_ownership(sym):
     """S6 (terminal backend fixes, 2026-10-05): a cold symbol is composed ONCE however
     many members open it at the same moment. The cache answers first; on a miss the
     first caller builds and the rest wait for its result (`single_flight`), so N cold
     opens cost one vendor walk instead of N on the shared threadpool. A follower that
     waits past the single-flight bound raises, and the route answers that as a failed
-    read rather than an empty record."""
+    read rather than an empty record.
+
+    The short interest block is attached here, on every read, from what the short
+    interest service holds at that moment (`_held_short`): it is never part of the
+    cached record."""
     s = (sym or "").upper().strip()
     if not s:
         return {}
     cached = cache.get(f"research_own::{s}")
-    if cached is not None:
+    if cached is None:
+        from api.services import single_flight
+        cached = single_flight.run(f"research_own::{s}", lambda: _build_ownership(s))
+    if not isinstance(cached, dict) or not cached:
         return cached
-    from api.services import single_flight
-    return single_flight.run(f"research_own::{s}", lambda: _build_ownership(s))
+    return {**cached, "short": _held_short(s)}
+
+
+#: The provider legs, by the words the panel uses for one that failed.
+LEG_13F = "institutional holders (Form 13F)"
+LEG_SHARE_COUNTS = "float and shares outstanding"
+LEG_INSIDER = "insider activity"
 
 
 def _build_ownership(sym):
@@ -355,11 +407,6 @@ def _build_ownership(sym):
 
     entity, fmp_symbol = resolve_entity(sym, vendor="fmp")
 
-    raw = _fetch_yf(sym)
-    yf_ok = bool(raw)          # {} means _fetch_yf's exception path fired
-    raw = raw or {}
-    info = raw.get("info") or {}
-
     insider = []
     insider_ok = True
     try:
@@ -368,30 +415,31 @@ def _build_ownership(sym):
         insider_ok = False
         _logger.warning("insider activity failed for %s: %s", sym, exc)
 
+    # `_thirteen_f` and `_fmp_share_counts` answer None / {} both for "nothing on file" (common
+    # and legitimate: most funds, a new listing) and for a read that failed. The failed-read
+    # count tells the two apart: only a failed read shortens the cache and is named.
+    before = _failed_reads()
     try:
         thirteen_f = _thirteen_f(fmp_symbol)
-    except Exception as exc:
-        # _thirteen_f already swallows its own per-endpoint failures
-        # internally and returns None for "no 13F filed" too (common and
-        # legitimate for most non-mega-caps) -- this outer except is a
-        # defensive backstop, not a completeness signal, so it does not
-        # factor into `complete` below.
+        tf_ok = _failed_reads() == before
+    except Exception as exc:  # defensive: _thirteen_f swallows its own per-endpoint failures
         _logger.warning("13F ownership failed for %s: %s", sym, exc)
-        thirteen_f = None
+        thirteen_f, tf_ok = None, False
 
+    before = _failed_reads()
     try:
         share_counts_raw, share_counts_meta = _fmp_share_counts(fmp_symbol)
+        counts_ok = _failed_reads() == before
     except Exception as exc:  # defensive: _fmp_share_counts already swallows
         _logger.warning("share counts failed for %s: %s", sym, exc)
-        share_counts_raw, share_counts_meta = {}, None
+        share_counts_raw, share_counts_meta, counts_ok = {}, None, False
 
-    float_shares, shares_out = _reconcile_share_counts(info, share_counts_raw)
+    float_shares, shares_out = _reconcile_share_counts(share_counts_raw)
 
     out = {
         "sym": sym,
         "entity": entity,
-        "institutional": _institutional(raw.get("inst"), info),
-        "short": _short(info),
+        "institutional": _institutional(thirteen_f, failed=not tf_ok),
         "share_counts": {
             "float_shares": float_shares,
             "shares_outstanding": shares_out,
@@ -400,14 +448,16 @@ def _build_ownership(sym):
         "insider": insider,
         "thirteen_f": thirteen_f,
     }
-    complete = yf_ok and insider_ok
+    complete = tf_ok and counts_ok and insider_ok
     # tq-panels: name the legs that failed, so the panel can say which part of the
     # record is missing because a read failed (not because nothing is reported).
     legs_failed = []
-    if not yf_ok:
-        legs_failed.append("institutional holders and short interest (Yahoo Finance)")
+    if not tf_ok:
+        legs_failed.append(LEG_13F)
+    if not counts_ok:
+        legs_failed.append(LEG_SHARE_COUNTS)
     if not insider_ok:
-        legs_failed.append("insider activity")
+        legs_failed.append(LEG_INSIDER)
     out["legs_failed"] = legs_failed
     set_by_completeness(ck, out, complete=complete, ttl_ok=_CACHE_TTL, ttl_partial=_FAIL_TTL)
     return out

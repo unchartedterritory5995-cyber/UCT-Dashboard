@@ -488,8 +488,8 @@ export const FUNCTIONS = [
   // ── short interest (2026-11-18) ──
   // SHINT: one stock's FINRA short interest, report by report (shares short, the change from each
   // report to the next, days to cover, percent of float), and its daily off-exchange short volume
-  // (GET /api/research/short-data/{sym}, read through the site's stock-data vendor). OWN shows one
-  // undated figure from the screener export; this is the dated record. `NVDA SHINT`.
+  // (GET /api/research/short-data/{sym}, read through the site's stock-data vendor). OWN shows the
+  // newest report only, when this service already holds one; this is the dated record. `NVDA SHINT`.
   // SHRT is a real fund (Gotham Short Strategies ETF) and SHORT is CONFL's own word for bearish
   // (`CONFL SHORT`; a code in second place would make CONFL a ticker), so the code is neither.
   { code: 'SHINT', label: 'Short interest history (every report, days to cover, daily short volume)', group: 'Security',

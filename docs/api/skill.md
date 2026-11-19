@@ -667,7 +667,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/congress-trades/{sym}` | paid | research | {sym} |
 | GET | `/api/research/earnings-reaction/{sym}` | paid | research | {sym} |
 | GET | `/api/research/estimate-history/{sym}` | paid | research | {sym} |
-| GET | `/api/research/estimates/{sym}` | paid | research | {sym}, consensus=0 |
+| GET | `/api/research/estimates/{sym}` | paid | research | {sym}, consensus=0, revisions=0 |
 | GET | `/api/research/events/{sym}` | paid | research | {sym} |
 | GET | `/api/research/expected-move/{sym}` | paid | research | {sym}, report_date, grade=True |
 | GET | `/api/research/filing-search` | paid | research | q (required), sym, form, section, limit=40 |
