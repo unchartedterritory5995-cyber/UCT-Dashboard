@@ -173,8 +173,8 @@ describe('the scoped sub-run equals the whole one, region by region, over the in
     }
     expect(diffs).toEqual([])
     // ⛔ never vacuous: the population holds regions, regions that read rings, regions that call functions, and
-    // regions that commit fewer rings than their program holds (measured 2026-11-19: 103 regions of 15 scripts, 20
-    // reading rings, 4 calling functions, 31 committing fewer rings; the floors are about half, so a corpus that
+    // regions that commit fewer rings than their program holds (measured 2026-11-19: 107 regions of 16 scripts, 24
+    // reading rings, 8 calling functions, 35 committing fewer rings; the floors are about half, so a corpus that
     // grows or a refusal that moves does not turn this red, and a population that empties does)
     expect(regions).toBeGreaterThanOrEqual(50)
     expect(scripts.size).toBeGreaterThanOrEqual(8)
