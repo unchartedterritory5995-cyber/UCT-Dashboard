@@ -65,7 +65,8 @@ const CLASS_CODES = {
   uct: ['HELP', 'LEARN'],
   // Read straight from the SEC (EDGAR, the fails-to-deliver files), or from the US Treasury's own
   // published daily par yield curve (RATES: register row T-95, class A, no vendor in the path).
-  public: ['CF', 'FEED', 'FIL', 'FSRC', 'FTD', 'RATES'],
+  // DILU is the SEC's own filing index for one company, classified (register row T-96, class A).
+  public: ['CF', 'FEED', 'FIL', 'FSRC', 'FTD', 'RATES', 'DILU'],
   // The trading team's archive, or numbers worked out from its calls.
   team: ['WHO', 'HIS', 'CHK'],
   // UCT's own analytics over licensed prices: ranks, returns over a window, breadth, regime.

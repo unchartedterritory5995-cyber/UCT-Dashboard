@@ -41,6 +41,20 @@ D3, D2, D1 = "2026-10-30", "2026-10-15", "2026-09-30"       # newest first
 UNI = frozenset({"AAA", "BBB", "CCC", "DDD", "EEE", "BRK-B"})
 
 
+
+@pytest.fixture(autouse=True)
+def _log_only_inside_the_blocks():
+    """Records are captured only inside a `caplog.at_level` block, whatever ran before this file.
+    A test that imports the whole app first configures logging at INFO, and a build's log line
+    written BEFORE a block would then sit in `caplog.records` ahead of the line the test reads
+    (found 2026-11-18: two tests passed alone and failed after the member API list test). The
+    logger's own level is pinned here, so the order the files run in cannot matter."""
+    lg = logging.getLogger("api.services.short_data")
+    old = lg.level
+    lg.setLevel(logging.WARNING)
+    yield
+    lg.setLevel(old)
+
 def si(ticker, day, short, adv=1_000_000, dtc=2.5, **over):
     row = {"ticker": ticker, "settlement_date": day, "short_interest": short, "avg_daily_volume": adv, "days_to_cover": dtc}
     row.update(over)

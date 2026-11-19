@@ -128,6 +128,8 @@ export const PANEL_IMPORTERS = {
   // SHINT / SHRTS (2026-11-18): FINRA short interest and daily short volume, one stock and the market list
   ShortInterest: () => import('./panels/ShortInterestPanel'),
   ShortList: () => import('./panels/ShortListPanel'),
+  // DILU (2026-11-18): one company's share-issuance filings from its public SEC EDGAR filing index
+  Dilution: () => import('./panels/DilutionPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
