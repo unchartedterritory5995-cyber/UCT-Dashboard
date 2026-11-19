@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "CO-3 (feat/pine-fill-inline-sides, NUMBER PENDING): `fill(plot(a), plot(b))` / `fill(hline(a), hline(b))` emit each side's plot where it stands and fill between them, exactly as the bound form; only `plot` and `hline` return a fill's ID; a pair with an inline side never mixes the two kinds. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "M1",
+   "mutant": "an inline side is not read as its plot again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if (!atObjectDoor && raw && raw.type === 'call' && INLINE_FILL_SIDES.has(raw.name)) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/fillInlineSides.test.js",
+   "expectRed": "two inline plots"
+  },
+  {
+   "id": "M2",
+   "mutant": "a call that returns no fill ID (plotshape) is taken as a side",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    const INLINE_FILL_SIDES = new Set(['plot', 'hline'])",
+   "to": "    const INLINE_FILL_SIDES = new Set(['plot', 'hline', 'plotshape'])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/fillInlineSides.test.js",
+   "expectRed": "plotshape"
+  },
+  {
+   "id": "M3",
+   "mutant": "a plot and an hline are filled together",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (inlineSide && sideKind[0] !== sideKind[1]) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/fillInlineSides.test.js",
+   "expectRed": "never one of each"
+  }
+ ]
+}
