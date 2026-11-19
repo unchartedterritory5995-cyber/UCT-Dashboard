@@ -2140,7 +2140,18 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // `rsVsEma` carry none. Natives never read either key, so their signature is unchanged.
       const serverSig = def && def.compute && def.compute.kind === 'server'
         ? `|srv:${ctx.sym || ''}:${frame || ctx.tf || ''}` : ''
-      const sig = inputsSignature(inst.inputs) + sourceSig + serverSig + (otherSig ? `|os:${otherSig}` : '')
+      // ⭐⭐ (2026-11-18) THE NEWEST BAR'S TRI-STATE IS PART OF WHAT THE COMPUTE READ, so it is part of the key. A
+      // FRAMED instance's is its frame's; the chart's own is the payload's (`/api/bars` `newest_bar_is_forming`).
+      // ⚰️ The memo keyed (bars, inputs, …) only: a flag that LANDED over the same bars array (unknown -> closed,
+      // the answer arriving after a cached first paint, or the close itself) was a memo hit, and the run kept the
+      // answer it gave while the newest bar was unknown. A strategy read it as forming: before engine 80 its
+      // backtest was refused by [B-EXEC] after the close (the 2026-11-18 production check, RDDT 1D at 22:05Z); from
+      // engine 80 it is served one bar stale, without the bar that closed.
+      const formingNow = frame
+        ? (frameEntry && typeof frameEntry.newestBarIsForming === 'boolean' ? frameEntry.newestBarIsForming : null)
+        : (ctx.newestBarIsForming ?? null)
+      const formingSig = `|nbf:${formingNow === null ? '?' : formingNow ? '1' : '0'}`
+      const sig = inputsSignature(inst.inputs) + sourceSig + serverSig + formingSig + (otherSig ? `|os:${otherSig}` : '')
         + (lowerSig ? `|ltf:${lowerSig}` : '')
         + (liveSig ? `|live:${liveSig}` : '')
         + (strategyWindow !== null ? `|hw${strategyWindow}` : '')
@@ -2184,9 +2195,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
           // tri-state the frame payload carried, never the chart's.
           { sym: ctx.sym, symbol: ctx.symbol || null, tf: frame || ctx.tf,
             source: primarySource, sources: sourceCols,
-            newestBarIsForming: frame
-              ? (frameEntry && typeof frameEntry.newestBarIsForming === 'boolean' ? frameEntry.newestBarIsForming : null)
-              : (ctx.newestBarIsForming ?? null),
+            newestBarIsForming: formingNow,
             // ⭐ C12w — ONLY the chart's own series can start at the listing
             // bar: a framed instance computes on its frame's bars, which the
             // caller's statement does not describe.
