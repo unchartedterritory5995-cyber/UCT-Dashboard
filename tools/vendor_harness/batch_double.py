@@ -206,6 +206,7 @@ class RecordingTVPage:
             bc.VH_CLEANUP_JS: ("VH_CLEANUP", self._vh_cleanup), bc.GLOBALS_JS: ("GLOBALS", self._globals),
             bc.ACCOUNT_JS: ("ACCOUNT", lambda a: self.account),
             bc.SAVED_TEXT_JS: ("SAVED_TEXT", lambda a: bool(getattr(self, "saved_word", False))),
+            bc.FOCUS_BODY_JS: ("FOCUS_BODY", lambda a: getattr(self, "focus_leaves", True)),
         }
 
     # ── recording ───────────────────────────────────────────────────────────

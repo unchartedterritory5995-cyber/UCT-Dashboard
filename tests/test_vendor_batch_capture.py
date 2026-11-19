@@ -426,6 +426,17 @@ def test_the_guard_refuses_a_save_with_a_study_present_and_nothing_is_saved(tmp_
     assert ("press", bc.SAVE_SHORTCUT) not in [(k, n) for k, n, _ in page.calls]
 
 
+def test_no_save_while_focus_stays_in_an_editor(tmp_path, monkeypatch):
+    # the Pine editor's Ctrl+S saves a SCRIPT to the account: focus that will not leave refuses the save
+    monkeypatch.setattr(bd.RecordingTVPage, "focus_leaves", False, raising=False)
+    page, code, rd, logged = _dirty_batch(tmp_path, clean_save=True)
+    rows = [r for r in _ledger(tmp_path / "run") if r.get("event") == "clean-save"]
+    assert code == bc.RIG_DIRTY and rows and rows[0]["saved"] is False and "focus" in rows[0]["refused"]
+    assert ("press", bc.SAVE_SHORTCUT) not in [(k, n) for k, n, _ in page.calls]
+    names = page.names()
+    assert "FOCUS_BODY" in names
+
+
 def test_a_study_this_batch_did_not_add_is_never_removed_or_saved_over(tmp_path):
     page, code, rd, logged = _dirty_batch(tmp_path, clean_save=True)
     # re-run the repair against a layout carrying a stranger's study beside ours

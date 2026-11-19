@@ -334,6 +334,10 @@ VH_CHUNK_JS = "(i) => JSON.stringify(window.__uctVH.chunk(i))"
 # runs with `--clean-save` (or the `repair` command). TradingView's saved word, waited for after the press.
 SAVE_SHORTCUT = "Control+s"
 SAVED_TEXT_JS = "() => /all changes saved/i.test(document.body ? (document.body.innerText || '') : '')"
+# ⛔ Before the Save key: focus leaves whatever holds it (the Pine editor's Ctrl+S saves a SCRIPT to the account, not
+# the layout). True only when nothing but the page itself holds focus; anything else refuses the save.
+FOCUS_BODY_JS = ("() => { const a = document.activeElement; if (a && a !== document.body && a.blur) a.blur(); "
+                 "const b = document.activeElement; return !b || b === document.body || b === document.documentElement }")
 
 
 def clean_save_refusal(state: dict, original: dict):
@@ -621,7 +625,7 @@ class Driver:
         ⚰️ MEASURED 2026-11-18: run l12-is-2026-11-18's last probe (UCTPROBE_RS_OWN_DAILY_INTRADAY, RDDT 5m) was removed
         and verified gone in the page, the batch restored 1D, and a fresh load read the probe on 5m: the layout had
         saved it at the add. The next batch (Q-FCMP3) stopped at its gate, and the owner's layout carried it until it
-        was cleared by hand. ⛔ Read only: it never removes or sets anything (a repair is the owner's)."""
+        was cleared by hand. ⛔ Read only: it never removes or sets anything (the only repair is `guarded_clean_save`)."""
         self.page.reload(wait_until="domcontentloaded")
         st, ok = self.poll("verify:state", STATE_JS, None,
                            lambda s: bool(s and s.get("handle") is not None and s.get("studies") is not None and s.get("symbol")),
@@ -644,7 +648,8 @@ class Driver:
           2. put the symbol and resolution back (`restore`);
           3. ⛔ THE GUARD: read the IN-PAGE state. Not exactly 0 studies on the original symbol and resolution: NO
              SAVE, the result says why. A dirty layout is never saved;
-          4. clean: the layout's own Save (`SAVE_SHORTCUT`), then wait for TradingView's saved word;
+          4. clean: focus leaves any editor (`FOCUS_BODY_JS`; else NO SAVE: the Pine editor's Ctrl+S saves a SCRIPT),
+             the layout's own Save (`SAVE_SHORTCUT`), then wait for TradingView's saved word;
           5. a FRESH load decides (`verify_fresh_load`): only a clean read is CLEAN.
         Every save is recorded (`ok`, `saved`, the state before and after). Never raises."""
         out = {"label": label, "at": utcnow(), "saved": False, "ok": False}
@@ -667,6 +672,9 @@ class Driver:
             why = clean_save_refusal(before, original)
             if why:
                 out["refused"] = why
+                return out
+            if self.ev(f"{label}:focus", FOCUS_BODY_JS) is not True:
+                out["refused"] = "focus could not leave the element holding it (an editor's Ctrl+S saves a script)"
                 return out
             self.step(f"{label}:save")
             self.page.keyboard.press(SAVE_SHORTCUT)
