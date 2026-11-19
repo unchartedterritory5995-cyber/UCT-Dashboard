@@ -9,11 +9,12 @@ import {
 import { signedPct } from '../researchFormat'
 import { themeInk } from '../themeInk'
 import ResearchLoading from '../ResearchLoading'
+import SourceLine from '../../../components/research/fmpDepth/SourceLine'
 import styles from '../ResearchPage.module.css'
 
 const fmtBig = (v) => formatCompactTerminal(v, { money: true })
-// yfinance statement frames are in the company's REPORTING currency (Yahoo
-// `financialCurrency`, carried as `currency`): TSM's revenue is Taiwan dollars, and
+// Statement amounts are in the company's REPORTING currency, carried as `currency`
+// from whichever source supplied the grids: TSM's revenue is Taiwan dollars, and
 // "$" on it was the defect. A non-USD amount carries its ISO code ("TWD 1.06T");
 // known USD renders "$"; an UNKNOWN currency renders no symbol and the tab says
 // "Currency not reported." (owner decision 2026-10-07 -- never a guessed "$").
@@ -54,8 +55,10 @@ function GrowthGrid({ title, rows, ccy }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map(r => (
-              <tr key={r.period}>
+            {rows.map((r, i) => (
+              // Position in the key: two period ends can share one label (a 53-week
+              // year puts two in one calendar quarter).
+              <tr key={`${r.period}-${i}`}>
                 <td className={styles.fperiod}>{r.period}</td>
                 <td>{fmtBigIn(r.revenue, ccy)}</td>
                 <td className={heat(r.revenue_yoy)}>{signedPct(r.revenue_yoy)}</td>
@@ -162,6 +165,56 @@ function TrendPair({ quarterly, annual, ccy }) {
   )
 }
 
+// The vendor name the route uses for the FMP statements feed.
+const FMP = 'FMP'
+const BASIS_LABEL = { quarterly: 'Quarterly', annual: 'Annual' }
+
+/**
+ * Which source supplied the grids for THIS ticker, in words, under them.
+ *
+ * Read off the payload (`sources.statements`), never assumed from the caller: the
+ * route reads the FMP statements first and the Yahoo frames only for a
+ * ticker that feed returned nothing for, so the answer differs per ticker. A
+ * payload that names no source (no grid rows at all) gets no line.
+ */
+function StatementsSource({ fin }) {
+  const vendor = fin.sources?.statements
+  if (!vendor) return null
+  if (vendor === FMP) {
+    return (
+      <SourceLine vendor={vendor}
+                  activity="FMP quarterly and annual income statements"
+                  fetchedAt={fin.sources.statements_fetched_at}
+                  detail="Revenue, EPS and margin grids · fiscal periods" />
+    )
+  }
+  return (
+    <SourceLine vendor={vendor} fallback
+                activity="Yahoo Finance quarterly and annual income statements"
+                reason={fin.fmp_unavailable
+                  ? 'FMP statement history could not be read right now; showing Yahoo Finance (about 5 years / 5 quarters, calendar-quarter labels).'
+                  : 'FMP holds no statement history for this ticker; showing Yahoo Finance (about 5 years / 5 quarters, calendar-quarter labels).'} />
+  )
+}
+
+/**
+ * One grid has rows and this one does not: say which, and whether that is a
+ * finding or a failed read (`unread`), instead of leaving a silent hole.
+ */
+function GridGap({ basis, fin }) {
+  // On the fallback, `unread` lists the fallback's own failed reads; an FMP
+  // read that failed first (`fmp_unavailable`) leaves this grid just as unread.
+  const fmpFailed = fin.fmp_unavailable === true && fin.sources?.statements !== FMP
+  const unread = (fin.unread || []).includes(basis) || fmpFailed
+  return (
+    <div className={styles.fnote} data-testid={`financials-gap-${basis}`} data-unread={unread ? 'true' : 'false'}>
+      {unread
+        ? `${BASIS_LABEL[basis]} statements could not be read right now.`
+        : `${BASIS_LABEL[basis]} statements are not available for this ticker.`}
+    </div>
+  )
+}
+
 export default function FinancialsTab({ sym, showGrids = true }) {
   const { data, isLoading, error, mutate } = useFinancials(sym)
 
@@ -186,6 +239,9 @@ export default function FinancialsTab({ sym, showGrids = true }) {
   const bal = fin.balance || {}
   const met = fin.metrics || {}
   const hasGrids = (fin.quarterly?.length || fin.annual?.length)
+  // A failed read is not a finding: the route marks the grids it could not read
+  // (`unread`) and an FMP read that failed (`fmp_unavailable`).
+  const couldNotRead = (fin.unread?.length > 0) || fin.fmp_unavailable === true
   const ccy = fin.currency ?? null
   const ccyNote = reportingCurrencyNote(ccy, UNKNOWN_CCY)
   // tq-panels: the route marks a fund (`not_applicable: 'fund'` + `reason`, e910f8ff6);
@@ -197,34 +253,34 @@ export default function FinancialsTab({ sym, showGrids = true }) {
   return (
     <div className={styles.finWrap}>
       {/* S3 continuation (owner authorization, 2026-09-03): entity
-          resolution now flows through get_financials(), reported honestly
-          when it hasn't happened yet -- but NO <Provenance>/<FreshnessBadge>
-          UI on this tab this pass. Unlike Estimates, none of this tab's
-          displayed VALUES are D1-sourced yet (see useFinancials.js's
-          backend, financials.py's own module docstring: the FMP statement
-          endpoints are an explicitly deferred enhancement, their field
-          shapes unverified anywhere in this codebase) -- attaching a trust
-          badge to a number D1 didn't actually produce would be exactly the
-          fabricated-provenance failure S8 exists to prevent. */}
+          resolution flows through get_financials(), reported honestly when
+          it hasn't happened yet. The source line under the grids names the
+          vendor the ROUTE says supplied them for this ticker; a payload that
+          names none gets no line -- a source badge on a number nobody
+          attributed would be exactly the fabricated-provenance failure S8
+          exists to prevent. */}
       {fin.entity && fin.entity.status !== 'resolved' && (
         <div className={styles.entityNote} data-testid="entity-unresolved-note">
           This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
-      {/* ⚠️ These grids are yfinance-derived and label CALENDAR quarters. FMP,
-          which feeds StatementPanels, returns the FISCAL period — so for a
-          September-fiscal-year company like AAPL the same quarter appears as
-          "Q3 2026" in the panels and "Q2 2026" here, with identical revenue.
-          Two names for one quarter on one screen is worse than one fewer
-          table, so the composite Financials section turns them off; the panels
-          supersede them with 24 quarters instead of 5. Standalone callers keep
-          them until the label source is fixed. */}
+      {/* The grids read the same FMP statements as StatementPanels and
+          carry the same FISCAL period labels, so a September-fiscal-year
+          company's quarter is "Q3 2026" in both. Only a ticker that feed
+          returned nothing for falls back to the Yahoo frames, which label
+          CALENDAR quarters ("Q2 2026" for that same quarter); the source line
+          under the grids says so. The composite Financials section still turns
+          the grids off: its panels already chart these statements over 24
+          quarters. */}
       {showGrids && hasGrids && ccyNote && (
         <div className={styles.fnote} data-testid="financials-currency" data-currency={normalizeCurrencyCode(ccy) ?? 'unknown'}>{ccyNote}</div>
       )}
       {showGrids && <TrendPair quarterly={fin.quarterly} annual={fin.annual} ccy={ccy} />}
       {showGrids && <GrowthGrid title="Quarterly — revenue, EPS & margins (YoY)" rows={fin.quarterly} ccy={ccy} />}
+      {showGrids && hasGrids && !fin.quarterly?.length && <GridGap basis="quarterly" fin={fin} />}
       {showGrids && <GrowthGrid title="Annual — revenue, EPS & margins (YoY)" rows={fin.annual} ccy={ccy} />}
+      {showGrids && hasGrids && !fin.annual?.length && <GridGap basis="annual" fin={fin} />}
+      {showGrids && hasGrids && <StatementsSource fin={fin} />}
       <div className={styles.grid}>
         <section className={styles.card}>
           <div className={styles.ct}>Balance sheet</div>
@@ -243,7 +299,17 @@ export default function FinancialsTab({ sym, showGrids = true }) {
           <div className={styles.kv}><span>Net margin</span><b>{fmtVal(met.net_margin, '%')}</b></div>
         </section>
       </div>
-      {!hasGrids && <div className={styles.fnote}>Statement history is unavailable for this ticker.</div>}
+      {/* The summary cards are read by a different service from the grids. When
+          the grids are labelled as the FMP feed's, the cards say whose they
+          are, so one line is never read as covering both. */}
+      {showGrids && hasGrids && fin.sources?.statements === FMP && fin.sources?.summary && (
+        <SourceLine vendor={fin.sources.summary} testId="financials-summary-source"
+                    activity={`${fin.sources.summary} company summary`}
+                    detail="Balance sheet and profitability summary" />
+      )}
+      {!hasGrids && (couldNotRead
+        ? <div className={styles.fnote} data-testid="financials-unread">Statement history could not be read right now.</div>
+        : <div className={styles.fnote}>Statement history is unavailable for this ticker.</div>)}
     </div>
   )
 }

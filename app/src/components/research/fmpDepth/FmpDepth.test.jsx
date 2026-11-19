@@ -42,6 +42,15 @@ const HISTORY_Q = {
 const HISTORY_A = { ...HISTORY_Q, period: 'annual', periods: ['2023', '2024', '2025'],
   series: { revenue: [2.7e10, 6.1e10, 1.3e11] }, ratios: {}, count: 3 }
 
+// /api/research/financials for a ticker the FMP feed holds nothing for: the route
+// read the Yahoo frames and says so in `sources` (api/services/research/financials.py).
+const YAHOO_COMPACT = {
+  sym: 'ZZZ', currency: 'USD', balance: {}, metrics: {},
+  quarterly: [{ period: 'Q2 2026', revenue: 1.1e9, eps: 0.42, revenue_yoy: 12, eps_yoy: 8 }],
+  annual: [{ period: '2025', revenue: 4.2e9, eps: 1.6, revenue_yoy: 5, eps_yoy: 3 }],
+  sources: { statements: 'Yahoo Finance', summary: 'Yahoo Finance' },
+}
+
 const CONSENSUS = {
   state: 'ok', source: 'FMP /stable/analyst-estimates', fetched_at: 1759500000,
   // NVDA reports in USD and FMP says so; an unstated currency renders no "$" (UnknownCurrency.test.jsx).
@@ -164,13 +173,30 @@ describe('FA — FinancialsDeep', () => {
 
   it('FMP empty => the yfinance grids, LABELLED as the fallback', async () => {
     routes['/api/research/financial-history/ZZZ'] = { sym: 'ZZZ', period: 'quarter', periods: [], series: {} }
-    routes['/api/research/financials/ZZZ'] = { sym: 'ZZZ', quarterly: [], annual: [], balance: {}, metrics: {} }
+    routes['/api/research/financials/ZZZ'] = YAHOO_COMPACT
     mount(<FinancialsDeep sym="ZZZ" />)
     const src = await screen.findByTestId('depth-source')
     expect(src).toHaveAttribute('data-vendor', 'Yahoo Finance')
     expect(src).toHaveAttribute('data-fallback', 'true')
     expect(src).toHaveTextContent('Fallback: Yahoo Finance')
     expect(src).toHaveTextContent(/FMP holds no statement history/)
+    expect(screen.getAllByTestId('depth-source')).toHaveLength(1)     // one line, the payload's
+  })
+
+  // The compact route reads both bases; this panel decides on the quarterly one alone.
+  // When they differ, the line names what the ROUTE says supplied the grids.
+  it('FMP has no quarters but the compact grids are still FMP (annual only) => "Source: FMP", no Yahoo fallback', async () => {
+    routes['/api/research/financial-history/ZZZ'] = { sym: 'ZZZ', period: 'quarter', periods: [], series: {} }
+    routes['/api/research/financials/ZZZ'] = { ...YAHOO_COMPACT, quarterly: [],
+      annual: [{ period: '2025', revenue: 4.2e9, eps: 1.6, revenue_yoy: 5, eps_yoy: 3 }],
+      sources: { statements: 'FMP', summary: 'Yahoo Finance', statements_fetched_at: 1759500000 } }
+    mount(<FinancialsDeep sym="ZZZ" />)
+    const src = await screen.findByTestId('depth-source')
+    expect(src).toHaveAttribute('data-vendor', 'FMP')
+    expect(src).toHaveAttribute('data-fallback', 'false')
+    expect(screen.queryByText(/Fallback: Yahoo Finance/)).toBeNull()
+    expect(screen.getByTestId('financials-gap-quarterly')).toHaveTextContent('Quarterly statements are not available for this ticker.')
+    expect(screen.getByTestId('fa-deep')).not.toHaveAttribute('data-source')
   })
 
   // Audit 2026-10-08 (FA, point 20): the source detail is member copy, never a vendor endpoint
@@ -188,7 +214,7 @@ describe('FA — FinancialsDeep', () => {
 
   it('the Yahoo fallback detail names no library method', async () => {
     routes['/api/research/financial-history/ZZZ'] = { sym: 'ZZZ', period: 'quarter', periods: [], series: {} }
-    routes['/api/research/financials/ZZZ'] = { sym: 'ZZZ', quarterly: [], annual: [], balance: {}, metrics: {} }
+    routes['/api/research/financials/ZZZ'] = YAHOO_COMPACT
     mount(<FinancialsDeep sym="ZZZ" />)
     const src = await screen.findByTestId('depth-source')
     expect(src).not.toHaveTextContent(/yfinance/)
@@ -207,7 +233,7 @@ describe('FA — FinancialsDeep', () => {
 describe('quality pass 2026-10-05: a failed leg is not a finding', () => {
   it('FA: a failed FMP history read says so on the fallback line, not "holds no history"', async () => {
     routes['/api/research/financial-history/ZZZ'] = { sym: 'ZZZ', period: 'quarter', periods: [], series: {}, fmp_unavailable: true }
-    routes['/api/research/financials/ZZZ'] = { sym: 'ZZZ', quarterly: [], annual: [], balance: {}, metrics: {} }
+    routes['/api/research/financials/ZZZ'] = { ...YAHOO_COMPACT, fmp_unavailable: true }
     mount(<FinancialsDeep sym="ZZZ" />)
     const src = await screen.findByTestId('depth-source')
     expect(src).toHaveTextContent(/could not be read right now; showing Yahoo Finance/)
