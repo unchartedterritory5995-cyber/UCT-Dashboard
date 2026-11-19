@@ -689,9 +689,13 @@ jobs:
         run: |
           python -m pip install --quiet pyyaml pytest
           python -m pytest tests/test_promote_decision.py tests/test_ci_cost_rails.py -q -p no:cacheprovider
-      - name: Dry run inside the opening rush (Tue 09:31 ET)
-        run: python tools/promote_dryrun.py --now 2026-11-10T14:31:00Z --summary "$GITHUB_STEP_SUMMARY"
-      - name: Dry run inside the Wednesday window (Wed 09:05 ET)
-        run: python tools/promote_dryrun.py --now 2026-11-11T14:05:00Z --summary "$GITHUB_STEP_SUMMARY"
-      - name: Dry run outside every window (Tue 11:00 ET)
-        run: python tools/promote_dryrun.py --now 2026-11-10T16:00:00Z --summary "$GITHUB_STEP_SUMMARY"
+      # The weekday hold covers the whole session (09:20-16:15 ET, tools/deploy_freeze.py SESSION_HOLD_ET): inside it
+      # the job HOLDs (the 16:20 ET catch-up promotes); outside every window it promotes the gated candidate.
+      - name: Dry run inside the opening rush (Tue 09:31 ET) - holds
+        run: python tools/promote_dryrun.py --now 2026-11-10T14:31:00Z --expect hold --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run inside the Wednesday window (Wed 09:05 ET) - holds through the session
+        run: python tools/promote_dryrun.py --now 2026-11-11T14:05:00Z --expect hold --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run inside the regular session (Tue 11:00 ET) - holds
+        run: python tools/promote_dryrun.py --now 2026-11-10T16:00:00Z --expect hold --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run outside every window (Tue 16:20 ET) - promotes
+        run: python tools/promote_dryrun.py --now 2026-11-10T21:20:00Z --summary "$GITHUB_STEP_SUMMARY"
