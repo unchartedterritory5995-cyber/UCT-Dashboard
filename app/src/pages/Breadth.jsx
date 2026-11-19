@@ -1551,7 +1551,7 @@ export default function Breadth() {
                     items={[
                       { groupLabel: 'Universe' },
                       ...MONITOR_UNIVERSES.map(u => ({
-                        key: u.id, label: `${u.label} · ${u.sub}`, hint: u.hint,
+                        key: u.id, label: u.label, aside: u.sub, hint: u.hint,
                         checked: u.id === universe, onClick: () => setUniverse(u.id),
                       })),
                     ]}

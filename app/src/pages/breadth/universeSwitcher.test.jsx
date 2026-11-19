@@ -88,7 +88,7 @@ describe('the universe switcher', () => {
     fireEvent.click(screen.getByTestId('breadth-universe'))
     const menu = screen.getByRole('menu')
     const items = within(menu).getAllByRole('menuitemcheckbox')
-    expect(items.map(i => i.textContent.trim())).toEqual(['UCT · tradable stocks', 'U.S. stocks · all listed', 'Nasdaq · all listed', 'NYSE · all listed'])
+    expect(items.map(i => i.textContent.trim())).toEqual(['UCTtradable stocks', 'U.S. stocksall listed', 'Nasdaqall listed', 'NYSEall listed'])
     expect(items.map(i => i.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false', 'false'])
     fireEvent.click(items[2])
     expect(seen.universes.at(-1)).toBe('nasdaq')
