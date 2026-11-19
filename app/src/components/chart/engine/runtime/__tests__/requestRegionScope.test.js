@@ -76,9 +76,13 @@ const SHAPES = {
   'a function keeping `var` state': 'cnt() =>\n    var int n = 0\n    n += 1\n    n\nplot(request.security("AMEX:SPY", timeframe.period, cnt()))',
   'a tuple of windows': '[a, b] = request.security("AMEX:SPY", timeframe.period, [ta.highest(high, 4), ta.lowest(low, 4)])\nplot(a)\nplot(b)',
   'a two-input recurrence': 'plot(request.security("AMEX:SPY", timeframe.period, ta.valuewhen(close > open, close, 1)))',
-  'functions calling functions (a call site\'s ring)': 'u(x) => ta.rsi(x, 5)\nv(x) => u(x) + ta.change(x)\nplot(request.security("AMEX:SPY", timeframe.period, v(close)))',
+  // ⭐ (engine 85) a call site's ring needs a helper the region runs in the SHARED FRAME: `u` (`ta.rsi` + `ta.change` of
+  // its parameter), called from an inlined `v`. ⚰️ This was `v(x) => u(x) + ta.change(x)`, whose `ta.change` is inlined
+  // into the region since e82 (#1952): it read the MAIN program's ring and drew `na` (e82-e84), and from the e85 fix
+  // (`requestRegionStores.test.js`) it is the region's own ring, `site` null, so it has no call site's ring at all.
+  'functions calling functions (a call site\'s ring)': 'u(x) => ta.rsi(x, 5) + ta.change(x)\nv(x) => u(x) * 2\nplot(request.security("AMEX:SPY", timeframe.period, v(close)))',
   'a main program with rings of its own beside the request': 'x = ta.ema(close, 9)\nplot(x[1])\nplot(request.security(syminfo.tickerid, "W", ta.atr(3)))',
-  'a call site\'s ring after the main program\'s own': 'z = ta.sma(close, 4) - open\nplot(z[2])\nplot(z[1])\nu(x) => ta.rsi(x, 5)\nv(x) => u(x) + ta.change(x)\nplot(request.security("AMEX:SPY", timeframe.period, v(close)))',
+  'a call site\'s ring after the main program\'s own': 'z = ta.sma(close, 4) - open\nplot(z[2])\nplot(z[1])\nu(x) => ta.rsi(x, 5) + ta.change(x)\nv(x) => u(x) * 2\nplot(request.security("AMEX:SPY", timeframe.period, v(close)))',
 }
 
 const sha = (cols) => {
