@@ -118,6 +118,43 @@ MIN_THROTTLE_S = 10.0
 PROVENANCE_SALT_ENV = "UCT_PROVENANCE_SALT"
 MIN_SALT_CHARS = 16
 
+#: ⭐⭐ THE CONTROL PLOT a probe draws its own `bar_index` in (`I00_bar_index_CONTROL`, `F00_bar_index_CONTROL`, or a
+#: plot titled `bar_index`). ⛔ Never a request's bar_index (`F12_W_bar_index_OFF` reads ANOTHER timeframe's index).
+BAR_INDEX_CONTROL_RX = re.compile(r"(?:^|_)bar_index_CONTROL$|^bar_index$")
+
+
+def starts_at_bar0_contradiction(capture: dict, symbol: str):
+    """⭐⭐ (coordinator, 2026-11-19) Why the capture's OWN data refutes its `history.startsAtBar0` claim, or None. A capture
+    that does not claim it is never refuted. Refuted when:
+      1. the claim's `why` names a symbol that is not the chart's (`symbol.pro_name`), or the batch asserted it for
+         another symbol (`symbol`): the 2026-09-27 wave wrote RDDT's listing on SPY / AAPL charts;
+      2. a bar_index CONTROL plot reads anything but 0 on the capture's first row (vw-int-cast-spy-1d-2026-09-27 read
+         8172 there: its history starts deep, not at bar 0)."""
+    hist = (capture or {}).get("history") or {}
+    if hist.get("startsAtBar0") is not True:
+        return None
+    sym = (capture.get("symbol") or {})
+    pro = sym.get("pro_name") or sym.get("full_name") or ""
+    if symbol and pro and not sym_match(pro, symbol):
+        return f"it was asserted for {symbol}, and the chart is {pro}"
+    why = str(hist.get("why") or "")
+    named = re.match(r"\s*([A-Z0-9_.!]+:[A-Z0-9_.!]+)\s+listed\b", why)
+    if named and pro and not sym_match(pro, named.group(1)):
+        return f"its why names {named.group(1)}, and the chart is {pro}: {why[:120]!r}"
+    plots = {p.get("id"): p.get("title") for p in ((capture.get("study") or {}).get("plots") or []) if isinstance(p, dict)}
+    pv = capture.get("plotValues") or {}
+    fields, rows = pv.get("fields") or [], pv.get("rows") or []
+    if rows and fields:
+        for col, pid in enumerate(fields):
+            title = plots.get(pid)
+            if not title or not BAR_INDEX_CONTROL_RX.search(str(title)):
+                continue
+            first = rows[0][col] if col < len(rows[0]) else None
+            if isinstance(first, (int, float)) and first != 0:
+                return f"its bar_index control plot {title!r} reads {first:g} on the capture's first row, not 0"
+    return None
+
+
 #: Listing days this tool may assert `startsAtBar0` against. A young listing is
 #: the instrument (capture-procedure.md, "BAR 0 IS NOT REACHABLE ON A LONG-HISTORY
 #: SYMBOL"): the flag is asserted ONLY when the loaded history stopped growing AND
@@ -980,6 +1017,9 @@ class Driver:
             return False, f"no listing date is known for {o.symbol} — not asserted (first bar {first_day})"
         if first_day != o.listing_date:
             return False, f"first loaded bar {first_day} is not the listing day {o.listing_date} — not asserted"
+        # ⭐ the claim names the symbol it was derived FOR; `starts_at_bar0_contradiction` refuses a capture whose own
+        # symbol is another (2026-11-19: 17 captures of the 2026-09-27 wave carried "NYSE:RDDT listed 2024-03-21" on SPY,
+        # AAPL and other charts, 12 of them false by their own bar_index rows)
         return True, (f"{o.symbol} listed {o.listing_date}; the chart's first bar is the listing day after "
                       f"requestMoreData stopped growing ({depth.get('count')} bars, batch_capture.py)")
 
@@ -1079,6 +1119,11 @@ class Driver:
         back = self.verifier.verify_file(out)
         if not back["ok"]:
             raise Inconclusive(f"the written capture does not re-verify (exit {back['exit']}): {back['tail']}", back)
+        # ⭐⭐ A CLAIM THE CAPTURE'S OWN DATA REFUTES IS REFUSED HERE, never written as evidence (coordinator, 2026-11-19)
+        contra = starts_at_bar0_contradiction(json.loads(out.read_text(encoding="utf-8")), o.symbol)
+        if contra:
+            out.unlink()
+            raise Inconclusive(f"startsAtBar0 refused at capture time: {contra}")
         return {"capture": str(out), "captureId": capture_id, "verify": {"exit": v["exit"], "verdict": v["verdict"]},
                 "summary": {k: summary.get(k) for k in ("study", "symbol", "timeframe", "bars", "studyRows",
                                                         "plots", "objects", "warnings", "chars", "chunks")},
